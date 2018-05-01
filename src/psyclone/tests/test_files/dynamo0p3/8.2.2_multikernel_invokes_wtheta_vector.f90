@@ -44,7 +44,7 @@ program single_invoke_wtheta_only_vector
 
   call invoke(                                   &
        testkern_wtheta_only_vector_type(f1, f2), &
-       ! Field f1 write to read dependence but no halo exchange
+       ! Field f1 readwrite to read dependence but no halo exchange
        ! required as wtheta is discontinuous
        testkern_wtheta_only_vector_type(f3, f1)  &
           )

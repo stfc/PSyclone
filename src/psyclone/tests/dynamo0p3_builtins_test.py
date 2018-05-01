@@ -2550,9 +2550,9 @@ def test_multi_builtin_single_invoke():
                 "      TYPE(scalar_type) global_sum\n"
                 "      INTEGER df\n"
                 "      INTEGER ndf_any_space_1_f1, undf_any_space_1_f1\n"
-                "      TYPE(mesh_type), pointer :: mesh => null()\n"
                 "      INTEGER nlayers\n"
-                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n") in code
+                "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
+                "      TYPE(mesh_type), pointer :: mesh => null()\n") in code
             assert (
                 "      f1_proxy = f1%get_proxy()\n"
                 "      f2_proxy = f2%get_proxy()\n"

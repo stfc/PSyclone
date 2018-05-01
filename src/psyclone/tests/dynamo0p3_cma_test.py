@@ -48,9 +48,12 @@ from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.gen_kernel_stub import generate
 import utils
 
-# constants
+# Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+
+# Define LMA/CMA operator write accesses for testing purposes
+OP_WRITE_ACCESSES = ["gh_write", "gh_readwrite"]
 
 CMA_ASSEMBLE = '''
 module testkern_cma
@@ -117,29 +120,30 @@ def test_cma_mdata_multi_writes():
     specifies more than one CMA operator that is written to '''
     fparser.logging.disable('CRITICAL')
     # Replace the field arg with another CMA operator that is written to
-    code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_field,gh_read, any_space_1)",
-        "arg_type(gh_columnwise_operator,gh_write,any_space_1,any_space_2)",
-        1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_cma_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
-            "(column-wise) operator but kernel testkern_cma_type "
-            "updates 2") in str(excinfo)
-    code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_field,gh_read, any_space_1)",
-        "arg_type(gh_columnwise_operator,gh_write,any_space_1,any_space_2),&\n"
-        "arg_type(gh_columnwise_operator,gh_write,any_space_1,any_space_2)",
-        1)
-    code = code.replace("meta_args(4) = ", "meta_args(5) = ", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
-            "(column-wise) operator but kernel testkern_cma_type "
-            "updates 3") in str(excinfo)
+    for access in OP_WRITE_ACCESSES:
+        cmaopstring = "arg_type(gh_columnwise_operator," + access + \
+                      ",any_space_1,any_space_2)"
+        code = CMA_ASSEMBLE.replace(
+            "arg_type(gh_field,gh_read, any_space_1)",
+            cmaopstring, 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        name = "testkern_cma_type"
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
+                "(column-wise) operator but kernel testkern_cma_type "
+                "updates 2") in str(excinfo)
+        code = CMA_ASSEMBLE.replace(
+            "arg_type(gh_field,gh_read, any_space_1)",
+            cmaopstring + ",&\n"
+            + cmaopstring, 1)
+        code = code.replace("meta_args(4) = ", "meta_args(5) = ", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
+                "(column-wise) operator but kernel testkern_cma_type "
+                "updates 3") in str(excinfo)
 
 
 def test_cma_mdata_mutable_op():
@@ -147,17 +151,20 @@ def test_cma_mdata_mutable_op():
     is assembling a gh_columnwise_operator but doesn't have a read-only
     gh_operator '''
     fparser.logging.disable('CRITICAL')
-    # Make the LMA operator gh_write instead of gh_read
-    code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_operator,gh_read, any_space_1, any_space_2),",
-        "arg_type(gh_operator,gh_write, any_space_1, any_space_2),", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_cma_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type writes to a column-wise operator but "
-            "also writes to ['gh_operator'] argument(s). This is not "
-            "allowed.") in str(excinfo)
+    # Make the LMA operator gh_write and gh_readwrite instead of gh_read
+    for access in OP_WRITE_ACCESSES:
+        opstring = "arg_type(gh_operator," + access + \
+                   ", any_space_1, any_space_2),"
+        code = CMA_ASSEMBLE.replace(
+            "arg_type(gh_operator,gh_read, any_space_1, any_space_2),",
+            opstring, 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        name = "testkern_cma_type"
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("Kernel testkern_cma_type writes to a column-wise operator "
+                "but also writes to ['gh_operator'] argument(s). This is "
+                "not allowed.") in str(excinfo)
 
 
 def test_cma_mdata_writes_lma_op():
@@ -165,19 +172,22 @@ def test_cma_mdata_writes_lma_op():
     is assembling a gh_columnwise_operator but also writes to a
     gh_operator '''
     fparser.logging.disable('CRITICAL')
-    # Add an additional LMA operator that has write access
-    code = CMA_ASSEMBLE.replace(
-        "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n",
-        "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n"
-        "arg_type(gh_operator,gh_write, any_space_1, any_space_2), &\n", 1)
-    code = code.replace("meta_args(4)", "meta_args(5)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_cma_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("Kernel testkern_cma_type writes to a column-wise operator but "
-            "also writes to ['gh_operator'] argument(s). This is not "
-            "allowed.") in str(excinfo)
+    # Add an additional LMA operator that has write or readwrite access
+    for access in OP_WRITE_ACCESSES:
+        opstring = "arg_type(gh_operator," + access + \
+                   ", any_space_1, any_space_2), &\n"
+        code = CMA_ASSEMBLE.replace(
+            "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n",
+            "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n"
+            + opstring, 1)
+        code = code.replace("meta_args(4)", "meta_args(5)", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        name = "testkern_cma_type"
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("Kernel testkern_cma_type writes to a column-wise operator "
+                "but also writes to ['gh_operator'] argument(s). This is "
+                "not allowed.") in str(excinfo)
 
 
 def test_cma_mdata_assembly_diff_spaces():
@@ -532,23 +542,25 @@ def test_cma_mdata_matrix_2_scalar_args():
 
 def test_cma_mdata_matrix_2_writes():
     ''' Check that we raise the expected error when a matrix-matrix kernel
-    writes to more than one CMA operator '''
+    writes (write and readwrite access) to more than one CMA operator '''
     fparser.logging.disable('CRITICAL')
-    code = CMA_MATRIX.replace(
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
-        "ANY_SPACE_2),&\n",
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
-        "ANY_SPACE_2),&\n"
-        "arg_type(GH_COLUMNWISE_OPERATOR, GH_WRITE, ANY_SPACE_1, "
-        "ANY_SPACE_2),&\n", 1)
-    code = code.replace("meta_args(4)", "meta_args(5)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_cma_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
-            "(column-wise) operator but kernel testkern_cma_type "
-            "updates 2") in str(excinfo)
+    for access in OP_WRITE_ACCESSES:
+        cmaopstring = "arg_type(GH_COLUMNWISE_OPERATOR," + access + \
+                      ", ANY_SPACE_1, ANY_SPACE_2),&\n"
+        code = CMA_MATRIX.replace(
+            "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
+            "ANY_SPACE_2),&\n",
+            "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
+            "ANY_SPACE_2),&\n"
+            + cmaopstring, 1)
+        code = code.replace("meta_args(4)", "meta_args(5)", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        name = "testkern_cma_type"
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("A Dynamo 0.3 kernel cannot update more than one CMA "
+                "(column-wise) operator but kernel testkern_cma_type "
+                "updates 2") in str(excinfo)
 
 
 def test_cma_mdata_stencil_invalid():
@@ -616,7 +628,7 @@ def test_cma_asm_cbanded_dofmap_error():
             "for a CMA assembly kernel but found 2") in str(excinfo)
 
 
-def test_cma_asm():
+def test_cma_asm(tmpdir, f90, f90flags):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator '''
     for distmem in [False, True]:
@@ -649,6 +661,11 @@ def test_cma_asm():
                 "cma_op1_gamma_m, cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
                 "cbanded_map_any_space_1_lma_op1, ndf_any_space_2_lma_op1, "
                 "cbanded_map_any_space_2_lma_op1)") in code
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_cma_asm_field():
@@ -812,7 +829,7 @@ def test_cma_apply_indirection_dofmap_error():
             "CMA operator but found 3") in str(excinfo)
 
 
-def test_cma_apply():
+def test_cma_apply(tmpdir, f90, f90flags):
     ''' Test that we generate correct code for
     a kernel that applies a CMA operator '''
     for distmem in [False, True]:
@@ -854,6 +871,11 @@ def test_cma_apply():
         # We do not perform halo swaps for operators
         assert "cma_op1_proxy%is_dirty(" not in code
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
     ''' Test that we generate correct code for a kernel that applies
@@ -868,11 +890,6 @@ def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print code
-
-        if utils.TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         # Check w3
         assert "INTEGER ncell_2d" in code
@@ -937,6 +954,11 @@ def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
             assert "CALL field_c_proxy%set_dirty()" in code
             assert "cma_op2_proxy%is_dirty(" not in code
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_cma_apply_same_space():
     ''' Test that we generate correct code for
@@ -976,7 +998,7 @@ def test_cma_apply_same_space():
             assert "cma_op1_proxy%is_dirty(" not in code
 
 
-def test_cma_matrix_matrix():
+def test_cma_matrix_matrix(tmpdir, f90, f90flags):
     ''' Test that we generate correct code for an invoke containing
     a kernel that performs a matrix-matrix CMA calculation '''
     for distmem in [False, True]:
@@ -991,6 +1013,7 @@ def test_cma_matrix_matrix():
         print code
         assert "INTEGER ncell_2d" in code
         assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
+
         if distmem:
             # When distributed-memory is enabled then we compute operators
             # redundantly (out to the L1 halo)
@@ -1012,8 +1035,13 @@ def test_cma_matrix_matrix():
         if distmem:
             assert "_dirty(" not in code
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_cma_matrix_matrix_2scalars():
+
+def test_cma_matrix_matrix_2scalars(tmpdir, f90, f90flags):
     ''' Test that we generate correct code for an invoke containing
     a kernel that performs a matrix-matrix CMA calculation including
     scalar arguments. '''
@@ -1029,6 +1057,7 @@ def test_cma_matrix_matrix_2scalars():
         print code
         assert "INTEGER ncell_2d" in code
         assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
+
         if distmem:
             # When distributed-memory is enabled then we compute operators
             # redundantly (out to the L1 halo)
@@ -1036,7 +1065,7 @@ def test_cma_matrix_matrix_2scalars():
         else:
             assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
 
-        assert ("CALL columnwise_op_mul_kernel_code(cell, "
+        assert ("CALL columnwise_op_mul_2scalars_kernel_code(cell, "
                 "ncell_2d, "
                 "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
                 "cma_opa_bandwidth, cma_opa_alpha, "
@@ -1052,8 +1081,13 @@ def test_cma_matrix_matrix_2scalars():
         if distmem:
             assert "_dirty(" not in code
 
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_cma_multi_kernel():
+
+def test_cma_multi_kernel(tmpdir, f90, f90flags):
     ''' Test that we generate correct code when an invoke contains multiple
     kernels with CMA operator arguments '''
     for distmem in [False, True]:
@@ -1129,6 +1163,12 @@ def test_cma_multi_kernel():
                 "cma_opb_gamma_p, cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
                 "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, "
                 "cma_opc_gamma_m, cma_opc_gamma_p)") in code
+
+        if utils.TEST_COMPILE:
+            # If compilation testing has been enabled
+            # (--compile --f90="<compiler_name>" flags to py.test)
+            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 # Tests for the kernel-stub generator
 
@@ -1356,7 +1396,8 @@ def test_cma_app_same_space_stub_gen():
 
 def test_cma_mul_stub_gen():
     ''' Test the kernel-stub generator for a CMA matrix-matrix kernel '''
-    result = generate(os.path.join(BASE_PATH, "columnwise_op_mul_kernel.F90"),
+    result = generate(os.path.join(BASE_PATH,
+                                   "columnwise_op_mul_kernel_mod.F90"),
                       api="dynamo0.3")
     print result
     expected = (
@@ -1398,17 +1439,17 @@ def test_cma_mul_with_scalars_stub_gen():
     ''' Test the kernel-stub generator for a CMA matrix-matrix kernel that
     includes scalar arguments '''
     result = generate(
-        os.path.join(BASE_PATH, "columnwise_op_mul_2scalars_kernel.F90"),
+        os.path.join(BASE_PATH, "columnwise_op_mul_2scalars_kernel_mod.F90"),
         api="dynamo0.3")
     print result
     expected = (
-        "  MODULE columnwise_op_mul_kernel_mod\n"
+        "  MODULE columnwise_op_mul_2scalars_kernel_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE columnwise_op_mul_kernel_code(cell, ncell_2d, "
-        "cma_op_1, cma_op_1_nrow, cma_op_1_ncol, cma_op_1_bandwidth, "
-        "cma_op_1_alpha, cma_op_1_beta, cma_op_1_gamma_m, cma_op_1_gamma_p, "
-        "rscalar_2, "
+        "    SUBROUTINE columnwise_op_mul_2scalars_kernel_code(cell, "
+        "ncell_2d, cma_op_1, cma_op_1_nrow, cma_op_1_ncol, "
+        "cma_op_1_bandwidth, cma_op_1_alpha, cma_op_1_beta, cma_op_1_gamma_m, "
+        "cma_op_1_gamma_p, rscalar_2, "
         "cma_op_3, cma_op_3_nrow, cma_op_3_ncol, cma_op_3_bandwidth, "
         "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p, "
         "rscalar_4, "
@@ -1435,6 +1476,6 @@ def test_cma_mul_with_scalars_stub_gen():
         "cma_op_5_gamma_m, cma_op_5_gamma_p\n"
         "      REAL(KIND=r_def), intent(inout), dimension(cma_op_5_bandwidth,"
         "cma_op_5_nrow,ncell_2d) :: cma_op_5\n"
-        "    END SUBROUTINE columnwise_op_mul_kernel_code\n"
-        "  END MODULE columnwise_op_mul_kernel_mod")
+        "    END SUBROUTINE columnwise_op_mul_2scalars_kernel_code\n"
+        "  END MODULE columnwise_op_mul_2scalars_kernel_mod")
     assert expected in str(result)

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,17 +30,18 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 module testkern_any_space_3_mod
   use argument_mod
   use kernel_mod
   use constants_mod
-  ! test for any_space producing correct code where there are 1) different
+  ! Test for any_space producing correct code where there are 1) different
   ! spaces for the to and from parts of an operator, 2) no other arguments
 
 type, public, extends(kernel_type) ::testkern_any_space_3_type
-  type(arg_type) :: meta_args(1) = (/                                  &
-       arg_type(GH_OPERATOR, GH_INC, ANY_SPACE_1, ANY_SPACE_2)        &
+  type(arg_type) :: meta_args(1) = (/                                &
+       arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2) &
        /)
   integer :: iterates_over = CELLS
 contains

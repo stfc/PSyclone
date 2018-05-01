@@ -2,7 +2,7 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
@@ -38,13 +38,11 @@
 ! -----------------------------------------------------------------------------
 ! Modified by I Kavcic, Met Office
 !
-!-------------------------------------------------------------------------------
-
-!> @brief The kernel computes the rhs of the thermodynamic equation for the nonlinear equations, 
-!>         this constists entirely of the advection term u.grad(theta)
-!> @details Kernel to  compute the rhs of thermodynamic equation for the nonlinear equations, in 
-!>         the absense of source terms this is purely an advection term:
-!>         rtheta = u.grad(theta)
+!> @brief The kernel computes the rhs of the thermodynamic equation for the nonlinear
+!>        equations, this constists entirely of the advection term u.grad(theta)
+!> @details Kernel to  compute the rhs of thermodynamic equation for the nonlinear
+!>          equations, in the absense of source terms this is purely an advection
+!>          term: rtheta = u.grad(theta)
 module rtheta_kernel_mod
 use kernel_mod,              only : kernel_type
 use argument_mod,            only : arg_type, func_type,               &

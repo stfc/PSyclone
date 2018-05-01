@@ -42,14 +42,14 @@ module testkern_w3_mod
 
   implicit none
 
-  ! Description: discontinuous field writer (w3)
+  ! Description: discontinuous field (read)writer (w3)
   type, extends(kernel_type) :: testkern_w3_type
-     type(arg_type), dimension(5) :: meta_args = &
-          (/ arg_type(gh_real, gh_read),         &
-             arg_type(gh_field, gh_read,  w0),   &
-             arg_type(gh_field, gh_read,  w1),   &
-             arg_type(gh_field, gh_read,  w2),   &
-             arg_type(gh_field, gh_write, w3)    &
+     type(arg_type), dimension(5) :: meta_args =   &
+          (/ arg_type(gh_real,  gh_read),          &
+             arg_type(gh_field, gh_read,      w0), &
+             arg_type(gh_field, gh_read,      w1), &
+             arg_type(gh_field, gh_read,      w2), &
+             arg_type(gh_field, gh_readwrite, w3)  &
            /)
      integer :: iterates_over = cells
    contains
@@ -80,7 +80,7 @@ contains
     real(kind=r_def), dimension(undf_w1), intent(in)  :: fld1
     real(kind=r_def), dimension(undf_w2), intent(in)  :: fld2
     real(kind=r_def), dimension(undf_w2), intent(in)  :: fld3
-    real(kind=r_def), dimension(undf_w3), intent(out) :: fld4
+    real(kind=r_def), dimension(undf_w3), intent(inout) :: fld4
 
   end subroutine testkern_w3_code
 
