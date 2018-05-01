@@ -677,9 +677,9 @@ def test_basegen_start_parent_loop_dbg(capsys):
     print out
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
-                "'fparser.block_statements.Do'>\n"
+                "'fparser.one.block_statements.Do'>\n"
                 "The type of parent is <class "
-                "'fparser.block_statements.Subroutine'>\n"
+                "'fparser.one.block_statements.Subroutine'>\n"
                 "Finding the loops position in its parent ...\n"
                 "The loop's index is  0\n")
     assert expected in out
@@ -702,9 +702,9 @@ def test_basegen_start_parent_loop_not_first_child_dbg(capsys):
     print out
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
-                "'fparser.block_statements.Do'>\n"
+                "'fparser.one.block_statements.Do'>\n"
                 "The type of parent is <class "
-                "'fparser.block_statements.Subroutine'>\n"
+                "'fparser.one.block_statements.Subroutine'>\n"
                 "Finding the loops position in its parent ...\n"
                 "The loop's index is  1\n")
     assert expected in out
@@ -727,13 +727,13 @@ def test_basegen_start_parent_loop_omp_begin_dbg(capsys):
     print out
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
-                "'fparser.block_statements.Do'>\n"
+                "'fparser.one.block_statements.Do'>\n"
                 "The type of parent is <class "
-                "'fparser.block_statements.Subroutine'>\n"
+                "'fparser.one.block_statements.Subroutine'>\n"
                 "Finding the loops position in its parent ...\n"
                 "The loop's index is  1\n"
                 "The type of the object at the index is <class "
-                "'fparser.block_statements.Do'>\n"
+                "'fparser.one.block_statements.Do'>\n"
                 "If preceding node is a directive then move back one\n"
                 "preceding node is a directive so find out what type ...\n")
     assert expected in out
@@ -756,13 +756,13 @@ def test_basegen_start_parent_loop_omp_end_dbg(capsys):
     print out
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
-                "'fparser.block_statements.Do'>\n"
+                "'fparser.one.block_statements.Do'>\n"
                 "The type of parent is <class "
-                "'fparser.block_statements.Subroutine'>\n"
+                "'fparser.one.block_statements.Subroutine'>\n"
                 "Finding the loops position in its parent ...\n"
                 "The loop's index is  1\n"
                 "The type of the object at the index is <class "
-                "'fparser.block_statements.Do'>\n"
+                "'fparser.one.block_statements.Do'>\n"
                 "If preceding node is a directive then move back one\n"
                 "preceding node is a directive so find out what type ...\n")
 
