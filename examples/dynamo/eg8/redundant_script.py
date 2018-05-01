@@ -62,6 +62,5 @@ def trans(psy):
 
     # move remaining (potential) halo exchanges to start of the invoke
     schedule, _ = m_trans.apply(schedule.children[0], schedule.children[4])
-    schedule, _ = m_trans.apply(schedule.children[6], schedule.children[0])
 
     return psy

@@ -130,8 +130,33 @@ VALID_MESH_TYPES = ["gh_coarse", "gh_fine"]
 # access to the halo, or not.
 HALO_ACCESS_LOOP_BOUNDS = ["cell_halo", "dof_halo", "colour_halo"]
 
-VALID_LOOP_BOUNDS_NAMES = ["start", "inner", "ncolour", "ncolours", "ncells",
-                           "ndofs", "nannexed"] + HALO_ACCESS_LOOP_BOUNDS
+VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
+                                         # index. Currently this is
+                                         # always 1
+                            "inner",     # a placeholder for when we
+                                         # support loop splitting into
+                                         # work that does not access
+                                         # the halo and work that does.
+                                         # This will be used to help
+                                         # overlap computation and
+                                         # communication
+                            "ncolour",   # the number of cells with
+                                         # the current colour
+                            "ncolours",  # the number of colours in a
+                                         # coloured loop
+                            "ncells",    # the number of owned cells
+                            "ndofs",     # the number of owned dofs
+                            "nannexed"]  # the number of owned dofs
+                                         # plus the number of annexed
+                                         # dofs. As the indices of
+                                         # dofs are arranged that
+                                         # owned dofs have lower
+                                         # indices than annexed dofs,
+                                         # having this value as an
+                                         # upper bound will compute
+                                         # both owned and annexed
+                                         # dofs.
+                           + HALO_ACCESS_LOOP_BOUNDS)
 
 # The mapping from meta-data strings to field-access types
 # used in this API.

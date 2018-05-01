@@ -1,8 +1,8 @@
 Developers' guide
 ****************
 
-New API's
-#########
+New APIs
+########
 
 TBD
 
@@ -194,8 +194,8 @@ partition, including any halo cells.
 An example for a depth-1 halo implementation with the earlier mesh
 split into 2 partitions is given below, with the halo cells being
 coloured red. An example local indexing scheme is also provided below
-the cells. Notice the local indexing scheme emsures that owned cells
-have lower indicess than halo cells.
+the cells. Notice the local indexing scheme is set up such that owned
+cells have lower indices than halo cells.
 
 .. image:: cells_distributed.png
 	   :width: 200
@@ -211,14 +211,14 @@ cell, the rest of the dof indices can be determined for the
 column. This set of dof indices for the bottom cell is called a
 dofmap.
 
-Dofs represent a field's values in the mesh. Fields can either be
-continuous or discontinuous. Continuous fields are so named because
-their values are continuous across cell boundaries. Dofs that
-represent continuous fields are shared between neighbouring
-cells. Discontinuous fields have values that are not necessarily
-related between neighbouring cells (there can be discontinuities
-between across cell boundaries). Dofs that represent discontinuous
-fields are local to a cell.
+Dofs represent a field's values at various locations in the
+mesh. Fields can either be continuous or discontinuous. Continuous
+fields are so named because their values are continuous across cell
+boundaries. Dofs that represent continuous fields are shared between
+neighbouring cells. Discontinuous fields have values that are not
+necessarily related between neighbouring cells (there can be
+discontinuities across cell boundaries). Dofs that represent
+discontinuous fields are local to a cell.
 
 Discontinuous Dofs
 ------------------
@@ -382,7 +382,7 @@ Dof iterators
 -------------
 
 When a kernel that is written to iterate over dofs modifies a field,
-PSyclone's must ensure that all dofs in that field are updated. If the
+PSyclone must ensure that all dofs in that field are updated. If the
 distributed memory flag is set to `False` then PSyclone must iterate
 over all dofs. PSyclone simply needs to create a loop that iterates
 from 1 to the total number of dofs. The latter value is provided by
@@ -424,10 +424,12 @@ has completed. If a following kernel needs to read the field's
 annexed dofs, then PSyclone will need to add a halo exchange to make
 them clean.
 
-There are 3 cases to consider 1) the field is read in a loop that
-iterates over dofs, 2) the field is read in a loop that iterates
-over owned cells and level-1 halo cells, 3) the field is read in a
-loop that iterates over owned cells
+There are 3 cases to consider:
+
+1) the field is read in a loop that iterates over dofs,
+2) the field is read in a loop that iterates over owned cells and
+   level-1 halo cells, and
+3) the field is read in a loop that iterates over owned cells
 
 In case 1) the annexed dofs will not be read as the loop only iterates
 over owned dofs so a halo exchange is not required. In case 2) the
@@ -442,10 +444,9 @@ following kernel needs to read the field's annexed dofs, then
 PSyclone will no longer need a halo exchange.
 
 We can now guarantee that annexed dofs will always be clean after a
-continuous field has been modified by a kernel. The reason for this is
-that both, loops that iterate over dofs and loops that iterate over
-cells, now compute annexed dofs and there are no other ways for a
-continuous field to be updated.
+continuous field has been modified by a kernel. This is because loops
+that iterate over either dofs or cells now compute annexed dofs and
+there are no other ways for a continuous field to be updated.
 
 We now consider the same three cases. In case 1) the annexed dofs will
 now be read, but annexed dofs are guaranteed to be clean, so no halo
