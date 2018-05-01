@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,7 @@
 ! Authors R. W. Ford, A. R. Porter, STFC Daresbury Lab
 
 module kernel_stencil
-  !use kind_params_mod
-  !use kernel_mod
-  !use argument_mod
-  !use field_mod
-  !use grid_mod
+
   implicit none
 
   private

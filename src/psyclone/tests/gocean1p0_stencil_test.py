@@ -93,6 +93,18 @@ def test_stencil_invalid_format():
     stencil.load(parsed_stencil, "kernel_stencil")
 
     # this should cause a general unexpected format error
+    with pytest.raises(ParseError) as excinfo:
+        stencil.load(None, "kernel_stencil")
+    assert "expected either a name or the format 'stencil(...)" \
+        in str(excinfo.value)
+
+    # this should cause a general unexpected format error
+    with pytest.raises(ParseError) as excinfo:
+        stencil.load(stencil, "kernel_stencil")
+    assert "expected either a name or the format 'stencil(...)" \
+        in str(excinfo.value)
+
+    # this should cause a general unexpected format error
     stencil_string = "(a)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
@@ -145,7 +157,7 @@ def test_stencil_invalid_format():
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
-    assert "index 2 should consist of 3 numbers but found 2" \
+    assert "index 2 should consist of 3 digits but found 2" \
         in str(excinfo.value)
 
     # this should cause an invalid-middle-number error

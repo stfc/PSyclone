@@ -912,11 +912,10 @@ class GOStencil(object):
                 010)  !   S
 
         indicates that there is a stencil access of depth 1 in the
-        "North" and "South" directions and and stencil access of depth
-        1 and 2 in the "East" and "West" directions. The value at the
-        centre of the stencil will not be used by PSyclone but can be
-        0 or 1 and indicates whether the local field value is
-        accessed.
+        "North" and "South" directions and stencil access of depth 2
+        in the "East" and "West" directions. The value at the centre
+        of the stencil will not be used by PSyclone but can be 0 or 1
+        and indicates whether the local field value is accessed.
 
         The convention is for the associated arrays to be
         2-dimensional. If we denote the first dimension as "i" and the
@@ -947,88 +946,92 @@ class GOStencil(object):
 
         '''
         self._initialised = True
-        if isinstance(stencil_info, expr.FunctionVar):
-            # Get the name
-            name = stencil_info.name.lower()
-
-            if stencil_info.args:
-                # The stencil info is of the form 'name(a,b,...), so
-                # the name should be 'stencil' and there should be 3
-                # arguments'
-                self._has_stencil = True
-                args = stencil_info.args
-                if name != "stencil":
-                    raise ParseError(
-                        "Meta-data error in kernel '{0}': 3rd descriptor "
-                        "(stencil) of field argument is '{1}' but must be "
-                        "'stencil(...)".format(kernel_name, name))
-                if len(args) != 3:
-                    raise ParseError(
-                        "Meta-data error in kernel '{0}': 3rd descriptor "
-                        "(stencil) of field argument with format "
-                        "'stencil(...)', has {1} arguments but should have "
-                        "3".format(kernel_name, len(args)))
-                # Each of the 3 args should be of length 3 and each
-                # character should be a digit from 0-9
-                for arg_idx in range(3):
-                    arg = args[arg_idx]
-                    if not isinstance(arg, str):
-                        raise ParseError(
-                            "Meta-data error in kernel '{0}': 3rd descriptor "
-                            "(stencil) of field argument with format "
-                            "'stencil(...)'. Argument index {1} should be a "
-                            "number but found "
-                            "'{2}'.".format(kernel_name, arg_idx, str(arg)))
-                    if len(arg) != 3:
-                        raise ParseError(
-                            "Meta-data error in kernel '{0}': 3rd descriptor "
-                            "(stencil) of field argument with format "
-                            "'stencil(...)'. Argument index {1} should "
-                            "consist of 3 numbers but found "
-                            "{2}.".format(kernel_name, arg_idx, len(arg)))
-                # The central value is constrained to be 0 or 1
-                if args[1][1] not in ["0", "1"]:
-                    raise ParseError(
-                        "Meta-data error in kernel '{0}': 3rd descriptor "
-                        "(stencil) of field argument with format "
-                        "'stencil(...)'. Argument index 1 position 1 "
-                        "should be a number from 0-1 "
-                        "but found {1}.".format(kernel_name, args[1][1]))
-                # It is not valid to specify a zero stencil. This is
-                # indicated by the 'pointwise' name
-                if args[0] == "000" and \
-                   (args[1] == "000" or args[1] == "010") and \
-                   args[2] == "000":
-                    raise ParseError(
-                        "Meta-data error in kernel '{0}': 3rd descriptor "
-                        "(stencil) of field argument with format "
-                        "'stencil(...)'. A zero sized stencil has been "
-                        "specified. This should be specified with the "
-                        "'pointwise' keyword.".format(kernel_name))
-                # store the values in an internal array as integers in
-                # i,j order
-                for idx0 in range(3):
-                    for idx1 in range(3):
-                        self._stencil[idx0][idx1] = int(args[idx1][idx0])
-            else:
-                # stencil info is of the form 'name' so should be one
-                # of our valid names
-                if name not in VALID_STENCIL_NAMES:
-                    raise ParseError(
-                        "Meta-data error in kernel '{0}': 3rd descriptor "
-                        "(stencil) of field argument is '{1}' but must be one "
-                        "of {2} or stencil(...)".format(kernel_name, name,
-                                                        VALID_STENCIL_NAMES))
-                self._name = name
-                # We currently only support one valid name ('pointwise')
-                # which indicates that there is no stencil
-                self._has_stencil = False
-        else:
+        
+        if not isinstance(stencil_info, expr.FunctionVar):
             # the stencil information is not in the expected format
             raise ParseError(
                 "Meta-data error in kernel '{0}': 3rd descriptor (stencil) of "
                 "field argument is '{1}' but expected either a name or the "
                 "format 'stencil(...)'".format(kernel_name, str(stencil_info)))
+
+        # Get the name
+        name = stencil_info.name.lower()
+
+        if stencil_info.args:
+            # The stencil info is of the form 'name(a,b,...), so the
+            # name should be 'stencil' and there should be 3
+            # arguments'
+            self._has_stencil = True
+            args = stencil_info.args
+            if name != "stencil":
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument is '{1}' but must be "
+                    "'stencil(...)".format(kernel_name, name))
+            if len(args) != 3:
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument with format "
+                    "'stencil(...)', has {1} arguments but should have "
+                    "3".format(kernel_name, len(args)))
+            # Each of the 3 args should be of length 3 and each
+            # character should be a digit from 0-9. Whilst we are
+            # expecting numbers, the parser represents these numbers
+            # as strings so we have to perform string manipulation to
+            # check and that extract them
+            for arg_idx in range(3):
+                arg = args[arg_idx]
+                if not isinstance(arg, str):
+                    raise ParseError(
+                        "Meta-data error in kernel '{0}': 3rd descriptor "
+                        "(stencil) of field argument with format "
+                        "'stencil(...)'. Argument index {1} should be a "
+                        "number but found "
+                        "'{2}'.".format(kernel_name, arg_idx, str(arg)))
+                if len(arg) != 3:
+                    raise ParseError(
+                        "Meta-data error in kernel '{0}': 3rd descriptor "
+                        "(stencil) of field argument with format "
+                        "'stencil(...)'. Argument index {1} should "
+                        "consist of 3 digits but found "
+                        "{2}.".format(kernel_name, arg_idx, len(arg)))
+            # The central value is constrained to be 0 or 1
+            if args[1][1] not in ["0", "1"]:
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument with format "
+                    "'stencil(...)'. Argument index 1 position 1 "
+                    "should be a number from 0-1 "
+                    "but found {1}.".format(kernel_name, args[1][1]))
+            # It is not valid to specify a zero stencil. This is
+            # indicated by the 'pointwise' name
+            if args[0] == "000" and \
+               (args[1] == "000" or args[1] == "010") and \
+               args[2] == "000":
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument with format "
+                    "'stencil(...)'. A zero sized stencil has been "
+                    "specified. This should be specified with the "
+                    "'pointwise' keyword.".format(kernel_name))
+            # store the values in an internal array as integers in i,j
+            # order
+            for idx0 in range(3):
+                for idx1 in range(3):
+                    self._stencil[idx0][idx1] = int(args[idx1][idx0])
+        else:
+            # stencil info is of the form 'name' so should be one of
+            # our valid names
+            if name not in VALID_STENCIL_NAMES:
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument is '{1}' but must be one "
+                    "of {2} or stencil(...)".format(kernel_name, name,
+                                                    VALID_STENCIL_NAMES))
+            self._name = name
+            # We currently only support one valid name ('pointwise')
+            # which indicates that there is no stencil
+            self._has_stencil = False
 
     def _check_init(self):
         '''Internal method which checks that the stencil information has been
@@ -1040,13 +1043,13 @@ class GOStencil(object):
         '''
         if not self._initialised:
             raise GenerationError(
-                "Error in class GOStencil the object has not yet been "
+                "Error in class GOStencil: the object has not yet been "
                 "initialised. Please ensure the load() method is called.")
 
     @property
     def has_stencil(self):
         '''Specifies whether this argument has stencil information or not. The
-        only case when this is True is when the stencil information
+        only case when this is False is when the stencil information
         specifies 'pointwise' as this indicates that there is no
         stencil access.
 
@@ -1084,6 +1087,12 @@ class GOStencil(object):
         depth(-1,0) = 9
         depth(1,1) = 4
 
+        :param int index0: the relative stencil offset for the first
+        index of the associated array. This value must be between -1
+        and 1
+        :param int index1: the relative stencil offset for the second
+        index of the associated array. This value must be between -1
+        and 1
         :return int: the depth of the stencil in the specified direction
         :raises GenerationError: if the indices are out-of-bounds
 
@@ -1104,6 +1113,14 @@ class GO1p0Descriptor(Descriptor):
     '''
 
     def __init__(self, kernel_name, kernel_arg):
+        '''Test and extract the required kernel metadata
+
+        :param str kernel_name: the name of the kernel metadata type
+        that contains this metadata
+        :param kernel_arg: the relevant part of the parser's AST
+        :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
+
+        '''
 
         nargs = len(kernel_arg.args)
         stencil_info = None

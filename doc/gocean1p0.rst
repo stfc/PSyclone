@@ -508,7 +508,7 @@ metadata entry should take the form ``stencil(...)``. Note, a stencil
 access is only allowed for a field that is ``READ`` by a kernel.
 
 In the GOcean API, fields are implemented as two-dimensional
-arrays. In fortran, a standard 5-point stencil would look something
+arrays. In Fortran, a standard 5-point stencil would look something
 like the following:
 
 ::
@@ -570,9 +570,9 @@ in two ways
 
 Whilst the description is a summary, it is accurate enough for
 PSyclone as this information is primarily used to determine which grid
-partition communicate with which for the purposes of placing halo
-exchange calls, therefore in this case depth and direction information
-is the most important.
+partitions must communicate with which for the purposes of placing
+halo exchange calls. In this case, it is the depth and direction
+information that is most important.
 
 Iterates Over
 #############
