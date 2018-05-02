@@ -946,7 +946,7 @@ class GOStencil(object):
 
         '''
         self._initialised = True
-        
+
         if not isinstance(stencil_info, expr.FunctionVar):
             # the stencil information is not in the expected format
             raise ParseError(
