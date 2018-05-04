@@ -123,13 +123,13 @@ class ProfileNode(Node):
         # Find the first kernel and use its name. In plain PSyclone there
         # should be only one kernel, but if Profile is invoked after e.g.
         # a loop merge more kernels might be there
-        kernel_name = "unknown-kernel"
+        region_name = "unknown-kernel"
         for k in self.walk(self.children, Kern):
-            kernel_name = k.name
+            region_name = k.name
             break
         # Use the namespace manager to create unique names within one module
         # one subroutine might have many identical calls.
-        kernel_name = NameSpaceFactory().create().create_name(kernel_name)
+        region_name = NameSpaceFactory().create().create_name(region_name)
 
         # Find the enclosing subroutine statement for declaring variables
         subroutine = parent
@@ -152,7 +152,7 @@ class ProfileNode(Node):
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
         use = UseGen(parent, "profiler_mod", only=True,
-                     funcnames=["ProfilerData"])
+                     funcnames=["ProfilerData, ProfileStart, ProfileEnd"])
         parent.add(use)
 
         profile_name = NameSpaceFactory().create().create_name("profile")
@@ -161,9 +161,9 @@ class ProfileNode(Node):
                                     attrspec=["save"])
         parent.add(prof_var_decl)
 
-        prof_start = CallGen(parent, "profile_start",
-                             ["\"{0}\"".format(kernel_name),
-                              "\"{0}\"".format(module_name),
+        prof_start = CallGen(parent, "ProfileStart",
+                             ["\"{0}\"".format(module_name),
+                              "\"{0}\"".format(region_name),
                               profile_name])
 
         obj = subroutine.last_declaration()
@@ -172,6 +172,6 @@ class ProfileNode(Node):
         for child in self.children:
             child.gen_code(parent)
 
-        prof_end = CallGen(parent, "profile_end",
+        prof_end = CallGen(parent, "ProfileEnd",
                            [profile_name])
         parent.add(prof_end)
