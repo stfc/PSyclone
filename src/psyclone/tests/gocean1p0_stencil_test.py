@@ -83,14 +83,12 @@ def test_not_initialised():
 # GOStencil is provided with invalid stencil information
 
 
-def test_stencil_invalid_format():
-    '''Check all the ways in which the stencil information can be invalid'''
-    stencil = GOStencil()
+def test_stencil_invalid_format_1():
+    '''Check all the ways in which the 'stencil(...) format can be
+    invalid
 
-    # this should work as it is valid
-    stencil_string = "stencil(000,011,000)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
-    stencil.load(parsed_stencil, "kernel_stencil")
+    '''
+    stencil = GOStencil()
 
     # this should cause a general unexpected format error
     with pytest.raises(ParseError) as excinfo:
@@ -127,6 +125,14 @@ def test_stencil_invalid_format():
         stencil.load(parsed_stencil, "kernel_stencil")
     assert "argument is 'stenci' but must be 'stencil(...)" \
         in str(excinfo.value)
+
+
+def test_stencil_invalid_format_2():
+    '''Check all the ways in which the arguments in the 'stencil(...)
+    format can be invalid
+
+    '''
+    stencil = GOStencil()
 
     # this should cause a not-enough-args error
     stencil_string = "stencil(a)"
@@ -176,6 +182,11 @@ def test_stencil_invalid_format():
     assert ("A zero sized stencil has been specified. This should be "
             "specified with the 'pointwise' keyword") in str(excinfo.value)
 
+    # lastly, this should work as it is valid
+    stencil_string = "stencil(000,011,000)"
+    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
+    stencil.load(parsed_stencil, "kernel_stencil")
+
 # Section 3 Test that GOStencil method arguments cause the object to
 # raise an exception if they are invalid
 
@@ -198,6 +209,40 @@ def test_stencil_depth_args():
 
 # Section 4
 # Test that the GOStencil object captures valid stencil information correctly
+
+
+def test_stencil_case_1():
+    '''test that the metadata name 'stencil' can be provided in lower, or
+    upper case.
+
+    '''
+    stencil = GOStencil()
+
+    stencil_string = "StEnCiL(000,011,000)"
+    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
+    stencil.load(parsed_stencil, "kernel_stencil")
+    assert stencil.has_stencil
+    for idx2 in range(-1, 2):
+        for idx1 in range(-1, 2):
+            if idx1 in [0, 1] and idx2 == 0:
+                expected_depth = 1
+            else:
+                expected_depth = 0
+            assert stencil.depth(idx1, idx2) == expected_depth
+
+
+def test_stencil_case_2():
+    '''test that the metadata name 'pointwise' can be provided in lower,
+    or upper case
+
+    '''
+
+    stencil = GOStencil()
+    stencil_string = "pOiNtWiSe"
+    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
+    stencil.load(parsed_stencil, "kernel_stencil")
+    assert not stencil.has_stencil
+    assert stencil.name == "pointwise"
 
 
 def test_stencil_information():
