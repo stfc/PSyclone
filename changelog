@@ -46,6 +46,9 @@
 	16) PR #163 - updating PSyclone to work with the latest version of
 	the parser (0.0.7) as the API has changed
 
+	17) PR #169 - add support for specifying stencils in the GOcean
+	kernel meta-data.
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not
