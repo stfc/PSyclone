@@ -39,7 +39,8 @@ program single_invokes_cma_discontinuous
   ! Description: two single invokes containing multiple CMA-related kernels
   ! on discontinuous spaces W3 and W2V
 
-  use inf,                              only: field_type
+  use inf,                              only: field_type, &
+                                              columnwise_operator_type
   use columnwise_op_app_w3_kernel_mod,  only: &
                             columnwise_op_app_w3_kernel_type
   use columnwise_op_app_w2v_kernel_mod, only: &

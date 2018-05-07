@@ -1,19 +1,52 @@
-# ----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Fortran code-generation library. This wraps the f2py fortran parser to
     provide routines which can be used to generate fortran code. This library
     includes pytest tests. '''
 
-from fparser.statements import Comment
-from fparser.readfortran import FortranStringReader
-from fparser.block_statements import SelectCase, SelectType
-from fparser.statements import Case
+import fparser
+import fparser.one
+from fparser.common.readfortran import FortranStringReader
+from fparser.common.sourceinfo import FortranFormat
+from fparser.one.statements import Comment, Case
+from fparser.one.block_statements import SelectCase, SelectType, EndSelect
+# This alis is useful to refer to parts of fparser.one later but
+# cannot be used for imports (as that involves looking for the
+# specified name in sys.modules).
+from fparser import one as fparser1
 
 # Module-wide utility methods
 
@@ -156,7 +189,7 @@ class BaseGen(object):
     def previous_loop(self):
         ''' Returns the *last* occurence of a loop in the list of
         siblings of this node '''
-        from fparser.block_statements import Do
+        from fparser.one.block_statements import Do
         for sibling in reversed(self.root.content):
             if isinstance(sibling, Do):
                 return sibling
@@ -167,7 +200,7 @@ class BaseGen(object):
             siblings of this node
 
         '''
-        from fparser.typedecl_statements import TypeDeclarationStatement
+        from fparser.one.typedecl_statements import TypeDeclarationStatement
         for sibling in reversed(self.root.content):
             if isinstance(sibling, TypeDeclarationStatement):
                 return sibling
@@ -177,7 +210,7 @@ class BaseGen(object):
     def start_parent_loop(self, debug=False):
         ''' Searches for the outer-most loop containing this object. Returns
         the index of that line in the content of the parent. '''
-        from fparser.block_statements import Do
+        from fparser.one.block_statements import Do
         if debug:
             print "Entered before_parent_loop"
             print "The type of the current node is {0}".format(
@@ -290,7 +323,6 @@ class ProgUnitGen(BaseGen):
             # its parent to be this object
             content.root.parent = self.root
 
-        import fparser
         if position[0] != "auto":
             # position[0] is not 'auto' so the baseclass can deal with it
             BaseGen.add(self, content, position)
@@ -356,7 +388,7 @@ class ProgUnitGen(BaseGen):
                                 break
                 except AttributeError:
                     pass
-            elif isinstance(content.root, fparser.statements.Use):
+            elif isinstance(content.root, fparser1.statements.Use):
                 # have I already been declared?
                 for child in self._children:
                     if isinstance(child, UseGen):
@@ -402,29 +434,27 @@ class ProgUnitGen(BaseGen):
 
     def _skip_use_and_comments(self, index):
         ''' skip over any use statements and comments in the ast '''
-        import fparser
         while isinstance(self.root.content[index],
-                         fparser.statements.Use) or\
+                         fparser1.statements.Use) or\
             isinstance(self.root.content[index],
-                       fparser.statements.Comment):
+                       fparser1.statements.Comment):
             index += 1
         # now roll back to previous Use
         while isinstance(self.root.content[index-1],
-                         fparser.statements.Comment):
+                         fparser1.statements.Comment):
             index -= 1
         return index
 
     def _skip_imp_none_and_comments(self, index):
         ''' skip over an implicit none statement if it exists and any
         comments before it '''
-        import fparser
         end_index = index
         while isinstance(self.root.content[index],
-                         fparser.typedecl_statements.Implicit) or\
+                         fparser1.typedecl_statements.Implicit) or\
             isinstance(self.root.content[index],
-                       fparser.statements.Comment):
+                       fparser1.statements.Comment):
             if isinstance(self.root.content[index],
-                          fparser.typedecl_statements.Implicit):
+                          fparser1.typedecl_statements.Implicit):
                 end_index = index + 1
                 break
             else:
@@ -460,7 +490,7 @@ end module vanilla
         ''' adds a subroutine to the module that is a raw f2py parse object.
             This is used for inlining kernel subroutines into a module.
         '''
-        from parse import KernelProcedure
+        from psyclone.parse import KernelProcedure
         if not isinstance(content, KernelProcedure):
             raise Exception(
                 "Expecting a KernelProcedure type but received " +
@@ -474,8 +504,13 @@ end module vanilla
 class CommentGen(BaseGen):
     ''' Create a Fortran Comment '''
     def __init__(self, parent, content):
+        '''
+        :param parent: node in AST to which to add the Comment as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str content: the content of the comment
+        '''
         reader = FortranStringReader("! content\n")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()
 
         my_comment = Comment(parent.root, subline)
@@ -488,13 +523,24 @@ class DirectiveGen(BaseGen):
     ''' Base class for creating a Fortran directive. This is then sub-classed
     to support different types of directive, e.g. OpenMP or OpenACC. '''
     def __init__(self, parent, language, position, directive_type, content):
+        '''
+        :param parent: node in AST to which to add directive as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str language: the type of directive (e.g. OMP or ACC)
+        :param str position: "end" if this is the end of a directive block
+        :param str directive_type: the directive itself (e.g. "PARALLEL DO")
+        :param str content: any additional arguments to add to the directive
+                            (e.g. "PRIVATE(ji)")
 
+        :raises RuntimeError: if an unrecognised directive language is
+                              specified
+        '''
         self._supported_languages = ["omp"]
         self._language = language
         self._directive_type = directive_type
 
         reader = FortranStringReader("! content\n")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()
 
         if language == "omp":
@@ -518,17 +564,23 @@ class DirectiveGen(BaseGen):
 class ImplicitNoneGen(BaseGen):
     ''' Generate a Fortran 'implicit none' statement '''
     def __init__(self, parent):
+        '''
+        :param parent: node in AST to which to add 'implicit none' as a child
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen` or
+                      :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises Exception: if `parent` is not a ModuleGen or SubroutineGen
+        '''
         if not isinstance(parent, ModuleGen) and not isinstance(parent,
                                                                 SubroutineGen):
             raise Exception(
                 "The parent of ImplicitNoneGen must be a module or a "
                 "subroutine, but found {0}".format(type(parent)))
         reader = FortranStringReader("IMPLICIT NONE\n")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()
 
-        from fparser.typedecl_statements import Implicit
+        from fparser.one.typedecl_statements import Implicit
         my_imp_none = Implicit(parent.root, subline)
 
         BaseGen.__init__(self, parent, my_imp_none)
@@ -537,13 +589,22 @@ class ImplicitNoneGen(BaseGen):
 class SubroutineGen(ProgUnitGen):
     ''' Generate a Fortran subroutine '''
     def __init__(self, parent, name="", args=None, implicitnone=False):
+        '''
+        :param parent: node in AST to which to add Subroutine as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str name: name of the Fortran subroutine
+        :param list args: list of arguments accepted by the subroutine
+        :param bool implicitnone: whether or not we should specify
+                                  "implicit none" for the body of this
+                                  subroutine
+        '''
         reader = FortranStringReader(
             "subroutine vanilla(vanilla_arg)\nend subroutine")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()
         endsubline = reader.next()
 
-        from fparser.block_statements import Subroutine, EndSubroutine
+        from fparser.one.block_statements import Subroutine, EndSubroutine
         self._sub = Subroutine(parent.root, subline)
         self._sub.name = name
         if args is None:
@@ -569,12 +630,17 @@ class SubroutineGen(ProgUnitGen):
 class CallGen(BaseGen):
     ''' Generates a Fortran call of a subroutine '''
     def __init__(self, parent, name="", args=None):
-
+        '''
+        :param parent: node in AST to which to add CallGen as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str name: the name of the routine to call
+        :param list args: list of arguments to pass to the call
+        '''
         reader = FortranStringReader("call vanilla(vanilla_arg)")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         myline = reader.next()
 
-        from fparser.block_statements import Call
+        from fparser.one.block_statements import Call
         self._call = Call(parent.root, myline)
         self._call.designator = name
         if args is None:
@@ -587,11 +653,18 @@ class CallGen(BaseGen):
 class UseGen(BaseGen):
     ''' Generate a Fortran use statement '''
     def __init__(self, parent, name="", only=False, funcnames=None):
+        '''
+        :param parent: node in AST to which to add UseGen as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str name: name of the module to USE
+        :param bool only: whether this USE has an ONLY clause
+        :param list funcnames: list of names to follow ONLY clause
+        '''
         reader = FortranStringReader("use kern,only : func1_kern=>func1")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         myline = reader.next()
         root = parent.root
-        from fparser.block_statements import Use
+        from fparser.one.block_statements import Use
         use = Use(root, myline)
         use.name = name
         use.isonly = only
@@ -604,22 +677,31 @@ class UseGen(BaseGen):
 
 
 def adduse(name, parent, only=False, funcnames=None):
-    ''' Adds a use statement with the specified name to the supplied object.
+    '''
+    Adds a use statement with the specified name to the supplied object.
     This routine is required when modifying an existing AST (e.g. when
     modifying a kernel). The classes are used when creating an AST from
-    scratch (for the PSy layer). '''
+    scratch (for the PSy layer).
+
+    :param str name: name of module to USE
+    :param parent: node in fparser1 AST to which to add this USE as a child
+    :type parent: :py:class:`fparser.one.block_statements.*`
+    :param bool only: whether this USE has an "ONLY" clause
+    :param list funcnames: list of quantities to follow the "ONLY" clause
+
+    :returns: an fparser1 Use object
+    :rtype: :py:class:`fparser.one.block_statements.Use`
+    '''
     reader = FortranStringReader("use kern,only : func1_kern=>func1")
-    reader.set_mode(True, True)  # free form, strict
+    reader.set_format(FortranFormat(True, True))  # free form, strict
     myline = reader.next()
 
-    from fparser.block_statements import Use
     # find an appropriate place to add in our use statement
-    import fparser
-    while not (isinstance(parent, fparser.block_statements.Program) or
-               isinstance(parent, fparser.block_statements.Module) or
-               isinstance(parent, fparser.block_statements.Subroutine)):
+    while not (isinstance(parent, fparser1.block_statements.Program) or
+               isinstance(parent, fparser1.block_statements.Module) or
+               isinstance(parent, fparser1.block_statements.Subroutine)):
         parent = parent.parent
-    use = Use(parent, myline)
+    use = fparser1.block_statements.Use(parent, myline)
     use.name = name
     use.isonly = only
     if funcnames is None:
@@ -634,11 +716,18 @@ def adduse(name, parent, only=False, funcnames=None):
 class AllocateGen(BaseGen):
     ''' Generates a Fortran allocate statement '''
     def __init__(self, parent, content):
-        from fparser.statements import Allocate
+        '''
+        :param parent: node to which to add this ALLOCATE as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param content: string or list of variables to allocate
+        :type content: list of strings or a single string
+
+        :raises RuntimeError: if `content` is not of correct type
+        '''
         reader = FortranStringReader("allocate(dummy)")
-        reader.set_mode(True, False)  # free form, strict
+        reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
-        self._decl = Allocate(parent.root, myline)
+        self._decl = fparser1.statements.Allocate(parent.root, myline)
         if isinstance(content, str):
             self._decl.items = [content]
         elif isinstance(content, list):
@@ -653,11 +742,18 @@ class AllocateGen(BaseGen):
 class DeallocateGen(BaseGen):
     ''' Generates a Fortran deallocate statement '''
     def __init__(self, parent, content):
-        from fparser.statements import Deallocate
+        '''
+        :param parent: node to which to add this DEALLOCATE as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param content: string or list of variables to deallocate
+        :type content: list of strings or a single string
+
+        :raises RuntimeError: if `content` is not of correct type
+        '''
         reader = FortranStringReader("deallocate(dummy)")
-        reader.set_mode(True, False)  # free form, strict
+        reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
-        self._decl = Deallocate(parent.root, myline)
+        self._decl = fparser1.statements.Deallocate(parent.root, myline)
         if isinstance(content, str):
             self._decl.items = [content]
         elif isinstance(content, list):
@@ -673,23 +769,38 @@ class DeclGen(BaseGen):
     ''' Generates a Fortran declaration for variables of intrinsic type '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False):
+        '''
+        :param parent: node to which to add this declaration as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str datatype: the (intrinsic) type for this declaration
+        :param list entity_decls: list of variable names to declare
+        :param str intent: the INTENT attribute of this declaration
+        :param bool pointer: whether or not this is a pointer declaration
+        :param str kind: the KIND attribute to use for this declaration
+        :param str dimension: the DIMENSION specifier (i.e. the xx in
+                              DIMENSION(xx))
+        :param bool allocatable: whether this declaration is for an
+                                 ALLOCATABLE quantity
+
+        :raises RuntimeError: if no variable names are specified
+        :raises RuntimeError: if datatype is not one of "integer" or "real"
+        '''
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a variable declaration without specifying the "
                 "name(s) of the variable(s)")
-
+        fort_fmt = FortranFormat(True, False)  # free form, strict
         if datatype.lower() == "integer":
-            from fparser.typedecl_statements import Integer
             reader = FortranStringReader("integer :: vanilla")
-            reader.set_mode(True, False)  # free form, strict
+            reader.set_format(fort_fmt)
             myline = reader.next()
-            self._decl = Integer(parent.root, myline)
+            self._decl = fparser1.typedecl_statements.Integer(parent.root,
+                                                              myline)
         elif datatype.lower() == "real":
-            from fparser.typedecl_statements import Real
             reader = FortranStringReader("real :: vanilla")
-            reader.set_mode(True, False)  # free form, strict
+            reader.set_format(fort_fmt)
             myline = reader.next()
-            self._decl = Real(parent.root, myline)
+            self._decl = fparser1.typedecl_statements.Real(parent.root, myline)
         else:
             raise RuntimeError(
                 "f2pygen:DeclGen:init: Only integer and real are currently"
@@ -716,6 +827,17 @@ class TypeDeclGen(BaseGen):
     ''' Generates a Fortran declaration for variables of a derived type '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, attrspec=None):
+        '''
+        :param parent: the node to which to add this type delcn as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str datatype: the derived type
+        :param list entity_decls: List of variable names to declare
+        :param str intent: the intent attribute for the declaration
+        :param bool pointer: whether or not this is a pointer declaration
+        :param attrspec: list of other attributes to add to declaration
+
+        :raises RuntimeError: if no variable names are specified
+        '''
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a declaration of a derived-type variable "
@@ -732,11 +854,10 @@ class TypeDeclGen(BaseGen):
         self._names = local_entity_decls
 
         reader = FortranStringReader("type(vanillatype) :: vanilla")
-        reader.set_mode(True, False)  # free form, strict
+        reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
 
-        from fparser.typedecl_statements import Type
-        self._typedecl = Type(parent.root, myline)
+        self._typedecl = fparser1.typedecl_statements.Type(parent.root, myline)
         self._typedecl.selector = ('', datatype)
         self._typedecl.attrspec = my_attrspec
         self._typedecl.entity_decls = local_entity_decls
@@ -776,12 +897,19 @@ class SelectionGen(BaseGen):
     # TODO can this whole class be deleted?
 
     def __init__(self, parent, expr="UNSET", typeselect=False):
-        ''' construct a ... '''
-        from fparser.block_statements import EndSelect
+        '''
+        Construct a SelectionGen for creating a SELECT block
+
+        :param parent: node to which to add this select block as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str expr: the CASE expression
+        :param bool typeselect: whether or not this is a SELECT TYPE rather
+                                than a SELECT CASE
+        '''
         self._typeselect = typeselect
         reader = FortranStringReader(
             "SELECT CASE (x)\nCASE (1)\nCASE DEFAULT\nEND SELECT")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         select_line = reader.next()
         self._case_line = reader.next()
         self._case_default_line = reader.next()
@@ -822,16 +950,23 @@ class SelectionGen(BaseGen):
 class DoGen(BaseGen):
     ''' Create a Fortran Do loop '''
     def __init__(self, parent, variable_name, start, end, step=None):
+        '''
+        :param parent: the node to which to add this do loop as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str variable_name: the name of the loop variable
+        :param str start: start value for Do loop
+        :param str end: upper-limit of Do loop
+        :param str step: increment to use in Do loop
+        '''
         reader = FortranStringReader("do i=1,n\nend do")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         doline = reader.next()
         enddoline = reader.next()
-        from fparser.block_statements import Do, EndDo
-        dogen = Do(parent.root, doline)
+        dogen = fparser1.block_statements.Do(parent.root, doline)
         dogen.loopcontrol = variable_name + "=" + start + "," + end
         if step is not None:
             dogen.loopcontrol = dogen.loopcontrol + "," + step
-        enddo = EndDo(dogen, enddoline)
+        enddo = fparser1.block_statements.EndDo(dogen, enddoline)
         dogen.content.append(enddo)
 
         BaseGen.__init__(self, parent, dogen)
@@ -866,16 +1001,19 @@ class IfThenGen(BaseGen):
     ''' Generate a fortran if, then, end if statement. '''
 
     def __init__(self, parent, clause):
-
+        '''
+        :param parent: Node to which to add this IfThen as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str clause: the condition, xx, to evaluate in the if(xx)then
+        '''
         reader = FortranStringReader("if (dummy) then\nend if")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         ifthenline = reader.next()
         endifline = reader.next()
 
-        from fparser.block_statements import IfThen, EndIfThen
-        my_if = IfThen(parent.root, ifthenline)
+        my_if = fparser1.block_statements.IfThen(parent.root, ifthenline)
         my_if.expr = clause
-        my_endif = EndIfThen(my_if, endifline)
+        my_endif = fparser1.block_statements.EndIfThen(my_if, endifline)
         my_if.content.append(my_endif)
 
         BaseGen.__init__(self, parent, my_if)
@@ -903,18 +1041,24 @@ class AssignGen(BaseGen):
         variable quantity '''
 
     def __init__(self, parent, lhs="", rhs="", pointer=False):
+        '''
+        :param parent: the node to which to add this assignment as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str lhs: the LHS of the assignment expression
+        :param str rhs: the RHS of the assignment expression
+        :param bool pointer: whether or not this is a pointer assignment
+        '''
         if pointer:
             reader = FortranStringReader("lhs=>rhs")
         else:
             reader = FortranStringReader("lhs=rhs")
-        reader.set_mode(True, True)  # free form, strict
+        reader.set_format(FortranFormat(True, True))  # free form, strict
         myline = reader.next()
         if pointer:
-            from fparser.statements import PointerAssignment
-            self._assign = PointerAssignment(parent.root, myline)
+            self._assign = fparser1.statements.PointerAssignment(parent.root,
+                                                                 myline)
         else:
-            from fparser.statements import Assignment
-            self._assign = Assignment(parent.root, myline)
+            self._assign = fparser1.statements.Assignment(parent.root, myline)
         self._assign.expr = rhs
         self._assign.variable = lhs
         BaseGen.__init__(self, parent, self._assign)

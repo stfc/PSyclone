@@ -1,9 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,17 +32,22 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program single_invoke_cma
 
   ! Description: single CMA-assembly kernel specified in an invoke
+
+  use inf,                          only: field_type
+  use operator_mod,                 only: columnwise_operator_type
   use columnwise_op_asm_kernel_mod, only: columnwise_op_asm_kernel_type
-  use inf,      only: field_type
+
   implicit none
-  type(operator_type) :: lma_op1
+
+  type(operator_type)            :: lma_op1
   type(columnwise_operator_type) :: cma_op1
 
-  call invoke(                      &
+  call invoke(                                            &
           columnwise_op_asm_kernel_type(lma_op1, cma_op1) &
           )
 

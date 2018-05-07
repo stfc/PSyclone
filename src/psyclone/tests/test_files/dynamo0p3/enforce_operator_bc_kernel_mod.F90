@@ -1,16 +1,14 @@
-!-------------------------------------------------------------------------------
-! (c) The copyright relating to this work is owned jointly by the Crown, 
-! Met Office and NERC 2014. 
-! However, it has been created with the help of the GungHo Consortium, 
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-!-------------------------------------------------------------------------------
-
-! Modified by A. Porter, STFC.
-
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! For further details please refer to the file LICENCE which you should have
+! received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,15 +37,17 @@
 ! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
-!-------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+! Modified by A. Porter, STFC.
+! Modified by I. Kavcic, Met Office.
 
 !> @brief Applies boundary conditions to a lma operator
 !> @details Wrapper code for applying boundary conditions to a operator
 module enforce_operator_bc_kernel_mod
 use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type, func_type,                     &
-                                    GH_OPERATOR, GH_INC,                     &
-                                    ANY_SPACE_1, ANY_SPACE_2,                &
+use argument_mod,            only : arg_type, func_type,               &
+                                    GH_OPERATOR, GH_READWRITE,         &
+                                    ANY_SPACE_1, ANY_SPACE_2,          &
                                     CELLS
 use constants_mod,           only : r_def
 
@@ -59,8 +59,8 @@ implicit none
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: enforce_operator_bc_kernel_type
   private
-  type(arg_type) :: meta_args(1) = (/                               &
-       arg_type(GH_OPERATOR, GH_INC, ANY_SPACE_1, ANY_SPACE_2)      &
+  type(arg_type) :: meta_args(1) = (/                                  &
+       arg_type(GH_OPERATOR, GH_READWRITE, ANY_SPACE_1, ANY_SPACE_2)   &
        /)
   integer :: iterates_over = CELLS
 contains
@@ -71,7 +71,7 @@ end type
 ! Constructors
 !-------------------------------------------------------------------------------
 
-! overload the default structure constructor for function space
+! Overload the default structure constructor for function space
 interface enforce_operator_bc_kernel_type
   module procedure enforce_operator_bc_kernel_constructor
 end interface
@@ -96,11 +96,13 @@ end function enforce_operator_bc_kernel_constructor
 !! @param[in] boundary_value Flags (= 0) for dofs that live on the
 !!            vertical boundaries of the cell (=1 for other dofs)
 subroutine enforce_operator_bc_code(cell, nlayers,                   &
-                                    op, ncell_3d,                    &
+                                    ncell_3d, op,                    &
                                     ndf1, ndf2, boundary_value       &
                                    )
-  
-  !Arguments
+
+  implicit none
+
+  ! Arguments
   integer, intent(in) :: nlayers, cell, ncell_3d
   integer, intent(in) :: ndf1, ndf2
   integer, dimension(ndf1,2), intent(in) :: boundary_value

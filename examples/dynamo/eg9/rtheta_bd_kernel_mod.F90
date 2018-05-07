@@ -2,7 +2,7 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
@@ -38,15 +38,12 @@
 ! -----------------------------------------------------------------------------
 ! Modified by I Kavcic, Met Office
 !
-!-------------------------------------------------------------------------------
-
 !> @brief Kernel which computes the boundary integral part of rhs of the
 !>        thermodynamic equation for the nonlinear equations.
 !>
 !> The kernel computes the boundary integral on rhs of the thermodynamic
 !> equation for the nonlinear equations This consists of:
 !> rtheta_bd = theta * gamma * u * normal.
-!>
 module rtheta_bd_kernel_mod
     use kernel_mod,            only : kernel_type
     use argument_mod,          only : arg_type, func_type, mesh_data_type, &
@@ -71,24 +68,21 @@ module rtheta_bd_kernel_mod
     !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
     type, public, extends(kernel_type) :: rtheta_bd_kernel_type
         private
-        type(arg_type) :: meta_args(3) = (/                             &
-! PSyclone placeholder: Wtheta should really be GH_READWRITE. The support for
-! this case will be introduced in #25. For now Wtheta is changed to GH_WRITE 
-!!            arg_type(GH_FIELD,   GH_INC,   Wtheta),                      &
-            arg_type(GH_FIELD,   GH_WRITE, Wtheta),                      &
-            arg_type(GH_FIELD,   GH_READ,  Wtheta),                      &
-            arg_type(GH_FIELD,   GH_READ,  W2)                           &
+        type(arg_type) :: meta_args(3) = (/                            &
+            arg_type(GH_FIELD,   GH_READWRITE, Wtheta),                &
+            arg_type(GH_FIELD,   GH_READ,      Wtheta),                &
+            arg_type(GH_FIELD,   GH_READ,      W2)                     &
             /)
-        type(func_type) :: meta_funcs(2) = (/                            &
-            func_type(W2, GH_BASIS),                                     &
-            func_type(Wtheta, GH_BASIS)                                  &
+        type(func_type) :: meta_funcs(2) = (/                          &
+            func_type(W2, GH_BASIS),                                   &
+            func_type(Wtheta, GH_BASIS)                                &
             /)
         integer :: iterates_over = CELLS
         integer :: gh_shape = GH_QUADRATURE_XYoZ
-        type(mesh_data_type) :: meta_init(3) = (/                        &
-            mesh_data_type( adjacent_face ),                             &
-            mesh_data_type( reference_element_normal_to_face ),          &
-            mesh_data_type( reference_element_out_face_normal )          &
+        type(mesh_data_type) :: meta_init(3) = (/                      &
+            mesh_data_type( adjacent_face ),                           &
+            mesh_data_type( reference_element_normal_to_face ),        &
+            mesh_data_type( reference_element_out_face_normal )        &
           /)
     contains
         procedure, nopass ::rtheta_bd_code

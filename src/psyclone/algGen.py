@@ -70,7 +70,7 @@ class Alg(object):
         idx = 0
         for stmt, _ in api.walk(self._ast, -1):
 
-            if isinstance(stmt, fparser.statements.Call):
+            if isinstance(stmt, fparser.one.statements.Call):
                 if stmt.designator == "invoke":
                     invoke_info = self._psy.invokes.invoke_list[idx]
                     stmt.designator = invoke_info.name

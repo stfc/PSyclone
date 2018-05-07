@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
 ''' This module provides generic support for PSyclone's PSy code optimisation
@@ -86,7 +87,8 @@ REDUCTION_OPERATOR_MAPPING = {"sum": "+"}
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 # Types of access for a kernel argument
-MAPPING_ACCESSES = {"inc": "inc", "write": "write", "read": "read"}
+MAPPING_ACCESSES = {"inc": "inc", "write": "write",
+                    "read": "read", "readwrite": "readwrite"}
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
 # List of all valid access types for a kernel argument
@@ -133,26 +135,36 @@ def zero_reduction_variables(red_call_list, parent):
         parent.add(CommentGen(parent, ""))
 
 
-def args_filter(arg_list, arg_types=None, arg_accesses=None):
-    '''Return all arguments in the supplied list that are of type
+def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
+    '''
+    Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
-    then return all arguments.'''
+    then return all arguments.
+
+    :param arg_list: List of kernel arguments to filter
+    :type arg_list: list of :py:class:`psyclone.parse.Descriptor`
+    :param arg_types: List of argument types (e.g. "GH_FIELD")
+    :type arg_types: list of str
+    :param arg_accesses: List of access types that arguments must have
+    :type arg_accesses: list of str
+    :param arg_meshes: List of meshes that arguments must be on
+    :type arg_meshes: list of str
+
+    :returns: list of kernel arguments matching the requirements
+    :rtype: list of :py:class:`psyclone.parse.Descriptor`
+    '''
     arguments = []
-    if arg_types and arg_accesses:
-        for argument in arg_list:
-            if argument.type.lower() in arg_types and \
-               argument.access.lower() in arg_accesses:
-                arguments.append(argument)
-    elif arg_types:
-        for argument in arg_list:
-            if argument.type.lower() in arg_types:
-                arguments.append(argument)
-    elif arg_accesses:
-        for argument in arg_list:
-            if argument.access.lower() in arg_accesses:
-                arguments.append(argument)
-    else:  # no conditions provided so return all args
-        return arg_list
+    for argument in arg_list:
+        if arg_types:
+            if argument.type.lower() not in arg_types:
+                continue
+        if arg_accesses:
+            if argument.access.lower() not in arg_accesses:
+                continue
+        if arg_meshes:
+            if argument.mesh not in arg_meshes:
+                continue
+        arguments.append(argument)
     return arguments
 
 
@@ -568,30 +580,50 @@ class Invoke(object):
                               "'{0}'".format(arg_name))
 
     def unique_declns_by_intent(self, datatype):
-        ''' Returns a dictionary listing all required declarations for each
-        type of intent ('inout', 'out' and 'in'). '''
+        '''
+        Returns a dictionary listing all required declarations for each
+        type of intent ('inout', 'out' and 'in').
+
+        :param string datatype: the type of the kernel argument for the
+                                particular API for which the intent is
+                                required
+        :return: dictionary containing 'intent' keys holding the kernel
+                 argument intent and declarations of all kernel arguments
+                 for each type of intent
+        :rtype: dict
+        :raises GenerationError: if the kernel argument is not a valid
+                                 datatype for the particular API.
+
+        '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
                 "unique_declns_by_intent called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
 
-        # Get the lists of all kernel arguments that are accessed
-        # as inc (shared update), write and read. A single argument may
-        # be accessed in different ways by different kernels.
+        # Get the lists of all kernel arguments that are accessed as
+        # inc (shared update), write, read and readwrite (independent
+        # update). A single argument may be accessed in different ways
+        # by different kernels.
         inc_args = self.unique_declarations(datatype,
                                             access=MAPPING_ACCESSES["inc"])
         write_args = self.unique_declarations(datatype,
                                               access=MAPPING_ACCESSES["write"])
         read_args = self.unique_declarations(datatype,
                                              access=MAPPING_ACCESSES["read"])
+        readwrite_args = self.unique_declarations(
+            datatype, access=MAPPING_ACCESSES["readwrite"])
         sum_args = self.unique_declarations(datatype,
                                             access=MAPPING_REDUCTIONS["sum"])
-        # sum_args behave as if they are write_args from the
-        # PSy-layer's perspective
+        # sum_args behave as if they are write_args from
+        # the PSy-layer's perspective.
         write_args += sum_args
-        # Rationalise our lists so that any fields that have inc
-        # do not appear in the list of those that are written.
+        # readwrite_args behave in the same way as inc_args
+        # from the perspective of first access and intents
+        inc_args += readwrite_args
+        # Rationalise our lists so that any fields that are updated
+        # (have inc or readwrite access) do not appear in the list
+        # of those that are only written to
         for arg in write_args[:]:
             if arg in inc_args:
                 write_args.remove(arg)
@@ -608,10 +640,10 @@ class Invoke(object):
             declns[intent] = []
 
         for name in inc_args:
-            # For every arg that is 'inc'd' by at least one kernel,
-            # identify the type of the first access. If it is 'write'
-            # then the arg is only intent(out) otherwise it is
-            # intent(inout)
+            # For every arg that is updated ('inc'd' or readwritten)
+            # by at least one kernel, identify the type of the first
+            # access. If it is 'write' then the arg is only
+            # intent(out), otherwise it is intent(inout)
             first_arg = self.first_access(name)
             if first_arg.access != MAPPING_ACCESSES["write"]:
                 if name not in declns["inout"]:
@@ -624,8 +656,8 @@ class Invoke(object):
             # For every argument that is written to by at least one kernel,
             # identify the type of the first access - if it is read
             # or inc'd before it is written then it must have intent(inout).
-            # However, we deal with inc args separately so we do
-            # not consider those here.
+            # However, we deal with inc and readwrite args separately so we
+            # do not consider those here.
             first_arg = self.first_access(name)
             if first_arg.access == MAPPING_ACCESSES["read"]:
                 if name not in declns["inout"]:
@@ -634,8 +666,8 @@ class Invoke(object):
                 if name not in declns["out"]:
                     declns["out"].append(name)
 
-        # Anything we have left must be declared as intent(in)
         for name in read_args:
+            # Anything we have left must be declared as intent(in)
             if name not in declns["in"]:
                 declns["in"].append(name)
 
@@ -1644,16 +1676,25 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
 
 class GlobalSum(Node):
-    ''' Generic Global Sum class which can be added to and
-    manipulated in, a schedule. '''
+    '''
+    Generic Global Sum class which can be added to and manipulated
+    in, a schedule.
+
+    :param scalar: the scalar that the global sum is stored into
+    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param parent: optional parent (default None) of this object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
     def __init__(self, scalar, parent=None):
         Node.__init__(self, children=[], parent=parent)
         import copy
         self._scalar = copy.copy(scalar)
         if scalar:
-            # update scalar values appropriately
-            # HACK:TODO: update mapping to readwrite when it is supported
-            self._scalar.access = MAPPING_ACCESSES["inc"]
+            # Update scalar values appropriately
+            # Here "readwrite" denotes how the class GlobalSum
+            # accesses/updates a scalar
+            self._scalar.access = MAPPING_ACCESSES["readwrite"]
             self._scalar.call = self
 
     @property
@@ -1668,7 +1709,7 @@ class GlobalSum(Node):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Override
+        ''' Return the list of arguments associated with this node. Override
         the base method and simply return our argument.'''
         return [self._scalar]
 
@@ -1697,8 +1738,8 @@ class GlobalSum(Node):
 
 
 class HaloExchange(Node):
-
-    '''Generic Halo Exchange class which can be added to and
+    '''
+    Generic Halo Exchange class which can be added to and
     manipulated in, a schedule.
 
     :param field: the field that this halo exchange will act on
@@ -1721,9 +1762,10 @@ class HaloExchange(Node):
         import copy
         self._field = copy.copy(field)
         if field:
-            # update fields values appropriately
-            # HACK:TODO: update mapping to readwrite when it is supported
-            self._field.access = MAPPING_ACCESSES["inc"]
+            # Update fields values appropriately
+            # Here "readwrite" denotes how the class HaloExchange
+            # accesses a field rather than the field's continuity
+            self._field.access = MAPPING_ACCESSES["readwrite"]
             self._field.call = self
         self._halo_type = None
         self._halo_depth = None
@@ -2422,7 +2464,16 @@ class Kern(Call):
 
     def incremented_arg(self, mapping={}):
         ''' Returns the argument that has INC access. Raises a
-        FieldNotFoundError if none is found. '''
+        FieldNotFoundError if none is found.
+
+        :param mapping: dictionary of access types (here INC) associated
+                        with arguments with their metadata strings as keys
+        :type mapping: dict
+        :return: a Fortran argument name
+        :rtype: string
+        :raises FieldNotFoundError: if none is found.
+
+        '''
         assert mapping != {}, "psyGen:Kern:incremented_arg: Error - a "\
             "mapping must be provided"
         for arg in self.arguments.args:
@@ -2433,7 +2484,19 @@ class Kern(Call):
                                  format(self.name, mapping["inc"]))
 
     def written_arg(self, mapping={}):
-        ''' Returns the argument that has WRITE access '''
+        '''
+        Returns an argument that has WRITE or READWRITE access. Raises a
+        FieldNotFoundError if none is found.
+
+        :param mapping: dictionary of access types (here WRITE or
+                        READWRITE) associated with arguments with their
+                        metadata strings as keys
+        :type mapping: dict
+        :return: a Fortran argument name
+        :rtype: string
+        :raises FieldNotFoundError: if none is found.
+
+        '''
         assert mapping != {}, "psyGen:Kern:written_arg: Error - a "\
             "mapping must be provided"
         for access in ["write", "readwrite"]:
@@ -2502,6 +2565,18 @@ class Arguments(object):
         return self._args
 
     def iteration_space_arg(self, mapping={}):
+        '''
+        Returns an argument that can be iterated over, i.e. modified
+        (has WRITE, READWRITE or INC access).
+
+        :param mapping: dictionary of access types associated with arguments
+                        with their metadata strings as keys
+        :type mapping: dict
+        :return: a Fortran argument name
+        :rtype: string
+        :raises GenerationError: if none such argument is found.
+
+        '''
         assert mapping != {}, "psyGen:Arguments:iteration_space_arg: Error "
         "a mapping needs to be provided"
         for arg in self._args:
@@ -2515,7 +2590,7 @@ class Arguments(object):
 
 
 class Argument(object):
-    ''' argument base class '''
+    ''' Argument base class '''
 
     def __init__(self, call, arg_info, access):
         '''
@@ -2558,9 +2633,11 @@ class Argument(object):
         # MAPPING_ACCESSES specified in the dynamo0p3 file which
         # overide the default ones in this file.
         self._write_access_types = [MAPPING_ACCESSES["write"],
+                                    MAPPING_ACCESSES["readwrite"],
                                     MAPPING_ACCESSES["inc"],
                                     MAPPING_REDUCTIONS["sum"]]
         self._read_access_types = [MAPPING_ACCESSES["read"],
+                                   MAPPING_ACCESSES["readwrite"],
                                    MAPPING_ACCESSES["inc"]]
         self._vector_size = 1
 

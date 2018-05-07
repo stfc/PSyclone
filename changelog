@@ -37,6 +37,18 @@
         13) PR #153 - added -v option to the psyclone script to show the
 	version
 
+	14) PR #136 - add support for intergrid kernels (required for
+	multigrid)
+
+	15) PR #149 - add support for GH_READWRITE access for
+	discontinuous fields
+
+	16) PR #163 - updating PSyclone to work with the latest version of
+	the parser (0.0.7) as the API has changed
+
+	17) PR #169 - add support for specifying stencils in the GOcean
+	kernel meta-data.
+
 release 1.5.1 3rd December 2017
 
 	1) #53 and PR #88 Add a version file so that PSyclone does not

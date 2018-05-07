@@ -45,8 +45,8 @@ program single_invoke_w2v_wtheta
 
   call invoke(                    &
        testkern_w2v_type(f1, f2), &
-       ! Field f1 write to read dependence but no halo exchange
-       ! required as w2v is discontinuous
+       ! Field f1 has readwrite to read dependence but no halo
+       ! exchange is required as w2v is discontinuous
        testkern_w2v_type(f3, f1)  &
           )
 
