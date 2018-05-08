@@ -211,12 +211,14 @@ class Config(object):
     def find_file(name=None):
         '''
         Static method that searches various locations for a configuration
-        file. The locations that are searched, in order, are:
+        file. If the full path to an existing file has been provided in
+        the PSYCLONE_CONFIG environment variable then that is returned.
+        Otherwise, we search the following locations, in order:
         ${PWD}/.psyclone/
         if inside-a-virtual-environment:
-            <base-dir-of-virtual-env>/share
+            <base-dir-of-virtual-env>/share/psyclone/
         ${HOME}/.psyclone/
-        <system-install-prefix>/share/
+        <system-install-prefix>/share/psyclone/
 
         :param str name: override default name of config file to search for
         :returns: the fully-qualified path to the configuration file
@@ -225,7 +227,13 @@ class Config(object):
         :raises ConfigurationError: if no config file is found
         '''
         import sys
-        from virtual_utils import WITHIN_VIRTUAL_ENV
+        from psyclone.virtual_utils import WITHIN_VIRTUAL_ENV
+
+        # If $PSYCLONE_CONFIG is set then we use that unless the
+        # file it points to does not exist
+        _psy_config = os.environ.get('PSYCLONE_CONFIG')
+        if _psy_config and os.path.isfile(_psy_config):
+            return _psy_config
 
         # Name of the config file we search for
         if name is not None:
@@ -242,7 +250,8 @@ class Config(object):
             # 2. <virtual-env-base>/share/psyclone/
             _file_paths.append(share_dir)
         # 3. ~/.psyclone/
-        _file_paths.append(os.path.join(os.path.expanduser("~"), ".psyclone"))
+        _file_paths.append(os.path.join(os.path.expanduser("~"),
+                                        ".psyclone"))
         if not WITHIN_VIRTUAL_ENV():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
