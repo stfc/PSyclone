@@ -50,13 +50,3 @@ def WITHIN_VIRTUAL_ENV():
     import sys
     return (hasattr(sys, 'real_prefix') or
             (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
-
-
-def VIRTUAL_BASE_DIR():
-    '''
-    :returns: the base directory of the virtual environment
-    :rtype: str
-    '''
-    import sys
-    return sys.prefix
-

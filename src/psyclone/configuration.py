@@ -214,9 +214,9 @@ class Config(object):
         file. The locations that are searched, in order, are:
         ${PWD}/.psyclone/
         if inside-a-virtual-environment:
-            <base-dir-of-virtual-env>/
+            <base-dir-of-virtual-env>/share
         ${HOME}/.psyclone/
-        /etc/psyclone/
+        <system-install-prefix>/share/
 
         :param str name: override default name of config file to search for
         :returns: the fully-qualified path to the configuration file
@@ -224,7 +224,9 @@ class Config(object):
 
         :raises ConfigurationError: if no config file is found
         '''
-        from virtual_utils import WITHIN_VIRTUAL_ENV, VIRTUAL_BASE_DIR
+        import sys
+        from virtual_utils import WITHIN_VIRTUAL_ENV
+
         # Name of the config file we search for
         if name is not None:
             _name = name[:]
@@ -232,14 +234,18 @@ class Config(object):
             _name = "psyclone.cfg"
 
         # Set up list of locations to search
+        share_dir = os.path.join(sys.prefix, "share", "psyclone")
+
         # 1. .psyclone/ in the CWD
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
         if WITHIN_VIRTUAL_ENV():
-            # 2. the base directory of the running virtual environment
-            _file_paths.append(VIRTUAL_BASE_DIR())
-        # 3. ~/.psyclone/ and 4. /etc/psyclone
-        _file_paths += [os.path.join(os.path.expanduser("~"), ".psyclone"),
-                        os.path.join(os.path.abspath("/etc"), "psyclone")]
+            # 2. <virtual-env-base>/share/psyclone/
+            _file_paths.append(share_dir)
+        # 3. ~/.psyclone/
+        _file_paths.append(os.path.join(os.path.expanduser("~"), ".psyclone"))
+        if not WITHIN_VIRTUAL_ENV():
+            # 4. <python-installation-base>/share/psyclone/
+            _file_paths.append(share_dir)
 
         for cfile in [os.path.join(cdir, _name) for cdir in _file_paths]:
             if os.path.isfile(cfile):
