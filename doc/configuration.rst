@@ -19,6 +19,8 @@ detected then the locations searched, in order, are:
 2. ``${HOME}/.psyclone/``
 3. ``<python-base-dir>/share/psyclone/``
 
+where ``<python-base-dir>`` is the path stored in Python's ``sys.prefix``.
+
 If a virtual environment is detected then it is assumed that the
 ``share`` directory will be a part of that environment. In order to
 maintain isolation of distinct virtual environments this directory is
@@ -35,7 +37,6 @@ location then the search mechanism may be overriden by specifying the
 ``PSYCLONE_CONFIG`` environment variable. If the specified
 configuration file is not found then PSyclone will fall back to
 searching the previously listed locations.
-
 
 Options
 -------
