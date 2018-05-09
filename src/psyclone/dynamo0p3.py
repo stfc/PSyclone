@@ -4163,11 +4163,11 @@ class DynLoop(Loop):
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
 
-        # We only require a mesh object if distributed memory is enabled
-        # and the loop is over cells
-        if config.DISTRIBUTED_MEMORY and \
+        # We only require a mesh object to get upper loop bounds if
+        # distributed memory is enabled and the loop is over cells
+        if _CONFIG.distributed_memory and \
            self._upper_bound_name in ["ncells", "cell_halo"]:
-            if self._kern.is_intergrid:
+            if self._kern and self._kern.is_intergrid:
                 # We have more than one mesh object to choose from and we
                 # want the coarse one because that determines the iteration
                 # space. _field_name holds the name of the argument that
@@ -4186,8 +4186,6 @@ class DynLoop(Loop):
                 # Extract the value in-place rather than extracting to
                 # a variable first. This is the way the manual
                 # reference examples were implemented so I copied these
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_ncolours()".format(mesh_obj_name)
             else:
                 return "ncolour"
@@ -4199,8 +4197,6 @@ class DynLoop(Loop):
             # ditributed memory is switched on (the default for
             # LFRic). THe original API (see previous elif) is now only
             # used when distributed memory is switched off.
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
             append = ""
             if halo_index:
                 # The colouring API support an additional optional
@@ -4225,8 +4221,6 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "ncells":
             if _CONFIG.distributed_memory:
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 result = mesh_obj_name + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
@@ -4234,8 +4228,6 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "cell_halo":
             if _CONFIG.distributed_memory:
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
                                                             halo_index)
             else:
@@ -4253,8 +4245,6 @@ class DynLoop(Loop):
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
             if _CONFIG.distributed_memory:
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
                                                              halo_index)
             else:
