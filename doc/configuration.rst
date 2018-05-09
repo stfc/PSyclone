@@ -6,18 +6,36 @@ Configuration
 PSyclone reads various run-time configuration options from
 the ``psyclone.cfg`` file. As described in
 :ref:`getting-going-configuration`, the default ``psyclone.cfg``
-configuration file is installed in either ``/etc/`` or
-``${HOME}/.psyclone/`` during the installation process.
+configuration file is installed in ``<python-base-prefix>/share/psyclone/``
+during the installation process.
 
-At execution-time, PSyclone searches for the configuration file in the
-following locations, in order:
+At execution-time, PSyclone searches for the configuration file in a
+number of locations. The ordering of these
+locations depends upon whether PSyclone is being run within a Python
+virtual environment (such as ``venv``). If no virtual environment is
+detected then the locations searched, in order, are:
 
 1. ``${PWD}/.psyclone/``
 2. ``${HOME}/.psyclone/``
-3. ``/etc/``
+3. ``<python-base-dir>/share/psyclone/``
 
-i.e. PSyclone may be configured on a per-project, per-user or system-wide
-basis.
+If a virtual environment is detected then it is assumed that the
+``share`` directory will be a part of that environment. In order to
+maintain isolation of distinct virtual environments this directory is
+then checked *before* the user's home directory. i.e. the list of
+locations searched is now:
+
+1. ``${PWD}/.psyclone/``
+2. ``<python-base-dir>/share/psyclone/``
+3. ``${HOME}/.psyclone/``
+
+If it is desired to use a configuration file in a non-standard
+location then the search mechanism may be overriden by specifying the
+(full path to the) configuration file to use via the
+``PSYCLONE_CONFIG`` environment variable. If the specified
+configuration file is not found then PSyclone will fall back to
+searching the previously listed locations.
+
 
 Options
 -------
