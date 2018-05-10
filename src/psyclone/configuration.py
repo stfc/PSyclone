@@ -217,7 +217,7 @@ class Config(object):
         ${PWD}/.psyclone/
         if inside-a-virtual-environment:
             <base-dir-of-virtual-env>/share/psyclone/
-        ${HOME}/.psyclone/
+        ${HOME}/.local/share/psyclone/
         <system-install-prefix>/share/psyclone/
 
         :param str name: override default name of config file to search for
@@ -249,9 +249,9 @@ class Config(object):
         if WITHIN_VIRTUAL_ENV():
             # 2. <virtual-env-base>/share/psyclone/
             _file_paths.append(share_dir)
-        # 3. ~/.psyclone/
+        # 3. ~/.local/share/psyclone/
         _file_paths.append(os.path.join(os.path.expanduser("~"),
-                                        ".psyclone"))
+                                        ".local", "share", "psyclone"))
         if not WITHIN_VIRTUAL_ENV():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)

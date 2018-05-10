@@ -82,15 +82,19 @@ def test_factory_create():
     Check that we can create a Config object
     '''
     from psyclone.configuration import ConfigFactory
-    _config = ConfigFactory().create()
-    assert isinstance(_config, Config)
-    # Check that we are creating a singleton instance
-    _config2 = ConfigFactory().create()
-    assert _config is _config2
-    # Check that specifying which config file to use results
-    # in a new instance
-    _config2 = ConfigFactory(config_file=TEST_CONFIG).create()
-    assert _config2 is not _config
+    try:
+        _config = ConfigFactory().create()
+        assert isinstance(_config, Config)
+        # Check that we are creating a singleton instance
+        _config2 = ConfigFactory().create()
+        assert _config is _config2
+        # Check that specifying which config file to use results
+        # in a new instance
+        _config2 = ConfigFactory(config_file=TEST_CONFIG).create()
+        assert _config2 is not _config
+    finally:
+        # Reset the factory
+        ConfigFactory._instance = None
 
 
 def test_missing_file(tmpdir):
@@ -112,63 +116,72 @@ def test_search_path(monkeypatch, tmpdir):
     # to fail to find any file and thus raise an error. The error msg
     # then gives us the list of locations searched.
     monkeypatch.setattr("os.path.isfile", lambda arg: False)
-    # Store our working directory
-    _ = tmpdir.chdir()
-    cwd = str(tmpdir)
-    # Test when (we appear to be) both inside and outside a virtual
-    # environment
-    for inside_venv in [True, False]:
-        monkeypatch.setattr("psyclone.virtual_utils.WITHIN_VIRTUAL_ENV",
-                            lambda: inside_venv)
-        with pytest.raises(ConfigurationError) as err:
-            _ = Config.find_file()
-        err_msg = str(err)
-        print err_msg
-        assert "not found in any of " in err_msg
-        # CWD
-        cwd_idx = err_msg.find(os.path.join(cwd, ".psyclone"))
-        assert cwd_idx != -1
-        # Home directory
-        home_idx = err_msg.find(os.path.join(os.path.expanduser("~"),
-                                             ".psyclone"))
-        assert home_idx != -1
-        # Some share directory
-        share_idx = err_msg.find(os.path.join(sys.prefix, "share", "psyclone"))
-        assert share_idx != -1
-        assert cwd_idx < home_idx
-        if inside_venv:
-            # When inside a virtual environment, the 'share' directory of that
-            # environment takes precedence over the user's home directory
-            assert share_idx < home_idx
-        else:
-            assert home_idx < share_idx
+    try:
+        # Store our working directory
+        oldpwd = tmpdir.chdir()
+        cwd = str(tmpdir)
+        # Test when (we appear to be) both inside and outside a virtual
+        # environment
+        for inside_venv in [True, False]:
+            monkeypatch.setattr("psyclone.virtual_utils.WITHIN_VIRTUAL_ENV",
+                                lambda: inside_venv)
+            with pytest.raises(ConfigurationError) as err:
+                _ = Config.find_file()
+            err_msg = str(err)
+            print err_msg
+            assert "not found in any of " in err_msg
+            # CWD
+            cwd_idx = err_msg.find(os.path.join(cwd, ".psyclone"))
+            assert cwd_idx != -1
+            # Home directory
+            home_idx = err_msg.find(os.path.join(os.path.expanduser("~"),
+                                                 ".local", "share",
+                                                 "psyclone"))
+            assert home_idx != -1
+            # Some share directory
+            share_idx = err_msg.find(os.path.join(sys.prefix, "share",
+                                                  "psyclone"))
+            assert share_idx != -1
+            assert cwd_idx < home_idx
+            if inside_venv:
+                # When inside a virtual environment, the 'share' directory of
+                # that environment takes precedence over the user's home
+                # directory
+                assert share_idx < home_idx
+            else:
+                assert home_idx < share_idx
+    finally:
+        oldpwd.chdir()
 
 
 def test_search_env(monkeypatch, tmpdir):
     ''' Check that we pick up the configuration file specified in an
     environment variable '''
     import sys
-    _ = tmpdir.chdir()
-    cwd = str(tmpdir)
-    # Create a .psyclone/psyclone.cfg in the CWD
-    cfg_dir = os.path.join(cwd, ".psyclone")
-    os.mkdir(cfg_dir)
-    with open(os.path.join(cfg_dir, "psyclone.cfg"), "w") as cfile:
-        cfile.write(TEST_CONFIG)
-    # Point PSYCLONE_CONFIG to a non-existant file - we should revert
-    # to the normal search path in this case
-    cfg_file = os.path.join(cwd, "not_a_dir", "psyclone.cfg")
-    monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
-    name = Config.find_file()
-    assert name.startswith(cfg_dir)
-    assert "not_a_dir" not in name
-    # Now point PSYCLONE_CONFIG to a file that does exist
-    cfg_file = os.path.join(cwd, "another.cfg")
-    with open(cfg_file, "w") as cfile:
-        cfile.write(TEST_CONFIG)
-    monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
-    name = Config.find_file()
-    assert name == cfg_file
+    try:
+        oldpwd = tmpdir.chdir()
+        cwd = str(tmpdir)
+        # Create a .psyclone/psyclone.cfg in the CWD
+        cfg_dir = os.path.join(cwd, ".psyclone")
+        os.mkdir(cfg_dir)
+        with open(os.path.join(cfg_dir, "psyclone.cfg"), "w") as cfile:
+            cfile.write(TEST_CONFIG)
+        # Point PSYCLONE_CONFIG to a non-existant file - we should revert
+        # to the normal search path in this case
+        cfg_file = os.path.join(cwd, "not_a_dir", "psyclone.cfg")
+        monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
+        name = Config.find_file()
+        assert name.startswith(cfg_dir)
+        assert "not_a_dir" not in name
+        # Now point PSYCLONE_CONFIG to a file that does exist
+        cfg_file = os.path.join(cwd, "another.cfg")
+        with open(cfg_file, "w") as cfile:
+            cfile.write(TEST_CONFIG)
+        monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
+        name = Config.find_file()
+        assert name == cfg_file
+    finally:
+        oldpwd.chdir()
 
 
 def test_read_values():
@@ -176,40 +189,44 @@ def test_read_values():
     Check that we get the expected values from the test config file
     '''
     from psyclone.configuration import ConfigFactory
-    _config = ConfigFactory(config_file=TEST_CONFIG).create()
-    # Whether distributed memory is enabled
-    dist_mem = _config.distributed_memory
-    assert isinstance(dist_mem, bool)
-    assert dist_mem == True
-    # Check the setter method
-    _config.distributed_memory = False
-    assert _config.distributed_memory == False
-    # The default API
-    api = _config.default_api
-    assert isinstance(api, unicode)
-    assert api == "dynamo0.3"
-    # The list of supported APIs
-    api_list = _config.supported_apis
-    assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
-                        'gocean0.1', 'gocean1.0']
-    # The default API for kernel stub generation
-    api = _config.default_stub_api
-    assert isinstance(api, unicode)
-    assert api == "dynamo0.3"
-    # The list of supported APIs for kernel stub generation
-    api_list = _config.supported_stub_apis
-    assert api_list == ['dynamo0.3']
-    # Whether reproducible reductions are enabled
-    reprod = _config.reproducible_reductions
-    assert isinstance(reprod, bool)
-    assert reprod == False
-    # How much to pad arrays by when doing reproducible reductions
-    pad = _config.reprod_pad_size
-    assert isinstance(pad, int)
-    assert pad == 8
-    # The filename of the config file which was parsed to produce
-    # the Config object
-    assert _config.filename == str(TEST_CONFIG)
+    try:
+        _config = ConfigFactory(config_file=TEST_CONFIG).create()
+        # Whether distributed memory is enabled
+        dist_mem = _config.distributed_memory
+        assert isinstance(dist_mem, bool)
+        assert dist_mem == True
+        # Check the setter method
+        _config.distributed_memory = False
+        assert _config.distributed_memory == False
+        # The default API
+        api = _config.default_api
+        assert isinstance(api, unicode)
+        assert api == "dynamo0.3"
+        # The list of supported APIs
+        api_list = _config.supported_apis
+        assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
+                            'gocean0.1', 'gocean1.0']
+        # The default API for kernel stub generation
+        api = _config.default_stub_api
+        assert isinstance(api, unicode)
+        assert api == "dynamo0.3"
+        # The list of supported APIs for kernel stub generation
+        api_list = _config.supported_stub_apis
+        assert api_list == ['dynamo0.3']
+        # Whether reproducible reductions are enabled
+        reprod = _config.reproducible_reductions
+        assert isinstance(reprod, bool)
+        assert reprod == False
+        # How much to pad arrays by when doing reproducible reductions
+        pad = _config.reprod_pad_size
+        assert isinstance(pad, int)
+        assert pad == 8
+        # The filename of the config file which was parsed to produce
+        # the Config object
+        assert _config.filename == str(TEST_CONFIG)
+    finally:
+        # Reset the configuration object held in the factory
+        ConfigFactory._instance = None
 
 
 def test_list_no_commas():
