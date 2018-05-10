@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,10 @@ Deals with reading the config file and storing default settings.
 '''
 
 import os
+
+
+# Name of the config file we search for
+_FILE_NAME = "psyclone.cfg"
 
 
 class ConfigurationError(Exception):
@@ -110,7 +114,8 @@ class ConfigFactory(object):
             # caller has specified a particular file
             ConfigFactory._instance = Config(config_file)
 
-    def create(self):
+    @staticmethod
+    def create():
         '''
         :returns: the singleton Config instance
         :rtype: :py:class:`psyclone.config.Config`
@@ -208,7 +213,7 @@ class Config(object):
 
 
     @staticmethod
-    def find_file(name=None):
+    def find_file():
         '''
         Static method that searches various locations for a configuration
         file. If the full path to an existing file has been provided in
@@ -220,7 +225,6 @@ class Config(object):
         ${HOME}/.local/share/psyclone/
         <system-install-prefix>/share/psyclone/
 
-        :param str name: override default name of config file to search for
         :returns: the fully-qualified path to the configuration file
         :rtype: str
 
@@ -234,12 +238,6 @@ class Config(object):
         _psy_config = os.environ.get('PSYCLONE_CONFIG')
         if _psy_config and os.path.isfile(_psy_config):
             return _psy_config
-
-        # Name of the config file we search for
-        if name is not None:
-            _name = name[:]
-        else:
-            _name = "psyclone.cfg"
 
         # Set up list of locations to search
         share_dir = os.path.join(sys.prefix, "share", "psyclone")
@@ -256,46 +254,97 @@ class Config(object):
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
 
-        for cfile in [os.path.join(cdir, _name) for cdir in _file_paths]:
+        for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):
                 return cfile
 
         # If we get to here then we have failed to find a config file
         raise ConfigurationError("{0} not found in any of {1}".
-                                 format(_name, _file_paths))
+                                 format(_FILE_NAME, _file_paths))
 
     @property
     def distributed_memory(self):
+        '''
+        Getter for whether or not distributed memory is enabled
+        :returns: True if DM is enabled, False otherwise
+        :rtype: bool
+        '''
         return self._distributed_mem
 
     @distributed_memory.setter
     def distributed_memory(self, dist_mem):
+        '''
+        Setter for whether or not distributed memory support is enabled
+        in this configuration.
+        :param bool dist_mem: Whether or not dm is enabled
+        '''
+        if not isinstance(dist_mem, bool):
+            raise ConfigurationError(
+                "distributed_memory must be a boolean but got {0}".
+                format(type(dist_mem)))
         self._distributed_mem = dist_mem
 
     @property
     def default_api(self):
+        '''
+        Getter for the default API used by PSyclone.
+        :returns: default PSyclone API
+        :rtype: str
+        '''
         return self._default_api
 
     @property
     def supported_apis(self):
+        '''
+        Getter for the list of APIs supported by PSyclone.
+        :returns: list of supported APIs
+        :rtype: list of str
+        '''
         return self._supported_api_list
 
     @property
     def default_stub_api(self):
+        '''
+        Getter for the default API used by the stub generator.
+        :returns: default API for the stub generator
+        :rtype: str
+        '''
         return self._default_stub_api
 
     @property
     def supported_stub_apis(self):
+        '''
+        Getter for the list of APIs supported by the stub generator.
+        :returns: list of supported APIs.
+        :rtype: list of str
+        '''
         return self._supported_stub_api_list
 
     @property
     def reproducible_reductions(self):
+        '''
+        Getter for whether reproducible reductions are enabled.
+        :returns: True if reproducible reductions are enabled, False otherwise.
+        :rtype: bool
+        '''
         return self._reproducible_reductions
 
     @property
     def reprod_pad_size(self):
+        '''
+        Getter for the amount of padding to use for the array required
+        for reproducible OpenMP reductions
+        :returns: padding size (no. of array elements)
+        :rtype: int
+        '''
         return self._reprod_pad_size
 
     @property
     def filename(self):
+        '''
+        Getter for the full path and name of the configuration file used
+        to initialise this configuration object.
+        :returns: full path and name of configuration file
+        :rtype: str
+        '''
         return self._config_file

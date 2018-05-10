@@ -3150,8 +3150,15 @@ class DynSchedule(Schedule):
 
 
 class DynGlobalSum(GlobalSum):
-    ''' Dynamo specific global sum class which can be added to and
-    manipulated in, a schedule '''
+    '''
+    Dynamo specific global sum class which can be added to and
+    manipulated in, a schedule.
+
+    :param scalar: the kernel argument for which to perform a global sum
+    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param parent: the parent node of this node in the Schedule
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
     def __init__(self, scalar, parent=None):
         if not _CONFIG.distributed_memory:
             raise GenerationError("It makes no sense to create a DynGlobalSum "
@@ -4117,7 +4124,14 @@ class DynLoop(Loop):
         return self._upper_bound_halo_depth
 
     def _lower_bound_fortran(self):
-        ''' Create the associated fortran code for the type of lower bound '''
+        '''
+        Create the associated fortran code for the type of lower bound.
+        :returns: the Fortran code for the lower bound
+        :rtype: str
+        :raises GenerationError: if self._lower_bound_name is not "start"
+                                 for sequential code.
+        :raises GenerationError: if self._lower_bound_name is unrecognised
+        '''
         if not _CONFIG.distributed_memory and \
            self._lower_bound_name != "start":
             raise GenerationError(
@@ -4982,7 +4996,7 @@ class DynKern(Kern):
             mesh_obj_name = self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh")
             if _CONFIG.distributed_memory:
-                # the LFRic colouring API for ditributed memory
+                # the LFRic colouring API for distributed memory
                 # differs from the API without distributed
                 # memory. This is to support and control redundant
                 # computation with coloured loops.
