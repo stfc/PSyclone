@@ -7,7 +7,9 @@ PSyclone reads various run-time configuration options from
 the ``psyclone.cfg`` file. As described in
 :ref:`getting-going-configuration`, the default ``psyclone.cfg``
 configuration file is installed in ``<python-base-prefix>/share/psyclone/``
-during the installation process.
+during the installation process. (The original version of this file
+may be found in the ``PSyclone/config`` directory of the PSyclone
+distribution.)
 
 At execution-time, PSyclone searches for the configuration file in a
 number of locations. The ordering of these
@@ -16,7 +18,7 @@ virtual environment (such as ``venv``). If no virtual environment is
 detected then the locations searched, in order, are:
 
 1. ``${PWD}/.psyclone/``
-2. ``${HOME}/.psyclone/``
+2. ``${HOME}/.local/share/psyclone/``
 3. ``<python-base-dir>/share/psyclone/``
 
 where ``<python-base-dir>`` is the path stored in Python's ``sys.prefix``.
@@ -29,7 +31,7 @@ locations searched is now:
 
 1. ``${PWD}/.psyclone/``
 2. ``<python-base-dir>/share/psyclone/``
-3. ``${HOME}/.psyclone/``
+3. ``${HOME}/.local/share/psyclone/``
 
 If it is desired to use a configuration file in a non-standard
 location then the search mechanism may be overriden by specifying the

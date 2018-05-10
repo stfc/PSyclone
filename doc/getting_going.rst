@@ -273,9 +273,9 @@ configuration file installed as a part of this process - see below.
 Configuration
 -------------
 
-Various aspects of PSyclone are configured through a config file,
-``psyclone.cfg``. The default version of this file is installed to
-``<python-base-prefix>/shared/psyclone/`` during the installation
+Various aspects of PSyclone are configured through a configuration
+file, ``psyclone.cfg``. The default version of this file is installed
+to ``<python-base-prefix>/shared/psyclone/`` during the installation
 process. If a system-wide installation is being performed then this
 will be something like ``/usr/share/psyclone/``. If a user-local
 installation is performed (``--user`` flag to ``pip install``) then
