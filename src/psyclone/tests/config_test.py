@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@ Module containing tests relating to PSyclone configuration handling.
 import os
 import re
 import tempfile
+import six
 import pytest
 from psyclone.configuration import ConfigurationError, Config
 
@@ -61,19 +62,30 @@ REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 '''
 
-# Parameterised fixture that will cause a test that has it as an
-# argument to be run for each boolean member of the configuration file
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS"])
 def bool_entry(request):
+    '''
+    Parameterised fixture that will cause a test that has it as an
+    argument to be run for each boolean member of the configuration file
+    :param request: Object through which to access current parameter value
+    :return: Name of element of config file
+    :rtype: str
+    '''
     return request.param
 
 
-# Fixture for integer members of the configuration file
 @pytest.fixture(scope="module",
                 params=["REPROD_PAD_SIZE"])
 def int_entry(request):
+    '''
+    Parameterised fixture that returns the names of integer members of the
+    configuration file.
+    :param request: Object through which to access current parameter value
+    :return: Name of element of config file
+    :rtype: str
+    '''
     return request.param
 
 
@@ -102,7 +114,7 @@ def test_missing_file(tmpdir):
     config file cannot be found '''
     with pytest.raises(ConfigurationError) as err:
         _ = Config(config_file=os.path.join(str(tmpdir),
-                                            "not_a_file.cfg")).create()
+                                            "not_a_file.cfg"))
     assert "not_a_file.cfg does not exist" in str(err)
 
 
@@ -123,8 +135,9 @@ def test_search_path(monkeypatch, tmpdir):
         # Test when (we appear to be) both inside and outside a virtual
         # environment
         for inside_venv in [True, False]:
-            monkeypatch.setattr("psyclone.virtual_utils.WITHIN_VIRTUAL_ENV",
-                                lambda: inside_venv)
+            monkeypatch.setattr(
+                "psyclone.virtual_utils.within_virtual_env",
+                lambda: inside_venv)  # pylint: disable=cell-var-from-loop
             with pytest.raises(ConfigurationError) as err:
                 _ = Config.find_file()
             err_msg = str(err)
@@ -157,7 +170,6 @@ def test_search_path(monkeypatch, tmpdir):
 def test_search_env(monkeypatch, tmpdir):
     ''' Check that we pick up the configuration file specified in an
     environment variable '''
-    import sys
     try:
         oldpwd = tmpdir.chdir()
         cwd = str(tmpdir)
@@ -194,13 +206,13 @@ def test_read_values():
         # Whether distributed memory is enabled
         dist_mem = _config.distributed_memory
         assert isinstance(dist_mem, bool)
-        assert dist_mem == True
+        assert dist_mem
         # Check the setter method
         _config.distributed_memory = False
-        assert _config.distributed_memory == False
+        assert not _config.distributed_memory
         # The default API
         api = _config.default_api
-        assert isinstance(api, unicode)
+        assert isinstance(api, six.text_type)
         assert api == "dynamo0.3"
         # The list of supported APIs
         api_list = _config.supported_apis
@@ -208,7 +220,7 @@ def test_read_values():
                             'gocean0.1', 'gocean1.0']
         # The default API for kernel stub generation
         api = _config.default_stub_api
-        assert isinstance(api, unicode)
+        assert isinstance(api, six.text_type)
         assert api == "dynamo0.3"
         # The list of supported APIs for kernel stub generation
         api_list = _config.supported_stub_apis
@@ -216,7 +228,7 @@ def test_read_values():
         # Whether reproducible reductions are enabled
         reprod = _config.reproducible_reductions
         assert isinstance(reprod, bool)
-        assert reprod == False
+        assert not reprod
         # How much to pad arrays by when doing reproducible reductions
         pad = _config.reprod_pad_size
         assert isinstance(pad, int)
@@ -264,7 +276,7 @@ def test_default_api_not_in_list():
                 "supported APIs" in str(err))
 
 
-def test_default_stubapi_not_in_list():
+def test_default_stubapi_missing():
     ''' Check that we raise an error if the default stub API is not in
     the list of supported stub APIs '''
     content = re.sub(r"^SUPPORTEDSTUBAPIS = .*$",

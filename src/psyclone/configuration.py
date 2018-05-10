@@ -227,7 +227,7 @@ class Config(object):
         :raises ConfigurationError: if no config file is found
         '''
         import sys
-        from psyclone.virtual_utils import WITHIN_VIRTUAL_ENV
+        from psyclone.virtual_utils import within_virtual_env
 
         # If $PSYCLONE_CONFIG is set then we use that unless the
         # file it points to does not exist
@@ -246,13 +246,13 @@ class Config(object):
 
         # 1. .psyclone/ in the CWD
         _file_paths = [os.path.join(os.getcwd(), ".psyclone")]
-        if WITHIN_VIRTUAL_ENV():
+        if within_virtual_env():
             # 2. <virtual-env-base>/share/psyclone/
             _file_paths.append(share_dir)
         # 3. ~/.local/share/psyclone/
         _file_paths.append(os.path.join(os.path.expanduser("~"),
                                         ".local", "share", "psyclone"))
-        if not WITHIN_VIRTUAL_ENV():
+        if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
 

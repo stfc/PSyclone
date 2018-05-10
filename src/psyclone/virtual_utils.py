@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@ virtual environments (such as virtualenv and venv).
 '''
 
 
-def WITHIN_VIRTUAL_ENV():
+def within_virtual_env():
     '''
     Utility function that identifies whether we are running in a Python
     virtual environment. Works for virtualenv and Python 3's venv.
