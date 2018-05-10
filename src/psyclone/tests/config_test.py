@@ -207,9 +207,6 @@ def test_read_values():
         dist_mem = _config.distributed_memory
         assert isinstance(dist_mem, bool)
         assert dist_mem
-        # Check the setter method
-        _config.distributed_memory = False
-        assert not _config.distributed_memory
         # The default API
         api = _config.default_api
         assert isinstance(api, six.text_type)
@@ -239,6 +236,17 @@ def test_read_values():
     finally:
         # Reset the configuration object held in the factory
         ConfigFactory._instance = None
+
+
+def test_dm():
+    ''' Checks for getter and setter for distributed memory '''
+    _config = Config(config_file=TEST_CONFIG)
+    # Check the setter method
+    _config.distributed_memory = False
+    assert not _config.distributed_memory
+    with pytest.raises(ConfigurationError) as err:
+        _config.distributed_memory = "not-a-bool"
+    assert "distributed_memory must be a boolean but got " in str(err)
 
 
 def test_list_no_commas():
