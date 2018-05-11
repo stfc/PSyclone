@@ -103,7 +103,7 @@ class ProfileNode(Node):
     '''
 
     def __str__(self):
-        return "Profiler"
+        return "Profile"
 
     # -------------------------------------------------------------------------
     def view(self, indent=0):
@@ -151,12 +151,12 @@ class ProfileNode(Node):
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
-        use = UseGen(parent, "profiler_mod", only=True,
-                     funcnames=["ProfilerData, ProfileStart, ProfileEnd"])
+        use = UseGen(parent, "profile_mod", only=True,
+                     funcnames=["ProfileData, ProfileStart, ProfileEnd"])
         parent.add(use)
 
         profile_name = NameSpaceFactory().create().create_name("profile")
-        prof_var_decl = TypeDeclGen(parent, datatype="ProfilerData",
+        prof_var_decl = TypeDeclGen(parent, datatype="ProfileData",
                                     entity_decls=[profile_name],
                                     attrspec=["save"])
         parent.add(prof_var_decl)

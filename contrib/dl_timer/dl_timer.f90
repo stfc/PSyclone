@@ -1,11 +1,11 @@
 
-module profiler_mod
-  type :: ProfilerData
+module profile_mod
+  type :: ProfileData
      character(:), allocatable :: module_name
      character(:), allocatable :: region_name
      integer                   :: timer_index
      logical                   :: registered = .false.
-  end type ProfilerData
+  end type ProfileData
 
 
 contains
@@ -30,33 +30,33 @@ contains
   ! region_name:  Name of the region (could be name of an invoke, or
   !               subroutine name).
   ! profile_data: Persistent data used by the profiling library.
-  subroutine ProfileStart(module_name, region_name, profiler_data)
+  subroutine ProfileStart(module_name, region_name, profile_data)
     use dl_timer, only : timer_register, timer_start
     implicit none
 
     character*(*) :: module_name, region_name
-    type(ProfilerData) :: profiler_data
+    type(ProfileData) :: profile_data
 
-    if( .not. profiler_data%registered) then
-       call timer_register(profiler_data%timer_index, &
+    if( .not. profile_data%registered) then
+       call timer_register(profile_data%timer_index, &
                            label=module_name//":"//region_name)
-       profiler_data%registered = .true.
+       profile_data%registered = .true.
     endif
-    call timer_start(profiler_data%timer_index)
+    call timer_start(profile_data%timer_index)
   end subroutine ProfileStart
 
   ! ---------------------------------------------------------------------------
-  ! Ends a profiling area. It takes a ProfilerData type that corresponds to
+  ! Ends a profiling area. It takes a ProfileData type that corresponds to
   ! to the ProfileStart call.
   ! profile_data: Persistent data used by the profiling library.
   ! 
-  subroutine ProfileEnd(profiler_data)
+  subroutine ProfileEnd(profile_data)
     use dl_timer, only : timer_stop
     implicit none
 
-    type(ProfilerData) :: profiler_data
+    type(ProfileData) :: profile_data
     
-    call timer_stop(profiler_data%timer_index)
+    call timer_stop(profile_data%timer_index)
   end subroutine ProfileEnd
 
   ! ---------------------------------------------------------------------------
@@ -67,4 +67,4 @@ contains
 
   end subroutine ProfileFinalise
 
-end module profiler_mod
+end module profile_mod

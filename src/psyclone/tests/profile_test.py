@@ -79,8 +79,8 @@ def test_profile_invokes_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
                   "call ProfileStart.*"
                   "do j.*"
                   "do i.*"
@@ -98,8 +98,8 @@ def test_profile_invokes_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
                   "call ProfileStart.*"
                   "do j.*"
                   "do i.*"
@@ -129,8 +129,8 @@ def test_profile_kernels_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
                   "call ProfileStart.*"
                   "do j.*"
                   "do i.*"
@@ -148,9 +148,9 @@ def test_profile_kernels_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(.*, (?P<profile1>\w*)\).*"
                   "do j.*"
                   "do i.*"
@@ -185,8 +185,8 @@ def test_profile_invokes_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
                   "call ProfileStart.*"
                   "do cell.*"
                   "call.*"
@@ -201,8 +201,8 @@ def test_profile_invokes_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
                   "call ProfileStart.*"
                   "do cell.*"
                   "call.*"
@@ -227,8 +227,8 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
                   "call ProfileStart.*"
                   "do cell.*"
                   "call.*"
@@ -243,9 +243,9 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profiler_mod, only: ProfilerData.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
-                  r"TYPE\(ProfilerData\), save :: profile.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
                   r"call ProfileStart\(.*, (?P<profile1>\w*)\).*"
                   "do cell.*"
                   "call.*"
