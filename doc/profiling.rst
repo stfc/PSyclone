@@ -107,39 +107,117 @@ code with profiling regions. It can create profile regions around
 a full invoke (including all kernel calls in this invoke), and/or
 around each individual invoke. 
 
-The option ``--profile invokes` will automatically add a call to 
+The option ``--profile invokes`` will automatically add a call to 
 ``ProfileStart`` and ProfileEnd`` at the begin and end of every
 invoke subroutine created by PSyclone. All kernels called within
 this invoke subroutine will be included in the profiled region.
 
-The option ``--profile kernels` will add call to ``ProfileStart``
+The option ``--profile kernels`` will add call to ``ProfileStart``
 calls before any loops created by PSyclone, and a ``ProfileEnd``
 call at the end of the loop.  Two caveats::
 
     1. in some APIs (for example dynamo when using distributed
-       memory) additional minor codemight get included in a
-       profiled kernel section, for example setDirty() calls
-       (expensive calls like HaloExchange will be  excluded). 
-    2. If loop transforms are applied using a script, the
-       ability to automatically insert profiling calls is
-       reduced. It is recommended to only use automatic
-       profiling of kernels without usage of additional
-       transform, or explicitly add the profiling transform
-       as part of the transformation script.
+    memory) additional minor codemight get included in a
+    profiled kernel section, for example setDirty() calls
+    (expensive calls like HaloExchange will be  excluded). 
+
+2. If loop transforms are applied using a script, the
+ability to automatically insert profiling calls is
+reduced. It is recommended to only use automatic
+profiling of kernels without usage of additional
+transform, or explicitly add the profiling transform
+as part of the transformation script.
 
 PSyclone will modify the schedule to insert the profiling regions.
 Here an example of a schedule created when instrumenting invokes
-- all children of a Profile-Node will be part of the profiling region::
+- all children of a Profile-Node will be part of the profiling region,
+including all loops created by PSyclone and all kernel calls::
 
-And here the same schedule when instrumenting kernels::
+    GOSchedule[invoke='invoke_1',Constant loop bounds=True]
+        [Profile]
+            Loop[type='outer',field_space='cu',it_space='internal_pts']
+                Loop[type='inner',field_space='cu',it_space='internal_pts']
+                    KernCall compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
+            Loop[type='outer',field_space='cv',it_space='internal_pts']
+                Loop[type='inner',field_space='cv',it_space='internal_pts']
+                    KernCall compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
+            Loop[type='outer',field_space='ct',it_space='internal_pts']
+                Loop[type='inner',field_space='ct',it_space='internal_pts']
+                    KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
+
+And here the same schedule when instrumenting kernels. In this case
+each loop nest and kernel call will be contained in a separate
+region::
+
+    GOSchedule[invoke='invoke_1',Constant loop bounds=True]
+        [Profile]
+            Loop[type='outer',field_space='cu',it_space='internal_pts']
+                Loop[type='inner',field_space='cu',it_space='internal_pts']
+                    KernCall compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
+        [Profile]
+            Loop[type='outer',field_space='cv',it_space='internal_pts']
+                Loop[type='inner',field_space='cv',it_space='internal_pts']
+                    KernCall compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
+        [Profile]
+            Loop[type='outer',field_space='ct',it_space='internal_pts']
+                Loop[type='inner',field_space='ct',it_space='internal_pts']
+                    KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 Both options can be specified at the same time::
 
+    GOSchedule[invoke='invoke_1',Constant loop bounds=True]
+        [Profile]
+            [Profile]
+                Loop[type='outer',field_space='cu',it_space='internal_pts']
+                    Loop[type='inner',field_space='cu',it_space='internal_pts']
+                        KernCall compute_unew_code(unew_fld,uold_fld,z_fld,cv_fld,h_fld,tdt,dy) [module_inline=False]
+            [Profile]
+                Loop[type='outer',field_space='cv',it_space='internal_pts']
+                    Loop[type='inner',field_space='cv',it_space='internal_pts']
+                        KernCall compute_vnew_code(vnew_fld,vold_fld,z_fld,cu_fld,h_fld,tdt,dy) [module_inline=False]
+            [Profile]
+                Loop[type='outer',field_space='ct',it_space='internal_pts']
+                    Loop[type='inner',field_space='ct',it_space='internal_pts']
+                        KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
 
-Profiling Transform
--------------------
-How to use the transform
+
+Profiling in Scripts - ProfileRegionTransform
+---------------------------------------------
+The automatic transformation can be applied in user written transformation
+scripts easily: before calling the create function of the PSyFactory,
+enable the profiling opions like this::
+
+    from psyclone.profiler import Profiler
+
+    ...
+
+    _, INVOKEINFO = parse("shallow_alg.f90", api=API)
+
+    Profiler.set_options([Profiler.INVOKES, Profiler.KERNELS])
+    PSY = PSyFactory(API).create(INVOKEINFO)
+
+
+But most flexibility is possible by using the profiler
+transformation explicitly in the script. The script takes
+either a single AST Node or a list of AST Nodes as parameter,
+and will insert a Profile Node into the AST, with the 
+specified nodes as children. At code creation time the
+listed children will all be enclosed in one profile region.
+As an example::
+
+    from psyclone.transformations import ProfileRegionTrans
+
+    t=TransInfo()
+    p_trans= ProfileRegionTrans()
+    schedule=psy.invokes.get('invoke_0').schedule
+    schedule.view()
+    
+    # Enclose all children within a single profile region
+    newschedule, _ = p_trans.apply(schedule.children[1:3])
+    newschedule.view()
+
+
 
 Profiling API
 -------------
