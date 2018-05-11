@@ -1712,7 +1712,7 @@ class ProfileRegionTrans(Transformation):
         schedule within a single profiler region.
 
         :param nodes: Can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psygen.Nodes` or list of\
+        :type nodes: :py:obj:`psyclone.psygen.Node` or list of\
         :py:obj:`psyclone.psygen.Node`.
         '''
 
