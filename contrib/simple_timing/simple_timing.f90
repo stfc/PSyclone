@@ -115,12 +115,12 @@ contains
   ! The finalise functoin prints the results
   subroutine ProfileFinalise()
     implicit none
-    integer                     :: i
-    integer                     :: max_len, this_len
+    integer                    :: i
+    integer                    :: max_len, this_len
     type(ProfileData), pointer :: p
-    character                   :: tab = char(9)
-    character(:), allocatable   :: heading
-    character(:), allocatable   :: spaces
+    character                  :: tab = char(9)
+    character(:), allocatable  :: heading
+    character(:), allocatable  :: spaces
 
     heading = "module::region"
     ! Determine maximum header length to get proper alignment
