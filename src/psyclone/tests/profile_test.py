@@ -36,11 +36,15 @@
 ''' Module containing tests for generating monitoring hooks'''
 
 from __future__ import absolute_import
+
 import os
 import re
+import pytest
+
+from psyclone.generator import GenerationError
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
 from psyclone.profiler import Profiler
+from psyclone.psyGen import PSyFactory
 
 
 def get_invoke(api, algfile, idx):
@@ -64,6 +68,130 @@ def get_invoke(api, algfile, idx):
     # of the invoke that we want
     invoke = invokes.get(invokes.names[idx])
     return psy, invoke
+
+
+# -----------------------------------------------------------------------------
+def test_profile_basic(capsys):
+    '''Check basic functionality: node names, schedule view.
+    '''
+    Profiler.set_options([Profiler.INVOKES])
+    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
+
+    assert str(invoke.schedule.children[0]) == "Profile"
+
+    invoke.schedule.view()
+    out, _ = capsys.readouterr()
+
+    correct = (
+        '''GOSchedule[invoke='invoke_0',Constant loop bounds=True]
+    [Profile]
+        Loop[type='outer',field_space='cv',it_space='internal_pts']
+            Loop[type='inner',field_space='cv',it_space='internal_pts']
+                KernCall compute_cv_code(cv_fld,p_fld,v_fld) '''
+        '''[module_inline=False]
+        Loop[type='outer',field_space='ct',it_space='all_pts']
+            Loop[type='inner',field_space='ct',it_space='all_pts']
+                KernCall bc_ssh_code(ncycle,p_fld,tmask) '''
+        '''[module_inline=False]'''
+    )
+    print correct
+    print out
+    assert correct in out
+
+    from psyclone.transformations import ProfileRegionTrans
+    prt = ProfileRegionTrans()
+
+    # Insert a profile call between outer and inner loop.
+    # This forces the profile node to loop up in the tree
+    # to find the subroutine node (i.e. we are testing
+    # the while loop in the ProfileNode).
+    new_sched, _ = prt.apply(invoke.schedule.children[0]
+                             .children[0].children[0])
+
+    new_sched.view()
+    out, _ = capsys.readouterr()
+
+    correct = (
+        '''GOSchedule[invoke='invoke_0',Constant loop bounds=True]
+    [Profile]
+        Loop[type='outer',field_space='cv',it_space='internal_pts']
+            [Profile]
+                Loop[type='inner',field_space='cv',it_space='internal_pts']
+                    KernCall compute_cv_code(cv_fld,p_fld,v_fld) '''
+        '''[module_inline=False]
+        Loop[type='outer',field_space='ct',it_space='all_pts']
+            Loop[type='inner',field_space='ct',it_space='all_pts']
+                KernCall bc_ssh_code(ncycle,p_fld,tmask) '''
+        '''[module_inline=False]'''
+    )
+    assert correct in out
+
+    # ... but only if we do call the actual invoke now - but no need
+    # to test the result.
+    invoke.gen()
+
+    Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_module_name_not_found():
+    '''Test that the profile node handles a mnissing module node
+    correctly - by using the name "unknown module". I could not create
+    this error with normal code. So instead I create an artificial tree
+    that contains a subroutine, which does not have a module as parent,
+    and pass this on directly to profile's gen_code. Then the children
+    of that dummy subroutine are checked for the correct ProfileStart
+    call with 'unknown module' as parameter:
+
+    '''
+
+    Profiler.set_options([Profiler.INVOKES])
+    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
+    schedule = invoke.schedule
+
+    assert str(schedule.children[0]) == "Profile"
+
+    from psyclone.f2pygen import CallGen, ModuleGen, SubroutineGen
+
+    # You need a parent in order to create a subroutine, so first
+    # create a dummy module"
+    module = ModuleGen(name="test")
+    subroutine = SubroutineGen(module, name="test")
+    # And then set the parent of the subroutine (atm the module object)
+    # to none:
+    subroutine._parent = None
+
+    # This call should not find a module object
+    schedule.children[0].gen_code(subroutine)
+
+    # Now one of the children should contain a call to ProfileStart
+    # with 'unknown module' as parameter:
+    found = False
+    for i in subroutine.children:
+        if isinstance(i, CallGen) and i._call.designator == "ProfileStart" \
+                and i._call.items[0] == "\"unknown module\"":
+            found = True
+
+    assert found
+
+    Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_profile_errors2():
+    '''Test various error handling.'''
+    Profiler.set_options([Profiler.INVOKES])
+    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
+                           "one_invoke.f90", 0)
+    schedule = invoke.schedule
+
+    assert str(schedule.children[0]) == "Profile"
+
+    # Raise an error if no subroutine object is found:
+    with pytest.raises(GenerationError):
+        schedule.children[0].gen_code(None)
 
 
 # -----------------------------------------------------------------------------
