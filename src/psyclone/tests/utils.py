@@ -301,3 +301,25 @@ def string_compiles(code, tmpdir, f90, f90flags):
             ofile.remove()
 
     return success
+
+
+def get_invoke(algfile, api, idx):
+    '''
+    Utility method to get the idx'th invoke from the algorithm
+    specified in file
+    :param str algfile: name of the Algorithm source file (Fortran)
+    :param str api: which PSyclone API this Algorithm uses
+    :param int idx: the index of the invoke from the Algorithm to return
+    :returns: the idx'th invoke in the Algorithm
+    :rtype: :py:class:`psyclone.psyGen.Invoke`
+    '''
+    from psyclone.parse import parse
+    from psyclone.psyGen import PSyFactory
+    _, info = parse(os.path.
+                    join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", algfile),
+                    api=api)
+    psy = PSyFactory(api).create(info)
+    invoke = psy.invokes.invoke_list[idx]
+    return psy, invoke
+
