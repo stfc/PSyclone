@@ -39,8 +39,8 @@
 
 from __future__ import absolute_import
 import os
-import pytest
 import re
+import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, \
@@ -132,8 +132,9 @@ def test_const_loop_bounds_invalid_offset():
 def test_loop_fuse_different_iterates_over():
     ''' Test that an appropriate error is raised when we attempt to
     fuse two loops that have differing values of ITERATES_OVER '''
-    _, invoke = get_invoke(os.path.join("gocean1p0","test11_different_iterates_over_"
-                           "one_invoke.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0",
+                     "test11_different_iterates_over_one_invoke.f90"), API, 0)
     schedule = invoke.schedule
     lftrans = LoopFuseTrans()
     cbtrans = GOConstLoopBoundsTrans()
@@ -154,7 +155,9 @@ def test_loop_fuse_different_iterates_over():
 
 def test_loop_fuse_unexpected_error():
     ''' Test that we catch an unexpected error when loop fusing '''
-    _, invoke = get_invoke(os.path.join("gocean1p0","test14_module_inline_same_kernel.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0",
+                     "test14_module_inline_same_kernel.f90"), API, 0)
     schedule = invoke.schedule
 
     lftrans = GOceanLoopFuseTrans()
@@ -173,7 +176,8 @@ def test_loop_fuse_unexpected_error():
 def test_omp_parallel_loop():
     '''Test that we can generate an OMP PARALLEL DO correctly,
     independent of whether or not we are generating constant loop bounds '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     omp = GOceanOMPParallelLoopTrans()
@@ -215,7 +219,8 @@ def test_omp_region_with_wrong_arg_type():
     ''' Test that the OpenMP PARALLEL region transformation
         raises an appropriate error if passed something that is not
         a list of Nodes or a single Node. '''
-    _, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
 
     ompr = OMPParallelTrans()
 
@@ -226,7 +231,8 @@ def test_omp_region_with_wrong_arg_type():
 def test_omp_region_with_single_loop():
     ''' Test that we can pass the OpenMP PARALLEL region transformation
         a single node in a schedule '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
@@ -275,7 +281,8 @@ def test_omp_region_with_single_loop():
 def test_omp_region_with_slice():
     ''' Test that we can pass the OpenMP PARALLEL region transformation
     a list of nodes specified as a slice '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
@@ -305,7 +312,8 @@ def test_omp_region_with_slice():
 def test_omp_region_no_slice():
     ''' Test that we can pass the OpenMP PARALLEL region transformation
     a list of nodes specified as node.children '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
     ompr = OMPParallelTrans()
 
@@ -334,7 +342,8 @@ def test_omp_region_no_slice_no_const_bounds():
     PARALLEL region transformation to a list of nodes when the Schedule
     has been transformed to use loop-bound look-ups '''
 
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
     ompr = OMPParallelTrans()
     cbtrans = GOConstLoopBoundsTrans()
@@ -364,7 +373,8 @@ def test_omp_region_retains_kernel_order1():
     ''' Test that applying the OpenMP PARALLEL region transformation
     to a sub-set of nodes (last 2 of three) does not change their
     ordering '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
@@ -418,7 +428,8 @@ def test_omp_region_retains_kernel_order2():
     ''' Test that applying the OpenMP PARALLEL region transformation
     to a sub-set of nodes (first 2 of 3) does not change their
     ordering '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
@@ -452,7 +463,8 @@ def test_omp_region_retains_kernel_order3():
     ''' Test that applying the OpenMP PARALLEL region transformation
     to a sub-set of nodes (middle 1 of 3) does not change their
     ordering '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
@@ -491,7 +503,8 @@ def test_omp_region_before_loops_trans():
     ''' Test of the OpenMP PARALLEL region transformation where
     we do the region transformation before the loop
     transformations. '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_two_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_two_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     # Put all of the loops in the schedule within a single
@@ -532,7 +545,8 @@ def test_omp_region_before_loops_trans():
 def test_omp_region_after_loops_trans():
     ''' Test of the OpenMP PARALLEL region transformation where we
     do the loop transformations before the region transformation '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_two_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_two_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     # Put an OpenMP do directive around each loop contained
@@ -573,7 +587,8 @@ def test_omp_region_commutes_with_loop_trans():
     ''' Test that the OpenMP PARALLEL region and (orphan) loop
     transformations commute - i.e. we get the same result
     independent of the order in which they are applied. '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_two_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_two_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     # Put an OpenMP do directive around each loop contained
@@ -598,7 +613,8 @@ def test_omp_region_commutes_with_loop_trans():
 
     # Put all of the loops in the schedule within a single
     # OpenMP region
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_two_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_two_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()
@@ -626,7 +642,8 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup():
     transformations commute after constant bounds have been
     switched off - i.e. we get the same result
     independent of the order in which they are applied. '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_two_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_two_kernels.f90"), API, 0)
     schedule = invoke.schedule
     # Turn-off constant loop bounds
     cbtrans = GOConstLoopBoundsTrans()
@@ -654,7 +671,8 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup():
     # ...we re-generate the original schedule here rather than
     # keeping a (deep) copy of it from earlier as that can
     # cause resource problems.
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_two_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_two_kernels.f90"), API, 0)
     schedule = invoke.schedule
     # Turn-off constant loop bounds
     cbtrans = GOConstLoopBoundsTrans()
@@ -686,7 +704,8 @@ def test_omp_region_nodes_not_children_of_same_parent():
     ''' Test that we raise appropriate error if user attempts
     to put a region around nodes that are not children of
     the same parent '''
-    _, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
@@ -707,9 +726,10 @@ def test_omp_region_nodes_not_children_of_same_schedule():
     ''' Test that we raise appropriate error if user attempts
     to put a region around nodes that are not children of
     the same schedule '''
-    _, invoke1 = get_invoke(os.path.join("gocean1p0","test12_two_invokes_two_kernels.f90"), API, 0)
+    alg_file = os.path.join("gocean1p0", "test12_two_invokes_two_kernels.f90")
+    _, invoke1 = get_invoke(alg_file, API, 0)
     schedule1 = invoke1.schedule
-    _, invoke2 = get_invoke(os.path.join("gocean1p0","test12_two_invokes_two_kernels.f90"), API, 1)
+    _, invoke2 = get_invoke(alg_file, API, 1)
     schedule2 = invoke2.schedule
 
     ompr = OMPParallelTrans()
@@ -725,7 +745,8 @@ def test_omp_loop_outside_region():
     ''' Test that a generation error is raised if we try and
     have an orphaned OpenMP loop that is not enclosed
     within a parallel region '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     # Put an OpenMP do directive around each loop contained
@@ -751,7 +772,8 @@ def test_omp_loop_applied_to_non_loop():
     ''' Test that we raise a TransformationError if we attempt
     to apply an OMP DO transformation to something that
     is not a loop '''
-    _, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     from psyclone.transformations import OMPLoopTrans
@@ -769,7 +791,8 @@ def test_go_omp_loop_applied_to_non_loop():
     ''' Test that we raise a TransformationError if we attempt
     to apply a GOcean OMP DO transformation to something that
     is not a loop '''
-    _, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans()
@@ -786,7 +809,8 @@ def test_go_omp_loop_applied_to_wrong_loop_type():
     ''' Test that we raise a TransformationError if we attempt to
     apply a GOcean OMP  DO transformation to a loop of
     the wrong type '''
-    _, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     # Manually break the loop-type of the first loop in order to
@@ -806,7 +830,8 @@ def test_go_omp_parallel_loop_applied_to_non_loop():
     ''' Test that we raise a TransformationError if we attempt to
     apply a GOcean OMP Parallel DO transformation to something that
     is not a loop '''
-    _, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
@@ -823,7 +848,8 @@ def test_go_omp_parallel_loop_applied_to_wrong_loop_type():
     ''' Test that we raise a TransformationError if we attempt to
     apply a GOcean OMP Parallel DO transformation to a loop of
     the wrong type '''
-    _, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     # Manually break the loop-type of the first loop in order to
@@ -843,7 +869,8 @@ def test_omp_parallel_do_inside_parallel_region():
     ''' Test that a generation error is raised if we attempt
     to have an OpenMP parallel do within an OpenMP
     parallel region '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
@@ -868,7 +895,8 @@ def test_omp_parallel_region_inside_parallel_do():
     ''' Test that a generation error is raised if we attempt
     to have an OpenMP parallel region within an OpenMP
     parallel do (with the latter applied first) '''
-    _, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
@@ -886,7 +914,8 @@ def test_omp_parallel_do_around_parallel_region():
     ''' Test that a generation error is raised if we attempt
     to have an OpenMP parallel region around an OpenMP
     parallel do (with the latter applied second) '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0","single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompl = GOceanOMPParallelLoopTrans()
@@ -912,7 +941,8 @@ def test_omp_parallel_do_around_parallel_region():
 def test_omp_region_with_children_of_different_types():
     ''' Test that we can generate code if we have an
     OpenMP parallel region enclosing children of different types. '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans()
@@ -934,7 +964,8 @@ def test_omp_region_with_children_of_different_types():
 def test_omp_schedule_default_static():
     ''' Test that if no OMP schedule is specified then we default
     to "static" '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans()
@@ -959,7 +990,8 @@ def test_omp_schedule_default_static():
 def test_omp_do_schedule_runtime():
     ''' Test that we can specify the schedule of an OMP do as
     "runtime" '''
-    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     ompl = GOceanOMPLoopTrans(omp_schedule="runtime")
@@ -1282,7 +1314,7 @@ def test_go_loop_swap_errors():
     ''' Test loop swapping transform with incorrect parameters. '''
 
     psy, invoke_loop1 = get_invoke(
-        os.path.join("gocean1p0","test27_loop_swap.f90"), API, 1)
+        os.path.join("gocean1p0", "test27_loop_swap.f90"), API, 1)
 
     schedule = invoke_loop1.schedule
     swap = GOLoopSwapTrans()
@@ -1398,7 +1430,7 @@ def test_acc_parallel_trans():
 def test_acc_data_not_a_schedule():
     ''' Test that we raise an appropriate error if we attempt to apply
     an OpenACC Data transformation to something that is not a Schedule '''
-    psy, invoke = get_invoke(
+    _, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
@@ -1429,8 +1461,8 @@ def test_acc_data_correct_pcopy():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    pcopy = "!$acc enter data pcopyin(cu_fld,p_fld,u_fld,cv_fld,v_fld,"
-    "unew_fld,uold_fld)"
+    pcopy = ("!$acc enter data pcopyin(cu_fld,p_fld,u_fld,cv_fld,v_fld,"
+             "unew_fld,uold_fld)")
 
     assert pcopy in code
 
@@ -1486,7 +1518,7 @@ def test_accdata_duplicate():
     accdt = OpenACCDataTrans()
     accpt = OpenACCParallelTrans()
 
-    psy, invoke = get_invoke(
+    _, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
