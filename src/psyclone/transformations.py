@@ -1703,7 +1703,7 @@ class ProfileRegionTrans(Transformation):
     @property
     def name(self):
         ''' Returns the name of this transformation as a string '''
-        return "ProfilerRegionTrans"
+        return "ProfileRegionTrans"
 
     def apply(self, nodes):
         # pylint: disable=arguments-differ
@@ -1740,12 +1740,22 @@ class ProfileRegionTrans(Transformation):
         node_parent = node_list[0].parent
         node_position = node_list[0].position
 
+        # We need to make sure that the nodes are consecutive children,
+        # otherwise code might get moved in an incorrect order
+        prev_position = -1
         for child in node_list:
             if child.parent is not node_parent:
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes "
                     "are not children of the same Schedule/parent."
                     .format(str(self)))
+            if prev_position>=0 and prev_position+1 != child.position:
+                raise TransformationError(
+                    "Children are not consecutive children of one parent: " 
+                    "child '{0}' has position {1}, but previous child had "
+                    "position {2}."
+                    .format(str(child), child.position, prev_position))
+            prev_position = child.position
 
         # create a memento of the schedule and the proposed
         # transformation

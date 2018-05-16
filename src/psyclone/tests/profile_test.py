@@ -45,9 +45,10 @@ from psyclone.generator import GenerationError
 from psyclone.parse import parse
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
+from psyclone.transformations import ProfileRegionTrans, TransformationError
 
 
-def get_invoke(api, algfile, idx):
+def get_invoke(api, algfile, key):
     ''' Utility method to get the idx'th invoke from the algorithm
     specified in file '''
 
@@ -63,10 +64,13 @@ def get_invoke(api, algfile, idx):
                     api=api)
     psy = PSyFactory(api).create(info)
     invokes = psy.invokes
-    # invokes does not have a method by which to request the i'th
-    # in the list so we do this rather clumsy lookup of the name
-    # of the invoke that we want
-    invoke = invokes.get(invokes.names[idx])
+    if isinstance(key, str):
+        invoke = invokes.get(key)
+    else:
+        # invokes does not have a method by which to request the i'th
+        # in the list so we do this rather clumsy lookup of the name
+        # of the invoke that we want
+        invoke = invokes.get(invokes.names[key])
     return psy, invoke
 
 
@@ -95,11 +99,8 @@ def test_profile_basic(capsys):
                 KernCall bc_ssh_code(ncycle,p_fld,tmask) '''
         '''[module_inline=False]'''
     )
-    print correct
-    print out
     assert correct in out
 
-    from psyclone.transformations import ProfileRegionTrans
     prt = ProfileRegionTrans()
 
     # Insert a profile call between outer and inner loop.
@@ -389,3 +390,125 @@ def test_profile_kernels_dynamo0p3():
     # Check that the variables are different
     assert groups.group(1) != groups.group(2)
     Profiler.set_options(None)
+
+
+# -----------------------------------------------------------------------------
+def test_transform(capsys):
+    '''Tests normal behaviour of profile region transformation.'''
+
+    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+    schedule = invoke.schedule
+
+    prt = ProfileRegionTrans()
+    assert str(prt) == "Insert a profile start and end call."
+    assert prt.name == "ProfileRegionTrans"
+
+    # Try applying it to a list
+    sched1, _ = prt.apply(schedule.children)
+    sched1.view()
+    out, _ = capsys.readouterr()
+    # out is unicode, and has no replace function, so convert to string first
+    out = str(out).replace("\n", "")
+    correct_re = ("GOSchedule.*"
+                  r"    \[Profile\].*"
+                  r"        Loop\[type='outer'.*"
+                  r"        Loop\[type='outer'.*"
+                  r"        Loop\[type='outer'.*")
+    assert re.search(correct_re, out)
+
+    # Now only wrap a single node - the middle loop:
+    sched2, _ = prt.apply(schedule.children[0].children[1])
+    sched2.view()
+    out, _ = capsys.readouterr()  # .replace("\n", "")
+    # out is unicode, and has no replace function, so convert to string first
+    out = str(out).replace("\n", "")
+    correct_re = ("GOSchedule.*"
+                  r"    \[Profile\].*"
+                  r"        Loop\[type='outer'.*"
+                  r"        \[Profile\].*"
+                  r"            Loop\[type='outer'.*"
+                  r"        Loop\[type='outer'.*")
+    assert re.search(correct_re, out)
+
+    # Check that an sublist created from individual elements
+    # can be wrapped
+    sched3, _ = prt.apply([sched2.children[0].children[0],
+                           sched2.children[0].children[1]])
+    sched3.view()
+    out, _ = capsys.readouterr()  # .replace("\n", "")
+    # out is unicode, and has no replace function, so convert to string first
+    out = str(out).replace("\n", "")
+    correct_re = ("GOSchedule.*"
+                  r"    \[Profile\].*"
+                  r"        \[Profile\].*"
+                  r"            Loop\[type='outer'.*"
+                  r"            \[Profile\].*"
+                  r"                Loop\[type='outer'.*"
+                  r"        Loop\[type='outer'.*")
+    assert re.search(correct_re, out)
+
+
+# -----------------------------------------------------------------------------
+def test_transform_errors(capsys):
+    '''Tests error handling of the profile region transformation.'''
+
+    # This has been imported and tested before, so we can assume
+    # here that this all works as expected/
+    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+
+    schedule = invoke.schedule
+    prt = ProfileRegionTrans()
+
+    with pytest.raises(TransformationError) as excinfo:
+        prt.apply([schedule.children[0].children[0], schedule.children[1]])
+    assert "supplied nodes are not children of the same Schedule/parent." \
+           in str(excinfo)
+
+    # Supply not a node object:
+    with pytest.raises(TransformationError) as excinfo:
+        prt.apply(5)
+    assert "Argument must be a single Node in a schedule or a list of Nodes " \
+           "in a schedule but have been passed an object of type: " \
+           "<type 'int'>" in str(excinfo)
+
+    # Test that it will only allow correctly ordered nodes:
+    with pytest.raises(TransformationError) as excinfo:
+        sched1, _ = prt.apply([schedule.children[1], schedule.children[0]])
+    assert "Children are not consecutive children of one parent:" \
+           in str(excinfo)
+
+    with pytest.raises(TransformationError) as excinfo:
+        sched1, _ = prt.apply([schedule.children[0], schedule.children[2]])
+    assert "Children are not consecutive children of one parent:" \
+           in str(excinfo)
+
+    # Test 3 element lists: first various incorrect ordering:
+    with pytest.raises(TransformationError) as excinfo:
+        sched1, _ = prt.apply([schedule.children[0],
+                               schedule.children[2],
+                               schedule.children[1]])
+    assert "Children are not consecutive children of one parent:" \
+           in str(excinfo)
+
+    with pytest.raises(TransformationError) as excinfo:
+        sched1, _ = prt.apply([schedule.children[1],
+                               schedule.children[0],
+                               schedule.children[2]])
+    assert "Children are not consecutive children of one parent:" \
+           in str(excinfo)
+
+    # Just to be sure: also check that the right order does indeed work!
+    sched1, _ = prt.apply([schedule.children[0],
+                           schedule.children[1],
+                           schedule.children[2]])
+    sched1.view()
+    out, _ = capsys.readouterr()
+    # out is unicode, and has no replace function, so convert to string first
+    out = str(out).replace("\n", "")
+
+    correct_re = ("GOSchedule.*"
+                  r"    \[Profile\].*"
+                  r"        Loop\[type='outer'.*"
+                  r"        Loop\[type='outer'.*"
+                  r"        Loop\[type='outer'.*")
+    assert re.search(correct_re, out)
