@@ -1361,6 +1361,11 @@ class ACCDirective(Directive):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "ACC_directive_" + str(self.abs_position)
+
 
 class ACCDataDirective(ACCDirective):
     ''' Class for the !$ACC enter data OpenACC directive '''
@@ -1371,7 +1376,7 @@ class ACCDataDirective(ACCDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from f2pygen import DirectiveGen, CommentGen
+        from f2pygen import DirectiveGen, CommentGen, IfThenGen, AssignGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -1384,15 +1389,25 @@ class ACCDataDirective(ACCDirective):
         for pdir in acc_dirs:
             for var in pdir.var_list:
                 if var not in var_list:
-                    var_list.append(var)
+                    # TODO "%data" is specific to GOcean 1.0 and therefore
+                    # should not be here!
+                    var_list.extend([var, var+"%data"])
         # 3. Convert this list of objects into a comma-delimited string
         var_str = self.list_to_string(var_list)
 
         parent.add(CommentGen(parent,
                               " Ensure all fields are on the device and"))
         parent.add(CommentGen(parent, " copy them over if not."))
-        parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
-                                "pcopyin("+var_str+")"))
+        # TODO need to use full list of fields in the condition clause
+        # of this if block
+        ifthen = IfThenGen(parent, ".not. "+var_list[0]+"%data_on_device")
+        parent.add(ifthen)
+        ifthen.add(DirectiveGen(ifthen, "acc", "begin", "enter data",
+                                "copyin("+var_str+")"))
+        # TODO need API-agnostic way of generating code to signal *each*
+        # field is now on the device
+        ifthen.add(AssignGen(ifthen, lhs=var_list[0]+"%data_on_device",
+                             rhs=".true."))
         parent.add(CommentGen(parent, ""))
 
 
@@ -1407,12 +1422,12 @@ class ACCParallelDirective(ACCDirective):
     def gen_code(self, parent):
         from f2pygen import DirectiveGen
 
-        # Look-up the names of the variables required by the kernels
-        # that are called within this OpenACC parallel region
-        vars = self.list_to_string(self.var_list)
-
+        # "default(present)" means that the compiler is to assume that
+        # all data required by the parallel region is already present
+        # on the device. If we've made a mistake and it isn't present
+        # then we'll get a run-time error.
         parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
-                                "present("+vars+")"))
+                                "default(present)"))
 
         for child in self.children:
             child.gen_code(parent)
