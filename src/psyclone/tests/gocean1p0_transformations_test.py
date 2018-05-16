@@ -1,10 +1,37 @@
-# -------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# -------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# ----------------------------------------------------------------------------
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing tests of Transformations when using the
@@ -19,7 +46,8 @@ from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, \
     GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \
     OMPParallelTrans, GOceanOMPParallelLoopTrans, \
-    GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans
+    GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
+    OpenACCParallelTrans, OpenACCDataTrans
 from psyclone.generator import GenerationError
 from utils import count_lines
 
@@ -1316,3 +1344,165 @@ def test_go_loop_swap_errors():
     assert re.search("Given node .* is not a GOLoop, "
                      "but an instance of .*DynLoop",
                      str(error.value)) is not None
+
+
+def test_acc_parallel_not_a_loop():
+    ''' Test that we raise an appropriate error if we attempt
+    to apply the OpenACC Parallel transformation to something that
+    is not a loop '''
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"),
+        GO_API, 0)
+    schedule = invoke.schedule
+
+    acct = OpenACCParallelTrans()
+    # Attempt to (erroneously) apply the OpenACC Parallel transformation
+    # to the schedule rather than a loop
+    with pytest.raises(TransformationError):
+        _, _ = acct.apply(schedule)
+
+
+def test_acc_parallel_trans():
+    ''' Test that we can apply an OpenACC parallel transformation
+    to a loop '''
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"),
+        GO_API, 0)
+    schedule = invoke.schedule
+
+    acct = OpenACCParallelTrans()
+    # Apply the OpenACC Parallel transformation
+    # to the first loop of the schedule
+    new_sched, _ = acct.apply(schedule.children[0])
+
+    invoke.shedule = new_sched
+
+    code = str(psy.gen)
+
+    acc_idx = -1
+    acc_end_idx = -1
+    do_idx = -1
+    for idx, line in enumerate(code.split('\n')):
+        if "!$acc parallel present(" in line:
+            acc_idx = idx
+        if (do_idx == -1) and "DO j" in line:
+            do_idx = idx
+        if "!$acc end parallel" in line:
+            acc_end_idx = idx
+
+    assert acc_idx != -1 and acc_end_idx != -1
+    assert acc_end_idx > acc_idx
+    assert do_idx == (acc_idx + 1)
+
+
+def test_acc_data_not_a_schedule():
+    ''' Test that we raise an appropriate error if we attempt to apply
+    an OpenACC Data transformation to something that is not a Schedule '''
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"),
+        GO_API, 0)
+    schedule = invoke.schedule
+
+    acct = OpenACCDataTrans()
+
+    with pytest.raises(TransformationError):
+        _, _ = acct.apply(schedule.children[0])
+
+
+def test_acc_data_correct_pcopy():
+    ''' Test that we correctly generate the arguments to the pcopy
+    clause of an OpenACC data region '''
+    from psyGen import Loop
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"),
+        GO_API, 0)
+    schedule = invoke.schedule
+
+    accpt = OpenACCParallelTrans()
+    accdt = OpenACCDataTrans()
+
+    # Put each loop within an OpenACC parallel region
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            new_sched, _ = accpt.apply(child)
+
+    # Create a data region for the whole schedule
+    new_sched, _ = accdt.apply(new_sched)
+
+    invoke.schedule = new_sched
+    code = str(psy.gen)
+    pcopy = "!$acc enter data pcopyin(cu_fld,p_fld,u_fld,cv_fld,v_fld,"
+    "unew_fld,uold_fld)"
+
+    assert pcopy in code
+
+
+def test_acc_data_parallel_commute():
+    '''Test that we can apply the OpenACC parallel and data
+    transformations in either order'''
+    from psyGen import Loop
+
+    accpt = OpenACCParallelTrans()
+    accdt = OpenACCDataTrans()
+
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"),
+        GO_API, 0)
+    schedule = invoke.schedule
+
+    # Put each loop within an OpenACC parallel region
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            new_sched, _ = accpt.apply(child)
+
+    # Create a data region for the whole schedule
+    new_sched, _ = accdt.apply(new_sched)
+
+    invoke.schedule = new_sched
+    code1 = str(psy.gen)
+
+    # Repeat these transformations but create the region
+    # before the parallel loops
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"),
+        GO_API, 0)
+    schedule = invoke.schedule
+
+    # Create a data region for the whole schedule
+    new_sched, _ = accdt.apply(schedule)
+
+    # Put each loop within an OpenACC parallel region
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            new_sched, _ = accpt.apply(child)
+
+    invoke.schedule = new_sched
+    code2 = str(psy.gen)
+
+    assert code1 == code2
+
+
+def test_accdata_duplicate():
+    ''' Check that we raise an error if we attempt to add an OpenACC
+    data directive to a schedule that already contains one '''
+    from psyGen import Loop
+
+    accdt = OpenACCDataTrans()
+    accpt = OpenACCParallelTrans()
+
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"),
+        GO_API, 0)
+    schedule = invoke.schedule
+
+    # Create a data region for the whole schedule
+    new_sched, _ = accdt.apply(schedule)
+
+    # Put each loop within an OpenACC parallel region
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            new_sched, _ = accpt.apply(child)
+
+    # Erroneously attempt to add a data region for the second time
+    with pytest.raises(TransformationError):
+        _, _ = accdt.apply(new_sched)

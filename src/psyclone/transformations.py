@@ -1786,4 +1786,117 @@ class ProfileRegionTrans(Transformation):
         node_parent.addchild(profile_node,
                              index=node_position)
 
+
+class OpenACCParallelTrans(Transformation):
+
+    ''' Adds an OpenACC parallel directive to a loop.
+
+        Any field data required by the kernel is added to the data
+        region associated with the parent Invoke '''
+
+    # TODO decide whether we should have a LoopTransformation
+    # base class to avoid code duplication, e.g. in checking that
+    # target node is a Loop.
+
+    def __str__(self):
+        return "Adds an OpenACC parallel directive"
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string '''
+        return "OpenACCParallelTrans"
+
+    def apply(self, node):
+        '''Enclose the supplied node within an OpenACC parallel
+
+        Apply the OpenACCParallelTrans transformation to the specified
+        node in a Schedule. This node must be a Loop since this transformation
+        corresponds to wrapping the generated code with directives like so:
+
+        .. code-block:: fortran
+
+          !$ACC PARALLEL
+          do ...
+             ...
+          end do
+          !$OMP END PARALLEL
+
+        '''
+        # Check that the supplied node is a Loop
+        from psyGen import Loop
+        if not isinstance(node, Loop):
+            raise TransformationError("Cannot apply an OpenACC Parallel "
+                                      "directive to something that is "
+                                      "not a loop")
+
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed
+        # transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [node])
+
+        # keep a reference to the node's original parent and its index as these
+        # are required and will change when we change the node's location
+        node_parent = node.parent
+        node_position = node.position
+
+        # add our OpenACC parallel directive setting its parent to
+        # the node's parent and its children to the node
+        from psyGen import ACCParallelDirective
+        directive = ACCParallelDirective(parent=node_parent,
+                                         children=[node])
+
+        # add the OpenACC parallel directive as a child of the node's parent
+        node_parent.addchild(directive, index=node_position)
+
+        # change the node's parent to be the directive
+        node.parent = directive
+
+        # remove the original loop
+        node_parent.children.remove(node)
+
+        return schedule, keep
+
+
+class OpenACCDataTrans(Transformation):
+
+    ''' Adds an OpenACC begin data directive to a Schedule '''
+
+    def __str__(self):
+        return "Adds an OpenACC begin data directive"
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string '''
+        return "OpenACCDataTrans"
+
+    def apply(self, node):
+        '''Adds an OpenACC data region to the invoke associated with the
+        supplied Schedule. Any fields accessed by OpenACC kernels
+        within this schedule will be added to this data region in
+        order to ensure they remain on the target device.
+
+        '''
+        # Check that the supplied node is a Schedule
+        from psyGen import Schedule, ACCDataDirective
+        if not isinstance(node, Schedule):
+            raise TransformationError("Cannot apply an OpenACC data "
+                                      "directive to something that is "
+                                      "not a Schedule")
+        schedule = node
+        # Check that we don't already have a data region
+        data_dir = schedule.walk(schedule.children, ACCDataDirective)
+        if len(data_dir) != 0:
+            raise TransformationError("Schedule already has an OpenACC "
+                                      "data region - cannot add another.")
+        # create a memento of the schedule and the proposed
+        # transformation
+        from undoredo import Memento
+        keep = Memento(schedule, self, [schedule])
+
+        # Add the directive
+        data_dir = ACCDataDirective(parent=schedule, children=[])
+        schedule.addchild(data_dir, index=0)
+
         return schedule, keep

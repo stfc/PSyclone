@@ -72,12 +72,17 @@ def index_of_object(alist, obj):
 # reason about directives
 
 
-class OMPDirective(Comment):
-    ''' Subclass f2py comment for OpenMP directives so we can
-        reason about them when walking the tree '''
+class Directive(Comment):
+    '''
+    Base class for directives so we can reason about them when walking
+    the tree
+    :param root:
+    :param line:
+    :param position:
+    :param str dir_type: the type of directive that this is
+    '''
     def __init__(self, root, line, position, dir_type):
-        self._types = ["parallel do", "parallel", "do", "master"]
-        self._positions = ["begin", "end"]
+
         if dir_type not in self._types:
             raise RuntimeError("Error, unrecognised directive type '{0}'. "
                                "Should be one of {1}".
@@ -92,14 +97,36 @@ class OMPDirective(Comment):
 
     @property
     def type(self):
-        ''' Returns the type of this OMP Directive (one of 'parallel do',
-        'parallel' or 'do') '''
+        '''
+        Returns the type of this Directive
+        '''
         return self._my_type
 
     @property
     def position(self):
-        ''' Returns the position of this OMP Directive ('begin' or 'end') '''
+        ''' Returns the position of this Directive ('begin' or 'end') '''
         return self._position
+
+
+class OMPDirective(Directive):
+    ''' Subclass f2py comment for OpenMP directives so we can 
+        reason about them when walking the tree '''
+    def __init__(self,root,line,position,dir_type):
+        self._types = ["parallel do", "parallel", "do"]
+        self._positions = ["begin", "end"]
+
+        Directive.__init__(self,root,line,position,dir_type)
+
+
+class ACCDirective(Directive):
+    ''' Subclass f2py comment for OpenACC directives so we can
+    reason about them when walking the tree '''
+    def __init__(self,root,line,position,dir_type):
+        self._types = ["parallel", "kernels", "enter data"]
+        self._positions = ["begin", "end"]
+
+        Directive.__init__(self,root,line,position,dir_type)
+
 
 # This section provides new classes which provide a relatively high
 # level interface to creating code and adding code to an existing ast
@@ -247,7 +274,7 @@ class BaseGen(object):
         if index == 0:
             if debug:
                 print("current index is 0 so finish")
-        elif isinstance(parent.content[index-1], OMPDirective):
+        elif isinstance(parent.content[index-1], Directive):
             if debug:
                 print(
                     "preceding node is a directive so find out what type ...\n"
@@ -534,7 +561,7 @@ class DirectiveGen(BaseGen):
         :raises RuntimeError: if an unrecognised directive language is
                               specified
         '''
-        self._supported_languages = ["omp"]
+        self._supported_languages = ["omp", "acc"]
         self._language = language
         self._directive_type = directive_type
 
@@ -546,6 +573,15 @@ class DirectiveGen(BaseGen):
             my_comment = OMPDirective(parent.root, subline, position,
                                       directive_type)
             my_comment.content = "$omp"
+            if position == "end":
+                my_comment.content += " end"
+            my_comment.content += " " + directive_type
+            if content != "":
+                my_comment.content += " " + content
+        elif language == "acc":
+            my_comment = ACCDirective(parent.root, subline, position,
+                                      directive_type)
+            my_comment.content = "$acc"
             if position == "end":
                 my_comment.content += " end"
             my_comment.content += " " + directive_type
