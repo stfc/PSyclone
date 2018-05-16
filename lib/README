@@ -1,0 +1,6 @@
+This directories contains sources for compiled libraries that can be
+used with PSyclone:
+
+profiling:
+----------
+Contains example code and wrapper libraries for dl_timer.

@@ -1,4 +1,21 @@
-TODO
+This library is a simple stand-alone timer library. It counts
+the number of calls for each region, and reports minumum, maximum
+and average times. This library is not thread-safe, and not
+MPI aware (e.g. maximum reported is per process, not across all
+processes).
+
+Dependencies
+------------
+The library dl_timer must be installed. See
+https://bitbucket.org/apeg/dl_timer
+for details.
+
+Compilation
+-----------
+gfortran -c simple_timer.f90 I PATH_TO_DLTIMER/src
+
+The application needs to provide the template directory as module or include
+path, and link with dummy_lib.o and dl_timer.
 
 Sample output:
  ===========================================
