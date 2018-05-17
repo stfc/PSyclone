@@ -1368,15 +1368,19 @@ class ACCDirective(Directive):
 
 
 class ACCDataDirective(ACCDirective):
-    ''' Class for the !$ACC enter data OpenACC directive '''
+    '''
+    Class representing a !$ACC enter data OpenACC directive in
+    a Schedule
 
+    '''
     def view(self, indent=0):
         print self.indent(indent) + self.coloured_text + "[OpenACC enter data]"
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from f2pygen import DirectiveGen, CommentGen, IfThenGen, AssignGen
+        from f2pygen import DeclGen, DirectiveGen, CommentGen, IfThenGen, \
+            AssignGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -1389,11 +1393,19 @@ class ACCDataDirective(ACCDirective):
         for pdir in acc_dirs:
             for var in pdir.var_list:
                 if var not in var_list:
-                    # TODO "%data" is specific to GOcean 1.0 and therefore
-                    # should not be here!
-                    var_list.extend([var, var+"%data"])
+                    var_list.append(var)
         # 3. Convert this list of objects into a comma-delimited string
         var_str = self.list_to_string(var_list)
+
+        # 4. Declare and initialise a logical variable to keep track of
+        #    whether this is the first time we've entered this Invoke
+        name_space_manager = NameSpaceFactory().create()
+        first_time = name_space_manager.create_name(
+            root_name="first_time", context="PSyVars", label="first_time")
+        # TODO (#172) extend DeclGen to support logical, save and
+        # initial value
+        #parent.add(DeclGen(parent, datatype="logical",
+        #                   entity_decls=[first_time]))
 
         parent.add(CommentGen(parent,
                               " Ensure all fields are on the device and"))
@@ -1439,7 +1451,9 @@ class ACCParallelDirective(ACCDirective):
         '''
         Returns a list of the names of the variables
         required by the Kernel call(s) that are children of this
-        directive.
+        directive. This is the list of quantities that must be
+        available on the remote device (probably a GPU) before
+        the parallel region can be begun.
 
         :returns: list of variable names
         :rtype: list of str
@@ -1449,9 +1463,9 @@ class ACCParallelDirective(ACCDirective):
         # Look-up the calls that are children of this node
         my_calls = self.walk(self.children, Call)
         for call in my_calls:
-            for arg in call.arguments.args:
+            for arg in call.arguments.acc_args:
                 if arg not in variables:
-                    variables.append(arg.name)
+                    variables.append(arg)
         return variables
 
 
@@ -2705,6 +2719,15 @@ class Arguments(object):
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
                               "reader/writer, or increment as an argument")
+
+    @property
+    def acc_args(self):
+        '''
+        Returns the list of quantities that must be available on an
+        OpenACC device before the associated kernel can be launched.
+        '''
+        raise NotImplementedError(
+            "Arguments.acc_args must be implemented in subclass")
 
 
 class Argument(object):

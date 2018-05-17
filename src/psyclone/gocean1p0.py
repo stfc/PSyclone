@@ -811,6 +811,37 @@ class GOKernelArguments(Arguments):
         arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
 
+    @property
+    def acc_args(self):
+        '''
+        Provide the list of quantities that must be present on an OpenACC
+        device before the kernel associated with this Arguments object may
+        be launched.
+
+        :returns: list of (Fortran) quantities
+        :rtype: list of str
+        '''
+        arg_list = []
+
+        # First off, specify the field object from which we will find
+        # any grid properties (if this kernel requires them)
+        grid_fld = self._parent_call._find_grid_access()
+        grid_ptr = grid_fld.name + "%grid"
+        arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
+
+        for arg in self._args:
+            if arg.type == "scalar":
+                arg_list.append(arg.name)
+            elif arg.type == "field" and arg != grid_fld:
+                arg_list.extend([arg.name, arg.name+"%data"])
+            elif arg.type == "grid_property":
+                if grid_ptr not in arg_list:
+                    # This kernel needs a grid property and therefore the
+                    # grid pointer must be copied to the device
+                    arg_list.append(grid_ptr)
+                arg_list.append(grid_ptr+"%"+arg.name)
+        return arg_list
+
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
