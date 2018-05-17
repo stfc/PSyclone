@@ -103,7 +103,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
                        "Directive": "green",
                        "HaloExchange": "blue",
                        "Call": "red",
-                       "KernCall": "magenta"}
+                       "KernCall": "magenta",
+                       "Profile": "green"}
 
 
 def get_api(api):

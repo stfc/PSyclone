@@ -43,7 +43,8 @@
 
 from psyclone.f2pygen import CallGen, ModuleGen, SubroutineGen, \
     TypeDeclGen, UseGen
-from psyclone.psyGen import GenerationError, Kern, NameSpaceFactory, Node
+from psyclone.psyGen import colored, GenerationError, Kern, NameSpaceFactory, \
+     Node, SCHEDULE_COLOUR_MAP
 
 
 class Profiler(object):
@@ -106,9 +107,21 @@ class ProfileNode(Node):
         return "Profile"
 
     # -------------------------------------------------------------------------
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type
+
+        :return: the name of this node type, possibly with control codes
+                 for colour
+        :rtype: string
+        '''
+        return colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
+
+    # -------------------------------------------------------------------------
     def view(self, indent=0):
         # pylint: disable=arguments-differ
-        print self.indent(indent) + "[Profile]"
+        print self.indent(indent) + self.coloured_text
         for entity in self._children:
             entity.view(indent=indent + 1)
 

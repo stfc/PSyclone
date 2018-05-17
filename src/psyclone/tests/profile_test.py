@@ -42,9 +42,10 @@ import re
 import pytest
 
 from psyclone.generator import GenerationError
+from psyclone.gocean1p0 import GOKern, GOSchedule
 from psyclone.parse import parse
-from psyclone.profiler import Profiler
-from psyclone.psyGen import PSyFactory
+from psyclone.profiler import Profiler, ProfileNode
+from psyclone.psyGen import Loop, PSyFactory
 from psyclone.transformations import ProfileRegionTrans, TransformationError
 
 
@@ -87,18 +88,27 @@ def test_profile_basic(capsys):
     invoke.schedule.view()
     out, _ = capsys.readouterr()
 
+    coloured_schedule = GOSchedule([]).coloured_text
+    coloured_loop = Loop().coloured_text
+    coloured_kern = GOKern().coloured_text
+    coloured_profile = ProfileNode().coloured_text
     correct = (
-        '''GOSchedule[invoke='invoke_0',Constant loop bounds=True]
-    [Profile]
-        Loop[type='outer',field_space='cv',it_space='internal_pts']
-            Loop[type='inner',field_space='cv',it_space='internal_pts']
-                KernCall compute_cv_code(cv_fld,p_fld,v_fld) '''
+        '''{0}[invoke='invoke_0',Constant loop bounds=True]
+    {3}
+        {1}[type='outer',field_space='cv',it_space='internal_pts']
+            {1}[type='inner',field_space='cv',it_space='internal_pts']
+                {2} compute_cv_code(cv_fld,p_fld,v_fld) '''
         '''[module_inline=False]
-        Loop[type='outer',field_space='ct',it_space='all_pts']
-            Loop[type='inner',field_space='ct',it_space='all_pts']
-                KernCall bc_ssh_code(ncycle,p_fld,tmask) '''
-        '''[module_inline=False]'''
+        {1}[type='outer',field_space='ct',it_space='all_pts']
+            {1}[type='inner',field_space='ct',it_space='all_pts']
+                {2} bc_ssh_code(ncycle,p_fld,tmask) '''
+        '''[module_inline=False]'''.format(coloured_schedule, coloured_loop,
+                                           coloured_kern, coloured_profile)
     )
+
+    print correct
+    print out
+
     assert correct in out
 
     prt = ProfileRegionTrans()
@@ -113,19 +123,20 @@ def test_profile_basic(capsys):
     new_sched.view()
     out, _ = capsys.readouterr()
 
+    # Make sure to support colour codes
     correct = (
-        '''GOSchedule[invoke='invoke_0',Constant loop bounds=True]
-    [Profile]
-        Loop[type='outer',field_space='cv',it_space='internal_pts']
-            [Profile]
-                Loop[type='inner',field_space='cv',it_space='internal_pts']
-                    KernCall compute_cv_code(cv_fld,p_fld,v_fld) '''
+        '''{0}[invoke='invoke_0',Constant loop bounds=True]
+    {3}
+        {1}[type='outer',field_space='cv',it_space='internal_pts']
+            {3}
+                {1}[type='inner',field_space='cv',it_space='internal_pts']
+                    {2} compute_cv_code(cv_fld,p_fld,v_fld) '''
         '''[module_inline=False]
-        Loop[type='outer',field_space='ct',it_space='all_pts']
-            Loop[type='inner',field_space='ct',it_space='all_pts']
-                KernCall bc_ssh_code(ncycle,p_fld,tmask) '''
+        {1}[type='outer',field_space='ct',it_space='all_pts']
+            {1}[type='inner',field_space='ct',it_space='all_pts']
+                {2} bc_ssh_code(ncycle,p_fld,tmask) '''
         '''[module_inline=False]'''
-    )
+    ).format(coloured_schedule, coloured_loop, coloured_kern, coloured_profile)
     assert correct in out
 
     # ... but only if we do call the actual invoke now - but no need
@@ -409,11 +420,14 @@ def test_transform(capsys):
     out, _ = capsys.readouterr()
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
-    correct_re = ("GOSchedule.*"
-                  r"    \[Profile\].*"
-                  r"        Loop\[type='outer'.*"
-                  r"        Loop\[type='outer'.*"
-                  r"        Loop\[type='outer'.*")
+
+    # The .* before and after a keyword are necessary to escape colouring
+    # codes that might be used!
+    correct_re = (".*GOSchedule.*"
+                  r"    .*Profile.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*")
     assert re.search(correct_re, out)
 
     # Now only wrap a single node - the middle loop:
@@ -422,12 +436,12 @@ def test_transform(capsys):
     out, _ = capsys.readouterr()  # .replace("\n", "")
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
-    correct_re = ("GOSchedule.*"
-                  r"    \[Profile\].*"
-                  r"        Loop\[type='outer'.*"
-                  r"        \[Profile\].*"
-                  r"            Loop\[type='outer'.*"
-                  r"        Loop\[type='outer'.*")
+    correct_re = (".*GOSchedule.*"
+                  r"    .*Profile.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Profile.*"
+                  r"            .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*")
     assert re.search(correct_re, out)
 
     # Check that an sublist created from individual elements
@@ -438,13 +452,13 @@ def test_transform(capsys):
     out, _ = capsys.readouterr()  # .replace("\n", "")
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
-    correct_re = ("GOSchedule.*"
-                  r"    \[Profile\].*"
-                  r"        \[Profile\].*"
-                  r"            Loop\[type='outer'.*"
-                  r"            \[Profile\].*"
-                  r"                Loop\[type='outer'.*"
-                  r"        Loop\[type='outer'.*")
+    correct_re = (".*GOSchedule.*"
+                  r"    .*Profile.*"
+                  r"        .*Profile.*"
+                  r"            .*Loop.*\[type='outer'.*"
+                  r"            .*Profile.*"
+                  r"                .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*")
     assert re.search(correct_re, out)
 
 
@@ -506,9 +520,11 @@ def test_transform_errors(capsys):
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
 
-    correct_re = ("GOSchedule.*"
-                  r"    \[Profile\].*"
-                  r"        Loop\[type='outer'.*"
-                  r"        Loop\[type='outer'.*"
-                  r"        Loop\[type='outer'.*")
+    correct_re = (".*GOSchedule.*"
+                  r"    .*Profile.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*"
+                  r"        .*Loop.*\[type='outer'.*")
+    print correct_re
+    print out
     assert re.search(correct_re, out)
