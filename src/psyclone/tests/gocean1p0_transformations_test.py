@@ -1410,12 +1410,12 @@ def test_acc_parallel_trans():
     invoke.shedule = new_sched
 
     code = str(psy.gen)
-
+    
     acc_idx = -1
     acc_end_idx = -1
     do_idx = -1
     for idx, line in enumerate(code.split('\n')):
-        if "!$acc parallel present(" in line:
+        if "!$acc parallel default(present)" in line:
             acc_idx = idx
         if (do_idx == -1) and "DO j" in line:
             do_idx = idx
@@ -1440,8 +1440,8 @@ def test_acc_data_not_a_schedule():
         _, _ = acct.apply(schedule.children[0])
 
 
-def test_acc_data_correct_pcopy():
-    ''' Test that we correctly generate the arguments to the pcopy
+def test_acc_data_copyin():
+    ''' Test that we correctly generate the arguments to the copyin
     clause of an OpenACC data region '''
     from psyclone.psyGen import Loop
     psy, invoke = get_invoke(
@@ -1461,9 +1461,36 @@ def test_acc_data_correct_pcopy():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    pcopy = ("!$acc enter data pcopyin(cu_fld,p_fld,u_fld,cv_fld,v_fld,"
-             "unew_fld,uold_fld)")
+    pcopy = ("!$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
+             "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
+             "unew_fld%data,uold_fld,uold_fld%data)")
+    assert pcopy in code
 
+
+def test_acc_data_grid_copyin():
+    ''' Test that we correctly generate the arguments to the copyin
+    clause of an OpenACC data region when grid properties are required '''
+    from psyclone.psyGen import Loop
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_grid_props.f90"), API, 0)
+    schedule = invoke.schedule
+
+    accpt = OpenACCParallelTrans()
+    accdt = OpenACCDataTrans()
+
+    # Put each loop within an OpenACC parallel region
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            new_sched, _ = accpt.apply(child)
+
+    # Create a data region for the whole schedule
+    new_sched, _ = accdt.apply(new_sched)
+
+    invoke.schedule = new_sched
+    code = str(psy.gen)
+    pcopy = ("!$acc enter data copyin(u_fld,u_fld%data,cu_fld,cu_fld%data,"
+             "u_fld%grid,u_fld%grid%tmask,u_fld%grid%area_t,"
+             "u_fld%grid%area_u)")
     assert pcopy in code
 
 
