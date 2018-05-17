@@ -48,7 +48,8 @@
 from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, Argument, KernelArgument, GenerationError
+    Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
+    GenerationError
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -814,9 +815,9 @@ class GOKernelArguments(Arguments):
     @property
     def acc_args(self):
         '''
-        Provide the list of quantities that must be present on an OpenACC
-        device before the kernel associated with this Arguments object may
-        be launched.
+        Provide the list of references (both objects and arrays) that must 
+        be present on an OpenACC device before the kernel associated with
+        this Arguments object may be launched.
 
         :returns: list of (Fortran) quantities
         :rtype: list of str
@@ -840,6 +841,28 @@ class GOKernelArguments(Arguments):
                     # grid pointer must be copied to the device
                     arg_list.append(grid_ptr)
                 arg_list.append(grid_ptr+"%"+arg.name)
+        return arg_list
+
+    @property
+    def obj_list(self):
+        '''
+        Provides the list of *objects* that must be present on an OpenACC
+        device before the kernel associated with this Arguments object may
+        be launched.
+
+        :returns: list of names of (Fortran) objects
+        :rtype: list of str
+        '''
+        arg_list = []
+        grid_ptr = None
+        for arg in self._args:
+            if arg.type == "field":
+                arg_list.append(arg.name)
+            elif arg.type == "grid_property" and grid_ptr is None:
+                # We only have one grid object
+                grid_fld = self._parent_call._find_grid_access()
+                grid_ptr = grid_fld.name + "%grid"
+                arg_list.append(grid_ptr)
         return arg_list
 
 
@@ -1335,3 +1358,29 @@ class GOKernelType1p0(KernelType):
     def index_offset(self):
         ''' Return the grid index-offset that this kernel expects '''
         return self._index_offset
+
+
+class GOACCDataDirective(ACCDataDirective):
+    '''
+    Sub-classes ACCDataDirective to provide an API-specific implementation
+    of data_on_device().
+    '''
+    def data_on_device(self, parent):
+        '''
+        Adds nodes into a Schedule to flag that each of the objects required
+        by the kernels in the data region is now on the device. We do
+        this by setting the data_on_device attribute to .true.
+
+        :param parent: the node in the Schedule to which to add nodes
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+        from psyclone.f2pygen import AssignGen
+        obj_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.obj_list:
+                if var not in obj_list:
+                    parent.add(AssignGen(parent,
+                                         lhs=var+"%data_on_device",
+                                         rhs=".true."))
+                    obj_list.append(var)
+        return
