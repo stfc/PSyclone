@@ -1465,6 +1465,9 @@ def test_acc_data_copyin():
              "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
              "unew_fld%data,uold_fld,uold_fld%data)")
     assert pcopy in code
+    for obj in ["u_fld", "v_fld", "p_fld", "cu_fld", "cv_fld", "unew_fld",
+                "uold_fld"]:
+        assert "{0}%data_on_device = .true.".format(obj) in code
 
 
 def test_acc_data_grid_copyin():
@@ -1492,6 +1495,8 @@ def test_acc_data_grid_copyin():
              "u_fld%grid,u_fld%grid%tmask,u_fld%grid%area_t,"
              "u_fld%grid%area_u)")
     assert pcopy in code
+    for obj in ["u_fld", "cu_fld", "u_fld%grid"]:
+        assert "{0}%data_on_device = .true.".format(obj) in code
 
 
 def test_acc_data_parallel_commute():
