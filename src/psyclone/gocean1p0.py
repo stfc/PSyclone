@@ -693,7 +693,7 @@ class GOKern(Kern):
         '''
         return []
 
-    def _find_grid_access(self):
+    def find_grid_access(self):
         '''Determine the best kernel argument from which to get properties of
             the grid. For this, an argument must be a field (i.e. not
             a scalar) and must be supplied by the algorithm layer
@@ -719,7 +719,7 @@ class GOKern(Kern):
 
         # Before we do anything else, go through the arguments and
         # determine the best one from which to obtain the grid properties.
-        grid_arg = self._find_grid_access()
+        grid_arg = self.find_grid_access()
 
         # A GOcean 1.0 kernel always requires the [i,j] indices of the
         # grid-point that is to be updated
@@ -815,7 +815,7 @@ class GOKernelArguments(Arguments):
     @property
     def acc_args(self):
         '''
-        Provide the list of references (both objects and arrays) that must 
+        Provide the list of references (both objects and arrays) that must
         be present on an OpenACC device before the kernel associated with
         this Arguments object may be launched.
 
@@ -826,7 +826,7 @@ class GOKernelArguments(Arguments):
 
         # First off, specify the field object from which we will find
         # any grid properties (if this kernel requires them)
-        grid_fld = self._parent_call._find_grid_access()
+        grid_fld = self._parent_call.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
         arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
 
@@ -860,7 +860,7 @@ class GOKernelArguments(Arguments):
                 arg_list.append(arg.name)
             elif arg.type == "grid_property" and grid_ptr is None:
                 # We only have one grid object
-                grid_fld = self._parent_call._find_grid_access()
+                grid_fld = self._parent_call.find_grid_access()
                 grid_ptr = grid_fld.name + "%grid"
                 arg_list.append(grid_ptr)
         return arg_list
@@ -1221,7 +1221,6 @@ class GO1p0Descriptor(Descriptor):
             access = kernel_arg.args[0].name
             grid_var = kernel_arg.args[1].name
             funcspace = ""
-            stencil = ""
 
             self._grid_prop = grid_var
             self._type = "grid_property"
@@ -1364,6 +1363,7 @@ class GOACCDataDirective(ACCDataDirective):
     '''
     Sub-classes ACCDataDirective to provide an API-specific implementation
     of data_on_device().
+
     '''
     def data_on_device(self, parent):
         '''
