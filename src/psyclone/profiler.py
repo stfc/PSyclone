@@ -43,8 +43,8 @@
 
 from psyclone.f2pygen import CallGen, ModuleGen, SubroutineGen, \
     TypeDeclGen, UseGen
-from psyclone.psyGen import colored, GenerationError, Kern, NameSpaceFactory, \
-     Node, SCHEDULE_COLOUR_MAP
+from psyclone.psyGen import colored, GenerationError, Kern, NameSpace, \
+     NameSpaceFactory, Node, SCHEDULE_COLOUR_MAP
 
 
 class Profiler(object):
@@ -55,6 +55,8 @@ class Profiler(object):
     KERNELS = "kernels"
     SUPPORTED_OPTIONS = [INVOKES, KERNELS]
     _options = []
+    # A namespace manager to make sure we get unique region names
+    _namespace = NameSpace()
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -85,8 +87,12 @@ class Profiler(object):
     # -------------------------------------------------------------------------
     @staticmethod
     def add_profile_nodes(schedule, loop_class):
-        '''This function inserts all required Profiling Nodes into a
-        schedule.'''
+        '''This function inserts all required Profiling Nodes (for invokes
+        and kernels, as specified on the command line) into a schedule.
+        :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
+        "type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
+        '''
+
         from psyclone.transformations import ProfileRegionTrans
         if Profiler.profile_kernels():
             profile_trans = ProfileRegionTrans()
@@ -97,12 +103,29 @@ class Profiler(object):
             profile_trans = ProfileRegionTrans()
             profile_trans.apply(schedule.children)
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def create_unique_region(name):
+        '''This function makes sure that region names are unique even if
+        the same kernel is called.
+        :param name: The name of a region (usually kernel name).
+        :type name: string
+        :return: A unique names based on the parameter name.
+        :rtype: string'''
+
+        return Profiler._namespace.create_name(name)
+
 
 # =============================================================================
 class ProfileNode(Node):
     '''This class can be inserted into a schedule to create profiling code.
     '''
 
+    def __init__(self, children=None, parent=None):
+        Node.__init__(self, children=children, parent=parent)
+        self._namespace = NameSpace()
+
+    # -------------------------------------------------------------------------
     def __str__(self):
         return "Profile"
 
@@ -140,9 +163,8 @@ class ProfileNode(Node):
         for k in self.walk(self.children, Kern):
             region_name = k.name
             break
-        # Use the namespace manager to create unique names within one module
-        # one subroutine might have many identical calls.
-        region_name = NameSpaceFactory().create().create_name(region_name)
+
+        region_name = Profiler.create_unique_region(region_name)
 
         # Find the enclosing subroutine statement for declaring variables
         subroutine = parent

@@ -257,6 +257,48 @@ def test_profile_invokes_gocean1p0():
 
 
 # -----------------------------------------------------------------------------
+def test_unique_region_names():
+    '''Test that unique region names are created even when the kernel
+    names are identical.'''
+
+    Profiler.set_options([Profiler.KERNELS])
+    _, invoke = get_invoke("gocean1.0",
+                           "single_invoke_two_identical_kernels.f90", 0)
+
+    # Conver the invoke to code, and remove all new lines, to make
+    # regex matching easier
+
+    code = str(invoke.gen()).replace("\n", "")
+
+    # This regular expression puts the region names into groups.
+    # Make sure even though the kernels have the same name, that
+    # the created regions have different names
+    correct_re = ("subroutine invoke.*"
+                  "use profile_mod, only: ProfileData.*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  r"call ProfileStart\(.*, \"(\w*)\",.*\).*"
+                  "do j.*"
+                  "do i.*"
+                  "call compute_cu_code.*"
+                  "end.*"
+                  "end.*"
+                  "call ProfileEnd.*"
+                  r"call ProfileStart\(.*, \"(\w*)\",.*\).*"
+                  "do j.*"
+                  "do i.*"
+                  "call compute_cu_code.*"
+                  "end.*"
+                  "end.*"
+                  "call ProfileEnd")
+
+    groups = re.search(correct_re, code, re.I)
+    assert groups is not None
+
+    # Check that the regions are different
+    assert groups.group(1) != groups.group(2)
+
+
+# -----------------------------------------------------------------------------
 def test_profile_kernels_gocean1p0():
     '''Check that all kernels are instrumented correctly
     '''
