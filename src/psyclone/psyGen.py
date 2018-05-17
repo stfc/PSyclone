@@ -1373,6 +1373,10 @@ class ACCDataDirective(ACCDirective):
     a Schedule
 
     '''
+    def __init__(self, children=None, parent=None):
+        ACCDirective.__init__(self, children, parent)
+        self._acc_dirs = None
+
     def view(self, indent=0):
         print self.indent(indent) + self.coloured_text + "[OpenACC enter data]"
         for entity in self._children:
@@ -1385,13 +1389,13 @@ class ACCDataDirective(ACCDirective):
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
         # 1. Find all parallel directives
-        var_list = []
-        acc_dirs = self.walk(self.root.children, ACCParallelDirective)
+        self._acc_dirs = self.walk(self.root.children, ACCParallelDirective)
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
-        for pdir in acc_dirs:
-            for var in pdir.var_list:
+        var_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.ref_list:
                 if var not in var_list:
                     var_list.append(var)
         # 3. Convert this list of objects into a comma-delimited string
@@ -1410,17 +1414,27 @@ class ACCDataDirective(ACCDirective):
         parent.add(CommentGen(parent,
                               " Ensure all fields are on the device and"))
         parent.add(CommentGen(parent, " copy them over if not."))
-        # TODO need to use full list of fields in the condition clause
-        # of this if block
-        ifthen = IfThenGen(parent, ".not. "+var_list[0]+"%data_on_device")
+        # 5. Put the enter data directive inside an if-block so that we
+        #    only ever do it once
+        ifthen = IfThenGen(parent, first_time)
         parent.add(ifthen)
         ifthen.add(DirectiveGen(ifthen, "acc", "begin", "enter data",
                                 "copyin("+var_str+")"))
-        # TODO need API-agnostic way of generating code to signal *each*
-        # field is now on the device
-        ifthen.add(AssignGen(ifthen, lhs=var_list[0]+"%data_on_device",
-                             rhs=".true."))
+        # 6. Flag that the data is now on the device. This calls down
+        #    into the API-specific subclass of this class.
+        self.data_on_device(ifthen)
         parent.add(CommentGen(parent, ""))
+
+    def data_on_device(self, parent):
+        '''
+        Adds nodes into a Schedule to flag that the data required by the
+        kernels in the data region is now on the device.
+
+        :param parent: the node in the Schedule to which to add nodes
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+        raise NotImplementedError(
+            "ACCDataDirective.data_on_device must be implemented in subclass")
 
 
 class ACCParallelDirective(ACCDirective):
@@ -1447,9 +1461,9 @@ class ACCParallelDirective(ACCDirective):
         parent.add(DirectiveGen(parent, "acc", "end", "parallel", ""))
 
     @property
-    def var_list(self):
+    def ref_list(self):
         '''
-        Returns a list of the names of the variables
+        Returns a list of the references (whether to arrays or objects)
         required by the Kernel call(s) that are children of this
         directive. This is the list of quantities that must be
         available on the remote device (probably a GPU) before
@@ -1467,6 +1481,21 @@ class ACCParallelDirective(ACCDirective):
                 if arg not in variables:
                     variables.append(arg)
         return variables
+
+    @property
+    def obj_list(self):
+        '''
+        Returns a list of objects required by the Kernel call(s) that are
+        children of this directive.
+        '''
+        # Look-up the calls that are children of this node
+        my_calls = self.walk(self.children, Call)
+        obj_list = []
+        for call in my_calls:
+            for arg in call.arguments.obj_list:
+                if arg not in obj_list:
+                    obj_list.append(arg)
+        return obj_list
 
 
 class OMPDirective(Directive):
