@@ -1879,14 +1879,22 @@ class OpenACCDataTrans(Transformation):
 
         '''
         # Check that the supplied node is a Schedule
-        from psyGen import Schedule, ACCDataDirective
-        if not isinstance(node, Schedule):
+        from psyclone.psyGen import Schedule
+        from psyclone.gocean1p0 import GOSchedule
+        
+        if isinstance(node, GOSchedule):
+            from psyclone.gocean1p0 import GOACCDataDirective as AccDataDir
+        elif isinstance(node, Schedule):
+            raise NotImplementedError(
+                "OpenACCDataTrans: ACCDataDirective not implemented for a "
+                "schedule of type {0}".format(type(node)))
+        else:
             raise TransformationError("Cannot apply an OpenACC data "
                                       "directive to something that is "
                                       "not a Schedule")
         schedule = node
         # Check that we don't already have a data region
-        data_dir = schedule.walk(schedule.children, ACCDataDirective)
+        data_dir = schedule.walk(schedule.children, AccDataDir)
         if len(data_dir) != 0:
             raise TransformationError("Schedule already has an OpenACC "
                                       "data region - cannot add another.")
@@ -1896,7 +1904,7 @@ class OpenACCDataTrans(Transformation):
         keep = Memento(schedule, self, [schedule])
 
         # Add the directive
-        data_dir = ACCDataDirective(parent=schedule, children=[])
+        data_dir = AccDataDir(parent=schedule, children=[])
         schedule.addchild(data_dir, index=0)
 
         return schedule, keep
