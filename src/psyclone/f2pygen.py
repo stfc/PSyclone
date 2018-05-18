@@ -37,8 +37,7 @@
     provide routines which can be used to generate fortran code. This library
     includes pytest tests. '''
 
-import fparser
-import fparser.one
+from __future__ import absolute_import
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.one.statements import Comment, Case
@@ -811,7 +810,7 @@ class DeclGen(BaseGen):
         # are the right number of them and that they are consistent
         # with the type of the variable(s) being declared.
         if initial_values:
-            if (len(initial_values) != len(entity_decls)):
+            if len(initial_values) != len(entity_decls):
                 raise RuntimeError(
                     "f2pygen.DeclGen.init: number of initial values supplied "
                     "({0}) does not match the number of variables to be "
