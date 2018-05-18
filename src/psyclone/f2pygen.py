@@ -766,46 +766,62 @@ class DeallocateGen(BaseGen):
 
 
 class DeclGen(BaseGen):
-    ''' Generates a Fortran declaration for variables of intrinsic type '''
+    '''
+    Generates a Fortran declaration for variables of various intrinsic
+    types.
+
+    :param parent: node to which to add this declaration as a child
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+    :param str datatype: the (intrinsic) type for this declaration
+    :param list entity_decls: list of variable names to declare
+    :param str intent: the INTENT attribute of this declaration
+    :param bool pointer: whether or not this is a pointer declaration
+    :param str kind: the KIND attribute to use for this declaration
+    :param str dimension: the DIMENSION specifier (i.e. the xx in
+                          DIMENSION(xx))
+    :param bool allocatable: whether this declaration is for an
+                             ALLOCATABLE quantity
+
+    :raises RuntimeError: if no variable names are specified
+    :raises RuntimeError: if datatype is not one of "integer" or "real"
+
+    '''
+    # The Fortran intrinsic types supported by this class
+    SUPPORTED_TYPES = ["integer", "real", "logical"]
+
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False):
-        '''
-        :param parent: node to which to add this declaration as a child
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :param str datatype: the (intrinsic) type for this declaration
-        :param list entity_decls: list of variable names to declare
-        :param str intent: the INTENT attribute of this declaration
-        :param bool pointer: whether or not this is a pointer declaration
-        :param str kind: the KIND attribute to use for this declaration
-        :param str dimension: the DIMENSION specifier (i.e. the xx in
-                              DIMENSION(xx))
-        :param bool allocatable: whether this declaration is for an
-                                 ALLOCATABLE quantity
-
-        :raises RuntimeError: if no variable names are specified
-        :raises RuntimeError: if datatype is not one of "integer" or "real"
-        '''
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a variable declaration without specifying the "
                 "name(s) of the variable(s)")
         fort_fmt = FortranFormat(True, False)  # free form, strict
-        if datatype.lower() == "integer":
+
+        dtype = datatype.lower()
+        if dtype not in self.SUPPORTED_TYPES:
+            raise RuntimeError(
+                "f2pygen:DeclGen:init: Only {0} types are currently"
+                " supported and you specified '{1}'"\
+                .format(self.SUPPORTED_TYPES, datatype))
+
+        if dtype == "integer":
             reader = FortranStringReader("integer :: vanilla")
             reader.set_format(fort_fmt)
             myline = reader.next()
             self._decl = fparser1.typedecl_statements.Integer(parent.root,
                                                               myline)
-        elif datatype.lower() == "real":
+        elif dtype == "real":
             reader = FortranStringReader("real :: vanilla")
             reader.set_format(fort_fmt)
             myline = reader.next()
             self._decl = fparser1.typedecl_statements.Real(parent.root, myline)
-        else:
-            raise RuntimeError(
-                "f2pygen:DeclGen:init: Only integer and real are currently"
-                " supported and you specified '{0}'".format(datatype))
-        # make a copy of entity_decls as we may modify it
+        elif dtype == "logical":
+            reader = FortranStringReader("logical :: vanilla")
+            reader.set_format(fort_fmt)
+            myline = reader.next()
+            self._decl = fparser1.typedecl_statements.Logical(parent.root,
+                                                              myline)
+        # Make a copy of entity_decls as we may modify it
         local_entity_decls = entity_decls[:]
         self._decl.entity_decls = local_entity_decls
         my_attrspec = []

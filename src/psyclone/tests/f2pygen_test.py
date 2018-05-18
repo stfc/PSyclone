@@ -922,13 +922,14 @@ def test_decl_logical():
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
     sub.add(DeclGen(sub, datatype="logical", entity_decls=["first_time"]))
-    gen = str(sub.root)
+    gen = str(sub.root).lower()
     assert "logical first_time" in gen
+    # Add a second logical variable
     sub.add(DeclGen(sub, datatype="logical", entity_decls=["first_time",
                                                            "var2"]))
-    gen = str(sub.root)
-    print gen
-    assert "logical first_time, var2" in gen
+    gen = str(sub.root).lower()
+    assert "logical var2" in gen
+    assert gen.count("logical first_time") == 1
 
 
 def test_declgen_wrong_type():
@@ -940,7 +941,8 @@ def test_declgen_wrong_type():
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
-    assert "Only integer and real are currently supported" in str(err)
+    assert ("Only ['integer', 'real', 'logical'] types are currently supported"
+            in str(err))
 
 
 def test_declgen_missing_names():
