@@ -781,7 +781,9 @@ class DeclGen(BaseGen):
                           DIMENSION(xx))
     :param bool allocatable: whether this declaration is for an
                              ALLOCATABLE quantity
-
+    :param bool save: whether this declaration should have the SAVE attribute
+    :param initial_values: Initial value to give each variable.
+    :type initial_values: list of str with same no. of elements as entity_decls
     :raises RuntimeError: if no variable names are specified
     :raises RuntimeError: if datatype is not one of "integer" or "real"
 
@@ -790,7 +792,8 @@ class DeclGen(BaseGen):
     SUPPORTED_TYPES = ["integer", "real", "logical"]
 
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
-                 pointer=False, kind="", dimension="", allocatable=False):
+                 pointer=False, kind="", dimension="", allocatable=False,
+                 save=False, initial_values=None):
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a variable declaration without specifying the "
@@ -800,9 +803,22 @@ class DeclGen(BaseGen):
         dtype = datatype.lower()
         if dtype not in self.SUPPORTED_TYPES:
             raise RuntimeError(
-                "f2pygen:DeclGen:init: Only {0} types are currently"
+                "f2pygen.DeclGen.init: Only {0} types are currently"
                 " supported and you specified '{1}'"\
                 .format(self.SUPPORTED_TYPES, datatype))
+
+        # If initial values have been supplied then check that there
+        # are the right number of them and that they are consistent
+        # with the type of the variable(s) being declared.
+        if initial_values:
+            if (len(initial_values) != len(entity_decls)):
+                raise RuntimeError(
+                    "f2pygen.DeclGen.init: number of initial values supplied "
+                    "({0}) does not match the number of variables to be "
+                    "declared ({1}: {2})".format(len(initial_values),
+                                                 len(entity_decls),
+                                                 str(entity_decls)))
+            self._check_initial_values(dtype, initial_values)
 
         if dtype == "integer":
             reader = FortranStringReader("integer :: vanilla")
@@ -821,22 +837,76 @@ class DeclGen(BaseGen):
             myline = reader.next()
             self._decl = fparser1.typedecl_statements.Logical(parent.root,
                                                               myline)
+        else:
+            # Defensive programming in case SUPPORTED_TYPES is added to
+            # but not handled here
+            raise NotImplementedError(
+                "Internal error: type '{0}' is in DeclGen.SUPPORTED_TYPES "
+                "but not handled by constructor.".format(dtype))
+
         # Make a copy of entity_decls as we may modify it
         local_entity_decls = entity_decls[:]
-        self._decl.entity_decls = local_entity_decls
+        if initial_values:
+            # Create a list of 2-tuples
+            value_pairs = zip(local_entity_decls, initial_values)
+            # Construct an assignment from each tuple
+            self._decl.entity_decls = ["=".join(_) for _ in value_pairs]
+        else:
+            self._decl.entity_decls = local_entity_decls
+
         my_attrspec = []
         if intent != "":
             my_attrspec.append("intent({0})".format(intent))
-        if pointer is not False:
+        if pointer:
             my_attrspec.append("pointer")
-        if allocatable is not False:
+        if allocatable:
             my_attrspec.append("allocatable")
+        if save:
+            my_attrspec.append("save")
         self._decl.attrspec = my_attrspec
         if dimension != "":
             my_attrspec.append("dimension({0})".format(dimension))
         if kind is not "":
             self._decl.selector = ('', kind)
         BaseGen.__init__(self, parent, self._decl)
+
+    @staticmethod
+    def _check_initial_values(dtype, values):
+        '''
+        Check that the supplied values are consistent with the requested
+        data type.
+        :param str dtype: Fortran intrinsic type
+        :param list values: list of values as strings
+        :raises RuntimeError: if the supplied values are not consistent
+                              with the specified data type
+        '''
+        from fparser.two.pattern_tools import abs_name, \
+            abs_logical_literal_constant, abs_signed_int_literal_constant, \
+            abs_signed_real_literal_constant
+        if dtype == "logical":
+            # Can be .true., .false. or a valid Fortran variable name
+            for val in values:
+                if not abs_logical_literal_constant.match(val) and \
+                   not abs_name.match(val):
+                    raise RuntimeError(
+                        "Initial value of '{0}' is not valid for a logical "
+                        "variable".format(val))
+        elif dtype == "integer":
+            # Can be a an integer expression or a valid Fortran variable name
+            for val in values:
+                if not abs_signed_int_literal_constant.match(val) and \
+                   not abs_name.match(val):
+                    raise RuntimeError(
+                        "Initial value of '{0}' is not valid for "
+                        "an integer variable".format(val))
+        elif dtype == "real":
+            # Can be a floating-point expression of a valid Fortran name
+            for val in values:
+                if not abs_signed_real_literal_constant.match(val) and \
+                   not abs_name.match(val):
+                    raise RuntimeError(
+                        "Initial value of '{0}' is not valid for "
+                        "a real variable".format(val))
 
 
 class TypeDeclGen(BaseGen):

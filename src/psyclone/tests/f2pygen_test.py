@@ -932,7 +932,89 @@ def test_decl_logical():
     assert gen.count("logical first_time") == 1
 
 
-def test_declgen_wrong_type():
+def test_decl_save():
+    ''' Check that we can declare variables with the save attribute '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    for idx, dtype in enumerate(DeclGen.SUPPORTED_TYPES):
+        sub.add(DeclGen(sub, datatype=dtype, save=True,
+                        entity_decls=["var"+str(idx)]))
+    gen = str(sub.root).lower()
+    assert "logical, save :: var" in gen
+    assert "integer, save :: var" in gen
+    assert "real, save :: var" in gen
+
+
+def test_decl_initial_vals():
+    ''' Check that we can specify initial values for a declaration '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    # Check that we raise the correct error if the wrong number of
+    # initial values is supplied
+    with pytest.raises(RuntimeError) as err:
+        sub.add(DeclGen(sub, datatype="real", entity_decls=["r1", "r2"],
+                        initial_values=["1.0"]))
+    assert ("number of initial values supplied (1) does not match the number "
+            "of variables to be declared (2: ['r1', 'r2'])" in str(err))
+
+    # Single variables
+    sub.add(DeclGen(sub, datatype="integer", save=True,
+                    entity_decls=["ivar"], initial_values=["1"]))
+    sub.add(DeclGen(sub, datatype="real", save=True,
+                    entity_decls=["var"], initial_values=["1.0"]))
+    sub.add(DeclGen(sub, datatype="logical", save=True,
+                    entity_decls=["lvar"], initial_values=[".false."]))
+    gen = str(sub.root).lower()
+    assert "logical, save :: lvar=.false." in gen
+    assert "integer, save :: ivar=1" in gen
+    assert "real, save :: var=1.0" in gen
+
+    # Multiple variables
+    sub.add(DeclGen(sub, datatype="integer", save=True,
+                    entity_decls=["ivar1", "ivar2"],
+                    initial_values=["1", "2"]))
+    sub.add(DeclGen(sub, datatype="real", save=True,
+                    entity_decls=["var1", "var2"],
+                    initial_values=["1.0", "-1.0"]))
+    sub.add(DeclGen(sub, datatype="logical", save=True,
+                    entity_decls=["lvar1", "lvar2"],
+                    initial_values=[".false.", ".true."]))
+    gen = str(sub.root).lower()
+    assert "logical, save :: lvar1=.false., lvar2=.true." in gen
+    assert "integer, save :: ivar1=1, ivar2=2" in gen
+    assert "real, save :: var1=1.0, var2=-1.0" in gen
+
+
+def test_declgen_invalid_vals():
+    ''' Check that we raise the expected error if we attempt to create a
+    DeclGen with an initial value that is inconsistent with the type of
+    the variable '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    with pytest.raises(RuntimeError) as err:
+        _ = DeclGen(sub, datatype="integer",
+                    entity_decls=["ival1", "ival2", "ival3"],
+                    initial_values=["good", "1", "-0.35"])
+    assert ("Initial value of '-0.35' is not valid for an integer "
+            "variable" in str(err))
+    with pytest.raises(RuntimeError) as err:
+        _ = DeclGen(sub, datatype="real",
+                    entity_decls=["val1", "val2", "val3"],
+                    initial_values=["good", "1.0", "35"])
+    assert ("Initial value of '35' is not valid for a real "
+            "variable" in str(err))
+    with pytest.raises(RuntimeError) as err:
+        _ = DeclGen(sub, datatype="logical",
+                    entity_decls=["val1", "val2", "val3"],
+                    initial_values=["good", ".fAlse.", "35"])
+    assert ("Initial value of '35' is not valid for a logical "
+            "variable" in str(err))
+
+
+def test_declgen_wrong_type(monkeypatch):
     ''' Check that we raise an appropriate error if we attempt to create
     a DeclGen for an unsupported type '''
     module = ModuleGen(name="testmodule")
@@ -943,6 +1025,15 @@ def test_declgen_wrong_type():
                     entity_decls=["rvar1"])
     assert ("Only ['integer', 'real', 'logical'] types are currently supported"
             in str(err))
+    # Check that we get an internal error if the supplied type is in the
+    # list of those supported but has not actually been implemented.
+    # We have to monkeypatch the list of supported types...
+    monkeypatch.setattr(DeclGen, "SUPPORTED_TYPES", value=["complex"])
+    with pytest.raises(RuntimeError) as err:
+        _ = DeclGen(sub, datatype="complex",
+                    entity_decls=["rvar1"])
+    assert ("Internal error: type 'complex' is in DeclGen.SUPPORTED_TYPES "
+            "but not handled by constructor" in str(err))
 
 
 def test_declgen_missing_names():
