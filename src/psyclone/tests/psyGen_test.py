@@ -45,7 +45,7 @@
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
@@ -465,7 +465,7 @@ def test_invokes_can_always_be_printed():
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
         api="dynamo0.3")
 
-    alg_invocation = invoke.calls.values()[0]
+    alg_invocation = list(invoke.calls.values())[0]
     inv = Invoke(alg_invocation, 0, DynSchedule)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1%my_field, m1, m2)"
@@ -505,7 +505,7 @@ def test_derived_type_deref_naming():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke)
     generated_code = str(psy.gen)
-    print generated_code
+    print(generated_code)
     output = (
         "    SUBROUTINE invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
@@ -615,7 +615,7 @@ def test_incremented_arg():
     # Change the kernel metadata so that the the incremented kernel
     # argument has read access
     import fparser
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     # If we change the meta-data then we trip the check in the parser.
     # Therefore, we change the object produced by parsing the meta-data
     # instead
@@ -640,7 +640,7 @@ def test_written_arg():
     # Change the kernel metadata so that the only kernel argument has
     # read access
     import fparser
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     # If we change the meta-data then we trip the check in the parser.
     # Therefore, we change the object produced by parsing the meta-data
     # instead
@@ -704,8 +704,8 @@ def test_ompdo_directive_class_view(capsys):
                                    SCHEDULE_COLOUR_MAP["KernCall"]) +
                 " testkern_code(a,f1,f2,m1,m2) "
                 "[module_inline=False]")
-            print out
-            print expected_output
+            print(out)
+            print(expected_output)
             assert expected_output in out
 
 
@@ -752,7 +752,7 @@ def test_globalsum_view(capsys):
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
-    print output
+    print(output)
     expected_output = (colored("GlobalSum",
                                SCHEDULE_COLOUR_MAP["GlobalSum"]) +
                        "[scalar='asum']")
@@ -890,7 +890,7 @@ def test_invoke_name():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
-    print gen
+    print(gen)
     assert "SUBROUTINE invoke_important_invoke" in gen
 
 
@@ -902,7 +902,7 @@ def test_multi_kern_named_invoke():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
-    print gen
+    print(gen)
     assert "SUBROUTINE invoke_some_name" in gen
 
 
@@ -915,7 +915,7 @@ def test_named_multi_invokes():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
-    print gen
+    print(gen)
     assert "SUBROUTINE invoke_my_first(" in gen
     assert "SUBROUTINE invoke_my_second(" in gen
 
@@ -929,7 +929,7 @@ def test_named_invoke_name_clash():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
-    print gen
+    print(gen)
     assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
     assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
 
@@ -1779,7 +1779,7 @@ def test_omp_dag_names():
     assert omp_par_node.children[0].dag_name == "OMP_do_2"
     omp_directive = super(OMPParallelDirective, omp_par_node)
     assert omp_directive.dag_name == "OMP_directive_1"
-    print type(omp_directive)
+    print(type(omp_directive))
     directive = super(OMPDirective, omp_par_node)
     assert directive.dag_name == "directive_1"
 
@@ -1859,7 +1859,7 @@ def test_node_dag(tmpdir, have_graphviz):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     result = my_file.read()
-    print result
+    print(result)
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()

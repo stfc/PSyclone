@@ -8,7 +8,7 @@
 
 ''' Tests for the f2pygen module of PSyclone '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
@@ -67,7 +67,7 @@ def test_subroutine_var_with_implicit_none():
                            entity_decls=["var1"]))
     idx_var = line_number(subroutine.root, "INTEGER var1")
     idx_imp_none = line_number(subroutine.root, "IMPLICIT NONE")
-    print str(module.root)
+    print(str(module.root))
     assert idx_var - idx_imp_none == 1, \
         "variable declation must be after implicit none"
 
@@ -86,7 +86,7 @@ def test_subroutine_var_intent_in_with_directive():
     idx_par = line_number(subroutine.root, "!$omp parallel")
     idx_var = line_number(subroutine.root,
                           "INTEGER, intent(in) :: var1")
-    print str(module.root)
+    print(str(module.root))
     assert idx_par - idx_var == 1, \
         "variable declaration must be before directive"
 
@@ -144,7 +144,7 @@ def test_if_with_position_append():
     if_statement.add(CommentGen(if_statement, "GOODBYE"),
                      position=["append"])
     module.add(if_statement)
-    print str(module.root)
+    print(str(module.root))
     lines = str(module.root).splitlines()
     assert "IF (" + clause + ") THEN" in lines[3]
     assert "!HELLO" in lines[4]
@@ -161,7 +161,7 @@ def test_if_add_use():
     if_statement.add(CommentGen(if_statement, "GOODBYE"))
     if_statement.add(UseGen(if_statement, name="dibna"))
     module.add(if_statement)
-    print str(module.root)
+    print(str(module.root))
     use_line = line_number(module.root, "USE dibna")
     if_line = line_number(module.root, "IF (" + clause + ") THEN")
     # The use statement must come before the if..then block
@@ -189,7 +189,7 @@ def test_add_before():
     subroutine.add(call, position=["before", loop.root])
     lines = str(module.root).splitlines()
     # the call should be inserted before the loop
-    print lines
+    print(lines)
     assert "SUBROUTINE testsubroutine" in lines[3]
     assert "CALL testcall" in lines[4]
     assert "DO it=1,10" in lines[5]
@@ -373,7 +373,7 @@ def test_imp_none_in_module_already_exists():
     module = ModuleGen(name="testmodule", implicitnone=True)
     module.add(ImplicitNoneGen(module))
     count = count_lines(module.root, "IMPLICIT NONE")
-    print str(module.root)
+    print(str(module.root))
     assert count == 1, \
         "There should only be one instance of IMPLICIT NONE"
 
@@ -674,7 +674,7 @@ def test_basegen_start_parent_loop_dbg(capsys):
     loop.add(call)
     call.start_parent_loop(debug=True)
     out, _ = capsys.readouterr()
-    print out
+    print(out)
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
                 "'fparser.one.block_statements.Do'>\n"
@@ -699,7 +699,7 @@ def test_basegen_start_parent_loop_not_first_child_dbg(capsys):
     loop.add(call)
     call.start_parent_loop(debug=True)
     out, _ = capsys.readouterr()
-    print out
+    print(out)
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
                 "'fparser.one.block_statements.Do'>\n"
@@ -724,7 +724,7 @@ def test_basegen_start_parent_loop_omp_begin_dbg(capsys):
     loop.add(call)
     call.start_parent_loop(debug=True)
     out, _ = capsys.readouterr()
-    print out
+    print(out)
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
                 "'fparser.one.block_statements.Do'>\n"
@@ -753,7 +753,7 @@ def test_basegen_start_parent_loop_omp_end_dbg(capsys):
     loop.add(call)
     call.start_parent_loop(debug=True)
     out, _ = capsys.readouterr()
-    print out
+    print(out)
     expected = ("Parent is a do loop so moving to the parent\n"
                 "The type of the current node is now <class "
                 "'fparser.one.block_statements.Do'>\n"
@@ -955,7 +955,7 @@ def test_typedeclgen_multiple_use():
     sub.add(TypeDeclGen(sub, datatype="my_type",
                         entity_decls=datanames))
     gen = str(sub.root)
-    print gen
+    print(gen)
     expected = (
         "      TYPE(my_type) type2\n"
         "      TYPE(my_type) type1")
@@ -981,7 +981,7 @@ def test_typedeclgen_multiple_use2():
     sub.add(TypeDeclGen(sub, datatype="my_type2",
                         entity_decls=datanames))
     gen = str(sub.root)
-    print gen
+    print(gen)
     expected = (
         "      TYPE(my_type2) type1, type2\n"
         "      TYPE(my_type) type1")
@@ -1007,7 +1007,7 @@ def test_declgen_multiple_use():
     sub.add(DeclGen(sub, datatype="integer",
                     entity_decls=datanames))
     gen = str(sub.root)
-    print gen
+    print(gen)
     expected = (
         "      INTEGER i2\n"
         "      INTEGER i1")
@@ -1033,7 +1033,7 @@ def test_declgen_multiple_use2():
     sub.add(DeclGen(sub, datatype="integer",
                     entity_decls=datanames))
     gen = str(sub.root)
-    print gen
+    print(gen)
     expected = (
         "      INTEGER data1, data2\n"
         "      REAL data1")
@@ -1056,7 +1056,7 @@ def test_selectiongen():
     # TODO how do we specify what happens in the default case?
     sgen.adddefault()
     gen = str(sub.root)
-    print gen
+    print(gen)
     expected = ("SELECT CASE ( my_var )\n"
                 "CASE ( 1 )\n"
                 "        happy = .TRUE.\n"
@@ -1077,7 +1077,7 @@ def test_selectiongen_addcase():
     sub.add(sgen)
     sgen.addcase("1")
     gen = str(sub.root)
-    print gen
+    print(gen)
     expected = ("      SELECT CASE ( my_var )\n"
                 "        CASE ( 1 )\n"
                 "      END SELECT")
@@ -1097,7 +1097,7 @@ def test_typeselectiongen():
     sgen.addcase("fspace", [agen])
     sgen.adddefault()
     gen = str(sub.root)
-    print gen
+    print(gen)
     assert "SELECT TYPE ( my_var=>another_var )" in gen
     assert "TYPE IS ( fspace )" in gen
 
@@ -1110,7 +1110,7 @@ def test_modulegen_add_wrong_parent():
     sub = SubroutineGen(module_wrong, name="testsubroutine")
     with pytest.raises(RuntimeError) as err:
         module.add(sub)
-    print str(err)
+    print(str(err))
     assert "because it is not a descendant of it or of any of" in str(err)
 
 

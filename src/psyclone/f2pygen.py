@@ -37,6 +37,7 @@
     provide routines which can be used to generate fortran code. This library
     includes pytest tests. '''
 
+from __future__ import absolute_import, print_function
 import fparser
 import fparser.one
 from fparser.common.readfortran import FortranStringReader
@@ -176,7 +177,7 @@ class BaseGen(object):
             try:
                 idx = index_of_object(self.root.content, position[1])
             except Exception as err:
-                print str(err)
+                print(str(err))
                 raise RuntimeError(
                     "Failed to find supplied object in existing content - "
                     "is it a child of the parent?")
@@ -212,11 +213,11 @@ class BaseGen(object):
         the index of that line in the content of the parent. '''
         from fparser.one.block_statements import Do
         if debug:
-            print "Entered before_parent_loop"
-            print "The type of the current node is {0}".format(
-                str(type(self.root)))
-            print ("If the current node is a Do loop then move up to the "
-                   "top of the do loop nest")
+            print("Entered before_parent_loop")
+            print("The type of the current node is {0}".format(
+                str(type(self.root))))
+            print(("If the current node is a Do loop then move up to the "
+                   "top of the do loop nest"))
 
         # First off, check that we do actually have an enclosing Do loop
         current = self.root
@@ -229,45 +230,45 @@ class BaseGen(object):
         local_current = self
         while isinstance(current.parent, Do):
             if debug:
-                print "Parent is a do loop so moving to the parent"
+                print("Parent is a do loop so moving to the parent")
             current = current.parent
             local_current = local_current.parent
         if debug:
-            print "The type of the current node is now " + str(type(current))
-            print "The type of parent is " + str(type(current.parent))
-            print "Finding the loops position in its parent ..."
+            print("The type of the current node is now " + str(type(current)))
+            print("The type of parent is " + str(type(current.parent)))
+            print("Finding the loops position in its parent ...")
         index = current.parent.content.index(current)
         if debug:
-            print "The loop's index is ", index
+            print("The loop's index is ", index)
         parent = current.parent
         local_current = local_current.parent
         if debug:
-            print "The type of the object at the index is " + \
-                str(type(parent.content[index]))
-            print "If preceding node is a directive then move back one"
+            print("The type of the object at the index is " + \
+                str(type(parent.content[index])))
+            print("If preceding node is a directive then move back one")
         if index == 0:
             if debug:
-                print "current index is 0 so finish"
+                print("current index is 0 so finish")
         elif isinstance(parent.content[index-1], OMPDirective):
             if debug:
-                print (
+                print(
                     "preceding node is a directive so find out what type ...\n"
                     "type is {0}\ndirective is {1}".
                     format(parent.content[index-1].position,
                            str(parent.content[index-1])))
             if parent.content[index-1].position == "begin":
                 if debug:
-                    print "type of directive is begin so move back one"
+                    print("type of directive is begin so move back one")
                 index -= 1
             else:
                 if debug:
-                    print "directive type is not begin so finish"
+                    print("directive type is not begin so finish")
         else:
             if debug:
-                print "preceding node is not a directive so finish"
+                print("preceding node is not a directive so finish")
         if debug:
-            print "type of final location ", type(parent.content[index])
-            print "code for final location ", str(parent.content[index])
+            print("type of final location ", type(parent.content[index]))
+            print("code for final location ", str(parent.content[index]))
         return local_current, parent.content[index]
 
 

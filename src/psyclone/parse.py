@@ -38,6 +38,7 @@
 ''' Module implementing classes populated by parsing either kernel
     meta-data or invoke()'s in the Algorithm layer '''
 
+from __future__ import absolute_import
 import os
 from pyparsing import ParseException
 import fparser
@@ -51,7 +52,7 @@ from psyclone import config
 
 def check_api(api):
     ''' Check that the supplied API is valid '''
-    from config import SUPPORTEDAPIS
+    from psyclone.config import SUPPORTEDAPIS
     if api not in SUPPORTEDAPIS:
         raise ParseError(
             "check_api: Unsupported API '{0}' specified. "
@@ -423,7 +424,7 @@ class KernelTypeFactory(object):
 
     def __init__(self, api=""):
         if api == "":
-            from config import DEFAULTAPI
+            from psyclone.config import DEFAULTAPI
             self._type = DEFAULTAPI
         else:
             check_api(api)
@@ -895,7 +896,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     # drop cache
     fparser1.parsefortran.FortranParser.cache.clear()
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     if not os.path.isfile(alg_filename):
         raise IOError("File %s not found" % alg_filename)
     try:

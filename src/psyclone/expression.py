@@ -66,9 +66,9 @@ class BinaryOperator(ExpressionNode):
         i = iter(toks[0][1:])
         try:
             while True:
-                tok = i.next()
+                tok = next(i)
                 self.symbols.append(tok)
-                tok = i.next()
+                tok = next(i)
                 self.operands.append(tok)
         except StopIteration:
             pass
@@ -96,18 +96,18 @@ class Slicing(ExpressionNode):
         self.stride = ""
 
         tokiter = iter(toks)
-        tok = tokiter.next()
+        tok = next(tokiter)
         if tok != ":":
             self.start = tok
-            tok = tokiter.next()
+            tok = next(tokiter)
 
         try:
-            tok = tokiter.next()
+            tok = next(tokiter)
             if tok != ":":
                 self.stop = tok
-                tok = tokiter.next()
+                tok = next(tokiter)
 
-            tok = tokiter.next()
+            tok = next(tokiter)
             self.stride = tok
         except StopIteration:
             pass
