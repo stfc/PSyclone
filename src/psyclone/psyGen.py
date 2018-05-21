@@ -1278,8 +1278,8 @@ class Schedule(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text + \
-            "[invoke='" + self.invoke.name + "']")
+        print(self.indent(indent) + self.coloured_text +
+              "[invoke='" + self.invoke.name + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1549,8 +1549,8 @@ class OMPDoDirective(OMPDirective):
             reprod = "[reprod={0}]".format(self._reprod)
         else:
             reprod = ""
-        print(self.indent(indent) + self.coloured_text + \
-            "[OMP do]{0}".format(reprod))
+        print(self.indent(indent) + self.coloured_text +
+              "[OMP do]{0}".format(reprod))
 
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -1641,8 +1641,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text + \
-            "[OMP parallel do]")
+        print(self.indent(indent) + self.coloured_text +
+              "[OMP parallel do]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1711,7 +1711,7 @@ class GlobalSum(Node):
 
     def view(self, indent):
         '''
-        print(text describing this object to stdout and then)
+        Print text describing this object to stdout and then
         call the view() method of any children.
 
         :param indent: Depth of indent for output text
@@ -1960,9 +1960,9 @@ class Loop(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text + \
-            "[type='{0}',field_space='{1}',it_space='{2}']".\
-            format(self._loop_type, self._field_space, self.iteration_space))
+        print(self.indent(indent) + self.coloured_text +
+              "[type='{0}',field_space='{1}',it_space='{2}']".
+              format(self._loop_type, self._field_space, self.iteration_space))
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -2142,8 +2142,8 @@ class Call(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text, \
-            self.name + "(" + str(self.arguments.raw_arg_list) + ")")
+        print(self.indent(indent) + self.coloured_text,
+              self.name + "(" + str(self.arguments.raw_arg_list) + ")")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -2321,7 +2321,8 @@ class Call(Node):
             raise GenerationError(
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
-                format(reduction_access, list(REDUCTION_OPERATOR_MAPPING.keys())))
+                format(reduction_access,
+                       list(REDUCTION_OPERATOR_MAPPING.keys())))
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
         do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
                               reduction_operator + local_var_ref))
@@ -2435,9 +2436,9 @@ class Kern(Call):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text, \
-            self.name + "(" + str(self.arguments.raw_arg_list) + ")", \
-            "[module_inline=" + str(self._module_inline) + "]")
+        print(self.indent(indent) + self.coloured_text,
+              self.name + "(" + str(self.arguments.raw_arg_list) + ")",
+              "[module_inline=" + str(self._module_inline) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 

@@ -87,7 +87,7 @@ def count_lines(root, string_name):
 
 def print_diffs(expected, actual):
     '''
-    Pretty-print(the diff between the two, possibly multi-line, strings)
+    Pretty-print the diff between the two, possibly multi-line, strings
 
     :param str expected: Multi-line string
     :param str actual: Multi-line string

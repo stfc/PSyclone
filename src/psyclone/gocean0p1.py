@@ -12,8 +12,8 @@
     Arguments and KernelArgument). '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    KernelArgument
+from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+    Arguments, KernelArgument
 
 
 class GOPSy(PSy):

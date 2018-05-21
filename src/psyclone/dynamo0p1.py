@@ -11,8 +11,8 @@
     Arguments and Argument). '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-                   Argument, GenerationError
+from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+        Arguments, Argument, GenerationError
 
 class DynamoPSy(PSy):
     ''' The Dynamo specific PSy class. This creates a Dynamo specific
