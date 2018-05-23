@@ -1384,7 +1384,7 @@ class ACCDataDirective(ACCDirective):
 
     def gen_code(self, parent):
         from f2pygen import DeclGen, DirectiveGen, CommentGen, IfThenGen, \
-            AssignGen
+            AssignGen, CallGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -1424,6 +1424,18 @@ class ACCDataDirective(ACCDirective):
         #    into the API-specific subclass of this class.
         self.data_on_device(ifthen)
         parent.add(CommentGen(parent, ""))
+
+        # 7. Ensure that any scalars are up-to-date
+        var_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.scalars:
+                var_list.append(var)
+        if var_list:
+            parent.add(
+                CommentGen(parent,
+                           " Ensure all scalars on the device are up-to-date"))
+            parent.add(CallGen(parent, "acc_update_device", var_list))
+            parent.add(CommentGen(parent, ""))
 
     def data_on_device(self, parent):
         '''
@@ -1496,6 +1508,22 @@ class ACCParallelDirective(ACCDirective):
                 if arg not in obj_list:
                     obj_list.append(arg)
         return obj_list
+
+    @property
+    def scalars(self):
+        '''
+        Returns a list of the scalar quantities required by the Calls in
+        this region.
+        :returns: list of scalar arguments
+        :rtype: list of str
+        '''
+        my_calls = self.walk(self.children, Call)
+        scalars = []
+        for call in my_calls:
+            for arg in call.arguments.scalars:
+                if arg not in scalars:
+                    scalars.append(arg)
+        return scalars
 
 
 class OMPDirective(Directive):
@@ -2752,11 +2780,21 @@ class Arguments(object):
     @property
     def acc_args(self):
         '''
-        Returns the list of quantities that must be available on an
-        OpenACC device before the associated kernel can be launched.
+        :returns: the list of quantities that must be available on an
+                  OpenACC device before the associated kernel can be launched
+        :rtype: list of str
         '''
         raise NotImplementedError(
-            "Arguments.acc_args must be implemented in subclass")
+            "Arguments.acc_args must be implemented in sub-class")
+
+    @property
+    def scalars(self):
+        '''
+        :returns: the list of scalar quantities belonging to this object
+        :rtype: list of str
+        '''
+        raise NotImplementedError(
+            "Arguments.scalars must be implemented in sub-class")
 
 
 class Argument(object):

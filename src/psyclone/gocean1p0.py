@@ -865,6 +865,18 @@ class GOKernelArguments(Arguments):
                 arg_list.append(grid_ptr)
         return arg_list
 
+    @property
+    def scalars(self):
+        '''
+        :returns: a list of the names of scalar arguments in this object
+        :rtype: list of str
+        '''
+        scalar_args = []
+        for arg in self._args:
+            if arg.type == "scalar":
+                scalar_args.append(arg.name)
+        return scalar_args
+
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
