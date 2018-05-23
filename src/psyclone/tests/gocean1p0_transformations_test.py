@@ -1530,7 +1530,7 @@ def test_acc_rscalar_update():
             "      USE openacc, ONLY: acc_update_device" in code)
     expected = '''\
       ! Ensure all scalars on the device are up-to-date
-      CALL acc_update_device(a_scalar)
+      CALL acc_update_device(a_scalar, 1)
       !
       !$acc parallel default(present)
       DO j=1,jstop+1'''
@@ -1566,7 +1566,7 @@ def test_acc_iscalar_update():
             "      USE openacc, ONLY: acc_update_device" in code)
     expected = '''\
       ! Ensure all scalars on the device are up-to-date
-      CALL acc_update_device(ncycle)
+      CALL acc_update_device(ncycle, 1)
       !
       !$acc parallel default(present)
       DO j=1,jstop+1'''
@@ -1604,8 +1604,8 @@ def test_acc_update_two_scalars():
             "      USE openacc, ONLY: acc_update_device" in code)
     expected = '''\
       ! Ensure all scalars on the device are up-to-date
-      CALL acc_update_device(a_scalar)
-      CALL acc_update_device(ncycle)
+      CALL acc_update_device(a_scalar, 1)
+      CALL acc_update_device(ncycle, 1)
       !
       !$acc parallel default(present)
       DO j=1,jstop+1'''

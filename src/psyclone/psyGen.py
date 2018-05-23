@@ -1440,7 +1440,7 @@ class ACCDataDirective(ACCDirective):
                 CommentGen(parent,
                            " Ensure all scalars on the device are up-to-date"))
             for var in var_list:
-                parent.add(CallGen(parent, "acc_update_device", [var]))
+                parent.add(CallGen(parent, "acc_update_device", [var, "1"]))
             parent.add(CommentGen(parent, ""))
 
     def data_on_device(self, parent):
