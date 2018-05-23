@@ -37,7 +37,6 @@
     provide routines which can be used to generate fortran code. This library
     includes pytest tests. '''
 
-from __future__ import absolute_import
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.one.statements import Comment, Case
