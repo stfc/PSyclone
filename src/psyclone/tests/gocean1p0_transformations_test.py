@@ -1525,7 +1525,6 @@ def test_acc_rscalar_update():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    print code
     expected = '''\
       ! Ensure all scalars on the device are up-to-date
       CALL acc_update_device(a_scalar)
@@ -1559,9 +1558,44 @@ def test_acc_rscalar_update():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
+    expected = '''\
+      ! Ensure all scalars on the device are up-to-date
+      CALL acc_update_device(ncycle)
+      !
+      !$acc parallel default(present)
+      DO j=1,jstop+1'''
+    assert expected in code
+
+
+def test_acc_update_two_scalars():
+    '''
+    Check that we generate two separate acc_update_device() calls when
+    we have two scalars.
+    '''
+    from psyclone.psyGen import Loop
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0",
+                     "single_invoke_two_kernels_scalars.f90"),
+        API, 0)
+    schedule = invoke.schedule
+
+    accpt = OpenACCParallelTrans()
+    accdt = OpenACCDataTrans()
+
+    # Put each loop within an OpenACC parallel region
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            new_sched, _ = accpt.apply(child)
+
+    # Create a data region for the whole schedule
+    new_sched, _ = accdt.apply(new_sched)
+
+    invoke.schedule = new_sched
+    code = str(psy.gen)
     print code
     expected = '''\
       ! Ensure all scalars on the device are up-to-date
+      CALL acc_update_device(a_scalar)
       CALL acc_update_device(ncycle)
       !
       !$acc parallel default(present)

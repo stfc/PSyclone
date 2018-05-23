@@ -1429,12 +1429,14 @@ class ACCDataDirective(ACCDirective):
         var_list = []
         for pdir in self._acc_dirs:
             for var in pdir.scalars:
-                var_list.append(var)
+                if var not in var_list:
+                    var_list.append(var)
         if var_list:
             parent.add(
                 CommentGen(parent,
                            " Ensure all scalars on the device are up-to-date"))
-            parent.add(CallGen(parent, "acc_update_device", var_list))
+            for var in var_list:
+                parent.add(CallGen(parent, "acc_update_device", [var]))
             parent.add(CommentGen(parent, ""))
 
     def data_on_device(self, parent):
