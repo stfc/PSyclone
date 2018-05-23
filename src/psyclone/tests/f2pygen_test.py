@@ -924,7 +924,8 @@ def test_decl_logical():
     sub.add(DeclGen(sub, datatype="logical", entity_decls=["first_time"]))
     gen = str(sub.root).lower()
     assert "logical first_time" in gen
-    # Add a second logical variable
+    # Add a second logical variable. Note that "first_time" will be ignored
+    # since it has already been declared.
     sub.add(DeclGen(sub, datatype="logical", entity_decls=["first_time",
                                                            "var2"]))
     gen = str(sub.root).lower()
@@ -941,9 +942,8 @@ def test_decl_save():
         sub.add(DeclGen(sub, datatype=dtype, save=True,
                         entity_decls=["var"+str(idx)]))
     gen = str(sub.root).lower()
-    assert "logical, save :: var" in gen
-    assert "integer, save :: var" in gen
-    assert "real, save :: var" in gen
+    for dtype in DeclGen.SUPPORTED_TYPES:
+        assert "{0}, save :: var".format(dtype.lower()) in gen
 
 
 def test_decl_initial_vals():
@@ -998,20 +998,20 @@ def test_declgen_invalid_vals():
         _ = DeclGen(sub, datatype="integer",
                     entity_decls=["ival1", "ival2", "ival3"],
                     initial_values=["good", "1", "-0.35"])
-    assert ("Initial value of '-0.35' is not valid for an integer "
-            "variable" in str(err))
+    assert ("Initial value of '-0.35' for an integer "
+            "variable is invalid or unsupported" in str(err))
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="real",
                     entity_decls=["val1", "val2", "val3"],
                     initial_values=["good", "1.0", "35"])
-    assert ("Initial value of '35' is not valid for a real "
-            "variable" in str(err))
+    assert ("Initial value of '35' for a real "
+            "variable is invalid or unsupported" in str(err))
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="logical",
                     entity_decls=["val1", "val2", "val3"],
                     initial_values=["good", ".fAlse.", "35"])
-    assert ("Initial value of '35' is not valid for a logical "
-            "variable" in str(err))
+    assert ("Initial value of '35' for a logical variable is invalid or "
+            "unsupported" in str(err))
 
 
 def test_declgen_wrong_type(monkeypatch):
@@ -1025,6 +1025,13 @@ def test_declgen_wrong_type(monkeypatch):
                     entity_decls=["rvar1"])
     assert ("Only ['integer', 'real', 'logical'] types are currently supported"
             in str(err))
+    # Check the internal error is raised within the validation routine if
+    # an unsupported type is specified
+    dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])
+    with pytest.raises(RuntimeError) as err:
+        dgen._check_initial_values("complex", ["1"])
+    assert ("Internal error: unsupported type 'complex' - should be one "
+            "of {0}".format(dgen.SUPPORTED_TYPES) in str(err))
     # Check that we get an internal error if the supplied type is in the
     # list of those supported but has not actually been implemented.
     # We have to monkeypatch the list of supported types...

@@ -783,7 +783,8 @@ class DeclGen(BaseGen):
     :param initial_values: Initial value to give each variable.
     :type initial_values: list of str with same no. of elements as entity_decls
     :raises RuntimeError: if no variable names are specified
-    :raises RuntimeError: if datatype is not one of "integer" or "real"
+    :raises RuntimeError: if datatype is not one of "integer", "real" or
+                          "logical"
 
     '''
     # The Fortran intrinsic types supported by this class
@@ -872,11 +873,15 @@ class DeclGen(BaseGen):
     def _check_initial_values(dtype, values):
         '''
         Check that the supplied values are consistent with the requested
-        data type.
+        data type. Note that this checking is fairly basic and does not
+        support a number of valid Fortran forms (e.g. arithmetic expressions
+        involving constants or parameters).
+
         :param str dtype: Fortran intrinsic type
         :param list values: list of values as strings
         :raises RuntimeError: if the supplied values are not consistent
-                              with the specified data type
+                              with the specified data type or are not
+                              supported
         '''
         from fparser.two.pattern_tools import abs_name, \
             abs_logical_literal_constant, abs_signed_int_literal_constant, \
@@ -887,24 +892,30 @@ class DeclGen(BaseGen):
                 if not abs_logical_literal_constant.match(val) and \
                    not abs_name.match(val):
                     raise RuntimeError(
-                        "Initial value of '{0}' is not valid for a logical "
-                        "variable".format(val))
+                        "Initial value of '{0}' for a logical variable is "
+                        "invalid or unsupported".format(val))
         elif dtype == "integer":
             # Can be a an integer expression or a valid Fortran variable name
             for val in values:
                 if not abs_signed_int_literal_constant.match(val) and \
                    not abs_name.match(val):
                     raise RuntimeError(
-                        "Initial value of '{0}' is not valid for "
-                        "an integer variable".format(val))
+                        "Initial value of '{0}' for an integer variable is "
+                        "invalid or unsupported".format(val))
         elif dtype == "real":
             # Can be a floating-point expression of a valid Fortran name
             for val in values:
                 if not abs_signed_real_literal_constant.match(val) and \
                    not abs_name.match(val):
                     raise RuntimeError(
-                        "Initial value of '{0}' is not valid for "
-                        "a real variable".format(val))
+                        "Initial value of '{0}' for a real variable is "
+                        "invalid or unsupported".format(val))
+        else:
+            # We should never get to here because we check that the type
+            # is supported before calling this routine.
+            raise RuntimeError(
+                "Internal error: unsupported type '{0}' - should be one of {1}".
+                format(dtype, DeclGen.SUPPORTED_TYPES))
 
 
 class TypeDeclGen(BaseGen):
