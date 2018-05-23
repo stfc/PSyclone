@@ -1384,7 +1384,7 @@ class ACCDataDirective(ACCDirective):
 
     def gen_code(self, parent):
         from f2pygen import DeclGen, DirectiveGen, CommentGen, IfThenGen, \
-            AssignGen, CallGen
+            AssignGen, CallGen, UseGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -1432,6 +1432,10 @@ class ACCDataDirective(ACCDirective):
                 if var not in var_list:
                     var_list.append(var)
         if var_list:
+            # We need to 'use' the openacc module in order to access
+            # the OpenACC run-time library
+            parent.add(UseGen(parent, name="openacc", only=True,
+                              funcnames=["acc_update_device"]))
             parent.add(
                 CommentGen(parent,
                            " Ensure all scalars on the device are up-to-date"))

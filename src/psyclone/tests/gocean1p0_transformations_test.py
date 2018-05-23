@@ -1525,6 +1525,9 @@ def test_acc_rscalar_update():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
+    # Check that the use statement has been added
+    assert ("USE kernel_scalar_float, ONLY: bc_ssh_code\n"
+            "      USE openacc, ONLY: acc_update_device" in code)
     expected = '''\
       ! Ensure all scalars on the device are up-to-date
       CALL acc_update_device(a_scalar)
@@ -1534,7 +1537,7 @@ def test_acc_rscalar_update():
     assert expected in code
 
 
-def test_acc_rscalar_update():
+def test_acc_iscalar_update():
     '''
     Check that we generate code to update any integer scalar kernel arguments
     on the device.
@@ -1558,6 +1561,9 @@ def test_acc_rscalar_update():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
+    # Check that the use statement has been added
+    assert ("USE kernel_scalar_int, ONLY: bc_ssh_code\n"
+            "      USE openacc, ONLY: acc_update_device" in code)
     expected = '''\
       ! Ensure all scalars on the device are up-to-date
       CALL acc_update_device(ncycle)
@@ -1593,6 +1599,9 @@ def test_acc_update_two_scalars():
     invoke.schedule = new_sched
     code = str(psy.gen)
     print code
+    # Check that the use statement has been added
+    assert ("USE kernel_scalar_float, ONLY: bc_ssh_code\n"
+            "      USE openacc, ONLY: acc_update_device" in code)
     expected = '''\
       ! Ensure all scalars on the device are up-to-date
       CALL acc_update_device(a_scalar)
