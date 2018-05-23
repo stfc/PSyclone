@@ -844,25 +844,19 @@ class GOKernelArguments(Arguments):
         return arg_list
 
     @property
-    def obj_list(self):
+    def fields(self):
         '''
-        Provides the list of *objects* that must be present on an OpenACC
+        Provides the list of fields that must be present on an OpenACC
         device before the kernel associated with this Arguments object may
         be launched.
 
-        :returns: list of names of (Fortran) objects
+        :returns: list of names of (Fortran) field objects
         :rtype: list of str
         '''
         arg_list = []
-        grid_ptr = None
         for arg in self._args:
             if arg.type == "field":
                 arg_list.append(arg.name)
-            elif arg.type == "grid_property" and grid_ptr is None:
-                # We only have one grid object
-                grid_fld = self._parent_call.find_grid_access()
-                grid_ptr = grid_fld.name + "%grid"
-                arg_list.append(grid_ptr)
         return arg_list
 
     @property
@@ -1389,7 +1383,7 @@ class GOACCDataDirective(ACCDataDirective):
         from psyclone.f2pygen import AssignGen
         obj_list = []
         for pdir in self._acc_dirs:
-            for var in pdir.obj_list:
+            for var in pdir.fields:
                 if var not in obj_list:
                     parent.add(AssignGen(parent,
                                          lhs=var+"%data_on_device",

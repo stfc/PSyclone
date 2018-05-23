@@ -1501,16 +1501,16 @@ class ACCParallelDirective(ACCDirective):
         return variables
 
     @property
-    def obj_list(self):
+    def fields(self):
         '''
-        Returns a list of objects required by the Kernel call(s) that are
+        Returns a list of field objects required by the Kernel call(s) that are
         children of this directive.
         '''
         # Look-up the calls that are children of this node
         my_calls = self.walk(self.children, Call)
         obj_list = []
         for call in my_calls:
-            for arg in call.arguments.obj_list:
+            for arg in call.arguments.fields:
                 if arg not in obj_list:
                     obj_list.append(arg)
         return obj_list
@@ -1526,6 +1526,7 @@ class ACCParallelDirective(ACCDirective):
         my_calls = self.walk(self.children, Call)
         scalars = []
         for call in my_calls:
+            # TODO use args_filter here?
             for arg in call.arguments.scalars:
                 if arg not in scalars:
                     scalars.append(arg)

@@ -1495,7 +1495,8 @@ def test_acc_data_grid_copyin():
              "u_fld%grid,u_fld%grid%tmask,u_fld%grid%area_t,"
              "u_fld%grid%area_u)")
     assert pcopy in code
-    for obj in ["u_fld", "cu_fld", "u_fld%grid"]:
+    # Check that we flag that the fields are now on the device
+    for obj in ["u_fld", "cu_fld"]:
         assert "{0}%data_on_device = .true.".format(obj) in code
     # Check that we have no acc_update_device calls
     assert "CALL acc_update_device" not in code
