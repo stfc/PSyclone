@@ -803,7 +803,7 @@ class DeclGen(BaseGen):
         if dtype not in self.SUPPORTED_TYPES:
             raise RuntimeError(
                 "f2pygen.DeclGen.init: Only {0} types are currently"
-                " supported and you specified '{1}'"\
+                " supported and you specified '{1}'"
                 .format(self.SUPPORTED_TYPES, datatype))
 
         # If initial values have been supplied then check that there
@@ -914,8 +914,8 @@ class DeclGen(BaseGen):
             # We should never get to here because we check that the type
             # is supported before calling this routine.
             raise RuntimeError(
-                "Internal error: unsupported type '{0}' - should be one of {1}".
-                format(dtype, DeclGen.SUPPORTED_TYPES))
+                "Internal error: unsupported type '{0}' - should be "
+                "one of {1}".format(dtype, DeclGen.SUPPORTED_TYPES))
 
 
 class TypeDeclGen(BaseGen):
