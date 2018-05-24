@@ -903,7 +903,7 @@ class DeclGen(BaseGen):
                         "Initial value of '{0}' for an integer variable is "
                         "invalid or unsupported".format(val))
         elif dtype == "real":
-            # Can be a floating-point expression of a valid Fortran name
+            # Can be a floating-point expression or a valid Fortran name
             for val in values:
                 if not abs_signed_real_literal_constant.match(val) and \
                    not abs_name.match(val):
