@@ -101,8 +101,8 @@ class GOPSy(PSy):
         invokes object (which controls all the required invocation calls).
         Also overrides the PSy gen method so that we generate GOcean-
         specific PSy module code. '''
-    def __init__(self, invoke_info):
-        PSy.__init__(self, invoke_info)
+    def __init__(self, invoke_info, opencl=False):
+        PSy.__init__(self, invoke_info, opencl)
         self._invokes = GOInvokes(invoke_info.calls)
 
     @property
@@ -121,6 +121,9 @@ class GOPSy(PSy):
         psy_module.add(UseGen(psy_module, name="kind_params_mod"))
         # include the field_mod module
         psy_module.add(UseGen(psy_module, name="field_mod"))
+        if self._opencl:
+            psy_module.add(UseGen(psy_module, name="iso_c_binding"))
+            psy_module.add(UseGen(psy_module, name="clfortran"))
         # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
         # inline kernels where requested

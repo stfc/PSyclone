@@ -193,20 +193,27 @@ class FieldNotFoundError(Exception):
 
 
 class PSyFactory(object):
-    '''Creates a specific version of the PSy. If a particular api is not
-        provided then the default api, as specified in the config.py
-        file, is chosen. Note, for pytest to work we need to set
-        distributed_memory to the same default as the value found in
-        config.DISTRIBUTED_MEMORY. If we set it to None and then test
-        the value, it then fails. I've no idea why. '''
+    '''
+    Creates a specific version of the PSy. If a particular api is not
+    provided then the default api, as specified in the config.py
+    file, is chosen. Note, for pytest to work we need to set
+    distributed_memory to the same default as the value found in
+    config.DISTRIBUTED_MEMORY. If we set it to None and then test
+    the value, it then fails. I've no idea why.
 
-    def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
+    :param bool opencl: #TODO
+    '''
+
+    def __init__(self, api="",
+                 distributed_memory=config.DISTRIBUTED_MEMORY,
+                 opencl=False):
         if distributed_memory not in [True, False]:
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
         config.DISTRIBUTED_MEMORY = distributed_memory
         self._type = get_api(api)
+        self._opencl = opencl
 
     def create(self, invoke_info):
         ''' Return the specified version of PSy. '''
@@ -224,7 +231,7 @@ class PSyFactory(object):
             return GOPSy(invoke_info)
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOPSy
-            return GOPSy(invoke_info)
+            return GOPSy(invoke_info, opencl=self._opencl)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
@@ -242,6 +249,7 @@ class PSy(object):
                                      invocation information for code
                                      optimisation and generation. Produced
                                      by the function :func:`parse.parse`.
+        :param bool opencl: #TODO
 
         For example:
 
@@ -254,10 +262,11 @@ class PSy(object):
         >>> print(psy.gen)
 
     '''
-    def __init__(self, invoke_info):
+    def __init__(self, invoke_info, opencl):
 
         self._name = invoke_info.name
         self._invokes = None
+        self._opencl = opencl
 
     def __str__(self):
         return "PSy"
