@@ -194,6 +194,11 @@ def test_module_name_not_found():
 # -----------------------------------------------------------------------------
 def test_profile_errors2():
     '''Test various error handling.'''
+
+    with pytest.raises(GenerationError) as gen_error:
+        Profiler.set_options(["invalid"])
+    assert "Invalid option" in str(gen_error)
+
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
                            "one_invoke.f90", 0)

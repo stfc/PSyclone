@@ -62,8 +62,20 @@ class Profiler(object):
     @staticmethod
     def set_options(options):
         '''Sets the option the user required.
-        :param options: List of options selected by the user.
-        :type options: List of strings.'''
+        :param options: List of options selected by the user, or None to
+                        disable all automatic profiling.
+        :type options: List of strings.
+        :raises GenerationError: If any option is not KERNELS or INVOKES.
+        '''
+        # Test that all options are valid
+        if options is None:
+            options = []   # Makes it easier to test
+        for index, option in enumerate(options):
+            if option not in [Profiler.INVOKES, Profiler.KERNELS]:
+                raise GenerationError("Invalid option {0} as parameter {1}"
+                                      .format(option, index))
+
+        # Store options so they can be queried later
         Profiler._options = options
 
     # -------------------------------------------------------------------------
