@@ -9,10 +9,10 @@ module profile_mod
 
 contains
   ! ---------------------------------------------------------------------------
-  ! An optional initialisation subroutine. It is not called directly from
-  ! any PSycloen created code, but for most existing profilint libraries a
-  ! requirement. In this dummy library it is called once from ProfileStart.
-  !
+  !> An optional initialisation subroutine. It is not called directly from
+  !> any PSyclone created code, but for most existing profiling libraries the
+  !> application will have to call it. In this dummy library it is called once
+  !> from ProfileStart.
   subroutine ProfileInit()
     implicit none
     print *,"ProfileInit called"
@@ -20,13 +20,13 @@ contains
   end subroutine ProfileInit
 
   ! ---------------------------------------------------------------------------
-  ! Starts a profiling area. The module and region name can be used to create
-  ! a unique name for each region.
-  ! Parameters: 
-  ! module_name:  Name of the module in which the region is
-  ! region_name:  Name of the region (could be name of an invoke, or
-  !               subroutine name).
-  ! profile_data: Persistent data used by the profiling library.
+  !> Starts a profiling area. The module and region name can be used to create
+  !> a unique name for each region.
+  !> Parameters: 
+  !> module_name:  Name of the module in which the region is
+  !> region_name:  Name of the region (could be name of an invoke, or
+  !>               subroutine name).
+  !> profile_data: Persistent data used by the profiling library.
   subroutine ProfileStart(module_name, region_name, profile_data)
     implicit none
 
@@ -43,9 +43,9 @@ contains
   end subroutine ProfileStart
 
   ! ---------------------------------------------------------------------------
-  ! Ends a profiling area. It takes a ProfileData type that corresponds to
-  ! to the ProfileStart call.
-  ! profile_data: Persistent data used by the profiling library.
+  !> Ends a profiling area. It takes a ProfileData type that corresponds to
+  !> to the ProfileStart call.
+  !> profile_data: Persistent data used by the profiling library.
   ! 
   subroutine ProfileEnd(profile_data)
     implicit none
@@ -57,6 +57,8 @@ contains
   end subroutine ProfileEnd
 
   ! ---------------------------------------------------------------------------
+  !> The finalise function prints the results. This subroutine must be called
+  !> for most profiling libraries, otherwise no results will be produced.
   subroutine ProfileFinalise()
     implicit none
     print *,"ProfileFinalise called"

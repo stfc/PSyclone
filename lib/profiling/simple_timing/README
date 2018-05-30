@@ -6,16 +6,14 @@ processes).
 
 Dependencies
 ------------
-The library dl_timer must be installed. See
-https://bitbucket.org/apeg/dl_timer
-for details.
+None
 
 Compilation
 -----------
-gfortran -c simple_timer.f90 I PATH_TO_DLTIMER/src
+gfortran -c simple_timer.f90
 
 The application needs to provide the template directory as module or include
-path, and link with dummy_lib.o and dl_timer.
+path.
 
 Sample output:
  ===========================================

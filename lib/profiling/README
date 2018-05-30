@@ -1,5 +1,5 @@
 This directory contains wrapper libraries that can be used with
-PSyclones profiling interface.
+PSyclone's profiling interface.
 
 template
 --------

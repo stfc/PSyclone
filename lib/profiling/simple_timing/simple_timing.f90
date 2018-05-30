@@ -1,40 +1,91 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2018, Australian Bureau of Meteorology
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Authors J. Henrichs, Bureau of Meteorology
 
+
+!> A very simple stand-alone profiling library for PSyclone's
+!> profiling API.
 module profile_mod
 
-  ! The datatype to store information about a region
+  !> The datatype to store information about a region.
   type :: ProfileData
+     !> Name of the module.
      character(:), allocatable :: module_name
+     !> Name of the region.
      character(:), allocatable :: region_name
+     !> Counts how often this region was executed.
      integer                   :: count
-     real*4                    :: start, sum, min, max
+     !> Time at whith ProfileStart was called.
+     real*4                    :: start
+     !> Overall time spent in this subroutine, i.e. sum
+     !> of each individual call..
+     real*4                    :: sum
+     !> Shortest measured time of this region.
+     real*4                    :: min
+     !> Sum Longest measured time of this region.
+     real*4                    ::  max
+     !> Inidicates if this structure has been initialised.
      logical                   :: initialised = .false.
   end type ProfileData
 
   ! --------------------------------------------------------
-  ! In order to store an array of pointers, Fortran requires
-  ! a new type *sigh*
+  !> In order to store an array of pointers, Fortran requires
+  !> a new type *sigh*
   type ProfileDataPointer
+     !> The actual pointer to the data in the user's program.
      type(ProfileData), pointer :: p
   end  type ProfileDataPointer
   ! --------------------------------------------------------
 
+  !> Maximum number of regions supported. Additional regions
+  !> will be silently ignored.
   integer, parameter :: MAX_DATA = 100
 
-  ! This keeps track of all user data areas
+  !> This keeps track of all user data areas.
   type(ProfileDataPointer), dimension(MAX_DATA) :: all_data
 
-  ! How many entries in all_data have been used
+  !> How many entries in all_data have been used
   integer :: used_entries
 
+  !> Keeps track if ProfileInit has been called.
   logical :: has_been_initialised = .false.
 
 contains
 
   ! ---------------------------------------------------------------------------
-  ! An optional initialisation subroutine. It is not called directly from
-  ! any PSycloen created code, but for most existing profiling libraries a
-  ! requirement. In this dummy library it is called once from ProfileStart.
-  !
+  !> The initialisation subroutine. It is not called directly from
+  !> any PSyclone created code, so the user has to manually insert a
+  !> call to this subroutine. But the simple timing library will
+  !> actually call this function itself if it has not been called previously.
   subroutine ProfileInit()
     implicit none
 
@@ -44,13 +95,13 @@ contains
   end subroutine ProfileInit
 
   ! ---------------------------------------------------------------------------
-  ! Starts a profiling area. The module and region name can be used to create
-  ! a unique name for each region.
-  ! Parameters: 
-  ! module_name:  Name of the module in which the region is
-  ! region_name:  Name of the region (could be name of an invoke, or
-  !               subroutine name).
-  ! profile_data: Persistent data used by the profiling library.
+  !> Starts a profiling area. The module and region name can be used to create
+  !> a unique name for each region.
+  !> Parameters: 
+  !> module_name:  Name of the module in which the region is
+  !> region_name:  Name of the region (could be name of an invoke, or
+  !>               subroutine name).
+  !> profile_data: Persistent data used by the profiling library.
   subroutine ProfileStart(module_name, region_name, profile_data)
     implicit none
 
@@ -73,10 +124,9 @@ contains
   end subroutine ProfileStart
 
   ! ---------------------------------------------------------------------------
-  ! Ends a profiling area. It takes a ProfileData type that corresponds to
-  ! to the ProfileStart call.
-  ! profile_data: Persistent data used by the profiling library.
-  ! 
+  !> Ends a profiling area. It takes a ProfileData type that corresponds to
+  !> to the ProfileStart call.
+  !> profile_data: Persistent data used by the profiling library.
   subroutine ProfileEnd(profile_data)
     implicit none
 
@@ -112,7 +162,8 @@ contains
   end subroutine ProfileEnd
 
   ! ---------------------------------------------------------------------------
-  ! The finalise functoin prints the results
+  !> The finalise function prints the results. This subroutine must be called,
+  !> otherwise no results will be printed.
   subroutine ProfileFinalise()
     implicit none
     integer                    :: i

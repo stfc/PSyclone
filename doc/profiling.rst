@@ -14,11 +14,12 @@ a transformation script.
 PSyclone can be used with a variety of existing profiling tools.
 It currently supports TAU, Dr Hook, dl_timer, and even comes
 with a simple stand-alone timer library.
-An application needs to be find the module files for the 
-profile wrapper, and need to be linked with the included wrapper
+An application needs to be able to find the module files for the 
+profile wrapper, and needs to be linked with the included wrapper
 library that interfaces between the PSyclone API and the
 tool-specific API. It is the responsibility of the user to
-supply the corresponding compiler command line options.
+supply the corresponding compiler command line options when building
+the application that incorporates the PSyclone-generated code.
 
 
 .. _ProfilingAPI:
@@ -26,11 +27,12 @@ supply the corresponding compiler command line options.
 Profiling API
 -------------
 In order to be used with different profiling tools, PSyclone supports
-a simple profiling API. For each existing profiling tools a simple interface
+a simple profiling API. For each existing profiling tool a simple interface
 library needs to be implemented that maps the PSyclone profiling calls
 to the corresponding call for the profiling tool. 
 
-PSyclone utilises 4 profiling calls:
+PSyclone utilises 4 profiling calls which are described in the following
+sub-sections.
 
 ProfileInit()
 ~~~~~~~~~~~~~
@@ -60,14 +62,14 @@ location::
     ...
     call ProfileFinalise()
 
-And still the appropriate location might depend on the profiling library
-used (e.g. before or after a call to ``MPI_Init()``).
+And again the appropriate location might depend on the profiling library
+used (e.g. before or after a call to ``MPI_Finalize()``).
 
 
 ProfileStart()/ProfileEnd()
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The ``ProfileStart`` and ``ProfileEnd`` functions define begin and end of
-a region to be measured. 
+The ``ProfileStart`` and ``ProfileEnd`` functions define the beginning and
+end of a region to be measured. 
 In general it is up to the user what exactly a region is, arbitrary code
 can be enclosed, as long as it is guaranteed that each call of
 ``ProfileStart`` is matched with exactly one corresponding call to
@@ -76,7 +78,7 @@ can be enclosed, as long as it is guaranteed that each call of
 
 This is the code sequence which is created by PSyclone::
 
-    use profile_mod, only : ProfileData, ProfileStart
+    use profile_mod, only : ProfileData, ProfileStart, ProfilEnd
     ...
     type(ProfileData), save :: profiler_data
     ...
@@ -93,10 +95,10 @@ Profiling Command Line Options
 PSyclone offers two command line options to automatically instrument
 code with profiling regions. It can create profile regions around
 a full invoke (including all kernel calls in this invoke), and/or
-around each individual invoke. 
+around each individual kernel. 
 
 The option ``--profile invokes`` will automatically add a call to 
-``ProfileStart`` and ``ProfileEnd`` at the begin and end of every
+``ProfileStart`` and ``ProfileEnd`` at the beginning and end of every
 invoke subroutine created by PSyclone. All kernels called within
 this invoke subroutine will be included in the profiled region.
 
@@ -104,26 +106,27 @@ The option ``--profile kernels`` will add a call to ``ProfileStart``
 before any loops created by PSyclone, and a ``ProfileEnd``
 call at the end of the loop.  Two caveats::
 
-    1. in some APIs (for example dynamo when using distributed
-    memory) additional minor code might get included in a
-    profiled kernel section, for example setDirty() calls
-    (expensive calls like HaloExchange will be  excluded). 
+1. in some APIs (for example dynamo when using distributed
+   memory) additional minor code might get included in a
+   profiled kernel section, for example setDirty() calls
+   (expensive calls like HaloExchange will be  excluded). 
 
 2. If loop transforms are applied using a script, the
-ability to automatically insert profiling calls is
-reduced. It is recommended to only use automatic
-profiling of kernels without usage of additional
-transform, or explicitly add the profiling transform
-as part of the transformation script.
+   ability to automatically insert profiling calls is
+   reduced. It is recommended to only use automatic
+   profiling of kernels without usage of additional
+   transforms, or to explicitly add the profiling transform
+   as part of the transformation script.
 
 It is also the responsibility of the user to manually add
 the calls to ``ProfileInit`` and ``ProfileFinalise`` to
 the code base.
 
-PSyclone will modify the schedule to insert the profiling regions.
-Here an example of a schedule created when instrumenting invokes
-- all children of a Profile-Node will be part of the profiling region,
-including all loops created by PSyclone and all kernel calls::
+PSyclone will modify the schedule of each invoke to insert the
+profiling regions. Below we show an example of a schedule created
+when instrumenting invokes - all children of a Profile-Node will
+be part of the profiling region, including all loops created by
+PSyclone and all kernel calls::
 
     GOSchedule[invoke='invoke_1',Constant loop bounds=True]
         [Profile]
@@ -137,7 +140,7 @@ including all loops created by PSyclone and all kernel calls::
                 Loop[type='inner',field_space='ct',it_space='internal_pts']
                     KernCall compute_pnew_code(pnew_fld,pold_fld,cu_fld,cv_fld,tdt,dx,dy) [module_inline=False]
 
-And here the same schedule when instrumenting kernels. In this case
+And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
 region::
 
@@ -191,8 +194,8 @@ enable the profiling options like this::
 
 
 But most flexibility is possible by using the profiler
-transformation explicitly in the script. The script takes
-either a single AST Node or a list of AST Nodes as parameter,
+transformation explicitly in a transformation script. The script
+takes either a single AST Node or a list of AST Nodes as argument,
 and will insert a Profile Node into the AST, with the 
 specified nodes as children. At code creation time the
 listed children will all be enclosed in one profile region.
@@ -214,23 +217,24 @@ As an example::
 Interface to Third Party Profiling Tools 
 ----------------------------------------
 PSyclone comes with wrapper libraries to support usage of
-TAU, DrHook, dl_timer and a simple non-thread-safe timing
-library. 
+dl_timer and a simple non-thread-safe timing
+library. Support for DrHook and TAU will be added in the
+future.
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
 module. The four profiling calls described
-in the section about the ProfilingAPI_ needs to be implemented,
+in the section about the ProfilingAPI_ must be implemented,
 and an opaque, user-defined type ``ProfileData`` needs to be 
 provided in the module.
 
-Note that the ``ProfileEnd`` call does not provide the
-module or region name as parameter. If this should be
+Note that the ``ProfileEnd`` call does not have the module
+or region name as an argument. If this should be
 required by the profiling library, this data must
 be stored in the ``ProfileData`` object so that it is
 available in the ``ProfileEnd`` call.
 
-The examples in the contrib directory show various ways
+The examples in the lib/profiling directory show various ways
 of how the opaque data type can be used to interface
 with existing profiling tools - for example by storing 
 an index used by the profiling tool in ``ProfileData``, or 
