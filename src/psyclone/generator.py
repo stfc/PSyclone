@@ -210,7 +210,7 @@ def main(args):
         help='do not generate distributed memory code')
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
-        help="Add profilig hooks for either 'kernels' or 'invokes'")
+        help="Add profiling hooks for either 'kernels' or 'invokes'")
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
     parser.add_argument(
@@ -229,8 +229,6 @@ def main(args):
     if args.version:
         print "PSyclone version: {0}".format(__VERSION__)
 
-    # Only needed for except Exception
-    # pylint: disable=broad-except
     try:
         alg, psy = generate(args.filename, api=args.api,
                             kernel_path=args.directory,

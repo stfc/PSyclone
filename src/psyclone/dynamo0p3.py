@@ -2703,8 +2703,10 @@ class DynInvoke(Invoke):
                                 scalar.call.name, scalar.name))
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
-
+        # Add profiling nodes to schedule if automatic profiling has been
+        # requested.
         from psyclone.profiler import Profiler
+        # This will do nothing if automatic profiling was not enabled.
         Profiler.add_profile_nodes(self.schedule, DynLoop)
 
     def unique_proxy_declarations(self, datatype, access=None):
