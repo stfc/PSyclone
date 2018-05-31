@@ -977,7 +977,7 @@ class DynKernMetadata(KernelType):
         # Dictionary of meshes associated with arguments (for inter-grid
         # kernels). Keys are the meshes, values are lists of function spaces
         # of the corresponding field arguments.
-        mesh_dict = {}
+        mesh_dict = OrderedDict()
         # Whether or not any field args are missing the mesh_arg specifier
         missing_mesh = False
         # If this is an inter-grid kernel then it must only have field
@@ -1555,7 +1555,7 @@ class DynInvokeDofmaps(object):
         #              argument
         # "direction" - whether the dofmap is required for the "to" for
         #               "from" function space of the operator.
-        self._unique_cbanded_maps = {}
+        self._unique_cbanded_maps = OrderedDict()
         # A dictionary of required CMA indirection dofmaps. As with the
         # column-banded dofmaps, each entry is itself a dictionary with
         # "argument" and "direction" entries.
