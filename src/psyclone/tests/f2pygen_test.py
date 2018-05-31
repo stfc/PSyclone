@@ -1,10 +1,37 @@
-# ----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Tests for the f2pygen module of PSyclone '''
 
@@ -12,7 +39,7 @@ from __future__ import absolute_import, print_function
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
-from utils import line_number, count_lines
+import utils
 import pytest
 
 
@@ -65,8 +92,8 @@ def test_subroutine_var_with_implicit_none():
     module.add(subroutine)
     subroutine.add(DeclGen(subroutine, datatype="integer",
                            entity_decls=["var1"]))
-    idx_var = line_number(subroutine.root, "INTEGER var1")
-    idx_imp_none = line_number(subroutine.root, "IMPLICIT NONE")
+    idx_var = utils.line_number(subroutine.root, "INTEGER var1")
+    idx_imp_none = utils.line_number(subroutine.root, "IMPLICIT NONE")
     print(str(module.root))
     assert idx_var - idx_imp_none == 1, \
         "variable declation must be after implicit none"
@@ -83,10 +110,9 @@ def test_subroutine_var_intent_in_with_directive():
                                 "parallel", ""))
     subroutine.add(DeclGen(subroutine, datatype="integer",
                            intent="in", entity_decls=["var1"]))
-    idx_par = line_number(subroutine.root, "!$omp parallel")
-    idx_var = line_number(subroutine.root,
-                          "INTEGER, intent(in) :: var1")
-    print(str(module.root))
+    idx_par = utils.line_number(subroutine.root, "!$omp parallel")
+    idx_var = utils.line_number(subroutine.root,
+                                "INTEGER, intent(in) :: var1")
     assert idx_par - idx_var == 1, \
         "variable declaration must be before directive"
 
@@ -162,8 +188,8 @@ def test_if_add_use():
     if_statement.add(UseGen(if_statement, name="dibna"))
     module.add(if_statement)
     print(str(module.root))
-    use_line = line_number(module.root, "USE dibna")
-    if_line = line_number(module.root, "IF (" + clause + ") THEN")
+    use_line = utils.line_number(module.root, "USE dibna")
+    if_line = utils.line_number(module.root, "IF (" + clause + ") THEN")
     # The use statement must come before the if..then block
     assert use_line < if_line
 
@@ -312,8 +338,8 @@ def test_imp_none_in_module():
     correct location'''
     module = ModuleGen(name="testmodule", implicitnone=False)
     module.add(ImplicitNoneGen(module))
-    in_idx = line_number(module.root, "IMPLICIT NONE")
-    cont_idx = line_number(module.root, "CONTAINS")
+    in_idx = utils.line_number(module.root, "IMPLICIT NONE")
+    cont_idx = utils.line_number(module.root, "CONTAINS")
     assert in_idx > -1, "IMPLICIT NONE not found"
     assert cont_idx > -1, "CONTAINS not found"
     assert cont_idx - in_idx == 1, "CONTAINS is not on the line after" +\
@@ -330,7 +356,7 @@ def test_imp_none_in_module_with_decs():
     module.add(TypeDeclGen(module, datatype="my_type",
                            entity_decls=["type1"]))
     module.add(ImplicitNoneGen(module))
-    in_idx = line_number(module.root, "IMPLICIT NONE")
+    in_idx = utils.line_number(module.root, "IMPLICIT NONE")
     assert in_idx == 1
 
 
@@ -345,7 +371,7 @@ def test_imp_none_in_module_with_use_and_decs():
                            entity_decls=["type1"]))
     module.add(UseGen(module, "fred"))
     module.add(ImplicitNoneGen(module))
-    in_idx = line_number(module.root, "IMPLICIT NONE")
+    in_idx = utils.line_number(module.root, "IMPLICIT NONE")
     assert in_idx == 2
 
 
@@ -363,7 +389,7 @@ def test_imp_none_in_module_with_use_and_decs_and_comments():
         module.add(CommentGen(module, " hello "+str(idx)),
                    position=["before_index", 2*idx])
     module.add(ImplicitNoneGen(module))
-    in_idx = line_number(module.root, "IMPLICIT NONE")
+    in_idx = utils.line_number(module.root, "IMPLICIT NONE")
     assert in_idx == 3
 
 
@@ -372,7 +398,7 @@ def test_imp_none_in_module_already_exists():
     already exists'''
     module = ModuleGen(name="testmodule", implicitnone=True)
     module.add(ImplicitNoneGen(module))
-    count = count_lines(module.root, "IMPLICIT NONE")
+    count = utils.count_lines(module.root, "IMPLICIT NONE")
     print(str(module.root))
     assert count == 1, \
         "There should only be one instance of IMPLICIT NONE"
@@ -399,7 +425,7 @@ def test_imp_none_in_subroutine_with_decs():
     sub.add(TypeDeclGen(sub, datatype="my_type",
                         entity_decls=["type1"]))
     sub.add(ImplicitNoneGen(module))
-    in_idx = line_number(sub.root, "IMPLICIT NONE")
+    in_idx = utils.line_number(sub.root, "IMPLICIT NONE")
     assert in_idx == 1
 
 
@@ -416,7 +442,7 @@ def test_imp_none_in_subroutine_with_use_and_decs():
                         entity_decls=["type1"]))
     sub.add(UseGen(sub, "fred"))
     sub.add(ImplicitNoneGen(sub))
-    in_idx = line_number(sub.root, "IMPLICIT NONE")
+    in_idx = utils.line_number(sub.root, "IMPLICIT NONE")
     assert in_idx == 2
 
 
@@ -436,7 +462,7 @@ def test_imp_none_in_subroutine_with_use_and_decs_and_comments():
         sub.add(CommentGen(sub, " hello "+str(idx)),
                 position=["before_index", 2*idx])
     sub.add(ImplicitNoneGen(sub))
-    in_idx = line_number(sub.root, "IMPLICIT NONE")
+    in_idx = utils.line_number(sub.root, "IMPLICIT NONE")
     assert in_idx == 3
 
 
@@ -447,7 +473,7 @@ def test_imp_none_in_subroutine_already_exists():
     sub = SubroutineGen(module, name="testsubroutine", implicitnone=True)
     module.add(sub)
     sub.add(ImplicitNoneGen(sub))
-    count = count_lines(sub.root, "IMPLICIT NONE")
+    count = utils.count_lines(sub.root, "IMPLICIT NONE")
     assert count == 1, \
         "There should only be one instance of IMPLICIT NONE"
 
@@ -470,7 +496,7 @@ def test_subgen_implicit_none_false():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine", implicitnone=False)
     module.add(sub)
-    count = count_lines(sub.root, "IMPLICIT NONE")
+    count = utils.count_lines(sub.root, "IMPLICIT NONE")
     assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST"
 
 
@@ -480,7 +506,7 @@ def test_subgen_implicit_none_true():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine", implicitnone=True)
     module.add(sub)
-    count = count_lines(sub.root, "IMPLICIT NONE")
+    count = utils.count_lines(sub.root, "IMPLICIT NONE")
     assert count == 1, "IMPLICIT NONE SHOULD EXIST"
 
 
@@ -490,7 +516,7 @@ def test_subgen_implicit_none_default():
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
-    count = count_lines(sub.root, "IMPLICIT NONE")
+    count = utils.count_lines(sub.root, "IMPLICIT NONE")
     assert count == 0, "IMPLICIT NONE SHOULD NOT EXIST BY DEFAULT"
 
 
@@ -584,7 +610,7 @@ def test_basegen_append():
     sub.add(DeclGen(sub, datatype="integer",
                     entity_decls=["var1"]))
     sub.add(CommentGen(sub, " hello"), position=["append"])
-    cindex = line_number(sub.root, "hello")
+    cindex = utils.line_number(sub.root, "hello")
     assert cindex == 3
 
 
@@ -598,7 +624,7 @@ def test_basegen_append_default():
     BaseGen.add(sub, DeclGen(sub, datatype="integer",
                              entity_decls=["var1"]))
     BaseGen.add(sub, CommentGen(sub, " hello"))
-    cindex = line_number(sub.root, "hello")
+    cindex = utils.line_number(sub.root, "hello")
     assert cindex == 3
 
 
@@ -610,7 +636,7 @@ def test_basegen_first():
     sub.add(DeclGen(sub, datatype="integer",
                     entity_decls=["var1"]))
     sub.add(CommentGen(sub, " hello"), position=["first"])
-    cindex = line_number(sub.root, "hello")
+    cindex = utils.line_number(sub.root, "hello")
     assert cindex == 1
 
 
@@ -624,11 +650,11 @@ def test_basegen_after_index():
     sub.add(DeclGen(sub, datatype="integer",
                     entity_decls=["var2"]))
     sub.add(CommentGen(sub, " hello"), position=["after_index", 1])
-    # The code checked by line_number() *includes* the SUBROUTINE
+    # The code checked by utils.line_number() *includes* the SUBROUTINE
     # statement (which is obviously not a child of the SubroutineGen
     # object) and therefore the index it returns is 1 greater than we
     # might expect.
-    assert line_number(sub.root, "hello") == 3
+    assert utils.line_number(sub.root, "hello") == 3
 
 
 def test_basegen_before_error():
@@ -792,7 +818,7 @@ def test_progunitgen_multiple_generic_use():
     module.add(sub)
     sub.add(UseGen(sub, name="fred"))
     sub.add(UseGen(sub, name="fred"))
-    assert count_lines(sub.root, "USE fred") == 1
+    assert utils.count_lines(sub.root, "USE fred") == 1
 
 
 def test_progunitgen_multiple_use1():
@@ -803,7 +829,7 @@ def test_progunitgen_multiple_use1():
     module.add(sub)
     sub.add(UseGen(sub, name="fred"))
     sub.add(UseGen(sub, name="fred", only=True, funcnames=["astaire"]))
-    assert count_lines(sub.root, "USE fred") == 1
+    assert utils.count_lines(sub.root, "USE fred") == 1
 
 
 def test_progunitgen_multiple_use2():
@@ -817,7 +843,7 @@ def test_progunitgen_multiple_use2():
     module.add(sub)
     sub.add(UseGen(sub, name="fred", only=True, funcnames=["astaire"]))
     sub.add(UseGen(sub, name="fred"))
-    assert count_lines(sub.root, "USE fred") == 2
+    assert utils.count_lines(sub.root, "USE fred") == 2
 
 
 def test_progunit_multiple_use3():
@@ -838,7 +864,7 @@ def test_progunit_multiple_use3():
         "      USE fred, ONLY: d\n"
         "      USE fred, ONLY: a, b, c")
     assert expected in gen
-    assert count_lines(sub.root, "USE fred") == 2
+    assert utils.count_lines(sub.root, "USE fred") == 2
     # ensure that the input list does not get modified
     assert funcnames == ["c", "d"]
 
@@ -853,8 +879,8 @@ def test_adduse_empty_only():
     from psyclone.f2pygen import adduse
     # Add a use statement with only=True but an empty list of entities
     adduse("fred", sub.root, only=True, funcnames=[])
-    assert count_lines(sub.root, "USE fred") == 1
-    assert count_lines(sub.root, "USE fred, only") == 0
+    assert utils.count_lines(sub.root, "USE fred") == 1
+    assert utils.count_lines(sub.root, "USE fred, only") == 0
 
 
 def test_adduse():
@@ -889,7 +915,113 @@ def test_adduse_default_funcnames():
     assert expected in gen
 
 
-def test_declgen_wrong_type():
+def test_decl_logical(tmpdir, f90, f90flags):
+    ''' Check that we can create a declaration for a logical variable '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(DeclGen(sub, datatype="logical", entity_decls=["first_time"]))
+    gen = str(sub.root).lower()
+    assert "logical first_time" in gen
+    # Add a second logical variable. Note that "first_time" will be ignored
+    # since it has already been declared.
+    sub.add(DeclGen(sub, datatype="logical", entity_decls=["first_time",
+                                                           "var2"]))
+    gen = str(sub.root).lower()
+    assert "logical var2" in gen
+    assert gen.count("logical first_time") == 1
+    # Check that the generated code compiles (if enabled)
+    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+
+
+def test_decl_save(tmpdir, f90, f90flags):
+    ''' Check that we can declare variables with the save attribute '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    for idx, dtype in enumerate(DeclGen.SUPPORTED_TYPES):
+        sub.add(DeclGen(sub, datatype=dtype, save=True,
+                        entity_decls=["var"+str(idx)]))
+    gen = str(sub.root).lower()
+    for dtype in DeclGen.SUPPORTED_TYPES:
+        assert "{0}, save :: var".format(dtype.lower()) in gen
+    # Check that the generated code compiles (if enabled)
+    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+
+
+def test_decl_initial_vals(tmpdir, f90, f90flags):
+    ''' Check that we can specify initial values for a declaration '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    # Check that we raise the correct error if the wrong number of
+    # initial values is supplied
+    with pytest.raises(RuntimeError) as err:
+        sub.add(DeclGen(sub, datatype="real", entity_decls=["r1", "r2"],
+                        initial_values=["1.0"]))
+    assert ("number of initial values supplied (1) does not match the number "
+            "of variables to be declared (2: ['r1', 'r2'])" in str(err))
+
+    # Single variables
+    sub.add(DeclGen(sub, datatype="integer", save=True,
+                    entity_decls=["ivar"], initial_values=["1"]))
+    sub.add(DeclGen(sub, datatype="real", save=True,
+                    entity_decls=["var"], initial_values=["1.0"]))
+    sub.add(DeclGen(sub, datatype="logical", save=True,
+                    entity_decls=["lvar"], initial_values=[".false."]))
+    gen = str(sub.root).lower()
+    assert "logical, save :: lvar=.false." in gen
+    assert "integer, save :: ivar=1" in gen
+    assert "real, save :: var=1.0" in gen
+    # Check that the generated code compiles (if enabled)
+    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+
+    # Multiple variables
+    sub.add(DeclGen(sub, datatype="integer", save=True,
+                    entity_decls=["ivar1", "ivar2"],
+                    initial_values=["1", "2"]))
+    sub.add(DeclGen(sub, datatype="real", save=True,
+                    entity_decls=["var1", "var2"],
+                    initial_values=["1.0", "-1.0"]))
+    sub.add(DeclGen(sub, datatype="logical", save=True,
+                    entity_decls=["lvar1", "lvar2"],
+                    initial_values=[".false.", ".true."]))
+    gen = str(sub.root).lower()
+    assert "logical, save :: lvar1=.false., lvar2=.true." in gen
+    assert "integer, save :: ivar1=1, ivar2=2" in gen
+    assert "real, save :: var1=1.0, var2=-1.0" in gen
+    # Check that the generated code compiles (if enabled)
+    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+
+
+def test_declgen_invalid_vals():
+    ''' Check that we raise the expected error if we attempt to create a
+    DeclGen with an initial value that is inconsistent with the type of
+    the variable '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    with pytest.raises(RuntimeError) as err:
+        _ = DeclGen(sub, datatype="integer",
+                    entity_decls=["ival1", "ival2", "ival3"],
+                    initial_values=["good", "1", "-0.35"])
+    assert ("Initial value of '-0.35' for an integer "
+            "variable is invalid or unsupported" in str(err))
+    with pytest.raises(RuntimeError) as err:
+        _ = DeclGen(sub, datatype="real",
+                    entity_decls=["val1", "val2", "val3"],
+                    initial_values=["good", "1.0", "35"])
+    assert ("Initial value of '35' for a real "
+            "variable is invalid or unsupported" in str(err))
+    with pytest.raises(RuntimeError) as err:
+        _ = DeclGen(sub, datatype="logical",
+                    entity_decls=["val1", "val2", "val3"],
+                    initial_values=["good", ".fAlse.", "35"])
+    assert ("Initial value of '35' for a logical variable is invalid or "
+            "unsupported" in str(err))
+
+
+def test_declgen_wrong_type(monkeypatch):
     ''' Check that we raise an appropriate error if we attempt to create
     a DeclGen for an unsupported type '''
     module = ModuleGen(name="testmodule")
@@ -898,7 +1030,24 @@ def test_declgen_wrong_type():
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
-    assert "Only integer and real are currently supported" in str(err)
+    assert ("Only ['integer', 'real', 'logical'] types are currently supported"
+            in str(err))
+    # Check the internal error is raised within the validation routine if
+    # an unsupported type is specified
+    dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])
+    with pytest.raises(RuntimeError) as err:
+        dgen._check_initial_values("complex", ["1"])
+    assert ("Internal error: unsupported type 'complex' - should be one "
+            "of {0}".format(dgen.SUPPORTED_TYPES) in str(err))
+    # Check that we get an internal error if the supplied type is in the
+    # list of those supported but has not actually been implemented.
+    # We have to monkeypatch the list of supported types...
+    monkeypatch.setattr(DeclGen, "SUPPORTED_TYPES", value=["complex"])
+    with pytest.raises(RuntimeError) as err:
+        _ = DeclGen(sub, datatype="complex",
+                    entity_decls=["rvar1"])
+    assert ("Internal error: type 'complex' is in DeclGen.SUPPORTED_TYPES "
+            "but not handled by constructor" in str(err))
 
 
 def test_declgen_missing_names():
@@ -1122,7 +1271,7 @@ def test_do_loop_with_increment():
     module.add(sub)
     dogen = DoGen(sub, "it", "1", "10", step="2")
     sub.add(dogen)
-    count = count_lines(sub.root, "DO it=1,10,2")
+    count = utils.count_lines(sub.root, "DO it=1,10,2")
     assert count == 1
 
 
@@ -1138,8 +1287,8 @@ def test_do_loop_add_after():
     dogen.add(assign1)
     assign2 = AssignGen(dogen, lhs="sad", rhs=".FALSE.")
     dogen.add(assign2, position=["before", assign1.root])
-    a1_line = line_number(sub.root, "happy = ")
-    a2_line = line_number(sub.root, "sad = ")
+    a1_line = utils.line_number(sub.root, "happy = ")
+    a2_line = utils.line_number(sub.root, "sad = ")
     assert a1_line > a2_line
 
 
