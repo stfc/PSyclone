@@ -64,6 +64,7 @@ This prints a textual view of the Schedule of the first invoke:
 and then writes the DAG of the schedule to file.
 '''
 
+from __future__ import print_function
 import os
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
@@ -75,7 +76,7 @@ PSY = PSyFactory(API).create(INVOKEINFO)
 # Print the Schedule of the first Invoke
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
 SCHEDULE.view()
-print "\n"
+print("\n")
 
 # Generate a DAG for it. If graphviz is not available this call just
 # returns without doing anything.
@@ -83,7 +84,7 @@ DAG_NAME = "invoke_0_dag"
 SCHEDULE.dag(file_name=DAG_NAME, file_format="png")
 DAG_NAME += ".png"
 if os.path.isfile(os.path.join(os.getcwd(), DAG_NAME)):
-    print "Wrote DAG to file: {0}".format(DAG_NAME)
+    print("Wrote DAG to file: {0}".format(DAG_NAME))
 else:
     print("Failed to generate DAG image. Do you have the graphviz library "
           "and Python\nbindings installed?")

@@ -39,7 +39,7 @@
     they iterate over DOFs. However this may change in the future. '''
 
 # imports
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse import parse, ParseError
@@ -249,8 +249,8 @@ def test_builtin_args_not_same_space():
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=False).create(invoke_info)
     assert ("All field arguments to a built-in in the Dynamo 0.3 API "
-            "must be on the same space. However, found spaces ['any_space_2', "
-            "'any_space_1'] for arguments to " + test_builtin_name.lower() in
+            "must be on the same space. However, found spaces ['any_space_1', "
+            "'any_space_2'] for arguments to " + test_builtin_name.lower() in
             str(excinfo))
 
 
@@ -369,7 +369,7 @@ def test_X_plus_Y():
         assert str(kern) == "Built-in: Add fields"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "      f3_proxy = f3%get_proxy()\n"
@@ -408,7 +408,7 @@ def test_X_plus_Y():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -429,7 +429,7 @@ def test_inc_X_plus_Y():
         assert str(kern) == "Built-in: Increment field"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
@@ -475,7 +475,7 @@ def test_aX_plus_Y():
         assert str(kern) == "Built-in: aX_plus_Y"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
@@ -527,7 +527,7 @@ def test_aX_plus_Y():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -547,7 +547,7 @@ def test_inc_aX_plus_Y():
         assert str(kern) == "Built-in: inc_aX_plus_Y"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(a, f1, f2)\n"
@@ -598,7 +598,7 @@ def test_inc_aX_plus_Y():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -618,7 +618,7 @@ def test_inc_X_plus_bY():
         assert str(kern) == "Built-in: inc_X_plus_bY"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f1, b, f2)\n"
@@ -669,7 +669,7 @@ def test_inc_X_plus_bY():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -690,7 +690,7 @@ def test_aX_plus_bY():
         assert str(kern) == "Built-in: aX_plus_bY"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f3, a, f1, b, f2)\n"
@@ -742,7 +742,7 @@ def test_aX_plus_bY():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -764,7 +764,7 @@ def test_inc_aX_plus_bY():
         assert str(kern) == "Built-in: inc_aX_plus_bY"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(a, f1, b, f2)\n"
@@ -815,7 +815,7 @@ def test_inc_aX_plus_bY():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -838,7 +838,7 @@ def test_X_minus_Y():
         assert str(kern) == "Built-in: Subtract fields"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "      f3_proxy = f3%get_proxy()\n"
@@ -877,7 +877,7 @@ def test_X_minus_Y():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -899,7 +899,7 @@ def test_inc_X_minus_Y():
         assert str(kern) == "Built-in: Decrement field"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "      f1_proxy = f1%get_proxy()\n"
@@ -954,7 +954,7 @@ def test_aX_minus_Y():
         assert str(kern) == "Built-in: aX_minus_Y"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
@@ -1006,7 +1006,7 @@ def test_aX_minus_Y():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1026,7 +1026,7 @@ def test_X_minus_bY():
         assert str(kern) == "Built-in: X_minus_bY"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f3, f1, b, f2)\n"
@@ -1078,7 +1078,7 @@ def test_X_minus_bY():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1098,7 +1098,7 @@ def test_inc_X_minus_bY():
         assert str(kern) == "Built-in: inc_X_minus_bY"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f1, b, f2)\n"
@@ -1149,7 +1149,7 @@ def test_inc_X_minus_bY():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1174,7 +1174,7 @@ def test_X_times_Y():
         assert str(kern) == "Built-in: Multiply fields"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f3, f1, f2)\n"
@@ -1241,7 +1241,7 @@ def test_inc_X_times_Y():
         assert str(kern) == "Built-in: Multiply field by another"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "      f1_proxy = f1%get_proxy()\n"
@@ -1279,7 +1279,7 @@ def test_inc_X_times_Y():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1299,7 +1299,7 @@ def test_inc_aX_times_Y():
         assert str(kern) == "Built-in: inc_aX_times_Y"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(a, f1, f2)\n"
@@ -1350,7 +1350,7 @@ def test_inc_aX_times_Y():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1374,7 +1374,7 @@ def test_a_times_X():
         assert str(kern) == "Built-in: Copy scaled field"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "      f2_proxy = f2%get_proxy()\n"
@@ -1410,7 +1410,7 @@ def test_a_times_X():
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1432,7 +1432,7 @@ def test_inc_a_times_X():
         assert str(kern) == "Built-in: Scale a field"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(a, f1, b, f2, f3)\n"
@@ -1501,7 +1501,7 @@ def test_X_divideby_Y():
         assert str(kern) == "Built-in: Divide fields"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "      f3_proxy = f3%get_proxy()\n"
@@ -1540,7 +1540,7 @@ def test_X_divideby_Y():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1560,7 +1560,7 @@ def test_inc_X_divideby_Y():
         assert str(kern) == "Built-in: Divide one field by another"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "      f1_proxy = f1%get_proxy()\n"
@@ -1598,7 +1598,7 @@ def test_inc_X_divideby_Y():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1623,7 +1623,7 @@ def test_inc_X_powreal_a():
         assert str(kern) == "Built-in: raise a field to a real power"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
@@ -1670,7 +1670,7 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags):
         assert str(kern) == "Built-in: raise a field to an integer power"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
 
         if utils.TEST_COMPILE:
             # If compilation testing has been enabled
@@ -1724,7 +1724,7 @@ def test_setval_c():
         assert str(kern) == "Built-in: Set field to a scalar value"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f1, c)\n"
@@ -1769,7 +1769,7 @@ def test_setval_c():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1789,7 +1789,7 @@ def test_setval_X():
         assert str(kern) == "Built-in: Set a field equal to another field"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f2, f1)\n"
@@ -1835,7 +1835,7 @@ def test_setval_X():
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -1861,7 +1861,7 @@ def test_X_innerproduct_Y():
         assert str(kern) == "Built-in: X_innerproduct_Y"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         output = (
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
@@ -1939,7 +1939,7 @@ def test_X_innerproduct_X():
         assert str(kern) == "Built-in: X_innerproduct_X"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         output = (
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
@@ -2018,7 +2018,7 @@ def test_sum_X():
         assert str(kern) == "Built-in: sum a field"
         # Test code generation
         code = str(psy.gen)
-        print code
+        print(code)
         output = (
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
@@ -2105,7 +2105,7 @@ def test_X_times_Y_deduce_space():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
-        print code
+        print(code)
         output = (
             "some fortran\n"
         )
@@ -2126,7 +2126,7 @@ def test_builtin_set(tmpdir, f90, f90flags):
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
-        print code
+        print(code)
 
         if utils.TEST_COMPILE:
             # If compilation testing has been enabled
@@ -2162,7 +2162,7 @@ def test_builtin_set(tmpdir, f90, f90flags):
                 "      END DO \n"
                 "      !\n"
                 "    END SUBROUTINE invoke_0\n")
-            print output_seq
+            print(output_seq)
             assert output_seq in code
 
         if distmem:
@@ -2180,7 +2180,7 @@ def test_builtin_set(tmpdir, f90, f90flags):
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -2195,7 +2195,7 @@ def test_aX_plus_Y_by_value():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f3, f1, f2)\n"
@@ -2246,7 +2246,7 @@ def test_aX_plus_Y_by_value():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -2261,7 +2261,7 @@ def test_aX_plus_bY_by_value():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f3, f1, f2)\n"
@@ -2312,7 +2312,7 @@ def test_aX_plus_bY_by_value():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -2329,7 +2329,7 @@ def test_multiple_builtin_set():
         psy = PSyFactory(
             "dynamo0.3", distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
-        print code
+        print(code)
         if not distmem:
             output = (
                 "    SUBROUTINE invoke_0(f1, fred, f2, f3, ginger)\n"
@@ -2411,7 +2411,7 @@ def test_multiple_builtin_set():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -2427,15 +2427,16 @@ def test_builtin_set_plus_normal():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
-        print code
+        print(code)
 
         dofmap_output = (
             "      !\n"
             "      ! Look-up dofmaps for each function space\n"
             "      !\n"
+            "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
             "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
             "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
-            "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n")
+            )
         assert dofmap_output in code
 
         if not distmem:
@@ -2503,7 +2504,7 @@ def test_builtin_set_plus_normal():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
-            print output_dm_2
+            print(output_dm_2)
             assert output_dm_2 in code
 
 
@@ -2522,7 +2523,7 @@ def test_multi_builtin_single_invoke():
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert(
                 "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"

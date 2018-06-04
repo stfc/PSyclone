@@ -42,6 +42,7 @@
     Loop, Kern, Inf, Arguments and Argument). '''
 
 # Imports
+from __future__ import print_function
 import os
 import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
@@ -50,6 +51,7 @@ from psyclone import psyGen, config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
+from collections import OrderedDict
 
 # First section : Parser specialisations and classes
 
@@ -975,7 +977,7 @@ class DynKernMetadata(KernelType):
         # Dictionary of meshes associated with arguments (for inter-grid
         # kernels). Keys are the meshes, values are lists of function spaces
         # of the corresponding field arguments.
-        mesh_dict = {}
+        mesh_dict = OrderedDict()
         # Whether or not any field args are missing the mesh_arg specifier
         missing_mesh = False
         # If this is an inter-grid kernel then it must only have field
@@ -1022,7 +1024,7 @@ class DynKernMetadata(KernelType):
                 "Inter-grid kernels in the Dynamo 0.3 API must have at least "
                 "one field argument on each of the mesh types ({0}). However, "
                 "kernel {1} has arguments only on {2}".format(
-                    VALID_MESH_TYPES, self.name, mesh_list))
+                    VALID_MESH_TYPES, self.name, list(mesh_list)))
         # Inter-grid kernels must only have field arguments
         if non_field_arg_types:
             raise ParseError(
@@ -1052,7 +1054,7 @@ class DynKernMetadata(KernelType):
                 "kernels must be on different function spaces if they are "
                 "on different meshes. However kernel {0} has a field on "
                 "function space(s) {1} on each of the mesh types {2}.".
-                format(self.name, list(fs_common), mesh_list))
+                format(self.name, list(fs_common), list(mesh_list)))
         # Finally, record that this is a valid inter-grid kernel
         self._is_intergrid = True
 
@@ -1546,18 +1548,18 @@ class DynInvokeDofmaps(object):
         # of the unique function spaces involved.
         # We create a dictionary whose keys are the map names and entries
         # are the corresponding field objects.
-        self._unique_fs_maps = {}
+        self._unique_fs_maps = OrderedDict()
         # We also create a dictionary of column-banded dofmaps. Entries
         # in this one are themselves dictionaries containing two entries:
         # "argument" - the object holding information on the CMA kernel
         #              argument
         # "direction" - whether the dofmap is required for the "to" for
         #               "from" function space of the operator.
-        self._unique_cbanded_maps = {}
+        self._unique_cbanded_maps = OrderedDict()
         # A dictionary of required CMA indirection dofmaps. As with the
         # column-banded dofmaps, each entry is itself a dictionary with
         # "argument" and "direction" entries.
-        self._unique_indirection_maps = {}
+        self._unique_indirection_maps = OrderedDict()
 
         for call in schedule.calls():
             # We only need a dofmap if the kernel iterates over cells
@@ -1677,7 +1679,7 @@ class DynInvokeDofmaps(object):
 
         # Function space dofmaps
         decl_map_names = \
-            [dmap+"(:,:) => null()" for dmap in self._unique_fs_maps]
+            [dmap+"(:,:) => null()" for dmap in sorted(self._unique_fs_maps)]
 
         if decl_map_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
@@ -1929,7 +1931,7 @@ class DynMeshes(object):
                     root_name=mesh_name, context="PSyVars", label=mesh_name))
 
         # Convert the set of mesh names to a list and store
-        self._mesh_names = list(_name_set)
+        self._mesh_names = sorted(_name_set)
 
     def declarations(self, parent):
         '''
@@ -2573,7 +2575,7 @@ class DynInvokeBasisFns(object):
         if loop_var_list:
             # Declare any loop variables
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=list(loop_var_list)))
+                               entity_decls=sorted(loop_var_list)))
 
     def deallocate(self, parent):
         '''
@@ -2609,7 +2611,7 @@ class DynInvokeBasisFns(object):
 
         if func_space_var_names:
             # add the required deallocate call
-            parent.add(DeallocateGen(parent, list(func_space_var_names)))
+            parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
 
 
 class DynInvoke(Invoke):
@@ -3093,8 +3095,8 @@ class DynSchedule(Schedule):
         '''a method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
         method to include distributed memory information '''
-        print self.indent(indent) + self.coloured_text + "[invoke='" + \
-            self.invoke.name + "' dm="+str(config.DISTRIBUTED_MEMORY)+"]"
+        print(self.indent(indent) + self.coloured_text + "[invoke='" + \
+            self.invoke.name + "' dm="+str(config.DISTRIBUTED_MEMORY)+"]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -3479,12 +3481,12 @@ class DynHaloExchange(HaloExchange):
         ''' Class specific view  '''
         _, known = self.required()
         runtime_check = not known
-        print self.indent(indent) + (
+        print(self.indent(indent) + (
             "{0}[field='{1}', type='{2}', depth={3}, "
             "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                       self._compute_stencil_type(),
                                       self._compute_halo_depth(),
-                                      runtime_check))
+                                      runtime_check)))
 
     def gen_code(self, parent):
         ''' Dynamo specific code generation for this class '''

@@ -35,7 +35,7 @@
 
 ''' Test utilities including support for testing that code compiles. '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -148,17 +148,17 @@ def compile_file(filename, f90, f90flags):
                                  stderr=subprocess.STDOUT)
         (output, error) = build.communicate()
     except OSError as err:
-        print "Failed to run: {0}: ".format(" ".join(arg_list))
-        print "Error was: ", str(err)
+        print("Failed to run: {0}: ".format(" ".join(arg_list)))
+        print("Error was: ", str(err))
         raise CompileError(str(err))
 
     # Check the return code
     stat = build.returncode
     if stat != 0:
-        print output
+        print(output)
         if error:
-            print "========="
-            print error
+            print("=========")
+            print(error)
         raise CompileError(output)
     else:
         return True

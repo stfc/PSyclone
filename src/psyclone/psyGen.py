@@ -39,7 +39,9 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
+from __future__ import print_function
 import abc
+import six
 from psyclone import config
 
 # We use the termcolor module (if available) to enable us to produce
@@ -1276,8 +1278,8 @@ class Schedule(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + self.coloured_text + \
-            "[invoke='" + self.invoke.name + "']"
+        print(self.indent(indent) + self.coloured_text +
+              "[invoke='" + self.invoke.name + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1314,7 +1316,7 @@ class Directive(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + self.coloured_text
+        print(self.indent(indent) + self.coloured_text)
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1350,7 +1352,7 @@ class OMPDirective(Directive):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + self.coloured_text + "[OMP]"
+        print(self.indent(indent) + self.coloured_text + "[OMP]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1383,7 +1385,7 @@ class OMPParallelDirective(OMPDirective):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + self.coloured_text + "[OMP parallel]"
+        print(self.indent(indent) + self.coloured_text + "[OMP parallel]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1547,8 +1549,8 @@ class OMPDoDirective(OMPDirective):
             reprod = "[reprod={0}]".format(self._reprod)
         else:
             reprod = ""
-        print self.indent(indent) + self.coloured_text + \
-            "[OMP do]{0}".format(reprod)
+        print(self.indent(indent) + self.coloured_text +
+              "[OMP do]{0}".format(reprod))
 
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -1639,8 +1641,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + self.coloured_text + \
-            "[OMP parallel do]"
+        print(self.indent(indent) + self.coloured_text +
+              "[OMP parallel do]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1715,8 +1717,8 @@ class GlobalSum(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + (
-            "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name))
+        print(self.indent(indent) + (
+            "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name)))
 
     @property
     def coloured_text(self):
@@ -1872,11 +1874,11 @@ class HaloExchange(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + (
+        print(self.indent(indent) + (
             "{0}[field='{1}', type='{2}', depth={3}, "
             "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                       self._halo_type,
-                                      self._halo_depth, self._check_dirty))
+                                      self._halo_depth, self._check_dirty)))
 
     @property
     def coloured_text(self):
@@ -1958,9 +1960,9 @@ class Loop(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + self.coloured_text + \
-            "[type='{0}',field_space='{1}',it_space='{2}']".\
-            format(self._loop_type, self._field_space, self.iteration_space)
+        print(self.indent(indent) + self.coloured_text +
+              "[type='{0}',field_space='{1}',it_space='{2}']".
+              format(self._loop_type, self._field_space, self.iteration_space))
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -2140,8 +2142,8 @@ class Call(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + self.coloured_text, \
-            self.name + "(" + str(self.arguments.raw_arg_list) + ")"
+        print(self.indent(indent) + self.coloured_text,
+              self.name + "(" + str(self.arguments.raw_arg_list) + ")")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -2319,7 +2321,8 @@ class Call(Node):
             raise GenerationError(
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
-                format(reduction_access, REDUCTION_OPERATOR_MAPPING.keys()))
+                format(reduction_access,
+                       list(REDUCTION_OPERATOR_MAPPING.keys())))
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
         do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
                               reduction_operator + local_var_ref))
@@ -2433,9 +2436,9 @@ class Kern(Call):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + self.coloured_text, \
-            self.name + "(" + str(self.arguments.raw_arg_list) + ")", \
-            "[module_inline=" + str(self._module_inline) + "]"
+        print(self.indent(indent) + self.coloured_text,
+              self.name + "(" + str(self.arguments.raw_arg_list) + ")",
+              "[module_inline=" + str(self._module_inline) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -2941,7 +2944,7 @@ class TransInfo(object):
 
     >>> from psyclone.psyGen import TransInfo
     >>> t = TransInfo()
-    >>> print t.list
+    >>> print(t.list)
     There is 1 transformation available:
       1: SwapTrans, A test transformation
     >>> # accessing a transformation by index
@@ -3024,10 +3027,10 @@ class TransInfo(object):
                 issubclass(cls, base_class) and cls is not base_class]
 
 
+@six.add_metaclass(abc.ABCMeta)
 class Transformation(object):
     ''' abstract baseclass for a transformation. Uses the abc module so it
         can not be instantiated. '''
-    __metaclass__ = abc.ABCMeta
 
     @abc.abstractproperty
     def name(self):
