@@ -1383,8 +1383,8 @@ class ACCDataDirective(ACCDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from f2pygen import DeclGen, DirectiveGen, CommentGen, IfThenGen, \
-            AssignGen, CallGen, UseGen
+        from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen, \
+            IfThenGen, AssignGen, CallGen, UseGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
@@ -1467,7 +1467,7 @@ class ACCParallelDirective(ACCDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from f2pygen import DirectiveGen
+        from psyclone.f2pygen import DirectiveGen
 
         # "default(present)" means that the compiler is to assume that
         # all data required by the parallel region is already present
