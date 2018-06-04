@@ -101,8 +101,8 @@ class GOPSy(PSy):
         invokes object (which controls all the required invocation calls).
         Also overrides the PSy gen method so that we generate GOcean-
         specific PSy module code. '''
-    def __init__(self, invoke_info, opencl=False):
-        PSy.__init__(self, invoke_info, opencl)
+    def __init__(self, invoke_info):
+        PSy.__init__(self, invoke_info)
         self._invokes = GOInvokes(invoke_info.calls)
 
     @property
@@ -121,10 +121,6 @@ class GOPSy(PSy):
         psy_module.add(UseGen(psy_module, name="kind_params_mod"))
         # include the field_mod module
         psy_module.add(UseGen(psy_module, name="field_mod"))
-        if self._opencl:
-            psy_module.add(UseGen(psy_module, name="iso_c_binding"))
-            psy_module.add(UseGen(psy_module, name="clfortran"))
-        # add in the subroutines for each invocation
         self.invokes.gen_code(psy_module)
         # inline kernels where requested
         self.inline(psy_module)
@@ -132,8 +128,13 @@ class GOPSy(PSy):
 
 
 class GOInvokes(Invokes):
-    ''' The GOcean specific invokes class. This passes the GOcean specific
-        invoke class to the base class so it creates the one we require. '''
+    '''
+    The GOcean specific invokes class. This passes the GOcean specific
+    invoke class to the base class so it creates the one we require.
+    :param alg_calls: list of the Invoke calls discovered in the Algorithm
+                      layer
+    :type alg_calls: list of :py:class:`psyclone.TBD`
+    '''
     def __init__(self, alg_calls):
         if False:  # pylint: disable=using-constant-test
             self._0_to_n = GOInvoke(None, None)  # for pyreverse
@@ -709,6 +710,12 @@ class GOKern(Kern):
             kernel instance. '''
         from psyclone.f2pygen import CallGen, UseGen
 
+        if self._opencl:
+            # OpenCL is completely different so has its own gen method.
+            # TODO is there a nicer way of doing this?
+            self.gen_ocl(parent)
+            return
+
         # Before we do anything else, go through the arguments and
         # determine the best one from which to obtain the grid properties.
         grid_arg = self._find_grid_access()
@@ -744,6 +751,18 @@ class GOKern(Kern):
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
+
+    def gen_ocl(self, parent):
+        '''
+        :param parent:
+        '''
+        cnull = "C_NULL_PTR"
+        cmd_queue = "cmd_queues(1)"  # TODO use namespace manager
+        kernel = "kernel_" + self._name  # TODO use namespace manager
+        gsize = "globalsize" # TODO use namespace manager
+        args = [cmd_queue, kernel, "2", cnull, "C_LOC({0})".format(gsize),
+                cnull, "0", cnull, cnull]
+        parent.add(CallGen(parent, "clEnqueueNDRangeKernel", args))
 
     @property
     def index_offset(self):

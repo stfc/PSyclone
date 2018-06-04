@@ -201,19 +201,16 @@ class PSyFactory(object):
     config.DISTRIBUTED_MEMORY. If we set it to None and then test
     the value, it then fails. I've no idea why.
 
-    :param bool opencl: #TODO
     '''
 
     def __init__(self, api="",
-                 distributed_memory=config.DISTRIBUTED_MEMORY,
-                 opencl=False):
+                 distributed_memory=config.DISTRIBUTED_MEMORY):
         if distributed_memory not in [True, False]:
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
         config.DISTRIBUTED_MEMORY = distributed_memory
         self._type = get_api(api)
-        self._opencl = opencl
 
     def create(self, invoke_info):
         ''' Return the specified version of PSy. '''
@@ -231,7 +228,7 @@ class PSyFactory(object):
             return GOPSy(invoke_info)
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOPSy
-            return GOPSy(invoke_info, opencl=self._opencl)
+            return GOPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
@@ -262,11 +259,10 @@ class PSy(object):
         >>> print(psy.gen)
 
     '''
-    def __init__(self, invoke_info, opencl):
+    def __init__(self, invoke_info):
 
         self._name = invoke_info.name
         self._invokes = None
-        self._opencl = opencl
 
     def __str__(self):
         return "PSy"
@@ -1036,6 +1032,7 @@ class Node(object):
         else:
             self._children = children
         self._parent = parent
+        self._opencl = False
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
@@ -1278,6 +1275,7 @@ class Schedule(Node):
                 sequence.append(KernFactory.create(call, parent=self))
         Node.__init__(self, children=sequence)
         self._invoke = None
+        self._opencl = False  # Whether or not to generate OpenCL
 
     def view(self, indent=0):
         '''
@@ -1311,8 +1309,30 @@ class Schedule(Node):
         return result
 
     def gen_code(self, parent):
+        '''
+        TODO
+        '''
+        if self._opencl:
+            from psyclone.f2pygen import UseGen
+            parent.add(UseGen(parent, name="iso_c_binding"))
+            parent.add(UseGen(parent, name="clfortran"))
+
         for entity in self._children:
             entity.gen_code(parent)
+
+    @property
+    def opencl(self):
+        return self._opencl
+
+    @opencl.setter
+    def opencl(self, value):
+        '''
+        :param bool value: whether or not to generate OpenCL for this schedule
+        '''
+        if not isinstance(value, bool):
+            raise ValueError("Schedule.opencl must be a bool but got {0}".
+                             format(type(value)))
+        self._opencl = value
 
 
 class Directive(Node):
