@@ -37,7 +37,7 @@
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
@@ -1436,8 +1436,10 @@ def test_acc_data_not_a_schedule():
 
     acct = OpenACCDataTrans()
 
-    with pytest.raises(TransformationError):
+    with pytest.raises(TransformationError) as err:
         _, _ = acct.apply(schedule.children[0])
+    assert ("Cannot apply an OpenACC data directive to something that is not "
+            "a Schedule" in str(err))
 
 
 def test_acc_data_copyin():
@@ -1461,13 +1463,23 @@ def test_acc_data_copyin():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    pcopy = ("!$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
-             "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
-             "unew_fld%data,uold_fld,uold_fld%data)")
+    print(code)
+
+    # Check that we've correctly declared the logical variable that
+    # records whether this is the first time we've entered this invoke.
+    assert "LOGICAL, save :: first_time=.True." in code
+
+    pcopy = (
+        "      IF (first_time) THEN\n"
+        "        !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
+        "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
+        "unew_fld%data,uold_fld,uold_fld%data)\n"
+        "        first_time = .false.\n")
     assert pcopy in code
-    for obj in ["u_fld", "v_fld", "p_fld", "cu_fld", "cv_fld", "unew_fld",
-                "uold_fld"]:
+    for obj in ["u_fld", "v_fld", "p_fld", "cu_fld", "cv_fld", "unew_fld"]:
         assert "{0}%data_on_device = .true.".format(obj) in code
+    assert ("        uold_fld%data_on_device = .true.\n"
+            "      END IF \n" in code)
 
 
 def test_acc_data_grid_copyin():
@@ -1491,12 +1503,17 @@ def test_acc_data_grid_copyin():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
+    print(code)
+    # TODO grid properties are effectively duplicated in this list (but the
+    # OpenACC deep-copy support should spot this).
     pcopy = ("!$acc enter data copyin(u_fld,u_fld%data,cu_fld,cu_fld%data,"
              "u_fld%grid,u_fld%grid%tmask,u_fld%grid%area_t,"
-             "u_fld%grid%area_u)")
+             "u_fld%grid%area_u,d_fld,d_fld%data,du_fld,du_fld%data,"
+             "d_fld%grid,d_fld%grid%tmask,d_fld%grid%area_t,"
+             "d_fld%grid%area_u)")
     assert pcopy in code
     # Check that we flag that the fields are now on the device
-    for obj in ["u_fld", "cu_fld"]:
+    for obj in ["u_fld", "cu_fld", "du_fld", "d_fld"]:
         assert "{0}%data_on_device = .true.".format(obj) in code
     # Check that we have no acc_update_device calls
     assert "CALL acc_update_device" not in code
@@ -1599,7 +1616,7 @@ def test_acc_update_two_scalars():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    print code
+    print(code)
     # Check that the use statement has been added
     assert ("USE kernel_scalar_float, ONLY: bc_ssh_code\n"
             "      USE openacc, ONLY: acc_update_device" in code)

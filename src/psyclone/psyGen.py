@@ -1394,6 +1394,8 @@ class ACCDataDirective(ACCDirective):
         #    the kernels it contains (this list is given by var_list)
         #    and add it to our list if we don't already have it
         var_list = []
+        # TODO grid properties are effectively duplicated in this list (but
+        # the OpenACC deep-copy support should spot this).
         for pdir in self._acc_dirs:
             for var in pdir.ref_list:
                 if var not in var_list:
@@ -1406,11 +1408,10 @@ class ACCDataDirective(ACCDirective):
         name_space_manager = NameSpaceFactory().create()
         first_time = name_space_manager.create_name(
             root_name="first_time", context="PSyVars", label="first_time")
-        # TODO (#172) extend DeclGen to support logical, save and
-        # initial value
-        #parent.add(DeclGen(parent, datatype="logical",
-        #                   entity_decls=[first_time]))
-
+        parent.add(DeclGen(parent, datatype="logical",
+                           entity_decls=[first_time],
+                           initial_values=[".True."],
+                           save=True))
         parent.add(CommentGen(parent,
                               " Ensure all fields are on the device and"))
         parent.add(CommentGen(parent, " copy them over if not."))
@@ -1420,12 +1421,14 @@ class ACCDataDirective(ACCDirective):
         parent.add(ifthen)
         ifthen.add(DirectiveGen(ifthen, "acc", "begin", "enter data",
                                 "copyin("+var_str+")"))
-        # 6. Flag that the data is now on the device. This calls down
+        # 6. Flag that we have now entered this routine at least once
+        ifthen.add(AssignGen(ifthen, lhs=first_time, rhs=".false."))
+        # 7. Flag that the data is now on the device. This calls down
         #    into the API-specific subclass of this class.
         self.data_on_device(ifthen)
         parent.add(CommentGen(parent, ""))
 
-        # 7. Ensure that any scalars are up-to-date
+        # 8. Ensure that any scalars are up-to-date
         var_list = []
         for pdir in self._acc_dirs:
             for var in pdir.scalars:
