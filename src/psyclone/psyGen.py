@@ -1357,7 +1357,7 @@ class ACCDirective(Directive):
     ''' Base class for all OpenACC directive statments. '''
 
     def view(self, indent=0):
-        print self.indent(indent) + self.coloured_text + "[OpenACC]"
+        print(self.indent(indent) + self.coloured_text + "[OpenACC]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1378,7 +1378,7 @@ class ACCDataDirective(ACCDirective):
         self._acc_dirs = None
 
     def view(self, indent=0):
-        print self.indent(indent) + self.coloured_text + "[OpenACC enter data]"
+        print(self.indent(indent)+self.coloured_text+"[OpenACC enter data]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1459,7 +1459,7 @@ class ACCParallelDirective(ACCDirective):
     ''' Class for the !$ACC PARALLEL directive of OpenACC. '''
 
     def view(self, indent=0):
-        print self.indent(indent) + self.coloured_text + "[ACC Parallel]"
+        print(self.indent(indent)+self.coloured_text+"[ACC Parallel]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
