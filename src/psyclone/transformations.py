@@ -1645,7 +1645,7 @@ class GOLoopSwapTrans(Transformation):
         parent = outer.parent
 
         # create a memento of the schedule and the proposed transformation
-        from .undoredo import Memento
+        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [inner, outer])
 
         # Remove outer from parent:
@@ -1823,7 +1823,7 @@ class OpenACCParallelTrans(Transformation):
 
         '''
         # Check that the supplied node is a Loop
-        from psyGen import Loop
+        from psyclone.psyGen import Loop
         if not isinstance(node, Loop):
             raise TransformationError("Cannot apply an OpenACC Parallel "
                                       "directive to something that is "
@@ -1833,7 +1833,7 @@ class OpenACCParallelTrans(Transformation):
 
         # create a memento of the schedule and the proposed
         # transformation
-        from undoredo import Memento
+        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [node])
 
         # keep a reference to the node's original parent and its index as these
@@ -1843,7 +1843,7 @@ class OpenACCParallelTrans(Transformation):
 
         # add our OpenACC parallel directive setting its parent to
         # the node's parent and its children to the node
-        from psyGen import ACCParallelDirective
+        from psyclone.psyGen import ACCParallelDirective
         directive = ACCParallelDirective(parent=node_parent,
                                          children=[node])
 
@@ -1900,7 +1900,7 @@ class OpenACCDataTrans(Transformation):
                                       "data region - cannot add another.")
         # create a memento of the schedule and the proposed
         # transformation
-        from undoredo import Memento
+        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [schedule])
 
         # Add the directive
