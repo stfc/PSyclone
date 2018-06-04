@@ -1669,3 +1669,35 @@ class GOLoopSwapTrans(Transformation):
         outer.parent = inner
 
         return schedule, keep
+
+
+class OCLTrans(Transformation):
+    '''
+    Switches on/off the generation of an OpenCL PSy layer for a given
+    Schedule. For example:
+
+    >>> invoke = ...
+    >>> schedule = invoke.schedule
+    >>>
+    >>> ocl_trans = OCLTrans()
+    >>> new_sched, _ = ocl_trans.apply(schedule)
+    '''
+
+    def name(self):
+        '''Returns the name of this transformation as a string.'''
+        return "OCLTrans"
+
+    def apply(self, sched, opencl=True):
+        from psyclone.psyGen import Schedule
+        if not isinstance(sched, Schedule):
+            raise TransformationError(
+                "Error in OCLTrans: the supplied node must be a (sub-class "
+                "of) Schedule but got {0}".format(type(sched)))
+
+        # create a memento of the schedule and the proposed transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(sched, self, [sched])
+
+        sched.opencl = opencl
+
+        return sched, keep
