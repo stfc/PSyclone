@@ -87,7 +87,7 @@ class DynBuiltInCallFactory(object):
             raise ParseError(
                 "Unrecognised built-in call. Found '{0}' but expected "
                 "one of '{1}'".format(call.func_name,
-                                      BUILTIN_MAP_CAPITALISED.keys()))
+                                      list(BUILTIN_MAP_CAPITALISED.keys())))
 
         # Use our dictionary to get the correct Python object for
         # this built-in.
@@ -172,7 +172,7 @@ class DynBuiltIn(BuiltIn):
             raise ParseError(
                 "All field arguments to a built-in in the Dynamo 0.3 API "
                 "must be on the same space. However, found spaces {0} for "
-                "arguments to {1}".format([x for x in spaces], self.name))
+                "arguments to {1}".format(sorted(spaces), self.name))
 
     def array_ref(self, fld_name):
         ''' Returns a string containing the array reference for a

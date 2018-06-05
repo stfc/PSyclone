@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -13,7 +13,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-
+#
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' This module contains tests for the infrastructure used to test
 the compilation of generated Fortran code '''
@@ -124,3 +124,21 @@ def test_find_fortran_file(tmpdir):
         assert name.endswith("hello_world.f90")
     finally:
         os.chdir(str(old_pwd))
+
+
+@utils.COMPILE
+def test_compile_str(monkeypatch, tmpdir, f90, f90flags):
+    ''' Checks for the routine that compiles Fortran supplied as a string '''
+    # Check that we always return True if compilation testing is disabled
+    monkeypatch.setattr(utils, "TEST_COMPILE", value=False)
+    assert utils.string_compiles("not fortran", tmpdir, f90, f90flags)
+    # Re-enable compilation testing and check that we can build hello world
+    monkeypatch.setattr(utils, "TEST_COMPILE", value=True)
+    assert utils.string_compiles(HELLO_CODE, tmpdir, f90, f90flags)
+    # Check that we've cleaned up
+    assert not tmpdir.listdir()
+    # Repeat for some broken code
+    invalid_code = HELLO_CODE.replace("write", "wite", 1)
+    assert not utils.string_compiles(invalid_code, tmpdir, f90, f90flags)
+    # Check that we've cleaned up
+    assert not tmpdir.listdir()

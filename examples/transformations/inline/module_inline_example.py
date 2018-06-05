@@ -1,4 +1,5 @@
 ''' example showing the use of the module-inline transformation '''
+from __future__ import print_function
 
 
 def inline():
@@ -15,7 +16,7 @@ def inline():
                     api="dynamo0.1")
     psy = PSyFactory("dynamo0.1").create(info)
     invokes = psy.invokes
-    print psy.invokes.names
+    print(psy.invokes.names)
     invoke = invokes.get("invoke_0_testkern_type")
     schedule = invoke.schedule
     schedule.view()
@@ -30,7 +31,7 @@ def inline():
     # setting module inline via a transformation
     schedule, _ = trans.apply(kern)
     schedule.view()
-    print str(psy.gen)
+    print(str(psy.gen))
 
 if __name__ == "__main__":
     inline()

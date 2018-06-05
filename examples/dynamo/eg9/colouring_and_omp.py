@@ -38,6 +38,7 @@
 ''' File containing a PSyclone transformation script for the Dynamo0p3
 API to apply colouring and OpenMP generically. This can be applied via
 the -s option in the generator.py script. '''
+from __future__ import print_function
 from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans
 from psyclone.psyGen import Loop
@@ -53,7 +54,7 @@ def trans(psy):
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
 
-        print "Transforming invoke '"+invoke.name+"'..."
+        print("Transforming invoke '"+invoke.name+"'...")
         schedule = invoke.schedule
 
         # Colour all of the loops over cells unless they are on

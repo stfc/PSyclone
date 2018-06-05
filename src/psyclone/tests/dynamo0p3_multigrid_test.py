@@ -36,7 +36,7 @@
 ''' This module contains tests for the multi-grid part of the Dynamo 0.3 API
     using pytest. '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 # Since this is a file containing tests which often have to get in and
 # change the internal state of objects we disable pylint's warning
 # about such accesses
@@ -79,27 +79,27 @@ end module restrict_mod
 def test_invalid_mesh_type():
     ''' Check that we raise an error if an unrecognised name is supplied
     for the mesh associated with a field argument '''
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     code = RESTRICT_MDATA.replace("GH_COARSE", "GH_RUBBISH", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    print str(excinfo)
+    print(str(excinfo))
     assert ("mesh_arg must be one of [\\'gh_coarse\\', "
             "\\'gh_fine\\'] but got gh_rubbish" in str(excinfo))
 
 
 def test_invalid_mesh_specifier():
     ''' Check that we raise an error if "mesh_arg" is mis-spelt '''
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     code = RESTRICT_MDATA.replace("mesh_arg=GH_COARSE",
                                   "mesh_ar=GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    print str(excinfo)
+    print(str(excinfo))
     assert ("mesh_ar=gh_coarse is not a valid mesh identifier" in
             str(excinfo))
 
@@ -107,7 +107,7 @@ def test_invalid_mesh_specifier():
 def test_all_args_same_mesh_error():
     ''' Check that we reject a kernel if all arguments are specified
     as being on the same mesh (coarse or fine) '''
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     # Both on fine mesh
     code = RESTRICT_MDATA.replace("GH_COARSE", "GH_FINE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -153,7 +153,7 @@ def test_all_fields_have_mesh():
 def test_args_same_space_error():
     ''' Check that we reject a kernel if arguments on different meshes
     are specified as being on the same function space '''
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     code = RESTRICT_MDATA.replace("ANY_SPACE_2", "ANY_SPACE_1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
@@ -168,7 +168,7 @@ def test_args_same_space_error():
 def test_only_field_args():
     ''' Check that we reject an inter-grid kernel if it has any arguments
     that are not fields '''
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     # Add a scalar argument to the kernel
     code = RESTRICT_MDATA.replace(
         "       arg_type(GH_FIELD, GH_READ,  ANY_SPACE_2, "
@@ -177,7 +177,7 @@ def test_only_field_args():
         "mesh_arg=GH_FINE   ), &\n"
         "       arg_type(GH_REAL, GH_READ) &", 1)
     code = code.replace("(2)", "(3)", 1)
-    print code
+    print(code)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as excinfo:
@@ -190,7 +190,7 @@ def test_only_field_args():
 def test_field_vector():
     ''' Check that we accept an inter-grid kernel with field-vector
     arguments '''
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     # Change both of the arguments to be vectors
     code = RESTRICT_MDATA.replace("GH_FIELD,", "GH_FIELD*2,", 2)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -213,7 +213,7 @@ def test_two_grid_types(monkeypatch):
     # Change VALID_MESH_TYPES so that it contains three values
     monkeypatch.setattr(dynamo0p3, "VALID_MESH_TYPES",
                         value=["gh_coarse", "gh_fine", "gh_medium"])
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(RESTRICT_MDATA, ignore_comments=False)
     name = "restrict_kernel_type"
     with pytest.raises(ParseError) as err:
@@ -309,7 +309,7 @@ def test_field_restrict(tmpdir, f90, f90flags):
     for distmem in [False, True]:
         psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         output = str(psy.gen)
-        print output
+        print(output)
 
         if utils.TEST_COMPILE:
             assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
@@ -325,8 +325,8 @@ def test_field_restrict(tmpdir, f90, f90flags):
         defs2 = (
             "      INTEGER nlayers\n"
             "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
-            "      INTEGER, pointer :: map_any_space_2_field2(:,:) => null(), "
-            "map_any_space_1_field1(:,:) => null()\n"
+            "      INTEGER, pointer :: map_any_space_1_field1(:,:) => null(), "
+            "map_any_space_2_field2(:,:) => null()\n"
             "      INTEGER ncell_field2, ncpc_field2_field1\n"
             "      INTEGER, pointer :: cell_map_field1(:,:) => null()\n"
             "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
@@ -358,9 +358,9 @@ def test_field_restrict(tmpdir, f90, f90flags):
             "      !\n"
             "      ! Look-up dofmaps for each function space\n"
             "      !\n"
-            "      map_any_space_2_field2 => field2_proxy%vspace%"
-            "get_whole_dofmap()\n"
             "      map_any_space_1_field1 => field1_proxy%vspace%"
+            "get_whole_dofmap()\n"
+            "      map_any_space_2_field2 => field2_proxy%vspace%"
             "get_whole_dofmap()\n")
         assert inits in output
 
@@ -583,7 +583,7 @@ def test_prolong_vector(tmpdir, f90, f90flags):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     output = str(psy.gen)
-    print output
+    print(output)
 
     if utils.TEST_COMPILE:
         assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)

@@ -19,6 +19,7 @@
     from within another Python program.
 '''
 
+from __future__ import absolute_import, print_function
 import argparse
 import sys
 import os
@@ -213,12 +214,12 @@ def main(args):
     args = parser.parse_args(args)
 
     if args.api not in SUPPORTEDAPIS:
-        print "Unsupported API '{0}' specified. Supported API's are "\
-            "{1}.".format(args.api, SUPPORTEDAPIS)
+        print("Unsupported API '{0}' specified. Supported API's are "\
+            "{1}.".format(args.api, SUPPORTEDAPIS))
         exit(1)
 
     if args.version:
-        print "PSyclone version: {0}".format(__VERSION__)
+        print("PSyclone version: {0}".format(__VERSION__))
 
     # pylint: disable=broad-except
     try:
@@ -229,7 +230,7 @@ def main(args):
                             distributed_memory=args.dist_mem)
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
-        print "Warning: {0}".format(exc_value)
+        print("Warning: {0}".format(exc_value))
         # no invoke calls were found in the algorithm file so we need
         # not need to process it, or generate any psy layer code so
         # output the original algorithm file and set the psy file to
@@ -240,16 +241,16 @@ def main(args):
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError):
         _, exc_value, _ = sys.exc_info()
-        print exc_value
+        print(exc_value)
         exit(1)
     except Exception:
-        print "Error, unexpected exception, please report to the authors:"
+        print("Error, unexpected exception, please report to the authors:")
         exc_type, exc_value, exc_tb = sys.exc_info()
-        print "Description ..."
-        print exc_value
-        print "Type ..."
-        print exc_type
-        print "Stacktrace ..."
+        print("Description ...")
+        print(exc_value)
+        print("Type ...")
+        print(exc_type)
+        print("Stacktrace ...")
         traceback.print_tb(exc_tb, limit=10, file=sys.stdout)
         exit(1)
     if args.limit:
@@ -264,7 +265,7 @@ def main(args):
         my_file.write(alg_str)
         my_file.close()
     else:
-        print "Transformed algorithm code:\n", alg_str
+        print("Transformed algorithm code:\n%s"%alg_str)
 
     if not psy_str:
         # empty file so do not output anything
@@ -274,7 +275,7 @@ def main(args):
         my_file.write(psy_str)
         my_file.close()
     else:
-        print "Generated psy layer code:\n", psy_str
+        print("Generated psy layer code:\n", psy_str)
 
 
 if __name__ == "__main__":

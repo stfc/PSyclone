@@ -32,6 +32,7 @@ Schedules:
 
 '''
 
+from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 
@@ -40,10 +41,10 @@ _, INVOKEINFO = parse("shallow_alg.f90", api=API)
 PSY = PSyFactory(API).create(INVOKEINFO)
 
 # Print the 'vanilla' generated Fortran
-print PSY.gen
+print(PSY.gen)
 
 # Print a list of all of the invokes found
-print PSY.invokes.names
+print(PSY.invokes.names)
 
 # Print the Schedule of each of these Invokes
 SCHEDULE = PSY.invokes.get('invoke_0').schedule

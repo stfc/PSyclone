@@ -41,7 +41,7 @@ def get_invoke(algfile, idx):
     # invokes does not have a method by which to request the i'th
     # in the list so we do this rather clumsy lookup of the name
     # of the invoke that we want
-    invoke = invokes.get(invokes.names[idx])
+    invoke = invokes.get(list(invokes.names)[idx])
     return psy, invoke
 
 
@@ -1309,7 +1309,7 @@ def test_go_loop_swap_errors():
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     invokes = psy.invokes
-    invoke = invokes.get(invokes.names[0])
+    invoke = invokes.get(list(invokes.names)[0])
     with pytest.raises(TransformationError) as error:
         swap.apply(invoke.schedule.children[3])
 
