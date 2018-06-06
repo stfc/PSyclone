@@ -399,8 +399,8 @@ def test_omp_not_a_loop():
         with pytest.raises(TransformationError) as excinfo:
             _, _ = otrans.apply(schedule)
 
-        assert "Cannot apply an OpenMP Loop directive" in str(excinfo.value)
-        assert "to something that is not a loop" in str(excinfo.value)
+        assert ("Cannot apply a parallel-loop directive to something "
+                "that is not a loop" in str(excinfo))
 
 
 def test_omp_parallel_not_a_loop():

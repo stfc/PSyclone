@@ -42,12 +42,12 @@ import os
 import re
 import pytest
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
     GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \
     OMPParallelTrans, GOceanOMPParallelLoopTrans, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
-    OpenACCParallelTrans, OpenACCDataTrans
+    ACCParallelTrans, ACCDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
 from utils import count_lines, get_invoke
 
@@ -1388,7 +1388,7 @@ def test_acc_parallel_not_a_loop():
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
-    acct = OpenACCParallelTrans()
+    acct = ACCParallelTrans()
     # Attempt to (erroneously) apply the OpenACC Parallel transformation
     # to the schedule rather than a loop
     with pytest.raises(TransformationError):
@@ -1402,7 +1402,7 @@ def test_acc_parallel_trans():
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
-    acct = OpenACCParallelTrans()
+    acct = ACCParallelTrans()
     # Apply the OpenACC Parallel transformation
     # to the first loop of the schedule
     new_sched, _ = acct.apply(schedule.children[0])
@@ -1434,7 +1434,7 @@ def test_acc_data_not_a_schedule():
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
-    acct = OpenACCDataTrans()
+    acct = ACCDataTrans()
 
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply(schedule.children[0])
@@ -1445,13 +1445,12 @@ def test_acc_data_not_a_schedule():
 def test_acc_data_copyin():
     ''' Test that we correctly generate the arguments to the copyin
     clause of an OpenACC data region '''
-    from psyclone.psyGen import Loop
     psy, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
-    accpt = OpenACCParallelTrans()
-    accdt = OpenACCDataTrans()
+    accpt = ACCParallelTrans()
+    accdt = ACCDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1485,13 +1484,12 @@ def test_acc_data_copyin():
 def test_acc_data_grid_copyin():
     ''' Test that we correctly generate the arguments to the copyin
     clause of an OpenACC data region when grid properties are required '''
-    from psyclone.psyGen import Loop
     psy, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_grid_props.f90"), API, 0)
     schedule = invoke.schedule
 
-    accpt = OpenACCParallelTrans()
-    accdt = OpenACCDataTrans()
+    accpt = ACCParallelTrans()
+    accdt = ACCDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1524,14 +1522,13 @@ def test_acc_rscalar_update():
     Check that we generate code to update any real scalar kernel arguments on
     the device.
     '''
-    from psyclone.psyGen import Loop
     psy, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_scalar_float_arg.f90"),
         API, 0)
     schedule = invoke.schedule
 
-    accpt = OpenACCParallelTrans()
-    accdt = OpenACCDataTrans()
+    accpt = ACCParallelTrans()
+    accdt = ACCDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1560,14 +1557,13 @@ def test_acc_iscalar_update():
     Check that we generate code to update any integer scalar kernel arguments
     on the device.
     '''
-    from psyclone.psyGen import Loop
     psy, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_scalar_int_arg.f90"),
         API, 0)
     schedule = invoke.schedule
 
-    accpt = OpenACCParallelTrans()
-    accdt = OpenACCDataTrans()
+    accpt = ACCParallelTrans()
+    accdt = ACCDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1596,15 +1592,14 @@ def test_acc_update_two_scalars():
     Check that we generate two separate acc_update_device() calls when
     we have two scalars.
     '''
-    from psyclone.psyGen import Loop
     psy, invoke = get_invoke(
         os.path.join("gocean1p0",
                      "single_invoke_two_kernels_scalars.f90"),
         API, 0)
     schedule = invoke.schedule
 
-    accpt = OpenACCParallelTrans()
-    accdt = OpenACCDataTrans()
+    accpt = ACCParallelTrans()
+    accdt = ACCDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1633,10 +1628,8 @@ def test_acc_update_two_scalars():
 def test_acc_data_parallel_commute():
     '''Test that we can apply the OpenACC parallel and data
     transformations in either order'''
-    from psyclone.psyGen import Loop
-
-    accpt = OpenACCParallelTrans()
-    accdt = OpenACCDataTrans()
+    accpt = ACCParallelTrans()
+    accdt = ACCDataTrans()
 
     psy, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
@@ -1676,10 +1669,8 @@ def test_acc_data_parallel_commute():
 def test_accdata_duplicate():
     ''' Check that we raise an error if we attempt to add an OpenACC
     data directive to a schedule that already contains one '''
-    from psyclone.psyGen import Loop
-
-    accdt = OpenACCDataTrans()
-    accpt = OpenACCParallelTrans()
+    accdt = ACCDataTrans()
+    accpt = ACCParallelTrans()
 
     _, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
@@ -1696,3 +1687,60 @@ def test_accdata_duplicate():
     # Erroneously attempt to add a data region for the second time
     with pytest.raises(TransformationError):
         _, _ = accdt.apply(new_sched)
+
+
+def test_accloop():
+
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCDataTrans()
+
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    schedule = invoke.schedule
+
+    # Apply an OpenACC loop directive to each loop
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            new_sched, _ = acclpt.apply(child)
+
+    # Code generation should fail at this point because there's no
+    # enclosing parallel region
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("ACCLoopDirective must have an ACCParallelDirective as an "
+            "ancestor in the Schedule" in str(err))
+
+    # Add an enclosing parallel region
+    new_sched, _ = accpara.apply(schedule.children)
+
+    # Code generation should still fail because there's no 'enter data'
+    # directive and we need one for the parallel region to work
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("A Schedule containing an ACC parallel region must also "
+            "contain an ACC enter data directive but none was found for "
+            "invoke_0" in str(err))
+
+    # Add a data region
+    new_sched, _ = accdata.apply(new_sched)
+    invoke.schedule = new_sched
+
+    gen = str(psy.gen)
+
+    assert '''\
+      !$acc parallel default(present)
+      !$acc loop
+      DO j=2,jstop''' in gen
+    assert '''\
+      END DO 
+      !$acc loop
+      DO j=2,jstop+1''' in gen
+
+    # Add a parallel region *around* the enter-data directive so that it
+    # (erroneously) comes before it...
+    new_sched, _ = accpara.apply(new_sched.children[0])
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An ACC parallel region must be preceeded by an ACC enter-data "
+            "directive but in invoke_0 this is not the case." in str(err))
