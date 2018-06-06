@@ -119,13 +119,25 @@ class OMPDirective(Directive):
 
 
 class ACCDirective(Directive):
-    ''' Subclass f2py comment for OpenACC directives so we can
-    reason about them when walking the tree '''
-    def __init__(self,root,line,position,dir_type):
-        self._types = ["parallel", "kernels", "enter data"]
+    '''
+    Subclass Directive for OpenACC directives so we can reason about them
+    when walking the tree.
+
+    :param root: the node in the fparser1 AST to which we are adding the
+                 directive.
+    :type root: :py:class:`fparser.one.block_statements.Subroutine`
+    :param line: the node in the fparser1 AST which we will manipulate to
+                 create the desired directive.
+    :type line: :py:class:`fparser.common.readfortran.Comment`.
+    :param str position: whether 'begin' or 'end'.
+    :param str dir_type: the name of the directive to create.
+
+    '''
+    def __init__(self, root, line, position, dir_type):
+        self._types = ["parallel", "kernels", "enter data", "loop"]
         self._positions = ["begin", "end"]
 
-        Directive.__init__(self,root,line,position,dir_type)
+        super(ACCDirective, self).__init__(root, line, position, dir_type)
 
 
 # This section provides new classes which provide a relatively high

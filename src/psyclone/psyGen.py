@@ -1122,14 +1122,28 @@ class Node(object):
             local_list += self.walk(child.children, my_type)
         return local_list
 
-    def ancestor(self, my_type):
-        ''' Search back up tree and check whether we have an
+    def ancestor(self, my_type, excluding=None):
+        '''
+        Search back up tree and check whether we have an
         ancestor of the supplied type. If we do then we return
-        it otherwise we return None '''
+        it otherwise we return None.
+        :param my_type: class to search for
+        :param list excluding: list of sub-classes to ignore or None
+        :returns: first ancestor Node that is an instance of the requested
+                  class or None if not found.
+        '''
         myparent = self.parent
         while myparent is not None:
             if isinstance(myparent, my_type):
-                return myparent
+                matched = True
+                if excluding:
+                    # We have one or more sub-classes we must exclude
+                    for etype in excluding:
+                        if isinstance(myparent, etype):
+                            matched = False
+                            break
+                if matched:
+                    return myparent
             myparent = myparent.parent
         return None
 
@@ -1374,11 +1388,11 @@ class ACCDataDirective(ACCDirective):
 
     '''
     def __init__(self, children=None, parent=None):
-        ACCDirective.__init__(self, children, parent)
+        super(ACCDataDirective, self).__init__(children, parent)
         self._acc_dirs = None
 
     def view(self, indent=0):
-        print(self.indent(indent)+self.coloured_text+"[OpenACC enter data]")
+        print(self.indent(indent)+self.coloured_text+"[ACC enter data]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -1467,7 +1481,29 @@ class ACCParallelDirective(ACCDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
+        '''
+        '''
         from psyclone.f2pygen import DirectiveGen
+
+        # Since we use "default(present)" the Schedule must contain an
+        # 'enter data' directive. We don't mandate the order in which
+        # transformations are applied so we have to check for that here.
+        # We can't use Node.ancestor() because the data directive does
+        # not have children. Instead, we go back up to the Schedule and
+        # walk down from there.
+        nodes = self.root.walk(self.root.children, ACCDataDirective)
+        if len(nodes) != 1:
+            raise GenerationError(
+                "A Schedule containing an ACC parallel region must also "
+                "contain an ACC enter data directive but none was found for "
+                "{0}".format(self.root.invoke.name))
+        # Check that the enter-data directive comes before this parallel
+        # directive
+        if nodes[0].abs_position > self.abs_position:
+            raise GenerationError(
+                "An ACC parallel region must be preceeded by an ACC enter-"
+                "data directive but in {0} this is not the case.".
+                format(self.root.invoke.name))
 
         # "default(present)" means that the compiler is to assume that
         # all data required by the parallel region is already present
@@ -1534,6 +1570,43 @@ class ACCParallelDirective(ACCDirective):
                 if arg not in scalars:
                     scalars.append(arg)
         return scalars
+
+
+class ACCLoopDirective(ACCDirective):
+    '''
+    Class managing the creation of a '!$acc loop' directive of OpenACC.
+    '''
+    def view(self, indent=0):
+        print(self.indent(indent)+self.coloured_text+"[ACC Loop]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenACC
+        loop directive.
+        :param parent: the parent Node in the Schedule to which to add our
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if this "!$acc loop" is not enclosed within an
+                                 ACC Parallel region.
+        '''
+        from psyclone.f2pygen import DirectiveGen
+
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user can
+        # apply transformations to the code). As an orphaned loop directive,
+        # we must have an ACCParallelDirective as an ancestor somewhere
+        # back up the tree.
+        if not self.ancestor(ACCParallelDirective):
+            raise GenerationError(
+                "ACCLoopDirective must have an ACCParallelDirective as an "
+                "ancestor in the Schedule")
+
+        parent.add(DirectiveGen(parent, "acc", "begin", "loop", ""))
+
+        for child in self.children:
+            child.gen_code(parent)
 
 
 class OMPDirective(Directive):
@@ -1773,15 +1846,26 @@ class OMPDoDirective(OMPDirective):
         return self._reprod
 
     def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenMP do
+        directive.
+        :param parent: the parent Node in the Schedule to which to add our
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if this "!$omp do" is not enclosed within an
+                                 OMP Parallel region.
+        '''
         from psyclone.f2pygen import DirectiveGen
 
-        # It is only at the point of code generation that
-        # we can check for correctness (given that we don't
-        # mandate the order that a user can apply transformations
-        # to the code). As an orphaned loop directive, we must
-        # have an OMPRegionDirective as a parent somewhere
-        # back up the tree.
-        self._within_omp_region()
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As an orphaned loop
+        # directive, we must have an OMPRegionDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=[OMPParallelDoDirective]):
+            raise GenerationError("OMPOrphanLoopDirective must have an "
+                                  "OMPRegionDirective as ancestor")
 
         if self._reprod:
             local_reduction_string = ""
@@ -1804,18 +1888,6 @@ class OMPDoDirective(OMPDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
                    position=["after", position])
-
-    def _within_omp_region(self):
-        ''' Check that this orphaned OMP Loop Directive is actually
-            within an OpenMP Parallel Region '''
-        myparent = self.parent
-        while myparent is not None:
-            if isinstance(myparent, OMPParallelDirective) and\
-               not isinstance(myparent, OMPParallelDoDirective):
-                return
-            myparent = myparent.parent
-        raise GenerationError("OMPOrphanLoopDirective must have an "
-                              "OMPRegionDirective as ancestor")
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
