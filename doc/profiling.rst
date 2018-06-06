@@ -179,21 +179,7 @@ Both options can be specified at the same time::
 
 Profiling in Scripts - ProfileRegionTransform
 ---------------------------------------------
-The automatic transformation can be applied in user written transformation
-scripts easily: before calling the create function of the PSyFactory,
-enable the profiling options like this::
-
-    from psyclone.profiler import Profiler
-
-    ...
-
-    _, INVOKEINFO = parse("shallow_alg.f90", api=API)
-
-    Profiler.set_options([Profiler.INVOKES, Profiler.KERNELS])
-    PSY = PSyFactory(API).create(INVOKEINFO)
-
-
-But most flexibility is possible by using the profiler
+Most flexibility is possible by using the profiler
 transformation explicitly in a transformation script. The script
 takes either a single AST Node or a list of AST Nodes as argument,
 and will insert a Profile Node into the AST, with the 
