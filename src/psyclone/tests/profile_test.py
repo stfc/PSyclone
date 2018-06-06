@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,7 @@ from psyclone.psyGen import Loop, PSyFactory
 from psyclone.transformations import ProfileRegionTrans, TransformationError
 
 
+# TODO: Once #170 is merged, use the new tests/utils.py module
 def get_invoke(api, algfile, key):
     ''' Utility method to get the idx'th invoke from the algorithm
     specified in file '''
@@ -106,9 +107,6 @@ def test_profile_basic(capsys):
                                            coloured_kern, coloured_profile)
     )
 
-    print correct
-    print out
-
     assert correct in out
 
     prt = ProfileRegionTrans()
@@ -139,55 +137,6 @@ def test_profile_basic(capsys):
     ).format(coloured_schedule, coloured_loop, coloured_kern, coloured_profile)
     assert correct in out
 
-    # ... but only if we do call the actual invoke now - but no need
-    # to test the result.
-    invoke.gen()
-
-    Profiler.set_options(None)
-
-
-# -----------------------------------------------------------------------------
-def test_module_name_not_found():
-    '''Test that the profile node handles a mnissing module node
-    correctly - by using the name "unknown module". I could not create
-    this error with normal code. So instead I create an artificial tree
-    that contains a subroutine, which does not have a module as parent,
-    and pass this on directly to profile's gen_code. Then the children
-    of that dummy subroutine are checked for the correct ProfileStart
-    call with 'unknown module' as parameter:
-
-    '''
-
-    Profiler.set_options([Profiler.INVOKES])
-    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
-                           "one_invoke.f90", 0)
-    schedule = invoke.schedule
-
-    assert str(schedule.children[0]) == "Profile"
-
-    from psyclone.f2pygen import CallGen, ModuleGen, SubroutineGen
-
-    # You need a parent in order to create a subroutine, so first
-    # create a dummy module"
-    module = ModuleGen(name="test")
-    subroutine = SubroutineGen(module, name="test")
-    # And then set the parent of the subroutine (atm the module object)
-    # to none:
-    subroutine._parent = None
-
-    # This call should not find a module object
-    schedule.children[0].gen_code(subroutine)
-
-    # Now one of the children should contain a call to ProfileStart
-    # with 'unknown module' as parameter:
-    found = False
-    for i in subroutine.children:
-        if isinstance(i, CallGen) and i._call.designator == "ProfileStart" \
-                and i._call.items[0] == "\"unknown module\"":
-            found = True
-
-    assert found
-
     Profiler.set_options(None)
 
 
@@ -199,17 +148,6 @@ def test_profile_errors2():
         Profiler.set_options(["invalid"])
     assert "Invalid option" in str(gen_error)
 
-    Profiler.set_options([Profiler.INVOKES])
-    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
-                           "one_invoke.f90", 0)
-    schedule = invoke.schedule
-
-    assert str(schedule.children[0]) == "Profile"
-
-    # Raise an error if no subroutine object is found:
-    with pytest.raises(GenerationError):
-        schedule.children[0].gen_code(None)
-
 
 # -----------------------------------------------------------------------------
 def test_profile_invokes_gocean1p0():
@@ -219,10 +157,12 @@ def test_profile_invokes_gocean1p0():
     _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
                            "one_invoke.f90", 0)
 
-    # Conver the invoke to code, and remove all new lines, to make
+    # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
 
+    # First a simple test to that the nesting is correct - the
+    # profile regions include both loops
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
@@ -238,7 +178,7 @@ def test_profile_invokes_gocean1p0():
     _, invoke = get_invoke("gocean1.0", "single_invoke_"
                            "two_kernels.f90", 0)
 
-    # Conver the invoke to code, and remove all new lines, to make
+    # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
 
@@ -270,14 +210,19 @@ def test_unique_region_names():
     _, invoke = get_invoke("gocean1.0",
                            "single_invoke_two_identical_kernels.f90", 0)
 
-    # Conver the invoke to code, and remove all new lines, to make
+    # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
 
     code = str(invoke.gen()).replace("\n", "")
 
     # This regular expression puts the region names into groups.
     # Make sure even though the kernels have the same name, that
-    # the created regions have different names
+    # the created regions have different names. In order to be
+    # flexible for future changes, we get the region names from
+    # the ProfileStart calls using a regular expressions (\w*
+    # being the group name enclosed in "") group. Python will store
+    # those two groups and they can be accessed using the resulting
+    # re object.group(n).
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
@@ -299,7 +244,11 @@ def test_unique_region_names():
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
 
-    # Check that the regions are different
+    # Check that the region names are indeed different: group(1)
+    # is the first kernel region name crated by PSyclone, and
+    # group(2) the name used in the second ProfileStart.
+    # Those names must be different (otherwise the profiling tool
+    # would likely combine the two different regions into one).
     assert groups.group(1) != groups.group(2)
 
 
@@ -308,32 +257,17 @@ def test_profile_kernels_gocean1p0():
     '''Check that all kernels are instrumented correctly
     '''
     Profiler.set_options([Profiler.KERNELS])
-    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
-                           "one_invoke.f90", 0)
-
-    # Conver the invoke to code, and remove all new lines, to make
-    # regex matching easier
-    code = str(invoke.gen()).replace("\n", "")
-
-    correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData.*"
-                  r"TYPE\(ProfileData\), save :: profile.*"
-                  "call ProfileStart.*"
-                  "do j.*"
-                  "do i.*"
-                  "call.*"
-                  "end.*"
-                  "end.*"
-                  "call ProfileEnd")
-    assert re.search(correct_re, code, re.I) is not None
-
     _, invoke = get_invoke("gocean1.0", "single_invoke_"
                            "two_kernels.f90", 0)
 
-    # Conver the invoke to code, and remove all new lines, to make
+    # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
 
+    # Test that kernel profiling works in case of two kernel calls
+    # in a single invoke subroutine - i.e. we need to have one profile
+    # start call before two nested loops, and one profile end call
+    # after that:
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
@@ -362,12 +296,14 @@ def test_profile_kernels_gocean1p0():
 
 # -----------------------------------------------------------------------------
 def test_profile_invokes_dynamo0p3():
-    '''Check that an invoke is instrumented correctly
+    '''Check that a Dynamo 0.3 invoke is instrumented correctly
     '''
     Profiler.set_options([Profiler.INVOKES])
+
+    # First test for a single invoke with a single kernel work as expected:
     _, invoke = get_invoke("dynamo0.3", "1_single_invoke.f90", 0)
 
-    # Conver the invoke to code, and remove all new lines, to make
+    # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
 
@@ -381,9 +317,10 @@ def test_profile_invokes_dynamo0p3():
                   "call ProfileEnd")
     assert re.search(correct_re, code, re.I) is not None
 
+    # Next test two kernels in one invoke:
     _, invoke = get_invoke("dynamo0.3", "1.2_multi_invoke.f90", 0)
 
-    # Conver the invoke to code, and remove all new lines, to make
+    # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
 
@@ -404,12 +341,13 @@ def test_profile_invokes_dynamo0p3():
 
 # -----------------------------------------------------------------------------
 def test_profile_kernels_dynamo0p3():
-    '''Check that all kernels are instrumented correctly
+    '''Check that all kernels are instrumented correctly in a
+    Dynamo 0.3 invoke.
     '''
     Profiler.set_options([Profiler.KERNELS])
     _, invoke = get_invoke("dynamo0.3", "1_single_invoke.f90", 0)
 
-    # Conver the invoke to code, and remove all new lines, to make
+    # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
 
@@ -425,7 +363,7 @@ def test_profile_kernels_dynamo0p3():
 
     _, invoke = get_invoke("dynamo0.3", "1.2_multi_invoke.f90", 0)
 
-    # Conver the invoke to code, and remove all new lines, to make
+    # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
 
@@ -572,6 +510,4 @@ def test_transform_errors(capsys):
                   r"        .*Loop.*\[type='outer'.*"
                   r"        .*Loop.*\[type='outer'.*"
                   r"        .*Loop.*\[type='outer'.*")
-    print correct_re
-    print out
     assert re.search(correct_re, out)

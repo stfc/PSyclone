@@ -16,7 +16,6 @@ PROGRAM single_invoke_two_kernels
   use grid_mod
   use field_mod
   use compute_cu_mod,  only: compute_cu
-  use time_smooth_mod, only: time_smooth
   implicit none
 
   type(grid_type), target :: model_grid

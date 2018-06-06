@@ -1734,9 +1734,9 @@ class ProfileRegionTrans(Transformation):
                                       format(arg_type, str(self)))
 
         # Keep a reference to the parent of the nodes that are to be
-        # enclosed within a parallel region. Also keep the index of
+        # enclosed within a profile region. Also keep the index of
         # the first child to be enclosed as that will become the
-        # position of the new !$omp parallel directive.
+        # position of the new Profile node
         node_parent = node_list[0].parent
         node_position = node_list[0].position
 
@@ -1749,9 +1749,9 @@ class ProfileRegionTrans(Transformation):
                     "Error in {0} transformation: supplied nodes "
                     "are not children of the same Schedule/parent."
                     .format(str(self)))
-            if prev_position>=0 and prev_position+1 != child.position:
+            if prev_position >= 0 and prev_position+1 != child.position:
                 raise TransformationError(
-                    "Children are not consecutive children of one parent: " 
+                    "Children are not consecutive children of one parent: "
                     "child '{0}' has position {1}, but previous child had "
                     "position {2}."
                     .format(str(child), child.position, prev_position))
@@ -1777,7 +1777,7 @@ class ProfileRegionTrans(Transformation):
             node_parent.children.remove(child)
             child.parent = profile_node
 
-        # Add the OpenMP region directive as a child of the parent
+        # Add the Profile node as a child of the parent
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
         node_parent.addchild(profile_node,
