@@ -164,7 +164,7 @@ class ProfileNode(Node):
     def view(self, indent=0):
         '''Class specific view function to print the tree. '''
         # pylint: disable=arguments-differ
-        print self.indent(indent) + self.coloured_text
+        print(self.indent(indent) + self.coloured_text)
         for entity in self._children:
             entity.view(indent=indent + 1)
 
