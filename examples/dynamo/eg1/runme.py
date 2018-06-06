@@ -6,6 +6,7 @@
 #-------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
+from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.profiler import Profiler
@@ -22,10 +23,10 @@ ast,invokeInfo=parse("dynamo.F90",api=api)
 # Create the PSy-layer object using the invokeInfo
 psy=PSyFactory(api).create(invokeInfo)
 # Generate the Fortran code for the PSy layer
-print psy.gen
+print(psy.gen)
 
 # List the invokes that the PSy layer has
-print psy.invokes.names
+print(psy.invokes.names)
 
 # Examine the 'schedule' (e.g. loop structure) that each
 # invoke has

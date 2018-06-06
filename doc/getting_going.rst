@@ -48,7 +48,7 @@ Dependencies
 ------------
 
 PSyclone is written in Python so needs Python to be installed on the
-target machine. PSyclone has been tested under Python 2.6.5 and 2.7.3.
+target machine. PSyclone has been tested under Python 2.6.5, 2.7.3 and 3.6.
 
 .. warning:: As of version 1.6, PSyclone requires version 0.0.7 or greater of fparser.
 
@@ -57,14 +57,9 @@ PSyclone immediately relies on two external Python packages;
 ``py.test`` is required. The easiest way to satisfy the Python
 dependencies is to use the Python Package Index (pypi.org) and
 ``pip``. See https://packaging.python.org/installing/ for more
-information.  Note that some Linux distributions install pip only for
-python 3 by default. In this case it is necessary to install pip for
-python 2. For example in openSUSE 42.2:
+information.
 
-``> zypper install python-pip``
-
-and then use pip2.7 instead of pip. If everything is working correctly
-then using pip to install PSyclone:
+If everything is working correctly then using pip to install PSyclone:
 
 ``> pip install psyclone``
 

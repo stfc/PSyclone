@@ -36,7 +36,7 @@
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse import parse
@@ -91,7 +91,7 @@ def test_colour_trans_declarations(tmpdir, f90, f90flags):
         gen = str(psy.gen)
         # Fortran is not case sensitive
         gen = gen.lower()
-        print gen
+        print(gen)
 
         # Check that we've declared the loop-related variables
         # and colour-map pointers
@@ -137,7 +137,7 @@ def test_colour_trans(tmpdir, f90, f90flags):
         gen = str(psy.gen)
         # Fortran is not case sensitive
         gen = gen.lower()
-        print gen
+        print(gen)
         # Check that we're calling the API to get the no. of colours
         # and the generated loop bounds are correct
         if dist_mem:
@@ -209,7 +209,7 @@ def test_colour_trans_operator(tmpdir, f90, f90flags):
         # Store the results of applying this code transformation as a
         # string
         gen = str(psy.gen)
-        print gen
+        print(gen)
 
         # check the first argument is a colourmap lookup
         assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
@@ -247,7 +247,7 @@ def test_colour_trans_cma_operator(tmpdir, f90, f90flags):
         # Store the results of applying this code transformation as a
         # string
         gen = str(psy.gen)
-        print gen
+        print(gen)
 
         if dist_mem:
             assert (
@@ -312,7 +312,7 @@ def test_colour_trans_stencil():
         # Store the results of applying this code transformation as
         # a string
         gen = str(psy.gen)
-        print gen
+        print(gen)
 
         # Check that we index the stencil dofmap appropriately
         assert (
@@ -467,7 +467,7 @@ def test_omp_colour_trans(tmpdir, f90, f90flags):
 
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
 
         if dist_mem:
             output = (
@@ -723,7 +723,7 @@ def test_colouring_multi_kernel():
         schedule, _ = otrans.apply(schedule.children[index+1].children[0])
 
         gen = str(psy.gen)
-        print gen
+        print(gen)
 
         # Check that we're calling the API to get the no. of colours
         if dist_mem:
@@ -770,7 +770,7 @@ def test_omp_region_omp_do():
         # a string
         code = str(psy.gen)
 
-        print code
+        print(code)
 
         omp_do_idx = -1
         omp_para_idx = -1
@@ -832,7 +832,7 @@ def test_omp_region_omp_do_rwdisc():
         # a string
         code = str(psy.gen)
 
-        print code
+        print(code)
 
         omp_do_idx = -1
         omp_para_idx = -1
@@ -888,7 +888,7 @@ def test_multi_kernel_single_omp_region():
         schedule, _ = rtrans.apply(schedule.children[index:index+2])
 
         code = str(psy.gen)
-        print code
+        print(code)
 
         omp_do_idx = -1
         omp_end_do_idx = -1
@@ -954,7 +954,7 @@ def test_multi_different_kernel_omp():
         schedule, _ = otrans.apply(schedule.children[index2].children[0])
 
         code = str(psy.gen)
-        print code
+        print(code)
 
         assert "private(cell)" in code
 
@@ -1096,7 +1096,7 @@ def test_loop_fuse_set_dirty():
                                schedule.children[4])
     schedule.view()
     gen = str(psy.gen)
-    print gen
+    print(gen)
     assert gen.count("set_dirty()") == 1
 
 
@@ -1127,7 +1127,7 @@ def test_loop_fuse_omp():
         schedule, _ = otrans.apply(schedule.children[index])
 
         code = str(psy.gen)
-        print code
+        print(code)
 
         # Check generated code
         omp_para_idx = -1
@@ -1191,7 +1191,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags):
         schedule, _ = otrans.apply(schedule.children[index])
 
         code = str(psy.gen)
-        print code
+        print(code)
 
         # Check generated code
         omp_para_idx = -1
@@ -1275,7 +1275,7 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags):
             schedule, _ = otrans.apply(loop)
 
         code = str(psy.gen)
-        print code
+        print(code)
 
         if dist_mem:
             output = (
@@ -1393,7 +1393,7 @@ def test_loop_fuse_cma():
                                    schedule.children[index+1],
                                    same_space=True)
         code = str(psy.gen)
-        print code
+        print(code)
         assert (
             "      ! Look-up required column-banded dofmaps\n"
             "      !\n"
@@ -1498,7 +1498,7 @@ def test_builtin_single_OpenMP_pdo():
         schedule, _ = otrans.apply(schedule.children[0])
         invoke.schedule = schedule
         result = str(psy.gen)
-        print result
+        print(result)
         if dist_mem:
             assert (
                 "      !$omp parallel do default(shared), private(df), "
@@ -1539,7 +1539,7 @@ def test_builtin_multiple_OpenMP_pdo():
             schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         result = str(psy.gen)
-        print result
+        print(result)
         if dist_mem:
             assert (
                 "      !$omp parallel do default(shared), private(df), "
@@ -1620,7 +1620,7 @@ def test_builtin_loop_fuse_pdo():
         schedule, _ = otrans.apply(schedule.children[0])
         invoke.schedule = schedule
         result = str(psy.gen)
-        print result
+        print(result)
         if dist_mem:
             assert (
                 "      !$omp parallel do default(shared), private(df), "
@@ -1670,7 +1670,7 @@ def test_builtin_single_OpenMP_do():
         # Put an OMP DO around this loop
         schedule, _ = olooptrans.apply(schedule.children[0].children[0])
         result = str(psy.gen)
-        print result
+        print(result)
         if dist_mem:
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
@@ -1720,7 +1720,7 @@ def test_builtin_multiple_OpenMP_do():
         for child in schedule.children[0].children:
             schedule, _ = olooptrans.apply(child)
         result = str(psy.gen)
-        print result
+        print(result)
         if dist_mem:
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
@@ -1811,7 +1811,7 @@ def test_builtin_loop_fuse_do():
         # Put an OMP DO around the loop
         schedule, _ = olooptrans.apply(schedule.children[0].children[0])
         result = str(psy.gen)
-        print result
+        print(result)
         if dist_mem:
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
@@ -1864,7 +1864,7 @@ def test_reduction_real_pdo():
         schedule, _ = otrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      !$omp parallel do default(shared), private(df), "
@@ -1907,7 +1907,7 @@ def test_reduction_real_do():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
@@ -1951,7 +1951,7 @@ def test_multi_reduction_real_pdo():
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      ! Zero summation variables\n"
@@ -2028,7 +2028,7 @@ def test_reduction_after_normal_real_do():
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         result = str(psy.gen)
-        print result
+        print(result)
         if distmem:
             expected_output = (
                 "      ! Zero summation variables\n"
@@ -2104,7 +2104,7 @@ def test_reprod_red_after_normal_real_do():
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         result = str(psy.gen)
-        print result
+        print(result)
         if distmem:
             expected_output = (
                 "      ! Zero summation variables\n"
@@ -2209,7 +2209,7 @@ def test_two_reductions_real_do():
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         result = str(psy.gen)
-        print result
+        print(result)
         if distmem:
             expected_output = (
                 "      ! Zero summation variables\n"
@@ -2288,7 +2288,7 @@ def test_two_reprod_reductions_real_do():
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         result = str(psy.gen)
-        print result
+        print(result)
         if distmem:
             expected_output = (
                 "      ! Zero summation variables\n"
@@ -2462,7 +2462,7 @@ def test_multi_different_reduction_real_pdo():
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      ! Zero summation variables\n"
@@ -2536,7 +2536,7 @@ def test_multi_builtins_red_then_pdo():
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      ! Zero summation variables\n"
@@ -2610,7 +2610,7 @@ def test_multi_builtins_red_then_do():
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      ! Zero summation variables\n"
@@ -2686,7 +2686,7 @@ def test_multi_builtins_red_then_fuse_pdo():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      ! Zero summation variables\n"
@@ -2752,7 +2752,7 @@ def test_multi_builtins_red_then_fuse_do():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      asum = 0.0_r_def\n"
@@ -2810,7 +2810,7 @@ def test_multi_builtins_usual_then_red_pdo():
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      !$omp parallel do default(shared), private(df), "
@@ -2881,7 +2881,7 @@ def test_builtins_usual_then_red_fuse_pdo():
         schedule, _ = otrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      ! Zero summation variables\n"
@@ -2942,7 +2942,7 @@ def test_builtins_usual_then_red_fuse_do():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         if distmem:
             assert (
                 "      asum = 0.0_r_def\n"
@@ -3075,7 +3075,7 @@ def test_reprod_reduction_real_do():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         assert (
             "      USE omp_lib, ONLY: omp_get_thread_num\n"
             "      USE omp_lib, ONLY: omp_get_max_threads\n") in code
@@ -3198,7 +3198,7 @@ def test_reprod_builtins_red_then_usual_do():
         schedule, _ = rtrans.apply(schedule.children[0:2])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         assert (
             "      USE omp_lib, ONLY: omp_get_thread_num\n"
             "      USE omp_lib, ONLY: omp_get_max_threads\n") in code
@@ -3308,7 +3308,7 @@ def test_repr_bltins_red_then_usual_fuse_do():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         assert (
             "      USE omp_lib, ONLY: omp_get_thread_num\n"
             "      USE omp_lib, ONLY: omp_get_max_threads\n") in code
@@ -3405,7 +3405,7 @@ def test_repr_bltins_usual_then_red_fuse_do():
         schedule, _ = rtrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         assert "      INTEGER th_idx\n" in code
         if distmem:
             assert (
@@ -3491,7 +3491,7 @@ def test_repr_3_builtins_2_reductions_do():
                 schedule, _ = rtrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
-        print code
+        print(code)
         assert "INTEGER th_idx\n" in code
         if distmem:
             for names in [
@@ -3639,10 +3639,10 @@ def test_reprod_view(capsys):
                 "upper_bound='ndofs']\n"
                 "                " + call + " sum_x(bsum,f2)\n")
         if expected not in result:
-            print "Expected ..."
-            print expected
-            print "Found ..."
-            print result
+            print("Expected ...")
+            print(expected)
+            print("Found ...")
+            print(result)
             assert 0
 
 
@@ -3976,7 +3976,7 @@ def test_rc_continuous_depth():
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     for field_name in ["f2", "m1", "m2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=3)) THEN".
                 format(field_name)) in result
@@ -4004,7 +4004,7 @@ def test_rc_continuous_no_depth():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     for field_name in ["f2", "m1", "m2"]:
         assert ("      IF ({0}_proxy%is_dirty(depth=mesh%get_halo_"
                 "depth())) THEN\n"
@@ -4033,7 +4033,7 @@ def test_rc_discontinuous_depth(tmpdir, f90, f90flags):
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     for field_name in ["f1", "f2", "m1"]:
         assert ("      IF ({0}_proxy%is_dirty(depth=3)) THEN\n"
                 "        CALL {0}_proxy%halo_exchange(depth=3)".
@@ -4065,7 +4065,7 @@ def test_rc_discontinuous_no_depth():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     for field_name in ["f1", "f2", "m1"]:
         assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
                 "THEN".format(field_name)) in result
@@ -4093,7 +4093,7 @@ def test_rc_all_discontinuous_depth(tmpdir, f90, f90flags):
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
@@ -4123,7 +4123,7 @@ def test_rc_all_discontinuous_no_depth(tmpdir, f90, f90flags):
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert ("CALL f2_proxy%halo_exchange(depth=mesh%get_halo_dep"
@@ -4154,7 +4154,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     for idx in range(1, 4):
         assert ("IF (f2_proxy({0})%is_dirty(depth=3)) THEN".
                 format(idx)) in result
@@ -4188,7 +4188,7 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     for idx in range(1, 4):
         assert ("IF (f2_proxy({0})%is_dirty(depth=mesh%get_halo_depth"
                 "())) THEN".format(idx)) in result
@@ -4225,7 +4225,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     assert "IF (f1_proxy%is_dirty(depth=3)) THEN" not in result
     assert "CALL f1_proxy%halo_exchange(depth=3)" in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
@@ -4257,7 +4257,7 @@ def test_rc_all_disc_prev_depend_no_depth():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     assert "CALL f1_proxy%set_dirty()" in result
     assert ("IF (f1_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") not in result
@@ -4286,7 +4286,7 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir, f90, f90flags):
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     for idx in range(1, 4):
         assert ("IF (f1_proxy({0})%is_dirty(depth="
                 "3)) THEN".format(idx)) not in result
@@ -4323,7 +4323,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     assert "is_dirty" not in result
     for idx in range(1, 4):
         assert ("CALL f1_proxy({0})%halo_exchange(depth=mesh%get_halo_"
@@ -4359,7 +4359,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir, f90, f90flags):
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     # f3 has readwrite access so need to check the halos
     for idx in range(1, 4):
         assert ("IF (f3_proxy({0})%is_dirty(depth=mesh%get_halo_"
@@ -4399,7 +4399,7 @@ def test_rc_dofs_depth():
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     for field_name in ["f1", "f2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=3)) "
                 "THEN".format(field_name)) in result
@@ -4427,7 +4427,7 @@ def test_rc_dofs_no_depth():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     for field_name in ["f1", "f2"]:
         assert ("IF ({0}_proxy%is_dirty(depth=mesh%get_halo_depth())) "
                 "THEN".format(field_name)) in result
@@ -4455,7 +4455,7 @@ def test_rc_dofs_depth_prev_dep():
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     # check the f1 halo exchange is added and the f2 halo exchange is
     # modified
     for field_name in ["f1", "f2"]:
@@ -4503,7 +4503,7 @@ def test_rc_dofs_no_depth_prev_dep():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     # check the f1 halo exchange is added and the f2 halo exchange is
     # modified
     for field_name in ["f1", "f2"]:
@@ -4533,7 +4533,7 @@ def test_continuous_no_set_clean():
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     result = str(psy.gen)
-    print result
+    print(result)
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in result
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(" not in result
@@ -4548,7 +4548,7 @@ def test_discontinuous_no_set_clean():
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     result = str(psy.gen)
-    print result
+    print(result)
     assert "DO cell=1,mesh%get_last_edge_cell()" in result
     assert "CALL m2_proxy%set_dirty()" in result
     assert "CALL m2_proxy%set_clean(" not in result
@@ -4563,7 +4563,7 @@ def test_dofs_no_set_clean():
                     api=TEST_API)
     psy = PSyFactory(TEST_API).create(info)
     result = str(psy.gen)
-    print result
+    print(result)
     assert "halo_exchange" not in result
     assert "DO df=1,f1_proxy%vspace%get_last_dof_owned()" in result
     assert "CALL f1_proxy%set_dirty()" in result
@@ -4586,7 +4586,7 @@ def test_rc_vector_depth():
     schedule, _ = rc_trans.apply(loop, depth=3)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "DO cell=1,mesh%get_last_halo_cell(3)" in result
@@ -4612,7 +4612,7 @@ def test_rc_vector_no_depth():
     schedule, _ = rc_trans.apply(loop)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert ("CALL f2_proxy%halo_exchange(depth=mesh%"
@@ -4670,7 +4670,7 @@ def test_rc_no_halo_decrease():
     schedule, _ = rc_trans.apply(loop, depth=4)
     invoke.schedule = schedule
     result = str(psy.gen)
-    print result
+    print(result)
     assert ("IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) "
             "THEN") in result
     assert "IF (m1_proxy%is_dirty(depth=4)) THEN" in result
@@ -4813,7 +4813,7 @@ def test_rc_max_remove_halo_exchange(tmpdir, f90, f90flags):
     loop = schedule.children[3]
     rc_trans.apply(loop)
     result = str(psy.gen)
-    print result
+    print(result)
     # f3 halo exchange is not removed even though we redundantly
     # compute f3 as the redundant computation is on a continuous field
     # and therefore the outermost halo stays dirty. We can not be
@@ -5083,7 +5083,7 @@ def test_rc_invalid_depth_type():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(loop, depth="2")
     assert ("the supplied depth should be an integer but found "
-            "type '<type 'str'>'" in str(excinfo.value))
+            "type '%s'"%(type("2")) in str(excinfo.value))
 
 
 def test_loop_fusion_different_loop_depth():
@@ -5823,7 +5823,7 @@ def test_haloex_colouring(tmpdir, f90, f90flags):
             # to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-        print "OK for iteration ", idx
+        print("OK for iteration ", idx)
 
 
 def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
@@ -5905,7 +5905,7 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
             # to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-        print "OK for iteration ", idx
+        print("OK for iteration ", idx)
 
 
 def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
@@ -5990,7 +5990,7 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
             # to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-        print "OK for iteration ", idx
+        print("OK for iteration ", idx)
 
 
 def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
@@ -6074,7 +6074,7 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
             # to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-        print "OK for iteration ", idx
+        print("OK for iteration ", idx)
 
 
 def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
@@ -6146,7 +6146,7 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
             # to py.test)
             assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-        print "OK for iteration ", idx
+        print("OK for iteration ", idx)
 
 
 def test_intergrid_rejected():

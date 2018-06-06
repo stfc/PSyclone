@@ -37,8 +37,7 @@
     provide routines which can be used to generate fortran code. This library
     includes pytest tests. '''
 
-import fparser
-import fparser.one
+from __future__ import absolute_import, print_function
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.one.statements import Comment, Case
@@ -176,7 +175,7 @@ class BaseGen(object):
             try:
                 idx = index_of_object(self.root.content, position[1])
             except Exception as err:
-                print str(err)
+                print(str(err))
                 raise RuntimeError(
                     "Failed to find supplied object in existing content - "
                     "is it a child of the parent?")
@@ -212,11 +211,11 @@ class BaseGen(object):
         the index of that line in the content of the parent. '''
         from fparser.one.block_statements import Do
         if debug:
-            print "Entered before_parent_loop"
-            print "The type of the current node is {0}".format(
-                str(type(self.root)))
-            print ("If the current node is a Do loop then move up to the "
-                   "top of the do loop nest")
+            print("Entered before_parent_loop")
+            print("The type of the current node is {0}".format(
+                str(type(self.root))))
+            print(("If the current node is a Do loop then move up to the "
+                   "top of the do loop nest"))
 
         # First off, check that we do actually have an enclosing Do loop
         current = self.root
@@ -229,45 +228,45 @@ class BaseGen(object):
         local_current = self
         while isinstance(current.parent, Do):
             if debug:
-                print "Parent is a do loop so moving to the parent"
+                print("Parent is a do loop so moving to the parent")
             current = current.parent
             local_current = local_current.parent
         if debug:
-            print "The type of the current node is now " + str(type(current))
-            print "The type of parent is " + str(type(current.parent))
-            print "Finding the loops position in its parent ..."
+            print("The type of the current node is now " + str(type(current)))
+            print("The type of parent is " + str(type(current.parent)))
+            print("Finding the loops position in its parent ...")
         index = current.parent.content.index(current)
         if debug:
-            print "The loop's index is ", index
+            print("The loop's index is ", index)
         parent = current.parent
         local_current = local_current.parent
         if debug:
-            print "The type of the object at the index is " + \
-                str(type(parent.content[index]))
-            print "If preceding node is a directive then move back one"
+            print("The type of the object at the index is " + \
+                str(type(parent.content[index])))
+            print("If preceding node is a directive then move back one")
         if index == 0:
             if debug:
-                print "current index is 0 so finish"
+                print("current index is 0 so finish")
         elif isinstance(parent.content[index-1], OMPDirective):
             if debug:
-                print (
+                print(
                     "preceding node is a directive so find out what type ...\n"
                     "type is {0}\ndirective is {1}".
                     format(parent.content[index-1].position,
                            str(parent.content[index-1])))
             if parent.content[index-1].position == "begin":
                 if debug:
-                    print "type of directive is begin so move back one"
+                    print("type of directive is begin so move back one")
                 index -= 1
             else:
                 if debug:
-                    print "directive type is not begin so finish"
+                    print("directive type is not begin so finish")
         else:
             if debug:
-                print "preceding node is not a directive so finish"
+                print("preceding node is not a directive so finish")
         if debug:
-            print "type of final location ", type(parent.content[index])
-            print "code for final location ", str(parent.content[index])
+            print("type of final location ", type(parent.content[index]))
+            print("code for final location ", str(parent.content[index]))
         return local_current, parent.content[index]
 
 
@@ -766,61 +765,158 @@ class DeallocateGen(BaseGen):
 
 
 class DeclGen(BaseGen):
-    ''' Generates a Fortran declaration for variables of intrinsic type '''
-    def __init__(self, parent, datatype="", entity_decls=None, intent="",
-                 pointer=False, kind="", dimension="", allocatable=False):
-        '''
-        :param parent: node to which to add this declaration as a child
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :param str datatype: the (intrinsic) type for this declaration
-        :param list entity_decls: list of variable names to declare
-        :param str intent: the INTENT attribute of this declaration
-        :param bool pointer: whether or not this is a pointer declaration
-        :param str kind: the KIND attribute to use for this declaration
-        :param str dimension: the DIMENSION specifier (i.e. the xx in
-                              DIMENSION(xx))
-        :param bool allocatable: whether this declaration is for an
-                                 ALLOCATABLE quantity
+    '''
+    Generates a Fortran declaration for variables of various intrinsic
+    types.
 
-        :raises RuntimeError: if no variable names are specified
-        :raises RuntimeError: if datatype is not one of "integer" or "real"
-        '''
+    :param parent: node to which to add this declaration as a child
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+    :param str datatype: the (intrinsic) type for this declaration
+    :param list entity_decls: list of variable names to declare
+    :param str intent: the INTENT attribute of this declaration
+    :param bool pointer: whether or not this is a pointer declaration
+    :param str kind: the KIND attribute to use for this declaration
+    :param str dimension: the DIMENSION specifier (i.e. the xx in
+                          DIMENSION(xx))
+    :param bool allocatable: whether this declaration is for an
+                             ALLOCATABLE quantity
+    :param bool save: whether this declaration should have the SAVE attribute
+    :param initial_values: Initial value to give each variable.
+    :type initial_values: list of str with same no. of elements as entity_decls
+    :raises RuntimeError: if no variable names are specified
+    :raises RuntimeError: if datatype is not one of "integer", "real" or
+                          "logical"
+
+    '''
+    # The Fortran intrinsic types supported by this class
+    SUPPORTED_TYPES = ["integer", "real", "logical"]
+
+    def __init__(self, parent, datatype="", entity_decls=None, intent="",
+                 pointer=False, kind="", dimension="", allocatable=False,
+                 save=False, initial_values=None):
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a variable declaration without specifying the "
                 "name(s) of the variable(s)")
         fort_fmt = FortranFormat(True, False)  # free form, strict
-        if datatype.lower() == "integer":
+
+        dtype = datatype.lower()
+        if dtype not in self.SUPPORTED_TYPES:
+            raise RuntimeError(
+                "f2pygen.DeclGen.init: Only {0} types are currently"
+                " supported and you specified '{1}'"
+                .format(self.SUPPORTED_TYPES, datatype))
+
+        # If initial values have been supplied then check that there
+        # are the right number of them and that they are consistent
+        # with the type of the variable(s) being declared.
+        if initial_values:
+            if len(initial_values) != len(entity_decls):
+                raise RuntimeError(
+                    "f2pygen.DeclGen.init: number of initial values supplied "
+                    "({0}) does not match the number of variables to be "
+                    "declared ({1}: {2})".format(len(initial_values),
+                                                 len(entity_decls),
+                                                 str(entity_decls)))
+            self._check_initial_values(dtype, initial_values)
+
+        if dtype == "integer":
             reader = FortranStringReader("integer :: vanilla")
             reader.set_format(fort_fmt)
             myline = reader.next()
             self._decl = fparser1.typedecl_statements.Integer(parent.root,
                                                               myline)
-        elif datatype.lower() == "real":
+        elif dtype == "real":
             reader = FortranStringReader("real :: vanilla")
             reader.set_format(fort_fmt)
             myline = reader.next()
             self._decl = fparser1.typedecl_statements.Real(parent.root, myline)
+        elif dtype == "logical":
+            reader = FortranStringReader("logical :: vanilla")
+            reader.set_format(fort_fmt)
+            myline = reader.next()
+            self._decl = fparser1.typedecl_statements.Logical(parent.root,
+                                                              myline)
         else:
-            raise RuntimeError(
-                "f2pygen:DeclGen:init: Only integer and real are currently"
-                " supported and you specified '{0}'".format(datatype))
-        # make a copy of entity_decls as we may modify it
+            # Defensive programming in case SUPPORTED_TYPES is added to
+            # but not handled here
+            raise NotImplementedError(
+                "Internal error: type '{0}' is in DeclGen.SUPPORTED_TYPES "
+                "but not handled by constructor.".format(dtype))
+
+        # Make a copy of entity_decls as we may modify it
         local_entity_decls = entity_decls[:]
-        self._decl.entity_decls = local_entity_decls
+        if initial_values:
+            # Create a list of 2-tuples
+            value_pairs = zip(local_entity_decls, initial_values)
+            # Construct an assignment from each tuple
+            self._decl.entity_decls = ["=".join(_) for _ in value_pairs]
+        else:
+            self._decl.entity_decls = local_entity_decls
+
         my_attrspec = []
         if intent != "":
             my_attrspec.append("intent({0})".format(intent))
-        if pointer is not False:
+        if pointer:
             my_attrspec.append("pointer")
-        if allocatable is not False:
+        if allocatable:
             my_attrspec.append("allocatable")
+        if save:
+            my_attrspec.append("save")
         self._decl.attrspec = my_attrspec
         if dimension != "":
             my_attrspec.append("dimension({0})".format(dimension))
         if kind is not "":
             self._decl.selector = ('', kind)
         BaseGen.__init__(self, parent, self._decl)
+
+    @staticmethod
+    def _check_initial_values(dtype, values):
+        '''
+        Check that the supplied values are consistent with the requested
+        data type. Note that this checking is fairly basic and does not
+        support a number of valid Fortran forms (e.g. arithmetic expressions
+        involving constants or parameters).
+
+        :param str dtype: Fortran intrinsic type
+        :param list values: list of values as strings
+        :raises RuntimeError: if the supplied values are not consistent
+                              with the specified data type or are not
+                              supported
+        '''
+        from fparser.two.pattern_tools import abs_name, \
+            abs_logical_literal_constant, abs_signed_int_literal_constant, \
+            abs_signed_real_literal_constant
+        if dtype == "logical":
+            # Can be .true., .false. or a valid Fortran variable name
+            for val in values:
+                if not abs_logical_literal_constant.match(val) and \
+                   not abs_name.match(val):
+                    raise RuntimeError(
+                        "Initial value of '{0}' for a logical variable is "
+                        "invalid or unsupported".format(val))
+        elif dtype == "integer":
+            # Can be a an integer expression or a valid Fortran variable name
+            for val in values:
+                if not abs_signed_int_literal_constant.match(val) and \
+                   not abs_name.match(val):
+                    raise RuntimeError(
+                        "Initial value of '{0}' for an integer variable is "
+                        "invalid or unsupported".format(val))
+        elif dtype == "real":
+            # Can be a floating-point expression or a valid Fortran name
+            for val in values:
+                if not abs_signed_real_literal_constant.match(val) and \
+                   not abs_name.match(val):
+                    raise RuntimeError(
+                        "Initial value of '{0}' for a real variable is "
+                        "invalid or unsupported".format(val))
+        else:
+            # We should never get to here because we check that the type
+            # is supported before calling this routine.
+            raise RuntimeError(
+                "Internal error: unsupported type '{0}' - should be "
+                "one of {1}".format(dtype, DeclGen.SUPPORTED_TYPES))
 
 
 class TypeDeclGen(BaseGen):

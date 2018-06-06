@@ -45,6 +45,7 @@
 
 '''
 
+from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, GenerationError
@@ -311,9 +312,9 @@ class GOSchedule(Schedule):
 
     def view(self, indent=0):
         ''' Print a representation of this GOSchedule '''
-        print self.indent(indent) + self.coloured_text + "[invoke='" + \
+        print(self.indent(indent) + self.coloured_text + "[invoke='" + \
             self.invoke.name + "',Constant loop bounds=" + \
-            str(self._const_loop_bounds) + "]"
+            str(self._const_loop_bounds) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 

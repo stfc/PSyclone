@@ -39,6 +39,7 @@
     call a stub) when presented with Kernel Metadata.
 '''
 
+from __future__ import print_function
 import os
 import sys
 import traceback
@@ -63,8 +64,8 @@ def generate(filename, api=""):
     if api == "":
         api = DEFAULTSTUBAPI
     if api not in SUPPORTEDSTUBAPIS:
-        print "Unsupported API '{0}' specified. Supported API's are {1}.".\
-              format(api, SUPPORTEDSTUBAPIS)
+        print("Unsupported API '{0}' specified. Supported API's are {1}.".\
+              format(api, SUPPORTEDSTUBAPIS))
         raise GenerationError(
             "generate: Unsupported API '{0}' specified. Supported types are "
             "{1}.".format(api, SUPPORTEDSTUBAPIS))
@@ -74,7 +75,7 @@ def generate(filename, api=""):
 
     # drop cache
     fparser.one.parsefortran.FortranParser.cache.clear()
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     try:
         ast = fparser.api.parse(filename, ignore_comments=False)
 
@@ -109,13 +110,13 @@ def run():
     try:
         stub = generate(args.filename, api=args.api)
     except (IOError, ParseError, GenerationError, RuntimeError) as error:
-        print "Error:", error
+        print("Error:", error)
         exit(1)
     except Exception as error:   # pylint: disable=broad-except
-        print "Error, unexpected exception:\n"
+        print("Error, unexpected exception:\n")
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        print exc_type
-        print exc_value
+        print(exc_type)
+        print(exc_value)
         traceback.print_tb(exc_traceback)
         exit(1)
 
@@ -129,4 +130,4 @@ def run():
         my_file.write(stub_str)
         my_file.close()
     else:
-        print "Kernel stub code:\n", stub_str
+        print("Kernel stub code:\n", stub_str)

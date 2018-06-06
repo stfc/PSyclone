@@ -40,20 +40,21 @@ been loop-fused and then parallelised:
 
 '''
 
+from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
 API = "gocean1.0"
 _, INVOKEINFO = parse("shallow_alg.f90", api=API)
 PSY = PSyFactory(API).create(INVOKEINFO)
-print PSY.gen
+print(PSY.gen)
 
-print PSY.invokes.names
+print(PSY.invokes.names)
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
 SCHEDULE.view()
 
 TRANS_INFO = TransInfo()
-print TRANS_INFO.list
+print(TRANS_INFO.list)
 FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
 OMP_TRANS = TRANS_INFO.get_trans_name('GOceanOMPParallelLoopTrans')
 
@@ -80,4 +81,4 @@ OL_SCHEDULE, _ = OMP_TRANS.apply(LF6_SCHEDULE.children[0])
 OL_SCHEDULE.view()
 
 PSY.invokes.get('invoke_0').schedule = OL_SCHEDULE
-print PSY.gen
+print(PSY.gen)

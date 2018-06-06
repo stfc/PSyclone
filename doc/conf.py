@@ -60,7 +60,8 @@ copyright = u'2017, STFC Daresbury Laboratory'
 # src/psyclone
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 BASE_PATH = os.path.dirname(BASE_PATH)
-execfile(os.path.join(BASE_PATH, "src", "psyclone", "version.py"))
+with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
+    exec(f.read())
 version = __SHORT_VERSION__
 release = __VERSION__
 
