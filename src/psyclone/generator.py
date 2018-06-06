@@ -222,8 +222,8 @@ def main(args):
     Profiler.set_options(args.profile)
 
     if args.api not in SUPPORTEDAPIS:
-        print "Unsupported API '{0}' specified. Supported API's are "\
-            "{1}.".format(args.api, SUPPORTEDAPIS)
+        print("Unsupported API '{0}' specified. Supported API's are "
+              "{1}.".format(args.api, SUPPORTEDAPIS))
         exit(1)
 
     if args.version:
@@ -272,7 +272,7 @@ def main(args):
         my_file.write(alg_str)
         my_file.close()
     else:
-        print "Transformed algorithm code:\n", alg_str
+        print("Transformed algorithm code:\n%s" % alg_str)
 
     if not psy_str:
         # empty file so do not output anything
