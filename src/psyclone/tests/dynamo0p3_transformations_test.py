@@ -1859,7 +1859,7 @@ def test_reduction_real_pdo():
             assert (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
@@ -1902,7 +1902,7 @@ def test_reduction_real_do():
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
@@ -1950,7 +1950,7 @@ def test_multi_reduction_real_pdo():
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
@@ -1963,7 +1963,7 @@ def test_multi_reduction_real_pdo():
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
@@ -2040,7 +2040,7 @@ def test_reduction_after_normal_real_do():
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
@@ -2119,7 +2119,7 @@ def test_reprod_red_after_normal_real_do():
                 "      !$omp end master\n"
                 "      !\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                 "f1_proxy%data(df)\n"
                 "      END DO \n"
@@ -2209,12 +2209,12 @@ def test_two_reductions_real_do():
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static), reduction(+:bsum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        bsum = bsum+f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
@@ -2293,13 +2293,13 @@ def test_two_reprod_reductions_real_do():
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_bsum(1,th_idx) = l_bsum(1,th_idx)+"
                 "f1_proxy%data(df)\n"
                 "      END DO \n"
@@ -2461,7 +2461,7 @@ def test_multi_different_reduction_real_pdo():
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
@@ -2474,7 +2474,7 @@ def test_multi_different_reduction_real_pdo():
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:bsum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        bsum = bsum+f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
@@ -2535,7 +2535,7 @@ def test_multi_builtins_red_then_pdo():
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
@@ -2609,7 +2609,7 @@ def test_multi_builtins_red_then_do():
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end do\n"
@@ -2669,36 +2669,24 @@ def test_multi_builtins_red_then_fuse_pdo():
             schedule, _ = mtrans.apply(schedule.children[1],
                                        schedule.children[2],
                                        position="after")
-        rtrans = DynamoOMPParallelLoopTrans()
         ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
+        print "still working on this"
+        exit(1)
         if distmem:
-            assert (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !$omp end parallel do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
+            with pytest.raises(TransformationError) as excinfo:
+                schedule, _ = ftrans.apply(schedule.children[0],
+                                           schedule.children[1],
+                                           same_space=True)
+                assert ("The upper bound names are not the same")
         else:
+            rtrans = DynamoOMPParallelLoopTrans()
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1],
+                                       same_space=True)
+            schedule, _ = rtrans.apply(schedule.children[0])
+            invoke.schedule = schedule
+            code = str(psy.gen)
+            print(code)
             assert (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2749,7 +2737,7 @@ def test_multi_builtins_red_then_fuse_do():
                 "      !\n"
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
                 "      END DO \n"
@@ -2822,7 +2810,7 @@ def test_multi_builtins_usual_then_red_pdo():
                 "      !\n"
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        asum = asum+f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !$omp end parallel do\n"
@@ -2871,6 +2859,7 @@ def test_builtins_usual_then_red_fuse_pdo():
         schedule, _ = otrans.apply(schedule.children[0])
         invoke.schedule = schedule
         code = str(psy.gen)
+        exit(1) # I should now fail as the loop indices do not match
         print(code)
         if distmem:
             assert (
@@ -2933,6 +2922,7 @@ def test_builtins_usual_then_red_fuse_do():
         invoke.schedule = schedule
         code = str(psy.gen)
         print(code)
+        exit(1) # I should now fail as the loop indices do not match
         if distmem:
             assert (
                 "      asum = 0.0_r_def\n"
@@ -3091,7 +3081,7 @@ def test_reprod_reduction_real_do():
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
                 "*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -3212,7 +3202,7 @@ def test_reprod_builtins_red_then_usual_do():
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+f1_proxy%data(df)"
                 "*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -3322,7 +3312,7 @@ def test_repr_bltins_red_then_usual_fuse_do():
                 "      !$omp parallel default(shared), private(df,th_idx)\n"
                 "      th_idx = omp_get_thread_num()+1\n"
                 "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
                 "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
                 "f1_proxy%data(df)*f2_proxy%data(df)\n"
                 "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
@@ -3397,6 +3387,7 @@ def test_repr_bltins_usual_then_red_fuse_do():
         code = str(psy.gen)
         print(code)
         assert "      INTEGER th_idx\n" in code
+        exit(1) # I should now fail as the loop indices do not match
         if distmem:
             assert (
                 "      asum = 0.0_r_def\n"
@@ -3486,10 +3477,10 @@ def test_repr_3_builtins_2_reductions_do():
         if distmem:
             for names in [
                     {"var": "asum", "lvar": "l_asum",
-                     "bounds": "f1_proxy%vspace%get_last_dof_annexed()",
+                     "bounds": "f1_proxy%vspace%get_last_dof_owned()",
                      "rhs": "f1_proxy%data(df)*f2_proxy%data(df)"},
                     {"var": "bsum", "lvar": "l_bsum",
-                     "bounds": "f2_proxy%vspace%get_last_dof_annexed()",
+                     "bounds": "f2_proxy%vspace%get_last_dof_owned()",
                      "rhs": "f2_proxy%data(df)"}]:
                 assert (
                     "      " + names["var"] + " = 0.0_r_def\n"
@@ -3591,7 +3582,7 @@ def test_reprod_view(capsys):
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"
                 "field_space='any_space_1',it_space='dofs', "
-                "upper_bound='nannexed']\n"
+                "upper_bound='ndofs']\n"
                 "                " + call + " x_innerproduct_y(asum,f1,f2)\n"
                 "    " + gsum + "[scalar='asum']\n"
                 "    " + directive + "[OMP parallel]\n"
@@ -3604,7 +3595,7 @@ def test_reprod_view(capsys):
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"
                 "field_space='any_space_1',it_space='dofs', "
-                "upper_bound='nannexed']\n"
+                "upper_bound='ndofs']\n"
                 "                " + call + " sum_x(bsum,f2)\n"
                 "    " + gsum + "[scalar='bsum']\n")
         else:

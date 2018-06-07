@@ -4003,7 +4003,8 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if config.COMPUTE_ANNEXED_DOFS and config.DISTRIBUTED_MEMORY:
+            if config.COMPUTE_ANNEXED_DOFS and config.DISTRIBUTED_MEMORY \
+               and not kern.is_reduction:
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
