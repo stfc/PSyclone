@@ -12,8 +12,8 @@
 
 from __future__ import absolute_import
 import os
-import pytest
 import re
+import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError, \
@@ -285,6 +285,61 @@ def test_omp_region_with_slice():
             call_count += 1
 
     assert call_count == 2
+
+
+@pytest.mark.xfail(reason="OMP transform incorrectly allows change "
+                   "of order of children nodes")
+def test_omp_region_with_slice_change_order():
+    ''' Test that the OpenMP transform does not allow to switch
+    child nodes. At this stage it is not clear what exactly should
+    happen (probably raise an exception). This test only shows
+    that atm it is indeed possible to switch the order of statements.
+    '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
+    schedule = invoke.schedule
+
+    code = str(psy.gen).replace("\n", "")
+
+    # This is the correct ordering of the kernel calls:
+    correct_re = ("call compute_cu_code.*"
+                  "call compute_cv_code.*"
+                  "call time_smooth_code.*")
+
+    # Make sure that the test case still has the expected
+    # order of kernel calls:
+    assert re.search(correct_re, code, re.I)
+
+    # Now apply the transform, but reverse the child nodes:
+    # -----------------------------------------------------
+    ompr = OMPParallelTrans()
+
+    # Note that the order of the nodes is reversed!
+    omp_schedule, _ = ompr.apply([schedule.children[2], schedule.children[1]])
+    invoke.schedule = omp_schedule
+
+    # Store the results of applying this code transformation as
+    # a string
+    code = str(psy.gen).replace("\n", "")
+
+    # We should probably raise an exception here, but for now only show
+    # that the resulting transformed schedule does not preserver the
+    # order of kernel calls:
+    assert re.search(correct_re, code, re.I) is not None
+
+    # Worst: duplicate a line - this leads to a 'ValueError' exception
+    # raised by node_parent.children.remove(x) - the transform will try
+    # to remove the (same) node twice. Imho this should also raise
+    # a GenerateTransform exception instead.
+    omp_schedule, _ = ompr.apply([schedule.children[0], schedule.children[0]])
+
+    # Store the results of applying this code transformation as
+    # a string
+    code = str(psy.gen).replace("\n", "")
+
+    # We should probably raise an exception here, but for now only show
+    # that the resulting transformed schedule does not preserver the
+    # order of kernel calls:
+    assert re.search(correct_re, code, re.I) is not None
 
 
 def test_omp_region_no_slice():
