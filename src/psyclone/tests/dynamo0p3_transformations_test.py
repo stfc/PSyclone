@@ -2664,20 +2664,18 @@ def test_multi_builtins_red_then_fuse_pdo():
                          distributed_memory=distmem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
+        ftrans = DynamoLoopFuseTrans()
         if distmem:
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
                                        schedule.children[2],
                                        position="after")
-        ftrans = DynamoLoopFuseTrans()
-        print "still working on this"
-        exit(1)
-        if distmem:
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
                                            schedule.children[1],
                                            same_space=True)
-                assert ("The upper bound names are not the same")
+            assert ("The upper bound names are not the same"
+                    in str(excinfo.value))
         else:
             rtrans = DynamoOMPParallelLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
@@ -2716,44 +2714,29 @@ def test_multi_builtins_red_then_fuse_do():
                          distributed_memory=distmem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
+        ftrans = DynamoLoopFuseTrans()
         if distmem:
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
                                        schedule.children[2],
                                        position="after")
-        rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
-        ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
-        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
-        if distmem:
-            assert (
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df)\n"
-                "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        asum = asum+f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !$omp end do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      !$omp master\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
-                "      !\n"
-                "      !$omp end parallel\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
+            with pytest.raises(TransformationError) as excinfo:
+                schedule, _ = ftrans.apply(schedule.children[0],
+                                           schedule.children[1],
+                                           same_space=True)
+            assert ("The upper bound names are not the same"
+                    in str(excinfo.value))
         else:
+            rtrans = OMPParallelTrans()
+            otrans = Dynamo0p3OMPLoopTrans()
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1],
+                                       same_space=True)
+            schedule, _ = otrans.apply(schedule.children[0], reprod=False)
+            schedule, _ = rtrans.apply(schedule.children[0])
+            invoke.schedule = schedule
+            code = str(psy.gen)
+            print(code)
             assert (
                 "      asum = 0.0_r_def\n"
                 "      !\n"
@@ -2852,37 +2835,23 @@ def test_builtins_usual_then_red_fuse_pdo():
                          distributed_memory=distmem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
-        otrans = DynamoOMPParallelLoopTrans()
         ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
-        schedule, _ = otrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        exit(1) # I should now fail as the loop indices do not match
-        print(code)
         if distmem:
-            assert (
-                "      ! Zero summation variables\n"
-                "      !\n"
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel do default(shared), private(df), "
-                "schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !$omp end parallel do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
+            with pytest.raises(TransformationError) as excinfo:
+                schedule, _ = ftrans.apply(schedule.children[0],
+                                           schedule.children[1],
+                                           same_space=True)
+            assert ("The upper bound names are not the same"
+                    in str(excinfo.value))
         else:
+            otrans = DynamoOMPParallelLoopTrans()
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1],
+                                       same_space=True)
+            schedule, _ = otrans.apply(schedule.children[0])
+            invoke.schedule = schedule
+            code = str(psy.gen)
+            print(code)
             assert (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2912,40 +2881,25 @@ def test_builtins_usual_then_red_fuse_do():
                          distributed_memory=distmem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
-        rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
         ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
-        schedule, _ = otrans.apply(schedule.children[0], reprod=False)
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
-        exit(1) # I should now fail as the loop indices do not match
         if distmem:
-            assert (
-                "      asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df)\n"
-                "      !$omp do schedule(static), reduction(+:asum)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "        asum = asum+f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !$omp end do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      !$omp master\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
-                "      !\n"
-                "      !$omp end parallel\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
+            with pytest.raises(TransformationError) as excinfo:
+                schedule, _ = ftrans.apply(schedule.children[0],
+                                           schedule.children[1],
+                                           same_space=True)
+            assert ("The upper bound names are not the same"
+                    in str(excinfo.value))
         else:
+            rtrans = OMPParallelTrans()
+            otrans = Dynamo0p3OMPLoopTrans()
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1],
+                                       same_space=True)
+            schedule, _ = otrans.apply(schedule.children[0], reprod=False)
+            schedule, _ = rtrans.apply(schedule.children[0])
+            invoke.schedule = schedule
+            code = str(psy.gen)
+            print(code)
             assert (
                 "      asum = 0.0_r_def\n"
                 "      !\n"
@@ -3274,69 +3228,44 @@ def test_repr_bltins_red_then_usual_fuse_do():
                          distributed_memory=distmem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
+        ftrans = DynamoLoopFuseTrans()
         if distmem:
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
                                        schedule.children[2],
                                        position="after")
-        rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
-        ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
-        schedule, _ = otrans.apply(schedule.children[0], reprod=True)
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
-        assert (
-            "      USE omp_lib, ONLY: omp_get_thread_num\n"
-            "      USE omp_lib, ONLY: omp_get_max_threads\n") in code
-        assert (
-            "      REAL(KIND=r_def), allocatable, dimension(:,:) "
-            ":: l_asum\n") in code
-        assert "      INTEGER th_idx\n" in code
-        assert "      INTEGER nthreads\n" in code
-        assert (
-            "      !\n"
-            "      ! Determine the number of OpenMP threads\n"
-            "      !\n"
-            "      nthreads = omp_get_max_threads()\n"
-            "      !\n") in code
-        if distmem:
-            assert (
-                "      asum = 0.0_r_def\n"
-                "      ALLOCATE (l_asum(8,nthreads))\n"
-                "      l_asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df,th_idx)\n"
-                "      th_idx = omp_get_thread_num()+1\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                "f1_proxy%data(df)*f2_proxy%data(df)\n"
-                "        f1_proxy%data(df) = bsum*f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !$omp end do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      !$omp master\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
-                "      !\n"
-                "      !$omp end parallel\n"
-                "      !\n"
-                "      ! sum the partial results sequentially\n"
-                "      !\n"
-                "      DO th_idx=1,nthreads\n"
-                "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
-                "      DEALLOCATE (l_asum)\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
+        
+            with pytest.raises(TransformationError) as excinfo:
+                schedule, _ = ftrans.apply(schedule.children[0],
+                                           schedule.children[1],
+                                           same_space=True)
+            assert ("The upper bound names are not the same"
+                    in str(excinfo.value))
         else:
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1],
+                                       same_space=True)
+            rtrans = OMPParallelTrans()
+            otrans = Dynamo0p3OMPLoopTrans()
+            schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+            schedule, _ = rtrans.apply(schedule.children[0])
+            invoke.schedule = schedule
+            code = str(psy.gen)
+            print(code)
+            assert (
+                "      USE omp_lib, ONLY: omp_get_thread_num\n"
+                "      USE omp_lib, ONLY: omp_get_max_threads\n") in code
+            assert (
+                "      REAL(KIND=r_def), allocatable, dimension(:,:) "
+                ":: l_asum\n") in code
+            assert "      INTEGER th_idx\n" in code
+            assert "      INTEGER nthreads\n" in code
+            assert (
+                "      !\n"
+                "      ! Determine the number of OpenMP threads\n"
+                "      !\n"
+                "      nthreads = omp_get_max_threads()\n"
+                "      !\n") in code
             assert (
                 "      asum = 0.0_r_def\n"
                 "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3376,52 +3305,26 @@ def test_repr_bltins_usual_then_red_fuse_do():
                          distributed_memory=distmem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
-        rtrans = OMPParallelTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
         ftrans = DynamoLoopFuseTrans()
-        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                                   same_space=True)
-        schedule, _ = otrans.apply(schedule.children[0], reprod=True)
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
-        assert "      INTEGER th_idx\n" in code
-        exit(1) # I should now fail as the loop indices do not match
         if distmem:
-            assert (
-                "      asum = 0.0_r_def\n"
-                "      ALLOCATE (l_asum(8,nthreads))\n"
-                "      l_asum = 0.0_r_def\n"
-                "      !\n"
-                "      !$omp parallel default(shared), private(df,th_idx)\n"
-                "      th_idx = omp_get_thread_num()+1\n"
-                "      !$omp do schedule(static)\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
-                "        f1_proxy%data(df) = bvalue*f1_proxy%data(df)\n"
-                "        l_asum(1,th_idx) = l_asum(1,th_idx)+"
-                "f1_proxy%data(df)\n"
-                "      END DO \n"
-                "      !$omp end do\n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      !$omp master\n"
-                "      CALL f1_proxy%set_dirty()\n"
-                "      !$omp end master\n"
-                "      !\n"
-                "      !$omp end parallel\n"
-                "      !\n"
-                "      ! sum the partial results sequentially\n"
-                "      !\n"
-                "      DO th_idx=1,nthreads\n"
-                "        asum = asum+l_asum(1,th_idx)\n"
-                "      END DO \n"
-                "      DEALLOCATE (l_asum)\n"
-                "      global_sum%value = asum\n"
-                "      asum = global_sum%get_sum()\n") in code
+            with pytest.raises(TransformationError) as excinfo:
+                schedule, _ = ftrans.apply(schedule.children[0],
+                                           schedule.children[1],
+                                           same_space=True)
+            assert ("The upper bound names are not the same"
+                    in str(excinfo.value))
         else:
+            rtrans = OMPParallelTrans()
+            otrans = Dynamo0p3OMPLoopTrans()
+            schedule, _ = ftrans.apply(schedule.children[0],
+                                       schedule.children[1],
+                                       same_space=True)
+            schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+            schedule, _ = rtrans.apply(schedule.children[0])
+            invoke.schedule = schedule
+            code = str(psy.gen)
+            print(code)
+            assert "      INTEGER th_idx\n" in code
             assert (
                 "      asum = 0.0_r_def\n"
                 "      ALLOCATE (l_asum(8,nthreads))\n"
