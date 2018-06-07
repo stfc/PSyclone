@@ -468,7 +468,9 @@ def test_transform_errors(capsys):
         prt.apply(5)
     assert "Argument must be a single Node in a schedule or a list of Nodes " \
            "in a schedule but have been passed an object of type: " \
-           "<type 'int'>" in str(excinfo)
+           in str(excinfo)
+    # Python 3 reports 'class', python 2 'type' - so just check for both
+    assert "<type 'int'>" in str(excinfo) or "<class 'int'>" in str(excinfo)
 
     # Test that it will only allow correctly ordered nodes:
     with pytest.raises(TransformationError) as excinfo:
