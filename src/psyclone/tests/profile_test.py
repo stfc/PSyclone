@@ -77,6 +77,15 @@ def get_invoke(api, algfile, key):
 
 
 # -----------------------------------------------------------------------------
+def teardown_function():
+    '''This function is called at the end of any test function. It disables
+    any automatic profiling set. This is necessary in case of a test failure
+    to make sure any further tests will not be ran with profiling enabled.
+    '''
+    Profiler.set_options([])
+
+
+# -----------------------------------------------------------------------------
 def test_profile_basic(capsys):
     '''Check basic functionality: node names, schedule view.
     '''
