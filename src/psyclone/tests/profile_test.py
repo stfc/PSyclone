@@ -93,7 +93,7 @@ def test_profile_basic(capsys):
     _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
                            "one_invoke.f90", 0)
 
-    assert str(invoke.schedule.children[0]) == "Profile"
+    assert isinstance(invoke.schedule.children[0], ProfileNode)
 
     invoke.schedule.view()
     out, _ = capsys.readouterr()
@@ -102,6 +102,9 @@ def test_profile_basic(capsys):
     coloured_loop = Loop().coloured_text
     coloured_kern = GOKern().coloured_text
     coloured_profile = ProfileNode().coloured_text
+
+    # Do one test based on schedule view, to make sure colouring
+    # and indentation is correct
     correct = (
         '''{0}[invoke='invoke_0',Constant loop bounds=True]
     {3}
@@ -115,36 +118,35 @@ def test_profile_basic(capsys):
         '''[module_inline=False]'''.format(coloured_schedule, coloured_loop,
                                            coloured_kern, coloured_profile)
     )
-
     assert correct in out
 
     prt = ProfileRegionTrans()
 
     # Insert a profile call between outer and inner loop.
-    # This forces the profile node to loop up in the tree
-    # to find the subroutine node (i.e. we are testing
-    # the while loop in the ProfileNode).
+    # This is tests that we find the subroutine node even
+    # if it is not the immediate parent.
     new_sched, _ = prt.apply(invoke.schedule.children[0]
                              .children[0].children[0])
 
-    new_sched.view()
-    out, _ = capsys.readouterr()
+    new_sched_str = str(new_sched)
+    correct = ("""GOSchedule(Constant loop bounds=True):
+ProfileStart[]
+Loop[]: j= lower=2,jstop-1,1
+ProfileStart[]
+Loop[]: i= lower=2,istop,1
+kern call: compute_cv_code
+EndLoop
+ProfileEnd
+EndLoop
+Loop[]: j= lower=1,jstop+1,1
+Loop[]: i= lower=1,istop+1,1
+kern call: bc_ssh_code
+EndLoop
+EndLoop
+ProfileEnd
+End Schedule""")
 
-    # Make sure to support colour codes
-    correct = (
-        '''{0}[invoke='invoke_0',Constant loop bounds=True]
-    {3}
-        {1}[type='outer',field_space='cv',it_space='internal_pts']
-            {3}
-                {1}[type='inner',field_space='cv',it_space='internal_pts']
-                    {2} compute_cv_code(cv_fld,p_fld,v_fld) '''
-        '''[module_inline=False]
-        {1}[type='outer',field_space='ct',it_space='all_pts']
-            {1}[type='inner',field_space='ct',it_space='all_pts']
-                {2} bc_ssh_code(ncycle,p_fld,tmask) '''
-        '''[module_inline=False]'''
-    ).format(coloured_schedule, coloured_loop, coloured_kern, coloured_profile)
-    assert correct in out
+    assert correct in new_sched_str
 
     Profiler.set_options(None)
 
@@ -410,33 +412,54 @@ def test_transform(capsys):
 
     # Try applying it to a list
     sched1, _ = prt.apply(schedule.children)
-    sched1.view()
-    out, _ = capsys.readouterr()
-    # out is unicode, and has no replace function, so convert to string first
-    out = str(out).replace("\n", "")
 
-    # The .* before and after a keyword are necessary to escape colouring
-    # codes that might be used!
-    correct_re = (".*GOSchedule.*"
-                  r"    .*Profile.*"
-                  r"        .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*")
-    assert re.search(correct_re, out)
+    correct = ("""OSchedule(Constant loop bounds=True):
+ProfileStart[]
+Loop[]: j= lower=2,jstop,1
+Loop[]: i= lower=2,istop,1
+kern call: bc_ssh_code
+EndLoop
+EndLoop
+Loop[]: j= lower=1,jstop+1,1
+Loop[]: i= lower=1,istop,1
+kern call: bc_solid_u_code
+EndLoop
+EndLoop
+Loop[]: j= lower=1,jstop,1
+Loop[]: i= lower=1,istop+1,1
+kern call: bc_solid_v_code
+EndLoop
+EndLoop
+ProfileEnd
+End Schedule""")
+
+    assert correct in str(sched1)
 
     # Now only wrap a single node - the middle loop:
     sched2, _ = prt.apply(schedule.children[0].children[1])
-    sched2.view()
-    out, _ = capsys.readouterr()  # .replace("\n", "")
-    # out is unicode, and has no replace function, so convert to string first
-    out = str(out).replace("\n", "")
-    correct_re = (".*GOSchedule.*"
-                  r"    .*Profile.*"
-                  r"        .*Loop.*\[type='outer'.*"
-                  r"        .*Profile.*"
-                  r"            .*Loop.*\[type='outer'.*"
-                  r"        .*Loop.*\[type='outer'.*")
-    assert re.search(correct_re, out)
+
+    correct = ("""GOSchedule(Constant loop bounds=True):
+ProfileStart[]
+Loop[]: j= lower=2,jstop,1
+Loop[]: i= lower=2,istop,1
+kern call: bc_ssh_code
+EndLoop
+EndLoop
+ProfileStart[]
+Loop[]: j= lower=1,jstop+1,1
+Loop[]: i= lower=1,istop,1
+kern call: bc_solid_u_code
+EndLoop
+EndLoop
+ProfileEnd
+Loop[]: j= lower=1,jstop,1
+Loop[]: i= lower=1,istop+1,1
+kern call: bc_solid_v_code
+EndLoop
+EndLoop
+ProfileEnd
+End Schedule""")
+    assert correct in str(sched2)
 
     # Check that an sublist created from individual elements
     # can be wrapped
