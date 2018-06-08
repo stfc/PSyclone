@@ -2578,7 +2578,7 @@ def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
         "      map_w0 => f3_proxy(1)%vspace%get_whole_dofmap()\n"
         "      map_any_space_1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_space_2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
-            in gen)
+        in gen)
     assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, rdt, "
             "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
             "f3_proxy(3)%data, ndf_any_space_1_f1, undf_any_space_1_f1, "
@@ -3801,7 +3801,7 @@ def test_arg_intent_error():
 
 
 @pytest.mark.skipif(
-        sys.version_info>(3,),
+        sys.version_info > (3,),
         reason="Deepcopy of function_space not working in Python 3")
 def test_no_arg_on_space(monkeypatch):
     ''' Tests that DynKernelArguments.get_arg_on_space[,_name] raise
@@ -6903,7 +6903,8 @@ def test_halo_ex_back_dep_no_call(monkeypatch):
     # not matter in practice as we are just trying to get PSyclone to
     # raise the appropriate exception.
     assert ("Generation Error: In HaloInfo class, field 'f2' should be from a "
-            "call but found %s"%type(lambda: halo_exchange)) in str(excinfo.value)
+            "call but found %s" % type(lambda: halo_exchange)
+            in str(excinfo.value))
 
 
 def test_HaloReadAccess_input_field():
@@ -6915,7 +6916,7 @@ def test_HaloReadAccess_input_field():
     assert (
         "Generation Error: HaloInfo class expects an argument of type "
         "DynArgument, or equivalent, on initialisation, but found, "
-        "'%s'"%type(None) in str(excinfo.value))
+        "'%s'" % type(None) in str(excinfo.value))
 
 
 def test_HaloReadAccess_field_in_call():

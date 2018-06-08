@@ -3120,8 +3120,8 @@ class DynSchedule(Schedule):
         '''a method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
         method to include distributed memory information '''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" + \
-            self.invoke.name + "' dm="+str(config.DISTRIBUTED_MEMORY)+"]")
+        print(self.indent(indent) + self.coloured_text + "[invoke='" +
+              self.invoke.name + "' dm="+str(config.DISTRIBUTED_MEMORY)+"]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
