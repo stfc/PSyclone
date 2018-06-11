@@ -6460,3 +6460,20 @@ def test_intergrid_rejected():
     with pytest.raises(TransformationError) as excinfo:
         lftrans.apply(schedule.children[1], schedule.children[2])
     assert expected_err in str(excinfo)
+
+
+def test_no_acc():
+    ''' Check that attempting to add an OpenACC data region to a
+    dynamo0p3 Schedule causes an error '''
+    from psyclone.transformations import ACCDataTrans
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    accdt = ACCDataTrans()
+    with pytest.raises(NotImplementedError) as err:
+        _ = accdt.apply(sched)
+    assert ("ACCDataDirective not implemented for a schedule of type "
+            in str(err))
