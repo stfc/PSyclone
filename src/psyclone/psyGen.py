@@ -3316,7 +3316,7 @@ class TransInfo(object):
             are a subclass of the specified baseclass. '''
         import inspect
         return [cls for name, cls in inspect.getmembers(module)
-                if inspect.isclass(cls) and
+                if inspect.isclass(cls) and not inspect.isabstract(cls) and
                 issubclass(cls, base_class) and cls is not base_class]
 
 
