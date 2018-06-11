@@ -1406,9 +1406,16 @@ def test_acc_parallel_trans():
     # Apply the OpenACC Parallel transformation
     # to the first loop of the schedule
     new_sched, _ = acct.apply(schedule.children[0])
+    invoke.schedule = new_sched
 
-    invoke.shedule = new_sched
+    with pytest.raises(GenerationError) as err:
+        _ = str(psy.gen)
+    assert ("an ACC parallel region must also contain an ACC enter data "
+            "directive but none was found for invoke_0" in str(err))
 
+    accdt = ACCDataTrans()
+    new_sched, _ = accdt.apply(schedule)
+    invoke.schedule = new_sched
     code = str(psy.gen)
     
     acc_idx = -1

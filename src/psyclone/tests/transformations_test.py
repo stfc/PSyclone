@@ -54,12 +54,12 @@ def test_accloop():
 
     with pytest.raises(TransformationError) as err:
         _ = trans.apply(cnode)
-    assert ("Cannot apply a ACCLoopTrans directive to something that is not "
+    assert ("Cannot apply a parallel-loop directive to something that is not "
             "a loop" in str(err))
 
 
 def test_accparallel():
     ''' Generic tests for the OpenACCParallelTrans class '''
-    from psyclone.transformations import OpenACCParallelTrans
-    acct = OpenACCParallelTrans()
-    assert acct.name == "OpenACCParallelTrans"
+    from psyclone.transformations import ACCParallelTrans
+    acct = ACCParallelTrans()
+    assert acct.name == "ACCParallelTrans"
