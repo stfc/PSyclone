@@ -303,6 +303,8 @@ def string_compiles(code, tmpdir, f90, f90flags):
     return success
 
 
+# TODO add an optional name= argument and check whether invokes.invoke_list
+# is a dict or a list (if the former then we can't reliably index into it)
 def get_invoke(algfile, api, idx):
     '''
     Utility method to get the idx'th invoke from the algorithm
