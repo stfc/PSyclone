@@ -640,14 +640,39 @@ class ACCLoopTrans(ParallelLoopTrans):
 
     def directive(self, parent, children, collapse=None):
         '''
-        Creates the type of directive needed for this sub-class of
+        Creates the ACCLoopDirective needed by this sub-class of
         transformation.
+        :param parent: the parent Node of the new directive Node
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param children: list of child nodes of the new directive Node
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :param int collapse: number of nested loops to collapse or None if
+                             no collapse attribute is required
         '''
         from psyclone.psyGen import ACCLoopDirective
         _directive = ACCLoopDirective(parent=parent,
                                       children=children,
                                       collapse=collapse)
         return _directive
+
+    def _validate(self, node, collapse=None):
+        '''
+        Does OpenACC-specific validation checks before calling the
+        _validate method of the base class.
+
+        :param node: the proposed target of the !$acc loop directive
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param int collapse: number of loops to collapse or None
+        :raises NotImplementedError: if an API other than GOcean 1.0 is
+                                     being used.
+        '''
+        from psyclone.gocean1p0 import GOSchedule
+        sched = node.root
+        if not isinstance(sched, GOSchedule):
+            raise NotImplementedError(
+                "OpenACC loop transformations are currently only supported "
+                "for the gocean 1.0 API")
+        super(ACCLoopTrans, self)._validate(node, collapse)
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
@@ -1359,6 +1384,23 @@ class ACCParallelTrans(ParallelRegionTrans):
     def name(self):
         ''' Returns the name of this transformation as a string.'''
         return "ACCParallelTrans"
+
+    def _validate(self, node_list):
+        '''
+        OpenACC-specific validation checks that the supplied list
+        of nodes can be enclosed in a parallel region.
+        :param node_list: proposed list of nodes to put inside region
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :raises NotImplementedError: if an API other than GOcean 1.0 is
+                                     being used.
+        '''
+        from psyclone.gocean1p0 import GOSchedule
+        sched = node_list[0].root
+        if not isinstance(sched, GOSchedule):
+            raise NotImplementedError(
+                "OpenACC parallel regions are currently only "
+                "supported for the gocean 1.0 API")
+        super(ACCParallelTrans, self)._validate(node_list)
 
 
 class GOConstLoopBoundsTrans(Transformation):

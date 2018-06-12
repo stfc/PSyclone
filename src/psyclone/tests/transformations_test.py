@@ -52,11 +52,6 @@ def test_accloop():
     dir = trans.directive(pnode, [cnode])
     assert isinstance(dir, ACCLoopDirective)
 
-    with pytest.raises(TransformationError) as err:
-        _ = trans.apply(cnode)
-    assert ("Cannot apply a parallel-loop directive to something that is not "
-            "a loop" in str(err))
-
 
 def test_accparallel():
     ''' Generic tests for the OpenACCParallelTrans class '''
