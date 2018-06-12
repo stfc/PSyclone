@@ -76,13 +76,17 @@ class Directive(Comment):
     '''
     Base class for directives so we can reason about them when walking
     the tree
-    :param root:
-    :param line:
-    :param position:
-    :param str dir_type: the type of directive that this is
+    :param root: the parent node in the AST to which we are adding the
+                 directive
+    :type root: either :py:class:`psyclone.psyGen.Node` or
+                :py:class:`fparser.one.block_statements.Subroutine`
+    :param line: the fparser object representing the Directive to add
+    :type line: :py:class:`fparser.common.readfortran.Comment`
+    :param str position: e.g. 'begin' or 'end' (language specific)
+    :param str dir_type: the type of directive that this is (e.g.
+                         'parallel do')
     '''
     def __init__(self, root, line, position, dir_type):
-
         if dir_type not in self._types:
             raise RuntimeError("Error, unrecognised directive type '{0}'. "
                                "Should be one of {1}".
