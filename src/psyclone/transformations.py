@@ -559,7 +559,22 @@ class OMPLoopTrans(ParallelLoopTrans):
         '''
         Creates the type of directive needed for this sub-class of
         transformation.
+        :param parent: The Node that will be the parent of the created
+                       directive Node.
+        :param children: List of Nodes that will be the children of
+                         the created directive.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :param int collapse: currently un-used but required to keep
+                             interface the same as in base class.
+        :returns: the new node representing the directive in the AST
+        :rtype: :py:class:`psyclone.psyGen.OMPDoDirective`
+        :raises NotImplementedError: if a collapse argument is supplied
         '''
+        if collapse:
+            raise NotImplementedError(
+                "The COLLAPSE clause is not yet supported for '!$omp do' "
+                "directives.")
+
         from psyclone.psyGen import OMPDoDirective
         _directive = OMPDoDirective(parent=parent,
                                     children=children,

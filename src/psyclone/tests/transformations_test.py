@@ -63,3 +63,17 @@ def test_accparallel():
     from psyclone.transformations import ACCParallelTrans
     acct = ACCParallelTrans()
     assert acct.name == "ACCParallelTrans"
+
+
+def test_omploop_no_collapse():
+    ''' Check that the OMPLoopTrans.directive() method rejects the
+    collapse argument '''
+    from psyclone.psyGen import Node
+    from psyclone.transformations import OMPLoopTrans
+    trans = OMPLoopTrans()
+    pnode = Node()
+    cnode = Node()
+    with pytest.raises(NotImplementedError) as err:
+        _ = trans.directive(pnode, cnode, collapse=2)
+    assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
+            "directives" in str(err))

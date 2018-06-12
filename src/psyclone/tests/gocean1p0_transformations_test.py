@@ -1716,13 +1716,6 @@ def test_accloop():
     psy, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
-
-    # Check that we get the correct error if we attempt to apply the
-    # transformation to something that is not a loop
-    with pytest.raises(TransformationError) as err:
-        _, _ = acclpt.apply(schedule.children[0].children[0].children[0])
-    assert ("Cannot apply a parallel-loop directive to something that is "
-            "not a loop" in str(err))
         
     # Apply an OpenACC loop directive to each loop
     for child in schedule.children:
