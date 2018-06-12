@@ -345,16 +345,17 @@ class ParallelLoopTrans(Transformation):
         return
 
     @abc.abstractmethod
-    def directive(self, parent, children):
+    def directive(self, parent, children, collapse=None):
         ''' Returns the directive object to insert into the Schedule '''
         return
 
-    def _validate(self, node):
+    def _validate(self, node, collapse=None):
         '''
         Perform validation checks before applying the transformation
 
         :param node: the node we are checking
-        :type node1: :py:class:`psyclone.psyGen.Node`
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param int collapse: number of nested loops to collapse or None
         :raises TransformationError: if the node is not a
         :py:class:`psyclone.psyGen.Loop`
         :raises TransformationError: if the
@@ -372,8 +373,30 @@ class ParallelLoopTrans(Transformation):
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The target loop is over colours and "
                                       "must be computed serially.")
+        # If 'collapse' is specified, check that it is an int and that the
+        # loop nest has at least that number of loops in it
+        if collapse:
+            if not isinstance(collapse, int):
+                raise TransformationError(
+                    "The 'collapse' argument must be an integer but got an "
+                    "object of type {0}".format(type(collapse)))
+            if collapse < 2:
+                raise TransformationError(
+                    "It only makes sense to collapse 2 or more loops "
+                    "but got a value of {0}".format(collapse))
+            # Count the number of loops in the loop nest
+            loop_count = 0
+            cnode = node
+            while isinstance(cnode, Loop):
+                loop_count += 1
+                # Loops must be tightly nested (no intervening statements)
+                cnode = cnode.children[0]
+            if collapse > loop_count:
+                raise TransformationError(
+                    "Cannot apply COLLAPSE({0}) clause to loop nest because "
+                    "it only contains {1} loops".format(collapse, loop_count))
 
-    def apply(self, node):
+    def apply(self, node, collapse=None):
         '''
         Apply the Loop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -395,11 +418,13 @@ class ParallelLoopTrans(Transformation):
         :param node: the supplied node to which we will apply the
                      Loop transformation
         :type node: :py:class:`psyclone.psyGen.Node`
+        :param int collapse: number of loops to collapse into single
+                             iteration space or None
         :return: (:py:class:`psyclone.psyGen.Schedule`,
                   :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        self._validate(node)
+        self._validate(node, collapse)
 
         schedule = node.root
 
@@ -415,7 +440,7 @@ class ParallelLoopTrans(Transformation):
 
         # Add our orphan loop directive setting its parent to
         # the node's parent and its children to the node
-        directive = self.directive(node_parent, [node])
+        directive = self.directive(node_parent, [node], collapse)
 
         # add the OpenMP loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
@@ -530,7 +555,7 @@ class OMPLoopTrans(ParallelLoopTrans):
 
         self._omp_schedule = value
 
-    def directive(self, parent, children):
+    def directive(self, parent, children, collapse=None):
         '''
         Creates the type of directive needed for this sub-class of
         transformation.
@@ -598,14 +623,15 @@ class ACCLoopTrans(ParallelLoopTrans):
         ''' Returns the name of this transformation as a string.'''
         return "ACCLoopTrans"
 
-    def directive(self, parent, children):
+    def directive(self, parent, children, collapse=None):
         '''
         Creates the type of directive needed for this sub-class of
         transformation.
         '''
         from psyclone.psyGen import ACCLoopDirective
         _directive = ACCLoopDirective(parent=parent,
-                                      children=children)
+                                      children=children,
+                                      collapse=collapse)
         return _directive
 
 

@@ -1576,6 +1576,10 @@ class ACCLoopDirective(ACCDirective):
     '''
     Class managing the creation of a '!$acc loop' directive of OpenACC.
     '''
+    def __init__(self, children=None, parent=None, collapse=None):
+        self._collapse = collapse
+        super(ACCLoopDirective, self).__init__(children, parent)
+
     def view(self, indent=0):
         print(self.indent(indent)+self.coloured_text+"[ACC Loop]")
         for entity in self._children:
@@ -1603,7 +1607,11 @@ class ACCLoopDirective(ACCDirective):
                 "ACCLoopDirective must have an ACCParallelDirective as an "
                 "ancestor in the Schedule")
 
-        parent.add(DirectiveGen(parent, "acc", "begin", "loop", ""))
+        options = ""
+        if self._collapse:
+            options = "collapse({0})".format(self._collapse)
+
+        parent.add(DirectiveGen(parent, "acc", "begin", "loop", options))
 
         for child in self.children:
             child.gen_code(parent)
@@ -1797,10 +1805,12 @@ class OMPDoDirective(OMPDirective):
         if children is None:
             children = []
         if reprod is None:
-            reprod = config.REPRODUCIBLE_REDUCTIONS
+            self._reprod = config.REPRODUCIBLE_REDUCTIONS
+        else:
+            self._reprod = reprod
 
         self._omp_schedule = omp_schedule
-        self._reprod = reprod
+
         # Call the init method of the base class once we've stored
         # the OpenMP schedule
         OMPDirective.__init__(self,
@@ -1875,11 +1885,9 @@ class OMPDoDirective(OMPDirective):
         # As we're an orphaned loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
-        parent.add(DirectiveGen(parent,
-                                "omp", "begin", "do",
-                                "schedule({0})".
-                                format(self._omp_schedule) +
-                                local_reduction_string))
+        options = "schedule({0})".format(self._omp_schedule) + \
+                  local_reduction_string
+        parent.add(DirectiveGen(parent, "omp", "begin", "do", options))
 
         for child in self.children:
             child.gen_code(parent)
