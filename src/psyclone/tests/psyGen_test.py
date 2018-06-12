@@ -1707,6 +1707,21 @@ def test_node_is_valid_location():
     assert not node.is_valid_location(schedule.children[3], position="after")
 
 
+def test_node_ancestor():
+    ''' Test the Node.ancestor() method '''
+    from utils import get_invoke
+    from psyclone.psyGen import Node, Loop
+    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
+                             "gocean1.0", idx=0)
+    sched = invoke.schedule
+    sched.view()
+    kern = sched.children[0].children[0].children[0]
+    node = kern.ancestor(Node)
+    assert isinstance(node, Loop)
+    node = kern.ancestor(Node, excluding=[Loop])
+    assert node is sched
+
+
 def test_dag_names():
     '''test that the dag_name method returns the correct value for the
     node class and its specialisations'''

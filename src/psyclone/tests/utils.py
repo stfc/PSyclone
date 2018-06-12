@@ -267,8 +267,9 @@ def get_invoke(algfile, api, idx=None, name=None):
                     or None if name is specified
     :param str name: the name of the required invoke or None if an index
                      is supplied
-    :returns: the idx'th or named invoke in the Algorithm
-    :rtype: :py:class:`psyclone.psyGen.Invoke`
+    :returns: (psy object, invoke object)
+    :rtype: 2-tuple containing :py:class:`psyclone.psyGen.PSy` and
+            :py:class:`psyclone.psyGen.Invoke` objects.
     :raises RuntimeError: if neither idx or name are supplied or if
                           both are supplied
     :raises RuntimeError: if the supplied name does not match an invoke in
