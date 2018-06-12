@@ -393,8 +393,8 @@ class ParallelLoopTrans(Transformation):
                 cnode = cnode.children[0]
             if collapse > loop_count:
                 raise TransformationError(
-                    "Cannot apply COLLAPSE({0}) clause to loop nest because "
-                    "it only contains {1} loops".format(collapse, loop_count))
+                    "Cannot apply COLLAPSE({0}) clause to a loop nest "
+                    "containing only {1} loops".format(collapse, loop_count))
 
     def apply(self, node, collapse=None):
         '''

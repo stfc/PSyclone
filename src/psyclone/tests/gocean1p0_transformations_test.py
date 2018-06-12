@@ -1437,16 +1437,27 @@ def test_acc_parallel_trans():
 def test_acc_data_not_a_schedule():
     ''' Test that we raise an appropriate error if we attempt to apply
     an OpenACC Data transformation to something that is not a Schedule '''
-    _, invoke = get_invoke(
+    psy, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     acct = ACCDataTrans()
+    accpara = ACCParallelTrans()
 
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply(schedule.children[0])
     assert ("Cannot apply an OpenACC data directive to something that is not "
             "a Schedule" in str(err))
+
+    new_sched, _ = acct.apply(schedule)
+    
+    # Add a parallel region *around* the enter-data directive so that it
+    # (erroneously) comes before it...
+    new_sched, _ = accpara.apply(new_sched.children[0])
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An ACC parallel region must be preceeded by an ACC enter-data "
+            "directive but in invoke_0 this is not the case." in str(err))
 
 
 def test_acc_data_copyin():
@@ -1697,7 +1708,7 @@ def test_accdata_duplicate():
 
 
 def test_accloop():
-
+    ''' Tests that we can apply a '!$acc loop' directive to a loop '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCDataTrans()
@@ -1706,6 +1717,13 @@ def test_accloop():
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
+    # Check that we get the correct error if we attempt to apply the
+    # transformation to something that is not a loop
+    with pytest.raises(TransformationError) as err:
+        _, _ = acclpt.apply(schedule.children[0].children[0].children[0])
+    assert ("Cannot apply a parallel-loop directive to something that is "
+            "not a loop" in str(err))
+        
     # Apply an OpenACC loop directive to each loop
     for child in schedule.children:
         if isinstance(child, Loop):
@@ -1744,10 +1762,43 @@ def test_accloop():
       !$acc loop
       DO j=2,jstop+1''' in gen
 
-    # Add a parallel region *around* the enter-data directive so that it
-    # (erroneously) comes before it...
-    new_sched, _ = accpara.apply(new_sched.children[0])
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("An ACC parallel region must be preceeded by an ACC enter-data "
-            "directive but in invoke_0 this is not the case." in str(err))
+
+def test_acc_collapse():
+    ''' Tests for the collapse clause to a loop directive '''
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCDataTrans()
+
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    schedule = invoke.schedule
+    child = schedule.children[0]
+
+    # Check that we reject invalid depths
+    with pytest.raises(TransformationError) as err:
+        _, _ = acclpt.apply(child, collapse=1)
+    assert ("It only makes sense to collapse 2 or more loops but got a "
+            "value of 1" in str(err))
+
+    # Check that we reject attempts to collapse more loops than we have
+    with pytest.raises(TransformationError) as err:
+        _, _ = acclpt.apply(child, collapse=3)
+    assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
+            "only 2 loops" in str(err))
+
+    # Finally, do something valid and check that we get the correct
+    # generated code
+    new_sched, _ = acclpt.apply(child, collapse=2)
+
+    new_sched, _ = accpara.apply(new_sched.children)
+    new_sched, _ = accdata.apply(new_sched)
+    
+    invoke.schedule = new_sched
+
+    gen = str(psy.gen)
+    assert ("      !$acc parallel default(present)\n"
+            "      !$acc loop collapse(2)\n"
+            "      DO j=2,jstop\n"
+            "        DO i=2,istop+1\n"
+            "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
+            "u_fld%data)\n" in gen)
