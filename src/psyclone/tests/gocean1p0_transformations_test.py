@@ -1773,6 +1773,12 @@ def test_acc_collapse():
     schedule = invoke.schedule
     child = schedule.children[0]
 
+    # Check that we reject non-integer collapse arguments
+    with pytest.raises(TransformationError) as err:
+        _, _ = acclpt.apply(child, collapse=child)
+    assert ("The 'collapse' argument must be an integer but got an object "
+            "of type" in str(err))
+
     # Check that we reject invalid depths
     with pytest.raises(TransformationError) as err:
         _, _ = acclpt.apply(child, collapse=1)

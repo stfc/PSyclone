@@ -337,17 +337,15 @@ class ParallelLoopTrans(Transformation):
     '''
     @abc.abstractmethod
     def __str__(self):
-        return
+        return  # pragma: no cover
 
     @abc.abstractproperty
     def name(self):
         ''' Returns the name of this transformation as a string.'''
-        return
 
     @abc.abstractmethod
     def directive(self, parent, children, collapse=None):
         ''' Returns the directive object to insert into the Schedule '''
-        return
 
     def _validate(self, node, collapse=None):
         '''
@@ -1189,12 +1187,11 @@ class ParallelRegionTrans(Transformation):
 
     @abc.abstractmethod
     def __str__(self):
-        return
+        pass  # pragma: no cover
 
     @abc.abstractproperty
     def name(self):
         ''' Returns the name of this transformation as a string.'''
-        return
 
     def _validate(self, node_list):
         '''
