@@ -257,6 +257,42 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     return success
 
 
+def get_invoke(algfile, api, idx=None, name=None):
+    '''
+    Utility method to get the idx'th or named invoke from the algorithm
+    in the specified file.
+    :param str algfile: name of the Algorithm source file (Fortran)
+    :param str api: which PSyclone API this Algorithm uses
+    :param int idx: the index of the invoke from the Algorithm to return
+                    or None if name is specified
+    :param str name: the name of the required invoke or None if an index
+                     is supplied
+    :returns: the idx'th or named invoke in the Algorithm
+    :rtype: :py:class:`psyclone.psyGen.Invoke`
+    :raises RuntimeError: if neither idx or name are supplied or if
+                          both are supplied
+    :raises RuntimeError: if the supplied name does not match an invoke in
+                          the Algorithm
+    '''
+    from psyclone.parse import parse
+    from psyclone.psyGen import PSyFactory
+
+    if (idx is None and not name) or (idx is not None and name):
+        raise RuntimeError("Either the index or the name of the "
+                           "requested invoke must be specified")
+
+    _, info = parse(os.path.
+                    join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", algfile),
+                    api=api)
+    psy = PSyFactory(api).create(info)
+    if name:
+        invoke = psy.invokes.get(name)
+    else:
+        invoke = psy.invokes.invoke_list[idx]
+    return psy, invoke
+
+
 def string_compiles(code, tmpdir, f90, f90flags):
     '''
     Attempts to build the Fortran code supplied as a string.
@@ -301,27 +337,3 @@ def string_compiles(code, tmpdir, f90, f90flags):
             ofile.remove()
 
     return success
-
-
-# TODO add an optional name= argument and check whether invokes.invoke_list
-# is a dict or a list (if the former then we can't reliably index into it)
-def get_invoke(algfile, api, idx):
-    '''
-    Utility method to get the idx'th invoke from the algorithm
-    specified in file
-    :param str algfile: name of the Algorithm source file (Fortran)
-    :param str api: which PSyclone API this Algorithm uses
-    :param int idx: the index of the invoke from the Algorithm to return
-    :returns: the idx'th invoke in the Algorithm
-    :rtype: :py:class:`psyclone.psyGen.Invoke`
-    '''
-    from psyclone.parse import parse
-    from psyclone.psyGen import PSyFactory
-    _, info = parse(os.path.
-                    join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", algfile),
-                    api=api)
-    psy = PSyFactory(api).create(info)
-    invoke = psy.invokes.invoke_list[idx]
-    return psy, invoke
-

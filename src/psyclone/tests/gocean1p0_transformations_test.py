@@ -1768,7 +1768,8 @@ def test_acc_collapse():
     accdata = ACCDataTrans()
 
     psy, invoke = get_invoke(
-        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API,
+        name="invoke_0")
     schedule = invoke.schedule
     child = schedule.children[0]
 
