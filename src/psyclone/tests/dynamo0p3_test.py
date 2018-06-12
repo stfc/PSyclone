@@ -39,8 +39,9 @@
 # imports
 from __future__ import absolute_import, print_function
 import os
-import pytest
 import sys
+import pytest
+import fparser
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
@@ -51,19 +52,11 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     VALID_ANY_SPACE_NAMES
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
-import fparser
 import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-
-
-# fixtures
-@pytest.fixture(scope="module", params=[False, True])
-def annexed(request):
-    ''' Return the content of params in turn '''
-    return request.param
 
 
 # tests
@@ -3801,8 +3794,8 @@ def test_arg_intent_error():
 
 
 @pytest.mark.skipif(
-        sys.version_info > (3,),
-        reason="Deepcopy of function_space not working in Python 3")
+    sys.version_info > (3,),
+    reason="Deepcopy of function_space not working in Python 3")
 def test_no_arg_on_space(monkeypatch):
     ''' Tests that DynKernelArguments.get_arg_on_space[,_name] raise
     the appropriate error when there is no kernel argument on the
@@ -6744,13 +6737,25 @@ def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_arg_discontinous():
-    ''' Test that the discontinuous method in the dynamo argument
-    class returns the correct values '''
+def test_arg_discontinuous(monkeypatch, annexed):
+    '''Test that the discontinuous method in the dynamo argument class
+    returns the correct values. Check that the code is generated
+    correctly when annexed dofs are and are not computed by default as
+    the number of halo exchanges produced is different in the two
+    cases.
+
+    '''
 
     # 1 discontinuous field returns true
     # Check w3, wtheta and w2v in turn
-    idchld_list = [0, 0, 0]
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    if annexed:
+        # no halo exchanges produced for the w3 example
+        idchld_list = [0, 0, 0]
+    else:
+        # 3 halo exchanges produced for the w3 example
+        idchld_list = [3, 0, 0]
     idarg_list = [4, 0, 0]
     fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
                        zip(idchld_list, idarg_list)))
@@ -7004,16 +7009,27 @@ def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
         assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_loop_cont_read_inv_bound(monkeypatch):
-    ''' When a continuous argument is read it may access the halo. The
+def test_loop_cont_read_inv_bound(monkeypatch, annexed):
+    '''When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
-    that this exception is raised correctly '''
+    that this exception is raised correctly. We test separately for
+    annexed dofs being computed or not as this affects the number of
+    halo exchanges produced.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[0]
+    if annexed:
+        # no halo exchanges generated
+        loop = schedule.children[0]
+    else:
+        # 3 halo exchanges generated
+        loop = schedule.children[3]
     kernel = loop.children[0]
     f1_arg = kernel.arguments.args[1]
     #
@@ -7175,9 +7191,9 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
 
 
 def test_annexed_default():
-    ''' test that we compute annexed dofs by default '''
+    ''' test that we do not compute annexed dofs by default '''
     import psyclone.config
-    assert psyclone.config.COMPUTE_ANNEXED_DOFS
+    assert not psyclone.config.COMPUTE_ANNEXED_DOFS
 
 
 def test_haloex_not_required(monkeypatch):
