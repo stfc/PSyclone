@@ -1398,6 +1398,14 @@ class ACCDataDirective(ACCDirective):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this Node in a DAG
+        :rtype: str
+        '''
+        return "ACC_data_" + str(self.abs_position)
+
     def gen_code(self, parent):
         from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen, \
             IfThenGen, AssignGen, CallGen, UseGen
@@ -1481,6 +1489,14 @@ class ACCParallelDirective(ACCDirective):
         print(self.indent(indent)+self.coloured_text+"[ACC Parallel]")
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this Node in a DAG
+        :rtype: str
+        '''
+        return "ACC_parallel_" + str(self.abs_position)
 
     def gen_code(self, parent):
         '''
@@ -1581,6 +1597,14 @@ class ACCLoopDirective(ACCDirective):
     def __init__(self, children=None, parent=None, collapse=None):
         self._collapse = collapse
         super(ACCLoopDirective, self).__init__(children, parent)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this Node in a DAG
+        :rtype: str
+        '''
+        return "ACC_loop_" + str(self.abs_position)
 
     def view(self, indent=0):
         '''
@@ -1823,9 +1847,8 @@ class OMPDoDirective(OMPDirective):
 
         # Call the init method of the base class once we've stored
         # the OpenMP schedule
-        OMPDirective.__init__(self,
-                              children=children,
-                              parent=parent)
+        super(OMPDoDirective, self).__init__(children=children,
+                                             parent=parent)
 
     @property
     def dag_name(self):
