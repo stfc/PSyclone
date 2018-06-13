@@ -345,18 +345,30 @@ class ParallelLoopTrans(Transformation):
 
     @abc.abstractmethod
     def _directive(self, parent, children, collapse=None):
-        ''' Returns the directive object to insert into the Schedule '''
+        '''
+        Returns the directive object to insert into the Schedule.
+        Must be implemented by sub-class.
+
+        :param parent: the parent of this Directive in the Schedule.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :param children: list of nodes that will be children of this Directive.
+        :type children: list of :py:class:`psyclone.psyGen.Node`.
+        :param int collapse: the number of tightly-nested loops to which \
+                             this directive applies or None.
+        :returns: the new Directive node.
+        :rtype: sub-class of :py:class:`psyclone.psyGen.Directive`.
+        '''
 
     def _validate(self, node, collapse=None):
         '''
         Perform validation checks before applying the transformation
 
-        :param node: the node we are checking
-        :type node: :py:class:`psyclone.psyGen.Node`
-        :param int collapse: number of nested loops to collapse or None
-        :raises TransformationError: if the node is not a
+        :param node: the node we are checking.
+        :type node: :py:class:`psyclone.psyGen.Node`.
+        :param int collapse: number of nested loops to collapse or None.
+        :raises TransformationError: if the node is not a \
         :py:class:`psyclone.psyGen.Loop`
-        :raises TransformationError: if the
+        :raises TransformationError: if the \
         :py:class:`psyclone.psyGen.Loop` loop iterates over colours
 
         '''
@@ -413,12 +425,12 @@ class ParallelLoopTrans(Transformation):
         :py:meth:`OMPLoopTrans.gen_code` is called), this node must be
         within (i.e. a child of) a PARALLEL region.
 
-        :param node: the supplied node to which we will apply the
-                     Loop transformation
-        :type node: :py:class:`psyclone.psyGen.Node`
-        :param int collapse: number of loops to collapse into single
-                             iteration space or None
-        :return: (:py:class:`psyclone.psyGen.Schedule`,
+        :param node: the supplied node to which we will apply the \
+                     Loop transformation.
+        :type node: :py:class:`psyclone.psyGen.Node`.
+        :param int collapse: number of loops to collapse into single \
+                             iteration space or None.
+        :return: (:py:class:`psyclone.psyGen.Schedule`, \
                   :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -595,7 +607,7 @@ class OMPLoopTrans(ParallelLoopTrans):
           !$OMP END DO
 
         At code-generation time (when
-        :py:meth:`OMPLoopTrans.gen_code` is called), this node must be
+        :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP PARALLEL region.
 
         The optional reprod argument will cause a reproducible
@@ -642,12 +654,12 @@ class ACCLoopTrans(ParallelLoopTrans):
         Creates the ACCLoopDirective needed by this sub-class of
         transformation.
 
-        :param parent: the parent Node of the new directive Node
-        :type parent: :py:class:`psyclone.psyGen.Node`
-        :param children: list of child nodes of the new directive Node
-        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :param parent: the parent Node of the new directive Node.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :param children: list of child nodes of the new directive Node.
+        :type children: list of :py:class:`psyclone.psyGen.Node`.
         :param int collapse: number of nested loops to collapse or None if \
-                             no collapse attribute is required
+                             no collapse attribute is required.
         '''
         from psyclone.psyGen import ACCLoopDirective
         directive = ACCLoopDirective(parent=parent,
@@ -660,9 +672,9 @@ class ACCLoopTrans(ParallelLoopTrans):
         Does OpenACC-specific validation checks before calling the
         _validate method of the base class.
 
-        :param node: the proposed target of the !$acc loop directive
-        :type node: :py:class:`psyclone.psyGen.Node`
-        :param int collapse: number of loops to collapse or None
+        :param node: the proposed target of the !$acc loop directive.
+        :type node: :py:class:`psyclone.psyGen.Node`.
+        :param int collapse: number of loops to collapse or None.
         :raises NotImplementedError: if an API other than GOcean 1.0 is \
                                      being used.
         '''
@@ -1184,7 +1196,8 @@ class ParallelRegionTrans(Transformation):
 
     '''
     def __init__(self):
-        self._pdirective = None
+        self._pdirective = None  # Holds the class instance for the
+                                 # type of parallel region to generate
         Transformation.__init__(self)
 
     @abc.abstractmethod
@@ -1199,6 +1212,7 @@ class ParallelRegionTrans(Transformation):
         '''
         Check that the supplied list of Nodes are eligible to be
         put inside a parallel region.
+
         :param list node_list: List of nodes to put into a parallel region
         :raises TransformationError: if the nodes cannot be put into a \
                                      parallel region.
@@ -1339,6 +1353,7 @@ class OMPParallelTrans(ParallelRegionTrans):
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
         from psyclone.psyGen import OMPParallelDirective
+        # Set the type of directive that the base class will use
         self._pdirective = OMPParallelDirective
 
     def __str__(self):
@@ -1351,9 +1366,12 @@ class OMPParallelTrans(ParallelRegionTrans):
 
     def _validate(self, node_list):
         '''
-        Perform OpenMP-specific validation checks
-        :param node_list: TBD
-        :raises TransformationError: TBD
+        Perform OpenMP-specific validation checks.
+
+        :param node_list: List of Nodes to put within parallel region.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+        :raises TransformationError: if the target Nodes are already within \
+                                     some OMP parallel region.
         '''
         from psyclone.psyGen import OMPDirective
 
@@ -1396,6 +1414,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     def __init__(self):
         super(ACCParallelTrans, self).__init__()
         from psyclone.psyGen import ACCParallelDirective
+        # Set the type of directive that the base class will use
         self._pdirective = ACCParallelDirective
 
     def __str__(self):
@@ -1411,8 +1430,8 @@ class ACCParallelTrans(ParallelRegionTrans):
         OpenACC-specific validation checks that the supplied list
         of nodes can be enclosed in a parallel region.
 
-        :param node_list: proposed list of nodes to put inside region
-        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param node_list: proposed list of nodes to put inside region.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
         :raises NotImplementedError: if an API other than GOcean 1.0 is \
                                      being used.
         '''
@@ -2141,7 +2160,7 @@ if 0:
 
 class ACCDataTrans(Transformation):
     '''
-    Adds an OpenACC enter data directive to a Schedule
+    Adds an OpenACC enter data directive to a Schedule.
     For example:
 
     >>> from psyclone.parse import parse
@@ -2167,7 +2186,7 @@ class ACCDataTrans(Transformation):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string '''
+        ''' Returns the name of this transformation as a string. '''
         return "ACCDataTrans"
 
     def apply(self, sched):
@@ -2176,15 +2195,15 @@ class ACCDataTrans(Transformation):
         within this schedule will be added to this data region in
         order to ensure they remain on the target device.
 
-        :param sched: Schedule to which to add an enter-data directive
-        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`
+        :param sched: Schedule to which to add an enter-data directive.
+        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`.
         :returns: Tuple of the modified schedule and a record of the \
-                  transformation
+                  transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
-        :raises NotImplementedError: for any API other than GOcean 1.0
+        :raises NotImplementedError: for any API other than GOcean 1.0.
         :raises TransformationError: if passed something that is not a \
-                         (subclass of) :py:class:`psyclone.psyGen.Schedule`
+                         (subclass of) :py:class:`psyclone.psyGen.Schedule`.
         '''
         # Check that the supplied node is a Schedule
         from psyclone.psyGen import Schedule

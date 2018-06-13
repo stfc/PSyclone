@@ -1127,9 +1127,10 @@ class Node(object):
         Search back up tree and check whether we have an
         ancestor of the supplied type. If we do then we return
         it otherwise we return None.
+
         :param my_type: class to search for
-        :param list excluding: list of sub-classes to ignore or None
-        :returns: first ancestor Node that is an instance of the requested
+        :param list excluding: list of (sub-)classes to ignore or None
+        :returns: first ancestor Node that is an instance of the requested \
                   class or None if not found.
         '''
         myparent = self.parent
@@ -1373,27 +1374,37 @@ class ACCDirective(Directive):
     @abc.abstractmethod
     def view(self, indent=0):
         '''
-        Print text representation of this node to stdout
+        Print text representation of this node to stdout.
+
         :param int indent: size of indent to use for output
         '''
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        ''' Return the name to use in a dag for this node.
+
+        :returns: Name of corresponding node in DAG
+        :rtype: str
+        '''
         return "ACC_directive_" + str(self.abs_position)
 
 
 class ACCDataDirective(ACCDirective):
     '''
     Class representing a !$ACC enter data OpenACC directive in
-    a Schedule
+    a Schedule.
 
     '''
     def __init__(self, children=None, parent=None):
         super(ACCDataDirective, self).__init__(children, parent)
-        self._acc_dirs = None
+        self._acc_dirs = None  # List of parallel directives
 
     def view(self, indent=0):
+        '''
+        Print a text representation of this Node to stdout.
+
+        :param int indent: the amount by which to indent the output.
+        '''
         print(self.indent(indent)+self.coloured_text+"[ACC enter data]")
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -1407,12 +1418,19 @@ class ACCDataDirective(ACCDirective):
         return "ACC_data_" + str(self.abs_position)
 
     def gen_code(self, parent):
+        '''
+        Generate the elements of the f2pygen AST for this Node in the Schedule.
+
+        :param parent: node in the f2pygen AST to which to add node(s).
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
         from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen, \
             IfThenGen, AssignGen, CallGen, UseGen
 
         # We must generate a list of all of the fields accessed by
         # OpenACC kernels (calls within an OpenACC parallel directive)
-        # 1. Find all parallel directives
+        # 1. Find all parallel directives. We store this list for later
+        #    use in any sub-class.
         self._acc_dirs = self.walk(self.root.children, ACCParallelDirective)
         # 2. For each directive, loop over each of the fields used by
         #    the kernels it contains (this list is given by var_list)
@@ -1486,6 +1504,11 @@ class ACCParallelDirective(ACCDirective):
     ''' Class for the !$ACC PARALLEL directive of OpenACC. '''
 
     def view(self, indent=0):
+        '''
+        Print a text representation of this Node to stdout.
+
+        :param int indent: the amount by which to indent the output.
+        '''
         print(self.indent(indent)+self.coloured_text+"[ACC Parallel]")
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -1500,6 +1523,10 @@ class ACCParallelDirective(ACCDirective):
 
     def gen_code(self, parent):
         '''
+        Generate the elements of the f2pygen AST for this Node in the Schedule.
+
+        :param parent: node in the f2pygen AST to which to add node(s).
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import DirectiveGen
 
@@ -1562,6 +1589,9 @@ class ACCParallelDirective(ACCDirective):
         '''
         Returns a list of field objects required by the Kernel call(s) that are
         children of this directive.
+
+        :returns: list of names of field arguments
+        :rtype: list of str
         '''
         # Look-up the calls that are children of this node
         my_calls = self.walk(self.children, Call)
@@ -1577,13 +1607,13 @@ class ACCParallelDirective(ACCDirective):
         '''
         Returns a list of the scalar quantities required by the Calls in
         this region.
-        :returns: list of scalar arguments
+
+        :returns: list of names of scalar arguments
         :rtype: list of str
         '''
         my_calls = self.walk(self.children, Call)
         scalars = []
         for call in my_calls:
-            # TODO use args_filter here?
             for arg in call.arguments.scalars:
                 if arg not in scalars:
                     scalars.append(arg)
@@ -1609,6 +1639,7 @@ class ACCLoopDirective(ACCDirective):
     def view(self, indent=0):
         '''
         Print a textual representation of this Node to stdout.
+
         :param int indent: amount to indent output by
         '''
         text = self.indent(indent)+self.coloured_text+"[ACC Loop"
@@ -1623,11 +1654,12 @@ class ACCLoopDirective(ACCDirective):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenACC
         loop directive.
+
         :param parent: the parent Node in the Schedule to which to add our
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if this "!$acc loop" is not enclosed within an
-                                 ACC Parallel region.
+        :raises GenerationError: if this "!$acc loop" is not enclosed within \
+                                 an ACC Parallel region.
         '''
         from psyclone.f2pygen import DirectiveGen
 
@@ -1658,7 +1690,10 @@ class OMPDirective(Directive):
     '''
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in a dag for this node
+        :rtype: str
+        '''
         return "OMP_directive_" + str(self.abs_position)
 
     def view(self, indent=0):
@@ -1892,11 +1927,12 @@ class OMPDoDirective(OMPDirective):
         '''
         Generate the f2pygen AST entries in the Schedule for this OpenMP do
         directive.
-        :param parent: the parent Node in the Schedule to which to add our
+
+        :param parent: the parent Node in the Schedule to which to add our \
                        content.
         :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if this "!$omp do" is not enclosed within an
-                                 OMP Parallel region.
+        :raises GenerationError: if this "!$omp do" is not enclosed within \
+                                 an OMP Parallel region.
         '''
         from psyclone.f2pygen import DirectiveGen
 
@@ -2903,7 +2939,7 @@ class Arguments(object):
     @property
     def acc_args(self):
         '''
-        :returns: the list of quantities that must be available on an
+        :returns: the list of quantities that must be available on an \
                   OpenACC device before the associated kernel can be launched
         :rtype: list of str
         '''
