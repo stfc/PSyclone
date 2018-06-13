@@ -1370,10 +1370,12 @@ class Directive(Node):
 class ACCDirective(Directive):
     ''' Base class for all OpenACC directive statments. '''
 
+    @abc.abstractmethod
     def view(self, indent=0):
-        print(self.indent(indent) + self.coloured_text + "[OpenACC]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+        '''
+        Print text representation of this node to stdout
+        :param int indent: size of indent to use for output
+        '''
 
     @property
     def dag_name(self):
@@ -1581,7 +1583,15 @@ class ACCLoopDirective(ACCDirective):
         super(ACCLoopDirective, self).__init__(children, parent)
 
     def view(self, indent=0):
-        print(self.indent(indent)+self.coloured_text+"[ACC Loop]")
+        '''
+        Print a textual representation of this Node to stdout.
+        :param int indent: amount to indent output by
+        '''
+        text = self.indent(indent)+self.coloured_text+"[ACC Loop"
+        if self._collapse:
+            text += ", collapse={0}".format(self._collapse)
+        text += "]"
+        print(text)
         for entity in self._children:
             entity.view(indent=indent + 1)
 

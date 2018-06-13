@@ -62,7 +62,8 @@ from psyclone.generator import generate
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "gocean1p0")
 
 # PSyFactory class unit tests
 
@@ -707,6 +708,53 @@ def test_ompdo_directive_class_view(capsys):
             print(out)
             print(expected_output)
             assert expected_output in out
+
+
+def test_acc_dir_view(capsys):
+    ''' Test the view() method of OpenACC directives '''
+    from psyclone.transformations import ACCDataTrans, ACCLoopTrans, \
+        ACCParallelTrans
+    from psyclone.psyGen import ACCDataDirective, ACCLoopDirective, \
+        ACCParallelDirective
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    from utils import get_invoke
+
+    acclt = ACCLoopTrans()
+    accdt = ACCDataTrans()
+    accpt = ACCParallelTrans()
+
+    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
+                             "gocean1.0", idx=0)
+    colour = SCHEDULE_COLOUR_MAP["Directive"]
+    schedule = invoke.schedule
+    # Enter-data
+    new_sched, _ = accdt.apply(schedule)
+    new_sched.children[0].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC enter data]")
+
+    # Parallel region
+    new_sched, _ = accpt.apply(new_sched.children[1])
+    new_sched.children[1].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC Parallel]")
+
+    # Loop directive
+    new_sched, _ = acclt.apply(new_sched.children[1].children[0])
+    new_sched.children[1].children[0].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC Loop]")
+
+    # Loop directive with collapse
+    new_sched, _ = acclt.apply(new_sched.children[1].children[0].children[0],
+                               collapse=2)
+    new_sched.children[1].children[0].children[0].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC Loop, collapse=2]")
 
 
 def test_call_abstract_methods():
