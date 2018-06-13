@@ -50,6 +50,7 @@ import os
 import re
 import pytest
 from fparser import api as fpapi
+from utils import get_invoke
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
@@ -583,9 +584,9 @@ def test_kern_coloured_text():
     assert colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) in ret_str
 
 
-def test_call_local_vars():
-    ''' Check that calling the abstract local_vars() method of Call raises
-    the expected exception '''
+def test_call_abstract_methods():
+    ''' Check that calling the abstract methods of Call raises
+    the expected exceptions '''
     from psyclone.psyGen import Call, Arguments
     my_arguments = Arguments(None)
 
@@ -606,6 +607,27 @@ def test_call_local_vars():
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Call.local_vars should be implemented" in str(excinfo.value)
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.__str__()
+    assert "Call.__str__ should be implemented" in str(excinfo.value)
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.gen_code(None)
+    assert "Call.gen_code should be implemented" in str(excinfo.value)
+
+
+def test_arguments_abstract():
+    ''' Check that we raise NotImplementedError if any of the virtual methods
+    of the Arguments class are called. '''
+    from psyclone.psyGen import Arguments
+    my_arguments = Arguments(None)
+    with pytest.raises(NotImplementedError) as err:
+        _ = my_arguments.acc_args
+    assert "Arguments.acc_args must be implemented in sub-class" in str(err)
+    with pytest.raises(NotImplementedError) as err:
+        _ = my_arguments.scalars
+    assert "Arguments.scalars must be implemented in sub-class" in str(err)
 
 
 def test_incremented_arg():
@@ -660,6 +682,21 @@ def test_written_arg():
             "gh_readwrite access" in str(excinfo.value))
 
 
+def test_ompdo_constructor():
+    ''' Check that we can make an OMPDoDirective with and without
+    children '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
+                                                      create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    otrans = OMPParallelLoopTrans()
+    ompdo = OMPDoDirective(parent=schedule)
+    assert len(ompdo.children) == 0
+    ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
+    assert len(ompdo.children) == 1
+
+
 def test_ompdo_directive_class_view(capsys):
     '''tests the view method in the OMPDoDirective class. We create a
     sub-class object then call this method from it '''
@@ -675,13 +712,13 @@ def test_ompdo_directive_class_view(capsys):
          "current_string": "[OMP parallel]"},
         {"current_class": OMPDirective, "current_string": "[OMP]"},
         {"current_class": Directive, "current_string": ""}]
+    otrans = OMPParallelLoopTrans()
     for case in cases:
         for dist_mem in [False, True]:
 
             psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
                 create(invoke_info)
             schedule = psy.invokes.invoke_list[0].schedule
-            otrans = OMPParallelLoopTrans()
 
             if dist_mem:
                 idx = 3
@@ -717,7 +754,6 @@ def test_acc_dir_view(capsys):
     from psyclone.psyGen import ACCDataDirective, ACCLoopDirective, \
         ACCParallelDirective
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    from utils import get_invoke
 
     acclt = ACCLoopTrans()
     accdt = ACCDataTrans()
@@ -729,6 +765,9 @@ def test_acc_dir_view(capsys):
     schedule = invoke.schedule
     # Enter-data
     new_sched, _ = accdt.apply(schedule)
+    # Artificially add a child to this directive so as to get full
+    # coverage of the associated view() method
+    new_sched.children[0].addchild(new_sched.children[1])
     new_sched.children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
@@ -755,30 +794,6 @@ def test_acc_dir_view(capsys):
     out, _ = capsys.readouterr()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Loop, collapse=2]")
-
-
-def test_call_abstract_methods():
-    ''' Check that calling __str__() and gen_code() on the base Call
-    class raises the expected exception '''
-    from psyclone.psyGen import Call
-    # Monkey-patch a GenerationError object to mock-up suitable
-    # arguments to create a Call
-    fake_call = GenerationError("msg")
-    fake_ktype = GenerationError("msg")
-    fake_ktype.iterates_over = "something"
-    fake_call.ktype = fake_ktype
-    fake_call.module_name = "a_name"
-    from psyclone.psyGen import Arguments
-    fake_arguments = Arguments(None)
-    my_call = Call(fake_call, fake_call, name="a_name",
-                   arguments=fake_arguments)
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.__str__()
-    assert "Call.__str__ should be implemented" in str(excinfo.value)
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.gen_code(None)
-    assert "Call.gen_code should be implemented" in str(excinfo.value)
 
 
 def test_haloexchange_unknown_halo_depth():
@@ -1757,7 +1772,6 @@ def test_node_is_valid_location():
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
-    from utils import get_invoke
     from psyclone.psyGen import Node, Loop
     psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
                              "gocean1.0", idx=0)
@@ -1847,18 +1861,49 @@ def test_omp_dag_names():
     assert directive.dag_name == "directive_1"
 
 
-EXPECTED = (
-    "digraph {\n"
-    "	schedule_start\n"
-    "	schedule_end\n"
-    "	loop_0_start\n"
-    "	loop_0_end\n"
-    "		loop_0_end -> schedule_end [color=blue]\n"
-    "		schedule_start -> loop_0_start [color=blue]\n"
-    "	kernel_testkern_code_2\n"
-    "		kernel_testkern_code_2 -> loop_0_end [color=blue]\n"
-    "		loop_0_start -> kernel_testkern_code_2 [color=blue]\n"
-    "}")
+def test_acc_dag_names():
+    ''' Check that we generate the correct dag names for ACC parallel,
+    ACC enter-data and ACC loop directive Nodes '''
+    from psyclone.psyGen import ACCDataDirective
+    from psyclone.transformations import ACCDataTrans, ACCParallelTrans, \
+        ACCLoopTrans
+    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
+                             "gocean1.0", idx=0)
+    schedule = invoke.schedule
+
+    acclt = ACCLoopTrans()
+    accdt = ACCDataTrans()
+    accpt = ACCParallelTrans()
+    # Enter-data
+    new_sched, _ = accdt.apply(schedule)
+    assert schedule.children[0].dag_name == "ACC_data_1"
+    # Parallel region
+    new_sched, _ = accpt.apply(new_sched.children[1])
+    assert schedule.children[1].dag_name == "ACC_parallel_2"
+    # Loop directive
+    new_sched, _ = acclt.apply(new_sched.children[1].children[0])
+    assert schedule.children[1].children[0].dag_name == "ACC_loop_3"
+    # Base class
+    super(ACCDataDirective, schedule.children[0]).dag_name == "ACC_directive_1"
+
+
+def test_acc_datadevice_virtual():
+    ''' Check that calling ACCDataDirective.data_on_device() raises the
+    expected error '''
+    from psyclone.psyGen import ACCDataDirective
+    from psyclone.transformations import ACCDataTrans
+    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
+                             "gocean1.0", idx=0)
+    schedule = invoke.schedule
+
+    accdt = ACCDataTrans()
+    # Enter-data
+    new_sched, _ = accdt.apply(schedule)
+    # Call data_on_device for the base class
+    with pytest.raises(NotImplementedError) as err:
+        ACCDataDirective.data_on_device(schedule.children[0], schedule)
+    assert ("ACCDataDirective.data_on_device must be implemented in subclass"
+            in str(err))
 
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
