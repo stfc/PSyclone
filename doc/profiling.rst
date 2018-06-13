@@ -78,7 +78,7 @@ can be enclosed, as long as it is guaranteed that each call of
 
 This is the code sequence which is created by PSyclone::
 
-    use profile_mod, only : ProfileData, ProfileStart, ProfilEnd
+    use profile_mod, only : ProfileData, ProfileStart, ProfileEnd
     ...
     type(ProfileData), save :: profiler_data
     ...
@@ -179,7 +179,7 @@ Both options can be specified at the same time::
 
 Profiling in Scripts - ProfileRegionTransform
 ---------------------------------------------
-Most flexibility is possible by using the profiler
+The greatest flexibility is achieved by using the profiler
 transformation explicitly in a transformation script. The script
 takes either a single AST Node or a list of AST Nodes as argument,
 and will insert a Profile Node into the AST, with the 
@@ -215,13 +215,13 @@ and an opaque, user-defined type ``ProfileData`` needs to be
 provided in the module.
 
 Note that the ``ProfileEnd`` call does not have the module
-or region name as an argument. If this should be
+or region name as an argument. If this is
 required by the profiling library, this data must
 be stored in the ``ProfileData`` object so that it is
 available in the ``ProfileEnd`` call.
 
 The examples in the lib/profiling directory show various ways
-of how the opaque data type can be used to interface
+in which the opaque data type can be used to interface
 with existing profiling tools - for example by storing 
 an index used by the profiling tool in ``ProfileData``, or 
 by storing pointers to the profiling data to be able to 

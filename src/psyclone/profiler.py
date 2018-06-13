@@ -72,8 +72,15 @@ class Profiler(object):
             options = []   # Makes it easier to test
         for index, option in enumerate(options):
             if option not in [Profiler.INVOKES, Profiler.KERNELS]:
-                raise GenerationError("Invalid option {0} as parameter {1}"
-                                      .format(option, index))
+                # Create a 'nice' representation of the allowed options.
+                # [1:-1] cuts out the '[' and ']' that surrounding the
+                # string of the list.
+                allowed_options = str(Profiler.SUPPORTED_OPTIONS)[1:-1]
+                raise GenerationError("Error in Profiler.setOptions: options "
+                                      "must be one of {0} but found '{1}' "
+                                      "at {2}"
+                                      .format(allowed_options,
+                                              str(option), index))
 
         # Store options so they can be queried later
         Profiler._options = options
@@ -165,7 +172,9 @@ class ProfileNode(Node):
 
     # -------------------------------------------------------------------------
     def view(self, indent=0):
-        '''Class specific view function to print the tree. '''
+        '''Class specific view function to print the tree.
+        Parameters:
+        :param int indent: Indentation to be used for this node.'''
         # pylint: disable=arguments-differ
         print(self.indent(indent) + self.coloured_text)
         for entity in self._children:

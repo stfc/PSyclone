@@ -261,8 +261,6 @@ class PSy(object):
 
     '''
     def __init__(self, invoke_info):
-        # pylint:disable=dangerous-default-value
-
         self._name = invoke_info.name
         self._invokes = None
 

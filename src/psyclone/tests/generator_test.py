@@ -16,6 +16,7 @@ functions.
 
 from __future__ import absolute_import
 import os
+import re
 import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
@@ -411,13 +412,16 @@ def test_main_profile(capsys):
     with pytest.raises(SystemExit):
         main(options+["--profile", filename])
     _, outerr = capsys.readouterr()
-    assert "invalid choice" in outerr
+
+    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    assert re.search(correct_re, outerr) is not None
 
     # Check for invalid parameter
     with pytest.raises(SystemExit):
         main(options+["--profile", "invalid", filename])
     _, outerr = capsys.readouterr()
-    assert "invalid choice" in outerr
+
+    assert re.search(correct_re, outerr) is not None
 
     # Reset profile flags to avoid further failures in other tests
     Profiler.set_options(None)
@@ -482,7 +486,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
         "argument of type 'int' is not iterable\n"
         "Type ...\n"
         "%s\n"
-        "Stacktrace ...\n"%type(TypeError()))
+        "Stacktrace ...\n" % type(TypeError()))
     assert expected_output in output
 
 

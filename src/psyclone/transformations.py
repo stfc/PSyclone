@@ -1689,7 +1689,6 @@ class ProfileRegionTrans(Transformation):
     >>>
     >>> schedule=psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> new_schedule=schedule
     >>>
     >>> # Enclose all children within a single profile region
     >>> newschedule, _ = p_trans.apply(schedule.children)
@@ -1708,7 +1707,7 @@ class ProfileRegionTrans(Transformation):
     def apply(self, nodes):
         # pylint: disable=arguments-differ
         '''Apply this transformation to a subset of the nodes within a
-        schedule - i.e. enclose the specified Loops in the
+        schedule - i.e. enclose the specified Nodes in the
         schedule within a single profiler region.
 
         :param nodes: Can be a single node or a list of nodes.

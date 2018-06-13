@@ -123,7 +123,7 @@ def test_profile_basic(capsys):
     prt = ProfileRegionTrans()
 
     # Insert a profile call between outer and inner loop.
-    # This is tests that we find the subroutine node even
+    # This tests that we find the subroutine node even
     # if it is not the immediate parent.
     new_sched, _ = prt.apply(invoke.schedule.children[0]
                              .children[0].children[0])
@@ -157,7 +157,7 @@ def test_profile_errors2():
 
     with pytest.raises(GenerationError) as gen_error:
         Profiler.set_options(["invalid"])
-    assert "Invalid option" in str(gen_error)
+    assert "options must be one of 'invokes', 'kernels'" in str(gen_error)
 
 
 # -----------------------------------------------------------------------------
@@ -172,7 +172,7 @@ def test_profile_invokes_gocean1p0():
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
 
-    # First a simple test to that the nesting is correct - the
+    # First a simple test that the nesting is correct - the
     # profile regions include both loops
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
@@ -326,6 +326,9 @@ def test_profile_invokes_dynamo0p3():
                   "call.*"
                   "end.*"
                   "call ProfileEnd")
+    print correct_re
+    print "------"
+    print code
     assert re.search(correct_re, code, re.I) is not None
 
     # Next test two kernels in one invoke:
