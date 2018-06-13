@@ -931,9 +931,9 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
 
 class ColourTrans(Transformation):
-
-    ''' Apply a colouring transformation to a loop (in order to permit a
-        subsequent OpenMP parallelisation over colours). For example:
+    '''
+    Apply a colouring transformation to a loop (in order to permit a
+    subsequent OpenMP parallelisation over colours). For example:
 
     >>> invoke = ...
     >>> schedule = invoke.schedule
@@ -1368,7 +1368,8 @@ class OMPParallelTrans(ParallelRegionTrans):
 
 class ACCParallelTrans(ParallelRegionTrans):
     '''
-    Create an OpenACC parallel region by inserting directives. For
+    Create an OpenACC parallel region by inserting directives. This parallel
+    region *must* come after an enter-data directive (see `ACCDataTrans`). For
     example:
 
     >>> from psyclone.parse import parse
@@ -1381,12 +1382,15 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> from psyclone.psyGen import TransInfo
     >>> t=TransInfo()
     >>> ptrans = t.get_trans_name('ACCParallelTrans')
+    >>> dtrans = t.get_trans_name('ACCDataTrans')
     >>>
     >>> schedule=psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
     >>> # Enclose everything within a single OpenACC PARALLEL region
     >>> newschedule, _ = ptrans.apply(schedule.children)
+    >>> # Add an enter-data directive
+    >>> newschedule, _ = dtrans.apply(newschedule)
     >>> newschedule.view()
     '''
     def __init__(self):
@@ -2136,8 +2140,28 @@ if 0:
 
 
 class ACCDataTrans(Transformation):
-    ''' Adds an OpenACC enter data directive to a Schedule '''
+    '''
+    Adds an OpenACC enter data directive to a Schedule
+    For example:
 
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api="gocean1.0"
+    >>> filename="nemolite2d_alg.f90"
+    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
+    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.psyGen import TransInfo
+    >>> t=TransInfo()
+    >>> dtrans = t.get_trans_name('ACCDataTrans')
+    >>>
+    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Add an enter-data directive
+    >>> newschedule, _ = dtrans.apply(schedule)
+    >>> newschedule.view()
+    '''
     def __str__(self):
         return "Adds an OpenACC enter data directive"
 
