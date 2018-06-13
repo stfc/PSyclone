@@ -31,9 +31,25 @@ transformations are API-specific (or specific to a set of API's
 e.g. dynamo). Currently these different types of transformation are
 indicated by their names.
 
-The generic transformations currently available are given below (a
-number of these have specialisations which can be found in the
-API-specific sections).
+The generic transformations currently available are listed in
+alphabetical order below (a number of these have specialisations which
+can be found in the API-specific sections).
+
+.. autoclass:: psyclone.transformations.ACCDataTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.transformations.ACCLoopTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.transformations.ACCParallelTrans
+    :members:
+    :noindex:
+	       
+.. autoclass:: psyclone.transformations.ColourTrans
+    :members:
+    :noindex:
 
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
     :members:
@@ -53,19 +69,15 @@ API-specific sections).
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.ColourTrans
-    :members:
-    :noindex:
-
 .. autoclass:: psyclone.transformations.OMPLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.OMPParallelTrans
+.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+.. autoclass:: psyclone.transformations.OMPParallelTrans
     :members:
     :noindex:
 
