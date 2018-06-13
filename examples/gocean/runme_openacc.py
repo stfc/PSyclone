@@ -49,8 +49,13 @@ been loop-fused and then parallelised:
 
  >>>    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, cv_fld, v_fld, z_fld, h_fld)
  >>>      ...
+ >>>      IF (first_time) THEN
+ >>>        !$acc enter data copyin(...)
+ >>>        ...
+ >>>      END IF
  >>>      !
- >>>      !$omp parallel do default(shared), private(j,i), schedule(static)
+ >>>      !$acc parallel default(present)
+ >>>      !$acc loop collapse(2)
  >>>      DO j=2,jstop
  >>>        DO i=2,istop+1
  >>>          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
@@ -61,7 +66,7 @@ been loop-fused and then parallelised:
  >>>                              v_fld%data)
  >>>        END DO
  >>>      END DO
- >>>      !$omp end parallel do
+ >>>      !$acc end parallel
  >>>    END SUBROUTINE invoke_0
 
 '''

@@ -75,15 +75,17 @@ def index_of_object(alist, obj):
 class Directive(Comment):
     '''
     Base class for directives so we can reason about them when walking
-    the tree
-    :param root: the parent node in the AST to which we are adding the
+    the tree. Sub-classes the fparser1 Comment class.
+
+    :param root: the parent node in the AST to which we are adding the \
                  directive
-    :type root: either :py:class:`psyclone.psyGen.Node` or
+    :type root: either :py:class:`psyclone.psyGen.Node` or \
                 :py:class:`fparser.one.block_statements.Subroutine`
-    :param line: the fparser object representing the Directive to add
+    :param line: the fparser object which we will manipulate to create \
+                 the desired directive.
     :type line: :py:class:`fparser.common.readfortran.Comment`
     :param str position: e.g. 'begin' or 'end' (language specific)
-    :param str dir_type: the type of directive that this is (e.g.
+    :param str dir_type: the type of directive that this is (e.g. \
                          'parallel do')
     '''
     def __init__(self, root, line, position, dir_type):
@@ -113,29 +115,21 @@ class Directive(Comment):
 
 
 class OMPDirective(Directive):
-    ''' Subclass f2py comment for OpenMP directives so we can 
-        reason about them when walking the tree '''
-    def __init__(self,root,line,position,dir_type):
+    '''
+    Subclass Directive for OpenMP directives so we can reason about
+    them when walking the tree.
+    '''
+    def __init__(self, root, line, position, dir_type):
         self._types = ["parallel do", "parallel", "do", "master"]
         self._positions = ["begin", "end"]
 
-        Directive.__init__(self,root,line,position,dir_type)
+        super(OMPDirective, self).__init__(root, line, position, dir_type)
 
 
 class ACCDirective(Directive):
     '''
     Subclass Directive for OpenACC directives so we can reason about them
     when walking the tree.
-
-    :param root: the node in the fparser1 AST to which we are adding the
-                 directive.
-    :type root: :py:class:`fparser.one.block_statements.Subroutine`
-    :param line: the node in the fparser1 AST which we will manipulate to
-                 create the desired directive.
-    :type line: :py:class:`fparser.common.readfortran.Comment`.
-    :param str position: whether 'begin' or 'end'.
-    :param str dir_type: the name of the directive to create.
-
     '''
     def __init__(self, root, line, position, dir_type):
         self._types = ["parallel", "kernels", "enter data", "loop"]
