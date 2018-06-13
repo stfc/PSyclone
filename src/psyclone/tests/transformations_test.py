@@ -49,15 +49,23 @@ def test_accloop():
 
     pnode = Node()
     cnode = Node()
-    dir = trans.directive(pnode, [cnode])
+    dir = trans._directive(pnode, [cnode])
     assert isinstance(dir, ACCLoopDirective)
 
 
 def test_accparallel():
-    ''' Generic tests for the OpenACCParallelTrans class '''
+    ''' Generic tests for the ACCParallelTrans class '''
     from psyclone.transformations import ACCParallelTrans
     acct = ACCParallelTrans()
     assert acct.name == "ACCParallelTrans"
+
+
+def test_accdata():
+    ''' Generic tests for the ACCDataTrans class '''
+    from psyclone.transformations import ACCDataTrans
+    acct = ACCDataTrans()
+    assert acct.name == "ACCDataTrans"
+    assert str(acct) == "Adds an OpenACC enter data directive"
 
 
 def test_omploop_no_collapse():
@@ -69,6 +77,6 @@ def test_omploop_no_collapse():
     pnode = Node()
     cnode = Node()
     with pytest.raises(NotImplementedError) as err:
-        _ = trans.directive(pnode, cnode, collapse=2)
+        _ = trans._directive(pnode, cnode, collapse=2)
     assert ("The COLLAPSE clause is not yet supported for '!$omp do' "
             "directives" in str(err))
