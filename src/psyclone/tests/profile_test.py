@@ -173,19 +173,23 @@ def test_profile_invokes_gocean1p0():
     code = str(invoke.gen()).replace("\n", "")
 
     # First a simple test that the nesting is correct - the
-    # profile regions include both loops
+    # profile regions include both loops. Note that indeed
+    # the function 'compute_cv_code' is in the module file
+    # kernel_ne_offset_mod.
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  "call ProfileStart.*"
+                  r"call ProfileStart\(\"kernel_ne_offset_mod\", "
+                  r"\"compute_cv_code\", profile\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
-                  "call ProfileEnd")
+                  r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
 
+    # Test that two kernels in one invoke get instrumented correctly.
     _, invoke = get_invoke("gocean1.0", "single_invoke_"
                            "two_kernels.f90", 0)
 
@@ -196,7 +200,8 @@ def test_profile_invokes_gocean1p0():
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  "call ProfileStart.*"
+                  r"call ProfileStart\(\"compute_cu_mod\", "
+                  r"\"compute_cu_code\", profile\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -207,7 +212,7 @@ def test_profile_invokes_gocean1p0():
                   "call.*"
                   "end.*"
                   "end.*"
-                  "call ProfileEnd")
+                  r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
     Profiler.set_options(None)
 
@@ -237,20 +242,23 @@ def test_unique_region_names():
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(.*, \"(\w*)\",.*\).*"
+                  r"TYPE\(ProfileData\), save :: profile.*"
+                  r"call ProfileStart\(\"compute_cu_mod\", \"(\w*)\", "
+                  r"profile\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
                   "end.*"
                   "end.*"
-                  "call ProfileEnd.*"
-                  r"call ProfileStart\(.*, \"(\w*)\",.*\).*"
+                  r"call ProfileEnd\(profile\).*"
+                  r"call ProfileStart\(\"compute_cu_mod\", \"(\w*)\", "
+                  r"profile_1\).*"
                   "do j.*"
                   "do i.*"
                   "call compute_cu_code.*"
                   "end.*"
                   "end.*"
-                  "call ProfileEnd")
+                  r"call ProfileEnd\(profile_1\)")
 
     groups = re.search(correct_re, code, re.I)
     assert groups is not None
@@ -278,19 +286,24 @@ def test_profile_kernels_gocean1p0():
     # Test that kernel profiling works in case of two kernel calls
     # in a single invoke subroutine - i.e. we need to have one profile
     # start call before two nested loops, and one profile end call
-    # after that:
+    # after that.
+    # Also note that the '.*' after compute_cu_code is necessary since
+    # the name could be changed to avoid duplicates (depending on order
+    # in which the tests are executed).
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(.*, (?P<profile1>\w*)\).*"
+                  r"call ProfileStart\(\"compute_cu_mod\", "
+                  r"\"compute_cu_code.*\", (?P<profile1>\w*)\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
                   "end.*"
                   "end.*"
                   r"call ProfileEnd\((?P=profile1)\).*"
-                  r"call ProfileStart\(.*, (?P<profile2>\w*)\).*"
+                  r"call ProfileStart\(\"time_smooth_mod\", "
+                  r"\"time_smooth_code\", (?P<profile2>\w*)\).*"
                   "do j.*"
                   "do i.*"
                   "call.*"
@@ -321,14 +334,12 @@ def test_profile_invokes_dynamo0p3():
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  "call ProfileStart.*"
+                  r"call ProfileStart\(\"testkern\", \"testkern_code\", "
+                  r"profile\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  "call ProfileEnd")
-    print correct_re
-    print "------"
-    print code
+                  r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
 
     # Next test two kernels in one invoke:
@@ -338,17 +349,20 @@ def test_profile_invokes_dynamo0p3():
     # regex matching easier
     code = str(invoke.gen()).replace("\n", "")
 
+    # The .* after testkern_code is necessary since the name can be changed
+    # by PSyclone to avoid name duplications.
     correct_re = ("subroutine invoke.*"
                   "use profile_mod, only: ProfileData.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  "call ProfileStart.*"
+                  r"call ProfileStart\(\"testkern\", \"testkern_code.*\","
+                  r" profile\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  "call ProfileEnd")
+                  r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
     Profiler.set_options(None)
 
@@ -366,13 +380,15 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData.*"
+                  "use profile_mod, only: ProfileData, ProfileStart, "
+                  "ProfileEnd.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  "call ProfileStart.*"
+                  r"call ProfileStart\(\"testkern\", \"testkern_code.*\", "
+                  r"profile\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
-                  "call ProfileEnd")
+                  r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
 
     _, invoke = get_invoke("dynamo0.3", "1.2_multi_invoke.f90", 0)
@@ -382,10 +398,12 @@ def test_profile_kernels_dynamo0p3():
     code = str(invoke.gen()).replace("\n", "")
 
     correct_re = ("subroutine invoke.*"
-                  "use profile_mod, only: ProfileData.*"
+                  "use profile_mod, only: ProfileData, ProfileStart, "
+                  "ProfileEnd.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
                   r"TYPE\(ProfileData\), save :: profile.*"
-                  r"call ProfileStart\(.*, (?P<profile1>\w*)\).*"
+                  r"call ProfileStart\(\"testkern\", \"testkern_code.*\", "
+                  r"(?P<profile1>\w*)\).*"
                   "do cell.*"
                   "call.*"
                   "end.*"
