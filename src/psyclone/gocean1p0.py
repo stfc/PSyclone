@@ -49,7 +49,7 @@ from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
-    GenerationError
+    GenerationError, args_filter
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -853,11 +853,8 @@ class GOKernelArguments(Arguments):
         :returns: list of names of (Fortran) field objects
         :rtype: list of str
         '''
-        arg_list = []
-        for arg in self._args:
-            if arg.type == "field":
-                arg_list.append(arg.name)
-        return arg_list
+        args = args_filter(self._args, arg_types=["field"])
+        return [arg.name for arg in args]
 
     @property
     def scalars(self):
@@ -865,11 +862,8 @@ class GOKernelArguments(Arguments):
         :returns: a list of the names of scalar arguments in this object
         :rtype: list of str
         '''
-        scalar_args = []
-        for arg in self._args:
-            if arg.type == "scalar":
-                scalar_args.append(arg.name)
-        return scalar_args
+        args = args_filter(self._args, arg_types=["scalar"])
+        return [arg.name for arg in args]
 
 
 class GOKernelArgument(KernelArgument):
