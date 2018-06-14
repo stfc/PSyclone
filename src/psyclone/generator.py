@@ -185,7 +185,7 @@ def main(args):
     function if all is well, catches any errors and outputs the
     results
     '''
-    # pylint: disable=too-many-statements
+    # pylint: disable=too-many-statements,too-many-branches
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
@@ -229,6 +229,11 @@ def main(args):
 
     if args.version:
         print("PSyclone version: {0}".format(__VERSION__))
+
+    if args.script is not None and args.profile is not None:
+        print("Warning: Using automatic profiling with a script can cause "
+              "errors")
+        print("         in the script due to modification of the AST.")
 
     try:
         alg, psy = generate(args.filename, api=args.api,

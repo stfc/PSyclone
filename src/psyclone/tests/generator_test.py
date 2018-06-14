@@ -423,6 +423,17 @@ def test_main_profile(capsys):
 
     assert re.search(correct_re, outerr) is not None
 
+    # Check for warning in case of script with profiling"
+    with pytest.raises(SystemExit):
+        main(options+["--profile", "kernels", "-s", "somescript", filename])
+    out, _ = capsys.readouterr()
+
+    warning = ("Warning: Using automatic profiling with a script can cause "
+               "errors\n"
+               "         in the script due to modification of the AST.")
+
+    assert warning in out
+
     # Reset profile flags to avoid further failures in other tests
     Profiler.set_options(None)
 
