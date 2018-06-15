@@ -71,6 +71,39 @@ def test_use_stmts():
     assert "if(first_time)then" in generated_code
 
 
+@pytest.mark.xfail(reason="DeclGen does not support character")
+def test_psy_init():
+    ''' Check that we create a psy_init() routine that sets-up the
+    OpenCL environment '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    from psyclone.transformations import OCLTrans
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen)
+    print(generated_code)
+    expected = '''\
+    SUBROUTINE psy_init()
+      USE ocl_env_mod, ONLY: ocl_env_init, add_kernels
+      CHARACTER, LEN(40) :: kernel_names(1)
+      ! Initialise the OpenCL environment/device
+      CALL ocl_env_init
+      ! The kernels this PSy layer module requires
+      kernel_names(1) = "compute_cu_code"
+      ! Create the OpenCL kernel objects. Expects to find all of the compiled 
+      ! kernels in PSYCLONE_KERNELS_FILE.
+      CALL add_kernels(1, kernel_names)
+    END SUBROUTINE psy_init
+'''
+    assert expected in generated_code
+
+
 def test_set_kern_args():
     ''' Check that we generate the necessary code to set kernel arguments '''
     _, invoke_info = parse(os.path.join(os.path.

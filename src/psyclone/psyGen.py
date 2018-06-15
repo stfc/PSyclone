@@ -350,10 +350,15 @@ class Invokes(object):
         parent.add(sub)
         sub.add(UseGen(sub, name="ocl_env_mod", only=True,
                        funcnames=["ocl_env_init", "add_kernels"]))
+
         # Initialise the OpenCL environment
+        sub.add(CommentGen(sub, " Initialise the OpenCL environment/device"))
         sub.add(CallGen(sub, "ocl_env_init"))
+
         # Create a list of our kernels
+        sub.add(CommentGen(sub, " The kernels this PSy layer module requires"))
         nkernstr = str(len(kernels))
+
         # TODO extend DeclGen to support character!
         sub.add(DeclGen(sub, datatype="integer",
                         entity_decls=["kernel_names({0})".format(nkernstr)]))
