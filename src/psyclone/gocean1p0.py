@@ -706,13 +706,21 @@ class GOKern(Kern):
         return None
 
     def gen_code(self, parent):
-        ''' Generates GOcean v1.0 specific psy code for a call to the dynamo
-            kernel instance. '''
+        '''
+        Generates GOcean v1.0 specific psy code for a call to the 
+        kernel instance.
+
+        :param parent: parent node in the f2pygen AST being created.
+        :type parent: :py:class:`psyclone.f2pygen.LoopGen`
+        :raises GenerationError: if the kernel requires a grid property but \
+                                 does not have any field arguments.
+        :raises GenerationError: if it encounters a kernel argument of \
+                                 unrecognised type.
+        '''
         from psyclone.f2pygen import CallGen, UseGen
 
         if self.root.opencl:
             # OpenCL is completely different so has its own gen method.
-            # TODO is there a nicer way of doing this?
             self.gen_ocl(parent)
             return
 
@@ -754,9 +762,11 @@ class GOKern(Kern):
 
     def gen_ocl(self, parent):
         '''
-        :param parent:
+        :param parent: Parent node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
+        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
+            IfThenGen
 
         garg = self._find_grid_access()
         parent.add(DeclGen(parent, datatype="integer",
@@ -767,10 +777,44 @@ class GOKern(Kern):
 
         kernel = "kernel_" + self._name  # TODO use namespace manager
 
-        # First we have to set the kernel arguments
+        # Ensure fields are on device TODO this belongs somewhere else!
+        parent.add(CommentGen(parent,
+                              " Ensure field data is on device"))
+        for arg in self._arguments.args:
+            if arg.type == "field":
+                ifthen = IfThenGen(parent,
+                                   ".NOT. {0}%data_on_device".format(arg.name))
+                parent.add(ifthen)
+                ifthen.add(AssignGen(
+                    ifthen, lhs="ierr",
+                    rhs="clEnqueueWriteBuffer(cmd_queues(1), {0}%device_ptr, "
+                    "CL_TRUE, 0_8, size_in_bytes, C_LOC({0}%data), "
+                    "0, C_NULL_PTR, C_LOC(write_event))".format(arg.name)))
+                ifthen.add(AssignGen(ifthen,
+                                     lhs="{0}.data_on_device".format(arg.name),
+                                     rhs=".true."))
+        # Ensure data copies have finished
+        parent.add(CommentGen(parent,
+                              " Block until data copies have finished"))
+        parent.add(AssignGen(parent, lhs="ierr",
+                             rhs="clFinish(cmd_queues(1))"))
+        # Then we set the kernel arguments
+        arguments = [kernel]
+        # TODO this argument-list generation duplicates that in
+        # GOKern.gen_code(). We need to re-factor ala dynamo0p3.ArgOrdering.
+        for arg in self._arguments.args:
+            if arg.type == "scalar":
+                arguments.append(arg.name)
+            elif arg.type == "field":
+                arguments.append(arg.name + "%device_ptr")
+            elif arg.type == "grid_property":
+                # TODO where to store device pointers for grid properties?
+                #arguments.append(garg.name+"%grid%"+arg.name)
+                raise NotImplementedError(
+                    "Grid property arrays not yet on OCL device")
         parent.add(CallGen(
-            parent, "{0}_set_args".format(self.name),
-            [kernel] + [arg.name for arg in self._arguments.args]))
+            parent, "{0}_set_args".format(self.name), arguments))
+
         # Then we call clEnqueueNDRangeKernel
         cnull = "C_NULL_PTR"
         cmd_queue = "cmd_queues(1)"  # TODO use namespace manager
