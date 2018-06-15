@@ -71,7 +71,7 @@ contains
     character(len=*), intent(in) :: kernel_names(nkernels)
     character(len=*), intent(in), optional :: filename
     ! Locals
-    integer :: ik, ierr
+    integer :: ik, ierr, new_kern_count
     integer(c_intptr_t), target :: prog
     character(len=300) :: lfilename
 
@@ -95,10 +95,15 @@ contains
     ! Get a program object containing all of our kernels
     prog = get_program(cl_context, cl_device, cl_version_str, lfilename)
 
+    new_kern_count = 0
     do ik = 1, nkernels
-       cl_kernels(cl_num_kernels+ik) = get_kernel(prog, kernel_names(ik))
+       ! Skip any kernels we've already got
+       if(get_kernel_index(kernel_names(ik)) /= 0)cycle
+       new_kern_count = new_kern_count + 1
+       cl_kernels(cl_num_kernels+new_kern_count) = get_kernel(prog, &
+                                                              kernel_names(ik))
     end do
-    cl_num_kernels = cl_num_kernels + nkernels
+    cl_num_kernels = cl_num_kernels + new_kern_count
 
     ! Release the program now that we've created the kernels
     call release_program(prog)
@@ -114,17 +119,7 @@ contains
     integer :: ik, match
     character(len=256) :: msg
 
-    !> \TODO is there a better way to do this that reduces the need for
-    !! string comparisons?
-    match = 0
-    do ik = 1, cl_num_kernels
-       if(name == cl_kernel_names(ik))then
-          ! We can't just return out of this loop because this is a
-          ! function
-          match = ik
-          exit
-       end if
-    end do
+    match = get_kernel_index(name)
 
     if(match == 0)then
        !> \TODO add check that we don't go out of bounds when writing to msg
@@ -136,6 +131,27 @@ contains
     kern = cl_kernels(match)
 
   end function get_kernel_by_name
+
+  !===================================================
+
+  function get_kernel_index(name) result index
+    integer :: index
+    character(len=*), intent(in) :: name
+    integer :: ik
+    !> Helper routine to search for a kernel by name. Returns the
+    !! index of the kernel (in the cl_kernels list) if found or 0.
+    index = 0
+    !> \TODO is there a better way to do this that reduces the need for
+    !! string comparisons?
+    do ik = 1, cl_num_kernels
+       if(name == cl_kernel_names(ik))then
+          ! We can't just return out of this loop because this is a
+          ! function
+          index = ik
+          exit
+       end if
+    end do
+  end function get_kernel_index
 
   !===================================================
 

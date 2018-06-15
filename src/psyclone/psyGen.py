@@ -338,6 +338,33 @@ class Invokes(object):
                     if kern.name not in opencl_kernels:
                         opencl_kernels.append(kern.name)
                         kern.gen_arg_setter_code(parent)
+                # We must also ensure that we have a kernel object for
+                # each kernel called from the PSy layer
+                self.gen_ocl_init(parent, opencl_kernels)
+
+    def gen_ocl_init(self, parent, kernels):
+        from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
+            CallGen, UseGen, CommentGen
+        #import pdb; pdb.set_trace()
+        sub = SubroutineGen(parent, "psy_init")
+        parent.add(sub)
+        sub.add(UseGen(sub, name="ocl_env_mod", only=True,
+                       funcnames=["ocl_env_init", "add_kernels"]))
+        # Initialise the OpenCL environment
+        sub.add(CallGen(sub, "ocl_env_init"))
+        # Create a list of our kernels
+        nkernstr = str(len(kernels))
+        # TODO extend DeclGen to support character!
+        sub.add(DeclGen(sub, datatype="integer",
+                        entity_decls=["kernel_names({0})".format(nkernstr)]))
+        for idx, kern in enumerate(kernels):
+            sub.add(AssignGen(sub, lhs="kernel_names({0})".format(idx+1),
+                              rhs='"{0}"'.format(kern)))
+        sub.add(CommentGen(sub,
+                           " Create the OpenCL kernel objects. Expects "
+                           "to find all of the compiled "))
+        sub.add(CommentGen(sub, " kernels in PSYCLONE_KERNELS_FILE."))
+        sub.add(CallGen(sub, "add_kernels", [nkernstr, "kernel_names"]))
 
 
 class NameSpaceFactory(object):
