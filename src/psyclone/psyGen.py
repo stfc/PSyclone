@@ -1332,13 +1332,58 @@ class Schedule(Node):
                        which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
+        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
+            IfThenGen
+
         if self._opencl:
-            from psyclone.f2pygen import UseGen
             parent.add(UseGen(parent, name="iso_c_binding"))
             parent.add(UseGen(parent, name="clfortran"))
+            parent.add(UseGen(parent, name="ocl_env_mod", only=True,
+                              funcnames=["get_num_cmd_queues",
+                                         "get_cmd_queues",
+                                         "get_kernel_by_name"]))
+            # Command queues
+            parent.add(DeclGen(parent, datatype="integer", save=True,
+                               entity_decls=["num_cmd_queues"]))
+            parent.add(DeclGen(parent, datatype="integer", save=True,
+                               pointer=True, kind="c_intptr_t",
+                               entity_decls=["cmd_queues(:)"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=["ierr"]))
+            parent.add(DeclGen(parent, datatype="logical", save=True,
+                               entity_decls=["first_time"],
+                               initial_values=[".true."]))
+            if_first = IfThenGen(parent, "first_time")
+            parent.add(if_first)
+            if_first.add(AssignGen(if_first, lhs="first_time", rhs=".false."))
+            if_first.add(AssignGen(if_first, lhs="num_cmd_queues",
+                                   rhs="get_num_cmd_queues()"))
+            if_first.add(AssignGen(if_first, lhs="cmd_queues",
+                                   rhs="get_cmd_queues()"))
+            # Kernel pointers
+            kernels = self.walk(self._children, Call)
+            for kern in kernels:
+                kernel = "kernel_" + kern.name  # TODO use namespace manager
+                parent.add(
+                    DeclGen(parent, datatype="integer", kind="c_intptr_t",
+                            save=True, target=True, entity_decls=[kernel]))
+                if_first.add(
+                    AssignGen(
+                        if_first, lhs=kernel,
+                        rhs='get_kernel_by_name("{0}")'.format(kern.name)))
 
         for entity in self._children:
             entity.gen_code(parent)
+
+        if self.opencl:
+            # Ensure we block at the end of the invoke to ensure all
+            # kernels have completed before we return.
+            # TODO can we lift this restriction?
+            # BUG this assumes only the first command queue is used
+            parent.add(CommentGen(parent,
+                                  " Block until all kernels have finished"))
+            parent.add(AssignGen(parent, lhs="ierr",
+                                 rhs="clFinish(cmd_queues(1))"))
 
     @property
     def opencl(self):
@@ -2525,14 +2570,27 @@ class Kern(Call):
         from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
             AssignGen, CommentGen
         # TODO take care with literal arguments
+        arguments = ["kern"] + [arg.name for arg in self._arguments.args]
         sub = SubroutineGen(parent, name=self.name+"_set_args",
-                            args=[arg.name for arg in self._arguments.args])
+                            args=arguments)
         parent.add(sub)
         # TODO add a use for check_status() routine
         sub.add(UseGen(sub, name="iso_c_binding", only=True,
-                       funcnames=["sizeof", "c_loc"]))
+                       funcnames=["sizeof", "c_loc", "c_intptr_t"]))
         sub.add(UseGen(sub, name="clfortran", only=True,
                        funcnames=["clSetKernelArg"]))
+        # Declare arguments
+        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                        target=True, entity_decls=["kern"]))
+        fld_args = []
+        for arg in self._arguments.args:
+            if arg.type == "field":
+                fld_args.append(arg.name)
+        if fld_args:
+            sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                            target=True, entity_decls=fld_args))
+
+        # Declare local variables
         sub.add(DeclGen(sub, datatype="integer", entity_decls=["ierr",
                                                                "arg_idx"]))
         sub.add(CommentGen(
