@@ -775,16 +775,17 @@ class DeclGen(BaseGen):
     :param list entity_decls: list of variable names to declare
     :param str intent: the INTENT attribute of this declaration
     :param bool pointer: whether or not this is a pointer declaration
+    :param bool target: whether this declaration has the TARGET attribute
     :param str kind: the KIND attribute to use for this declaration
-    :param str dimension: the DIMENSION specifier (i.e. the xx in
+    :param str dimension: the DIMENSION specifier (i.e. the xx in \
                           DIMENSION(xx))
-    :param bool allocatable: whether this declaration is for an
+    :param bool allocatable: whether this declaration is for an \
                              ALLOCATABLE quantity
     :param bool save: whether this declaration should have the SAVE attribute
     :param initial_values: Initial value to give each variable.
     :type initial_values: list of str with same no. of elements as entity_decls
     :raises RuntimeError: if no variable names are specified
-    :raises RuntimeError: if datatype is not one of "integer", "real" or
+    :raises RuntimeError: if datatype is not one of "integer", "real" or \
                           "logical"
 
     '''
@@ -792,8 +793,8 @@ class DeclGen(BaseGen):
     SUPPORTED_TYPES = ["integer", "real", "logical"]
 
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
-                 pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, initial_values=None):
+                 pointer=False, target=False, kind="", dimension="",
+                 allocatable=False, save=False, initial_values=None):
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a variable declaration without specifying the "
@@ -859,6 +860,8 @@ class DeclGen(BaseGen):
             my_attrspec.append("intent({0})".format(intent))
         if pointer:
             my_attrspec.append("pointer")
+        if target:
+            my_attrspec.append("target")
         if allocatable:
             my_attrspec.append("allocatable")
         if save:
