@@ -47,8 +47,8 @@ from psyclone.parse import parse
 from psyclone.profiler import Profiler, ProfileNode
 from psyclone.psyGen import Loop, NameSpace, PSyFactory
 
-from psyclone.transformations import GOceanOMPLoopTrans, ProfileRegionTrans, \
-    TransformationError
+from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
+    ProfileRegionTrans, TransformationError
 
 
 # TODO: Once #170 is merged, use the new tests/utils.py module
@@ -592,3 +592,62 @@ def test_transform_errors(capsys):
 
     assert "A ProfileNode can not be inserted into an omp do region" \
            in str(excinfo)
+
+
+# -----------------------------------------------------------------------------
+def test_omp_transform():
+    '''Tests that the profiling transform works correctly with OMP
+     parallelisation.'''
+
+    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+    schedule = invoke.schedule
+
+    prt = ProfileRegionTrans()
+    omp_loop = GOceanOMPLoopTrans()
+    omp_par = OMPParallelTrans()
+
+    # Parallelise the first loop:
+    sched1, _ = omp_loop.apply(schedule.children[0])
+    sched2, _ = omp_par.apply(sched1.children[0])
+    sched3, _ = prt.apply(sched2.children[0])
+
+    # \x20 is used instead of a space to avoid pep8 warning
+    # about trailing spaces
+    correct = (
+        '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
+"bc_ssh_code", profile)
+      !$omp parallel default(shared), private(j,i)
+      !$omp do schedule(static)
+      DO j=2,jstop
+        DO i=2,istop
+          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
+        END DO\x20
+      END DO\x20
+      !$omp end do
+      !$omp end parallel
+      CALL ProfileEnd(profile)''')
+    code = str(invoke.gen())
+    assert correct in code
+
+    # Now add another profile node between the omp parallel and omp do
+    # directives:
+    sched3, _ = prt.apply(sched3.children[0].children[0].children[0])
+
+    code = str(invoke.gen())
+
+    correct = '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
+"bc_ssh_code_1", profile_1)
+      !$omp parallel default(shared), private(j,i)
+      CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_2", \
+profile_2)
+      !$omp do schedule(static)
+      DO j=2,jstop
+        DO i=2,istop
+          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
+        END DO\x20
+      END DO\x20
+      !$omp end do
+      CALL ProfileEnd(profile_2)
+      !$omp end parallel
+      CALL ProfileEnd(profile_1)'''
+    assert correct in code
