@@ -38,6 +38,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
+! Modified I. Kavcic, Met Office
  
 !> @brief The argument type to hold kernel metadata required by the psy layer.
 
@@ -53,13 +54,13 @@ module argument_mod
   integer, public, parameter :: GH_INTEGER             = 5
 
   ! Access descriptors
-  integer, public, parameter :: GH_READ  = 11
-  integer, public, parameter :: GH_WRITE = 12
-  integer, public, parameter :: GH_RW    = 13
-  integer, public, parameter :: GH_INC   = 14
-  integer, public, parameter :: GH_SUM   = 15
-  integer, public, parameter :: GH_MIN   = 16
-  integer, public, parameter :: GH_MAX   = 17
+  integer, public, parameter :: GH_READ      = 11
+  integer, public, parameter :: GH_WRITE     = 12
+  integer, public, parameter :: GH_READWRITE = 13
+  integer, public, parameter :: GH_INC       = 14
+  integer, public, parameter :: GH_SUM       = 15
+  integer, public, parameter :: GH_MIN       = 16
+  integer, public, parameter :: GH_MAX       = 17
 
   ! Function-space labels
   integer, public, parameter :: W0      = 100
@@ -108,13 +109,13 @@ module argument_mod
   integer, public, parameter :: EVALUATOR           = 507
   integer, public, parameter :: GH_EVALUATOR        = 508
 
-! For inter-grid kernels
+  ! For inter-grid kernels
   integer, public, parameter :: GH_FINE = 701
   integer, public, parameter :: GH_COARSE = 702
 
   type, public :: arg_type
      integer :: arg_type         ! {GH_FIELD, GH_OPERATOR, GH_REAL, GH_INTEGER}
-     integer :: arg_intent       ! {GH_READ, GH_WRITE, GH_RW, GH_INC, GH_SUM, GH_MIN, GH_MAX}
+     integer :: arg_intent       ! {GH_READ, GH_WRITE, GH_READWRITE, GH_INC, GH_SUM, GH_MIN, GH_MAX}
      integer :: wspace      = -1 ! {W0, W1, W2, W3, ANY_SPACE_[0-9]+}
      integer :: from_wspace = -1 ! { " } only required for gh_operator
      integer :: mesh_arg    = -1 ! {GH_COARSE, GH_FINE} only for inter-grid kernels
@@ -128,4 +129,3 @@ module argument_mod
   end type func_type
 
 end module argument_mod
-

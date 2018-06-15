@@ -1,8 +1,8 @@
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
@@ -85,7 +85,8 @@ end interface
 public columnwise_op_app_w2v_kernel_code
 contains
   
-  type(columnwise_op_app_w2v_kernel_type) function columnwise_op_app_w2v_kernel_constructor() result(self)
+  type(columnwise_op_app_w2v_kernel_type) function &
+       columnwise_op_app_w2v_kernel_constructor() result(self)
     implicit none
     return
   end function columnwise_op_app_w2v_kernel_constructor
@@ -110,8 +111,6 @@ contains
                                                undf_any_space_2_field_2,    &
                                                map_any_space_2_field_2,     &
                                                cma_indirection_map_any_space_2_field_2)
-
-    USE constants_mod, ONLY: r_def
 
     IMPLICIT NONE
 

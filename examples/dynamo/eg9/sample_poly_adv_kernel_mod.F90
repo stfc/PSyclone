@@ -2,7 +2,7 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
@@ -38,10 +38,8 @@
 ! -----------------------------------------------------------------------------
 ! Modified by I Kavcic, Met Office
 !
-!-------------------------------------------------------------------------------
-
-!> @brief Kernel which computes the advective update u.grad(t) through fitting a high order 
-!>        upwind 1D reconstruction
+!> @brief Kernel which computes the advective update u.grad(t) through fitting a
+!>        high order upwind 1D reconstruction
 !> @details Compute the advective update for a tracer field using a high order
 !>          polynomial fit to the tracer values. The stencil used for the
 !>          polynomial is centred, with an upwind bias if an even number of 
@@ -49,7 +47,6 @@
 !>          polynomial should be used. In the vertical the order is reduced 
 !>          near the boundaries depending on the number of points available.
 !>          This method is only valid for lowest order elements 
-
 module sample_poly_adv_kernel_mod
 
 use argument_mod,  only : arg_type, func_type,                  &

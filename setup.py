@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -80,7 +80,8 @@ CLASSIFIERS = [
 # Rather than importing it (which would require that PSyclone already be
 # installed), we read it using execfile().
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-execfile(os.path.join(BASE_PATH, "src", "psyclone", "version.py"))
+with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
+    exec(f.read())
 VERSION = __VERSION__
 
 if __name__ == '__main__':
@@ -97,6 +98,6 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser'],
+        install_requires=['pyparsing', 'fparser>=0.0.7', 'six'],
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'])

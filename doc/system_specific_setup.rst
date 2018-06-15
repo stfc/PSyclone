@@ -52,18 +52,11 @@ package in addition to the Python bindings.
 Installing dependencies on OpenSUSE
 +++++++++++++++++++++++++++++++++++
 
-While the vanilla OpenSUSE installation includes ``pip``,
-the installed version only works for Python 3. So the
-python 2 version of PIP still needs to be installed. Note
-that the graphviz package is installed by default.
+The vanilla OpenSUSE installation includes ``pip`` for Python 3.
+Note that the graphviz package is installed by default.
 ::
 
     > sudo zypper install python-pip
-
-.. warning::
-    PIP for python2 on OpenSUSE is called ``pip2.7``. So you need
-    to replace the ``pip`` command with ``pip2.7`` in all commands in
-    the following sections. 
 
 
 
@@ -94,10 +87,6 @@ To avoid warnings during the dependency installation, it is recommended to updat
 to the latest version::
 
     > sudo pip install --upgrade pip
-
-.. warning::
-    As mentioned in :ref:`opensuse_user`: on OpenSUSE this commands needs to be
-    ``sudo pip2.7 install --upgrade pip``.
 
 Next you need to install the ``fparser`` and ``pyparsing`` packages::
 
@@ -265,6 +254,11 @@ In order to see whether the Python code conforms to the pep8
 standards, use::
 
    > pep8 code.py
+
+.. warning::
+    From release 1.7.1 ``pep8``  returns a runtime user warning to
+    install and use ``pycodestyle`` instead.
+
 
 Verifying the pylint standards is done with::
 

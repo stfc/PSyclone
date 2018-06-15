@@ -1,8 +1,8 @@
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
@@ -38,11 +38,8 @@
 ! -----------------------------------------------------------------------------
 ! Modified by I Kavcic, Met Office
 !
-!-------------------------------------------------------------------------------
-
 !> @brief Matrix vector multiplication of LMA form of an operator
 !>        by a vector
-
 module matrix_vector_kernel_mod
 use argument_mod,            only : arg_type,                               &
                                     GH_FIELD, GH_OPERATOR, GH_READ, GH_INC, &

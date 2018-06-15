@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
@@ -465,7 +465,7 @@ def test_invokes_can_always_be_printed():
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
         api="dynamo0.3")
 
-    alg_invocation = invoke.calls.values()[0]
+    alg_invocation = list(invoke.calls.values())[0]
     inv = Invoke(alg_invocation, 0, DynSchedule)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1%my_field, m1, m2)"
@@ -505,7 +505,7 @@ def test_derived_type_deref_naming():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke)
     generated_code = str(psy.gen)
-    print generated_code
+    print(generated_code)
     output = (
         "    SUBROUTINE invoke_0_testkern_type"
         "(a, f1_my_field, f1_my_field_1, m1, m2)\n"
@@ -520,8 +520,10 @@ def test_derived_type_deref_naming():
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write,w1) &
+     type(arg_type), meta_args(3) =                    &
+          (/ arg_type(gh_field, gh_write,     w3),     &
+             arg_type(gh_field, gh_readwrite, wtheta), &
+             arg_type(gh_field, gh_inc,       w1)      &
            /)
      integer, parameter :: iterates_over = cells
    contains
@@ -554,7 +556,7 @@ def test_sched_view(capsys):
 
 
 def test_kern_class_view(capsys):
-    ''' tests the view method in the Kern class. The simplest way to
+    ''' Tests the view method in the Kern class. The simplest way to
     do this is via the dynamo0.3 subclass '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
@@ -565,12 +567,12 @@ def test_kern_class_view(capsys):
     out, _ = capsys.readouterr()
     expected_output = (
         colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) +
-        " dummy_code(field_1) [module_inline=False]")
+        " dummy_code(field_1,field_2,field_3) [module_inline=False]")
     assert expected_output in out
 
 
 def test_kern_coloured_text():
-    '''Check that the coloured_text method of Kern returns what we expect '''
+    ''' Check that the coloured_text method of Kern returns what we expect '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -605,30 +607,56 @@ def test_call_local_vars():
     assert "Call.local_vars should be implemented" in str(excinfo.value)
 
 
-def test_written_arg():
-    ''' Check that we raise the expected exception when Kern.written_arg()
-    is called for a kernel that doesn't have an argument that is written
-    to '''
+def test_incremented_arg():
+    ''' Check that we raise the expected exception when
+    Kern.incremented_arg() is called for a kernel that does not have
+    an argument that is incremented '''
     from psyclone.psyGen import Kern
-    # Change the kernel metadata so that the only kernel argument has
-    # read access
+    # Change the kernel metadata so that the the incremented kernel
+    # argument has read access
     import fparser
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     # If we change the meta-data then we trip the check in the parser.
     # Therefore, we change the object produced by parsing the meta-data
     # instead
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     for descriptor in metadata.arg_descriptors:
-        if descriptor.access == "gh_write":
+        if descriptor.access == "gh_inc":
+            descriptor._access = "gh_read"
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(FieldNotFoundError) as excinfo:
+        Kern.incremented_arg(my_kern, mapping={"inc": "gh_inc"})
+    assert ("does not have an argument with gh_inc access"
+            in str(excinfo.value))
+
+
+def test_written_arg():
+    ''' Check that we raise the expected exception when
+    Kern.written_arg() is called for a kernel that does not have
+    an argument that is written or readwritten to '''
+    from psyclone.psyGen import Kern
+    # Change the kernel metadata so that the only kernel argument has
+    # read access
+    import fparser
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    # If we change the meta-data then we trip the check in the parser.
+    # Therefore, we change the object produced by parsing the meta-data
+    # instead
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    for descriptor in metadata.arg_descriptors:
+        if descriptor.access in ["gh_write", "gh_readwrite"]:
             descriptor._access = "gh_read"
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
         Kern.written_arg(my_kern,
-                         mapping={"write": "gh_write", "readwrite": "gh_inc"})
-    assert "does not have an argument with gh_write or gh_inc access" in \
-        str(excinfo.value)
+                         mapping={"write": "gh_write",
+                                  "readwrite": "gh_readwrite"})
+    assert ("does not have an argument with gh_write or "
+            "gh_readwrite access" in str(excinfo.value))
 
 
 def test_ompdo_directive_class_view(capsys):
@@ -676,8 +704,8 @@ def test_ompdo_directive_class_view(capsys):
                                    SCHEDULE_COLOUR_MAP["KernCall"]) +
                 " testkern_code(a,f1,f2,m1,m2) "
                 "[module_inline=False]")
-            print out
-            print expected_output
+            print(out)
+            print(expected_output)
             assert expected_output in out
 
 
@@ -724,7 +752,7 @@ def test_globalsum_view(capsys):
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
-    print output
+    print(output)
     expected_output = (colored("GlobalSum",
                                SCHEDULE_COLOUR_MAP["GlobalSum"]) +
                        "[scalar='asum']")
@@ -862,7 +890,7 @@ def test_invoke_name():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
-    print gen
+    print(gen)
     assert "SUBROUTINE invoke_important_invoke" in gen
 
 
@@ -874,7 +902,7 @@ def test_multi_kern_named_invoke():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
-    print gen
+    print(gen)
     assert "SUBROUTINE invoke_some_name" in gen
 
 
@@ -887,7 +915,7 @@ def test_named_multi_invokes():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
-    print gen
+    print(gen)
     assert "SUBROUTINE invoke_my_first(" in gen
     assert "SUBROUTINE invoke_my_second(" in gen
 
@@ -901,7 +929,7 @@ def test_named_invoke_name_clash():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
     gen = str(psy.gen)
-    print gen
+    print(gen)
     assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
     assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
 
@@ -1065,10 +1093,9 @@ def test_argument_find_read_arguments():
         assert result[idx] == loop.children[0].arguments.args[3]
 
 
-@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
 def test_globalsum_arg():
-    '''Check that the globalsum argument is defined as gh_readwrite and
-    points to the globalsum node'''
+    ''' Check that the globalsum argument is defined as gh_readwrite and
+    points to the GlobalSum node '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1081,10 +1108,9 @@ def test_globalsum_arg():
     assert glob_sum_arg.call == glob_sum
 
 
-@pytest.mark.xfail(reason="gh_readwrite not yet supported in PSyclone")
 def test_haloexchange_arg():
-    '''Check that the haloexchange argument is defined as gh_readwrite and
-    points to the haloexchange node'''
+    '''Check that the HaloExchange argument is defined as gh_readwrite and
+    points to the HaloExchange node'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
@@ -1753,7 +1779,7 @@ def test_omp_dag_names():
     assert omp_par_node.children[0].dag_name == "OMP_do_2"
     omp_directive = super(OMPParallelDirective, omp_par_node)
     assert omp_directive.dag_name == "OMP_directive_1"
-    print type(omp_directive)
+    print(type(omp_directive))
     directive = super(OMPDirective, omp_par_node)
     assert directive.dag_name == "directive_1"
 
@@ -1833,7 +1859,7 @@ def test_node_dag(tmpdir, have_graphviz):
     my_file = tmpdir.join('test')
     schedule.dag(file_name=my_file.strpath)
     result = my_file.read()
-    print result
+    print(result)
     assert EXPECTED2.match(result)
     my_file = tmpdir.join('test.svg')
     result = my_file.read()

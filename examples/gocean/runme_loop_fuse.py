@@ -36,6 +36,7 @@ Fortran. In subroutine invoke_0 you will see the loop-fused code:
 
 '''
 
+from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
@@ -43,14 +44,14 @@ API = "gocean1.0"
 _, INVOKEINFO = parse("shallow_alg.f90", api=API)
 PSY = PSyFactory(API).create(INVOKEINFO)
 # Print the vanilla, generated Fortran
-print PSY.gen
+print(PSY.gen)
 
-print PSY.invokes.names
+print(PSY.invokes.names)
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
 SCHEDULE.view()
 
 TRANS_INFO = TransInfo()
-print TRANS_INFO.list
+print(TRANS_INFO.list)
 FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
 
 # fuse all outer loops
@@ -72,4 +73,4 @@ LF6_SCHED, _ = FUSE_TRANS.apply(LF5_SCHED.children[0].children[0],
 LF6_SCHED.view()
 
 PSY.invokes.get('invoke_0').schedule = LF6_SCHED
-print PSY.gen
+print(PSY.gen)

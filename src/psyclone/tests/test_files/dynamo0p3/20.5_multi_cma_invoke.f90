@@ -1,11 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
-! (c) The copyright relating to this work is owned jointly by the Crown,
-! Met Office and NERC 2016.
-! However, it has been created with the help of the GungHo Consortium,
-! whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,15 +32,20 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
 program multi_invoke_cma
 
   ! Description: invoke containing multiple CMA-related kernels
+  use inf,                                only: field_type,    &
+                                                operator_type, &
+                                                columnwise_operator_type
   use columnwise_op_asm_field_kernel_mod, only: columnwise_op_asm_field_kernel_type
-  use columnwise_op_app_kernel_mod, only: columnwise_op_app_kernel_type
-  use columnwise_op_mul_kernel, only: columnwise_op_mul_kernel_type
-  use inf,      only: field_type
+  use columnwise_op_app_kernel_mod,       only: columnwise_op_app_kernel_type
+  use columnwise_op_mul_kernel_mod,       only: columnwise_op_mul_kernel_type
+
   implicit none
+
   type(operator_type) :: lma_op1
   type(columnwise_operator_type) :: cma_op1, cma_opb, cma_opc
   type(field_type) :: afield

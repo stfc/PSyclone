@@ -32,11 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
@@ -75,7 +76,7 @@ end module testkern_eval
 
 def test_eval_mdata():
     ''' Check that we recognise "evaluator" as a valid gh_shape '''
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
     assert dkm.get_integer_variable('gh_shape') == 'gh_evaluator'
@@ -84,7 +85,7 @@ def test_eval_mdata():
 def test_single_updated_arg():
     ''' Check that we reject any kernel requiring an evaluator
     if it writes to more than one argument '''
-    fparser.logging.disable('CRITICAL')
+    fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the access of the read-only argument
     code = CODE.replace("GH_READ", "GH_WRITE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -107,7 +108,7 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
@@ -121,7 +122,7 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
         "      TYPE(field_type), intent(inout) :: f0\n"
         "      TYPE(field_type), intent(in) :: f1\n"
         "      INTEGER cell\n"
-        "      INTEGER df_w1, df_w0, df_nodal\n"
+        "      INTEGER df_nodal, df_w0, df_w1\n"
         "      REAL(KIND=r_def), allocatable :: basis_w0_on_w0(:,:,:), "
         "diff_basis_w1_on_w0(:,:,:)\n"
         "      INTEGER ndf_nodal_w0, dim_w0, diff_dim_w1\n"
@@ -206,7 +207,7 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
     )
     assert expected_code in gen_code
     dealloc_code = (
-        "      DEALLOCATE (diff_basis_w1_on_w0, basis_w0_on_w0)\n"
+        "      DEALLOCATE (basis_w0_on_w0, diff_basis_w1_on_w0)\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_eval_type\n"
     )
@@ -221,7 +222,7 @@ def test_single_kern_eval_op(tmpdir, f90, f90flags):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
@@ -235,7 +236,7 @@ def test_single_kern_eval_op(tmpdir, f90, f90flags):
         "      TYPE(field_type), intent(in) :: f1\n"
         "      TYPE(operator_type), intent(inout) :: op1\n"
         "      INTEGER cell\n"
-        "      INTEGER df_w3, df_nodal, df_w2\n"
+        "      INTEGER df_nodal, df_w2, df_w3\n"
         "      REAL(KIND=r_def), allocatable :: basis_w2_on_w0(:,:,:), "
         "diff_basis_w3_on_w0(:,:,:)\n"
         "      INTEGER ndf_nodal_w0, dim_w2, diff_dim_w3\n"
@@ -286,7 +287,7 @@ def test_single_kern_eval_op(tmpdir, f90, f90flags):
         "diff_basis_w3_on_w0)\n"
         "      END DO \n")
     assert kern_call in gen_code
-    dealloc = ("      DEALLOCATE (diff_basis_w3_on_w0, basis_w2_on_w0)\n")
+    dealloc = ("      DEALLOCATE (basis_w2_on_w0, diff_basis_w3_on_w0)\n")
     assert dealloc in gen_code
 
 
@@ -298,7 +299,7 @@ def test_two_qr(tmpdir, f90, f90flags):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
@@ -333,8 +334,8 @@ def test_two_qr(tmpdir, f90, f90flags):
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
         "m2_proxy, g1_proxy, g2_proxy, n1_proxy, n2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy, qr2_proxy\n"
-        "      INTEGER, pointer :: map_w2(:,:) => null(), "
-        "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
+        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
     )
     assert expected_declns in gen_code
     expected_code = (
@@ -423,9 +424,9 @@ def test_two_qr(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
-        "      DEALLOCATE (basis_w3_qr2, diff_basis_w2_qr, diff_basis_w2_qr2, "
-        "basis_w1_qr2, basis_w3_qr, diff_basis_w3_qr2, diff_basis_w3_qr, "
-        "basis_w1_qr)\n"
+        "      DEALLOCATE (basis_w1_qr, basis_w1_qr2, basis_w3_qr, "
+        "basis_w3_qr2, diff_basis_w2_qr, diff_basis_w2_qr2, diff_basis_w3_qr, "
+        "diff_basis_w3_qr2)\n"
     )
     if expected_kern_call not in gen_code:
         utils.print_diffs(expected_kern_call, gen_code)
@@ -440,7 +441,7 @@ def test_two_identical_qr(tmpdir, f90, f90flags):
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
@@ -508,13 +509,13 @@ def test_two_identical_qr(tmpdir, f90, f90flags):
         "      END DO \n")
     assert expected_kern_call in gen_code
     expected_dealloc = (
-        "DEALLOCATE (diff_basis_w2_qr, basis_w1_qr, basis_w3_qr, "
+        "DEALLOCATE (basis_w1_qr, basis_w3_qr, diff_basis_w2_qr, "
         "diff_basis_w3_qr)")
     assert expected_dealloc in gen_code
 
 
 def test_anyw2(tmpdir, f90, f90flags):
-    '''Check generated code works correctly when we have any_w2 fields
+    ''' Check generated code works correctly when we have any_w2 fields
     and basis functions'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.2_single_invoke_multi_anyw2_basis.f90"),
@@ -523,7 +524,7 @@ def test_anyw2(tmpdir, f90, f90flags):
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
-        print generated_code
+        print(generated_code)
 
         if utils.TEST_COMPILE:
             # Test that generated code compiles
@@ -575,7 +576,7 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # Test that generated code compiles
@@ -594,7 +595,7 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
         "      TYPE(field_type), intent(in) :: f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER cell\n"
-        "      INTEGER df_w1, df_w0, df_nodal\n"
+        "      INTEGER df_nodal, df_w0, df_w1\n"
         "      REAL(KIND=r_def), allocatable :: basis_w0_on_w0(:,:,:), "
         "basis_w1_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w1_on_w0(:,:,:), "
@@ -611,8 +612,8 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
         "      TYPE(field_proxy_type) f0_proxy, f1_proxy, f2_proxy, "
         "m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
-        "      INTEGER, pointer :: map_w2(:,:) => null(), "
-        "map_w3(:,:) => null(), map_w0(:,:) => null(), map_w1(:,:) => "
+        "      INTEGER, pointer :: map_w0(:,:) => null(), "
+        "map_w1(:,:) => null(), map_w2(:,:) => null(), map_w3(:,:) => "
         "null()\n")
     assert output_decls in gen_code
     output_setup = (
@@ -697,8 +698,8 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
         "      END DO \n")
     assert output_kern_call in gen_code
     output_dealloc = (
-        "      DEALLOCATE (diff_basis_w2_qr, basis_w0_on_w0, basis_w3_qr, "
-        "diff_basis_w3_qr, diff_basis_w1_on_w0, basis_w1_qr)\n")
+        "      DEALLOCATE (basis_w0_on_w0, basis_w1_qr, basis_w3_qr, "
+        "diff_basis_w1_on_w0, diff_basis_w2_qr, diff_basis_w3_qr)\n")
     assert output_dealloc in gen_code
 
 
@@ -710,7 +711,7 @@ def test_two_eval_same_space(tmpdir, f90, f90flags):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # Test that generated code compiles
@@ -781,7 +782,7 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
@@ -878,7 +879,7 @@ def test_two_eval_same_var_same_space(
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # Test that generated code compiles
@@ -920,7 +921,7 @@ def test_two_eval_op_to_space(tmpdir, f90, f90flags):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # Test that generated code compiles
@@ -1037,7 +1038,7 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print gen_code
+    print(gen_code)
 
     if utils.TEST_COMPILE:
         # Test that generated code compiles
@@ -1133,8 +1134,8 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
         "      ! Deallocate basis arrays\n"
         "      !\n"
         "      DEALLOCATE ("
-        "diff_basis_w2_on_w3, diff_basis_w2_on_w0, diff_basis_w3_on_w3, "
-        "diff_basis_w3_on_w0, basis_w2_on_w3, basis_w2_on_w0)\n"
+        "basis_w2_on_w0, basis_w2_on_w3, diff_basis_w2_on_w0, "
+        "diff_basis_w2_on_w3, diff_basis_w3_on_w0, diff_basis_w3_on_w3)\n"
     )
     assert expected_dealloc in gen_code
 
@@ -1142,14 +1143,14 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
 BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_read,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_read,w3, w3),  &
-             arg_type(gh_field,   gh_read, wtheta), &
-             arg_type(gh_operator,gh_read, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
+     type(arg_type), meta_args(7) =                     &
+          (/ arg_type(gh_field,    gh_write, w0),       &
+             arg_type(gh_operator, gh_read,  w1, w1),   &
+             arg_type(gh_field,    gh_read,  w2),       &
+             arg_type(gh_operator, gh_read,  w3, w3),   &
+             arg_type(gh_field,    gh_read,  wtheta),   &
+             arg_type(gh_operator, gh_read,  w2h, w2h), &
+             arg_type(gh_field,    gh_read,  w2v)       &
            /)
      type(func_type), meta_funcs(7) =     &
           (/ func_type(w0, gh_basis),     &
@@ -1180,7 +1181,7 @@ def test_basis_evaluator():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print generated_code
+    print(generated_code)
     output_arg_list = (
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
@@ -1265,7 +1266,7 @@ end module dummy_mod
 
 
 def test_basis_unsupported_space():
-    ''' test that an error is raised when a basis function is on an
+    ''' Test that an error is raised when a basis function is on an
     unsupported space (currently any_space_*) '''
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -1280,14 +1281,14 @@ def test_basis_unsupported_space():
 DIFF_BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_inc,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3),  &
-             arg_type(gh_field,   gh_write, wtheta), &
-             arg_type(gh_operator,gh_inc, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
+     type(arg_type), meta_args(7) =                         &
+          (/ arg_type(gh_field,    gh_write,     w0),       &
+             arg_type(gh_operator, gh_readwrite, w1, w1),   &
+             arg_type(gh_field,    gh_read,      w2),       &
+             arg_type(gh_operator, gh_write,     w3, w3),   &
+             arg_type(gh_field,    gh_write,     wtheta),   &
+             arg_type(gh_operator, gh_readwrite, w2h, w2h), &
+             arg_type(gh_field,    gh_read,      w2v)       &
            /)
      type(func_type), meta_funcs(7) =          &
           (/ func_type(w0, gh_diff_basis),     &
@@ -1385,22 +1386,22 @@ def test_diff_basis():
         "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print output
-    print str(generated_code)
+    print(output)
+    print(str(generated_code))
     assert str(generated_code).find(output) != -1
 
 
 DIFF_BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_read,w0), &
-             arg_type(gh_operator,gh_inc,  w2, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_read,w3, w3),  &
-             arg_type(gh_field,   gh_read, wtheta), &
-             arg_type(gh_operator,gh_read, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
+     type(arg_type), meta_args(7) =                         &
+          (/ arg_type(gh_field,    gh_read,      w0),       &
+             arg_type(gh_operator, gh_readwrite, w2, w1),   &
+             arg_type(gh_field,    gh_read,      w2),       &
+             arg_type(gh_operator, gh_read,      w3, w3),   &
+             arg_type(gh_field,    gh_read,      wtheta),   &
+             arg_type(gh_operator, gh_read,      w2h, w2h), &
+             arg_type(gh_field,    gh_read,      w2v)       &
            /)
      type(func_type), meta_funcs(7) =          &
           (/ func_type(w0, gh_diff_basis),     &
@@ -1431,7 +1432,7 @@ def test_diff_basis_eval():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print generated_code
+    print(generated_code)
     output_args = (
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
@@ -1521,7 +1522,7 @@ end module dummy_mod
 
 
 def test_diff_basis_unsupp_space():
-    ''' test that an error is raised when a differential basis
+    ''' Test that an error is raised when a differential basis
     function is on an unsupported space (currently any_space_*)'''
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)

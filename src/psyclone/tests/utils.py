@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-''' test utilities '''
+''' Test utilities including support for testing that code compiles. '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -148,17 +148,17 @@ def compile_file(filename, f90, f90flags):
                                  stderr=subprocess.STDOUT)
         (output, error) = build.communicate()
     except OSError as err:
-        print "Failed to run: {0}: ".format(" ".join(arg_list))
-        print "Error was: ", str(err)
+        print("Failed to run: {0}: ".format(" ".join(arg_list)))
+        print("Error was: ", str(err))
         raise CompileError(str(err))
 
     # Check the return code
     stat = build.returncode
     if stat != 0:
-        print output
+        print(output)
         if error:
-            print "========="
-            print error
+            print("=========")
+            print(error)
         raise CompileError(output)
     else:
         return True
@@ -241,6 +241,52 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
         # Failed to compile one of the files
         success = False
 
+    finally:
+        # Clean-up - delete all generated files. This permits this routine
+        # to be called multiple times from within the same test.
+        os.chdir(str(old_pwd))
+        for ofile in tmpdir.listdir():
+            ofile.remove()
+
+    return success
+
+
+def string_compiles(code, tmpdir, f90, f90flags):
+    '''
+    Attempts to build the Fortran code supplied as a string.
+    Returns True for success, False otherwise.
+    If no Fortran compiler is available or compilation testing is not
+    enabled then it returns True. All files produced are deleted.
+
+    :param str code: The code to compile. Must have no external dependencies.
+    :param tmpdir: py.test-supplied temporary directory
+    :type tmpdir: :py:class:`LocalPath`
+    :param f90: The command to invoke the Fortran compiler
+    :type f90: string
+    :param f90flags: Flags to pass to the Fortran compiler
+    :type f90flags: string
+    :return: True if generated code compiles, False otherwise
+    :rtype: bool
+
+    '''
+    if not TEST_COMPILE:
+        # Compilation testing (--compile flag to py.test) is not enabled
+        # so we just return True.
+        return True
+
+    # Change to the temporary directory passed in to us from
+    # pytest. (This is a LocalPath object.)
+    old_pwd = tmpdir.chdir()
+
+    filename = "generated.f90"
+    with open(filename, 'w') as test_file:
+        test_file.write(code)
+
+    try:
+        success = compile_file(filename, f90, f90flags)
+    except CompileError:
+        # Failed to compile the file
+        success = False
     finally:
         # Clean-up - delete all generated files. This permits this routine
         # to be called multiple times from within the same test.

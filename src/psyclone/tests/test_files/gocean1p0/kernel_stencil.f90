@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,29 +29,47 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors R. W. Ford, A. R. Porter, STFC Daresbury Lab
 
-module dummy_orientation_mod
-  type, extends(kernel_type) :: dummy_orientation_type
-     type(arg_type), meta_args(4) =                       &
-          (/ arg_type(gh_field,    gh_write,     w0),     &
-             arg_type(gh_operator, gh_readwrite, w1, w1), &
-             arg_type(gh_field,    gh_read,      w2),     &
-             arg_type(gh_operator, gh_write,     w3, w3)  &
+module kernel_stencil
+
+  implicit none
+
+  private
+
+  public compute_cu, compute_cu_code
+
+  type, extends(kernel_type) :: compute_cu
+     type(arg), dimension(4) :: meta_args =    &
+          ! We deliberately specify an incorrect stencil value
+          ! for the first kernel argument in order to test the 
+          ! parser...
+          (/ arg(WRITE, CU, POINTWISE),            & ! cu
+             arg(READ,  CT, STENCIL(000,011,000)), & ! p
+             arg(READ,  CU, POINTWISE),            & ! u
+             arg(READ,  GRID_AREA_T)               &
            /)
-     type(func_type), meta_funcs(4) =       &
-          (/ func_type(w0, gh_orientation), &
-             func_type(w1, gh_orientation), &
-             func_type(w2, gh_orientation), &
-             func_type(w3, gh_orientation)  &
-           /)
-     integer, parameter :: iterates_over = cells
-   contains
-     procedure() :: code => dummy_orientation_code
-  end type dummy_orientation_type
+     integer :: ITERATES_OVER = INTERNAL_PTS
+
+     integer :: index_offset = OFFSET_SW
+
+  contains
+    procedure, nopass :: code => compute_cu_code
+  end type compute_cu
+
 contains
-  subroutine dummy_orientation_code()
-  end subroutine dummy_orientation_code
-end module dummy_orientation_mod
 
+  !===================================================
+
+  !> Compute the mass flux in the x direction at point (i,j)
+  subroutine compute_cu_code(i, j, cu, p, u)
+    implicit none
+    integer,  intent(in) :: I, J
+    real(wp), intent(out), dimension(:,:) :: cu
+    real(wp), intent(in),  dimension(:,:) :: p, u
+
+    CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
+
+  end subroutine compute_cu_code
+
+end module kernel_stencil

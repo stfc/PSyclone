@@ -9,18 +9,19 @@
 '''Example script showing how to apply OpenMP transformations to
 dynamo code'''
 
+from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 API = "dynamo0.1"
 _, INVOKEINFO = parse("dynamo_algorithm_mod.F90", api=API)
 PSY = PSyFactory(API).create(INVOKEINFO)
-print PSY.gen
+print(PSY.gen)
 
-print PSY.invokes.names
+print(PSY.invokes.names)
 
 from psyclone.psyGen import TransInfo
 TRANS = TransInfo()
-print TRANS.list
+print(TRANS.list)
 
 LOOP_FUSE = TRANS.get_trans_name('LoopFuse')
 OMP_PAR = TRANS.get_trans_name('OMPParallelLoopTrans')
@@ -51,4 +52,4 @@ OMP_SCHEDULE.view()
 
 PSY.invokes.get('invoke_2_v1_kernel_type').schedule = OMP_SCHEDULE
 
-print PSY.gen
+print(PSY.gen)

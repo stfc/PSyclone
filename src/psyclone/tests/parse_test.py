@@ -38,7 +38,7 @@
 function. '''
 
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse import parse, ParseError
@@ -182,7 +182,7 @@ def test_wrong_named_invoke():
                          "test_files", "dynamo0p3",
                          "1.0.3_wrong_named_arg_invoke.f90"),
             api="dynamo0.3")
-    print str(err)
+    print(str(err))
     assert (
         "The arguments to an invoke() must be either kernel calls or an "
         "(optional) name=" in str(err))
@@ -226,7 +226,7 @@ def test_duplicate_named_invoke():
                          "test_files", "dynamo0p3",
                          "3.3_multi_functions_multi_invokes_name_clash.f90"),
             api="dynamo0.3")
-    print str(err)
+    print(str(err))
     assert ("Found multiple named invoke()'s with the same name ('jack') "
             "when parsing " in str(err))
     assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
@@ -242,7 +242,7 @@ def test_duplicate_named_invoke_case():
                          "test_files", "dynamo0p3",
                          "3.4_multi_invoke_name_clash_case_insensitive.f90"),
             api="dynamo0.3")
-    print str(err)
+    print(str(err))
     assert ("Found multiple named invoke()'s with the same name ('jack') "
             "when parsing " in str(err))
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)

@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' Module containing py.test tests for functionality related to
 quadrature in the LFRic API '''
 
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
@@ -60,7 +61,7 @@ def test_field_xyoz(tmpdir, f90, f90flags):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
-    print generated_code
+    print(generated_code)
 
     if utils.TEST_COMPILE:
         assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
@@ -90,9 +91,8 @@ def test_field_xyoz(tmpdir, f90, f90flags):
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
-        "      INTEGER, pointer :: map_w2(:,:) => null(), "
-        "map_w3(:,:) => null(), map_w1(:,:) => null()\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n")
+        "      INTEGER, pointer :: map_w1(:,:) => null(), "
+        "map_w2(:,:) => null(), map_w3(:,:) => null()\n")
     assert output_decls in generated_code
     init_output = (
         "      !\n"
@@ -113,9 +113,9 @@ def test_field_xyoz(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
+        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      map_w2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_w3 => m2_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
         "      ! Initialise number of DoFs for w1\n"
         "      !\n"
@@ -202,7 +202,7 @@ def test_field_xyoz(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Deallocate basis arrays\n"
         "      !\n"
-        "      DEALLOCATE (diff_basis_w2_qr, basis_w1_qr, basis_w3_qr, "
+        "      DEALLOCATE (basis_w1_qr, basis_w3_qr, diff_basis_w2_qr, "
         "diff_basis_w3_qr)\n"
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_qr_type"
@@ -224,7 +224,7 @@ def test_field_qr_deref(tmpdir, f90, f90flags):
         if utils.TEST_COMPILE:
             assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
         gen = str(psy.gen)
-        print gen
+        print(gen)
         assert (
             "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
             " qr_data)\n" in gen)
@@ -314,14 +314,14 @@ def test_dynkern_setup(monkeypatch):
 BASIS = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(7) =    &
-          (/ arg_type(gh_field,   gh_write,w0), &
-             arg_type(gh_operator,gh_inc,  w1, w1), &
-             arg_type(gh_field,   gh_read, w2), &
-             arg_type(gh_operator,gh_write,w3, w3),  &
-             arg_type(gh_field,   gh_write, wtheta), &
-             arg_type(gh_operator,gh_inc, w2h, w2h), &
-             arg_type(gh_field,   gh_read, w2v)  &
+     type(arg_type), meta_args(7) =                         &
+          (/ arg_type(gh_field,    gh_write,     w0),       &
+             arg_type(gh_operator, gh_readwrite, w1, w1),   &
+             arg_type(gh_field,    gh_read,      w2),       &
+             arg_type(gh_operator, gh_write,     w3, w3),   &
+             arg_type(gh_field,    gh_write,     wtheta),   &
+             arg_type(gh_operator, gh_readwrite, w2h, w2h), &
+             arg_type(gh_field,    gh_read,      w2v)       &
            /)
      type(func_type), meta_funcs(7) =     &
           (/ func_type(w0, gh_basis),     &
@@ -418,8 +418,8 @@ def test_qr_basis_stub():
         "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print output
-    print generated_code
+    print(output)
+    print(generated_code)
     assert output in generated_code
 
 
@@ -455,7 +455,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     from psyclone import dynamo0p3
     # Change meta-data to specify differential basis functions
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
-    print diff_basis
+    print(diff_basis)
     ast = fpapi.parse(diff_basis, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()

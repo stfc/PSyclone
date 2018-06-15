@@ -5,7 +5,7 @@
 
 ''' This module tests the GOcean 0.1 API using pytest. '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
@@ -23,7 +23,7 @@ def test_loop_bounds_gen_multiple_loops():
                     api=API)
     psy = PSyFactory(API).create(info)
     gen = str(psy.gen)
-    print gen
+    print(gen)
 
     expected = (
         "      DO j=1,SIZE(uold, 2)\n"

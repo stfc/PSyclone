@@ -31,22 +31,50 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic Met Office
+! Author A. R. Porter STFC Daresbury Lab
+! Modified I. Kavcic Met Office
 
-program single_invoke_wtheta_only_vector
+!> Test kernel that purports to write to both a field and an operator.
+module testkern_write_op_and_fld_mod
 
-  ! Description: two functions in an invoke iterating over and
-  ! reading from wtheta field vectors (discontinuous)
-  use testkern_wtheta_only_vector_mod, only: testkern_wtheta_only_vector_type
-  use inf,                             only: field_type
+  use argument_mod
+  use kernel_mod
+  use constants_mod
+
   implicit none
-  type(field_type) :: f1(3), f2(3), f3(3)
 
-  call invoke(                                   &
-       testkern_wtheta_only_vector_type(f1, f2), &
-       ! Field f1 readwrite to read dependence but no halo exchange
-       ! required as wtheta is discontinuous
-       testkern_wtheta_only_vector_type(f3, f1)  &
-          )
+  type, extends(kernel_type) :: testkern_write_op_and_fld_type
+     type(arg_type), dimension(3) :: meta_args =     &
+          (/ arg_type(gh_field*3,  gh_write, w3),    &
+             arg_type(gh_integer,  gh_read),         &
+             arg_type(gh_operator, gh_write, w0, w0) &
+          /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_write_op_and_fld_code
+  end type testkern_write_op_and_fld_type
 
-end program single_invoke_wtheta_only_vector
+contains
+
+  subroutine testkern_write_op_and_fld_code(cell, nlayers,                  &
+                                           field1_v1, field1_v2, field1_v3, &
+                                           iscalar, ncell_3d, op,           &
+                                           ndf_w3, undf_w3, map_w3, ndf_w0)
+      IMPLICIT NONE
+
+      INTEGER, intent(in) :: cell
+      INTEGER, intent(in) :: nlayers
+      INTEGER, intent(in) :: ndf_w3
+      INTEGER, intent(in) :: undf_w3
+      INTEGER, intent(in) :: ndf_w0
+      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field1_v1
+      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field1_v2
+      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field1_v3
+      INTEGER, intent(in) :: iscalar
+      INTEGER, intent(in) :: ncell_3d
+      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,ncell_3d) :: op
+      INTEGER, intent(in), dimension(ndf_w3) :: map_w3
+
+  end subroutine testkern_write_op_and_fld_code
+
+end module testkern_write_op_and_fld_mod

@@ -6,15 +6,20 @@ Getting Going
 Download
 --------
 
-PSyclone is available on github.
+PSyclone is available on the Python Package Index (pypi.org) and is
+hosted on github:
 
 ``https://github.com/stfc/PSyclone``
 
 The latest release is |release| and the latest stable version is on
 the master branch.
 
-PSyclone releases can be downloaded (see |release| in the ``releases`` tab
-on the github website) or you can download and extract the latest release of
+PSyclone can be installed using pip:
+
+``> pip install psyclone``
+
+or downloaded from github - either see |release| in the ``releases`` tab
+on the PSyclone page or download and extract the latest release of
 PSyclone directly, e.g.
 
 .. parsed-literal::
@@ -26,7 +31,7 @@ PSyclone directly, e.g.
    PSyclone-\ |release|\ 
    
 
-Alternatively PSyclone can be cloned:
+Alternatively the PSyclone repository can be cloned:
 
 ``> git clone https://github.com/stfc/PSyclone.git``
 
@@ -43,22 +48,23 @@ Dependencies
 ------------
 
 PSyclone is written in Python so needs Python to be installed on the
-target machine. PSyclone has been tested under Python 2.6.5 and 2.7.3.
+target machine. PSyclone has been tested under Python 2.6.5, 2.7.3 and 3.6.
+
+.. warning:: As of version 1.6, PSyclone requires version 0.0.7 or greater of fparser.
 
 PSyclone immediately relies on two external Python packages;
-``fparser`` and ``pyparsing``. In addition, ``fparser`` requires
-``numpy``. In order to run the test suite ``py.test`` is required. The
-easiest way to satisfy the Python dependencies is to use the Python
-Package Index (pypi.org) and ``pip``. See
-https://packaging.python.org/installing/ for more information.
-Note that some Linux distributions install pip only for python 3 by
-default. In this case it is necessary to install pip for python 2. For
-example in openSUSE 42.2:
-::
+``fparser`` and ``pyparsing``. In order to run the test suite
+``py.test`` is required. The easiest way to satisfy the Python
+dependencies is to use the Python Package Index (pypi.org) and
+``pip``. See https://packaging.python.org/installing/ for more
+information.
 
-   > zypper install python-pip
+If everything is working correctly then using pip to install PSyclone:
 
-and then use pip2.7 instead of pip.
+``> pip install psyclone``
+
+will automatically install the Python dependencies (``fparser`` and
+``pyparsing``).
 
 
 In addition to the mandatory dependencies just described, PSyclone
@@ -86,10 +92,11 @@ fparser
 The fparser package (https://github.com/stfc/fparser) is a Fortran
 parser originally developed as a part of the f2py project.
 
-The minimum version of fparser required by PSyclone is currently 0.0.2
+The minimum version of fparser required by PSyclone is currently 0.0.7
 but we strongly recommend you install the latest version to reduce the
 chance of encountering problems when parsing existing algorithm or
-kernel code.
+kernel code. (Note that for older versions of PSyclone up to and
+including 1.5.1 you must use version 0.0.6 of fparser.)
 
 fparser is available from the Python Package
 Index and thus may be installed using ``pip``
@@ -285,6 +292,18 @@ If everything is working as expected then you should see output similar to:
    psyGen_test.py ..............................
 
    =================== 160 passed, 15 xfailed in 13.59 seconds ====================
+
+Most of the tests use Fortran source files in the
+``<PSYCLONEHOME>/src/psyclone/tests`` directory and many of them can be compiled
+during the testing process. To enable compilation testing run:
+::
+
+   > py.test --compile --f90="<compiler_name>" --f90flags="<compiler_flags_list>"
+
+``"<compiler_name>"`` and ``"<compiler_flags_list>"`` are optional arguments.
+The default value for ``"<compiler_name>"`` is ``"gfortran"`` and there are
+no defaults for the ``"<compiler_flags_list>"``. Please note that the onus
+is on the user to provide correct values for these options.
 
 .. _getting-going-run:
 
