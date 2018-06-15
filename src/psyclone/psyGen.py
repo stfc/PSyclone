@@ -320,8 +320,24 @@ class Invokes(object):
                                       str(self.names)))
 
     def gen_code(self, parent):
+        '''
+        Create the f2pygen AST for each Invoke in the PSy layer.
+
+        :param parent: the parent node in the AST to which to add content.
+        :type parent: `psyclone.f2pygen.ModuleGen`
+        '''
+        opencl_kernels = []
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
+            # If we are generating OpenCL for an Invoke then we need to
+            # create routine(s) to set the arguments of the Kernel(s) it
+            # calls. We do it here as this enables us to prevent
+            # duplication.
+            if invoke.schedule._opencl:
+                for kern in invoke.schedule.kern_calls():
+                    if kern.name not in opencl_kernels:
+                        opencl_kernels.append(kern.name)
+                        kern.gen_arg_setter_code(parent)
 
 
 class NameSpaceFactory(object):
@@ -2488,6 +2504,34 @@ class Kern(Call):
         parent.add(UseGen(parent, name=self._module_name, only=True,
                           funcnames=[self._name]))
 
+    def gen_arg_setter_code(self, parent):
+        '''
+        Creates a Fortran routine to set the arguments of the OpenCL
+        version of this kernel.
+
+        :param parent: Parent node of the set-kernel-arguments routine
+        :type parent: :py:class:`psyclone.f2pygen.moduleGen`
+        '''
+        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
+            AssignGen, CommentGen
+        # TODO take care with literal arguments
+        sub = SubroutineGen(parent, name=self.name+"_set_args",
+                            args=[arg.name for arg in self._arguments.args])
+        parent.add(sub)
+        # TODO add a use for check_status() routine
+        sub.add(UseGen(sub, name="iso_c_binding", only=True,
+                       funcnames=["sizeof", "c_loc"]))
+        sub.add(UseGen(sub, name="clfortran", only=True,
+                       funcnames=["clSetKernelArg"]))
+        sub.add(DeclGen(sub, datatype="integer", entity_decls=["ierr",
+                                                               "arg_idx"]))
+        sub.add(CommentGen(
+            sub,
+            " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
+        sub.add(AssignGen(sub, lhs="arg_idx", rhs="0"))
+        for arg in self.arguments.args:
+            arg.set_kernel_arg(sub)
+
     def incremented_arg(self, mapping={}):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
@@ -2712,6 +2756,18 @@ class Argument(object):
     def call(self, value):
         ''' set the node that this argument is associated with '''
         self._call = value
+
+    def set_kernel_arg(self, parent):
+        '''
+        Generate the code to set this argument for an OpenCL kernel
+        '''
+        from psyclone.f2pygen import AssignGen, CallGen
+        parent.add(AssignGen(
+            parent, lhs="ierr",
+            rhs="clSetKernelArg({0}, arg_idx, sizeof({1}), C_LOC({2}))".
+            format("kernel_obj", self.name, self.name)))
+        parent.add(CallGen(parent, "check_status", ["clSetKernelArg", "ierr"]))
+        parent.add(AssignGen(parent, lhs="arg_idx", rhs="arg_idx + 1"))
 
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct

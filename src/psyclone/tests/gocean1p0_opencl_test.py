@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+from __future__ import print_function
 
 '''Tests for OpenCL PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -41,7 +42,6 @@ import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
-
 
 API = "gocean1.0"
 
@@ -55,9 +55,13 @@ def test_use_stmts():
                                         "test_files", "gocean1p0",
                                         "single_invoke.f90"),
                            api=API)
-    psy = PSyFactory(API, opencl=True).create(invoke_info)
+    psy = PSyFactory(API).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    from psyclone.transformations import OCLTrans
+    otrans = OCLTrans()
+    otrans.apply(sched)
     generated_code = str(psy.gen)
-    print generated_code
+    print(generated_code)
     expected = '''\
   MODULE psy_single_invoke_test
     USE clfortran
