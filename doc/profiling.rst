@@ -198,6 +198,11 @@ As an example::
     newschedule, _ = p_trans.apply(schedule.children[1:3])
     newschedule.view()
 
+.. warning::
+
+    It is the responsibility of the user to make sure that a profile
+    region is only created inside a multi-threaded region if the
+    profiling library used is thread-safe!
 
 
 Interface to Third Party Profiling Tools 
