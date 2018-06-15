@@ -1326,7 +1326,11 @@ class Schedule(Node):
 
     def gen_code(self, parent):
         '''
-        TODO
+        Generate the Nodes in the f2pygen AST for this schedule.
+
+        :param parent: the parent Node (i.e. the enclosing subroutine) to \
+                       which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         if self._opencl:
             from psyclone.f2pygen import UseGen
@@ -1338,6 +1342,11 @@ class Schedule(Node):
 
     @property
     def opencl(self):
+        '''
+        Whether or not we are generating OpenCL for this Schedule.
+
+        :rtype: bool
+        '''
         return self._opencl
 
     @opencl.setter
@@ -2155,7 +2164,8 @@ class Loop(Node):
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self._start == "1" and self._stop == "1":  # no need for a loop
+        if self.root.opencl or (self._start == "1" and self._stop == "1"):
+            # no need for a loop
             for child in self.children:
                 child.gen_code(parent)
         else:
