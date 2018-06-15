@@ -42,7 +42,8 @@
     checks before calling the base class for the actual
     transformation. '''
 
-from psyclone.psyGen import Transformation
+from psyclone.psyGen import OMPDoDirective, Transformation
+
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -494,7 +495,6 @@ class OMPLoopTrans(Transformation):
 
         # add our orphan OpenMP loop directive setting its parent to
         # the node's parent and its children to the node
-        from psyclone.psyGen import OMPDoDirective
         directive = OMPDoDirective(parent=node_parent,
                                    children=[node],
                                    omp_schedule=self.omp_schedule,
@@ -1737,6 +1737,9 @@ class ProfileRegionTrans(Transformation):
         # the first child to be enclosed as that will become the
         # position of the new Profile node
         node_parent = node_list[0].parent
+        if isinstance(node_parent, OMPDoDirective):
+            raise TransformationError("A ProfileNode can not be inserted "
+                                      "into an omp do region")
         node_position = node_list[0].position
 
         # We need to make sure that the nodes are consecutive children,

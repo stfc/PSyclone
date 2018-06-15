@@ -46,7 +46,9 @@ from psyclone.gocean1p0 import GOKern, GOSchedule
 from psyclone.parse import parse
 from psyclone.profiler import Profiler, ProfileNode
 from psyclone.psyGen import Loop, PSyFactory
-from psyclone.transformations import ProfileRegionTrans, TransformationError
+
+from psyclone.transformations import GOceanOMPLoopTrans, ProfileRegionTrans, \
+    TransformationError
 
 
 # TODO: Once #170 is merged, use the new tests/utils.py module
@@ -566,3 +568,22 @@ def test_transform_errors(capsys):
                   r"        .*Loop.*\[type='outer'.*"
                   r"        .*Loop.*\[type='outer'.*")
     assert re.search(correct_re, out)
+
+    # Test that we don't add a profile node inside a OMP do loop (which
+    # would be invalid syntax):
+    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+    schedule = invoke.schedule
+
+    prt = ProfileRegionTrans()
+    omp_loop = GOceanOMPLoopTrans()
+
+    # Parallelise the first loop:
+    sched1, _ = omp_loop.apply(schedule.children[0])
+
+    # Inserting a ProfileRegion inside a omp do loop is syntactically
+    # incorrect, the inner part must be a do loop only:
+    with pytest.raises(TransformationError) as excinfo:
+        prt.apply(sched1.children[0].children[0])
+
+    assert "A ProfileNode can not be inserted into an omp do region" \
+           in str(excinfo)
