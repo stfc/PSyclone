@@ -7,6 +7,8 @@ module ocl_env_mod
 
   private
 
+  !> Whether or not this module has been initialised
+  logical, save :: cl_env_initialised = .False.
   !> Pointer to the OpenCL device being used
   integer(c_intptr_t) :: cl_device
   !> The OpenCL context
@@ -21,8 +23,10 @@ module ocl_env_mod
 
   !> The OpenCL kernels used by the model
   integer, save :: cl_num_kernels
-  character(len=CL_UTIL_STR_LEN), allocatable :: cl_kernel_names(:)
-  integer(c_intptr_t), target, allocatable :: cl_kernels(:)
+  !> The maximum number of kernels we can store
+  integer, parameter :: cl_max_num_kernels = 30
+  character(len=CL_UTIL_STR_LEN) :: cl_kernel_names(cl_max_num_kernels)
+  integer(c_intptr_t), target :: cl_kernels(cl_max_num_kernels)
 
   public ocl_env_init
   public cl_context, cl_device, get_num_cmd_queues, get_cmd_queues
@@ -32,15 +36,16 @@ contains
   !===================================================
 
   !> Initialise the GOcean environment
-  subroutine ocl_env_init(opencl)
+  subroutine ocl_env_init()
     use ocl_utils_mod, only: init_device
     implicit none
-    !> Whether or not to use OpenCL
-    logical, optional :: opencl
     integer :: ierr
+
+    if(cl_env_initialised)return
 
     ! Initialise the OpenCL device
     call init_device(cl_device, cl_version_str, cl_context)
+
     ! Create command queue(s)
     cl_num_queues = 4
     allocate(cl_cmd_queues(cl_num_queues), Stat=ierr)
@@ -48,6 +53,12 @@ contains
        stop "Failed to allocate list for OpenCL command queues"
     end if
     call init_cmd_queues(cl_num_queues, cl_cmd_queues, cl_context, cl_device)
+
+    ! At this point we have no kernels
+    cl_num_kernels = 0
+
+    ! Environment now initialised
+    cl_env_initialised = .True.
 
   end subroutine ocl_env_init
 
@@ -58,25 +69,36 @@ contains
     use ocl_utils_mod, only: get_program, get_kernel, release_program
     integer, intent(in) :: nkernels
     character(len=*), intent(in) :: kernel_names(nkernels)
-    character(len=*), intent(in) :: filename
+    character(len=*), intent(in), optional :: filename
     ! Locals
     integer :: ik, ierr
     integer(c_intptr_t), target :: prog
+    character(len=300) :: lfilename
 
-    ! Get a program object containing all of our kernels
-    prog = get_program(cl_context, cl_device, cl_version_str, filename)
-
-    cl_num_kernels = nkernels
-
-    allocate(cl_kernels(cl_num_kernels), cl_kernel_names(cl_num_kernels), &
-             Stat=ierr)
-    if(ierr /= 0)then
-       stop "Failed to allocate memory for kernel table"
+    if(.not. cl_env_initialised)then
+       call ocl_env_init()
     end if
 
-    do ik = 1, cl_num_kernels
-       cl_kernels(ik) = get_kernel(prog, kernel_names(ik))
+    if(.not. present(filename))then
+       call get_environment_variable("PSYCLONE_KERNELS_FILE", lfilename)
+    else
+       lfilename = filename
+    end if
+
+    if((nkernels + cl_num_kernels) > cl_max_num_kernels)then
+       write(*,"('add_kernels: Adding ',I2,' kernels will exceed the &
+&maximum number of ',I3,' - increase ocl_env_mod::cl_max_num_kernels')") &
+          nkernels, cl_max_num_kernels
+       stop
+    end if
+
+    ! Get a program object containing all of our kernels
+    prog = get_program(cl_context, cl_device, cl_version_str, lfilename)
+
+    do ik = 1, nkernels
+       cl_kernels(cl_num_kernels+ik) = get_kernel(prog, kernel_names(ik))
     end do
+    cl_num_kernels = cl_num_kernels + nkernels
 
     ! Release the program now that we've created the kernels
     call release_program(prog)
@@ -131,7 +153,7 @@ contains
 
   !===================================================
 
-  subroutine gocean_release()
+  subroutine ocl_release()
     integer :: i
 
     do i=1, cl_num_kernels
@@ -142,6 +164,6 @@ contains
 
     call release_context(cl_context)
 
-  end subroutine gocean_release
+  end subroutine ocl_release
 
 end module ocl_env_mod
