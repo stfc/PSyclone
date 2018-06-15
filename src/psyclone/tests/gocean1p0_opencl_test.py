@@ -64,10 +64,11 @@ def test_use_stmts():
     print(generated_code)
     expected = '''\
     SUBROUTINE invoke_0_compute_cu(cu_fld, p_fld, u_fld)
-      USE compute_cu_mod, ONLY: compute_cu_code
+      USE ocl_env_mod, ONLY: get_num_cmd_queues, get_cmd_queues, get_kernel_by_name
       USE clfortran
       USE iso_c_binding'''
     assert expected in generated_code
+    assert "if(first_time)then" in generated_code
 
 
 def test_set_kern_args():
@@ -85,9 +86,30 @@ def test_set_kern_args():
     otrans.apply(sched)
     generated_code = str(psy.gen)
     print(generated_code)
-    assert generated_code.count("SUBROUTINE compute_cu_code_set_args(cu_fld, "
+    assert generated_code.count("SUBROUTINE compute_cu_code_set_args(kern, cu_fld, "
                                 "p_fld, u_fld)") == 1
-    assert generated_code.count("SUBROUTINE time_smooth_code_set_args(u_fld, "
+    expected = '''\
+    SUBROUTINE compute_cu_code_set_args(kern, cu_fld, p_fld, u_fld)
+      USE clfortran, ONLY: clSetKernelArg
+      USE iso_c_binding, ONLY: sizeof, c_loc, c_intptr_t
+      INTEGER ierr, arg_idx
+      INTEGER(KIND=c_intptr_t), target :: cu_fld, p_fld, u_fld
+      INTEGER(KIND=c_intptr_t), target :: kern
+      ! Set the arguments for the compute_cu_code OpenCL Kernel
+      arg_idx = 0
+      ierr = clSetKernelArg(kernel_obj, arg_idx, sizeof(cu_fld), C_LOC(cu_fld))
+      CALL check_status(clSetKernelArg, ierr)
+      arg_idx = arg_idx + 1
+      ierr = clSetKernelArg(kernel_obj, arg_idx, sizeof(p_fld), C_LOC(p_fld))
+      CALL check_status(clSetKernelArg, ierr)
+      arg_idx = arg_idx + 1
+      ierr = clSetKernelArg(kernel_obj, arg_idx, sizeof(u_fld), C_LOC(u_fld))
+      CALL check_status(clSetKernelArg, ierr)
+      arg_idx = arg_idx + 1
+    END SUBROUTINE compute_cu_code_set_args
+'''
+    assert expected in generated_code
+    assert generated_code.count("SUBROUTINE time_smooth_code_set_args(kern, u_fld, "
                                 "unew_fld, uold_fld)") == 1
-    assert ("CALL compute_cu_code_set_args(cu_fld%data, p_fld%data, "
-            "u_fld%data)" in generated_code)
+    assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
+            "cu_fld%device_ptr, p_fld%device_ptr, u_fld%device_ptr)" in generated_code)
