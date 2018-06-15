@@ -63,7 +63,31 @@ def test_use_stmts():
     generated_code = str(psy.gen)
     print(generated_code)
     expected = '''\
-  MODULE psy_single_invoke_test
-    USE clfortran
-    USE iso_c_binding'''
+    SUBROUTINE invoke_0_compute_cu(cu_fld, p_fld, u_fld)
+      USE compute_cu_mod, ONLY: compute_cu_code
+      USE clfortran
+      USE iso_c_binding'''
     assert expected in generated_code
+
+
+def test_set_kern_args():
+    ''' Check that we generate the necessary code to set kernel arguments '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_two_kernels.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    from psyclone.transformations import OCLTrans
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen)
+    print(generated_code)
+    assert generated_code.count("SUBROUTINE compute_cu_code_set_args(cu_fld, "
+                                "p_fld, u_fld)") == 1
+    assert generated_code.count("SUBROUTINE time_smooth_code_set_args(u_fld, "
+                                "unew_fld, uold_fld)") == 1
+    assert ("CALL compute_cu_code_set_args(cu_fld%data, p_fld%data, "
+            "u_fld%data)" in generated_code)

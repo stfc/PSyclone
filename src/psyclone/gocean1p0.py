@@ -710,7 +710,7 @@ class GOKern(Kern):
             kernel instance. '''
         from psyclone.f2pygen import CallGen, UseGen
 
-        if self._opencl:
+        if self.root.opencl:
             # OpenCL is completely different so has its own gen method.
             # TODO is there a nicer way of doing this?
             self.gen_ocl(parent)
@@ -756,13 +756,30 @@ class GOKern(Kern):
         '''
         :param parent:
         '''
+        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
+
+        garg = self._find_grid_access()
+        parent.add(DeclGen(parent, datatype="integer",
+                           entity_decls=["globalsize(2)"]))
+        parent.add(AssignGen(
+            parent, lhs="globalsize",
+            rhs="(/{0}%grid%nx, {0}%grid%ny/)".format(garg.name)))
+
+        kernel = "kernel_" + self._name  # TODO use namespace manager
+
+        # First we have to set the kernel arguments
+        parent.add(CallGen(
+            parent, "{0}_set_args".format(self.name),
+            [kernel] + [arg.name for arg in self._arguments.args]))
+        # Then we call clEnqueueNDRangeKernel
         cnull = "C_NULL_PTR"
         cmd_queue = "cmd_queues(1)"  # TODO use namespace manager
-        kernel = "kernel_" + self._name  # TODO use namespace manager
+
         gsize = "globalsize" # TODO use namespace manager
         args = [cmd_queue, kernel, "2", cnull, "C_LOC({0})".format(gsize),
                 cnull, "0", cnull, cnull]
         parent.add(CallGen(parent, "clEnqueueNDRangeKernel", args))
+        parent.add(CommentGen(parent, ""))
 
     @property
     def index_offset(self):
