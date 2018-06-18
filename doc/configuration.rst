@@ -60,6 +60,11 @@ section e.g.:
 
 The meaning of each of these entries is described in the following sub-sections.
 
+Note that ConfigParser supports various forms of boolean entry
+including "true/false", "yes/no" and "1/0". See
+https://docs.python.org/3/library/configparser.html#supported-datatypes
+for more details.
+
 SUPPORTEDAPIS
 ^^^^^^^^^^^^^
 
