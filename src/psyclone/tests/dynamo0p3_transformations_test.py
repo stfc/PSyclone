@@ -1516,7 +1516,7 @@ def test_builtin_single_OpenMP_pdo(monkeypatch, annexed):
         invoke.schedule = schedule
         result = str(psy.gen)
         print(result)
-        if dist_mem:
+        if dist_mem:  # annexed can be True or False
             code = (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
@@ -1532,7 +1532,7 @@ def test_builtin_single_OpenMP_pdo(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned")
             assert code in result
-        else:
+        else:  # not distmem. annexed can be True or False
             assert (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
@@ -1564,7 +1564,7 @@ def test_builtin_multiple_OpenMP_pdo(monkeypatch, annexed):
         invoke.schedule = schedule
         result = str(psy.gen)
         print(result)
-        if dist_mem:
+        if dist_mem:  # annexed can be True or False
             code = (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
@@ -1604,7 +1604,7 @@ def test_builtin_multiple_OpenMP_pdo(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned")
             assert code in result
-        else:
+        else:  # not distmem. annexed can be True or False
             assert (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
@@ -1651,7 +1651,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed):
         invoke.schedule = schedule
         result = str(psy.gen)
         print(result)
-        if dist_mem:
+        if dist_mem:  # annexed can be True or False
             code = (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
@@ -1671,7 +1671,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned")
             assert code in result
-        else:
+        else:  # distmem is False. annexed can be True or False
             assert (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
@@ -1710,7 +1710,7 @@ def test_builtin_single_OpenMP_do(monkeypatch, annexed):
         schedule, _ = olooptrans.apply(schedule.children[0].children[0])
         result = str(psy.gen)
         print(result)
-        if dist_mem:
+        if dist_mem:  # annexed can be True or False
             code = (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
@@ -1730,7 +1730,7 @@ def test_builtin_single_OpenMP_do(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned")
             assert code in result
-        else:
+        else:  # distmem is False. annexed can be True or False
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
@@ -1768,7 +1768,7 @@ def test_builtin_multiple_OpenMP_do(monkeypatch, annexed):
             schedule, _ = olooptrans.apply(child)
         result = str(psy.gen)
         print(result)
-        if dist_mem:
+        if dist_mem:  # annexed can be True or False
             code = (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
@@ -1814,7 +1814,7 @@ def test_builtin_multiple_OpenMP_do(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned")
             assert code in result
-        else:
+        else:  # distmem is False. annexed can be True or False
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
@@ -1867,7 +1867,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed):
         schedule, _ = olooptrans.apply(schedule.children[0].children[0])
         result = str(psy.gen)
         print(result)
-        if dist_mem:
+        if dist_mem:  # annexed can be True or False
             code = (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
@@ -1891,7 +1891,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned")
             assert code in result
-        else:
+        else:  # distmem is False. annexed can be True or False
             assert (
                 "      !$omp parallel default(shared), private(df)\n"
                 "      !$omp do schedule(static)\n"
@@ -2093,7 +2093,7 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
         invoke.schedule = schedule
         result = str(psy.gen)
         print(result)
-        if distmem:
+        if distmem:  # annexed can be True or False
             expected_output = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2124,7 +2124,7 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
             if not annexed:
                 expected_output = expected_output.replace("dof_annexed",
                                                           "dof_owned")
-        else:
+        else:  # not distmem. annexed can be True or False
             expected_output = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2178,7 +2178,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
         invoke.schedule = schedule
         result = str(psy.gen)
         print(result)
-        if distmem:
+        if distmem:  # annexed can be True or False
             expected_output = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2220,7 +2220,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
             if not annexed:
                 expected_output = expected_output.replace("dof_annexed",
                                                           "dof_owned")
-        else:
+        else:  # not distmem. annexed can be True or False
             expected_output = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2619,7 +2619,7 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
         invoke.schedule = schedule
         result = str(psy.gen)
         print(result)
-        if distmem:
+        if distmem:  # annexed can be True or False
             code = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2647,7 +2647,7 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned")
             assert code in result
-        else:
+        else:  # not distmem. annexed can be True or False
             assert (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2693,7 +2693,7 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=False)
-        if distmem:
+        if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
                                        schedule.children[2],
@@ -2702,7 +2702,7 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
         invoke.schedule = schedule
         result = str(psy.gen)
         print(result)
-        if distmem:
+        if distmem:  # annexed can be True or False
             code = (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2733,7 +2733,7 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned")
             assert code in result
-        else:
+        else:  # not distmem. annexed can be True or False
             assert (
                 "      ! Zero summation variables\n"
                 "      !\n"
@@ -2785,9 +2785,9 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
                                            same_space=True)
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
-        else:
-            if distmem and not annexed:
-                # first move the loop and the global sum is in the way
+        else:  # not (distmem and annexed)
+            if distmem:  # annexed must be False here
+                # first move the loop as the global sum is in the way
                 mtrans = MoveTrans()
                 schedule, _ = mtrans.apply(schedule.children[1],
                                            schedule.children[2],
@@ -2800,7 +2800,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
             invoke.schedule = schedule
             result = str(psy.gen)
             print(result)
-            if distmem and not annexed:
+            if distmem:  # annexed must be False here
                 code = (
                     "      ! Zero summation variables\n"
                     "      !\n"
@@ -2821,7 +2821,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
                     "      !\n"
                     "      global_sum%value = asum\n"
                     "      asum = global_sum%get_sum()\n")
-            else:
+            else:  # not distmem. annexed can be True or False
                 code = (
                     "      ! Zero summation variables\n"
                     "      !\n"
@@ -2869,8 +2869,8 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
                                            same_space=True)
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
-        else:
-            if distmem and not annexed:
+        else:  # not (distmem and annexed)
+            if distmem:  # annexed must be False here
                 mtrans = MoveTrans()
                 schedule, _ = mtrans.apply(schedule.children[1],
                                            schedule.children[2],
@@ -2885,7 +2885,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
             invoke.schedule = schedule
             result = str(psy.gen)
             print(result)
-            if distmem and not annexed:
+            if distmem:  # annexed must be False here
                 code = (
                     "      asum = 0.0_r_def\n"
                     "      !\n"
@@ -2907,7 +2907,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
                     "      !$omp end parallel\n"
                     "      global_sum%value = asum\n"
                     "      asum = global_sum%get_sum()\n")
-            else:
+            else:  # not distmem, annexed is True or False
                 code = (
                     "      asum = 0.0_r_def\n"
                     "      !\n"
@@ -2950,7 +2950,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
         invoke.schedule = schedule
         result = str(psy.gen)
         print(result)
-        if distmem:
+        if distmem:  # annexed can be True or False
             code = (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
@@ -2980,7 +2980,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned", 1)
             assert code in result
-        else:
+        else:  # not distmem. annexed can be True or False
             assert (
                 "      !$omp parallel do default(shared), private(df), "
                 "schedule(static)\n"
@@ -3029,7 +3029,7 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
                                            same_space=True)
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
-        else:
+        else:  # not (distmem and annexed)
             otrans = DynamoOMPParallelLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
                                        schedule.children[1],
@@ -3038,7 +3038,7 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
             invoke.schedule = schedule
             result = str(psy.gen)
             print(result)
-            if distmem and not annexed:
+            if distmem:  # annexed is False here
                 code = (
                     "      ! Zero summation variables\n"
                     "      !\n"
@@ -3059,7 +3059,7 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
                     "      !\n"
                     "      global_sum%value = asum\n"
                     "      asum = global_sum%get_sum()\n")
-            else:
+            else:  # not distmem. annexed can be True or False
                 code = (
                     "      ! Zero summation variables\n"
                     "      !\n"
@@ -3103,7 +3103,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
                                            same_space=True)
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
-        else:
+        else:  # not (distmem and annexed)
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
@@ -3114,7 +3114,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
             invoke.schedule = schedule
             result = str(psy.gen)
             print(result)
-            if distmem and not annexed:
+            if distmem:  # annexed is False here
                 code = (
                     "      asum = 0.0_r_def\n"
                     "      !\n"
@@ -3136,7 +3136,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
                     "      !$omp end parallel\n"
                     "      global_sum%value = asum\n"
                     "      asum = global_sum%get_sum()\n")
-            else:
+            else:  # not distmem. annexed can be True or False
                 code = (
                     "      asum = 0.0_r_def\n"
                     "      !\n"
@@ -3367,7 +3367,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
         for child in schedule.children:
             if isinstance(child, Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
-        if distmem:
+        if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
                                        schedule.children[2],
@@ -3390,7 +3390,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
             "      !\n"
             "      nthreads = omp_get_max_threads()\n"
             "      !\n") in result
-        if distmem:
+        if distmem:  # annexed can be True or False
             code = (
                 "      asum = 0.0_r_def\n"
                 "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3430,7 +3430,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
             if not annexed:
                 code = code.replace("dof_annexed", "dof_owned")
             assert code in result
-        else:
+        else:  # not distmem. annexed can be True or False
             assert (
                 "      asum = 0.0_r_def\n"
                 "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3480,19 +3480,21 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
         ftrans = DynamoLoopFuseTrans()
-        if distmem:
+        if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
             schedule, _ = mtrans.apply(schedule.children[1],
                                        schedule.children[2],
                                        position="after")
         if distmem and annexed:
+            # we can't loop fuse as the loop bounds differ
             with pytest.raises(TransformationError) as excinfo:
                 schedule, _ = ftrans.apply(schedule.children[0],
                                            schedule.children[1],
                                            same_space=True)
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
-        else:
+        else:  # not (distmem and annexed)
+            # we can loop fuse as the loop bounds are the same
             schedule, _ = ftrans.apply(schedule.children[0],
                                        schedule.children[1],
                                        same_space=True)
@@ -3517,7 +3519,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
                 "      !\n"
                 "      nthreads = omp_get_max_threads()\n"
                 "      !\n") in result
-            if distmem:
+            if distmem:  # annexed is False here
                 assert (
                     "      asum = 0.0_r_def\n"
                     "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3551,7 +3553,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
                     "      DEALLOCATE (l_asum)\n"
                     "      global_sum%value = asum\n"
                     "      asum = global_sum%get_sum()\n") in result
-            else:
+            else:  # not distmem. annexed can be True or False
                 assert (
                     "      asum = 0.0_r_def\n"
                     "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3606,7 +3608,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
                                            same_space=True)
             assert ("The upper bound names are not the same"
                     in str(excinfo.value))
-        else:
+        else:  # not distmem and annexed
             rtrans = OMPParallelTrans()
             otrans = Dynamo0p3OMPLoopTrans()
             schedule, _ = ftrans.apply(schedule.children[0],
@@ -3618,7 +3620,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
             result = str(psy.gen)
             print(result)
             assert "      INTEGER th_idx\n" in result
-            if distmem and not annexed:
+            if distmem:  # annexed is False here
                 assert (
                     "      asum = 0.0_r_def\n"
                     "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3652,7 +3654,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
                     "      DEALLOCATE (l_asum)\n"
                     "      global_sum%value = asum\n"
                     "      asum = global_sum%get_sum()\n") in result
-            else:
+            else:  # distmem is False. annexed can be True or False
                 assert (
                     "      asum = 0.0_r_def\n"
                     "      ALLOCATE (l_asum(8,nthreads))\n"
@@ -3813,7 +3815,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
         schedule.view()
         # only display reprod in schedule view if a reduction
         result, _ = capsys.readouterr()
-        if distmem:
+        if distmem:  # annexed can be True or False
             expected = (
                 sched + "[invoke='invoke_0' dm=True]\n"
                 "    " + directive+"[OMP parallel]\n"
@@ -3838,7 +3840,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
                 "    " + gsum + "[scalar='bsum']\n")
             if not annexed:
                 expected = expected.replace("nannexed", "ndofs")
-        else:
+        else:  # not distmem. annexed can be True or False
             expected = (
                 sched + "[invoke='invoke_0' dm=False]\n"
                 "    " + directive + "[OMP parallel]\n"
@@ -4256,8 +4258,10 @@ def test_rc_discontinuous_depth(tmpdir, f90, f90flags, monkeypatch, annexed):
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
     if annexed:
+        # there are no halo exchange calls
         index = 0
     else:
+        # there are 3 halo exchange calls
         index = 3
     loop = schedule.children[index]
     schedule, _ = rc_trans.apply(loop, depth=3)
@@ -4297,8 +4301,10 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
     if annexed:
+        # there are no halo exchange calls
         index = 0
     else:
+        # there are 3 halo exchange calls
         index = 3
     loop = schedule.children[index]
     schedule, _ = rc_trans.apply(loop)
@@ -4677,54 +4683,56 @@ def test_rc_dofs_no_depth():
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
 
-def test_rc_dofs_depth_prev_dep(monkeypatch):
+def test_rc_dofs_depth_prev_dep(monkeypatch, annexed):
     '''Test that the loop bounds when iterating over dofs are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth where the halo
-    fields have a previous (non-halo-exchange) dependence'''
-    for annexed in [False, True]:
-        import psyclone.config
-        monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
-        _, info = parse(os.path.join(
-            BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
-                        api=TEST_API)
-        psy = PSyFactory(TEST_API).create(info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        rc_trans = Dynamo0p3RedundantComputationTrans()
-        loop = schedule.children[4]
-        schedule, _ = rc_trans.apply(loop, depth=3)
-        invoke.schedule = schedule
-        result = str(psy.gen)
-        # check the f1 halo exchange is added and the f2 halo exchange is
-        # modified
-        for field_name in ["f1", "f2"]:
-            assert ("CALL {0}_proxy%halo_exchange(depth=3"
-                    ")".format(field_name)) in result
-        # there is no need for a run-time is_dirty check for field f1 as
-        # we know that we need a halo exchange. We know this as f1 is
-        # modified in an earlier loop which leaves all of f1's halo
-        # dirty. As we know that we need the halo to be clean to depth 3
-        # we can be certain we need a halo exchange.
-        assert ("IF (f1_proxy%is_dirty(depth=3)) "
-                "THEN") not in result
-        # there is a need for a run-time is_dirty check for field f2 as
-        # this field is not modified in this invoke and therefore its halo
-        # is in an unknown state before it is read
-        assert ("IF (f2_proxy%is_dirty(depth=3)) "
-                "THEN") in result
+    fields have a previous (non-halo-exchange) dependence. Also test
+    with and without annexed dofs.
 
-        # check the existing m1 and m2 halo exchanges (for the first
-        # un-modified loop) remain unchanged
-        for field_name in ["m1", "m2"]:
-            assert ("IF ({0}_proxy%is_dirty(depth=1)) "
-                    "THEN".format(field_name)) in result
-            assert ("CALL {0}_proxy%halo_exchange(depth=1"
-                    ")".format(field_name)) in result
-        assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
-        assert "CALL f1_proxy%set_dirty()" in result
-        assert "CALL f1_proxy%set_clean(3)" in result
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    _, info = parse(os.path.join(
+        BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[4]
+    schedule, _ = rc_trans.apply(loop, depth=3)
+    invoke.schedule = schedule
+    result = str(psy.gen)
+    # check the f1 halo exchange is added and the f2 halo exchange is
+    # modified
+    for field_name in ["f1", "f2"]:
+        assert ("CALL {0}_proxy%halo_exchange(depth=3"
+                ")".format(field_name)) in result
+    # there is no need for a run-time is_dirty check for field f1 as
+    # we know that we need a halo exchange. We know this as f1 is
+    # modified in an earlier loop which leaves all of f1's halo
+    # dirty. As we know that we need the halo to be clean to depth 3
+    # we can be certain we need a halo exchange.
+    assert ("IF (f1_proxy%is_dirty(depth=3)) "
+            "THEN") not in result
+    # there is a need for a run-time is_dirty check for field f2 as
+    # this field is not modified in this invoke and therefore its halo
+    # is in an unknown state before it is read
+    assert ("IF (f2_proxy%is_dirty(depth=3)) "
+            "THEN") in result
+
+    # check the existing m1 and m2 halo exchanges (for the first
+    # un-modified loop) remain unchanged
+    for field_name in ["m1", "m2"]:
+        assert ("IF ({0}_proxy%is_dirty(depth=1)) "
+                "THEN".format(field_name)) in result
+        assert ("CALL {0}_proxy%halo_exchange(depth=1"
+                ")".format(field_name)) in result
+    assert "DO df=1,f1_proxy%vspace%get_last_dof_halo(3)" in result
+    assert "CALL f1_proxy%set_dirty()" in result
+    assert "CALL f1_proxy%set_clean(3)" in result
 
 
 def test_rc_dofs_no_depth_prev_dep():
@@ -5001,9 +5009,9 @@ def test_rc_no_loop_decrease():
 def test_rc_remove_halo_exchange(tmpdir, f90, f90flags, monkeypatch):
     '''Test that a halo exchange is removed if redundant computation means
     that it is no longer required. Halo exchanges are not required in
-    this example when we compute annexed dofs by default. Therefore we
-    revert to computing over owned dofs by default (via monkeypatch)
-    to perform the test.
+    this example when we compute annexed dofs. Therefore we ensure we
+    compute over owned dofs (via monkeypatch) to perform the test.
+
     '''
     import psyclone.config
     monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
