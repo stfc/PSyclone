@@ -428,11 +428,74 @@ def test_main_profile(capsys):
         main(options+["--profile", "kernels", "-s", "somescript", filename])
     out, _ = capsys.readouterr()
 
-    warning = ("Warning: Using automatic profiling with a script can cause "
-               "errors\n"
-               "         in the script due to modification of the AST.")
+    warning = ("Error: You cannot use automatic profiling with a "
+               "transformation script because this can cause errors")
 
     assert warning in out
+
+    # Reset profile flags to avoid further failures in other tests
+    Profiler.set_options(None)
+
+
+def test_main_force_profile(capsys):
+    '''Tests that the profiling command line flags are working as expected.
+    '''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test27_loop_swap.f90")
+
+    from psyclone.profiler import Profiler
+    options = ["-api", "gocean1.0"]
+
+    # Check for invokes only parameter:
+    main(options+["--force-profile", "invokes", filename])
+    assert not Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for kernels only parameter:
+    main(options+["--force-profile", "kernels", filename])
+    assert Profiler.profile_kernels()
+    assert not Profiler.profile_invokes()
+
+    # Check for invokes + kernels
+    main(options+["--force-profile", "kernels",
+                  '--force-profile', 'invokes', filename])
+    assert Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for missing parameter (argparse then
+    # takes the filename as parameter for profiler):
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", filename])
+    _, outerr = capsys.readouterr()
+
+    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for invalid parameter
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "invalid", filename])
+    _, outerr = capsys.readouterr()
+
+    assert re.search(correct_re, outerr) is not None
+
+    # Check that there is indeed no warning when using --force-profile
+    # with a script. Note that this will raise an error because the
+    # script does not exist, but the point of this test is to make sure
+    # the error about mixing --profile and -s does not happen
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "kernels", "-s", "invalid", filename])
+    out, outerr = capsys.readouterr()
+    error = "expected the script file 'invalid' to have the '.py' extension"
+    assert error in out
+
+    # Test that --profile and --force-profile can not be used together
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "kernels", "--profile", "invokes",
+                      filename])
+    out, outerr = capsys.readouterr()
+    error = "Specify only one of --profile and --force-profile."
+    assert error in out
 
     # Reset profile flags to avoid further failures in other tests
     Profiler.set_options(None)

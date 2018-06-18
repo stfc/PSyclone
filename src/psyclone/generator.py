@@ -212,6 +212,11 @@ def main(args):
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes'")
+    parser.add_argument(
+        '--force-profile', action="append",
+        choices=Profiler.SUPPORTED_OPTIONS,
+        help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
+             "transformation script is used. Use on your own risk.")
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
     parser.add_argument(
@@ -219,8 +224,6 @@ def main(args):
         help='Display version information ({0})'.format(__VERSION__))
 
     args = parser.parse_args(args)
-
-    Profiler.set_options(args.profile)
 
     if args.api not in SUPPORTEDAPIS:
         print("Unsupported API '{0}' specified. Supported API's are "
@@ -231,9 +234,22 @@ def main(args):
         print("PSyclone version: {0}".format(__VERSION__))
 
     if args.script is not None and args.profile is not None:
-        print("Warning: Using automatic profiling with a script can cause "
-              "errors")
-        print("         in the script due to modification of the AST.")
+        print("Error: You cannot use automatic profiling with a "
+              "transformation script because this can cause errors")
+        print("in the script due to modification of the AST.")
+        print("You can use --force-profile instead of --profile if you "
+              "really want to use both options")
+        print("at the same time.")
+        exit(1)
+
+    if args.profile is not None and args.force_profile is not None:
+        print("Specify only one of --profile and --force-profile.")
+        exit(1)
+
+    if args.profile:
+        Profiler.set_options(args.profile)
+    elif args.force_profile:
+        Profiler.set_options(args.force_profile)
 
     try:
         alg, psy = generate(args.filename, api=args.api,
