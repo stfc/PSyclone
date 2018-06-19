@@ -106,17 +106,29 @@ The option ``--profile kernels`` will add a call to ``ProfileStart``
 before any loops created by PSyclone, and a ``ProfileEnd``
 call at the end of the loop.  Two caveats::
 
-1. in some APIs (for example dynamo when using distributed
+1. In some APIs (for example dynamo when using distributed
    memory) additional minor code might get included in a
    profiled kernel section, for example setDirty() calls
-   (expensive calls like HaloExchange will be  excluded). 
+   (expensive calls like HaloExchange are excluded). 
 
-2. If loop transforms are applied using a script, the
-   ability to automatically insert profiling calls is
-   reduced. It is recommended to only use automatic
-   profiling of kernels without usage of additional
-   transforms, or to explicitly add the profiling transform
-   as part of the transformation script.
+2. If loop transforms are applied using a script, the profiling
+   nodes added to the AST will very likely cause errors in the
+   script or in the generated output. As example consider a case
+   where an OMPLoop transform is applied to a loop. With profiling
+   enabled instead of the expected loop there could be a profile node
+   in the AST (with the loop as child). Since an OMP DO directive
+   can only have loops inside, and it now has a call to
+   ``ProfileStart``, the generated code is incorrect and will not
+   compile.
+
+In order to avoid the second issue, automatic profiling using
+``--profile`` is not allowed together with a transformation
+script. On the other hand, since it is possible to write scripts
+that are more flexible in handling a modified AST, you can use the
+command line option ``--force-profile``. It takes the same
+parameters as ``--profile``, and will allow you to combine a
+transformation script together with automatic profiling. Use
+this option at your own risk!
 
 It is also the responsibility of the user to manually add
 the calls to ``ProfileInit`` and ``ProfileFinalise`` to
