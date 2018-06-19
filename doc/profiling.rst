@@ -12,8 +12,8 @@ Or more fine grained by applying a profiling transformation in
 a transformation script.
 
 PSyclone can be used with a variety of existing profiling tools.
-It currently supports TAU, Dr Hook, dl_timer, and even comes
-with a simple stand-alone timer library.
+It currently supports dl_timer, and comes with a simple
+stand-alone timer library.
 An application needs to be able to find the module files for the 
 profile wrapper, and needs to be linked with the included wrapper
 library that interfaces between the PSyclone API and the
