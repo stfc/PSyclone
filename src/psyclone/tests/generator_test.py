@@ -277,6 +277,7 @@ def test_script_trans():
         transformation is provided as a script, i.e. it applies the
         transformations correctly. We use loop fusion as an
         example.'''
+    # pylint: disable=too-many-locals
     from psyclone.parse import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans
@@ -427,9 +428,11 @@ def test_main_profile(capsys):
     with pytest.raises(SystemExit):
         main(options+["--profile", "kernels", "-s", "somescript", filename])
     out, _ = capsys.readouterr()
+    out = out.replace("\n", " ")
 
-    warning = ("Error: You cannot use automatic profiling with a "
-               "transformation script because this can cause errors")
+    warning = ("Error: use of automatic profiling in combination with an "
+               "optimisation script is not recommened since it may not work "
+               "as expected.")
 
     assert warning in out
 

@@ -1739,7 +1739,8 @@ class ProfileRegionTrans(Transformation):
         node_parent = node_list[0].parent
         if isinstance(node_parent, OMPDoDirective):
             raise TransformationError("A ProfileNode can not be inserted "
-                                      "into an omp do region")
+                                      "between an omp do region and the "
+                                      "loop(s) to which it applies!")
         node_position = node_list[0].position
 
         # We need to make sure that the nodes are consecutive children,

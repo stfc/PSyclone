@@ -89,6 +89,7 @@ def teardown_function():
     change.
     '''
     Profiler.set_options([])
+    # pylint: disable=protected-access
     Profiler._namespace = NameSpace()
 
 
@@ -590,7 +591,8 @@ def test_transform_errors(capsys):
     with pytest.raises(TransformationError) as excinfo:
         prt.apply(sched1.children[0].children[0])
 
-    assert "A ProfileNode can not be inserted into an omp do region" \
+    assert "A ProfileNode can not be inserted between an omp do region "\
+           "and the loop(s) to which it applies!" \
            in str(excinfo)
 
 

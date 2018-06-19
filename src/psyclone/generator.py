@@ -216,7 +216,7 @@ def main(args):
         '--force-profile', action="append",
         choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
-             "transformation script is used. Use on your own risk.")
+             "transformation script is used. Use at your own risk.")
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
     parser.add_argument(
@@ -234,9 +234,9 @@ def main(args):
         print("PSyclone version: {0}".format(__VERSION__))
 
     if args.script is not None and args.profile is not None:
-        print("Error: You cannot use automatic profiling with a "
-              "transformation script because this can cause errors")
-        print("in the script due to modification of the AST.")
+        print("Error: use of automatic profiling in combination with an")
+        print("optimisation script is not recommened since it may not work")
+        print("as expected.")
         print("You can use --force-profile instead of --profile if you "
               "really want to use both options")
         print("at the same time.")
