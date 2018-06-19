@@ -188,11 +188,6 @@ class GOInvoke(Invoke):
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule)
 
-        # Add profiling nodes to schedule if automatic profiling has been
-        # requested.
-        from psyclone.profiler import Profiler
-        Profiler.add_profile_nodes(self.schedule, GOLoop)
-
     @property
     def unique_args_arrays(self):
         ''' find unique arguments that are arrays (defined as those that are

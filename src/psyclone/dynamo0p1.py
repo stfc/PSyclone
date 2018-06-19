@@ -58,10 +58,8 @@ class DynInvoke(Invoke):
         specific invocation code. '''
     def __init__(self, alg_invocation, idx):
         if False:
-            self._schedule = DynSchedule(None) # for pyreverse
+            self._schedule = DynSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, DynSchedule)
-        from psyclone.profiler import Profiler
-        Profiler.add_profile_nodes(self.schedule, DynLoop)
 
     def gen_code(self, parent):
         ''' Generates Dynamo specific invocation code (the subroutine called

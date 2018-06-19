@@ -298,10 +298,14 @@ class Invokes(object):
     def __init__(self, alg_calls, Invoke):
         self.invoke_map = {}
         self.invoke_list = []
+        from psyclone.profiler import Profiler
         for idx, alg_invocation in enumerate(alg_calls.values()):
             my_invoke = Invoke(alg_invocation, idx)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
+            # Add profiling nodes to schedule if automatic profiling has been
+            # requested.
+            Profiler.add_profile_nodes(my_invoke.schedule, Loop)
 
     def __str__(self):
         return "Invokes object containing "+str(self.names)

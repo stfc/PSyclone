@@ -73,8 +73,6 @@ class GOInvoke(Invoke):
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule,
                         reserved_names=["cf", "ct", "cu", "cv"])
-        from psyclone.profiler import Profiler
-        Profiler.add_profile_nodes(self.schedule, GOLoop)
 
     @property
     def unique_args_arrays(self):
