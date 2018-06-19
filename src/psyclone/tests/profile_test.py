@@ -613,21 +613,19 @@ def test_omp_transform():
     sched2, _ = omp_par.apply(sched1.children[0])
     sched3, _ = prt.apply(sched2.children[0])
 
-    # \x20 is used instead of a space to avoid pep8 warning
-    # about trailing spaces
     correct = (
-        '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
-"bc_ssh_code", profile)
-      !$omp parallel default(shared), private(j,i)
-      !$omp do schedule(static)
-      DO j=2,jstop
-        DO i=2,istop
-          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
-        END DO\x20
-      END DO\x20
-      !$omp end do
-      !$omp end parallel
-      CALL ProfileEnd(profile)''')
+        "      CALL ProfileStart(\"boundary_conditions_ne_offset_mod\", "
+        "\"bc_ssh_code\", profile)\n"
+        "      !$omp parallel default(shared), private(j,i)\n"
+        "      !$omp do schedule(static)\n"
+        "      DO j=2,jstop\n"
+        "        DO i=2,istop\n"
+        "          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "      !$omp end do\n"
+        "      !$omp end parallel\n"
+        "      CALL ProfileEnd(profile)")
     code = str(invoke.gen())
     assert correct in code
 
