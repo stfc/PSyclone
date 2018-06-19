@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified R. W. Ford, STFC Daresbury Lab
 
 ''' This module tests the support for built-in operations in the Dynamo 0.3 API
     using pytest. Currently all built-in operations are 'pointwise' in that
@@ -353,69 +354,88 @@ def test_dynbuiltfactory_str():
 # ------------- Adding (scaled) fields ------------------------------------- #
 
 
-def test_X_plus_Y():
-    ''' Test that 1) the str method of DynXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    Z = X + Y where X and Y are fields '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.1_X_plus_Y_builtin.f90"),
-                           api="dynamo0.3")
-    for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        # Test string method
-        first_invoke = psy.invokes.invoke_list[0]
-        kern = first_invoke.schedule.children[0].children[0]
-        assert str(kern) == "Built-in: Add fields"
-        # Test code generation
-        code = str(psy.gen)
-        print(code)
-        if not distmem:
-            output = (
-                "      f3_proxy = f3%get_proxy()\n"
-                "      f1_proxy = f1%get_proxy()\n"
-                "      f2_proxy = f2%get_proxy()\n"
-                "      !\n"
-                "      ! Initialise number of layers\n"
-                "      !\n"
-                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
-                "      !\n"
-                "      ! Initialise number of DoFs for any_space_1_f3\n"
-                "      !\n"
-                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
-                "      !\n"
-                "      ! Call our kernels\n"
-                "      !\n"
-                "      DO df=1,undf_any_space_1_f3\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO")
-            assert output in code
-        else:
-            mesh_code_present("f3", code)
-            output_dm_2 = (
-                "      !\n"
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
-                "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
-                "      END DO \n"
-                "      !\n"
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL f3_proxy%set_dirty()\n"
-                "      !\n")
-            print(output_dm_2)
-            assert output_dm_2 in code
+def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch):
+    '''Test that 1) the str method of DynXPlusYKern returns the expected
+    string and 2) we generate correct code for the built-in Z = X + Y
+    where X and Y are fields. Also check that we generate correct
+    bounds when config.COMPUTE_ANNEXED_DOFS is False and True
+
+    '''
+    import psyclone.config
+    for annexed in [False, True]:
+        monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+        _, invoke_info = parse(os.path.join(BASE_PATH,
+                                            "15.1.1_X_plus_Y_builtin.f90"),
+                               api="dynamo0.3")
+        for distmem in [False, True]:
+            psy = PSyFactory("dynamo0.3",
+                             distributed_memory=distmem).create(invoke_info)
+            # Test string method
+            first_invoke = psy.invokes.invoke_list[0]
+            kern = first_invoke.schedule.children[0].children[0]
+            assert str(kern) == "Built-in: Add fields"
+            # Test code generation
+            code = str(psy.gen)
+            if not distmem:
+                # The value of COMPUTE_ANNEXED_DOFS should make no difference
+                output = (
+                    "      f3_proxy = f3%get_proxy()\n"
+                    "      f1_proxy = f1%get_proxy()\n"
+                    "      f2_proxy = f2%get_proxy()\n"
+                    "      !\n"
+                    "      ! Initialise number of layers\n"
+                    "      !\n"
+                    "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                    "      !\n"
+                    "      ! Initialise number of DoFs for any_space_1_f3\n"
+                    "      !\n"
+                    "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                    "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                    "      !\n"
+                    "      ! Call our kernels\n"
+                    "      !\n"
+                    "      DO df=1,undf_any_space_1_f3\n"
+                    "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                    "f2_proxy%data(df)\n"
+                    "      END DO")
+                assert output in code
+            else:
+                mesh_code_present("f3", code)
+                output_dm_2 = (
+                    "      !\n"
+                    "      ! Call kernels and communication routines\n"
+                    "      !\n"
+                    "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+                    "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                    "f2_proxy%data(df)\n"
+                    "      END DO \n"
+                    "      !\n"
+                    "      ! Set halos dirty/clean for fields modified in the "
+                    "above loop\n"
+                    "      !\n"
+                    "      CALL f3_proxy%set_dirty()\n"
+                    "      !\n")
+                if not annexed:
+                    # Only compute owned dofs if COMPUTE_ANNEXED_DOFS is False
+                    output_dm_2 = output_dm_2.replace("annexed", "owned")
+                assert output_dm_2 in code
+
+            if utils.TEST_COMPILE:
+                # If compilation testing has been enabled (--compile
+                # flag to py.test)
+                assert utils.code_compiles("dynamo0.3", psy, tmpdir,
+                                           f90, f90flags)
 
 
-def test_inc_X_plus_Y():
-    ''' Test that 1) the str method of DynIncXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    X = X + Y where X and Y are fields '''
+def test_inc_X_plus_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncXPlusYKern returns the
+    expected string and 2) we generate correct code for the built-in X
+    = X + Y where X and Y are fields. Test with and without annexed
+    dofs being computed as this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(os.path.join(BASE_PATH,
                                             "15.1.2_inc_X_plus_Y_builtin.f90"),
@@ -447,7 +467,7 @@ def test_inc_X_plus_Y():
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = f1_proxy%data(df) + "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -456,13 +476,21 @@ def test_inc_X_plus_Y():
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()")
+            if not annexed:
+                output = output.replace("dof_annexed", "dof_owned")
             assert output in code
 
 
-def test_aX_plus_Y():
-    ''' Test that 1) the str method of DynAXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = a*X + Y where 'a' is a scalar and Z, X and Y are fields '''
+def test_aX_plus_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynAXPlusYKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Z = a*X + Y where 'a' is a scalar and Z, X and Y are fields. Test
+    with and without annexed dofs being computed as this affects the
+    generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.3_aX_plus_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -517,7 +545,7 @@ def test_aX_plus_Y():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -527,14 +555,22 @@ def test_aX_plus_Y():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_inc_aX_plus_Y():
-    ''' Test that 1) the str method of DynIncAXPlusYKern returns the
+def test_inc_aX_plus_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncAXPlusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = a*X + Y where 'a' is a scalar and X and Y are fields '''
+    operation X = a*X + Y where 'a' is a scalar and X and Y are
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.4_inc_aX_plus_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -588,7 +624,7 @@ def test_inc_aX_plus_Y():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -598,14 +634,22 @@ def test_inc_aX_plus_Y():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_inc_X_plus_bY():
-    ''' Test that 1) the str method of DynIncXPlusBYKern returns the
+def test_inc_X_plus_bY(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X + b*Y where 'b' is a scalar and X and Y are fields '''
+    operation X = X + b*Y where 'b' is a scalar and X and Y are
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.5_inc_X_plus_bY_builtin.f90"),
                            api="dynamo0.3")
@@ -659,7 +703,7 @@ def test_inc_X_plus_bY():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = f1_proxy%data(df) + "
                 "b*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -669,15 +713,22 @@ def test_inc_X_plus_bY():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_aX_plus_bY():
-    ''' Test that 1) the str method of DynAXPlusBYKern returns the
+def test_aX_plus_bY(monkeypatch, annexed):
+    '''Test that 1) the str method of DynAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation Z = a*X + b*Y where 'a' and 'b' are scalars and Z, X and
-    Y are fields '''
+    Y are fields. Test with and without annexed dofs being computed as
+    this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.6_aX_plus_bY_builtin.f90"),
                            api="dynamo0.3")
@@ -732,7 +783,7 @@ def test_aX_plus_bY():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = a*f1_proxy%data(df) + "
                 "b*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -742,15 +793,22 @@ def test_aX_plus_bY():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_inc_aX_plus_bY():
-    ''' Test that 1) the str method of DynIncAXPlusBYKern returns the
+def test_inc_aX_plus_bY(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncAXPlusBYKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = a*X + b*Y where 'a' and 'b' are scalars and X and Y
-    are fields '''
+    are fields. Test with and without annexed dofs being computed as
+    this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.1.7_inc_aX_plus_bY_builtin.f90"),
@@ -805,7 +863,7 @@ def test_inc_aX_plus_bY():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = a*f1_proxy%data(df) + "
                 "b*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -815,6 +873,8 @@ def test_inc_aX_plus_bY():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
@@ -822,10 +882,16 @@ def test_inc_aX_plus_bY():
 # ------------- Subtracting (scaled) fields --------------------------------- #
 
 
-def test_X_minus_Y():
-    ''' Test that 1) the str method of DynXMinusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = X - Y where Z, X and Y are fields '''
+def test_X_minus_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynXMinusYKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Z = X - Y where Z, X and Y are fields. Test with and without
+    annexed dofs being computed as this affects the generated
+    code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.1_X_minus_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -867,7 +933,7 @@ def test_X_minus_Y():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = f1_proxy%data(df) - "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -877,14 +943,22 @@ def test_X_minus_Y():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_inc_X_minus_Y():
-    ''' Test that 1) the str method of DynIncXMinusYKern returns the
+def test_inc_X_minus_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X - Y where X and Y are fields '''
+    operation X = X - Y where X and Y are fields. Test with and
+    without annexed dofs being computed as this affects the generated
+    code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -926,7 +1000,7 @@ def test_inc_X_minus_Y():
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = f1_proxy%data(df) - "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -935,13 +1009,21 @@ def test_inc_X_minus_Y():
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()")
+            if not annexed:
+                output = output.replace("dof_annexed", "dof_owned")
             assert output in code
 
 
-def test_aX_minus_Y():
-    ''' Test that 1) the str method of DynAXMinusYKern returns the
+def test_aX_minus_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynAXMinusYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = a*X - Y where 'a' is a scalar and Z, X and Y are fields '''
+    operation Z = a*X - Y where 'a' is a scalar and Z, X and Y are
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.3_aX_minus_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -996,7 +1078,7 @@ def test_aX_minus_Y():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = a*f1_proxy%data(df) - "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1006,14 +1088,22 @@ def test_aX_minus_Y():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_X_minus_bY():
-    ''' Test that 1) the str method of DynXMinusBYKern returns the
+def test_X_minus_bY(monkeypatch, annexed):
+    '''Test that 1) the str method of DynXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = X - b*Y where 'b' is a scalar and Z, X and Y are fields '''
+    operation Z = X - b*Y where 'b' is a scalar and Z, X and Y are
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.4_X_minus_bY_builtin.f90"),
                            api="dynamo0.3")
@@ -1068,7 +1158,7 @@ def test_X_minus_bY():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = f1_proxy%data(df) - "
                 "b*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1078,14 +1168,22 @@ def test_X_minus_bY():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_inc_X_minus_bY():
-    ''' Test that 1) the str method of DynIncXMinusBYKern returns the
+def test_inc_X_minus_bY(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncXMinusBYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X - b*Y where 'b' is a scalar and X and Y are fields '''
+    operation X = X - b*Y where 'b' is a scalar and X and Y are
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.5_inc_X_minus_bY_builtin.f90"),
                            api="dynamo0.3")
@@ -1139,7 +1237,7 @@ def test_inc_X_minus_bY():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = f1_proxy%data(df) - "
                 "b*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1149,6 +1247,8 @@ def test_inc_X_minus_bY():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
@@ -1156,10 +1256,15 @@ def test_inc_X_minus_bY():
 # ------------- Multiplying (scaled) fields --------------------------------- #
 
 
-def test_X_times_Y():
-    ''' Test that 1) the str method of DynXTimesYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = X*Y where Z, X and Y are fields '''
+def test_X_times_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynXTimesYKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Z = X*Y where Z, X and Y are fields. Test with and without annexed
+    dofs being computed as this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1212,7 +1317,7 @@ def test_X_times_Y():
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = f1_proxy%data(df) * "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1221,13 +1326,21 @@ def test_X_times_Y():
                 "above loop\n"
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()")
+            if not annexed:
+                output = output.replace("dof_annexed", "dof_owned")
             assert output in code
 
 
-def test_inc_X_times_Y():
-    ''' Test that 1) the str method of DynIncXTimesYKern returns the
+def test_inc_X_times_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X*Y where X and Y are fields '''
+    operation X = X*Y where X and Y are fields. Test with and without
+    annexed dofs being computed as this affects the generated
+    code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.3.2_inc_X_times_Y_builtin.f90"),
@@ -1269,7 +1382,7 @@ def test_inc_X_times_Y():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = f1_proxy%data(df) * "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1279,14 +1392,22 @@ def test_inc_X_times_Y():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_inc_aX_times_Y():
-    ''' Test that 1) the str method of DynIncAXTimesYKern returns the
+def test_inc_aX_times_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncAXTimesYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = a*X*Y where 'a' is a scalar and X and Y are fields '''
+    operation X = a*X*Y where 'a' is a scalar and X and Y are
+    fields. Test with and without annexed dofs being computed as this
+    affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.3_inc_aX_times_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -1340,7 +1461,7 @@ def test_inc_aX_times_Y():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = a*f1_proxy%data(df) * "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1350,6 +1471,8 @@ def test_inc_aX_times_Y():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
@@ -1357,10 +1480,16 @@ def test_inc_aX_times_Y():
 # ------------- Scaling fields (multiplying by a scalar --------------------- #
 
 
-def test_a_times_X():
-    ''' Test that 1) the str method of DynATimesXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = a*X where 'a' is a scalar and X and Y are fields '''
+def test_a_times_X(monkeypatch, annexed):
+    '''Test that 1) the str method of DynATimesXKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Y = a*X where 'a' is a scalar and X and Y are fields. Test with
+    and without annexed dofs being computed as this affects the
+    generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.4.1_a_times_X_builtin.f90"),
@@ -1401,7 +1530,7 @@ def test_a_times_X():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
                 "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
@@ -1410,14 +1539,22 @@ def test_a_times_X():
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_inc_a_times_X():
-    ''' Test that 1) the str method of DynIncATimesXKern returns the
+def test_inc_a_times_X(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncATimesXKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = a*X where 'a' is a scalar and X is a field '''
+    operation X = a*X where 'a' is a scalar and X is a field. Test
+    with and without annexed dofs being computed as this affects the
+    generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1470,7 +1607,7 @@ def test_inc_a_times_X():
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = a_scalar*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
@@ -1478,17 +1615,24 @@ def test_inc_a_times_X():
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()")
-
+            if not annexed:
+                output = output.replace("dof_annexed", "dof_owned")
             assert output in code
 
 
 # ------------- Dividing (scaled) fields ------------------------------------ #
 
 
-def test_X_divideby_Y():
-    ''' Test that 1) the str method of DynXDividebyYKern returns the
+def test_X_divideby_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = X/Y where Z, X and Y are fields '''
+    operation Z = X/Y where Z, X and Y are fields. Test with and
+    without annexed dofs being computed as this affects the generated
+    code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.1_X_divideby_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -1530,7 +1674,7 @@ def test_X_divideby_Y():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = f1_proxy%data(df) / "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1540,14 +1684,21 @@ def test_X_divideby_Y():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_inc_X_divideby_Y():
-    ''' Test that 1) the str method of DynIncXDividebyYKern returns the
+def test_inc_X_divideby_Y(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncXDividebyYKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X/Y where X and Y are fields '''
+    operation X = X/Y where X and Y are fields. Test with and without
+    annexed dofs being computed as this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.2_inc_X_divideby_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -1588,7 +1739,7 @@ def test_inc_X_divideby_Y():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = f1_proxy%data(df) / "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -1598,6 +1749,8 @@ def test_inc_X_divideby_Y():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
@@ -1605,10 +1758,16 @@ def test_inc_X_divideby_Y():
 # ------------- Raising field to a scalar ----------------------------------- #
 
 
-def test_inc_X_powreal_a():
-    ''' Test that 1) the str method of DynIncXPowrealAKern returns the
+def test_inc_X_powreal_a(monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncXPowrealAKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X**a where 'a' is a real scalar and X is a field '''
+    operation X = X**a where 'a' is a real scalar and X is a
+    field. Test with and without annexed dofs being computed as this
+    affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1640,7 +1799,7 @@ def test_inc_X_powreal_a():
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = f1_proxy%data(df)**a_scalar\n"
                 "      END DO \n"
                 "      !\n"
@@ -1648,14 +1807,21 @@ def test_inc_X_powreal_a():
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()")
-
+            if not annexed:
+                output = output.replace("dof_annexed", "dof_owned")
             assert output in code
 
 
-def test_inc_X_powint_n(tmpdir, f90, f90flags):
-    ''' Test that 1) the str method of DynIncXPowintNKern returns the
+def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed):
+    '''Test that 1) the str method of DynIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
-    operation X = X**n where 'n' is an integer scalar and X is a field '''
+    operation X = X**n where 'n' is an integer scalar and X is a
+    field. Also test with and without annexed dofs being computed as
+    this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1693,7 +1859,7 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags):
             output = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = f1_proxy%data(df)**i_scalar\n"
                 "      END DO \n"
                 "      !\n"
@@ -1701,17 +1867,24 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags):
                 "above loop\n"
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()")
-
+            if not annexed:
+                output = output.replace("dof_annexed", "dof_owned")
             assert output in code
 
 
 # ------------- Setting field elements to a value --------------------------- #
 
 
-def test_setval_c():
-    ''' Test that 1) the str method of DynSetvalCKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = c where 'c' is a constant scalar value and X is a field '''
+def test_setval_c(monkeypatch, annexed):
+    '''Test that 1) the str method of DynSetvalCKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    X = c where 'c' is a constant scalar value and X is a field. Test
+    with and without annexed dofs being computed as this affects the
+    generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.1_setval_c_builtin.f90"),
                            api="dynamo0.3")
@@ -1760,7 +1933,7 @@ def test_setval_c():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = c\n"
                 "      END DO \n"
                 "      !\n"
@@ -1769,14 +1942,21 @@ def test_setval_c():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_setval_X():
-    ''' Test that 1) the str method of DynSetvalXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = X where X and Y are fields '''
+def test_setval_X(monkeypatch, annexed):
+    '''Test that 1) the str method of DynSetvalXKern returns the expected
+    string and 2) we generate correct code for the built-in operation
+    Y = X where X and Y are fields. Also test with and without annexed
+    dofs being computed as this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.2_setval_X_builtin.f90"),
                            api="dynamo0.3")
@@ -1826,7 +2006,7 @@ def test_setval_X():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
                 "        f2_proxy%data(df) = f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
@@ -1835,6 +2015,8 @@ def test_setval_X():
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
@@ -2115,9 +2297,14 @@ def test_X_times_Y_deduce_space():
 # ------------- Builtins that pass scalars by value ------------------------- #
 
 
-def test_builtin_set(tmpdir, f90, f90flags):
-    ''' Tests that we generate correct code for a serial builtin
-    setval_c operation with a scalar passed by value'''
+def test_builtin_set(tmpdir, f90, f90flags, monkeypatch, annexed):
+    '''Tests that we generate correct code for a serial builtin setval_c
+    operation with a scalar passed by value. Test with and without
+    annexed dofs being computed as this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
@@ -2171,7 +2358,7 @@ def test_builtin_set(tmpdir, f90, f90flags):
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = 0.0\n"
                 "      END DO \n"
                 "      !\n"
@@ -2180,13 +2367,21 @@ def test_builtin_set(tmpdir, f90, f90flags):
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_aX_plus_Y_by_value():
-    ''' Test that we generate correct code for the builtin
-    operation Z = a*X + Y when a scalar is passed by value'''
+def test_aX_plus_Y_by_value(monkeypatch, annexed):
+    '''Test that we generate correct code for the builtin operation Z =
+    a*X + Y when a scalar is passed by value. Also test with and
+    without annexed dofs being computed as this affects the generated
+    code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.13.1_aX_plus_Y_builtin_set_by_value.f90"),
@@ -2236,7 +2431,7 @@ def test_aX_plus_Y_by_value():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = 0.5_r_def*f1_proxy%data(df) + "
                 "f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -2246,13 +2441,21 @@ def test_aX_plus_Y_by_value():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_aX_plus_bY_by_value():
-    ''' Test that we generate correct code for the builtin
-    operation Z = a*X + b*Y when scalars 'a' and 'b' are passed by value'''
+def test_aX_plus_bY_by_value(monkeypatch, annexed):
+    '''Test that we generate correct code for the builtin operation Z =
+    a*X + b*Y when scalars 'a' and 'b' are passed by value. Test with
+    and without annexed dofs being computed as this affects the
+    generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.13.2_aX_plus_bY_builtin_set_by_value.f90"),
@@ -2302,7 +2505,7 @@ def test_aX_plus_bY_by_value():
                 "      !\n"
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = 0.5d0*f1_proxy%data(df) + "
                 "0.8*f2_proxy%data(df)\n"
                 "      END DO \n"
@@ -2312,6 +2515,8 @@ def test_aX_plus_bY_by_value():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
@@ -2319,9 +2524,14 @@ def test_aX_plus_bY_by_value():
 # ------------- Builtins with multiple calls or mixed with kernels ---------- #
 
 
-def test_multiple_builtin_set():
-    ''' Tests that we generate correct code when we have an invoke
-    containing multiple set operations '''
+def test_multiple_builtin_set(monkeypatch, annexed):
+    '''Tests that we generate correct code when we have an invoke
+    containing multiple set operations. Test with and without annexed
+    dofs being computed as this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.14.2_multiple_set_kernels.f90"),
                            api="dynamo0.3")
@@ -2384,7 +2594,7 @@ def test_multiple_builtin_set():
             output_dm_2 = (
                 "      ! Call kernels and communication routines\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = fred\n"
                 "      END DO \n"
                 "      !\n"
@@ -2393,7 +2603,7 @@ def test_multiple_builtin_set():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
-                "      DO df=1,f2_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f2_proxy%vspace%get_last_dof_annexed()\n"
                 "        f2_proxy%data(df) = 3.0\n"
                 "      END DO \n"
                 "      !\n"
@@ -2402,7 +2612,7 @@ def test_multiple_builtin_set():
                 "      !\n"
                 "      CALL f2_proxy%set_dirty()\n"
                 "      !\n"
-                "      DO df=1,f3_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
                 "        f3_proxy%data(df) = ginger\n"
                 "      END DO \n"
                 "      !\n"
@@ -2411,13 +2621,21 @@ def test_multiple_builtin_set():
                 "      !\n"
                 "      CALL f3_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
 
-def test_builtin_set_plus_normal():
-    ''' Tests that we generate correct code for a builtin
-    set operation when the invoke also contains a normal kernel '''
+def test_builtin_set_plus_normal(monkeypatch, annexed):
+    '''Tests that we generate correct code for a builtin set operation
+    when the invoke also contains a normal kernel. Test with and
+    without annexed dofs being computed as this affects the generated
+    code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
@@ -2495,7 +2713,7 @@ def test_builtin_set_plus_normal():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = 0.0\n"
                 "      END DO \n"
                 "      !\n"
@@ -2504,6 +2722,8 @@ def test_builtin_set_plus_normal():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n")
+            if not annexed:
+                output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
             print(output_dm_2)
             assert output_dm_2 in code
 
@@ -2511,9 +2731,14 @@ def test_builtin_set_plus_normal():
 # ------------- Builtins with reductions ------------------------------------ #
 
 
-def test_multi_builtin_single_invoke():
-    '''Test that multiple builtins, including one with reductions,
-    produce correct code'''
+def test_multi_builtin_single_invoke(monkeypatch, annexed):
+    '''Test that multiple builtins, including one with reductions, produce
+    correct code. Also test with and without annexed dofs being
+    computed as this affects the generated code.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -2556,7 +2781,7 @@ def test_multi_builtin_single_invoke():
                 "      ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()\n"
                 "      undf_any_space_1_f1 = "
                 "f1_proxy%vspace%get_undf()\n") in code
-            assert (
+            output = (
                 "      asum = 0.0_r_def\n"
                 "      !\n"
                 "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
@@ -2564,7 +2789,7 @@ def test_multi_builtin_single_invoke():
                 "      END DO \n"
                 "      global_sum%value = asum\n"
                 "      asum = global_sum%get_sum()\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = b*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
@@ -2573,14 +2798,17 @@ def test_multi_builtin_single_invoke():
                 "      !\n"
                 "      CALL f1_proxy%set_dirty()\n"
                 "      !\n"
-                "      DO df=1,f1_proxy%vspace%get_last_dof_owned()\n"
+                "      DO df=1,f1_proxy%vspace%get_last_dof_annexed()\n"
                 "        f1_proxy%data(df) = asum*f1_proxy%data(df)\n"
                 "      END DO \n"
                 "      !\n"
                 "      ! Set halos dirty/clean for fields modified in the "
                 "above loop\n"
                 "      !\n"
-                "      CALL f1_proxy%set_dirty()\n") in code
+                "      CALL f1_proxy%set_dirty()\n")
+            if not annexed:
+                output = output.replace("dof_annexed", "dof_owned")
+            assert output in code
         else:
             assert (
                 "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"

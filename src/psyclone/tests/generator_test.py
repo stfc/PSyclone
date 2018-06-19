@@ -439,7 +439,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
         "argument of type 'int' is not iterable\n"
         "Type ...\n"
         "%s\n"
-        "Stacktrace ...\n"%type(TypeError()))
+        "Stacktrace ...\n" % type(TypeError()))
     assert expected_output in output
 
 
