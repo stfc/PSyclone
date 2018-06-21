@@ -29,6 +29,7 @@ from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.algGen import NoInvokesError
 from psyclone.config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
 from psyclone.line_length import FortLineLength
+from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
 
 
@@ -148,6 +149,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     '''
 
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
         api = DEFAULTAPI
     else:
@@ -165,13 +167,15 @@ def generate(filename, api="", kernel_path="", script_name=None,
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
-        psy = PSyFactory(api, distributed_memory=distributed_memory).\
-            create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
+
         if script_name is not None:
             handle_script(script_name, psy)
         alg = Alg(ast, psy)
     except Exception:
         raise
+
     return alg.gen, psy.gen
 
 
@@ -181,7 +185,7 @@ def main(args):
     function if all is well, catches any errors and outputs the
     results
     '''
-    # pylint: disable=too-many-statements
+    # pylint: disable=too-many-statements,too-many-branches
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
@@ -205,6 +209,14 @@ def main(args):
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
+    parser.add_argument(
+        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
+        help="Add profiling hooks for either 'kernels' or 'invokes'")
+    parser.add_argument(
+        '--force-profile', action="append",
+        choices=Profiler.SUPPORTED_OPTIONS,
+        help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
+             "transformation script is used. Use at your own risk.")
     parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
 
     parser.add_argument(
@@ -214,14 +226,31 @@ def main(args):
     args = parser.parse_args(args)
 
     if args.api not in SUPPORTEDAPIS:
-        print("Unsupported API '{0}' specified. Supported API's are "\
-            "{1}.".format(args.api, SUPPORTEDAPIS))
+        print("Unsupported API '{0}' specified. Supported API's are "
+              "{1}.".format(args.api, SUPPORTEDAPIS))
         exit(1)
 
     if args.version:
         print("PSyclone version: {0}".format(__VERSION__))
 
-    # pylint: disable=broad-except
+    if args.script is not None and args.profile is not None:
+        print("Error: use of automatic profiling in combination with an")
+        print("optimisation script is not recommened since it may not work")
+        print("as expected.")
+        print("You can use --force-profile instead of --profile if you "
+              "really want to use both options")
+        print("at the same time.")
+        exit(1)
+
+    if args.profile is not None and args.force_profile is not None:
+        print("Specify only one of --profile and --force-profile.")
+        exit(1)
+
+    if args.profile:
+        Profiler.set_options(args.profile)
+    elif args.force_profile:
+        Profiler.set_options(args.force_profile)
+
     try:
         alg, psy = generate(args.filename, api=args.api,
                             kernel_path=args.directory,
@@ -243,7 +272,7 @@ def main(args):
         _, exc_value, _ = sys.exc_info()
         print(exc_value)
         exit(1)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         print("Error, unexpected exception, please report to the authors:")
         exc_type, exc_value, exc_tb = sys.exc_info()
         print("Description ...")
@@ -265,7 +294,7 @@ def main(args):
         my_file.write(alg_str)
         my_file.close()
     else:
-        print("Transformed algorithm code:\n%s"%alg_str)
+        print("Transformed algorithm code:\n%s" % alg_str)
 
     if not psy_str:
         # empty file so do not output anything

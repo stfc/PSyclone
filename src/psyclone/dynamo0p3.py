@@ -3103,6 +3103,7 @@ class DynInvoke(Invoke):
         self.evaluators.deallocate(invoke_sub)
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
+
         # finally, add me to my parent
         parent.add(invoke_sub)
 

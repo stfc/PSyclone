@@ -42,7 +42,8 @@
     checks before calling the base class for the actual
     transformation. '''
 
-from psyclone.psyGen import Transformation
+from psyclone.psyGen import OMPDoDirective, Transformation
+
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -461,15 +462,15 @@ class OMPLoopTrans(Transformation):
         with the same number of OpenMP threads, not for different
         numbers of OpenMP threads.
 
-        :param node: the supplied node to which we will apply the
+        :param node: the supplied node to which we will apply the\
         OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param reprod: optional argument to determine whether to
-        generate reproducible OpenMP reductions (True) or not
-        (False). The default value is None which will cause PSyclone
+        :param reprod: optional argument to determine whether to\
+        generate reproducible OpenMP reductions (True) or not\
+        (False). The default value is None which will cause PSyclone\
         to look up a default value
         :type reprod: Boolean, or None
-        :return: (:py:class:`psyclone.psyGen.Schedule`,
+        :return: (:py:class:`psyclone.psyGen.Schedule`,\
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -494,7 +495,6 @@ class OMPLoopTrans(Transformation):
 
         # add our orphan OpenMP loop directive setting its parent to
         # the node's parent and its children to the node
-        from psyclone.psyGen import OMPDoDirective
         directive = OMPDoDirective(parent=node_parent,
                                    children=[node],
                                    omp_schedule=self.omp_schedule,
@@ -1667,5 +1667,123 @@ class GOLoopSwapTrans(Transformation):
         # Move outer under inner:
         inner.children.append(outer)
         outer.parent = inner
+
+        return schedule, keep
+
+
+class ProfileRegionTrans(Transformation):
+
+    ''' Create a profile region around a list of statements. For
+    example:
+
+    >>> from psyclone.parse import parse, ParseError
+    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> api="gocean1.0"
+    >>> filename="nemolite2d_alg.f90"
+    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
+    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.psyGen import TransInfo
+    >>> t=TransInfo()
+    >>> p_trans= t.get_trans_name('ProfileRegionTrans')
+    >>>
+    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Enclose all children within a single profile region
+    >>> newschedule, _ = p_trans.apply(schedule.children)
+    >>> newschedule.view()
+
+    '''
+
+    def __str__(self):
+        return "Insert a profile start and end call."
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string '''
+        return "ProfileRegionTrans"
+
+    def apply(self, nodes):
+        # pylint: disable=arguments-differ
+        '''Apply this transformation to a subset of the nodes within a
+        schedule - i.e. enclose the specified Nodes in the
+        schedule within a single profiler region.
+
+        :param nodes: Can be a single node or a list of nodes.
+        :type nodes: :py:obj:`psyclone.psygen.Node` or list of\
+        :py:obj:`psyclone.psygen.Node`.
+        '''
+
+        # Check whether we've been passed a list of nodes or just a
+        # single node. If the latter then we create ourselves a
+        # list containing just that node.
+        from psyclone.psyGen import Node
+        if isinstance(nodes, list) and isinstance(nodes[0], Node):
+            node_list = nodes
+        elif isinstance(nodes, Node):
+            node_list = [nodes]
+        else:
+            arg_type = str(type(nodes))
+            raise TransformationError("Error in {1}. "
+                                      "Argument must be a single Node in a "
+                                      "schedule or a list of Nodes in a "
+                                      "schedule but have been passed an "
+                                      "object of type: {0}".
+                                      format(arg_type, str(self)))
+
+        # Keep a reference to the parent of the nodes that are to be
+        # enclosed within a profile region. Also keep the index of
+        # the first child to be enclosed as that will become the
+        # position of the new Profile node
+        node_parent = node_list[0].parent
+        if isinstance(node_parent, OMPDoDirective):
+            raise TransformationError("A ProfileNode can not be inserted "
+                                      "between an omp do region and the "
+                                      "loop(s) to which it applies!")
+        node_position = node_list[0].position
+
+        # We need to make sure that the nodes are consecutive children,
+        # otherwise code might get moved in an incorrect order
+        prev_position = -1
+        for child in node_list:
+            if child.parent is not node_parent:
+                raise TransformationError(
+                    "Error in {0} transformation: supplied nodes "
+                    "are not children of the same Schedule/parent."
+                    .format(str(self)))
+            if prev_position >= 0 and prev_position+1 != child.position:
+                raise TransformationError(
+                    "Children are not consecutive children of one parent: "
+                    "child '{0}' has position {1}, but previous child had "
+                    "position {2}."
+                    .format(str(child), child.position, prev_position))
+            prev_position = child.position
+
+        # create a memento of the schedule and the proposed
+        # transformation
+        schedule = node_list[0].root
+
+        from psyclone.undoredo import Memento
+        keep = Memento(schedule, self)
+
+        from psyclone.profiler import ProfileNode
+        profile_node = ProfileNode(parent=node_parent, children=node_list[:])
+
+        # Change all of the affected children so that they have
+        # the ProfileNode astheir parent. Use a slice
+        # of the list of nodes so that we're looping over a local
+        # copy of the list. Otherwise things get confused when
+        # we remove children from the list.
+        for child in node_list[:]:
+            # Remove child from the parent's list of children
+            node_parent.children.remove(child)
+            child.parent = profile_node
+
+        # Add the Profile node as a child of the parent
+        # of the nodes being enclosed and at the original location
+        # of the first of these nodes
+        node_parent.addchild(profile_node,
+                             index=node_position)
 
         return schedule, keep
