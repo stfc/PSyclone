@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -297,9 +298,9 @@ class GOSchedule(Schedule):
 
     def view(self, indent=0):
         ''' Print a representation of this GOSchedule '''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" + \
-            self.invoke.name + "',Constant loop bounds=" + \
-            str(self._const_loop_bounds) + "]")
+        print(self.indent(indent) + self.coloured_text + "[invoke='" +
+              self.invoke.name + "',Constant loop bounds=" +
+              str(self._const_loop_bounds) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -360,6 +361,7 @@ class GOSchedule(Schedule):
         self._const_loop_bounds = obj
 
 
+# pylint: disable=too-many-instance-attributes
 class GOLoop(Loop):
     ''' The GOcean specific Loop class. This passes the GOcean specific
         single loop information to the base class so it creates the one we
@@ -457,6 +459,7 @@ class GOLoop(Loop):
                     {'inner': {'start': "1", 'stop': "{stop}+1"},
                      'outer': {'start': "1", 'stop': "{stop}+1"}}
 
+    # pylint: disable=too-many-branches
     def _upper_bound(self):
         ''' Returns the upper bound of this loop as a string '''
         schedule = self.ancestor(GOSchedule)
@@ -476,9 +479,12 @@ class GOLoop(Loop):
                 stop = schedule.jloop_stop
 
             if index_offset:
-                d_bounds = self._bounds_lookup[index_offset][self.field_space] \
-                    [self._iteration_space][self._loop_type]
-                stop = d_bounds["stop"].format(start='', stop=stop)
+                # This strange line splitting was the only way I could find
+                # to avoid pep8 warnings: using [..._space]\ keeps on
+                # complaining about a white space
+                bounds = self._bounds_lookup[index_offset][self.field_space][
+                    self._iteration_space][self._loop_type]
+                stop = bounds["stop"].format(start='', stop=stop)
             else:
                 stop = "not yet set"
         else:
@@ -512,6 +518,7 @@ class GOLoop(Loop):
                     stop += "%ystop"
         return stop
 
+    # pylint: disable=too-many-branches
     def _lower_bound(self):
         ''' Returns a string containing the expression for the lower
         bound of the loop '''
@@ -531,9 +538,12 @@ class GOLoop(Loop):
             else:
                 stop = schedule.jloop_stop
             if index_offset:
-                d_bounds = self._bounds_lookup[index_offset][self.field_space] \
-                         [self._iteration_space][self._loop_type]
-                start = d_bounds["start"].format(start='', stop=stop)
+                # This strange line splitting was the only way I could find
+                # to avoid pep8 warnings: using [..._space]\ keeps on
+                # complaining about a white space
+                bounds = self._bounds_lookup[index_offset][self.field_space][
+                    self._iteration_space][self._loop_type]
+                start = bounds["start"].format(start='', stop=stop)
             else:
                 start = "not yet set"
         else:
@@ -612,6 +622,7 @@ class GOLoop(Loop):
         Loop.gen_code(self, parent)
 
 
+# pylint: disable=too-few-public-methods
 class GOBuiltInCallFactory(object):
     ''' A GOcean-specific built-in call factory. No built-ins
         are supported in GOcean at the moment. '''
@@ -625,6 +636,7 @@ class GOBuiltInCallFactory(object):
             "Built-ins are not supported for the GOcean 1.0 API")
 
 
+# pylint: disable=too-few-public-methods
 class GOKernCallFactory(object):
     ''' A GOcean-specific kernel-call factory. A standard kernel call in
     GOcean consists of a doubly-nested loop (over i and j) and a call to
@@ -902,6 +914,7 @@ class GOStencil(object):
         self._name = None
         self._initialised = False
 
+    # pylint: disable=too-many-branches
     def load(self, stencil_info, kernel_name):
         '''Take parsed stencil metadata information, check it is valid and
         store it in a convenient form. The kernel_name argument is
@@ -1163,7 +1176,6 @@ class GO1p0Descriptor(Descriptor):
             access = kernel_arg.args[0].name
             grid_var = kernel_arg.args[1].name
             funcspace = ""
-            stencil = ""
 
             self._grid_prop = grid_var
             self._type = "grid_property"
