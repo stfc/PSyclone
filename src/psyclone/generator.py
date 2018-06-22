@@ -106,8 +106,7 @@ def handle_script(script_name, psy):
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
-             distributed_memory=DISTRIBUTED_MEMORY,
-             opencl=True):
+             distributed_memory=DISTRIBUTED_MEMORY):
     # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -134,7 +133,6 @@ def generate(filename, api="", kernel_path="", script_name=None,
     :param bool distributed_memory: A logical flag specifying whether to
                                     generate distributed memory code. The
                                     default is set in the config.py file.
-    :param bool opencl: Whether or not to generate OpenCL for the PSy layer
     :return: The algorithm code and the psy code.
     :rtype: ast
     :raises IOError: if the filename or search path do not exist
@@ -167,8 +165,8 @@ def generate(filename, api="", kernel_path="", script_name=None,
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
-        psy = PSyFactory(api, distributed_memory=distributed_memory,
-                         opencl=opencl).create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory).\
+              create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy)
         alg = Alg(ast, psy)
