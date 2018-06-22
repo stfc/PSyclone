@@ -1682,7 +1682,7 @@ class OCLTrans(Transformation):
     >>> ocl_trans = OCLTrans()
     >>> new_sched, _ = ocl_trans.apply(schedule)
     '''
-
+    @property
     def name(self):
         '''Returns the name of this transformation as a string.'''
         return "OCLTrans"
