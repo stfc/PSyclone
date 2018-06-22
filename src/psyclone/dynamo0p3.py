@@ -3157,13 +3157,15 @@ class DynGlobalSum(GlobalSum):
 
 
 def _create_depth_list(halo_info_list):
-    '''Halo's may have more than one dependency. This method simplifies
-    multiple dependencies to remove duplicates and any obvious
-    redundancy. For example, if one dependency is for depth=1 and
-    another for depth=2 then we do not need the former as it is
+    '''Halo exchanges may have more than one dependency. This method
+    simplifies multiple dependencies to remove duplicates and any
+    obvious redundancy. For example, if one dependency is for depth=1
+    and another for depth=2 then we do not need the former as it is
     covered by the latter. Similarly, if we have a depth=extent+1 and
-    another for depth=extent+2 then we do not need the former as
-    it is covered by the latter.
+    another for depth=extent+2 then we do not need the former as it is
+    covered by the latter. It also takes into account clean_outer,
+    which indicates whether the outermost halo needs to be clean (and
+    therefore whether there is dependence).
 
     :param: a list containing halo access information derived from
     all read fields dependent on this halo exchange
@@ -3174,57 +3176,80 @@ def _create_depth_list(halo_info_list):
 
     '''
     depth_info_list = []
-    # first look to see if all field dependencies specify
-    # annexed_only. If so we only access annexed dofs
+    # first look to see if all field dependencies are
+    # annexed_only. If so we only care about annexed dofs
     annexed_only = True
     for halo_info in halo_info_list:
-        if not halo_info.annexed_only:
+        if not ( halo_info.annexed_only or
+                 (halo_info.literal_depth == 1 and not halo_info.clean_outer)):
+            # There are two cases when we only care about access
+            # annexed dofs. 1) when annexed_only is set and 2) when
+            # the halo depth is 1 but we only depend on annexed dofs
+            # being up-to-date (clean_outer is False)
             annexed_only = False
             break
     if annexed_only:
         depth_info = HaloDepth()
         depth_info.set_by_value(max_depth=False, var_depth="",
-                                literal_depth=1, annexed_only=True)
+                                literal_depth=1, annexed_only=True,
+                                max_depth_m1=False)
         return [depth_info]
     # next look to see if one of the field dependencies specifies
     # a max_depth access. If so the whole halo region is accessed
     # so we do not need to be concerned with other accesses.
+    max_depth_m1 = False
     for halo_info in halo_info_list:
         if halo_info.max_depth:
-            # found a max_depth access so we only need one
-            # HaloDepth entry
-            depth_info = HaloDepth()
-            depth_info.set_by_value(max_depth=True, var_depth="",
-                                    literal_depth=0, annexed_only=False)
-            return [depth_info]
-
+            if halo_info.clean_outer:
+                # found a max_depth access so we only need one
+                # HaloDepth entry
+                depth_info = HaloDepth()
+                depth_info.set_by_value(max_depth=True, var_depth="",
+                                        literal_depth=0, annexed_only=False,
+                                        max_depth_m1=False)
+                return [depth_info]
+            else:
+                # remember that we found a max_depth-1 access
+                max_depth_m1 = True
     for halo_info in halo_info_list:
         # go through the halo information associated with each
-        # read dependency
-        var_depth = halo_info.var_depth
-        literal_depth = halo_info.literal_depth
-        match = False
-        # check whether we match with existing depth information
-        for depth_info in depth_info_list:
-            if depth_info.var_depth == var_depth and not match:
-                # this dependence uses the same variable to
-                # specify its depth as an existing one, or both do
-                # not have a variable so we only have a
-                # literal. Therefore we only need to update the
-                # literal value with the maximum of the two
-                # (e.g. var_name,1 and var_name,2 => var_name,2)
-                depth_info.literal_depth = max(
-                    depth_info.literal_depth, literal_depth)
-                match = True
-                break
-        if not match:
-            # no matches were found with existing variables, or no
-            # variables so create a new halo depth entry
-            depth_info = HaloDepth()
-            depth_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                    literal_depth=literal_depth,
-                                    annexed_only=False)
-            depth_info_list.append(depth_info)
+        # read dependency, skipping any max_depth-1 accesses
+        if not (halo_info.max_depth and not halo_info.clean_outer):
+            var_depth = halo_info.var_depth
+            literal_depth = halo_info.literal_depth
+            if literal_depth and not halo_info.clean_outer:
+                # decrease depth by 1 if we don't care about the outermost
+                # access
+                literal_depth -= 1
+            match = False
+            # check whether we match with existing depth information
+            for depth_info in depth_info_list:
+                if depth_info.var_depth == var_depth and not match:
+                    # this dependence uses the same variable to
+                    # specify its depth as an existing one, or both do
+                    # not have a variable so we only have a
+                    # literal. Therefore we only need to update the
+                    # literal value with the maximum of the two
+                    # (e.g. var_name,1 and var_name,2 => var_name,2)
+                    depth_info.literal_depth = max(
+                        depth_info.literal_depth, literal_depth)
+                    match = True
+                    break
+            if not match:
+                # no matches were found with existing variables, or no
+                # variables so create a new halo depth entry
+                depth_info = HaloDepth()
+                depth_info.set_by_value(max_depth=False, var_depth=var_depth,
+                                        literal_depth=literal_depth,
+                                        annexed_only=False, max_depth_m1=False)
+                depth_info_list.append(depth_info)
+    if max_depth_m1:
+        # we have at least one max_depth-1 access.
+        depth_info = HaloDepth()
+        depth_info.set_by_value(max_depth=False, var_depth="",
+                                literal_depth=0, annexed_only=False,
+                                max_depth_m1=True)
+        depth_info_list.append(depth_info)
     return depth_info_list
 
 
@@ -3274,14 +3299,7 @@ class DynHaloExchange(HaloExchange):
         # if there is only one entry in the list we can just return
         # the depth
         if len(depth_info_list) == 1:
-            depth_info = depth_info_list[0]
-            if depth_info.max_depth:
-                # return the maximum halo depth (which is returned by
-                # calling get_halo_depth with no depth argument)
-                # TODO fix hard-wired mesh name here
-                return "mesh%get_halo_depth()"
-            else:  # return the variable and/or literal depth expression
-                return str(depth_info)
+            return str(depth_info_list[0])
         else:
             # the depth information can't be reduced to a single
             # expression, therefore we need to determine the maximum
@@ -3565,10 +3583,15 @@ class HaloDepth(object):
         self._var_depth = None
         # max_depth specifies whether the full depth of halo (whatever
         # that might be) is accessed. If this is set then
-        # literal_depth and var_depth have no meaning. max_depth being
-        # False does not necessarily mean the full halo depth is not
-        # accessed, rather it means that we do not know.
+        # literal_depth, var_depth and max_depth_m1 have no
+        # meaning. max_depth being False does not necessarily mean the
+        # full halo depth is not accessed, rather it means that we do
+        # not know.
         self._max_depth = False
+        # max_depth_m1 specifies whether the full depth of halo (whatever
+        # that might be) appart from the outermost level is accessed. If this is set then
+        # literal_depth, var_depth and max_depth have no meaning.
+        self._max_depth_m1 = False
         # annexed only is True if the only access in the halo is for
         # annexed dofs
         self._annexed_only = False
@@ -3596,6 +3619,18 @@ class HaloDepth(object):
 
         '''
         return self._max_depth
+
+    @property
+    def max_depth_m1(self):
+        '''Returns whether the read to the field is known to access all of the
+        halo except the outermost level or not
+
+        :return: Return True if the read to the field is known to
+        access all of the halo except the outermost and False otherwise
+        :rtype: bool
+
+        '''
+        return self._max_depth_m1
 
     @property
     def var_depth(self):
@@ -3635,7 +3670,8 @@ class HaloDepth(object):
         '''
         self._literal_depth = value
 
-    def set_by_value(self, max_depth, var_depth, literal_depth, annexed_only):
+    def set_by_value(self, max_depth, var_depth, literal_depth, annexed_only,
+                     max_depth_m1):
         '''Set halo depth information directly
 
         :param max_depth: True if the field accesses all of the halo
@@ -3656,17 +3692,23 @@ class HaloDepth(object):
         self._var_depth = var_depth
         self._literal_depth = literal_depth
         self._annexed_only = annexed_only
+        self._max_depth_m1 = max_depth_m1
 
     def __str__(self):
         '''return the depth of a halo dependency
         as a string'''
         depth_str = ""
-        if self.var_depth:
-            depth_str += self.var_depth
+        if self.max_depth:
+            depth_str += "mesh%get_halo_depth()"
+        elif self.max_depth_m1:
+            depth_str += "mesh%get_halo_depth()-1"
+        else:
+            if self.var_depth:
+                depth_str += self.var_depth
+                if self.literal_depth:
+                    depth_str += "+"
             if self.literal_depth:
-                depth_str += "+"
-        if self.literal_depth:
-            depth_str += str(self.literal_depth)
+                depth_str += str(self.literal_depth)
         return depth_str
 
 
@@ -3782,11 +3824,13 @@ class HaloWriteAccess(HaloDepth):
         # The third argument for set_by_value specifies the name of a
         # variable used to specify the depth. Variables are currently
         # not used when a halo is written to, so we pass None which
-        # indicates there is no variable.
-        # the fifth argument for set_by_value indicates whether we
-        # only access annexed_dofs. At the moment this is not possible
-        # when modifying a field so we always return False
-        HaloDepth.set_by_value(self, max_depth, None, depth, False)
+        # indicates there is no variable.  the fifth argument for
+        # set_by_value indicates whether we only access
+        # annexed_dofs. At the moment this is not possible when
+        # modifying a field so we always return False. The sixth
+        # argument indicates if the depth of access is the
+        # maximum-1. This is not possible here so we return False.
+        HaloDepth.set_by_value(self, max_depth, None, depth, False, False)
 
 
 class HaloReadAccess(HaloDepth):
