@@ -3349,12 +3349,13 @@ class DynHaloExchange(HaloExchange):
 
     def required(self):
         '''Determines whether this halo exchange is definitely required (True,
-        True), might be required (True, False) or is definitely not required
-        (False, *). The first return argument is used to decide whether a halo
-        exchange should exist. If it is True then the halo is required or
-        might be required. If it is False then the halo is definitely not
-        required. The second argument is used to specify whether we definitely
-        know that it is required or are not sure.
+        True), might be required (True, False) or is definitely not
+        required (False, *). The first return argument is used to
+        decide whether a halo exchange should exist. If it is True
+        then the halo is required or might be required. If it is False
+        then the halo exchange is definitely not required. The second
+        argument is used to specify whether we definitely know that it
+        is required or are not sure.
 
         Whilst a halo exchange is generally only ever added if it is
         required, or if it may be required, this situation can change
@@ -3716,11 +3717,14 @@ class HaloWriteAccess(HaloDepth):
     when a field is accessed in a particular kernel within a
     particular loop nest
 
-    :param field: the field that we are concerned with
-    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-
     '''
     def __init__(self, field):
+        '''
+        :param field: the field that we are concerned with
+        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+
+        '''
+
         HaloDepth.__init__(self)
         self._compute_from_field(field)
 
@@ -3802,6 +3806,20 @@ class HaloReadAccess(HaloDepth):
         self._compute_from_field(field)
 
     @property
+    def clean_outer(self):
+        '''Returns False if the reader has a gh_inc access and accesses the
+        halo. Otherwise returns True.  Indicates that the outer level
+        of halo that has been read does not need to be clean (although
+        any annexed dofs do).
+
+        :return: Returns False if the outer layer of halo that is read
+        does not need to be clean and True otherwise.
+        :rtype: bool
+
+        '''
+        return self._clean_outer
+
+    @property
     def stencil_type(self):
         '''Returns the type of stencil access used by the field(s) in the halo
         if one exists. If redundant computation (accessing the full
@@ -3833,6 +3851,13 @@ class HaloReadAccess(HaloDepth):
         call = halo_check_arg(field, GH_READ_ACCESSES)
         # no test required here as all calls exist within a loop
         loop = call.parent
+        # the outermost halo level that is read does not need to be
+        # clean if the access is gh_inc as the values computed are
+        # incorrect (partial sums) and the outermost halo is
+        # subsequently set to dirty
+        self._clean_outer = (
+            not ( field.access.lower() == "gh_inc" and
+                  loop.upper_bound_name == "cell_halo"))
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
         if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
