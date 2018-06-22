@@ -791,7 +791,7 @@ class GOKern(Kern):
                     "CL_TRUE, 0_8, size_in_bytes, C_LOC({0}%data), "
                     "0, C_NULL_PTR, C_LOC(write_event))".format(arg.name)))
                 ifthen.add(AssignGen(ifthen,
-                                     lhs="{0}.data_on_device".format(arg.name),
+                                     lhs="{0}%data_on_device".format(arg.name),
                                      rhs=".true."))
         # Ensure data copies have finished
         parent.add(CommentGen(parent,
@@ -808,10 +808,10 @@ class GOKern(Kern):
             elif arg.type == "field":
                 arguments.append(arg.name + "%device_ptr")
             elif arg.type == "grid_property":
-                # TODO where to store device pointers for grid properties?
-                #arguments.append(garg.name+"%grid%"+arg.name)
-                raise NotImplementedError(
-                    "Grid property arrays not yet on OCL device")
+                # TODO dl_esm_inf stores the pointers to device memory
+                # for grid properties in "grid-prop-name_device" which
+                # is a bit hacky but works for now.
+                arguments.append(garg.name+"%grid%"+arg.name+"_device")
         parent.add(CallGen(
             parent, "{0}_set_args".format(self.name), arguments))
 
