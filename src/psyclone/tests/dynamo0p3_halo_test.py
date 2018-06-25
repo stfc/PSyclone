@@ -368,6 +368,7 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
     assert not loop1.upper_bound_halo_depth
     assert isinstance(loop2, DynLoop)
 
+# same as above with colouring
 
 # TBD redundant computation correct value (1st gh_inc, depth=1, 2nd gh_inc depth=2)
     

@@ -6401,7 +6401,7 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
         result = str(psy.gen)
 
         # the redundant computation code has one halo exchange for field f1
-        assert result.count("f1_proxy%halo_exchange(depth=2)") == 1
+        assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
         assert isinstance(schedule.children[0], DynHaloExchange)
         assert schedule.children[0].field.name == "f1"
 

@@ -3901,7 +3901,7 @@ class HaloReadAccess(HaloDepth):
         # subsequently set to dirty
         self._clean_outer = (
             not ( field.access.lower() == "gh_inc" and
-                  loop.upper_bound_name == "cell_halo"))
+                  loop.upper_bound_name in ["cell_halo", "colour_halo"]))
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
         if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:

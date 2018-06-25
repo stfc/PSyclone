@@ -6778,7 +6778,11 @@ def test_arg_discontinuous(monkeypatch, annexed):
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[5].children[0]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    kernel = schedule.children[index].children[0]
     field = kernel.arguments.args[0]
     assert field.space == 'any_space_1'
     assert not field.discontinuous
