@@ -141,7 +141,6 @@ def test_search_path(monkeypatch, tmpdir):
             with pytest.raises(ConfigurationError) as err:
                 _ = Config.find_file()
             err_msg = str(err)
-            print err_msg
             assert "not found in any of " in err_msg
             # CWD
             cwd_idx = err_msg.find(os.path.join(cwd, ".psyclone"))

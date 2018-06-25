@@ -103,7 +103,7 @@ class ConfigFactory(object):
 
     def __init__(self, config_file=None):
         '''
-        Create our singleton Config object. If config_name is specified
+        Create our singleton Config object. If config_file is specified
         then we throw-away the old Config and create a new one.
 
         :param str config_file: Specific configuration file to use when

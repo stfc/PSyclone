@@ -91,8 +91,9 @@ API. The default API, along with the supported API's can be seen by
 running the generator.py script with the -h option.
 
 If you use a particular API frequently and it is not the default then
-you can change the default by editing the ``psyclone.cfg`` file.
-See :ref:`configuration` for more details.
+you can change the default by creating a copy of the default
+``psyclone.cfg`` file and editing it. See :ref:`configuration` for
+more details.
 
 If your code uses an API that is different to the default then you can
 specify this as an argument to the generator.py script.
