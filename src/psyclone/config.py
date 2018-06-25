@@ -49,4 +49,4 @@ REPROD_PAD_SIZE = 8
 # that it iterates over dofs. This is currently only the case for
 # builtins. If annexed dofs are computed then in certain cases we
 # remove the need for a halo exchange call.
-COMPUTE_ANNEXED_DOFS = False
+COMPUTE_ANNEXED_DOFS = True

@@ -300,9 +300,17 @@ def test_field_prolong(tmpdir, f90, f90flags):
             assert set_dirty in gen_code
 
 
-def test_field_restrict(tmpdir, f90, f90flags):
-    ''' Test that we generate correct code for an invoke containing a
-    single restriction operation (read from find, write to coarse) '''
+def test_field_restrict(tmpdir, f90, f90flags, monkeypatch, annexed):
+    '''Test that we generate correct code for an invoke containing a
+    single restriction operation (read from find, write to
+    coarse). Check with annexed is False and True as we produce a
+    different number of halo exchanges.
+
+    '''
+
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
                            api=API)
@@ -369,18 +377,28 @@ def test_field_restrict(tmpdir, f90, f90flags):
             # we require up-to-date values out to the L2 halo on the fine.
             # Since we are incrementing the coarse field we also need
             # up-to-date values for it in the L1 halo.
-            halo_exchs = (
-                "      ! Call kernels and communication routines\n"
-                "      !\n"
-                "      IF (field1_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL field1_proxy%halo_exchange(depth=1)\n"
-                "      END IF \n"
-                "      !\n"
-                "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
-                "        CALL field2_proxy%halo_exchange(depth=2)\n"
-                "      END IF \n"
-                "      !\n"
-                "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
+            if not annexed:
+                halo_exchs = (
+                    "      ! Call kernels and communication routines\n"
+                    "      !\n"
+                    "      IF (field1_proxy%is_dirty(depth=1)) THEN\n"
+                    "        CALL field1_proxy%halo_exchange(depth=1)\n"
+                    "      END IF \n"
+                    "      !\n"
+                    "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
+                    "        CALL field2_proxy%halo_exchange(depth=2)\n"
+                    "      END IF \n"
+                    "      !\n"
+                    "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
+            else:
+                halo_exchs = (
+                    "      ! Call kernels and communication routines\n"
+                    "      !\n"
+                    "      IF (field2_proxy%is_dirty(depth=2)) THEN\n"
+                    "        CALL field2_proxy%halo_exchange(depth=2)\n"
+                    "      END IF \n"
+                    "      !\n"
+                    "      DO cell=1,mesh_field1%get_last_halo_cell(1)\n")
             assert halo_exchs in output
 
         # We pass the whole dofmap for the fine mesh (we are reading from).
