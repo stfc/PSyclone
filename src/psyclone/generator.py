@@ -261,8 +261,8 @@ def main(args):
     args = parser.parse_args(args)
 
     if args.api not in _CONFIG.supported_apis:
-        print "Unsupported API '{0}' specified. Supported API's are "\
-            "{1}.".format(args.api, _CONFIG.supported_apis)
+        print("Unsupported API '{0}' specified. Supported API's are "
+              "{1}.".format(args.api, _CONFIG.supported_apis))
         exit(1)
 
     if args.version:

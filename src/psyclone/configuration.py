@@ -226,7 +226,7 @@ class Config(object):
 
         # Store the API-specific settings
         try:
-            self._annexed_dofs = self._config[_api].getboolean(
+            self._compute_annexed_dofs = self._config[_api].getboolean(
                 'COMPUTE_ANNEXED_DOFS')
         except ValueError as err:
             raise ConfigurationError(
@@ -371,3 +371,14 @@ class Config(object):
         :rtype: str
         '''
         return self._config_file
+
+    @property
+    def compute_annexed_dofs(self):
+        '''
+        Getter for whether or not we perform redundant computation over
+        annexed dofs.
+        :returns: True if we are to do redundant computation
+        :rtype: False
+
+        '''
+        return self._compute_annexed_dofs

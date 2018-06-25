@@ -1954,7 +1954,7 @@ class DynMeshes(object):
 
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object
-        if not _name_set and config.DISTRIBUTED_MEMORY:
+        if not _name_set and _CONFIG.distributed_memory:
             mesh_name = "mesh"
             _name_set.add(
                 self._name_space_manager.create_name(
@@ -2074,7 +2074,7 @@ class DynMeshes(object):
             # Number of cells in the fine mesh
             if kern["ncell_fine"] not in initialised:
                 initialised.append(kern["ncell_fine"])
-                if config.DISTRIBUTED_MEMORY:
+                if _CONFIG.distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
                     parent.add(
@@ -3003,24 +3003,6 @@ class DynInvoke(Invoke):
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[ncol_name]))
 
-        # declare and initialise a mesh object if required
-        if _CONFIG.distributed_memory:
-            from psyclone.f2pygen import UseGen
-            # we will need a mesh object for any loop bounds
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
-            invoke_sub.add(UseGen(invoke_sub, name="mesh_mod", only=True,
-                                  funcnames=["mesh_type"]))
-            invoke_sub.add(
-                TypeDeclGen(invoke_sub, datatype="mesh_type", pointer=True,
-                            entity_decls=[mesh_obj_name+" => null()"]))
-            rhs = first_var.name_indexed + "%get_mesh()"
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub, " Create a mesh object"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(AssignGen(invoke_sub, pointer=True,
-                                     lhs=mesh_obj_name, rhs=rhs))
-
         if self.schedule.reductions(reprod=True):
             # we have at least one reproducible reduction so we need
             # to know the number of OpenMP threads
@@ -3144,8 +3126,8 @@ class DynSchedule(Schedule):
         '''a method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
         method to include distributed memory information '''
-        print self.indent(indent) + self.coloured_text + "[invoke='" + \
-            self.invoke.name + "' dm="+str(_CONFIG.distributed_memory)+"]"
+        print(self.indent(indent) + self.coloured_text + "[invoke='" +
+              self.invoke.name + "' dm="+str(_CONFIG.distributed_memory)+"]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -3423,7 +3405,7 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-        if config.COMPUTE_ANNEXED_DOFS and \
+        if _CONFIG.compute_annexed_dofs and \
            len(required_clean_info) == 1 and \
            required_clean_info[0].annexed_only:
             # We definitely don't need the halo exchange as we
@@ -4034,7 +4016,7 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if config.COMPUTE_ANNEXED_DOFS and config.DISTRIBUTED_MEMORY \
+            if _CONFIG.compute_annexed_dofs and _CONFIG.distributed_memory \
                and not kern.is_reduction:
                 self.set_upper_bound("nannexed")
             else:
@@ -4336,7 +4318,7 @@ class DynLoop(Loop):
                 # we read annexed dofs. Return False if we always
                 # compute annexed dofs and True if we don't (as
                 # annexed dofs are part of the level 1 halo).
-                return not config.COMPUTE_ANNEXED_DOFS
+                return not _CONFIG.compute_annexed_dofs
             elif self._upper_bound_name in ["ndofs"]:
                 # argument does not read from the halo
                 return False

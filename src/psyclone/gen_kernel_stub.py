@@ -67,8 +67,8 @@ def generate(filename, api=""):
     if api == "":
         api = _CONFIG.default_stub_api
     if api not in _CONFIG.supported_stub_apis:
-        print "Unsupported API '{0}' specified. Supported API's are {1}.".\
-              format(api, _CONFIG.supported_stub_apis)
+        print("Unsupported API '{0}' specified. Supported API's are {1}.".
+              format(api, _CONFIG.supported_stub_apis))
         raise GenerationError(
             "generate: Unsupported API '{0}' specified. Supported types are "
             "{1}.".format(api, _CONFIG.supported_stub_apis))

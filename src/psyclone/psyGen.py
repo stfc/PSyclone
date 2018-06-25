@@ -207,9 +207,8 @@ class PSyFactory(object):
         :param bool distributed_memory: True if distributed memory should be \
                                         supported.
         '''
-        _config = config.ConfigFactory().create()
         if distributed_memory is None:
-            _distributed_memory = _config.distributed_memory
+            _distributed_memory = _CONFIG.distributed_memory
         else:
             _distributed_memory = distributed_memory
 
@@ -217,7 +216,7 @@ class PSyFactory(object):
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
-        _config.distributed_memory = _distributed_memory
+        _CONFIG.distributed_memory = _distributed_memory
         self._type = get_api(api)
 
     def create(self, invoke_info):
