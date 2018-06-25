@@ -1,5 +1,4 @@
 .. _configuration:
-
 Configuration
 =============
 
@@ -57,6 +56,12 @@ section e.g.:
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
+
+and a dynamo0.3 section:
+::
+
+   [dynamo0.3]
+   COMPUTE_ANNEXED_DOFS = false
 
 The meaning of each of these entries is described in the following sub-sections.
 

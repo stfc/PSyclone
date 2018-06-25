@@ -1993,14 +1993,15 @@ dynamo0.3 api and are a separate, but related, concept to field halos.
 
 When a kernel that iterates over cells needs to read a continuous
 field then the annexed dofs must be up-to-date on all processors. If
-they are not then a halo exchange must be added. In an attempt to
-reduce the number of halo exchanges in an application (at the expense
-of redundantly computing annexed dofs) PSyclone defaults, for kernels
-which iterate over dofs, to iterating over both owned dofs and annexed
-dofs. This default can be changed (to only iterate over owned dofs) by
-changing the `COMPUTE_ANNEXED_DOFS` flag in the PSyclone `config.py`
-configuration file from `True` to `False`. For more details please
-refer to the :ref:`dynamo0.3-developers` developers section.
+they are not then a halo exchange must be added. Currently PSyclone
+defaults, for kernels which iterate over dofs, to iterating over only
+owned dofs. This behaviour can be changed by setting
+`COMPUTE_ANNEXED_DOFS` to `true` in the `dynamo0.3` section of the
+configuration file (see the :ref:`configuration` section). PSyclone
+will then generate code to iterate over both owned and annexed dofs,
+thereby reducing the number of halo exchanges required (at the expense
+of redundantly computing annexed dofs). For more details please refer
+to the :ref:`dynamo0.3-developers` developers section.
 
 .. _dynamo0.3-api-transformations:
 
