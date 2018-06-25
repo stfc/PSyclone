@@ -57,7 +57,8 @@ from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      HaloExchange, Invoke
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
 from psyclone.parse import parse, InvokeCall
-from psyclone.transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
+from psyclone.transformations import OMPParallelLoopTrans, \
+    DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
 from psyclone.generator import generate
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -2086,11 +2087,17 @@ def test_check_vec_hes_differ_diff_names():
         "different field name 'm1' to self 'f2'" in str(excinfo.value))
 
 
-def test_find_w_args_multiple_deps_error():
+def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
     '''when _find_write_arguments finds a write that causes it to return
     there should not be any previous dependencies. This test checks
-    that an error is raised if this is not the case.
+    that an error is raised if this is not the case. We test with
+    annexed dofs is True and False as different numbers of halo
+    exchanges are created.
+
     '''
+
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
@@ -2099,8 +2106,16 @@ def test_find_w_args_multiple_deps_error():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    del schedule.children[4]
-    loop = schedule.children[6]
+    # create halo exchanges between the two loops via redundant
+    # computation
+    if annexed:
+        index = 1
+    else:
+        index = 4
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[index], depth=2)
+    del schedule.children[index]
+    loop = schedule.children[index+2]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[0]
     with pytest.raises(GenerationError) as excinfo:
@@ -2110,13 +2125,18 @@ def test_find_w_args_multiple_deps_error():
         in str(excinfo.value))
 
 
-def test_find_write_arguments_no_more_nodes():
+def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
     '''when _find_write_arguments has looked through all nodes but has not
     returned it should mean that is has not found any write
     dependencies. This test checks that an error is raised if this is
-    not the case.
-    '''
+    not the case. We test with and without computing annexed dofs as
+    different numbers of halo exchanges are created.
 
+    '''
+    
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -2124,8 +2144,12 @@ def test_find_write_arguments_no_more_nodes():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    del schedule.children[3]
-    loop = schedule.children[5]
+    if annexed:
+        index = 3
+    else:
+        index = 4
+    del schedule.children[index]
+    loop = schedule.children[index+1]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[5]
     with pytest.raises(GenerationError) as excinfo:
@@ -2135,12 +2159,15 @@ def test_find_write_arguments_no_more_nodes():
         in str(excinfo.value))
 
 
-def test_find_w_args_multiple_deps():
+def test_find_w_args_multiple_deps(monkeypatch, annexed):
     '''_find_write_arguments should return as many halo exchange
     dependencies as the vector size of the associated field. This test
     checks that this is the case and that the returned objects are
     what is expected.
     '''
+
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
@@ -2149,7 +2176,15 @@ def test_find_w_args_multiple_deps():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop = schedule.children[7]
+    # create halo exchanges between the two loops via redundant
+    # computation
+    if annexed:
+        index = 1
+    else:
+        index = 4
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[index], depth=2)
+    loop = schedule.children[index+3]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[0]
     vector_size = d_field.vector_size
