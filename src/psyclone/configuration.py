@@ -162,7 +162,7 @@ class Config(object):
         except ValueError as err:
             raise ConfigurationError(
                 "error while parsing DISTRIBUTED_MEMORY: {0}".
-                format(err.message), config=self)
+                format(str(err)), config=self)
 
         # Default API and supported APIs for psyclone
         self._default_api = self._config['DEFAULT']['DEFAULTAPI']
@@ -199,14 +199,14 @@ class Config(object):
         except ValueError as err:
             raise ConfigurationError(
                 "error while parsing REPRODUCIBLE_REDUCTIONS: {0}".
-                format(err.message), config=self)
+                format(str(err)), config=self)
 
         try:
             self._reprod_pad_size = self._config['DEFAULT'].getint(
                 'REPROD_PAD_SIZE')
         except ValueError as err:
             raise ConfigurationError(
-                "error while parsing REPROD_PAD_SIZE: {0}".format(err.message),
+                "error while parsing REPROD_PAD_SIZE: {0}".format(str(err)),
                 config=self)
 
         # Now we deal with the API-specific sections of the config file
@@ -231,7 +231,7 @@ class Config(object):
         except ValueError as err:
             raise ConfigurationError(
                 "error while parsing COMPUTE_ANNEXED_DOFS in the [{0}] "
-                "section of the config file: {1}".format(_api, err.message),
+                "section of the config file: {1}".format(_api, str(err)),
                 config=self)
 
 

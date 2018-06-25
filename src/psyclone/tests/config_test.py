@@ -257,7 +257,7 @@ def test_list_no_commas():
                      "SUPPORTEDAPIS = dynamo0.3  gocean1.0",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
@@ -273,7 +273,7 @@ def test_default_api_not_in_list():
                      "SUPPORTEDAPIS = gocean1.0",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
@@ -292,7 +292,7 @@ def test_default_stubapi_missing():
                      "SUPPORTEDSTUBAPIS = gocean1.0",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
@@ -311,7 +311,7 @@ def test_not_bool(bool_entry):
                      "{0} = wrong".format(bool_entry),
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
@@ -331,7 +331,7 @@ def test_not_int(int_entry):
                      "{0} = wrong".format(int_entry),
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False) as new_cfg:
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
