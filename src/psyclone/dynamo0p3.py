@@ -4183,6 +4183,8 @@ class DynLoop(Loop):
                 # Extract the value in-place rather than extracting to
                 # a variable first. This is the way the manual
                 # reference examples were implemented so I copied these
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
                 return "{0}%get_ncolours()".format(mesh_obj_name)
             else:
                 return "ncolour"
@@ -4194,6 +4196,8 @@ class DynLoop(Loop):
             # ditributed memory is switched on (the default for
             # LFRic). THe original API (see previous elif) is now only
             # used when distributed memory is switched off.
+            mesh_obj_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
             append = ""
             if halo_index:
                 # The colouring API support an additional optional
