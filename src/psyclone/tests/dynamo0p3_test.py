@@ -13,7 +13,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-
+#
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -57,7 +57,15 @@ import utils
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+    # Get the root directory of this PSyclone distribution
+ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
+# Construct the path to the default configuration file
+DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 
+# Our configuration object
+from psyclone.configuration import ConfigFactory
+_CONFIG = ConfigFactory().create()
 
 # tests
 def test_get_op_wrong_name():
@@ -1506,7 +1514,7 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.3_operator_different_spaces.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
 
@@ -1878,7 +1886,7 @@ def test_operator_read_level1_halo():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.7_operator_read.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     # Modify the loop bound so that we attempt to read from the L2 halo
@@ -4069,9 +4077,9 @@ def test_dynkern_arg_for_fs():
 
 
 def test_dist_memory_true():
-    ''' test that the distributed memory flag is on by default '''
+    ''' Test that the distributed memory flag is on by default. '''
     from psyclone import configuration
-    _config = configuration.ConfigFactory().create()
+    _config = configuration.Config(config_file=DEFAULT_CFG_FILE)
     assert _config.distributed_memory
 
 
@@ -4172,7 +4180,7 @@ def test_halo_exchange():
     stencil operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     output1 = (
@@ -4484,7 +4492,7 @@ def test_mesh_mod():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     assert "USE mesh_mod, ONLY: mesh_type" in result
@@ -4547,7 +4555,7 @@ def test_lower_bound_fortran_2(monkeypatch):
     method - second GenerationError'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     my_loop = psy.invokes.invoke_list[0].schedule.children[3]
     # we can not use the standard set_lower_bound function as that
     # checks for valid input
@@ -6669,20 +6677,19 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
     assume that it may have been over dofs. If so, we could have dirty
     annexed dofs so need to add a halo exchange (for the three
     continuous fields being read (f1, f2 and m1). This is the case
-    when psyclone.config.COMPUTE_ANNEXED_DOFS is False.
+    when Config.compute_annexed_dofs is False.
 
     If we always iterate over annexed dofs by default, our annexed
     dofs will always be clean. Therefore we do not need to add a halo
     exchange. This is the case when
-    psyclone.config.COMPUTE_ANNEXED_DOFS is True.
+    Config.compute_annexed_dofs is True.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(info)
     result = str(psy.gen)
     if annexed:
         assert "halo_exchange" not in result
@@ -6708,15 +6715,14 @@ def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
 
     When the previous writer iterates over ndofs we have dirty annexed
     dofs so need to add a halo exchange. This is the case when
-    psyclone.config.COMPUTE_ANNEXED_DOFS is False.
+    Config.compute_annexed_dofs is False.
 
     When the previous writer iterates over nannexed we have clean
     annexed dofs so do not need to add a halo exchange. This is the
-    case when psyclone.config.COMPUTE_ANNEXED_DOFS is True
+    case when Config.compute_annexed_dofs is True
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.7_halo_annexed.f90"),
                     api="dynamo0.3")
@@ -6749,8 +6755,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
 
     # 1 discontinuous field returns true
     # Check w3, wtheta and w2v in turn
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_CONFIG, "_compute_annexed_dofs", annexed)
     if annexed:
         # no halo exchanges produced for the w3 example
         idchld_list = [0, 0, 0]
@@ -7019,8 +7024,7 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
     halo exchanges produced.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_CONFIG, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3").create(invoke_info)
@@ -7171,8 +7175,7 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
     fewer halo exchange call generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_CONFIG, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.7.1_halo_annexed.f90"),
                            api="dynamo0.3")
@@ -7192,26 +7195,27 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
 
 
 def test_annexed_default():
-    ''' test that we do not compute annexed dofs by default '''
-    import psyclone.config
-    assert not psyclone.config.COMPUTE_ANNEXED_DOFS
+    ''' Test that we do not compute annexed dofs by default (i.e. when
+    using the default configuration file). '''
+    from psyclone import configuration
+    _config = configuration.Config(config_file=DEFAULT_CFG_FILE)
+    assert not _config.compute_annexed_dofs
 
 
 def test_haloex_not_required(monkeypatch):
     '''The dynamic halo exchange required() logic should always return
     False if read dependencies are to annexed dofs and
-    config.COMPUTE_ANNEXED_DOFS is True, as they are computed by
+    Config.compute_annexed_dofs is True, as they are computed by
     default when iterating over dofs and kept up-to-date by redundant
     computation when iterating over cells. However, it should return
     True if there are no previous write dependencies and
-    config.COMPUTE_ANNEXED_DOFS is False, as a previous writer may
+    Config.compute_annexed_dofs is False, as a previous writer may
     have iterated over dofs and only written to its own dofs, leaving
     the annexed dofs dirty. This test checks these two cases. Note the
     former case should currently never happen in real code as a halo
     exchange would not be added in the first place.
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
+    monkeypatch.setattr(_CONFIG, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w3.f90"),
                     api="dynamo0.3")
@@ -7221,7 +7225,7 @@ def test_haloex_not_required(monkeypatch):
     for index in range(3):
         haloex = schedule.children[index]
         assert haloex.required() == (True, False)
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", True)
+    monkeypatch.setattr(_CONFIG, "_compute_annexed_dofs", True)
     for index in range(3):
         haloex = schedule.children[index]
         assert haloex.required() == (False, True)
