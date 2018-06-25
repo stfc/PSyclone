@@ -33,13 +33,6 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-# Specify whether we compute annexed dofs when a kernel is written so
-# that it iterates over dofs. This is currently only the case for
-# builtins. If annexed dofs are computed then in certain cases we
-# remove the need for a halo exchange call.
-COMPUTE_ANNEXED_DOFS = False
-
-
 '''
 PSyclone configuration management module.
 
@@ -152,6 +145,11 @@ class Config(object):
         self._config = ConfigParser()
         self._config.read(self._config_file)
 
+        # Check that the configuration file has a [DEFAULT] section
+        if 'DEFAULT' not in self._config:
+            raise ConfigurationError(
+                "config file has no [DEFAULT] section", config=self)
+
         # The call to the 'read' method above populates a dictionary.
         # All of the entries in that dict are unicode strings so here
         # we pull out the values we want and deal with any type
@@ -209,6 +207,31 @@ class Config(object):
         except ValueError as err:
             raise ConfigurationError(
                 "error while parsing REPROD_PAD_SIZE: {0}".format(err.message),
+                config=self)
+
+        # Now we deal with the API-specific sections of the config file
+        self._parse_dynamo0p3()
+
+    def _parse_dynamo0p3(self):
+        '''
+        Parse the dynamo0.3 section of the configuration file.
+        :raises ConfigurationError: if there is no [dynamo0.3] section or if \
+                                    compute_annexed_dofs is invalid.
+
+        '''
+        _api = "dynamo0.3"
+        if _api not in self._config:
+            raise ConfigurationError(
+                "config file has no [{0}] section".format(_api), config=self)
+
+        # Store the API-specific settings
+        try:
+            self._annexed_dofs = self._config[_api].getboolean(
+                'COMPUTE_ANNEXED_DOFS')
+        except ValueError as err:
+            raise ConfigurationError(
+                "error while parsing COMPUTE_ANNEXED_DOFS in the [{0}] "
+                "section of the config file: {1}".format(_api, err.message),
                 config=self)
 
 

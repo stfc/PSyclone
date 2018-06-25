@@ -60,6 +60,8 @@ DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
+[dynamo0.3]
+COMPUTE_ANNEXED_DOFS = false
 '''
 
 @pytest.fixture(scope="module",
