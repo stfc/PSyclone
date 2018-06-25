@@ -504,7 +504,7 @@ def test_derived_type_deref_naming():
     _, invoke = parse(
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke)
     generated_code = str(psy.gen)
     print(generated_code)
     output = (
@@ -547,7 +547,7 @@ def test_sched_view(capsys):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     super(dynamo0p3.DynSchedule, psy.invokes.invoke_list[0].schedule).view()
     output, _ = capsys.readouterr()
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
@@ -750,7 +750,7 @@ def test_globalsum_view(capsys):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
     print(output)
@@ -799,7 +799,7 @@ def test_args_filter2():
     when one or both of the intent and type arguments are not specified.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
 
@@ -889,7 +889,7 @@ def test_invoke_name():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_important_invoke" in gen
@@ -901,7 +901,7 @@ def test_multi_kern_named_invoke():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.9_named_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_some_name" in gen
@@ -914,7 +914,7 @@ def test_named_multi_invokes():
         os.path.join(BASE_PATH,
                      "3.2_multi_functions_multi_named_invokes.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_my_first(" in gen
@@ -928,7 +928,7 @@ def test_named_invoke_name_clash():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.11_named_invoke_name_clash.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
@@ -1902,7 +1902,7 @@ def test_haloexchange_vector_index_depend():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.9_named_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     first_d_field_halo_exchange = schedule.children[3]
