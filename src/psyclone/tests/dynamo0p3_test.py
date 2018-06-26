@@ -7264,7 +7264,7 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
 def test_annexed_default():
     ''' test that we do not compute annexed dofs by default '''
     import psyclone.config
-    assert psyclone.config.COMPUTE_ANNEXED_DOFS
+    assert not psyclone.config.COMPUTE_ANNEXED_DOFS
 
 
 def test_haloex_not_required(monkeypatch):
