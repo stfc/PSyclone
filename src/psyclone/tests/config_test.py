@@ -66,7 +66,8 @@ COMPUTE_ANNEXED_DOFS = false
 
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
-                        "REPRODUCIBLE_REDUCTIONS"])
+                        "REPRODUCIBLE_REDUCTIONS",
+                        "COMPUTE_ANNEXED_DOFS"])
 def bool_entry(request):
     '''
     Parameterised fixture that will cause a test that has it as an
@@ -320,8 +321,8 @@ def test_not_bool(bool_entry):
             _ = Config(config_file=new_name)
 
         assert "configuration error (file=" in str(err)
-        assert (": error while parsing {0}: Not a boolean: "
-                "wrong".format(bool_entry) in str(err))
+        assert ": error while parsing {0}".format(bool_entry) in str(err)
+        assert "Not a boolean: wrong" in str(err)
 
 
 def test_not_int(int_entry):
@@ -342,3 +343,56 @@ def test_not_int(int_entry):
         assert "configuration error (file=" in str(err)
         assert (": error while parsing {0}: invalid literal".format(int_entry)
                 in str(err))
+
+
+def test_broken_fmt():
+    ''' Check the error if the formatting of the configuration file is
+    wrong. '''
+    # Create a 'config' file without any section headers
+    content = "COMPUTE_ANNEXED_DOFS = false\n"
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        with pytest.raises(ConfigurationError) as err:
+            _ = Config(config_file=new_name)
+        assert ("ConfigParser failed to read the configuration file. Is it "
+                "formatted correctly? (Error was: File contains no section "
+                "headers" in str(err))
+
+
+def test_default_missing():
+    ''' Check that we produce a suitable error if the [DEFAULT] section
+    of the configuration file is missing '''
+    content = '''\
+[dynamo0.3]
+COMPUTE_ANNEXED_DOFS = false
+'''
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        with pytest.raises(ConfigurationError) as err:
+            _ = Config(config_file=new_name)
+
+        assert "configuration error (file=" in str(err)
+        assert "config file has no [DEFAULT] section" in str(err)
+
+
+def test_dyn0p3_missing():
+    ''' Check that we raise the correct error if there is no [dynamo0.3]
+    section '''
+    content = re.sub(r"^\[dynamo0.3\]$", "", _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        with pytest.raises(ConfigurationError) as err:
+            _ = Config(config_file=new_name)
+
+        assert "configuration error (file=" in str(err)
+        assert "config file has no [dynamo0.3] section" in str(err)

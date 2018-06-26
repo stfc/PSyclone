@@ -141,12 +141,21 @@ class Config(object):
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
 
-        from configparser import ConfigParser
+        from configparser import ConfigParser, MissingSectionHeaderError
         self._config = ConfigParser()
-        self._config.read(self._config_file)
+        try:
+            self._config.read(self._config_file)
+        except MissingSectionHeaderError as err:
+            raise ConfigurationError(
+                "ConfigParser failed to read the configuration file. Is it "
+                "formatted correctly? (Error was: {0})".format(str(err)),
+                config=self)
 
-        # Check that the configuration file has a [DEFAULT] section
-        if 'DEFAULT' not in self._config:
+        # Check that the configuration file has a [DEFAULT] section. Even
+        # if there isn't one in the file, ConfigParser creates an (empty)
+        # dictionary entry for it.
+        if 'DEFAULT' not in self._config or \
+           len(self._config['DEFAULT'].keys()) == 0:
             raise ConfigurationError(
                 "config file has no [DEFAULT] section", config=self)
 
