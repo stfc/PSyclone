@@ -52,10 +52,10 @@ target machine. PSyclone has been tested under Python 2.6.5, 2.7.3 and 3.6.
 
 .. warning:: As of version 1.6, PSyclone requires version 0.0.7 or greater of fparser.
 
-PSyclone immediately relies on two external Python packages;
-``fparser`` and ``pyparsing``. In order to run the test suite
-``py.test`` is required. The easiest way to satisfy the Python
-dependencies is to use the Python Package Index (pypi.org) and
+PSyclone immediately relies on four external Python packages; ``six``,
+``configparser``, ``fparser`` and ``pyparsing``. In order to run the
+test suite ``py.test`` is required. The easiest way to satisfy the
+Python dependencies is to use the Python Package Index (pypi.org) and
 ``pip``. See https://packaging.python.org/installing/ for more
 information.
 
@@ -330,21 +330,6 @@ during the testing process. To enable compilation testing run:
 The default value for ``"<compiler_name>"`` is ``"gfortran"`` and there are
 no defaults for the ``"<compiler_flags_list>"``. Please note that the onus
 is on the user to provide correct values for these options.
-
-.. _getting-going-configuration:
-
-Configuration
--------------
-
-Various aspects of PSyclone are configured through a config file,
-``psyclone.cfg``. The default version of this file is installed during
-the installation process. If the user performing the installation has
-write access to ``/etc`` then the config file is installed to
-``/etc/psyclone.cfg``, otherwise it is installed to
-``$HOME/.psyclone/psyclone.cfg``.
-
-See :ref:`configuration` for details of the settings contained within
-the config file.
 
 .. _getting-going-run:
 

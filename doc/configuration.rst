@@ -1,4 +1,5 @@
 .. _configuration:
+
 Configuration
 =============
 
@@ -44,7 +45,7 @@ Options
 
 The configuration file is read by the Python ConfigParser class
 (https://docs.python.org/3/library/configparser.html) and must be
-formatted accordingly. It currently consists of a required, DEFAULT
+formatted accordingly. It currently consists of a ``DEFAULT``
 section e.g.:
 ::
 
@@ -57,58 +58,62 @@ section e.g.:
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
 
-and a dynamo0.3 section:
+and a ``dynamo0.3`` section, e.g.:
 ::
 
    [dynamo0.3]
    COMPUTE_ANNEXED_DOFS = false
 
-The meaning of each of these entries is described in the following sub-sections.
+The meaning of the various entries is described in the following sub-sections.
 
 Note that ConfigParser supports various forms of boolean entry
 including "true/false", "yes/no" and "1/0". See
 https://docs.python.org/3/library/configparser.html#supported-datatypes
 for more details.
 
-SUPPORTEDAPIS
-^^^^^^^^^^^^^
+``DEFAULT`` Section
+^^^^^^^^^^^^^^^^^^^
 
-A comma-separated list of the names of the various APIs that PSyclone supports.
+This section contains entries that are, in principle, applicable to all APIs
+supported by PSyclone.
 
-DEFAULTAPI
-^^^^^^^^^^
+.. tabularcolumns:: |l|L|
+=======================	=======================================================
+Entry         		Description
+=======================	=======================================================
+SUPPORTEDAPIS 		A comma-separated list of the names of the various APIs
+                        that PSyclone supports.
+DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernl
+                        conforms to if no API is specified. Must be one of the
+			SUPPORTEDAPIS.
+SUPPORTEDSTUBAPIS       Comma-separated list of the APIs that the kernel-stub
+                        generator (see :ref:`stub-generation`) supports.
+DEFAULTSTUBAPI          The API that the kernel-stub generator assumes by
+                        default.
+DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory
+                        parallelism by default.  Note that this is currently
+			only supported for the dynamo0.3 API.
+REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP
+                        reductions (see :ref:`openmp-reductions`) by default.
+REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
+                        this setting controls the amount of padding used
+			between elements of the array in which each thread
+			accumulates its local reduction. (This prevents false
+                        sharing of cache lines by different threads.)
+======================= =======================================================
 
-The API that PSyclone assumes an Algorithm/Kernl conforms to if no API
-is specified. Must be one of the SUPPORTEDAPIS.
+``dynamo0.3`` Section
+^^^^^^^^^^^^^^^^^^^^^
 
-SUPPORTEDSTUBAPIS
-^^^^^^^^^^^^^^^^^
+This section contains configuration options that are only applicable when
+using the Dynamo 0.3 API.
 
-Comma-separated list of the APIs that the kernel-stub generator
-(see :ref:`stub-generation`) supports.
-
-DEFAULTSTUBAPI
-^^^^^^^^^^^^^^
-
-The API that the kernel-stub generator assumes by default.
-
-DISTRIBUTED_MEMORY
-^^^^^^^^^^^^^^^^^^
-
-Whether or not to generate code for distributed-memory parallelism by
-default.  Note that this is currently only supported for the dynamo0.3
-API.
-
-REPRODUCIBLE_REDUCTIONS
-^^^^^^^^^^^^^^^^^^^^^^^
-
-Whether or not to generate code for reproducible OpenMP reductions
-(see :ref:`openmp-reductions`) by default.
-
-REPROD_PAD_SIZE
-^^^^^^^^^^^^^^^
-
-If generating code for reproducible OpenMP reductions, this setting
-controls the amount of padding used between elements of the array
-in which each thread accumulates its local reduction. (This prevents
-false sharing of cache lines by different threads.)
+.. tabularcolumns:: |l|L|
+=======================	=======================================================
+Entry         		Description
+=======================	=======================================================
+COMPUTE_ANNEXED_DOFS    Whether or not to perform redundant computation over
+                        annexed dofs in order to reduce the number of halo
+			exchanges. See :ref:`annexed_dofs` in the Developers'
+			guide.
+======================= =======================================================

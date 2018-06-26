@@ -378,6 +378,8 @@ discontinuous field, PSyclone only needs to compute dofs on owned
 cells. Users can apply a redundant computation transformation to
 redundantly compute into the halo but this is not done by default.
 
+.. _annexed_dofs:
+
 Dof iterators
 -------------
 
@@ -405,10 +407,11 @@ annexed dof. This iteration space will necessarily also include all
 owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called `COMPUTE_ANNEXED_DOFS` and is
-found in the the `config.py` configuration file. If it is `True` then
+found in the the `dynamo0.3` section of the `psyclone.cfg`
+configuration file (see :ref:`configuration`). If it is `True` then
 annexed dofs are always computed in loops that iterate over dofs and
 if it is `False` then annexed dofs are not computed. The default in
-PSyclone is `True`.
+PSyclone is `False`.
 
 The computation of annexed dofs could have been added as a
 transformation optimisation. The reason for using a configuration
