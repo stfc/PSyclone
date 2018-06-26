@@ -1152,10 +1152,15 @@ def test_argument_forward_read_dependencies():
     assert f2_write.forward_read_dependencies() == []
 
 
-def test_argument_forward_dependence():
+def test_argument_forward_dependence(monkeypatch, annexed):
     '''Check that forward_dependence method returns the first dependent
     argument after the current Node in the schedule or None if none
-    are found.'''
+    are found. We also test when annexed is False and True as it
+    affects how many halo exchanges are generated.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1178,9 +1183,13 @@ def test_argument_forward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
-    f2_halo_field = schedule.children[8].field
-    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
+    if annexed:
+        index = 7
+    else:
+        index = 8
+    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[index].field
+    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
     # a) previous kern arg depends on halo arg
     result = f2_prev_arg.forward_dependence()
     assert result == f2_halo_field
@@ -1209,10 +1218,15 @@ def test_argument_forward_dependence():
     assert result == next_arg
 
 
-def test_argument_backward_dependence():
+def test_argument_backward_dependence(monkeypatch, annexed):
     '''Check that backward_dependence method returns the first dependent
     argument before the current Node in the schedule or None if none
-    are found.'''
+    are found. We also test when annexed is False and True as it
+    affects how many halo exchanges are generated.
+
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1235,9 +1249,13 @@ def test_argument_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
-    f2_halo_field = schedule.children[8].field
-    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
+    if annexed:
+        index = 7
+    else:
+        index = 8
+    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[index].field
+    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
     # a) following kern arg depends on halo arg
     result = f2_next_arg.backward_dependence()
     assert result == f2_halo_field
@@ -1937,14 +1955,17 @@ def test_find_write_arguments_for_write():
     assert node_list == []
 
 
-def test_find_w_args_hes_no_vec(monkeypatch):
+def test_find_w_args_hes_no_vec(monkeypatch, annexed):
     '''when backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the field must be a vector field. If the field is not a vector
     then an exception is raised. This test checks that the exception
-    is raised correctly.
+    is raised correctly. Also test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1952,7 +1973,11 @@ def test_find_w_args_hes_no_vec(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 1)
     with pytest.raises(GenerationError) as excinfo:
@@ -1962,14 +1987,18 @@ def test_find_w_args_hes_no_vec(monkeypatch):
             "but the vector size of field 'd' is 1" in str(excinfo.value))
 
 
-def test_find_w_args_hes_diff_vec(monkeypatch):
+def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
     '''when backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the associated fields must be equal size vectors . If the fields
     are not vectors of equal size then an exception is raised. This
-    test checks that the exception is raised correctly.
+    test checks that the exception is raised correctly. Also test with
+    and without annexed dofs being computed as this affects the
+    generated code.
 
     '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1977,7 +2006,11 @@ def test_find_w_args_hes_diff_vec(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 2)
     with pytest.raises(GenerationError) as excinfo:
@@ -1988,14 +2021,18 @@ def test_find_w_args_hes_diff_vec(monkeypatch):
         "field 'd' differ" in str(excinfo.value))
 
 
-def test_find_w_args_hes_vec_idx(monkeypatch):
+def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
     '''when backward_write_dependencies, or forward_read_dependencies are
     called, and a dependence is found between two halo exchanges, then
     the vector indices of the two halo exchanges must be different. If
     the vector indices have the same value then an exception is
-    raised. This test checks that the exception is raised correctly.
+    raised. This test checks that the exception is raised
+    correctly. Also test with and without annexed dofs being computed
+    as this affects the generated code.
 
     '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -2003,9 +2040,13 @@ def test_find_w_args_hes_vec_idx(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
-    halo_exchange_d_v2 = schedule.children[4]
+    halo_exchange_d_v2 = schedule.children[index-1]
     monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
     with pytest.raises(GenerationError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
