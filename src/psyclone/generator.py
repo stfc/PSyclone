@@ -59,6 +59,10 @@ from psyclone.version import __VERSION__
 from psyclone.configuration import ConfigFactory
 
 
+# Get (a reference to) our one-and-only Config object
+_CONFIG = ConfigFactory().create()
+
+
 def handle_script(script_name, psy):
     '''Loads and applies the specified script to the given psy layer.
     The 'trans' function of the script is called with psy as parameter.
@@ -129,9 +133,6 @@ def handle_script(script_name, psy):
         raise msg
     if sys_path_appended:
         os.sys.path.pop()
-
-# Get our one-and-only Config object
-_CONFIG = ConfigFactory().create()
 
 
 def generate(filename, api="", kernel_path="", script_name=None,
@@ -218,17 +219,15 @@ def main(args):
     results
     '''
     # pylint: disable=too-many-statements,too-many-branches
-    _config = ConfigFactory().create()
-
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
     parser.add_argument(
         '-opsy', help='filename of generated PSy code')
     parser.add_argument(
-        '-api', default=_config.default_api,
+        '-api', default=_CONFIG.default_api,
         help='choose a particular api from {0}, '
-        'default {1}'.format(str(_config.supported_apis), _config.default_api))
+        'default {1}'.format(str(_CONFIG.supported_apis), _CONFIG.default_api))
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -252,7 +251,7 @@ def main(args):
         choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
              "transformation script is used. Use at your own risk.")
-    parser.set_defaults(dist_mem=_config.distributed_memory)
+    parser.set_defaults(dist_mem=_CONFIG.distributed_memory)
 
     parser.add_argument(
         '-v', '--version', dest='version', action="store_true",
