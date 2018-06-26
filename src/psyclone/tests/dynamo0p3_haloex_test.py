@@ -368,24 +368,64 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
     assert not loop1.upper_bound_halo_depth
     assert isinstance(loop2, DynLoop)
 
-# same as above with colouring
 
-# TBD redundant computation correct value (1st gh_inc, depth=1, 2nd gh_inc depth=2)
-    
-# TBD multiple read dependencies, one with max-1, other with a value
-# TBD multiple read dependencies, both with max-1
-# TBD test with vectors
+def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
+    '''Check we generate correct halo exchange bounds when we have
+    multiple read dependencies. In this case we have a gh_inc with a
+    read-only reader and a gh_inc reader. We also test when annexed
+    is False and True as it affects how many halo exchanges are
+    generated.
 
-# 2: If COMPUTE_ANNEXED_DOFS is False, then a gh_inc access to a field
-# in a kernel (iterating to the l1 halo) does not require a halo
-# exchange when the previous writer is
+    '''
+    import psyclone.config
+    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
 
-# d) known and iterates over cells to the l1 halo
-# e) known and iterates over cells to the l2 halo or greater
-# f) known and iterates over cells to the maximum halo depth
+    # parse and get psy schedule
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "14.14_halo_inc_times3.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3").create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    def check(haloex, depth):
+        '''check the halo exchange has the expected properties'''
+        assert isinstance(haloex, DynHaloExchange)
+        assert haloex.field.name == "f1"
+        assert haloex.required() == (True, True)
+        assert haloex._compute_halo_depth() == depth
+    if annexed:
+        haloidx = 2
+        loop1idx = 3
+        loop2idx = 5
+    else:
+        haloidx = 4
+        loop1idx = 5
+        loop2idx = 7
+        
+    # f1 halo exchange should be depth 1 : max(1,0)
+    haloex = schedule.children[haloidx]
+    check(haloex, "1")
+    rc_trans.apply(schedule.children[loop2idx], depth=2)
+    # f1 halo exchange should still be depth 1 : max(1,1)
+    haloex = schedule.children[haloidx]
+    check(haloex, "1")
+    rc_trans.apply(schedule.children[loop2idx], depth=3)
+    # f1 halo exchange should be depth 2 (max(1,2)
+    haloex = schedule.children[haloidx]
+    check(haloex, "2")
+    rc_trans.apply(schedule.children[loop2idx])
+    # f1 halo exchange should be depth max(1,max-1)
+    haloex = schedule.children[haloidx]
+    check(haloex, "max(1,mesh%get_halo_depth()-1)")
+    # just check compilation here as it is the most
+    # complicated. (Note, compilation of redundant computation is
+    # checked separately)
+    if utils.TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    rc_trans.apply(schedule.children[loop1idx])
+    # f1 halo exchange should be depth max
+    haloex = schedule.children[haloidx]
+    check(haloex, "mesh%get_halo_depth()")
 
-# 4: If COMPUTE_ANNEXED_DOFS is False, then a gh_inc access to a field
-# in a kernel (iterating to the l1 halo) might require a halo
-# exchange when the previous writer is
-
-# g) unknown (as it is outside the scope of an invoke)
