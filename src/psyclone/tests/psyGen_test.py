@@ -2174,10 +2174,10 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
     different numbers of halo exchanges are created.
 
     '''
-    
+
     import psyclone.config
     monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
-    
+
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")

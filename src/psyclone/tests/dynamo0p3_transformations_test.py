@@ -6583,7 +6583,7 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
             index = 1
         else:
             index = w_loop_idx
-        
+
         schedule, _ = rc_trans.apply(schedule.children[index], depth=2)
 
         for cloop_idx in cloop_idxs:

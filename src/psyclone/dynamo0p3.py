@@ -3180,8 +3180,8 @@ def _create_depth_list(halo_info_list):
     # annexed_only. If so we only care about annexed dofs
     annexed_only = True
     for halo_info in halo_info_list:
-        if not ( halo_info.annexed_only or
-                 (halo_info.literal_depth == 1 and not halo_info.clean_outer)):
+        if not (halo_info.annexed_only or (halo_info.literal_depth ==
+                                           1 and not halo_info.clean_outer)):
             # There are two cases when we only care about access
             # annexed dofs. 1) when annexed_only is set and 2) when
             # the halo depth is 1 but we only depend on annexed dofs
@@ -3588,9 +3588,10 @@ class HaloDepth(object):
         # full halo depth is not accessed, rather it means that we do
         # not know.
         self._max_depth = False
-        # max_depth_m1 specifies whether the full depth of halo (whatever
-        # that might be) appart from the outermost level is accessed. If this is set then
-        # literal_depth, var_depth and max_depth have no meaning.
+        # max_depth_m1 specifies whether the full depth of halo
+        # (whatever that might be) appart from the outermost level is
+        # accessed. If this is set then literal_depth, var_depth and
+        # max_depth have no meaning.
         self._max_depth_m1 = False
         # annexed only is True if the only access in the halo is for
         # annexed dofs
@@ -3900,8 +3901,9 @@ class HaloReadAccess(HaloDepth):
         # incorrect (partial sums) and the outermost halo is
         # subsequently set to dirty
         self._clean_outer = (
-            not ( field.access.lower() == "gh_inc" and
-                  loop.upper_bound_name in ["cell_halo", "colour_halo"]))
+            not (field.access.lower() == "gh_inc"
+                 and loop.upper_bound_name in ["cell_halo",
+                                               "colour_halo"]))
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
         if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:

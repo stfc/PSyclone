@@ -37,9 +37,10 @@
 '''This module tests the Dynamo 0.3 API-specific halo exchange
 implementation for gh_inc dependencies using pytest. '''
 
+from __future__ import absolute_import
 import os
-from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 import utils
@@ -183,7 +184,7 @@ def test_gh_inc_nohex_2(tmpdir, f90, f90flags, monkeypatch):
     assert haloex.required() == (True, False)
     assert isinstance(loop2, DynLoop)
 
-    
+
 def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
     '''If COMPUTE_ANNEXED_DOFS is True, then a gh_inc access to a field in
     a kernel (iterating to the l1 halo) does not require a halo
@@ -230,48 +231,39 @@ def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[1], depth=2)
 
+    def check(schedule, f1depth, f2depth):
+        '''check that the schedule is modified in the expected way. In
+        particular, check that the depth of the halo exchange for
+        field 'f1' is what we are expecting
+
+        '''
+        assert len(schedule.children) == 4
+        haloex1 = schedule.children[0]
+        haloex2 = schedule.children[1]
+        loop1 = schedule.children[2]
+        loop2 = schedule.children[3]
+        assert isinstance(haloex1, DynHaloExchange)
+        assert haloex1.field.name == "f2"
+        assert haloex1._compute_halo_depth() == f2depth
+        assert haloex1.required() == (True, False)
+        assert isinstance(haloex2, DynHaloExchange)
+        assert haloex2.field.name == "f1"
+        assert haloex2._compute_halo_depth() == f1depth
+        assert haloex2.required() == (True, False)
+        assert isinstance(loop1, DynLoop)
+        assert isinstance(loop2, DynLoop)
+
     # we should now have a speculative halo exchange at the start of
-    # the schedule for "f1" to depth 1
-    assert len(schedule.children) == 4
-    haloex1 = schedule.children[0]
-    haloex2 = schedule.children[1]
-    loop1 = schedule.children[2]
-    loop2 = schedule.children[3]
-    assert isinstance(haloex1, DynHaloExchange)
-    assert haloex1.field.name == "f2"
-    assert haloex1._compute_halo_depth() == "2"
-    assert haloex1.required() == (True, False)
-    assert isinstance(haloex2, DynHaloExchange)
-    assert haloex2.field.name == "f1"
-    assert haloex2._compute_halo_depth() == "1"
-    assert haloex2.required() == (True, False)
-    assert isinstance(loop1, DynLoop)
-    assert loop1.upper_bound_name == "cell_halo"
-    assert loop1.upper_bound_halo_depth == 2
-    assert isinstance(loop2, DynLoop)
+    # the schedule for "f1" to depth 1 and "f2" to depth 2
+    check(schedule, f1depth="1", f2depth="2")
 
     # make 1st loop iterate over cells to the maximum halo depth and
     # check output
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
-    # the schedule for "f1" to depth max halo - 1
-    assert len(schedule.children) == 4
-    haloex1 = schedule.children[0]
-    haloex2 = schedule.children[1]
-    loop1 = schedule.children[2]
-    loop2 = schedule.children[3]
-    assert isinstance(haloex1, DynHaloExchange)
-    assert haloex1.field.name == "f2"
-    assert haloex1._compute_halo_depth() == "mesh%get_halo_depth()"
-    assert haloex1.required() == (True, False)
-    assert isinstance(haloex2, DynHaloExchange)
-    assert haloex2.field.name == "f1"
-    assert haloex2._compute_halo_depth() == "mesh%get_halo_depth()-1"
-    assert haloex2.required() == (True, False)
-    assert isinstance(loop1, DynLoop)
-    assert loop1.upper_bound_name == "cell_halo"
-    assert not loop1.upper_bound_halo_depth
-    assert isinstance(loop2, DynLoop)
+    # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
+    check(schedule, f1depth="mesh%get_halo_depth()-1",
+          f2depth="mesh%get_halo_depth()")
 
 
 def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
@@ -297,22 +289,31 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    # check we have a halo exchange for field "f1"
-    assert len(schedule.children) == 4
-    haloex1 = schedule.children[0]
-    haloex2 = schedule.children[1]
-    loop1 = schedule.children[2]
-    loop2 = schedule.children[3]
-    assert isinstance(haloex1, DynHaloExchange)
-    assert haloex1.field.name == "f1"
-    assert haloex1.required() == (True, False)
-    assert haloex1._compute_halo_depth() == "1"
-    assert isinstance(haloex2, DynHaloExchange)
-    assert haloex2.field.name == "f2"
-    assert haloex2.required() == (True, False)
-    assert haloex2._compute_halo_depth() == "1"
-    assert isinstance(loop1, DynLoop)
-    assert isinstance(loop2, DynLoop)
+    def check(schedule, f1depth, f2depth):
+        '''check that the schedule is modified in the expected way. In
+        particular, check that the depth of the halo exchange for
+        field 'f1' is what we are expecting
+
+        '''
+        assert len(schedule.children) == 4
+        haloex1 = schedule.children[0]
+        haloex2 = schedule.children[1]
+        loop1 = schedule.children[2]
+        loop2 = schedule.children[3]
+        assert isinstance(haloex1, DynHaloExchange)
+        assert haloex1.field.name == "f1"
+        assert haloex1._compute_halo_depth() == f1depth
+        assert haloex1.required() == (True, False)
+        assert isinstance(haloex2, DynHaloExchange)
+        assert haloex2.field.name == "f2"
+        assert haloex2._compute_halo_depth() == f2depth
+        assert haloex2.required() == (True, False)
+        assert isinstance(loop1, DynLoop)
+        assert isinstance(loop2, DynLoop)
+
+    # we should now have a speculative halo exchange at the start of
+    # the schedule for "f1" to depth 1 and "f2" to depth 1
+    check(schedule, f1depth="1", f2depth="1")
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
@@ -324,49 +325,17 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[2], depth=2)
-
     # we should now have a speculative halo exchange at the start of
-    # the schedule for "f1" to depth 1
-    assert len(schedule.children) == 4
-    haloex1 = schedule.children[0]
-    haloex2 = schedule.children[1]
-    loop1 = schedule.children[2]
-    loop2 = schedule.children[3]
-    assert isinstance(haloex1, DynHaloExchange)
-    assert haloex1.field.name == "f1"
-    assert haloex1._compute_halo_depth() == "1"
-    assert haloex1.required() == (True, False)
-    assert isinstance(haloex2, DynHaloExchange)
-    assert haloex2.field.name == "f2"
-    assert haloex2._compute_halo_depth() == "2"
-    assert haloex2.required() == (True, False)
-    assert isinstance(loop1, DynLoop)
-    assert loop1.upper_bound_name == "cell_halo"
-    assert loop1.upper_bound_halo_depth == 2
-    assert isinstance(loop2, DynLoop)
+    # the schedule for "f1" to depth 1 and "f2" to depth 2
+    check(schedule, f1depth="1", f2depth="2")
 
     # make 1st loop iterate over cells to the maximum halo depth and
     # check output
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
-    # the schedule for "f1" to depth max halo - 1
-    assert len(schedule.children) == 4
-    haloex1 = schedule.children[0]
-    haloex2 = schedule.children[1]
-    loop1 = schedule.children[2]
-    loop2 = schedule.children[3]
-    assert isinstance(haloex1, DynHaloExchange)
-    assert haloex1.field.name == "f1"
-    assert haloex1._compute_halo_depth() == "mesh%get_halo_depth()-1"
-    assert haloex1.required() == (True, False)
-    assert isinstance(haloex2, DynHaloExchange)
-    assert haloex2.field.name == "f2"
-    assert haloex2._compute_halo_depth() == "mesh%get_halo_depth()"
-    assert haloex2.required() == (True, False)
-    assert isinstance(loop1, DynLoop)
-    assert loop1.upper_bound_name == "cell_halo"
-    assert not loop1.upper_bound_halo_depth
-    assert isinstance(loop2, DynLoop)
+    # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
+    check(schedule, f1depth="mesh%get_halo_depth()-1",
+          f2depth="mesh%get_halo_depth()")
 
 
 def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
@@ -387,6 +356,7 @@ def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
     psy = PSyFactory("dynamo0.3").create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
+
     def check(haloex, depth):
         '''check the halo exchange has the expected properties'''
         assert isinstance(haloex, DynHaloExchange)
@@ -401,7 +371,7 @@ def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
         haloidx = 4
         loop1idx = 5
         loop2idx = 7
-        
+
     # f1 halo exchange should be depth 1 : max(1,0)
     haloex = schedule.children[haloidx]
     check(haloex, "1")
@@ -428,4 +398,3 @@ def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
     # f1 halo exchange should be depth max
     haloex = schedule.children[haloidx]
     check(haloex, "mesh%get_halo_depth()")
-
