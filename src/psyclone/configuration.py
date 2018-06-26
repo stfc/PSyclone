@@ -39,6 +39,7 @@ PSyclone configuration management module.
 Deals with reading the config file and storing default settings.
 '''
 
+from __future__ import absolute_import
 import os
 
 
@@ -242,7 +243,6 @@ class Config(object):
                 "error while parsing COMPUTE_ANNEXED_DOFS in the [{0}] "
                 "section of the config file: {1}".format(_api, str(err)),
                 config=self)
-
 
     @staticmethod
     def find_file():

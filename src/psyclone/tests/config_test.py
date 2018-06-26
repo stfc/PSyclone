@@ -37,6 +37,7 @@
 Module containing tests relating to PSyclone configuration handling.
 '''
 
+from __future__ import absolute_import
 import os
 import re
 import tempfile
@@ -63,6 +64,7 @@ REPROD_PAD_SIZE = 8
 [dynamo0.3]
 COMPUTE_ANNEXED_DOFS = false
 '''
+
 
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
@@ -247,7 +249,9 @@ def test_dm():
     _config.distributed_memory = False
     assert not _config.distributed_memory
     with pytest.raises(ConfigurationError) as err:
+        # pylint:disable=redefined-variable-type
         _config.distributed_memory = "not-a-bool"
+        # pylint:enable=redefined-variable-type
     assert "distributed_memory must be a boolean but got " in str(err)
 
 
