@@ -115,7 +115,13 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
 
 def get_api(api):
     ''' If no API is specified then return the default. Otherwise, check that
-    the supplied API is valid. '''
+    the supplied API is valid.
+    :param str api: The PSyclone API to check or an empty string.
+    :returns: The API that is in use.
+    :rtype: str
+    :raises GenerationError: if the specified API is not supported.
+
+    '''
     if api == "":
         api = _CONFIG.default_api
     else:
@@ -1529,7 +1535,16 @@ class OMPParallelDirective(OMPDirective):
 
 
 class OMPDoDirective(OMPDirective):
+    '''
+    Class representing an OpenMP DO directive in the PSyclone AST.
 
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child.
+    :param str omp_schedule: the OpenMP schedule to use.
+    :param bool reprod: whether or not to generate code for run-reproducible \
+                        OpenMP reductions.
+
+    '''
     def __init__(self, children=None, parent=None, omp_schedule="static",
                  reprod=None):
 
@@ -2275,9 +2290,20 @@ class Call(Node):
                         label=var_name)
 
     def zero_reduction_variable(self, parent, position=None):
-        '''Generate code to zero the reduction variable and to zero the local
+        '''
+        Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
-        reductions, if specified.'''
+        reductions, if specified.
+
+        :param parent: the Node in the AST to which to add new code.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param str position: where to position the new code in the AST.
+        :raises GenerationError: if the variable to zero is not of type \
+                                 gh_real or gh_integer.
+        :raises GenerationError: if the reprod_pad_size (read from the \
+                                 configuration file) is less than 1.
+
+        '''
         from psyclone.f2pygen import AssignGen, DeclGen, AllocateGen
         if not position:
             position = ["auto"]

@@ -796,9 +796,15 @@ class ColourTrans(Transformation):
         return "LoopColourTrans"
 
     def apply(self, node):
-        '''Converts the Loop represented by :py:obj:`node` into a
+        '''
+        Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
+        :param node: The loop to transform.
+        :type node: :py:class:`psyclone.psyGen.Loop`
+        :returns: Tuple of modified schedule and record of transformation
+        :rtype: (:py:class:`psyclone.psyGen.Schedule, \
+                 :py:class:`psyclone.undoredo.Memento`)
         '''
         schedule = node.root
 

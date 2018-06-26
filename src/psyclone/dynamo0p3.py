@@ -1857,11 +1857,11 @@ class DynMeshes(object):
 
     def __init__(self, schedule, unique_psy_vars):
         '''
-        :param schedule: the schedule of the Invoke for which to extract
+        :param schedule: the schedule of the Invoke for which to extract \
                          information on all required inter-grid operations
         :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
         :param unique_psy_vars: list of arguments to the PSy-layer routine
-        :type unique_psy_vars: list of
+        :type unique_psy_vars: list of \
                    :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects
         '''
         self._name_space_manager = NameSpaceFactory().create()
@@ -2655,10 +2655,10 @@ class DynInvoke(Invoke):
         '''
         :param alg_invocation: node in the AST describing the invoke call
         :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
-        :param int idx: the position of the invoke in the list of invokes
+        :param int idx: the position of the invoke in the list of invokes \
                         contained in the Algorithm
-        :raises GenerationError: if integer reductions are required in the
-        psy-layer
+        :raises GenerationError: if integer reductions are required in the \
+                                 psy-layer
         '''
         if False:  # pylint: disable=using-constant-test
             self._schedule = DynSchedule(None)  # for pyreverse
@@ -2808,9 +2808,9 @@ class DynInvoke(Invoke):
         called by the associated invoke call in the algorithm
         layer). This consists of the PSy invocation subroutine and the
         declaration of its arguments.
-        :param parent: The parent node in the AST (of the code to be generated)
-                       to which the node describing the PSy subroutine will be
-                       added
+        :param parent: The parent node in the AST (of the code to be \
+                       generated) to which the node describing the PSy \
+                       subroutine will be added
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
         from psyclone.f2pygen import SubroutineGen, TypeDeclGen, AssignGen, \
@@ -3123,9 +3123,12 @@ class DynSchedule(Schedule):
         Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
 
     def view(self, indent=0):
-        '''a method implemented by all classes in a schedule which display the
+        '''
+        A method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
-        method to include distributed memory information '''
+        method to include distributed memory information.
+        :param int indent: the amount by which to indent the output.
+        '''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
               self.invoke.name + "' dm="+str(_CONFIG.distributed_memory)+"]")
         for entity in self._children:
@@ -4288,8 +4291,8 @@ class DynLoop(Loop):
 
         :param arg: an argument contained within this loop
         :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
-        :return: True if the argument reads, or might read from the
-        halo and False otherwise.
+        :return: True if the argument reads, or might read from the \
+                 halo and False otherwise.
         :rtype: bool
 
         '''
@@ -4469,10 +4472,10 @@ class DynLoop(Loop):
         depending on the loop type and then call the base class to
         generate the code.
 
-        :param parent: an f2pygen object that will be the parent of
+        :param parent: an f2pygen object that will be the parent of \
         f2pygen objects created in this method
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if a loop over colours is within an
+        :raises GenerationError: if a loop over colours is within an \
         OpenMP parallel region (as it must be serial)
 
         '''

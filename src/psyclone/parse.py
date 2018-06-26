@@ -52,7 +52,12 @@ from psyclone import configuration
 
 
 def check_api(api):
-    ''' Check that the supplied API is valid '''
+    '''
+    Check that the supplied API is valid.
+    :param str api: The API to check.
+    :raises ParseError: if the supplied API is not recognised.
+
+    '''
     _config = configuration.ConfigFactory().create()
 
     if api not in _config.supported_apis:
@@ -422,8 +427,11 @@ class KernelProcedure(object):
 
 
 class KernelTypeFactory(object):
-    ''' Factory for calls to user-supplied Kernels '''
+    '''
+    Factory for calls to user-supplied Kernels.
 
+    :param str api: The API to which this kernel conforms.
+    '''
     def __init__(self, api=""):
         if api == "":
             _config = configuration.ConfigFactory().create()

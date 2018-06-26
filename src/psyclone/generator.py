@@ -213,10 +213,12 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
 
 def main(args):
-
-    ''' Parses and checks the command line arguments, calls the generate
+    '''
+    Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
-    results
+    results.
+    :param list args: the list of command-line arguments that PSyclone has \
+                      been invoked with.
     '''
     # pylint: disable=too-many-statements,too-many-branches
     parser = argparse.ArgumentParser(
