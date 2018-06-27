@@ -2602,25 +2602,28 @@ class Kern(Call):
         from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
             AssignGen, CommentGen
         # TODO take care with literal arguments
-        arguments = ["kern"] + [arg.name for arg in self._arguments.args]
+        # TODO use name-space manager for name of kernel-object arg
+        arguments = ["kernel_obj"] + [arg.name for arg in self._arguments.args if arg.type != "scalar"]
         sub = SubroutineGen(parent, name=self.name+"_set_args",
                             args=arguments)
         parent.add(sub)
         # TODO add a use for check_status() routine
         sub.add(UseGen(sub, name="iso_c_binding", only=True,
-                       funcnames=["sizeof", "c_loc", "c_intptr_t"]))
+                       funcnames=["c_sizeof", "c_loc", "c_intptr_t"]))
         sub.add(UseGen(sub, name="clfortran", only=True,
                        funcnames=["clSetKernelArg"]))
         # Declare arguments
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                        target=True, entity_decls=["kern"]))
-        fld_args = []
+                        target=True, entity_decls=["kernel_obj"]))
+        args = []
         for arg in self._arguments.args:
             if arg.type == "field":
-                fld_args.append(arg.name)
-        if fld_args:
+                args.append(arg.name)
+            elif arg.type == "grid_property":
+                args.append(arg.name)
+        if args:
             sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                            target=True, entity_decls=fld_args))
+                            target=True, entity_decls=args))
 
         # Declare local variables
         sub.add(DeclGen(sub, datatype="integer", entity_decls=["ierr",
@@ -2630,7 +2633,8 @@ class Kern(Call):
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
         sub.add(AssignGen(sub, lhs="arg_idx", rhs="0"))
         for arg in self.arguments.args:
-            arg.set_kernel_arg(sub)
+            if arg.type != "scalar":
+                arg.set_kernel_arg(sub)
 
     def incremented_arg(self, mapping={}):
         ''' Returns the argument that has INC access. Raises a
@@ -2864,7 +2868,7 @@ class Argument(object):
         from psyclone.f2pygen import AssignGen, CallGen
         parent.add(AssignGen(
             parent, lhs="ierr",
-            rhs="clSetKernelArg({0}, arg_idx, sizeof({1}), C_LOC({2}))".
+            rhs="clSetKernelArg({0}, arg_idx, C_SIZEOF({1}), C_LOC({2}))".
             format("kernel_obj", self.name, self.name)))
         parent.add(CallGen(parent, "check_status", ["clSetKernelArg", "ierr"]))
         parent.add(AssignGen(parent, lhs="arg_idx", rhs="arg_idx + 1"))
