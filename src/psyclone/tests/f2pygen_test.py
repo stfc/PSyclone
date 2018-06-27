@@ -934,6 +934,22 @@ def test_decl_logical(tmpdir, f90, f90flags):
     assert utils.string_compiles(gen, tmpdir, f90, f90flags)
 
 
+def test_decl_char(tmpdir, f90, f90flags):
+    ''' Check that we can create a declaration for a character variable '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(DeclGen(sub, datatype="character", entity_decls=["my_string"]))
+    gen = str(sub.root).lower()
+    assert "character my_string" in gen
+    sub.add(DeclGen(sub, datatype="character", char_len="28",
+                    entity_decls=["my_string2"]))
+    gen = str(sub.root).lower()
+    # This time specifying a length
+    assert "character(len=28) my_string2" in gen
+    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+
+
 def test_decl_save(tmpdir, f90, f90flags):
     ''' Check that we can declare variables with the save attribute '''
     module = ModuleGen(name="testmodule")
@@ -1030,8 +1046,8 @@ def test_declgen_wrong_type(monkeypatch):
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
-    assert ("Only ['integer', 'real', 'logical'] types are currently supported"
-            in str(err))
+    assert ("Only ['integer', 'real', 'logical', 'character'] types are "
+            "currently supported" in str(err))
     # Check the internal error is raised within the validation routine if
     # an unsupported type is specified
     dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])

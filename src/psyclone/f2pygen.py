@@ -903,16 +903,19 @@ class DeclGen(BaseDeclGen):
     Generates a Fortran declaration for variables of various intrinsic
     types.
 
-    Constructor has the same interface as the base-class.
+    Constructor has the same interface as the base-class apart from:
+
+    :param str char_len: expression to use for the len= specifier of a \
+                         character variable declaration
     :raises RuntimeError: if datatype is not one of DeclGen.SUPPORTED_TYPES
 
     '''
     # The Fortran intrinsic types supported by this class
-    SUPPORTED_TYPES = ["integer", "real", "logical"]
+    SUPPORTED_TYPES = ["integer", "real", "logical", "character"]
 
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, initial_values=None):
+                 save=False, target=False, char_len="", initial_values=None):
 
         dtype = datatype.lower()
         if dtype not in self.SUPPORTED_TYPES:
@@ -939,6 +942,13 @@ class DeclGen(BaseDeclGen):
             myline = reader.next()
             self._decl = fparser1.typedecl_statements.Logical(parent.root,
                                                               myline)
+        elif dtype == "character":
+            reader = FortranStringReader(
+                "character(len=vanilla_len) :: vanilla")
+            reader.set_format(fort_fmt)
+            myline = reader.next()
+            self._decl = fparser1.typedecl_statements.Character(parent.root,
+                                                                myline)
         else:
             # Defensive programming in case SUPPORTED_TYPES is added to
             # but not handled here
@@ -946,8 +956,9 @@ class DeclGen(BaseDeclGen):
                 "Internal error: type '{0}' is in DeclGen.SUPPORTED_TYPES "
                 "but not handled by constructor.".format(dtype))
 
-        if kind is not "":
-            self._decl.selector = ('', kind)
+        # Add character- and kind-selectors
+        if kind or dtype == "character":
+            self._decl.selector = (char_len, kind)
 
         super(DeclGen, self).__init__(parent=parent, datatype=datatype,
                                       entity_decls=entity_decls,
