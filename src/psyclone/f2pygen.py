@@ -34,8 +34,7 @@
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Fortran code-generation library. This wraps the f2py fortran parser to
-    provide routines which can be used to generate fortran code. This library
-    includes pytest tests. '''
+    provide routines which can be used to generate fortran code. '''
 
 from __future__ import absolute_import, print_function
 from fparser.common.readfortran import FortranStringReader
@@ -327,8 +326,7 @@ class ProgUnitGen(BaseGen):
             BaseGen.add(self, content, position)
         else:
             # position[0] == "auto" so insert in a context sensitive way
-            if isinstance(content, DeclGen) or \
-               isinstance(content, TypeDeclGen):
+            if isinstance(content, BaseDeclGen):
 
                 if isinstance(content, DeclGen):
                     # have I already been declared?
@@ -779,15 +777,19 @@ class BaseDeclGen(BaseGen):
                           DIMENSION(xx))
     :param bool allocatable: whether this declaration is for an \
                              ALLOCATABLE quantity
-    :param bool save: whether this declaration should have the SAVE attribute
+    :param bool save: whether this declaration has the SAVE attribute
+    :param bool target: whether this declaration has the TARGET attribute
     :param initial_values: Initial value to give each variable.
     :type initial_values: list of str with same no. of elements as entity_decls
+
     :raises RuntimeError: if no variable names are specified
+    :raises RuntimeError: if the wrong number or type of initial values are \
+                          supplied.
 
     '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, initial_values=None, attrspec=None):
+                 save=False, target=False, initial_values=None):
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a variable declaration without specifying the "
@@ -819,11 +821,8 @@ class BaseDeclGen(BaseGen):
         else:
             self._decl.entity_decls = local_entity_decls
 
-        if attrspec is None:
-            my_attrspec = []
-        else:
-            my_attrspec = attrspec[:]
-
+        # Construct the list of attributes
+        my_attrspec = []        
         if intent != "":
             my_attrspec.append("intent({0})".format(intent))
         if pointer:
@@ -832,6 +831,8 @@ class BaseDeclGen(BaseGen):
             my_attrspec.append("allocatable")
         if save:
             my_attrspec.append("save")
+        if target:
+            my_attrspec.append("target")
         if dimension != "":
             my_attrspec.append("dimension({0})".format(dimension))
         self._decl.attrspec = my_attrspec
@@ -902,22 +903,7 @@ class DeclGen(BaseDeclGen):
     Generates a Fortran declaration for variables of various intrinsic
     types.
 
-    :param parent: node to which to add this declaration as a child
-    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-    :param str datatype: the (intrinsic) type for this declaration
-    :param list entity_decls: list of variable names to declare
-    :param str intent: the INTENT attribute of this declaration
-    :param bool pointer: whether or not this is a pointer declaration
-    :param str kind: the KIND attribute to use for this declaration
-    :param str dimension: the DIMENSION specifier (i.e. the xx in
-                          DIMENSION(xx))
-    :param bool allocatable: whether this declaration is for an
-                             ALLOCATABLE quantity
-    :param bool save: whether this declaration should have the SAVE attribute
-    :param bool target: whether this declaration should have the TARGET \
-                        attribute
-    :param initial_values: Initial value to give each variable.
-    :type initial_values: list of str with same no. of elements as entity_decls
+    Constructor has the same interface as the base-class.
     :raises RuntimeError: if datatype is not one of DeclGen.SUPPORTED_TYPES
 
     '''
@@ -926,7 +912,7 @@ class DeclGen(BaseDeclGen):
 
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, initial_values=None, attrspec=None):
+                 save=False, target=False, initial_values=None):
 
         dtype = datatype.lower()
         if dtype not in self.SUPPORTED_TYPES:
@@ -964,30 +950,25 @@ class DeclGen(BaseDeclGen):
             self._decl.selector = ('', kind)
 
         super(DeclGen, self).__init__(parent=parent, datatype=datatype,
-                                          entity_decls=entity_decls,
-                                          intent=intent, pointer=pointer,
-                                          kind=kind, dimension=dimension,
-                                          allocatable=allocatable, save=save,
-                                          target=target,
-                                          initial_values=initial_values,
-                                          attrspec=attrspec)
+                                      entity_decls=entity_decls,
+                                      intent=intent, pointer=pointer,
+                                      kind=kind, dimension=dimension,
+                                      allocatable=allocatable, save=save,
+                                      target=target,
+                                      initial_values=initial_values)
 
 
 class TypeDeclGen(BaseDeclGen):
-    ''' Generates a Fortran declaration for variables of a derived type '''
+    '''
+    Generates a Fortran declaration for variables of a derived type.
+
+    Constructor has the same interface as the base class.
+
+    '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, initial_values=None, attrspec=None):
-        '''
-        :param parent: the node to which to add this type delcn as a child
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :param str datatype: the derived type
-        :param list entity_decls: List of variable names to declare
-        :param str intent: the intent attribute for the declaration
-        :param bool pointer: whether or not this is a pointer declaration
-        :param attrspec: list of other attributes to add to declaration
+                 save=False, target=False, initial_values=None):
 
-        '''
         reader = FortranStringReader("type(vanillatype) :: vanilla")
         reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
@@ -1001,8 +982,7 @@ class TypeDeclGen(BaseDeclGen):
                                           kind=kind, dimension=dimension,
                                           allocatable=allocatable, save=save,
                                           target=target,
-                                          initial_values=initial_values,
-                                          attrspec=attrspec)
+                                          initial_values=initial_values)
 
 
 class TypeCase(Case):
