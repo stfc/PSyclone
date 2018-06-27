@@ -1083,8 +1083,8 @@ def test_typedeclgen_missing_names():
     module.add(sub)
     with pytest.raises(RuntimeError) as err:
         _ = TypeDeclGen(sub, datatype="my_type")
-    assert ("Cannot create a declaration of a derived-type variable "
-            "without specifying" in str(err))
+    assert ("Cannot create a variable declaration without specifying"
+            in str(err))
 
 
 def test_typedeclgen_multiple_use():

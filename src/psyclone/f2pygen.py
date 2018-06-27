@@ -764,10 +764,9 @@ class DeallocateGen(BaseGen):
         BaseGen.__init__(self, parent, self._decl)
 
 
-class DeclGen(BaseGen):
+class BaseDeclGen(BaseGen):
     '''
-    Generates a Fortran declaration for variables of various intrinsic
-    types.
+    Base class for all types of Fortran declaration.
 
     :param parent: node to which to add this declaration as a child
     :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -776,36 +775,23 @@ class DeclGen(BaseGen):
     :param str intent: the INTENT attribute of this declaration
     :param bool pointer: whether or not this is a pointer declaration
     :param str kind: the KIND attribute to use for this declaration
-    :param str dimension: the DIMENSION specifier (i.e. the xx in
+    :param str dimension: the DIMENSION specifier (i.e. the xx in \
                           DIMENSION(xx))
-    :param bool allocatable: whether this declaration is for an
+    :param bool allocatable: whether this declaration is for an \
                              ALLOCATABLE quantity
     :param bool save: whether this declaration should have the SAVE attribute
     :param initial_values: Initial value to give each variable.
     :type initial_values: list of str with same no. of elements as entity_decls
     :raises RuntimeError: if no variable names are specified
-    :raises RuntimeError: if datatype is not one of "integer", "real" or
-                          "logical"
 
     '''
-    # The Fortran intrinsic types supported by this class
-    SUPPORTED_TYPES = ["integer", "real", "logical"]
-
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, initial_values=None):
+                 save=False, target=False, initial_values=None, attrspec=None):
         if entity_decls is None:
             raise RuntimeError(
                 "Cannot create a variable declaration without specifying the "
                 "name(s) of the variable(s)")
-        fort_fmt = FortranFormat(True, False)  # free form, strict
-
-        dtype = datatype.lower()
-        if dtype not in self.SUPPORTED_TYPES:
-            raise RuntimeError(
-                "f2pygen.DeclGen.init: Only {0} types are currently"
-                " supported and you specified '{1}'"
-                .format(self.SUPPORTED_TYPES, datatype))
 
         # If initial values have been supplied then check that there
         # are the right number of them and that they are consistent
@@ -818,31 +804,10 @@ class DeclGen(BaseGen):
                     "declared ({1}: {2})".format(len(initial_values),
                                                  len(entity_decls),
                                                  str(entity_decls)))
-            self._check_initial_values(dtype, initial_values)
+            self._check_initial_values(datatype.lower(), initial_values)
 
-        if dtype == "integer":
-            reader = FortranStringReader("integer :: vanilla")
-            reader.set_format(fort_fmt)
-            myline = reader.next()
-            self._decl = fparser1.typedecl_statements.Integer(parent.root,
-                                                              myline)
-        elif dtype == "real":
-            reader = FortranStringReader("real :: vanilla")
-            reader.set_format(fort_fmt)
-            myline = reader.next()
-            self._decl = fparser1.typedecl_statements.Real(parent.root, myline)
-        elif dtype == "logical":
-            reader = FortranStringReader("logical :: vanilla")
-            reader.set_format(fort_fmt)
-            myline = reader.next()
-            self._decl = fparser1.typedecl_statements.Logical(parent.root,
-                                                              myline)
-        else:
-            # Defensive programming in case SUPPORTED_TYPES is added to
-            # but not handled here
-            raise NotImplementedError(
-                "Internal error: type '{0}' is in DeclGen.SUPPORTED_TYPES "
-                "but not handled by constructor.".format(dtype))
+        # Store the list of variable names
+        self._names = entity_decls[:]
 
         # Make a copy of entity_decls as we may modify it
         local_entity_decls = entity_decls[:]
@@ -854,7 +819,11 @@ class DeclGen(BaseGen):
         else:
             self._decl.entity_decls = local_entity_decls
 
-        my_attrspec = []
+        if attrspec is None:
+            my_attrspec = []
+        else:
+            my_attrspec = attrspec[:]
+
         if intent != "":
             my_attrspec.append("intent({0})".format(intent))
         if pointer:
@@ -863,12 +832,21 @@ class DeclGen(BaseGen):
             my_attrspec.append("allocatable")
         if save:
             my_attrspec.append("save")
-        self._decl.attrspec = my_attrspec
         if dimension != "":
             my_attrspec.append("dimension({0})".format(dimension))
-        if kind is not "":
-            self._decl.selector = ('', kind)
-        BaseGen.__init__(self, parent, self._decl)
+        self._decl.attrspec = my_attrspec
+
+        super(BaseDeclGen, self).__init__(parent, self._decl)
+
+    @property
+    def names(self):
+        ''' Returns the names of the variables being declared '''
+        return self._names
+
+    @property
+    def root(self):
+        ''' Returns the associated Type object '''
+        return self._decl
 
     @staticmethod
     def _check_initial_values(dtype, values):
@@ -919,10 +897,87 @@ class DeclGen(BaseGen):
                 "one of {1}".format(dtype, DeclGen.SUPPORTED_TYPES))
 
 
-class TypeDeclGen(BaseGen):
+class DeclGen(BaseDeclGen):
+    '''
+    Generates a Fortran declaration for variables of various intrinsic
+    types.
+
+    :param parent: node to which to add this declaration as a child
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+    :param str datatype: the (intrinsic) type for this declaration
+    :param list entity_decls: list of variable names to declare
+    :param str intent: the INTENT attribute of this declaration
+    :param bool pointer: whether or not this is a pointer declaration
+    :param str kind: the KIND attribute to use for this declaration
+    :param str dimension: the DIMENSION specifier (i.e. the xx in
+                          DIMENSION(xx))
+    :param bool allocatable: whether this declaration is for an
+                             ALLOCATABLE quantity
+    :param bool save: whether this declaration should have the SAVE attribute
+    :param bool target: whether this declaration should have the TARGET \
+                        attribute
+    :param initial_values: Initial value to give each variable.
+    :type initial_values: list of str with same no. of elements as entity_decls
+    :raises RuntimeError: if datatype is not one of DeclGen.SUPPORTED_TYPES
+
+    '''
+    # The Fortran intrinsic types supported by this class
+    SUPPORTED_TYPES = ["integer", "real", "logical"]
+
+    def __init__(self, parent, datatype="", entity_decls=None, intent="",
+                 pointer=False, kind="", dimension="", allocatable=False,
+                 save=False, target=False, initial_values=None, attrspec=None):
+
+        dtype = datatype.lower()
+        if dtype not in self.SUPPORTED_TYPES:
+            raise RuntimeError(
+                "f2pygen.DeclGen.init: Only {0} types are currently"
+                " supported and you specified '{1}'"
+                .format(self.SUPPORTED_TYPES, datatype))
+
+        fort_fmt = FortranFormat(True, False)  # free form, strict
+        if dtype == "integer":
+            reader = FortranStringReader("integer :: vanilla")
+            reader.set_format(fort_fmt)
+            myline = reader.next()
+            self._decl = fparser1.typedecl_statements.Integer(parent.root,
+                                                              myline)
+        elif dtype == "real":
+            reader = FortranStringReader("real :: vanilla")
+            reader.set_format(fort_fmt)
+            myline = reader.next()
+            self._decl = fparser1.typedecl_statements.Real(parent.root, myline)
+        elif dtype == "logical":
+            reader = FortranStringReader("logical :: vanilla")
+            reader.set_format(fort_fmt)
+            myline = reader.next()
+            self._decl = fparser1.typedecl_statements.Logical(parent.root,
+                                                              myline)
+        else:
+            # Defensive programming in case SUPPORTED_TYPES is added to
+            # but not handled here
+            raise NotImplementedError(
+                "Internal error: type '{0}' is in DeclGen.SUPPORTED_TYPES "
+                "but not handled by constructor.".format(dtype))
+
+        if kind is not "":
+            self._decl.selector = ('', kind)
+
+        super(DeclGen, self).__init__(parent=parent, datatype=datatype,
+                                          entity_decls=entity_decls,
+                                          intent=intent, pointer=pointer,
+                                          kind=kind, dimension=dimension,
+                                          allocatable=allocatable, save=save,
+                                          target=target,
+                                          initial_values=initial_values,
+                                          attrspec=attrspec)
+
+
+class TypeDeclGen(BaseDeclGen):
     ''' Generates a Fortran declaration for variables of a derived type '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
-                 pointer=False, attrspec=None):
+                 pointer=False, kind="", dimension="", allocatable=False,
+                 save=False, target=False, initial_values=None, attrspec=None):
         '''
         :param parent: the node to which to add this type delcn as a child
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -932,42 +987,22 @@ class TypeDeclGen(BaseGen):
         :param bool pointer: whether or not this is a pointer declaration
         :param attrspec: list of other attributes to add to declaration
 
-        :raises RuntimeError: if no variable names are specified
         '''
-        if entity_decls is None:
-            raise RuntimeError(
-                "Cannot create a declaration of a derived-type variable "
-                "without specifying the name(s) of the variable(s)")
-        # make a copy of entity_decls as we may modify it
-        local_entity_decls = entity_decls[:]
-        if attrspec is None:
-            attrspec = []
-        my_attrspec = [spec for spec in attrspec]
-        if intent != "":
-            my_attrspec.append("intent({0})".format(intent))
-        if pointer is not False:
-            my_attrspec.append("pointer")
-        self._names = local_entity_decls
-
         reader = FortranStringReader("type(vanillatype) :: vanilla")
         reader.set_format(FortranFormat(True, False))  # free form, strict
         myline = reader.next()
 
-        self._typedecl = fparser1.typedecl_statements.Type(parent.root, myline)
-        self._typedecl.selector = ('', datatype)
-        self._typedecl.attrspec = my_attrspec
-        self._typedecl.entity_decls = local_entity_decls
-        BaseGen.__init__(self, parent, self._typedecl)
-
-    @property
-    def names(self):
-        ''' Returns the names of the variables being declared '''
-        return self._names
-
-    @property
-    def root(self):
-        ''' Returns the associated Type object '''
-        return self._typedecl
+        self._decl = fparser1.typedecl_statements.Type(parent.root, myline)
+        self._decl.selector = ('', datatype)
+        
+        super(TypeDeclGen, self).__init__(parent=parent, datatype=datatype,
+                                          entity_decls=entity_decls,
+                                          intent=intent, pointer=pointer,
+                                          kind=kind, dimension=dimension,
+                                          allocatable=allocatable, save=save,
+                                          target=target,
+                                          initial_values=initial_values,
+                                          attrspec=attrspec)
 
 
 class TypeCase(Case):
