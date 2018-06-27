@@ -241,10 +241,15 @@ class GOInvoke(Invoke):
         # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
 
+        if self.schedule.opencl:
+            target = True
+        else:
+            target = False
+
         # add the subroutine argument declarations for fields
         if len(self.unique_args_arrays) > 0:
             my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
-                                         intent="inout",
+                                         intent="inout", target=target,
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
 
@@ -785,6 +790,14 @@ class GOKern(Kern):
                 ifthen = IfThenGen(parent,
                                    ".NOT. {0}%data_on_device".format(arg.name))
                 parent.add(ifthen)
+                parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
+                                   entity_decls=["size_in_bytes"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind="c_intptr_t", target=True,
+                                   entity_decls=["write_event"]))
+                ifthen.add(AssignGen(
+                    ifthen, lhs="size_in_bytes",
+                    rhs="int({0}%grid%nx*{0}%grid%ny, 8)*8_8".format(garg.name)))
                 ifthen.add(AssignGen(
                     ifthen, lhs="ierr",
                     rhs="clEnqueueWriteBuffer(cmd_queues(1), {0}%device_ptr, "
