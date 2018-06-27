@@ -366,9 +366,7 @@ A downside of performing redundant computation in the level-1 halo is
 that any fields being read by the kernel must have their level-1 halo
 clean (up-to-date), which can result in halo exchanges. Note that this
 is not the case for the modified field, it does not need its halo to
-be clean, however, at the moment a halo exchange is added in this
-case. This unecessary halo exchange will be removed in a future
-release of PSyclone.
+be clean.
 
 Cell iterators: Discontinuous
 -----------------------------
@@ -408,7 +406,7 @@ The configuration variable is called `COMPUTE_ANNEXED_DOFS` and is
 found in the the `config.py` configuration file. If it is `True` then
 annexed dofs are always computed in loops that iterate over dofs and
 if it is `False` then annexed dofs are not computed. The default in
-PSyclone is `True`.
+PSyclone is `False`.
 
 The computation of annexed dofs could have been added as a
 transformation optimisation. The reason for using a configuration
@@ -424,18 +422,21 @@ has completed. If a following kernel needs to read the field's
 annexed dofs, then PSyclone will need to add a halo exchange to make
 them clean.
 
-There are 3 cases to consider:
+There are 4 cases to consider:
 
 1) the field is read in a loop that iterates over dofs,
 2) the field is read in a loop that iterates over owned cells and
+   level-1 halo cells,
+3) the field is incremented in a loop that iterates over owned cells and
    level-1 halo cells, and
-3) the field is read in a loop that iterates over owned cells
+4) the field is read in a loop that iterates over owned cells
 
 In case 1) the annexed dofs will not be read as the loop only iterates
 over owned dofs so a halo exchange is not required. In case 2) the
 full level-1 halo will be read (including annexed dofs) so a halo
-exchange is required. In case 3) the annexed dofs will be read so a
-halo exchange will be required.
+exchange is required. In case 3) the annexed dofs will be updated so a
+halo exchange is required. In case 4) the annexed dofs will be read so
+a halo exchange will be required.
 
 If we now take the case where annexed dofs are computed for loops that
 iterate over dofs (`COMPUTE_ANNEXED_DOFS` is `True`) then a field's
@@ -448,19 +449,32 @@ continuous field has been modified by a kernel. This is because loops
 that iterate over either dofs or cells now compute annexed dofs and
 there are no other ways for a continuous field to be updated.
 
-We now consider the same three cases. In case 1) the annexed dofs will
+We now consider the same four cases. In case 1) the annexed dofs will
 now be read, but annexed dofs are guaranteed to be clean, so no halo
 exchange is required. In case 2) the full level-1 halo is read so a
 halo exchange is still required. Note, as part of this halo exchange
 we will update annexed dofs that are already clean. In case 3) the
-annexed dofs will be read but a halo exchange is not required as the
-annexed dofs are guaranteed to be clean.
+annexed dofs will be updated but a halo exchange is not required as
+the annexed dofs are guaranteed to be clean. In case 4) the annexed
+dofs will be read but a halo exchange is not required as the annexed
+dofs are guaranteed to be clean.
+
+Furthermore, in the 3rd and 4th cases (in which annexed dofs are read
+or updated but the rest of the halo does not have to be clean), where
+the previous writer is unknown (as it comes from a different invoke
+call) we need to add a speculative halo exchange (one that makes use of
+the runtime clean and dirty flags) when `COMPUTE_ANNEXED_DOFS` is
+`False`, as the previous writer *may* have iterated over dofs, leaving
+the annexed dofs dirty. In contrast, when `COMPUTE_ANNEXED_DOFS` is
+`True`, we do not require a speculative halo exchange as we know that
+annexed dofs are always clean.
 
 Therefore no additional halo exchanges are required when
 `COMPUTE_ANNEXED_DOFS` is changed from `False` to `True` i.e. case 1)
 does not require a halo exchange in either situation and case 2)
 requires a halo exchange in both situations. We also remove halo
-exchanges for case 3) so the number of halo exchanges may be reduced.
+exchanges for cases 3) and 4) so the number of halo exchanges may be
+reduced.
 
 If a switch were not used and it were possible to use a transformation
 to selectively perform computation over annexed dofs for loops that
@@ -525,12 +539,12 @@ initial schedule. There are three cases:
 1) loops that iterate over cells and modify a continuous field will
    access the level-1 halo. This means that any field that is read
    within such a loop must have its level-1 halo clean and therefore
-   requires a halo exchange. Note, at the moment PSyclone adds a halo
-   exchange for the modified field (as it is specified as `GH_INC`
-   which requires a read before a write), however this is not required
-   if there is only one field updated in the kernel. This is because
-   we only care about updating owned and annexed dofs, therefore it
-   does not matter what the values of any halo dofs are.
+   requires a halo exchange. In the case of a modified field
+   (specified as `GH_INC` which involves a read before a write) will
+   require a halo exchange if its annexed dofs are not up-to-date, or
+   if this is unknown. This is because we only care about updating
+   owned and annexed dofs, therefore it does not matter what the
+   values of any halo dofs are.
 
 2) continuous fields that are read from within loops that iterate over
    cells and modify a discontinuous field must have their annexed dofs
