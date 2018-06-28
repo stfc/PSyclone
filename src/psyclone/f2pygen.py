@@ -932,9 +932,9 @@ class BaseDeclGen(BaseGen):
 
 
 class DeclGen(BaseDeclGen):
-    '''
-    Generates a Fortran declaration for variables of various intrinsic
-    types. For character variables CharDeclGen should be used.
+    '''Generates a Fortran declaration for variables of various intrinsic
+    types (integer, real and logical). For character variables
+    CharDeclGen should be used.
 
     :param parent: node to which to add this declaration as a child
     :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -1058,7 +1058,7 @@ class TypeDeclGen(BaseDeclGen):
 
     :param parent: node to which to add this declaration as a child
     :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-    :param str datatype: the (intrinsic) type for this declaration
+    :param str datatype: the type for this declaration
     :param list entity_decls: list of variable names to declare
     :param str intent: the INTENT attribute of this declaration
     :param bool pointer: whether or not this is a pointer declaration
