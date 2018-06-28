@@ -915,6 +915,29 @@ def test_adduse_default_funcnames():
     assert expected in gen
 
 
+def test_basedecl_errors():
+    ''' Check that the BaseDeclGen class raises the correct errors if
+    invalid combinations are requested. '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    with pytest.raises(RuntimeError) as err:
+        sub.add(DeclGen(sub, datatype="integer", allocatable=True,
+                        entity_decls=["my_int"], initial_values=["1"]))
+    assert ("Cannot specify initial values for variable(s) [\'my_int\'] "
+            "because they have the \'allocatable\' attribute" in str(err))
+    with pytest.raises(NotImplementedError) as err:
+        sub.add(DeclGen(sub, datatype="integer", dimension="10",
+                        entity_decls=["my_int"], initial_values=["1"]))
+    assert ("Specifying initial values for array declarations is not "
+            "currently supported" in str(err))
+    with pytest.raises(RuntimeError) as err:
+        sub.add(DeclGen(sub, datatype="integer", intent="iN",
+                        entity_decls=["my_int"], initial_values=["1"]))
+    assert ("Cannot assign (initial) values to variable(s) [\'my_int\'] as "
+            "they have INTENT(in)" in str(err))
+
+
 def test_decl_logical(tmpdir, f90, f90flags):
     ''' Check that we can create a declaration for a logical variable '''
     module = ModuleGen(name="testmodule")

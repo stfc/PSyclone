@@ -819,10 +819,10 @@ class BaseDeclGen(BaseGen):
                 raise NotImplementedError(
                     "Specifying initial values for array declarations is not "
                     "currently supported.")
-            if intent == "in":
+            if intent.lower() == "in":
                 raise RuntimeError(
                     "Cannot assign (initial) values to variable(s) {0} as "
-                    "they have INTENT(in).")
+                    "they have INTENT(in).".format(str(entity_decls)))
             self._check_initial_values(datatype.lower(), initial_values)
 
         # Store the list of variable names
@@ -929,7 +929,23 @@ class BaseDeclGen(BaseGen):
 class DeclGen(BaseDeclGen):
     '''
     Generates a Fortran declaration for variables of various intrinsic
-    types.
+    types. For character variables CharDeclGen should be used.
+
+    :param parent: node to which to add this declaration as a child
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+    :param str datatype: the (intrinsic) type for this declaration
+    :param list entity_decls: list of variable names to declare
+    :param str intent: the INTENT attribute of this declaration
+    :param bool pointer: whether or not this is a pointer declaration
+    :param str kind: the KIND attribute to use for this declaration
+    :param str dimension: the DIMENSION specifier (i.e. the xx in \
+                          DIMENSION(xx))
+    :param bool allocatable: whether this declaration is for an \
+                             ALLOCATABLE quantity
+    :param bool save: whether this declaration has the SAVE attribute
+    :param bool target: whether this declaration has the TARGET attribute
+    :param initial_values: Initial value to give each variable.
+    :type initial_values: list of str with same no. of elements as entity_decls
 
     :raises RuntimeError: if datatype is not one of DeclGen.SUPPORTED_TYPES
 
@@ -1035,12 +1051,23 @@ class TypeDeclGen(BaseDeclGen):
     '''
     Generates a Fortran declaration for variables of a derived type.
 
-    Constructor has the same interface as the base class.
+    :param parent: node to which to add this declaration as a child
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+    :param str datatype: the (intrinsic) type for this declaration
+    :param list entity_decls: list of variable names to declare
+    :param str intent: the INTENT attribute of this declaration
+    :param bool pointer: whether or not this is a pointer declaration
+    :param str dimension: the DIMENSION specifier (i.e. the xx in \
+                          DIMENSION(xx))
+    :param bool allocatable: whether this declaration is for an \
+                             ALLOCATABLE quantity
+    :param bool save: whether this declaration has the SAVE attribute
+    :param bool target: whether this declaration has the TARGET attribute
 
     '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
-                 pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, initial_values=None):
+                 pointer=False, dimension="", allocatable=False,
+                 save=False, target=False):
 
         reader = FortranStringReader("type(vanillatype) :: vanilla")
         reader.set_format(FortranFormat(True, False))  # free form, strict
@@ -1052,10 +1079,9 @@ class TypeDeclGen(BaseDeclGen):
         super(TypeDeclGen, self).__init__(parent=parent, datatype=datatype,
                                           entity_decls=entity_decls,
                                           intent=intent, pointer=pointer,
-                                          kind=kind, dimension=dimension,
+                                          dimension=dimension,
                                           allocatable=allocatable, save=save,
-                                          target=target,
-                                          initial_values=initial_values)
+                                          target=target)
 
 
 class TypeCase(Case):
