@@ -38,7 +38,7 @@
 from __future__ import absolute_import, print_function
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
-    ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
+    CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
 import utils
 import pytest
 
@@ -939,15 +939,28 @@ def test_decl_char(tmpdir, f90, f90flags):
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
     module.add(sub)
-    sub.add(DeclGen(sub, datatype="character", entity_decls=["my_string"]))
+    sub.add(CharDeclGen(sub, entity_decls=["my_string"]))
+    # This time specifying a length
+    sub.add(CharDeclGen(sub, length="28",
+                        entity_decls=["my_string2"]))
+    # This time specifying a length and an initial value
+    sub.add(CharDeclGen(sub, length="28",
+                        entity_decls=["my_string3"],
+                        initial_values=["\'this is a string\'"]))
     gen = str(sub.root).lower()
     assert "character my_string" in gen
-    sub.add(DeclGen(sub, datatype="character", char_len="28",
-                    entity_decls=["my_string2"]))
-    gen = str(sub.root).lower()
-    # This time specifying a length
     assert "character(len=28) my_string2" in gen
+    assert "character(len=28) :: my_string3='this is a string'" in gen
+    # Check that the generated Fortran compiles (if compilation testing is
+    # enabled)
     assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+    # Finally, check initialisation using a variable name. Since this
+    # variable isn't declared, we can't include it in the compilation test.
+    sub.add(CharDeclGen(sub, length="my_len",
+                        entity_decls=["my_string4"],
+                        initial_values=["some_variable"]))
+    gen = str(sub.root).lower()
+    assert "character(len=my_len) :: my_string4=some_variable" in gen
 
 
 def test_decl_save(tmpdir, f90, f90flags):
@@ -1035,6 +1048,13 @@ def test_declgen_invalid_vals():
                     initial_values=["good", ".fAlse.", "35"])
     assert ("Initial value of '35' for a logical variable is invalid or "
             "unsupported" in str(err))
+    with pytest.raises(RuntimeError) as err:
+        _ = CharDeclGen(sub, entity_decls=["val1", "val2"],
+                        initial_values=["good", ".fAlse."])
+    assert "Initial value of \'.fAlse.' for a character variable" in str(err)
+    with pytest.raises(RuntimeError) as err:
+        _ = CharDeclGen(sub, entity_decls=["val1"], initial_values=["35"])
+    assert "Initial value of \'35\' for a character variable" in str(err)
 
 
 def test_declgen_wrong_type(monkeypatch):
@@ -1046,7 +1066,7 @@ def test_declgen_wrong_type(monkeypatch):
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
-    assert ("Only ['integer', 'real', 'logical', 'character'] types are "
+    assert ("Only ['integer', 'real', 'logical'] types are "
             "currently supported" in str(err))
     # Check the internal error is raised within the validation routine if
     # an unsupported type is specified

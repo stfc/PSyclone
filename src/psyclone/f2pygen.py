@@ -782,9 +782,13 @@ class BaseDeclGen(BaseGen):
     :param initial_values: Initial value to give each variable.
     :type initial_values: list of str with same no. of elements as entity_decls
 
-    :raises RuntimeError: if no variable names are specified
+    :raises RuntimeError: if no variable names are specified.
     :raises RuntimeError: if the wrong number or type of initial values are \
                           supplied.
+    :raises RuntimeError: if initial values are supplied for a quantity that \
+                          is allocatable or has INTENT(in)
+    :raises NotImplementedError: if initial values are supplied for array \
+                                 variables (dimension != "").
 
     '''
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
@@ -806,6 +810,19 @@ class BaseDeclGen(BaseGen):
                     "declared ({1}: {2})".format(len(initial_values),
                                                  len(entity_decls),
                                                  str(entity_decls)))
+            if allocatable:
+                raise RuntimeError(
+                    "Cannot specify initial values for variable(s) {0} "
+                    "because they have the 'allocatable' attribute.".
+                    format(str(entity_decls)))
+            if dimension:
+                raise NotImplementedError(
+                    "Specifying initial values for array declarations is not "
+                    "currently supported.")
+            if intent == "in":
+                raise RuntimeError(
+                    "Cannot assign (initial) values to variable(s) {0} as "
+                    "they have INTENT(in).")
             self._check_initial_values(datatype.lower(), initial_values)
 
         # Store the list of variable names
@@ -890,6 +907,17 @@ class BaseDeclGen(BaseGen):
                     raise RuntimeError(
                         "Initial value of '{0}' for a real variable is "
                         "invalid or unsupported".format(val))
+        elif dtype == "character":
+            # Can be a quoted string or a valid Fortran name
+            # TODO it would be nice if fparser.two.pattern_tools provided
+            # e.g. abs_character_literal_constant
+            for val in values:
+                if not abs_name.match(val):
+                    if not ((val.startswith("'") and val.endswith("'")) or
+                            (val.startswith('"') and val.endswith('"'))):
+                        raise RuntimeError(
+                            "Initial value of '{0}' for a character variable "
+                            "is invalid or unsupported".format(val))
         else:
             # We should never get to here because we check that the type
             # is supported before calling this routine.
@@ -903,19 +931,15 @@ class DeclGen(BaseDeclGen):
     Generates a Fortran declaration for variables of various intrinsic
     types.
 
-    Constructor has the same interface as the base-class apart from:
-
-    :param str char_len: expression to use for the len= specifier of a \
-                         character variable declaration
     :raises RuntimeError: if datatype is not one of DeclGen.SUPPORTED_TYPES
 
     '''
     # The Fortran intrinsic types supported by this class
-    SUPPORTED_TYPES = ["integer", "real", "logical", "character"]
+    SUPPORTED_TYPES = ["integer", "real", "logical"]
 
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
                  pointer=False, kind="", dimension="", allocatable=False,
-                 save=False, target=False, char_len="", initial_values=None):
+                 save=False, target=False, initial_values=None):
 
         dtype = datatype.lower()
         if dtype not in self.SUPPORTED_TYPES:
@@ -942,13 +966,6 @@ class DeclGen(BaseDeclGen):
             myline = reader.next()
             self._decl = fparser1.typedecl_statements.Logical(parent.root,
                                                               myline)
-        elif dtype == "character":
-            reader = FortranStringReader(
-                "character(len=vanilla_len) :: vanilla")
-            reader.set_format(fort_fmt)
-            myline = reader.next()
-            self._decl = fparser1.typedecl_statements.Character(parent.root,
-                                                                myline)
         else:
             # Defensive programming in case SUPPORTED_TYPES is added to
             # but not handled here
@@ -956,9 +973,9 @@ class DeclGen(BaseDeclGen):
                 "Internal error: type '{0}' is in DeclGen.SUPPORTED_TYPES "
                 "but not handled by constructor.".format(dtype))
 
-        # Add character- and kind-selectors
-        if kind or dtype == "character":
-            self._decl.selector = (char_len, kind)
+        # Add any kind-selector
+        if kind:
+            self._decl.selector = ('', kind)
 
         super(DeclGen, self).__init__(parent=parent, datatype=datatype,
                                       entity_decls=entity_decls,
@@ -967,6 +984,51 @@ class DeclGen(BaseDeclGen):
                                       allocatable=allocatable, save=save,
                                       target=target,
                                       initial_values=initial_values)
+
+
+class CharDeclGen(BaseDeclGen):
+    '''
+    Generates a Fortran declaration for character variables.
+
+    :param parent: node to which to add this declaration as a child
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+    :param list entity_decls: list of variable names to declare
+    :param str intent: the INTENT attribute of this declaration
+    :param bool pointer: whether or not this is a pointer declaration
+    :param str kind: the KIND attribute to use for this declaration
+    :param str dimension: the DIMENSION specifier (i.e. the xx in \
+                          DIMENSION(xx))
+    :param bool allocatable: whether this declaration is for an \
+                             ALLOCATABLE quantity
+    :param bool save: whether this declaration has the SAVE attribute
+    :param bool target: whether this declaration has the TARGET attribute
+    :param str length: expression to use for the (len=xx) selector
+    :param initial_values: Initial value to give each variable.
+    :type initial_values: list of str with same no. of elements as entity_decls
+
+    '''
+    def __init__(self, parent, entity_decls=None, intent="",
+                 pointer=False, kind="", dimension="", allocatable=False,
+                 save=False, target=False, length="", initial_values=None):
+
+        reader = FortranStringReader(
+            "character(len=vanilla_len) :: vanilla")
+        reader.set_format(FortranFormat(True, False))
+        myline = reader.next()
+        self._decl = fparser1.typedecl_statements.Character(parent.root,
+                                                            myline)
+        # Add character- and kind-selectors
+        #if kind or char_len:
+        self._decl.selector = (length, kind)
+
+        super(CharDeclGen, self).__init__(parent=parent,
+                                          datatype="character",
+                                          entity_decls=entity_decls,
+                                          intent=intent, pointer=pointer,
+                                          kind=kind, dimension=dimension,
+                                          allocatable=allocatable, save=save,
+                                          target=target,
+                                          initial_values=initial_values)
 
 
 class TypeDeclGen(BaseDeclGen):
