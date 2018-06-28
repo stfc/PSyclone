@@ -37,6 +37,8 @@
     provide routines which can be used to generate fortran code. '''
 
 from __future__ import absolute_import, print_function
+import abc
+import six
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.one.statements import Comment, Case
@@ -762,9 +764,11 @@ class DeallocateGen(BaseGen):
         BaseGen.__init__(self, parent, self._decl)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class BaseDeclGen(BaseGen):
     '''
-    Base class for all types of Fortran declaration.
+    Abstract base class for all types of Fortran declaration. Uses the
+    abc module so it cannot be instantiated.
 
     :param parent: node to which to add this declaration as a child
     :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -772,7 +776,6 @@ class BaseDeclGen(BaseGen):
     :param list entity_decls: list of variable names to declare
     :param str intent: the INTENT attribute of this declaration
     :param bool pointer: whether or not this is a pointer declaration
-    :param str kind: the KIND attribute to use for this declaration
     :param str dimension: the DIMENSION specifier (i.e. the xx in \
                           DIMENSION(xx))
     :param bool allocatable: whether this declaration is for an \
@@ -791,8 +794,10 @@ class BaseDeclGen(BaseGen):
                                  variables (dimension != "").
 
     '''
+    _decl = None  # Will hold the declaration object created by sub-class
+
     def __init__(self, parent, datatype="", entity_decls=None, intent="",
-                 pointer=False, kind="", dimension="", allocatable=False,
+                 pointer=False, dimension="", allocatable=False,
                  save=False, target=False, initial_values=None):
         if entity_decls is None:
             raise RuntimeError(
@@ -839,7 +844,7 @@ class BaseDeclGen(BaseGen):
             self._decl.entity_decls = local_entity_decls
 
         # Construct the list of attributes
-        my_attrspec = []        
+        my_attrspec = []
         if intent != "":
             my_attrspec.append("intent({0})".format(intent))
         if pointer:
@@ -996,7 +1001,7 @@ class DeclGen(BaseDeclGen):
         super(DeclGen, self).__init__(parent=parent, datatype=datatype,
                                       entity_decls=entity_decls,
                                       intent=intent, pointer=pointer,
-                                      kind=kind, dimension=dimension,
+                                      dimension=dimension,
                                       allocatable=allocatable, save=save,
                                       target=target,
                                       initial_values=initial_values)
@@ -1041,7 +1046,7 @@ class CharDeclGen(BaseDeclGen):
                                           datatype="character",
                                           entity_decls=entity_decls,
                                           intent=intent, pointer=pointer,
-                                          kind=kind, dimension=dimension,
+                                          dimension=dimension,
                                           allocatable=allocatable, save=save,
                                           target=target,
                                           initial_values=initial_values)
@@ -1075,7 +1080,7 @@ class TypeDeclGen(BaseDeclGen):
 
         self._decl = fparser1.typedecl_statements.Type(parent.root, myline)
         self._decl.selector = ('', datatype)
-        
+
         super(TypeDeclGen, self).__init__(parent=parent, datatype=datatype,
                                           entity_decls=entity_decls,
                                           intent=intent, pointer=pointer,

@@ -994,9 +994,36 @@ def test_decl_save(tmpdir, f90, f90flags):
     for idx, dtype in enumerate(DeclGen.SUPPORTED_TYPES):
         sub.add(DeclGen(sub, datatype=dtype, save=True,
                         entity_decls=["var"+str(idx)]))
+    sub.add(CharDeclGen(sub, save=True, length="10",
+                        entity_decls=["varchar"]))
+    sub.add(TypeDeclGen(sub, save=True, datatype="field_type",
+                        entity_decls=["ufld"]))
     gen = str(sub.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
         assert "{0}, save :: var".format(dtype.lower()) in gen
+    assert "character(len=10), save :: varchar" in gen
+    assert "type(field_type), save :: ufld" in gen
+    # Check that the generated code compiles (if enabled)
+    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+
+
+def test_decl_target(tmpdir, f90, f90flags):
+    ''' Check that we can declare variables with the target attribute '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    for idx, dtype in enumerate(DeclGen.SUPPORTED_TYPES):
+        sub.add(DeclGen(sub, datatype=dtype, target=True,
+                        entity_decls=["var"+str(idx)]))
+    sub.add(CharDeclGen(sub, target=True, length="10",
+                        entity_decls=["varchar"]))
+    sub.add(TypeDeclGen(sub, target=True, datatype="field_type",
+                        entity_decls=["ufld"]))
+    gen = str(sub.root).lower()
+    for dtype in DeclGen.SUPPORTED_TYPES:
+        assert "{0}, target :: var".format(dtype.lower()) in gen
+    assert "character(len=10), target :: varchar" in gen
+    assert "type(field_type), target :: ufld" in gen
     # Check that the generated code compiles (if enabled)
     assert utils.string_compiles(gen, tmpdir, f90, f90flags)
 
@@ -1072,11 +1099,11 @@ def test_declgen_invalid_vals():
     assert ("Initial value of '35' for a logical variable is invalid or "
             "unsupported" in str(err))
     with pytest.raises(RuntimeError) as err:
-        _ = CharDeclGen(sub, entity_decls=["val1", "val2"],
-                        initial_values=["good", ".fAlse."])
+        _char = CharDeclGen(sub, entity_decls=["val1", "val2"],
+                            initial_values=["good", ".fAlse."])
     assert "Initial value of \'.fAlse.' for a character variable" in str(err)
     with pytest.raises(RuntimeError) as err:
-        _ = CharDeclGen(sub, entity_decls=["val1"], initial_values=["35"])
+        _char = CharDeclGen(sub, entity_decls=["val1"], initial_values=["35"])
     assert "Initial value of \'35\' for a character variable" in str(err)
 
 
