@@ -45,27 +45,31 @@ import pytest
 
 def test_decl_no_replication_scalars():
     '''Check that the same scalar variable will only get declared once in
-    a module and a subroutine'''
+    a module and a subroutine.
+
+    '''
     variable_name = "arg_name"
-    datatype = "integer"
-    module = ModuleGen(name="testmodule")
-    module.add(DeclGen(module, datatype=datatype,
-                       entity_decls=[variable_name]))
-    module.add(DeclGen(module, datatype=datatype,
-                       entity_decls=[variable_name]))
-    subroutine = SubroutineGen(module, name="testsubroutine")
-    module.add(subroutine)
-    subroutine.add(DeclGen(subroutine, datatype=datatype,
+    for datatype in DeclGen.SUPPORTED_TYPES:
+        module = ModuleGen(name="testmodule")
+        module.add(DeclGen(module, datatype=datatype,
                            entity_decls=[variable_name]))
-    subroutine.add(DeclGen(subroutine, datatype=datatype,
+        module.add(DeclGen(module, datatype=datatype,
                            entity_decls=[variable_name]))
-    generated_code = str(module.root)
-    assert generated_code.count(variable_name) == 2
+        subroutine = SubroutineGen(module, name="testsubroutine")
+        module.add(subroutine)
+        subroutine.add(DeclGen(subroutine, datatype=datatype,
+                               entity_decls=[variable_name]))
+        subroutine.add(DeclGen(subroutine, datatype=datatype,
+                               entity_decls=[variable_name]))
+        generated_code = str(module.root)
+        assert generated_code.count(variable_name) == 2
 
 
 def test_decl_no_replication_types():
-    '''Check that the same array variable will only get declared once in
-    a module and a subroutine'''
+    '''Check that the same derived-type variable will only get declared
+    once in a module and a subroutine.
+
+    '''
     variable_name = "arg_name"
     datatype = "field_type"
     module = ModuleGen(name="testmodule")
@@ -79,6 +83,23 @@ def test_decl_no_replication_types():
                                entity_decls=[variable_name]))
     subroutine.add(TypeDeclGen(subroutine, datatype=datatype,
                                entity_decls=[variable_name]))
+    generated_code = str(module.root)
+    assert generated_code.count(variable_name) == 2
+
+
+def test_decl_no_replication_char():
+    '''Check that the character variable will only get declared once in a
+    module and a subroutine.
+
+    '''
+    variable_name = "arg_name"
+    module = ModuleGen(name="testmodule")
+    module.add(CharDeclGen(module, entity_decls=[variable_name]))
+    module.add(CharDeclGen(module, entity_decls=[variable_name]))
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+    subroutine.add(CharDeclGen(subroutine, entity_decls=[variable_name]))
+    subroutine.add(CharDeclGen(subroutine, entity_decls=[variable_name]))
     generated_code = str(module.root)
     assert generated_code.count(variable_name) == 2
 

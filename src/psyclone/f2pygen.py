@@ -55,8 +55,7 @@ def bubble_up_type(obj):
     ''' Returns True if the supplied object is of a type which must be
     bubbled-up (from within e.g. DO loops) '''
     return (isinstance(obj, UseGen) or
-            isinstance(obj, DeclGen) or
-            isinstance(obj, TypeDeclGen))
+            isinstance(obj, BaseDeclGen))
 
 
 def index_of_object(alist, obj):
@@ -330,10 +329,12 @@ class ProgUnitGen(BaseGen):
             # position[0] == "auto" so insert in a context sensitive way
             if isinstance(content, BaseDeclGen):
 
-                if isinstance(content, DeclGen):
+                if isinstance(content, DeclGen) or \
+                   isinstance(content, CharDeclGen):
                     # have I already been declared?
                     for child in self._children:
-                        if isinstance(child, DeclGen):
+                        if isinstance(child, DeclGen) or \
+                           isinstance(child, CharDeclGen):
                             # is this declaration the same type as me?
                             if child.root.name == content.root.name:
                                 # we are modifying the list so we need
