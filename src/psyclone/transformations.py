@@ -1342,7 +1342,6 @@ class ExtractTrans(Transformation):
                     "Extract transformation does not "
                     "currently support HaloExchange ")
 
-
     def apply(self, nodes):
         ''' Extract the nodes represented by :py:obj:`node`. Exceptions
         are raised if distributed memory is enabled or tranformation
@@ -1365,7 +1364,7 @@ class ExtractTrans(Transformation):
                                       "object of type: {0}".
                                       format(arg_type))
 
-        # Validate tranformation
+        # Validate transformation
         self._validate(node_list)
 
         # Keep a reference to the parent of the nodes that are to be
@@ -1393,40 +1392,10 @@ class ExtractTrans(Transformation):
         my_node = parent.children.pop(node.position)
 
         location_index = location.position
-        # Insert Extract transformation before
-            schedule.children.insert(location_index, my_node)
-        else:
-            schedule.children.insert(location_index+1, my_node)
+        # Insert Extract transformation (possibly use "before" as well?)
+        schedule.children.insert(location_index, my_node)
 
         return schedule, keep
-
-
-    ###def apply(self, node, location, position="before"):
-        ###'''Move the node represented by :py:obj:`node` before location
-        ###:py:obj:`location` (which is also a node) by default and after
-        ###if the optional `position` argument is set to 'after'. An
-        ###exception is raised if the move is invalid.'''
-        #### pylint:disable=arguments-differ
-
-        ###self._validate(node, location, position)
-
-        ###schedule = node.root
-
-        #### create a memento of the schedule and the proposed transformation
-        ###from .undoredo import Memento
-        ###keep = Memento(schedule, self, [node, location])
-
-        ###parent = node.parent
-
-        ###my_node = parent.children.pop(node.position)
-
-        ###location_index = location.position
-        ###if position == "before":
-            ###schedule.children.insert(location_index, my_node)
-        ###else:
-            ###schedule.children.insert(location_index+1, my_node)
-
-        ###return schedule, keep
 
 
 class Dynamo0p3RedundantComputationTrans(Transformation):
