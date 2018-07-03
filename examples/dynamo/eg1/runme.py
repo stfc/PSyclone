@@ -9,6 +9,15 @@
 from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.profiler import Profiler
+
+# This example shows also how to automatically enable
+# inserting of profiling calls. The code below will
+# automatically instrument all kernel calls. You can
+# also use Profiler.INVOKES to automatically instrument
+# all invokes (or both by specifying both options as
+# the list parameter).
+Profiler.set_options([Profiler.KERNELS])
 
 # This example uses version 0.1 of the Dynamo API
 api="dynamo0.1"

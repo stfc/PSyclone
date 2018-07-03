@@ -106,7 +106,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
                        "Directive": "green",
                        "HaloExchange": "blue",
                        "Call": "red",
-                       "KernCall": "magenta"}
+                       "KernCall": "magenta",
+                       "Profile": "green"}
 
 
 def get_api(api):
@@ -202,6 +203,11 @@ class PSyFactory(object):
         the value, it then fails. I've no idea why. '''
 
     def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
+        '''Initialises a factory which can create API specific PSY objects.
+        :param api: Name of the API to use.
+        :param distributed_memory: True if distributed memory should be
+                                   supported.
+        '''
         if distributed_memory not in [True, False]:
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
@@ -210,7 +216,7 @@ class PSyFactory(object):
         self._type = get_api(api)
 
     def create(self, invoke_info):
-        ''' Return the specified version of PSy. '''
+        ''' Return the API specific PSy instance. '''
         if self._type == "gunghoproto":
             from psyclone.ghproto import GHProtoPSy
             return GHProtoPSy(invoke_info)
@@ -256,7 +262,6 @@ class PSy(object):
 
     '''
     def __init__(self, invoke_info):
-
         self._name = invoke_info.name
         self._invokes = None
 
@@ -294,10 +299,14 @@ class Invokes(object):
     def __init__(self, alg_calls, Invoke):
         self.invoke_map = {}
         self.invoke_list = []
+        from psyclone.profiler import Profiler
         for idx, alg_invocation in enumerate(alg_calls.values()):
             my_invoke = Invoke(alg_invocation, idx)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
+            # Add profiling nodes to schedule if automatic profiling has been
+            # requested.
+            Profiler.add_profile_nodes(my_invoke.schedule, Loop)
 
     def __str__(self):
         return "Invokes object containing "+str(self.names)

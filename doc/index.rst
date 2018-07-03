@@ -20,8 +20,9 @@
    stub_gen
    line_length
    api
+   profiling
    system_specific_setup
-..   developers
+   developers
 ..   tutorial
 ..   examples
 ..   FAQS
