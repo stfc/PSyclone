@@ -2145,7 +2145,7 @@ class Extract(Node):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print self.indent(indent) + self.coloured_text
+        print(self.indent(indent) + self.coloured_text)
 
     @property
     def name(self):
