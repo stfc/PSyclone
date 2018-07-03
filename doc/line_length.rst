@@ -19,13 +19,13 @@ scripting and when working interactively respectively.
 Script
 ------
 
-The generate.py script provides the -l option to wrap lines. Please
+The `psyclone` script provides the -l option to wrap lines. Please
 see the :ref:`fort_line_length` section for more details.
 
 Interactive
 -----------
 
-When using PSyclone interactively the line length of the input
+When using PSyclone interactively the line lengths of the input
 algorithm and Kernel files can be checked by setting the
 :func:`parse.parse` function's "line_length" argument to "True".
 ::

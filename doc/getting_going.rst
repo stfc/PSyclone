@@ -225,6 +225,8 @@ If you do not have it then py.test can again be installed using
 ``pip`` or from here http://pytest.org/latest/ (or specifically here
 http://pytest.org/latest/getting-started.html).
 
+.. _getting_going_env:
+
 Environment
 -----------
 
