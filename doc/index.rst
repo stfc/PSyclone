@@ -8,7 +8,7 @@
 
    introduction
    getting_going
-   generator_script
+   psyclone_script
    kernel_layer
    algorithm_layer
    psy_layer
