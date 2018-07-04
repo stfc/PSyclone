@@ -1996,7 +1996,7 @@ field then the annexed dofs must be up-to-date on all processors. If
 they are not then a halo exchange must be added. Currently PSyclone
 defaults, for kernels which iterate over dofs, to iterating over only
 owned dofs. This behaviour can be changed by setting
-`COMPUTE_ANNEXED_DOFS` to `true` in the `dynamo0.3` section of the
+`COMPUTE_ANNEXED_DOFS` to ``true`` in the `dynamo0.3` section of the
 configuration file (see the :ref:`configuration` section). PSyclone
 will then generate code to iterate over both owned and annexed dofs,
 thereby reducing the number of halo exchanges required (at the expense

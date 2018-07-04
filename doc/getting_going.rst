@@ -281,7 +281,7 @@ will be something like ``/usr/share/psyclone/``. If a user-local
 installation is performed (``--user`` flag to ``pip install``) then
 the location will be something like ``~/.local/share/psyclone/``.
 
-.. note:: if PSyclone is installed to a non-standard location (e.g. by specifying the ``--prefix=/some/path`` option to ``pip install``) then PSyclone will not be able to find the configuration file at execution time. There are two solutions to this: 1. copy the configuration file to a location where PSyclone will find it (see :ref:`configuration`) or 2. set the ``PSYCLONE_CONFIG`` environment variable to the full-path to the configuration file.
+.. warning:: if PSyclone is installed to a non-standard location (e.g. by specifying the ``--prefix=/some/path`` option to ``pip install``) then PSyclone will not be able to find the configuration file at execution time. There are two solutions to this: 1. copy the configuration file to a location where PSyclone will find it (see :ref:`configuration`) or 2. set the ``PSYCLONE_CONFIG`` environment variable to the full-path to the configuration file.
 
 See :ref:`configuration` for details of the settings contained within
 the config file.

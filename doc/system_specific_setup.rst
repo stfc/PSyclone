@@ -167,12 +167,22 @@ Cloning PSyclone from git and setting up your environment is done as follows::
 
 Note that the "-e" flag causes the project to be installed in
 'editable' mode so that any changes to the PSyclone source take effect
-immediately. On OpenSUSE it is necessary to add $HOME/.local/bin to
-your $PATH. Note also that when installing in 'editable' mode, pip does
-*not* install the configuration file. You will have to copy
-`PSyclone/config/psyclone.cfg` to a location on the search path (see
-:ref:`configuration`) or set the `PSYCLONE_CONFIG` environment variable
-to point to it.
+immediately.
+
+.. warning::
+
+   On OpenSUSE it is necessary to add `$HOME/.local/bin` to
+   your `$PATH` if you have done a user-local install.
+
+.. warning::
+
+   when installing in 'editable' mode, pip does
+   *not* install the configuration file. You will have to copy
+   `PSyclone/config/psyclone.cfg` to a location on the search path (see
+   :ref:`configuration`) or set the `$PSYCLONE_CONFIG` environment variable
+   to point to it, e.g.::
+
+   > export PSYCLONE_CONFIG=/some/path/PSyclone/config/psyclone.cfg
 
 
 Installing documentation tools

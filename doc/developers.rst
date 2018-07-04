@@ -385,18 +385,18 @@ Dof iterators
 
 When a kernel that is written to iterate over dofs modifies a field,
 PSyclone must ensure that all dofs in that field are updated. If the
-distributed memory flag is set to `False` then PSyclone must iterate
+distributed memory flag is set to ``false`` then PSyclone must iterate
 over all dofs. PSyclone simply needs to create a loop that iterates
 from 1 to the total number of dofs. The latter value is provided by
 the LFRic API.
 
-If the distributed memory flag is set to `True` then PSyclone must
+If the distributed memory flag is set to ``true`` then PSyclone must
 ensure that each partition only iterates over owned dofs. Again PSyclone
 just needs to create a loop that iterates from 1 to the total number
 of owned dofs on that partition. The latter value is provided by the
 LFRic API.
 
-When the distributed memory flag is set to `True` an aditional
+When the distributed memory flag is set to ``true`` an aditional
 configuration option can be set which makes PSyclone always create
 loops which iterate over both owned and annexed dofs. Whilst this is
 not necessary for correctness, it can improve performance by reducing
@@ -408,10 +408,10 @@ owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called `COMPUTE_ANNEXED_DOFS` and is
 found in the the `dynamo0.3` section of the `psyclone.cfg`
-configuration file (see :ref:`configuration`). If it is `True` then
+configuration file (see :ref:`configuration`). If it is ``true`` then
 annexed dofs are always computed in loops that iterate over dofs and
-if it is `False` then annexed dofs are not computed. The default in
-PSyclone is `False`.
+if it is ``false`` then annexed dofs are not computed. The default in
+PSyclone is ``false``.
 
 The computation of annexed dofs could have been added as a
 transformation optimisation. The reason for using a configuration
@@ -421,7 +421,7 @@ always remove certain halo exchanges without needing to add any new
 ones.
 
 If we first take the situation where annexed dofs are not computed for
-loops that iterate over dofs i.e. (`COMPUTE_ANNEXED_DOFS` is `False`),
+loops that iterate over dofs i.e. (`COMPUTE_ANNEXED_DOFS` is ``false``),
 then a field's annexed dofs will be dirty (out-of-date) after the loop
 has completed. If a following kernel needs to read the field's
 annexed dofs, then PSyclone will need to add a halo exchange to make
@@ -441,7 +441,7 @@ exchange is required. In case 3) the annexed dofs will be read so a
 halo exchange will be required.
 
 If we now take the case where annexed dofs are computed for loops that
-iterate over dofs (`COMPUTE_ANNEXED_DOFS` is `True`) then a field's
+iterate over dofs (`COMPUTE_ANNEXED_DOFS` is ``true``) then a field's
 annexed dofs will be clean after the loop has completed. If a
 following kernel needs to read the field's annexed dofs, then
 PSyclone will no longer need a halo exchange.
@@ -460,7 +460,7 @@ annexed dofs will be read but a halo exchange is not required as the
 annexed dofs are guaranteed to be clean.
 
 Therefore no additional halo exchanges are required when
-`COMPUTE_ANNEXED_DOFS` is changed from `False` to `True` i.e. case 1)
+`COMPUTE_ANNEXED_DOFS` is changed from ``false`` to ``true`` i.e. case 1)
 does not require a halo exchange in either situation and case 2)
 requires a halo exchange in both situations. We also remove halo
 exchanges for case 3) so the number of halo exchanges may be reduced.
@@ -483,7 +483,7 @@ Halo Exchange Logic
 -------------------
 
 Halo exchanges are required when the `DISTRIBUTED_MEMORY` flag is set to
-`True` in order to make sure any accesses to a field's halo or to its
+``true`` in order to make sure any accesses to a field's halo or to its
 annexed dofs receive the correct value.
 
 Operators and Halo Exchanges
@@ -515,7 +515,7 @@ When first run, PSyclone creates a separate schedule for each of the
 invokes found in the algorithm layer. A schedule includes all required
 loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
-created then (if the `DISTRIBUTED_MEMORY` flag is set to `True`) PSyclone
+created then (if the `DISTRIBUTED_MEMORY` flag is set to ``true``) PSyclone
 adds any required halo exchanges and global sums. This work is all
 performed in the `DynInvoke` constructor (`__init__`) method.
 
@@ -539,9 +539,9 @@ initial schedule. There are three cases:
    cells and modify a discontinuous field must have their annexed dofs
    clean. Currently the only way to make annexed dofs clean is to
    perform a halo exchange. If the `COMPUTE_ANNEXED_DOFS`
-   configuration variable is set to `True` then no halo exchange is
+   configuration variable is set to ``true`` then no halo exchange is
    required as annexed dofs will always be clean. If the
-   `COMPUTE_ANNEXED_DOFS` configuration variable is set to `False`
+   `COMPUTE_ANNEXED_DOFS` configuration variable is set to ``false``
    then a halo exchange must be added if the previous modification of
    the field is known to be from within a loop over dofs, or if the
    previous modification of the field is unknown (i.e. outside the
