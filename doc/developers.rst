@@ -696,3 +696,47 @@ TBD
 .. 
 .. Create third transformtion which goes over all loops in a schedule and
 .. applies the OpenMP loop transformation.
+
+Configuration
+#############
+
+PSyclone uses the Python ``ConfigParser`` class
+(https://docs.python.org/3/library/configparser.html) for reading the
+configuration file. This is managed by the ``psyclone.configuration``
+module which provides the ``ConfigFactory`` and ``Config``
+classes. The former's constructor creates a singleton ``Config`` instance
+and stores it for return by any future calls to ``create``:
+
+.. autoclass:: psyclone.configuration.ConfigFactory
+    :members:
+
+The ``Config`` class is responsible for finding the configuration file
+(if no filename is passed to the constructor), parsing it and then storing
+the various configuration options. It also performs some basic consistency
+checks on the values it obtains from the configuration file.
+
+Since the default PSyclone API to use is read from the configuration
+file, it is not possible to have API-specifc sub-classes of ``Config``
+as we don't know which API is in use before we read the file. However, the
+configuration file can contain API-specific settings. These are placed in
+separate sections, named for the API to which they apply, e.g.::
+
+  [dynamo0.3]
+  COMPUTE_ANNEXED_DOFS = false
+
+Having parsed and stored the options from the default section of the
+configuration file, the ``Config`` constructor then creates a
+dictionary using the list of supported APIs to provide the keys. The
+configuration file is then checked for API-specific sections (again
+using the API names from the default section) and, if any are found,
+an API-specifc sub-class is created using the parsed entries from the
+corresponding section. The resulting object is stored in the
+dictionary under the appropriate key. The API-specific values may then
+be accessed as, e.g.::
+
+  config.api("dynamo0.3").compute_annexed_dofs
+
+The API-specific sub-classes exist to provide validation/type-checking and
+encapsulation for API-specific options. They do not sub-class ``Config``
+directly but store a reference back to the ``Config`` object to which they
+belong.

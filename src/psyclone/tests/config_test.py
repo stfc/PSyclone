@@ -382,7 +382,7 @@ COMPUTE_ANNEXED_DOFS = false
             _ = Config(config_file=new_name)
 
         assert "configuration error (file=" in str(err)
-        assert "config file has no [DEFAULT] section" in str(err)
+        assert "Configuration file has no [DEFAULT] section" in str(err)
 
 
 def test_dyn0p3_missing():
@@ -399,4 +399,17 @@ def test_dyn0p3_missing():
             _ = Config(config_file=new_name)
 
         assert "configuration error (file=" in str(err)
-        assert "config file has no [dynamo0.3] section" in str(err)
+        assert "Configuration file has no [dynamo0.3] section" in str(err)
+
+
+def test_wrong_api():
+    ''' Check that we raise the correct errors when a user queries
+    API-specific configuration options '''
+    _config = Config(config_file=TEST_CONFIG)
+    with pytest.raises(ConfigurationError) as err:
+        _ = _config.api("blah")
+    assert "API 'blah' is not one of the supported APIs listed" in str(err)
+    with pytest.raises(ConfigurationError) as err:
+        _ = _config.api("dynamo0.1")
+    assert ("Configuration file did not contain a section for the "
+            "'dynamo0.1' API" in str(err))

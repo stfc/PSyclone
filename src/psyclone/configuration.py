@@ -82,27 +82,23 @@ def _str_to_list(svalue):
         return [
             str(item.strip()) for item in svalue.split(",")
             if item.strip() != '']
-    else:
-        # Space delimited
-        return [
-            str(item.strip()) for item in svalue.split(" ")
-            if item.strip() != '']
+    # Space delimited
+    return [
+        str(item.strip()) for item in svalue.split(" ")
+        if item.strip() != '']
 
 
 class ConfigFactory(object):
     '''
-    Creates a singleton instance of our Config object.
+    Create our singleton Config object. If config_file is specified
+    then we throw-away the old Config and create a new one.
+
+    :param str config_file: Specific configuration file to use when \
+                            creating the Config object.
     '''
     _instance = None  # Our single Config object
 
     def __init__(self, config_file=None):
-        '''
-        Create our singleton Config object. If config_file is specified
-        then we throw-away the old Config and create a new one.
-
-        :param str config_file: Specific configuration file to use when
-                                creating Config object
-        '''
         if not ConfigFactory._instance or config_file:
             # Create a Config object if we've not already got one or if the
             # caller has specified a particular file
@@ -156,9 +152,9 @@ class Config(object):
         # if there isn't one in the file, ConfigParser creates an (empty)
         # dictionary entry for it.
         if 'DEFAULT' not in self._config or \
-           len(self._config['DEFAULT'].keys()) == 0:
+           not self._config['DEFAULT'].keys():
             raise ConfigurationError(
-                "config file has no [DEFAULT] section", config=self)
+                "Configuration file has no [DEFAULT] section", config=self)
 
         # The call to the 'read' method above populates a dictionary.
         # All of the entries in that dict are unicode strings so here
@@ -219,30 +215,42 @@ class Config(object):
                 "error while parsing REPROD_PAD_SIZE: {0}".format(str(err)),
                 config=self)
 
-        # Now we deal with the API-specific sections of the config file
-        self._parse_dynamo0p3()
+        # Now we deal with the API-specific sections of the config file. We
+        # create a dictionary to hold the API-specifc Config objects.
+        self._api = {}
+        for api in self._supported_api_list:
+            if api in self._config:
+                if api == "dynamo0.3":
+                    self._api[api] = DynConfig(self, self._config[api])
+                else:
+                    raise NotImplementedError(
+                        "Configuration file contains a {0} section but no "
+                        "Config sub-class has been implemented for this API".
+                        format(api))
 
-    def _parse_dynamo0p3(self):
+    def api(self, api):
         '''
-        Parse the dynamo0.3 section of the configuration file.
-        :raises ConfigurationError: if there is no [dynamo0.3] section or if \
-                                    compute_annexed_dofs is invalid.
+        Getter for the object holding API-specific configuration options.
 
+        :param str api: the API for which configuration details are required.
+        :returns: object containing API-specific configuration
+        :rtype: One of :py:class:`psyclone.configuration.DynConfig` or None.
+
+        :raises ConfigurationError: if api is not in the list of supported \
+                                    APIs.
+        :raises ConfigurationError: if the config file did not contain a \
+                                    section for the requested API.
         '''
-        _api = "dynamo0.3"
-        if _api not in self._config:
+        if api not in self.supported_apis:
             raise ConfigurationError(
-                "config file has no [{0}] section".format(_api), config=self)
-
-        # Store the API-specific settings
-        try:
-            self._compute_annexed_dofs = self._config[_api].getboolean(
-                'COMPUTE_ANNEXED_DOFS')
-        except ValueError as err:
-            raise ConfigurationError(
-                "error while parsing COMPUTE_ANNEXED_DOFS in the [{0}] "
-                "section of the config file: {1}".format(_api, str(err)),
+                "API '{0}' is not one of the supported APIs listed in the "
+                "configuration file ({1}).".format(api, self.supported_apis),
                 config=self)
+        if api not in self._api:
+            raise ConfigurationError(
+                "Configuration file did not contain a section for the '{0}' "
+                "API".format(api), config=self)
+        return self._api[api]
 
     @staticmethod
     def find_file():
@@ -380,6 +388,31 @@ class Config(object):
         :rtype: str
         '''
         return self._config_file
+
+
+class DynConfig(object):
+    '''
+    Dynamo0.3-specific Config sub-class. Holds configuration options specific
+    to the Dynamo 0.3 API.
+
+    :param config: The 'parent' Config object.
+    :type config: :py:class:`psyclone.configuration.Config`
+    :param section: The entry for the dynamo0.3 section of \
+                    the configuration file, as produced by ConfigParser.
+    :type section:  :py:class:`configparser.SectionProxy`
+
+    '''
+    def __init__(self, config, section):
+
+        self._config = config  # Ref. to parent Config object
+        try:
+            self._compute_annexed_dofs = section.getboolean(
+                'COMPUTE_ANNEXED_DOFS')
+        except ValueError as err:
+            raise ConfigurationError(
+                "error while parsing COMPUTE_ANNEXED_DOFS in the [dynamo0.3] "
+                "section of the config file: {0}".format(str(err)),
+                config=self._config)
 
     @property
     def compute_annexed_dofs(self):
