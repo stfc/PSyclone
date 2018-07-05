@@ -385,23 +385,6 @@ COMPUTE_ANNEXED_DOFS = false
         assert "Configuration file has no [DEFAULT] section" in str(err)
 
 
-def test_dyn0p3_missing():
-    ''' Check that we raise the correct error if there is no [dynamo0.3]
-    section '''
-    content = re.sub(r"^\[dynamo0.3\]$", "", _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
-        new_cfg.write(content)
-        new_cfg.close()
-
-        with pytest.raises(ConfigurationError) as err:
-            _ = Config(config_file=new_name)
-
-        assert "configuration error (file=" in str(err)
-        assert "Configuration file has no [dynamo0.3] section" in str(err)
-
-
 def test_wrong_api():
     ''' Check that we raise the correct errors when a user queries
     API-specific configuration options '''
