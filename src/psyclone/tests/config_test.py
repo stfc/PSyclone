@@ -399,3 +399,21 @@ def test_wrong_api():
         _ = _config.api("dynamo0.1")
     assert ("Configuration file did not contain a section for the "
             "'dynamo0.1' API" in str(err))
+
+
+def test_api_unimplemented():
+    ''' Check that we raise the correct error if we supply a config file
+        containing a section for an API for which we've not implemented
+        API-specific configuration. '''
+    content = re.sub(r"^\[dynamo0.3\]$",
+                     "[gocean0.1]",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+        with pytest.raises(NotImplementedError) as err:
+            _ = Config(config_file=new_name)
+        assert ("file contains a gocean0.1 section but no Config sub-class "
+                "has been implemented for this API" in str(err))
