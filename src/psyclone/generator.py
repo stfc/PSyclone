@@ -58,7 +58,6 @@ from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
 from psyclone.configuration import ConfigFactory
 
-
 # Get (a reference to) our one-and-only Config object
 _CONFIG = ConfigFactory().create()
 

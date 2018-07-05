@@ -4111,7 +4111,7 @@ class DynLoop(Loop):
 
     def _lower_bound_fortran(self):
         '''
-        Create the associated fortran code for the type of lower bound.
+        Create the associated Fortran code for the type of lower bound.
         :returns: the Fortran code for the lower bound
         :rtype: str
         :raises GenerationError: if self._lower_bound_name is not "start"
@@ -4167,6 +4167,8 @@ class DynLoop(Loop):
         # distributed memory is enabled and the loop is over cells
         if _CONFIG.distributed_memory and \
            self._upper_bound_name in ["ncells", "cell_halo"]:
+            # We must allow for self._kern being None (as it will be for
+            # a built-in).
             if self._kern and self._kern.is_intergrid:
                 # We have more than one mesh object to choose from and we
                 # want the coarse one because that determines the iteration
