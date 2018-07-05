@@ -74,7 +74,9 @@ def bool_entry(request):
     '''
     Parameterised fixture that will cause a test that has it as an
     argument to be run for each boolean member of the configuration file
-    :param request: Object through which to access current parameter value
+
+    :param request: Object through which to access current parameter value.
+    :type request: :py:class:`_pytest.fixtures.SubRequest`
     :return: Name of element of config file
     :rtype: str
     '''
@@ -87,7 +89,8 @@ def int_entry(request):
     '''
     Parameterised fixture that returns the names of integer members of the
     configuration file.
-    :param request: Object through which to access current parameter value
+    :param request: Object through which to access current parameter value.
+    :type request: :py:class:`_pytest.fixtures.SubRequest`
     :return: Name of element of config file
     :rtype: str
     '''

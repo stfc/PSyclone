@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter, STFC Daresbury Lab
 
 '''
 Module containing helper routines related to installing/running inside

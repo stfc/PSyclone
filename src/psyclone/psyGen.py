@@ -209,7 +209,7 @@ class PSyFactory(object):
     '''
     def __init__(self, api="", distributed_memory=None):
         '''Initialises a factory which can create API specific PSY objects.
-        :param api: Name of the API to use.
+        :param str api: Name of the API to use.
         :param bool distributed_memory: True if distributed memory should be \
                                         supported.
         '''
@@ -1540,6 +1540,7 @@ class OMPDoDirective(OMPDirective):
 
     :param list children: list of Nodes that are children of this Node.
     :param parent: the Node in the AST that has this directive as a child.
+    :type parent: :py:class:`psyclone.psyGen.Node`
     :param str omp_schedule: the OpenMP schedule to use.
     :param bool reprod: whether or not to generate code for run-reproducible \
                         OpenMP reductions.
