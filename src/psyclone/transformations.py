@@ -522,8 +522,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         # Whether or not to generate code for (run-to-run on n threads)
         # reproducible OpenMP reductions. This setting can be overridden
         # via the `reprod` argument to the apply() method.
-        import psyclone.config
-        self._reprod = psyclone.config.REPRODUCIBLE_REDUCTIONS
+        self._reprod = _CONFIG.reproducible_reductions
 
         self._omp_schedule = ""
         # Although we create the _omp_schedule attribute above (so that
