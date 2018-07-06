@@ -583,25 +583,20 @@ class DirectiveGen(BaseGen):
             my_comment = OMPDirective(parent.root, subline, position,
                                       directive_type)
             my_comment.content = "$omp"
-            if position == "end":
-                my_comment.content += " end"
-            my_comment.content += " " + directive_type
-            if content != "":
-                my_comment.content += " " + content
         elif language == "acc":
             my_comment = ACCDirective(parent.root, subline, position,
                                       directive_type)
             my_comment.content = "$acc"
-            if position == "end":
-                my_comment.content += " end"
-            my_comment.content += " " + directive_type
-            if content != "":
-                my_comment.content += " " + content
         else:
             raise RuntimeError(
                 "Error, unsupported directive language. Expecting one of "
                 "{0} but found '{1}'".format(str(self._supported_languages),
                                              language))
+        if position == "end":
+            my_comment.content += " end"
+        my_comment.content += " " + directive_type
+        if content != "":
+            my_comment.content += " " + content
 
         BaseGen.__init__(self, parent, my_comment)
 

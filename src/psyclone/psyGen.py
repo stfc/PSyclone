@@ -1128,8 +1128,8 @@ class Node(object):
         ancestor of the supplied type. If we do then we return
         it otherwise we return None.
 
-        :param my_type: class to search for
-        :param list excluding: list of (sub-)classes to ignore or None
+        :param type my_type: class to search for.
+        :param list excluding: list of (sub-)classes to ignore or None.
         :returns: first ancestor Node that is an instance of the requested \
                   class or None if not found.
         '''
@@ -1391,9 +1391,15 @@ class ACCDirective(Directive):
 
 class ACCDataDirective(ACCDirective):
     '''
-    Class representing a !$ACC enter data OpenACC directive in
+    Class representing a "!$ACC enter data" OpenACC directive in
     a Schedule.
 
+    :param children: list of nodes which this directive should \
+                     have as children.
+    :type children: list of :py:class:`psyclone.psyGen.Node`.
+    :param parent: the node in the Schedule to which to add this \
+                   directive as a child.
+    :type parent: :py:class:`psyclone.psyGen.Node`.
     '''
     def __init__(self, children=None, parent=None):
         super(ACCDataDirective, self).__init__(children, parent)
@@ -1577,8 +1583,7 @@ class ACCParallelDirective(ACCDirective):
         variables = []
 
         # Look-up the calls that are children of this node
-        my_calls = self.walk(self.children, Call)
-        for call in my_calls:
+        for call in self.calls():
             for arg in call.arguments.acc_args:
                 if arg not in variables:
                     variables.append(arg)
@@ -1594,9 +1599,8 @@ class ACCParallelDirective(ACCDirective):
         :rtype: list of str
         '''
         # Look-up the calls that are children of this node
-        my_calls = self.walk(self.children, Call)
         obj_list = []
-        for call in my_calls:
+        for call in self.calls():
             for arg in call.arguments.fields:
                 if arg not in obj_list:
                     obj_list.append(arg)
@@ -1611,9 +1615,8 @@ class ACCParallelDirective(ACCDirective):
         :returns: list of names of scalar arguments
         :rtype: list of str
         '''
-        my_calls = self.walk(self.children, Call)
         scalars = []
-        for call in my_calls:
+        for call in self.calls():
             for arg in call.arguments.scalars:
                 if arg not in scalars:
                     scalars.append(arg)
@@ -1623,6 +1626,13 @@ class ACCParallelDirective(ACCDirective):
 class ACCLoopDirective(ACCDirective):
     '''
     Class managing the creation of a '!$acc loop' directive of OpenACC.
+
+    :param children: list of nodes that will be children of this directive.
+    :type children: list of :py:class:`psyclone.psyGen.Node`.
+    :param parent: the node in the Schedule to which to add this directive.
+    :type parent: :py:class:`psyclone.psyGen.Node`.
+    :param int collapse: Number of nested loops to collapse into a single \
+                         iteration space or None.
     '''
     def __init__(self, children=None, parent=None, collapse=None):
         self._collapse = collapse

@@ -330,7 +330,7 @@ class ParallelLoopTrans(Transformation):
 
     '''
     Adds an orphaned directive to a loop indicating that it should be
-    parallelized. i.e. the directive must be inside the scope of some
+    parallelised. i.e. the directive must be inside the scope of some
     other Parallel REGION. This condition is tested at
     code-generation time.
 
@@ -341,7 +341,10 @@ class ParallelLoopTrans(Transformation):
 
     @abc.abstractproperty
     def name(self):
-        ''' Returns the name of this transformation as a string.'''
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
 
     @abc.abstractmethod
     def _directive(self, parent, children, collapse=None):
@@ -638,9 +641,39 @@ class OMPLoopTrans(ParallelLoopTrans):
 class ACCLoopTrans(ParallelLoopTrans):
     '''
     Adds an OpenACC loop directive to a loop. This directive must be within
-    the scope of some OpenACC Parallel region.
-    '''
+    the scope of some OpenACC Parallel region (at code-generation time).
 
+    For example:
+
+    >>> from psyclone.parse import parse,ParseError
+    >>> from psyclone.psyGen import PSyFactory,GenerationError
+    >>> api="gocean1.0"
+    >>> filename="nemolite2d_alg.f90"
+    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
+    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.psyGen import TransInfo
+    >>> t=TransInfo()
+    >>> ltrans = t.get_trans_name('ACCLoopTrans')
+    >>> rtrans = t.get_trans_name('ACCParallelTrans')
+    >>>
+    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> new_schedule=schedule
+    >>>
+    # Apply the OpenACC Loop transformation to *every* loop
+    # in the schedule
+    >>> for child in schedule.children:
+    >>>     newschedule,memento=ltrans.apply(child, reprod=True)
+    >>>     schedule = newschedule
+    >>>
+    # Enclose all of these loops within a single OpenACC
+    # PARALLEL region
+    >>> rtrans.omp_schedule("dynamic,1")
+    >>> newschedule,memento = rtrans.apply(schedule.children)
+    >>>
+
+    '''
     def __str__(self):
         return "Adds an 'OpenACC loop' directive to a loop"
 
@@ -2160,7 +2193,7 @@ if 0:
 
 class ACCDataTrans(Transformation):
     '''
-    Adds an OpenACC enter data directive to a Schedule.
+    Adds an OpenACC "enter data" directive to a Schedule.
     For example:
 
     >>> from psyclone.parse import parse
@@ -2186,7 +2219,10 @@ class ACCDataTrans(Transformation):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string. '''
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+        '''
         return "ACCDataTrans"
 
     def apply(self, sched):

@@ -824,8 +824,11 @@ class GOKernelArguments(Arguments):
         '''
         arg_list = []
 
-        # First off, specify the field object from which we will find
-        # any grid properties (if this kernel requires them)
+        # First off, specify the field object which we will de-reference in
+        # order to get any grid properties (if this kernel requires them).
+        # We do this as some compilers do less optimisation if we get (read-
+        # -only) grid properties from a field object that has read-write
+        # access.
         grid_fld = self._parent_call.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
         arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
@@ -834,11 +837,13 @@ class GOKernelArguments(Arguments):
             if arg.type == "scalar":
                 arg_list.append(arg.name)
             elif arg.type == "field" and arg != grid_fld:
+                # The remote device will need the reference to the field
+                # object *and* the reference to the array within that object.
                 arg_list.extend([arg.name, arg.name+"%data"])
             elif arg.type == "grid_property":
                 if grid_ptr not in arg_list:
                     # This kernel needs a grid property and therefore the
-                    # grid pointer must be copied to the device
+                    # pointer to the grid object must be copied to the device.
                     arg_list.append(grid_ptr)
                 arg_list.append(grid_ptr+"%"+arg.name)
         return arg_list
@@ -846,9 +851,8 @@ class GOKernelArguments(Arguments):
     @property
     def fields(self):
         '''
-        Provides the list of fields that must be present on an OpenACC
-        device before the kernel associated with this Arguments object may
-        be launched.
+        Provides the list of field objects that are required by
+        the kernel associated with this Arguments object.
 
         :returns: list of names of (Fortran) field objects
         :rtype: list of str
