@@ -328,12 +328,10 @@ class ProgUnitGen(BaseGen):
             # position[0] == "auto" so insert in a context sensitive way
             if isinstance(content, BaseDeclGen):
 
-                if isinstance(content, DeclGen) or \
-                   isinstance(content, CharDeclGen):
+                if isinstance(content, (DeclGen, CharDeclGen)):
                     # have I already been declared?
                     for child in self._children:
-                        if isinstance(child, DeclGen) or \
-                           isinstance(child, CharDeclGen):
+                        if isinstance(child, (DeclGen, CharDeclGen)):
                             # is this declaration the same type as me?
                             if child.root.name == content.root.name:
                                 # we are modifying the list so we need
@@ -1033,7 +1031,9 @@ class CharDeclGen(BaseDeclGen):
     :param str length: expression to use for the (len=xx) selector.
     :param initial_values: Initial value to give each variable.
     :type initial_values: list of str with same no. of elements as \
-                          entity_decls.
+                          entity_decls. Each of these can be either a \
+                          variable name or a literal, quoted string \
+                          (e.g. "'hello'").
 
     '''
     def __init__(self, parent, entity_decls=None, intent="",
