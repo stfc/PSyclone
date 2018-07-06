@@ -2050,7 +2050,7 @@ class ProfileRegionTrans(Transformation):
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        from psyclone.psyGen import Node
+        from psyclone.psyGen import Node, OMPDoDirective, ACCLoopDirective
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Node):
@@ -2069,10 +2069,10 @@ class ProfileRegionTrans(Transformation):
         # the first child to be enclosed as that will become the
         # position of the new Profile node
         node_parent = node_list[0].parent
-        if isinstance(node_parent, OMPDoDirective):
-            raise TransformationError("A ProfileNode can not be inserted "
-                                      "between an omp do region and the "
-                                      "loop(s) to which it applies!")
+        if isinstance(node_parent, (OMPDoDirective, ACCLoopDirective)):
+            raise TransformationError("A ProfileNode cannot be inserted "
+                                      "between an OpenMP/ACC directive and "
+                                      "the loop(s) to which it applies!")
         node_position = node_list[0].position
 
         # We need to make sure that the nodes are consecutive children,
@@ -2118,77 +2118,7 @@ class ProfileRegionTrans(Transformation):
         node_parent.addchild(profile_node,
                              index=node_position)
 
-
-if 0:
-    class OpenACCParallelTrans(Transformation):
-        ''' Adds an OpenACC parallel directive to a loop.
-
-            Any field data required by the kernel is added to the data
-            region associated with the parent Invoke '''
-
-        # TODO decide whether we should have a LoopTransformation
-        # base class to avoid code duplication, e.g. in checking that
-        # target node is a Loop.
-
-        def __str__(self):
-            return "Adds an OpenACC parallel directive"
-
-        @property
-        def name(self):
-            ''' Returns the name of this transformation as a string '''
-            return "OpenACCParallelTrans"
-
-        def apply(self, node):
-            '''Enclose the supplied node within an OpenACC parallel
-
-            Apply the OpenACCParallelTrans transformation to the specified
-            node in a Schedule. This node must be a Loop since this transformation
-            corresponds to wrapping the generated code with directives like so:
-
-            .. code-block:: fortran
-
-              !$ACC PARALLEL
-              do ...
-                 ...
-              end do
-              !$OMP END PARALLEL
-
-            '''
-            # Check that the supplied node is a Loop
-            from psyclone.psyGen import Loop
-            if not isinstance(node, Loop):
-                raise TransformationError("Cannot apply an OpenACC Parallel "
-                                          "directive to something that is "
-                                          "not a loop")
-
-            schedule = node.root
-
-            # create a memento of the schedule and the proposed
-            # transformation
-            from psyclone.undoredo import Memento
-            keep = Memento(schedule, self, [node])
-
-            # keep a reference to the node's original parent and its index as these
-            # are required and will change when we change the node's location
-            node_parent = node.parent
-            node_position = node.position
-
-            # add our OpenACC parallel directive setting its parent to
-            # the node's parent and its children to the node
-            from psyclone.psyGen import ACCParallelDirective
-            directive = ACCParallelDirective(parent=node_parent,
-                                             children=[node])
-
-            # add the OpenACC parallel directive as a child of the node's parent
-            node_parent.addchild(directive, index=node_position)
-
-            # change the node's parent to be the directive
-            node.parent = directive
-
-            # remove the original loop
-            node_parent.children.remove(node)
-
-            return schedule, keep
+        return schedule, keep
 
 
 class ACCDataTrans(Transformation):
