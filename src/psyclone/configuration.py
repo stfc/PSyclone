@@ -50,13 +50,12 @@ _FILE_NAME = "psyclone.cfg"
 class ConfigurationError(Exception):
     '''
     Class for all configuration-related errors.
+
+    :param str value: error message.
+    :param config: the Config object associated with the error.
+    :type config: :py:class:`psyclone.configuration.Config`.
     '''
     def __init__(self, value, config=None):
-        '''
-        :param str value: error message
-        :param config: the Config object associated with the error
-        :type :py:class:`psyclone.configuration.Config`
-        '''
         Exception.__init__(self, value)
         self.value = "PSyclone configuration error"
         if config:
@@ -116,17 +115,12 @@ class ConfigFactory(object):
 class Config(object):
     '''
     Handles all configuration management.
+
+    :param str config_file: Override default configuration file to read.
+    :raises ConfigurationError: if there are errors or inconsistencies in \
+                                the specified config file.
     '''
-
     def __init__(self, config_file=None):
-        '''
-        Config constructor.
-
-        :param str config_file: Override default configuration file to read
-
-        :raises ConfigurationError: if there are errors or inconsistencies in
-                                    the specified config file
-        '''
         if config_file:
             # Caller has explicitly provided the full path to the config
             # file to read
