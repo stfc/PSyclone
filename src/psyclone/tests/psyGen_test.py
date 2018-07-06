@@ -78,8 +78,9 @@ def test_psyfactory_valid_return_object():
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from psyclone.config import SUPPORTEDAPIS
-    apis = SUPPORTEDAPIS
+    from psyclone.configuration import ConfigFactory
+    _config = ConfigFactory().create()
+    apis = _config.supported_apis[:]
     apis.insert(0, "")
     for api in apis:
         psy_factory = PSyFactory(api=api)
@@ -503,7 +504,7 @@ def test_derived_type_deref_naming():
     _, invoke = parse(
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke)
     generated_code = str(psy.gen)
     print(generated_code)
     output = (
@@ -546,7 +547,7 @@ def test_sched_view(capsys):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     super(dynamo0p3.DynSchedule, psy.invokes.invoke_list[0].schedule).view()
     output, _ = capsys.readouterr()
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
@@ -749,7 +750,7 @@ def test_globalsum_view(capsys):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
     print(output)
@@ -798,7 +799,7 @@ def test_args_filter2():
     when one or both of the intent and type arguments are not specified.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
 
@@ -888,7 +889,7 @@ def test_invoke_name():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_important_invoke" in gen
@@ -900,7 +901,7 @@ def test_multi_kern_named_invoke():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.9_named_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_some_name" in gen
@@ -913,7 +914,7 @@ def test_named_multi_invokes():
         os.path.join(BASE_PATH,
                      "3.2_multi_functions_multi_named_invokes.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_my_first(" in gen
@@ -927,19 +928,19 @@ def test_named_invoke_name_clash():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.11_named_invoke_name_clash.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
     assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
 
 
-def test_invalid_reprod_pad_size():
-    '''Check that we raise an exception if the pad size in config.py is
+def test_invalid_reprod_pad_size(monkeypatch):
+    '''Check that we raise an exception if the pad size in psyclone.cfg is
     set to an invalid value '''
-    from psyclone import config
-    keep = config.REPROD_PAD_SIZE
-    config.REPROD_PAD_SIZE = 0
+    # Make sure we monkey patch the correct Config object
+    from psyclone import psyGen
+    monkeypatch.setattr(psyGen._CONFIG, "_reprod_pad_size", 0)
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -962,9 +963,8 @@ def test_invalid_reprod_pad_size():
         with pytest.raises(GenerationError) as excinfo:
             _ = str(psy.gen)
         assert (
-            "REPROD_PAD_SIZE in config.py should be a positive "
-            "integer") in str(excinfo.value)
-    config.REPROD_PAD_SIZE = keep
+            "REPROD_PAD_SIZE in {0} should be a positive "
+            "integer".format(psyGen._CONFIG.filename) in str(excinfo.value))
 
 
 def test_argument_depends_on():
@@ -1902,7 +1902,7 @@ def test_haloexchange_vector_index_depend():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.9_named_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     first_d_field_halo_exchange = schedule.children[3]
