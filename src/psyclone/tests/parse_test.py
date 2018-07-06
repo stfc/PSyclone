@@ -44,6 +44,28 @@ import pytest
 from psyclone.parse import parse, ParseError
 
 
+def test_default_api():
+    ''' Check that parse() picks up the default API if none is specified
+    by the caller. We do this simply by checking that it returns OK
+    having parsed some dynamo0.3 code. '''
+    _, invoke_info = parse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "test_files", "dynamo0p3", "1_single_invoke.f90"))
+    assert len(list(invoke_info.calls.keys())) == 1
+
+
+def test_dm_not_bool():
+    ''' Check that we raise the correct error if the distributed_memory
+    argument is not a bool '''
+    with pytest.raises(ParseError) as err:
+        _, __info = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3", "1_single_invoke.f90"),
+            distributed_memory="a string")
+    assert ("The distributed_memory flag in parse() must be set to 'True' "
+            "or 'False'" in str(err))
+
+
 def test_continuators_kernel():
     '''Tests that an input kernel file with long lines that already has
        continuators to make the code conform to the line length limit
@@ -86,9 +108,10 @@ def test_kerneltypefactory_default_api():
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
     from psyclone.parse import KernelTypeFactory
-    from psyclone.config import DEFAULTAPI
+    from psyclone import configuration
+    _config = configuration.ConfigFactory().create()
     factory = KernelTypeFactory(api="")
-    assert factory._type == DEFAULTAPI
+    assert factory._type == _config.default_api
 
 
 def test_kerntypefactory_create_broken_type():

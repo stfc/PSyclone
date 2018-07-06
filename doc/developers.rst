@@ -1,5 +1,5 @@
 Developers' guide
-****************
+*****************
 
 New APIs
 ########
@@ -43,8 +43,8 @@ TBD
 .. the same as another existing API then the existing `KernelType`
 .. subclass can be used for the new API.
 .. 
-.. The `KernelType` subclass needs to specialise the `KernelType
-.. __init__` method and initialise the `KernelType` base class with the
+.. The `KernelType` subclass needs to specialise the `KernelType`
+.. `__init__` method and initialise the `KernelType` base class with the
 .. supplied arguments. The role of the `KernelType` subclass is to create
 .. a kernel-metadata-specific subclass of the `Descriptor` class and
 .. populate this with the relevant API-specific metadata. After doing
@@ -378,23 +378,25 @@ discontinuous field, PSyclone only needs to compute dofs on owned
 cells. Users can apply a redundant computation transformation to
 redundantly compute into the halo but this is not done by default.
 
+.. _annexed_dofs:
+
 Dof iterators
 -------------
 
 When a kernel that is written to iterate over dofs modifies a field,
 PSyclone must ensure that all dofs in that field are updated. If the
-distributed memory flag is set to `False` then PSyclone must iterate
+distributed memory flag is set to ``false`` then PSyclone must iterate
 over all dofs. PSyclone simply needs to create a loop that iterates
 from 1 to the total number of dofs. The latter value is provided by
 the LFRic API.
 
-If the distributed memory flag is set to `True` then PSyclone must
+If the distributed memory flag is set to ``true`` then PSyclone must
 ensure that each partition only iterates over owned dofs. Again PSyclone
 just needs to create a loop that iterates from 1 to the total number
 of owned dofs on that partition. The latter value is provided by the
 LFRic API.
 
-When the distributed memory flag is set to `True` an aditional
+When the distributed memory flag is set to ``true`` an aditional
 configuration option can be set which makes PSyclone always create
 loops which iterate over both owned and annexed dofs. Whilst this is
 not necessary for correctness, it can improve performance by reducing
@@ -405,10 +407,11 @@ annexed dof. This iteration space will necessarily also include all
 owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called `COMPUTE_ANNEXED_DOFS` and is
-found in the the `config.py` configuration file. If it is `True` then
+found in the the `dynamo0.3` section of the `psyclone.cfg`
+configuration file (see :ref:`configuration`). If it is ``true`` then
 annexed dofs are always computed in loops that iterate over dofs and
-if it is `False` then annexed dofs are not computed. The default in
-PSyclone is `True`.
+if it is ``false`` then annexed dofs are not computed. The default in
+PSyclone is ``false``.
 
 The computation of annexed dofs could have been added as a
 transformation optimisation. The reason for using a configuration
@@ -418,7 +421,7 @@ always remove certain halo exchanges without needing to add any new
 ones.
 
 If we first take the situation where annexed dofs are not computed for
-loops that iterate over dofs i.e. (`COMPUTE_ANNEXED_DOFS` is `False`),
+loops that iterate over dofs i.e. (`COMPUTE_ANNEXED_DOFS` is ``false``),
 then a field's annexed dofs will be dirty (out-of-date) after the loop
 has completed. If a following kernel needs to read the field's
 annexed dofs, then PSyclone will need to add a halo exchange to make
@@ -438,7 +441,7 @@ exchange is required. In case 3) the annexed dofs will be read so a
 halo exchange will be required.
 
 If we now take the case where annexed dofs are computed for loops that
-iterate over dofs (`COMPUTE_ANNEXED_DOFS` is `True`) then a field's
+iterate over dofs (`COMPUTE_ANNEXED_DOFS` is ``true``) then a field's
 annexed dofs will be clean after the loop has completed. If a
 following kernel needs to read the field's annexed dofs, then
 PSyclone will no longer need a halo exchange.
@@ -457,7 +460,7 @@ annexed dofs will be read but a halo exchange is not required as the
 annexed dofs are guaranteed to be clean.
 
 Therefore no additional halo exchanges are required when
-`COMPUTE_ANNEXED_DOFS` is changed from `False` to `True` i.e. case 1)
+`COMPUTE_ANNEXED_DOFS` is changed from ``false`` to ``true`` i.e. case 1)
 does not require a halo exchange in either situation and case 2)
 requires a halo exchange in both situations. We also remove halo
 exchanges for case 3) so the number of halo exchanges may be reduced.
@@ -480,7 +483,7 @@ Halo Exchange Logic
 -------------------
 
 Halo exchanges are required when the `DISTRIBUTED_MEMORY` flag is set to
-`True` in order to make sure any accesses to a field's halo or to its
+``true`` in order to make sure any accesses to a field's halo or to its
 annexed dofs receive the correct value.
 
 Operators and Halo Exchanges
@@ -512,7 +515,7 @@ When first run, PSyclone creates a separate schedule for each of the
 invokes found in the algorithm layer. A schedule includes all required
 loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
-created then (if the `DISTRIBUTED_MEMORY` flag is set to `True`) PSyclone
+created then (if the `DISTRIBUTED_MEMORY` flag is set to ``true``) PSyclone
 adds any required halo exchanges and global sums. This work is all
 performed in the `DynInvoke` constructor (`__init__`) method.
 
@@ -536,9 +539,9 @@ initial schedule. There are three cases:
    cells and modify a discontinuous field must have their annexed dofs
    clean. Currently the only way to make annexed dofs clean is to
    perform a halo exchange. If the `COMPUTE_ANNEXED_DOFS`
-   configuration variable is set to `True` then no halo exchange is
+   configuration variable is set to ``true`` then no halo exchange is
    required as annexed dofs will always be clean. If the
-   `COMPUTE_ANNEXED_DOFS` configuration variable is set to `False`
+   `COMPUTE_ANNEXED_DOFS` configuration variable is set to ``false``
    then a halo exchange must be added if the previous modification of
    the field is known to be from within a loop over dofs, or if the
    previous modification of the field is unknown (i.e. outside the
@@ -746,3 +749,47 @@ The full interface to each of these classes is detailed below:
 .. autoclass:: psyclone.f2pygen.TypeDeclGen
     :members:
     :noindex:
+
+Configuration
+=============
+
+PSyclone uses the Python ``ConfigParser`` class
+(https://docs.python.org/3/library/configparser.html) for reading the
+configuration file. This is managed by the ``psyclone.configuration``
+module which provides the ``ConfigFactory`` and ``Config``
+classes. The former's constructor creates a singleton ``Config`` instance
+and stores it for return by any future calls to ``create``:
+
+.. autoclass:: psyclone.configuration.ConfigFactory
+    :members:
+
+The ``Config`` class is responsible for finding the configuration file
+(if no filename is passed to the constructor), parsing it and then storing
+the various configuration options. It also performs some basic consistency
+checks on the values it obtains from the configuration file.
+
+Since the default PSyclone API to use is read from the configuration
+file, it is not possible to have API-specifc sub-classes of ``Config``
+as we don't know which API is in use before we read the file. However, the
+configuration file can contain API-specific settings. These are placed in
+separate sections, named for the API to which they apply, e.g.::
+
+  [dynamo0.3]
+  COMPUTE_ANNEXED_DOFS = false
+
+Having parsed and stored the options from the default section of the
+configuration file, the ``Config`` constructor then creates a
+dictionary using the list of supported APIs to provide the keys. The
+configuration file is then checked for API-specific sections (again
+using the API names from the default section) and, if any are found,
+an API-specifc sub-class is created using the parsed entries from the
+corresponding section. The resulting object is stored in the
+dictionary under the appropriate key. The API-specific values may then
+be accessed as, e.g.::
+
+  config.api("dynamo0.3").compute_annexed_dofs
+
+The API-specific sub-classes exist to provide validation/type-checking and
+encapsulation for API-specific options. They do not sub-class ``Config``
+directly but store a reference back to the ``Config`` object to which they
+belong.
