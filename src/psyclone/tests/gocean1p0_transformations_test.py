@@ -13,7 +13,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-
+#
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -1369,7 +1369,7 @@ def test_go_loop_swap_errors():
                          "test_files", "dynamo0p3",
                          "1.0.1_single_named_invoke.f90"),
                     api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(info)
     invokes = psy.invokes
     invoke = invokes.get(list(invokes.names)[0])
     with pytest.raises(TransformationError) as error:
