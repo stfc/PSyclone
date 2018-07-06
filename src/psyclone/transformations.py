@@ -45,6 +45,11 @@
 import abc
 import six
 from psyclone.psyGen import Transformation
+import psyclone.configuration
+
+# Our one-and-only configuration object, populated by reading the
+# psyclone.cfg file
+_CONFIG = psyclone.configuration.ConfigFactory().create()
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -912,8 +917,7 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         '''
 
         if reprod is None:
-            import psyclone.config
-            reprod = psyclone.config.REPRODUCIBLE_REDUCTIONS
+            reprod = _CONFIG.reproducible_reductions
 
         OMPLoopTrans._validate(self, node)
 
@@ -1002,9 +1006,15 @@ class ColourTrans(Transformation):
         return "LoopColourTrans"
 
     def apply(self, node):
-        '''Converts the Loop represented by :py:obj:`node` into a
+        '''
+        Converts the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
+        :param node: The loop to transform.
+        :type node: :py:class:`psyclone.psyGen.Loop`
+        :returns: Tuple of modified schedule and record of transformation
+        :rtype: (:py:class:`psyclone.psyGen.Schedule, \
+                 :py:class:`psyclone.undoredo.Memento`)
         '''
         schedule = node.root
 
@@ -1031,8 +1041,8 @@ class ColourTrans(Transformation):
         colour_loop.field_space = node.field_space
         colour_loop.iteration_space = node.iteration_space
         colour_loop.set_lower_bound("start")
-        import psyclone.config
-        if psyclone.config.DISTRIBUTED_MEMORY:
+
+        if _CONFIG.distributed_memory:
             index = node.upper_bound_halo_depth
             colour_loop.set_upper_bound("colour_halo", index)
         else:  # no distributed memory
@@ -1763,8 +1773,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                     "apply method, if the parent of the supplied Loop is "
                     "also a Loop then the parent's parent must be the "
                     "Schedule, but found {0}".format(type(node.parent)))
-        import psyclone.config
-        if not psyclone.config.DISTRIBUTED_MEMORY:
+        if not _CONFIG.distributed_memory:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method distributed memory must be switched on")

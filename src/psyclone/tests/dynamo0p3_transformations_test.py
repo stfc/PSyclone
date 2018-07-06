@@ -50,6 +50,7 @@ from psyclone.transformations import TransformationError, \
     KernelModuleInlineTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans
+from psyclone.configuration import ConfigFactory
 import utils
 
 
@@ -58,6 +59,10 @@ import utils
 TEST_API = "dynamo0.3"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+
+# Our configuration objects
+_CONFIG = ConfigFactory().create()
+_API_CONFIG = _CONFIG.api(TEST_API)
 
 
 def test_colour_trans_declarations(tmpdir, f90, f90flags):
@@ -805,8 +810,7 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke_w3.f90"),
@@ -1092,7 +1096,7 @@ def test_loop_fuse_set_dirty():
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
     ftrans = DynamoLoopFuseTrans()
@@ -1177,8 +1181,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
 
     '''
     # pylint: disable=too-many-branches
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.13_multikernel_invokes_w3.f90"),
@@ -1501,8 +1504,7 @@ def test_builtin_single_OpenMP_pdo(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.7.2_setval_X_builtin.f90"),
@@ -1548,8 +1550,7 @@ def test_builtin_multiple_OpenMP_pdo(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
@@ -1631,8 +1632,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed):
     applied to multiple loop fused builtins. We have to assert that it
     is safe to loop fuse. Also test with and without annexed
     dofs being computed as this affects the generated code. '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
@@ -1690,8 +1690,7 @@ def test_builtin_single_OpenMP_do(monkeypatch, annexed):
     generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.7.2_setval_X_builtin.f90"),
@@ -1747,8 +1746,7 @@ def test_builtin_multiple_OpenMP_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
@@ -1842,8 +1840,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
@@ -2069,8 +2066,7 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
 
     '''
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -2154,8 +2150,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
 
     '''
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
@@ -2598,8 +2593,7 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
     generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -2674,8 +2668,7 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
     code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -2761,8 +2754,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
     this affects the validity of the transform.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -2845,8 +2837,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -2929,8 +2920,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
     as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3009,8 +2999,7 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3083,8 +3072,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3348,8 +3336,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
     being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3467,15 +3454,14 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.1_one_reduction_one_standard_builtin.f90"),
             distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=distmem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -3588,8 +3574,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3781,8 +3766,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
     as this affects the output.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     from psyclone.dynamo0p3 import DynLoop
     from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
 
@@ -3950,7 +3934,7 @@ def test_move_valid_node():
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.2_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     move_trans = MoveTrans()
@@ -3966,7 +3950,7 @@ def test_move_back():
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     move_trans = MoveTrans()
@@ -3989,7 +3973,7 @@ def test_move_back_after():
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     move_trans = MoveTrans()
@@ -4013,7 +3997,7 @@ def test_move_forward():
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     move_trans = MoveTrans()
@@ -4038,7 +4022,7 @@ def test_move_forward_after():
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     move_trans = MoveTrans()
@@ -4065,7 +4049,7 @@ def test_move_fail():
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.14.1_multi_aX_plus_Y_builtin.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     move_trans = MoveTrans()
@@ -4100,7 +4084,7 @@ def test_rc_node_not_loop():
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4116,7 +4100,7 @@ def test_rc_invalid_loop(monkeypatch):
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4153,7 +4137,7 @@ def test_rc_invalid_depth():
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4170,7 +4154,7 @@ def test_rc_invalid_depth_continuous():
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4191,7 +4175,7 @@ def test_rc_continuous_depth():
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4219,7 +4203,7 @@ def test_rc_continuous_no_depth():
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4248,12 +4232,11 @@ def test_rc_discontinuous_depth(tmpdir, f90, f90flags, monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4291,12 +4274,11 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4330,7 +4312,7 @@ def test_rc_all_discontinuous_depth(tmpdir, f90, f90flags):
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_wtheta.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4360,7 +4342,7 @@ def test_rc_all_discontinuous_no_depth(tmpdir, f90, f90flags):
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w2v.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4391,7 +4373,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3_only_vector.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4425,7 +4407,7 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_wtheta_only_vector.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4461,7 +4443,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.12_multikernel_invokes_w2v.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     schedule.view()
@@ -4494,7 +4476,7 @@ def test_rc_all_disc_prev_depend_no_depth():
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.12_multikernel_invokes_w2v.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4523,7 +4505,7 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir, f90, f90flags):
     _, info = parse(os.path.join(BASE_PATH,
                                  "8.2.1_multikernel_invokes_w3_vector.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4560,7 +4542,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
         os.path.join(BASE_PATH,
                      "8.2.1_multikernel_invokes_w3_vector.f90"),
         api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4596,7 +4578,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir, f90, f90flags):
         os.path.join(BASE_PATH,
                      "8.2.2_multikernel_invokes_wtheta_vector.f90"),
         api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4636,7 +4618,7 @@ def test_rc_dofs_depth():
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_inc_X_plus_Y_builtin.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4664,7 +4646,7 @@ def test_rc_dofs_no_depth():
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_inc_X_plus_Y_builtin.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4692,12 +4674,11 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed):
     with and without annexed dofs.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(
         BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4744,7 +4725,7 @@ def test_rc_dofs_no_depth_prev_dep():
     _, info = parse(os.path.join(
         BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4780,7 +4761,7 @@ def test_continuous_no_set_clean():
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     print(result)
     assert "DO cell=1,mesh%get_last_halo_cell(1)" in result
@@ -4795,7 +4776,7 @@ def test_discontinuous_no_set_clean():
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     print(result)
     assert "DO cell=1,mesh%get_last_edge_cell()" in result
@@ -4811,12 +4792,11 @@ def test_dofs_no_set_clean(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.7.1_setval_c_builtin.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     print(result)
     assert "halo_exchange" not in result
@@ -4836,7 +4816,7 @@ def test_rc_vector_depth():
     _, info = parse(os.path.join(BASE_PATH,
                                  "8_vector_field.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4862,7 +4842,7 @@ def test_rc_vector_no_depth():
     _, info = parse(os.path.join(BASE_PATH,
                                  "8_vector_field.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4891,7 +4871,7 @@ def test_rc_no_halo_decrease():
     _, info = parse(os.path.join(
         BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -4941,7 +4921,7 @@ def test_rc_updated_dependence_analysis():
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_wtheta.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[0]
@@ -4974,7 +4954,7 @@ def test_rc_no_loop_decrease():
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w2v.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -5013,12 +4993,11 @@ def test_rc_remove_halo_exchange(tmpdir, f90, f90flags, monkeypatch):
     compute over owned dofs (via monkeypatch) to perform the test.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(
         BASE_PATH, "14.7_halo_annexed.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     assert "CALL f1_proxy%halo_exchange(depth=1)" in result
     assert "CALL f2_proxy%halo_exchange(depth=1)" in result
@@ -5065,7 +5044,7 @@ def test_rc_max_remove_halo_exchange(tmpdir, f90, f90flags):
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     result = str(psy.gen)
@@ -5115,7 +5094,7 @@ def test_rc_continuous_halo_remove():
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -5146,7 +5125,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -5188,7 +5167,7 @@ def test_rc_reader_halo_remove():
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -5222,7 +5201,7 @@ def test_rc_vector_reader_halo_remove():
     _, info = parse(os.path.join(BASE_PATH,
                                  "8.2.1_multikernel_invokes_w3_vector.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -5256,7 +5235,7 @@ def test_rc_vector_reader_halo_readwrite():
     _, info = parse(os.path.join(
         BASE_PATH, "8.2.2_multikernel_invokes_wtheta_vector.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -5314,7 +5293,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
     _, info = parse(os.path.join(BASE_PATH,
                                  "19.1_single_stencil.f90"),
                     api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -5340,7 +5319,7 @@ def test_rc_invalid_depth_type():
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -5358,7 +5337,7 @@ def test_loop_fusion_different_loop_depth():
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.6_multikernel_invokes.f90"),
                     api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     # move the halo exchange between the two loops
     move_trans = MoveTrans()
@@ -5391,7 +5370,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
                                  "4.12_multikernel_invokes_w2v.f90"),
                     api="dynamo0.3")
     # First test for f1 readwrite to read dependency
-    psy = PSyFactory("dynamo0.3").create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[0], depth=3)
@@ -5403,7 +5382,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
             "are not the same. Found 'cell_halo' and 'ncells'"
             in str(excinfo.value))
     # Now test for f1 write to read dependency
-    psy = PSyFactory("dynamo0.3").create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     call = schedule.children[0].children[0]
     f1_arg = call.arguments.args[0]
@@ -5425,7 +5404,7 @@ def test_rc_max_w_to_r_continuous_known_halo():
 
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     w_loop = schedule.children[2]
@@ -5464,7 +5443,7 @@ def test_red_comp_w_to_n_r_clean_gt_cleaned():
     # variable depth with a stencil
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "14.11_halo_required_clean_multi.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     w_loop = schedule.children[0]
@@ -5518,7 +5497,7 @@ def test_rc_no_directive():
     is raised correctly.'''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -5546,7 +5525,7 @@ def test_rc_wrong_parent(monkeypatch):
     checks that this exception is raised correctly.'''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -5581,7 +5560,7 @@ def test_rc_parent_loop_colour(monkeypatch):
 
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -5638,7 +5617,7 @@ def test_rc_unsupported_loop_type(monkeypatch):
     '''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -5676,7 +5655,7 @@ def test_rc_colour_no_loop_decrease():
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -5715,7 +5694,7 @@ def test_rc_colour(tmpdir, f90, f90flags):
     '''Test that we can redundantly compute over a colour in a coloured loop'''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -5769,7 +5748,7 @@ def test_rc_max_colour(tmpdir, f90, f90flags):
     depth in a coloured loop'''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -5825,7 +5804,7 @@ def test_colour_discontinuous():
         filename = "1_single_invoke_" + name + ".f90"
         _, invoke_info = parse(os.path.join(BASE_PATH, filename),
                                api=TEST_API)
-        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
 
@@ -5847,7 +5826,7 @@ def test_rc_then_colour(tmpdir, f90, f90flags):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=TEST_API)
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -5909,7 +5888,7 @@ def test_rc_then_colour2(tmpdir, f90, f90flags):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=TEST_API)
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
@@ -5965,7 +5944,7 @@ def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
                     api=TEST_API)
-    psy = PSyFactory(TEST_API).create(info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
 
@@ -6071,7 +6050,7 @@ def test_haloex_colouring(tmpdir, f90, f90flags):
         _, invoke_info = parse(os.path.join(
             BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
                                api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
 
@@ -6150,7 +6129,7 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
         _, invoke_info = parse(os.path.join(
             BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
                                api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -6235,7 +6214,7 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
         _, invoke_info = parse(os.path.join(
             BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
                                api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -6318,7 +6297,7 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
             api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3").create(invoke_info)
+        psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -6353,7 +6332,7 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
     # before the first loop and one between the two loops
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Modifications copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,17 +47,23 @@ from fparser import one as fparser1
 from fparser import api as fpapi
 import psyclone.expression as expr
 from psyclone.line_length import FortLineLength
-from psyclone import config
+from psyclone import configuration
 
 
 def check_api(api):
-    ''' Check that the supplied API is valid '''
-    from psyclone.config import SUPPORTEDAPIS
-    if api not in SUPPORTEDAPIS:
+    '''
+    Check that the supplied API is valid.
+    :param str api: The API to check.
+    :raises ParseError: if the supplied API is not recognised.
+
+    '''
+    _config = configuration.ConfigFactory().create()
+
+    if api not in _config.supported_apis:
         raise ParseError(
             "check_api: Unsupported API '{0}' specified. "
             "Supported types are {1}.".format(api,
-                                              SUPPORTEDAPIS))
+                                              _config.supported_apis))
 
 
 def get_builtin_defs(api):
@@ -420,12 +426,15 @@ class KernelProcedure(object):
 
 
 class KernelTypeFactory(object):
-    ''' Factory for calls to user-supplied Kernels '''
+    '''
+    Factory for calls to user-supplied Kernels.
 
+    :param str api: The API to which this kernel conforms.
+    '''
     def __init__(self, api=""):
         if api == "":
-            from psyclone.config import DEFAULTAPI
-            self._type = DEFAULTAPI
+            _config = configuration.ConfigFactory().create()
+            self._type = _config.default_api
         else:
             check_api(api)
             self._type = api
@@ -847,7 +856,7 @@ class FileInfo(object):
 
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
           kernel_path="", line_length=False,
-          distributed_memory=config.DISTRIBUTED_MEMORY):
+          distributed_memory=None):
     '''Takes a GungHo algorithm specification as input and outputs an AST of
     this specification and an object containing information about the
     invocation calls in the algorithm specification and any associated kernel
@@ -879,15 +888,21 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     >>> ast,info=parse("argspec.F90")
 
     '''
+    _config = configuration.ConfigFactory().create()
 
-    if distributed_memory not in [True, False]:
+    if distributed_memory is None:
+        _dist_mem = _config.distributed_memory
+    else:
+        _dist_mem = distributed_memory
+
+    if _dist_mem not in [True, False]:
         raise ParseError(
             "The distributed_memory flag in parse() must be set to"
             " 'True' or 'False'")
-    config.DISTRIBUTED_MEMORY = distributed_memory
+    _config.distributed_memory = _dist_mem
+
     if api == "":
-        from psyclone.config import DEFAULTAPI
-        api = DEFAULTAPI
+        api = _config.default_api
     else:
         check_api(api)
 
