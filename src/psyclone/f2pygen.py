@@ -54,8 +54,7 @@ from fparser import one as fparser1
 def bubble_up_type(obj):
     ''' Returns True if the supplied object is of a type which must be
     bubbled-up (from within e.g. DO loops) '''
-    return (isinstance(obj, UseGen) or
-            isinstance(obj, BaseDeclGen))
+    return isinstance(obj, (UseGen, BaseDeclGen))
 
 
 def index_of_object(alist, obj):
@@ -697,9 +696,9 @@ def adduse(name, parent, only=False, funcnames=None):
     myline = reader.next()
 
     # find an appropriate place to add in our use statement
-    while not (isinstance(parent, fparser1.block_statements.Program) or
-               isinstance(parent, fparser1.block_statements.Module) or
-               isinstance(parent, fparser1.block_statements.Subroutine)):
+    while not isinstance(parent, (fparser1.block_statements.Program, 
+                                  fparser1.block_statements.Module,
+                                  fparser1.block_statements.Subroutine)):
         parent = parent.parent
     use = fparser1.block_statements.Use(parent, myline)
     use.name = name
