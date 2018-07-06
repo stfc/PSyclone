@@ -50,6 +50,7 @@ from psyclone.transformations import TransformationError, \
     KernelModuleInlineTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans
+from psyclone.configuration import ConfigFactory
 import utils
 
 
@@ -60,7 +61,6 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 # Our configuration objects
-from psyclone.configuration import ConfigFactory
 _CONFIG = ConfigFactory().create()
 _API_CONFIG = _CONFIG.api(TEST_API)
 

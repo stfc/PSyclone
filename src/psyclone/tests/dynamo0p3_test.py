@@ -52,12 +52,13 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     VALID_ANY_SPACE_NAMES
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
+from psyclone.configuration import ConfigFactory
 import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-    # Get the root directory of this PSyclone distribution
+# Get the root directory of this PSyclone distribution
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))))
 # Construct the path to the default configuration file
@@ -66,9 +67,9 @@ DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 TEST_API = "dynamo0.3"
 
 # Our configuration objects
-from psyclone.configuration import ConfigFactory
 _CONFIG = ConfigFactory().create()
 _API_CONFIG = _CONFIG.api(TEST_API)
+
 
 # tests
 def test_get_op_wrong_name():

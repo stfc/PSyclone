@@ -45,6 +45,7 @@ import os
 import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.configuration import ConfigFactory
 from psyclone import dynamo0p3_builtins
 import utils
 
@@ -53,7 +54,6 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 # Get our configuration object
-from psyclone.configuration import ConfigFactory
 _CONFIG = ConfigFactory().create()
 # The PSyclone API under test
 API = "dynamo0.3"
