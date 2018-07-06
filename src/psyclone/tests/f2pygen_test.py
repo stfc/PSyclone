@@ -39,6 +39,7 @@ from __future__ import absolute_import, print_function
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
+from psyclone.psyGen import InternalError
 import utils
 import pytest
 
@@ -1142,18 +1143,18 @@ def test_declgen_wrong_type(monkeypatch):
     # Check the internal error is raised within the validation routine if
     # an unsupported type is specified
     dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])
-    with pytest.raises(RuntimeError) as err:
+    with pytest.raises(InternalError) as err:
         dgen._check_initial_values("complex", ["1"])
-    assert ("Internal error: unsupported type 'complex' - should be one "
+    assert ("internal error: unsupported type 'complex' - should be one "
             "of {0}".format(dgen.SUPPORTED_TYPES) in str(err))
     # Check that we get an internal error if the supplied type is in the
     # list of those supported but has not actually been implemented.
     # We have to monkeypatch the list of supported types...
     monkeypatch.setattr(DeclGen, "SUPPORTED_TYPES", value=["complex"])
-    with pytest.raises(RuntimeError) as err:
+    with pytest.raises(InternalError) as err:
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
-    assert ("Internal error: type 'complex' is in DeclGen.SUPPORTED_TYPES "
+    assert ("internal error: Type 'complex' is in DeclGen.SUPPORTED_TYPES "
             "but not handled by constructor" in str(err))
 
 

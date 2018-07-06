@@ -193,6 +193,19 @@ class FieldNotFoundError(Exception):
         return repr(self.value)
 
 
+class InternalError(Exception):
+    '''
+    PSyclone-specific exception for use when an internal error occurs (i.e.
+    something that 'should not happen').
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "PSyclone internal error: "+value
+
+    def __str__(self):
+        return repr(self.value)
+
+
 class PSyFactory(object):
     '''Creates a specific version of the PSy. If a particular api is not
         provided then the default api, as specified in the config.py
