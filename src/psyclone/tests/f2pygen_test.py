@@ -1195,6 +1195,19 @@ def test_typedeclgen_missing_names():
             in str(err))
 
 
+def test_typedeclgen_values_error():
+    ''' Check that we reject attempts to create a TypeDeclGen with
+    initial values. '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    decl = TypeDeclGen(sub, datatype="my_type", entity_decls=["field1"])
+    with pytest.raises(InternalError) as err:
+        decl._check_initial_values("my_type", ["1.0"])
+    assert ("This method should not have been called because initial values "
+            "for derived-type declarations are not supported" in str(err))
+
+
 def test_typedeclgen_multiple_use():
     '''Check that we correctly handle the case where data of the same type
     has already been declared. '''
