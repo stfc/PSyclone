@@ -52,8 +52,13 @@ from fparser import one as fparser1
 
 
 def bubble_up_type(obj):
-    ''' Returns True if the supplied object is of a type which must be
-    bubbled-up (from within e.g. DO loops) '''
+    '''
+    Checks whether the supplied object must be bubbled-up (e.g. from
+    within DO loops).
+
+    :returns: True if the supplied object is of a type which must be \
+              bubbled-up and False otherwise.
+    '''
     return isinstance(obj, (UseGen, BaseDeclGen))
 
 
@@ -276,11 +281,23 @@ class ProgUnitGen(BaseGen):
         BaseGen.__init__(self, parent, sub)
 
     def add(self, content, position=None, bubble_up=False):
-        '''Specialise the add method to provide module and subroutine
-           specific intelligent adding of use statements, implicit
-           none statements and declarations if the position argument
-           is set to auto (which is the default)'''
+        '''
+        Specialise the add method to provide module- and subroutine-
+        -specific intelligent adding of use statements, implicit
+        none statements and declarations if the position argument
+        is set to auto (which is the default).
 
+        :param content: the Node (or sub-tree of Nodes) to add in to \
+                        the AST.
+        :type content: :py:class:`psyclone.f2pygen.BaseGen`
+        :param list position: where to insert the node. One of "append", \
+                              "first", "insert", "after", "after_index", \
+                              "before_index", "before" or "auto". For the \
+                              *_index options, the second element of the \
+                              list holds the integer index.
+        :param bool bubble_up: whether or not object (content) is in the \
+                               process of being bubbled-up.
+        '''
         # By default the position is 'auto'. We set it up this way for
         # safety because in python, default arguments are instantiated
         # as objects at the time of definition. If this object is
@@ -863,12 +880,19 @@ class BaseDeclGen(BaseGen):
 
     @property
     def names(self):
-        ''' Returns the names of the variables being declared '''
+        '''
+        :returns: the names of the variables being declared.
+        :rtype: list of str.
+        '''
         return self._names
 
     @property
     def root(self):
-        ''' Returns the associated Type object '''
+        '''
+        :returns: the associated Type object.
+        :rtype: \
+        :py:class:`fparser.one.typedecl_statements.TypeDeclarationStatement`.
+        '''
         return self._decl
 
     @abc.abstractmethod
@@ -1121,6 +1145,12 @@ class TypeDeclGen(BaseDeclGen):
         Simply here to override abstract method in base class. It is an
         error if we ever call it because we don't support initial values for
         declarations of derived types.
+
+        :param str _type: the type of the Fortran variable to be declared.
+        :param list _values: list of str containing initialisation \
+                             values/expressions.
+        :raises InternalError: because specifying initial values for \
+                               variables of derived type is not supported.
         '''
         from psyclone.psyGen import InternalError
         raise InternalError(

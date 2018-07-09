@@ -205,6 +205,8 @@ class InternalError(Exception):
     '''
     PSyclone-specific exception for use when an internal error occurs (i.e.
     something that 'should not happen').
+
+    :param str value: the message associated with the error.
     '''
     def __init__(self, value):
         Exception.__init__(self, value)
