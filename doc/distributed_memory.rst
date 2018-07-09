@@ -71,7 +71,7 @@ default being on. The default can be changed permanently by modifying
 the ``DISTRIBUTED_MEMORY`` variable in the ``config.py`` file to
 ``False``.
 
-Distributed memory can be switched on or off from the ``generator``
+Distributed memory can be switched on or off from the ``psyclone``
 script using the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem``
 flags, respectively.
 

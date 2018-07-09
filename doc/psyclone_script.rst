@@ -87,7 +87,7 @@ Choosing the API
 
 In the previous section we relied on PSyclone using the default
 API. The default API, along with the supported API's can be seen by
-running the generator.py script with the -h option.
+running the `psyclone` script with the -h option.
 
 If you use a particular API frequently and it is not the default then
 you can change the default by editing the config.py file in the
@@ -123,7 +123,7 @@ will not be created.
 
 .. code-block:: bash
 
-    > python <PSYCLONEHOME>/src/generator.py -opsy psy.f90 -oalg alg_new.f90 empty_alg.f90
+    > psyclone -opsy psy.f90 -oalg alg_new.f90 empty_alg.f90
     Warning: 'Algorithm Error: Algorithm file contains no invoke() calls: refusing to
     generate empty PSy code'
 
@@ -164,7 +164,7 @@ file. If this file is not found then an error is reported.
 
 .. code-block:: bash
 
-    > python <PSYCLONEHOME>/src/generator.py use.f90 
+    > psyclone use.f90 
     Kernel file 'testkern.[fF]90' not found in <location>
 
 The `-d` option can be used to tell `psyclone` where to look for
@@ -226,7 +226,7 @@ limitations of line wrapping are discussed in the
 Distributed memory
 ------------------
 
-By default the generator.py script will generate distributed
+By default the `psyclone` script will generate distributed
 memory (DM) code (i.e. parallelised using MPI). As with the choice of
 API, this default may be configured by editing
 <PSYCLONEHOME>/psyclone/src/config.py.  Alternatively, whether or not to
