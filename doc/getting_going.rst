@@ -52,10 +52,10 @@ target machine. PSyclone has been tested under Python 2.6.5, 2.7.3 and 3.6.
 
 .. warning:: As of version 1.6, PSyclone requires version 0.0.7 or greater of fparser.
 
-PSyclone immediately relies on two external Python packages;
-``fparser`` and ``pyparsing``. In order to run the test suite
-``py.test`` is required. The easiest way to satisfy the Python
-dependencies is to use the Python Package Index (pypi.org) and
+PSyclone immediately relies on four external Python packages; ``six``,
+``configparser``, ``fparser`` and ``pyparsing``. In order to run the
+test suite ``py.test`` is required. The easiest way to satisfy the
+Python dependencies is to use the Python Package Index (pypi.org) and
 ``pip``. See https://packaging.python.org/installing/ for more
 information.
 
@@ -259,8 +259,50 @@ manually:
 or, if you don't have root access:
 ::
 
+   > python setup.py install --user
+
+or,
+::
+
    > python setup.py install --prefix /my/install/path
 
+If using the latter method then it will be necessary to take
+further action to ensure PSyclone can find the
+configuration file installed as a part of this process - see below.
+
+.. _getting-going-configuration:
+
+Configuration
+-------------
+
+Various aspects of PSyclone are configured through a configuration
+file, ``psyclone.cfg``. The default version of this file is installed
+to ``<python-base-prefix>/shared/psyclone/`` during the installation
+process. If a system-wide installation is being performed then this
+will be something like ``/usr/share/psyclone/``. If a user-local
+installation is performed (``--user`` flag to ``pip install``) then
+the location will be something like ``~/.local/share/psyclone/``.
+
+.. warning::
+
+   if PSyclone is installed to a non-standard location (e.g. by
+   specifying the ``--prefix=/some/path`` option to ``pip install``)
+   then PSyclone will not be able to find the configuration file at
+   execution time. There are two solutions to this: 1. copy the
+   configuration file to a location where PSyclone will find it (see
+   :ref:`configuration`) or 2. set the ``PSYCLONE_CONFIG`` environment
+   variable to the full-path to the configuration file, e.g.::
+
+   > export PSYCLONE_CONFIG=/some/path/PSyclone/config/psyclone.cfg
+
+.. warning::
+
+   when installing in 'editable' mode (``-e`` flag to pip), pip does
+   *not* install the configuration file. You will have to take one of
+   the two actions described above.
+
+See :ref:`configuration` for details of the settings contained within
+the config file.
 
 Test
 ----

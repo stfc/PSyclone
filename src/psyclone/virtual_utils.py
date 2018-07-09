@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-include LICENSE
-include README
-include *.py
-recursive-include contributions *
-recursive-include bin *
-recursive-include doc *.py *.rst Makefile
-include src/psyclone/*.f90
-include config/*.cfg
+# Authors: A. R. Porter, STFC Daresbury Lab
+
+'''
+Module containing helper routines related to installing/running inside
+virtual environments (such as virtualenv and venv).
+'''
+
+
+def within_virtual_env():
+    '''
+    Utility function that identifies whether we are running in a Python
+    virtual environment. Works for virtualenv and Python 3's venv.
+
+    :returns: True if we're running in a virtual environment
+    :rtype: bool
+    '''
+    import sys
+    return (hasattr(sys, 'real_prefix') or
+            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))

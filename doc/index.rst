@@ -22,6 +22,7 @@
    api
    profiling
    system_specific_setup
+   configuration
    developers
 ..   tutorial
 ..   examples
