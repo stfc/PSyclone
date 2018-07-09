@@ -3,10 +3,10 @@
 psyclone script
 ===============
 
-The simplest way to run PSyclone is to use the `psyclone` script. If
+The simplest way to run PSyclone is to use the ``psyclone`` script. If
 you installed PSyclone using pip then this script should be available
 on your PATH (see :ref:`getting_going_env` for more
-details). Alternatively it can be found in the `<PSYCLONEHOME>/bin`
+details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
 directory. The script takes an algorithm file as input and outputs
 modified algorithm code and generated PSy code. This section walks
 through its functionality. The :ref:`api-label` section gives a more
@@ -15,13 +15,13 @@ concise overview.
 Running
 -------
 
-The `psyclone` script is executable and designed to be run from the command
+The ``psyclone`` script is executable and designed to be run from the command
 line, e.g.:
 ::
 
   > psyclone <args>
 
-The optional -h argument gives a description of the options provided
+The optional ``-h`` argument gives a description of the options provided
 by the script:
 
 .. code-block:: bash
@@ -64,14 +64,14 @@ by the script:
 Basic Use
 ---------
 
-The simplest way to use `psyclone` is to provide it with an
+The simplest way to use ``psyclone`` is to provide it with an
 algorithm file::
 
     > psyclone alg.f90
 
 If the algorithm file is invalid for some reason, the script should
 return with an appropriate error. For example, if we use the Python
-`genkernelstub` script as an algorithm file we get the following::
+``genkernelstub`` script as an algorithm file we get the following::
 
     > cd <PSYCLONEHOME>/bin
     > psyclone genkernelstub
@@ -87,7 +87,7 @@ Choosing the API
 
 In the previous section we relied on PSyclone using the default
 API. The default API, along with the supported API's can be seen by
-running the `psyclone` script with the -h option.
+running the ``psyclone`` script with the ``-h`` option.
 
 If you use a particular API frequently and it is not the default then
 you can change the default by creating a copy of the default
@@ -95,7 +95,7 @@ you can change the default by creating a copy of the default
 more details.
 
 If your code uses an API that is different to the default then you can
-specify this as an argument to the `psyclone` script.
+specify this as an argument to the ``psyclone`` script.
 ::
 
     > psyclone -api dynamo0.1 alg.f90
@@ -105,7 +105,7 @@ File output
 
 By default the modified algorithm code and the generated PSy code are
 output to the terminal. These can instead be output to files by using the
-`-oalg <file>` and `-opsy <file>` options, respectively. For example, the
+``-oalg <file>`` and ``-opsy <file>`` options, respectively. For example, the
 following will output the generated psy code to the file 'psy.f90' but
 the algorithm code will be output to the terminal:
 ::
@@ -115,11 +115,11 @@ the algorithm code will be output to the terminal:
 Algorithm files with no invokes
 -------------------------------
 
-If the `psyclone` script is provided with a file that contains no
+If the ``psyclone`` script is provided with a file that contains no
 ``invoke`` calls then the script outputs a warning to ``stdout`` and
 copies the input file to ``stdout``, or to the specified algorithm
-file (if the `-oalg <file>` option is used). No PSy code will be
-output. If a file is specified using the `-opsy <file>` option this file
+file (if the ``-oalg <file>`` option is used). No PSy code will be
+output. If a file is specified using the ``-opsy <file>`` option this file
 will not be created.
 
 .. code-block:: bash
@@ -168,7 +168,7 @@ file. If this file is not found then an error is reported.
     > psyclone use.f90 
     Kernel file 'testkern.[fF]90' not found in <location>
 
-The `-d` option can be used to tell `psyclone` where to look for
+The ``-d`` option can be used to tell ``psyclone`` where to look for
 Kernel files by supplying it with a directory. The script will recurse
 from the specified directory path to look for the required file. There
 must be only one instance of the specified file within (or below) the
@@ -183,7 +183,7 @@ specified directory:
     [code output]
 
 .. note::
-    The -d option is limited to a single directory. Therefore a
+    The ``-d`` option is limited to a single directory. Therefore a
     current limitation in PSyclone is that all Kernel files
     required by an algorithm file must exist within a directory
     hierarchy where their file names are unique.
@@ -191,7 +191,7 @@ specified directory:
 Transformation script
 ---------------------
 
-By default the `psyclone` script will generate 'vanilla' PSy layer
+By default the ``psyclone`` script will generate 'vanilla' PSy layer
 code. The -s option allows a Python script to be specified which can
 transform the PSy layer. This option is discussed in more detail in
 the :ref:`sec_transformations_script` section.
@@ -201,7 +201,7 @@ the :ref:`sec_transformations_script` section.
 Fortran line length
 -------------------
 
-By default the `psyclone` script will generate fortran code with no
+By default the ``psyclone`` script will generate fortran code with no
 consideration of Fortran line-length limits. As the line-length limit
 for free-format Fortran is 132 characters, the code that is output may
 be non-conformant.
@@ -210,11 +210,11 @@ Line length is not an issue for many compilers as they
 allow compiler flags to be set which allow lines longer than the
 Fortran standard. However this is not the case for all compilers.
 
-When the `-l` option is specified to the `psyclone` script, the output
+When the ``-l`` option is specified to the ``psyclone`` script, the output
 will be line wrapped so that the output lines are always within
 the 132 character limit.
 
-The `-l` option also checks the parsed algorithm and kernel files for
+The ``-l`` option also checks the parsed algorithm and kernel files for
 conformance and raises an error if they do not conform.
 
 Line wrapping is not performed by default. There are two reasons for
@@ -227,7 +227,7 @@ limitations of line wrapping are discussed in the
 Distributed memory
 ------------------
 
-By default the `psyclone` script will generate distributed
+By default the ``psyclone`` script will generate distributed
 memory (DM) code (i.e. parallelised using MPI). As with the choice of
 API, this default may be configured by editing ``psyclone.cfg`` - see
 :ref:`configuration`.  Alternatively, whether or not to generate DM
@@ -241,9 +241,9 @@ For details of PSyclone's support for generating DM code see
 Automatic Profiling Instrumentation
 -----------------------------------
 
-The `--profile` option allows the user to instruct PSyclone to
+The ``--profile`` option allows the user to instruct PSyclone to
 automatically insert profiling calls within the generated PSy
-code. Two options are provided, `invokes` and `kernels`. The first of
+code. Two options are provided, ``invokes`` and ``kernels``. The first of
 these causes PSyclone to insert profiling-start and -stop calls at the
 beginning and end of every generated invoke routine. The second puts
 profiling calls around every kernel call (including the associated
