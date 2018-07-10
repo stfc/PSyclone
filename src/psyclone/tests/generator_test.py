@@ -286,7 +286,7 @@ def test_script_trans():
     # first loop fuse explicitly (without using generator.py)
     parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
     _, invoke_info = parse(parse_file, api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     loop1 = schedule.children[3]

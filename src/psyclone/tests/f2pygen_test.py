@@ -43,6 +43,13 @@ from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
 from psyclone.psyGen import InternalError
 import utils
 
+# Fortran we have to add to some of the generated code in order to
+# perform compilation checks.
+TYPEDECL = '''\
+type :: field_type
+  integer :: halo_dirty
+end type field_type
+'''
 
 def test_decl_no_replication_scalars():
     '''Check that the same scalar variable will only get declared once in
@@ -1020,12 +1027,15 @@ def test_decl_save(tmpdir, f90, f90flags):
                         entity_decls=["varchar"]))
     sub.add(TypeDeclGen(sub, save=True, datatype="field_type",
                         entity_decls=["ufld"]))
-    gen = str(sub.root).lower()
+    gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
         assert "{0}, save :: var".format(dtype.lower()) in gen
     assert "character(len=10), save :: varchar" in gen
     assert "type(field_type), save :: ufld" in gen
-    # Check that the generated code compiles (if enabled)
+    # Check that the generated code compiles (if enabled). We have to
+    # manually add a declaration for "field_type".
+    parts = gen.split("implicit none")
+    gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
     assert utils.string_compiles(gen, tmpdir, f90, f90flags)
 
 
@@ -1041,12 +1051,15 @@ def test_decl_target(tmpdir, f90, f90flags):
                         entity_decls=["varchar"]))
     sub.add(TypeDeclGen(sub, target=True, datatype="field_type",
                         entity_decls=["ufld"]))
-    gen = str(sub.root).lower()
+    gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
         assert "{0}, target :: var".format(dtype.lower()) in gen
     assert "character(len=10), target :: varchar" in gen
     assert "type(field_type), target :: ufld" in gen
-    # Check that the generated code compiles (if enabled)
+    # Check that the generated code compiles (if enabled). We
+    # must manually add a definition for the derived type.
+    parts = gen.split("implicit none")
+    gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
     assert utils.string_compiles(gen, tmpdir, f90, f90flags)
 
 
