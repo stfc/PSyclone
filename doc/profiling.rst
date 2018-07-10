@@ -104,7 +104,7 @@ this invoke subroutine will be included in the profiled region.
 
 The option ``--profile kernels`` will add a call to ``ProfileStart``
 before any loops created by PSyclone, and a ``ProfileEnd``
-call at the end of the loop.  Two caveats::
+call at the end of the loop.  Two caveats:
 
 1. In some APIs (for example dynamo when using distributed
    memory) additional minor code might get included in a
