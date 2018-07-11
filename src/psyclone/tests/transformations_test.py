@@ -65,7 +65,7 @@ def test_accdata():
     from psyclone.transformations import ACCDataTrans
     acct = ACCDataTrans()
     assert acct.name == "ACCDataTrans"
-    assert str(acct) == "Adds an OpenACC enter data directive"
+    assert str(acct) == "Adds an OpenACC 'enter data' directive"
 
 
 def test_omploop_no_collapse():

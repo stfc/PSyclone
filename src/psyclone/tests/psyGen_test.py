@@ -786,7 +786,7 @@ def test_acc_dir_view(capsys):
     new_sched.children[1].children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC Loop]")
+        colored("Directive", colour)+"[ACC Loop, independent]")
 
     # Loop directive with collapse
     new_sched, _ = acclt.apply(new_sched.children[1].children[0].children[0],
@@ -794,7 +794,7 @@ def test_acc_dir_view(capsys):
     new_sched.children[1].children[0].children[0].view()
     out, _ = capsys.readouterr()
     assert out.startswith(
-        colored("Directive", colour)+"[ACC Loop, collapse=2]")
+        colored("Directive", colour)+"[ACC Loop, collapse=2, independent]")
 
 
 def test_haloexchange_unknown_halo_depth():

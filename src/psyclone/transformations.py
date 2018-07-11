@@ -387,6 +387,7 @@ class ParallelLoopTrans(Transformation):
                 "Cannot apply a parallel-loop directive to something that is "
                 "not a loop")
         # Check we are not a sequential loop
+        # TODO add a list of loop types that are sequential
         if node.loop_type == 'colours':
             raise TransformationError("Error in "+self.name+" transformation. "
                                       "The target loop is over colours and "
@@ -448,7 +449,7 @@ class ParallelLoopTrans(Transformation):
         # create a memento of the schedule and the proposed
         # transformation
         from psyclone.undoredo import Memento
-        keep = Memento(schedule, self, [node])
+        keep = Memento(schedule, self, [node, collapse])
 
         # keep a reference to the node's original parent and its index as these
         # are required and will change when we change the node's location
@@ -463,10 +464,10 @@ class ParallelLoopTrans(Transformation):
         # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
 
-        # change the node's parent to be the loop directive
+        # Change the node's parent to be the loop directive.
         node.parent = directive
 
-        # remove the original loop
+        # Remove the reference to the loop from the original parent.
         node_parent.children.remove(node)
 
         return schedule, keep
@@ -487,33 +488,33 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     For example:
 
-    >>> from psyclone.parse import parse,ParseError
-    >>> from psyclone.psyGen import PSyFactory,GenerationError
-    >>> api="gocean1.0"
-    >>> filename="nemolite2d_alg.f90"
-    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.parse import parse, ParseError
+    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
     >>> print psy.invokes.names
     >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t=TransInfo()
+    >>> t = TransInfo()
     >>> ltrans = t.get_trans_name('OMPLoopTrans')
     >>> rtrans = t.get_trans_name('OMPParallelTrans')
     >>>
-    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> new_schedule=schedule
+    >>> new_schedule = schedule
     >>>
     # Apply the OpenMP Loop transformation to *every* loop
     # in the schedule
     >>> for child in schedule.children:
-    >>>     newschedule,memento=ltrans.apply(child, reprod=True)
+    >>>     newschedule, memento = ltrans.apply(child, reprod=True)
     >>>     schedule = newschedule
     >>>
     # Enclose all of these loops within a single OpenMP
     # PARALLEL region
     >>> rtrans.omp_schedule("dynamic,1")
-    >>> newschedule,memento = rtrans.apply(schedule.children)
+    >>> newschedule, memento = rtrans.apply(schedule.children)
     >>>
     >>>
 
@@ -618,8 +619,8 @@ class OMPLoopTrans(ParallelLoopTrans):
         within (i.e. a child of) an OpenMP PARALLEL region.
 
         The optional reprod argument will cause a reproducible
-        reduction to be generated if it is set to True, otherwise the
-        default, non-reproducible OpenMP reduction will used. Note,
+        reduction to be generated if it is set to True, otherwise the default
+        value (as read from the psyclone.cfg file) will be used. Note,
         reproducible in this case means obtaining the same results
         with the same number of OpenMP threads, not for different
         numbers of OpenMP threads.
@@ -649,35 +650,40 @@ class ACCLoopTrans(ParallelLoopTrans):
 
     For example:
 
-    >>> from psyclone.parse import parse,ParseError
-    >>> from psyclone.psyGen import PSyFactory,GenerationError
-    >>> api="gocean1.0"
-    >>> filename="nemolite2d_alg.f90"
-    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> from psyclone.parse import parse, ParseError
+    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t=TransInfo()
+    >>> t = TransInfo()
     >>> ltrans = t.get_trans_name('ACCLoopTrans')
     >>> rtrans = t.get_trans_name('ACCParallelTrans')
     >>>
-    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> new_schedule=schedule
+    >>> new_schedule = schedule
     >>>
     # Apply the OpenACC Loop transformation to *every* loop
     # in the schedule
     >>> for child in schedule.children:
-    >>>     newschedule,memento=ltrans.apply(child, reprod=True)
+    >>>     newschedule, memento = ltrans.apply(child, reprod=True)
     >>>     schedule = newschedule
     >>>
     # Enclose all of these loops within a single OpenACC
     # PARALLEL region
     >>> rtrans.omp_schedule("dynamic,1")
-    >>> newschedule,memento = rtrans.apply(schedule.children)
+    >>> newschedule, memento = rtrans.apply(schedule.children)
     >>>
 
     '''
+    def __init__(self):
+        self._independent = True  # Whether to add the "independent" clause
+                                  # to the loop directive.
+        super(ACCLoopTrans, self).__init__()
+
     def __str__(self):
         return "Adds an 'OpenACC loop' directive to a loop"
 
@@ -768,14 +774,14 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         >>> from psyclone.parse import parse
         >>> from psyclone.psyGen import PSyFactory
-        >>> ast,invokeInfo=parse("dynamo.F90")
-        >>> psy=PSyFactory("dynamo0.1").create(invokeInfo)
-        >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+        >>> ast, invokeInfo = parse("dynamo.F90")
+        >>> psy = PSyFactory("dynamo0.1").create(invokeInfo)
+        >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> schedule.view()
         >>>
         >>> from psyclone.transformations import OMPParallelLoopTrans
-        >>> trans=OMPParallelLoopTrans()
-        >>> new_schedule,memento=trans.apply(schedule.children[0])
+        >>> trans = OMPParallelLoopTrans()
+        >>> new_schedule, memento = trans.apply(schedule.children[0])
         >>> new_schedule.view()
 
     '''
@@ -815,8 +821,13 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           end do
           !$OMP END PARALLEL DO
 
+        :param node: the node (loop) to which to apply the transformation.
+        :type node: :py:class:`psyclone.f2pygen.DoGen`
+        :returns: Two-tuple of transformed schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule, \
+                 :py:class:`psyclone.undoredo.Memento`)
         '''
-
         self._validate(node)
 
         schedule = node.root
@@ -1017,7 +1028,7 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 class ColourTrans(Transformation):
     '''
     Apply a colouring transformation to a loop (in order to permit a
-    subsequent OpenMP parallelisation over colours). For example:
+    subsequent parallelisation over colours). For example:
 
     >>> invoke = ...
     >>> schedule = invoke.schedule
@@ -1402,24 +1413,24 @@ class OMPParallelTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse import parse, ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
-    >>> api="gocean1.0"
-    >>> filename="nemolite2d_alg.f90"
-    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t=TransInfo()
+    >>> t = TransInfo()
     >>> ltrans = t.get_trans_name('GOceanOMPLoopTrans')
     >>> rtrans = t.get_trans_name('OMPParallelTrans')
     >>>
-    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> new_schedule=schedule
+    >>> new_schedule = schedule
     >>>
     >>> # Apply the OpenMP Loop transformation to *every* loop
     >>> # in the schedule
     >>> for child in schedule.children:
-    >>>     newschedule,memento=ltrans.apply(child)
+    >>>     newschedule, memento = ltrans.apply(child)
     >>>     schedule = newschedule
     >>>
     >>> # Enclose all of these loops within a single OpenMP
@@ -1439,7 +1450,10 @@ class OMPParallelTrans(ParallelRegionTrans):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string.'''
+        '''
+        :returns: The name of this transformation as a string.
+        :rtype: str
+        '''
         return "OMPParallelTrans"
 
     def _validate(self, node_list):
@@ -1470,17 +1484,17 @@ class ACCParallelTrans(ParallelRegionTrans):
 
     >>> from psyclone.parse import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api="gocean1.0"
-    >>> filename="nemolite2d_alg.f90"
-    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t=TransInfo()
+    >>> t = TransInfo()
     >>> ptrans = t.get_trans_name('ACCParallelTrans')
     >>> dtrans = t.get_trans_name('ACCDataTrans')
     >>>
-    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
     >>> # Enclose everything within a single OpenACC PARALLEL region
@@ -1500,7 +1514,10 @@ class ACCParallelTrans(ParallelRegionTrans):
 
     @property
     def name(self):
-        ''' Returns the name of this transformation as a string.'''
+        '''
+        :returns: The name of this transformation as a string.
+        :rtype: str
+        '''
         return "ACCParallelTrans"
 
     def _validate(self, node_list):
@@ -1548,9 +1565,9 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> from psyclone.psyGen import PSyFactory
     >>> import os
     >>> TEST_API = "gocean1.0"
-    >>> _,info = parse(os.path.join("tests", "test_files", "gocean1p0",
-    >>>                             "single_invoke.f90"),
-    >>>                api=TEST_API)
+    >>> _, info = parse(os.path.join("tests", "test_files", "gocean1p0",
+    >>>                              "single_invoke.f90"),
+    >>>                 api=TEST_API)
     >>> psy = PSyFactory(TEST_API).create(info)
     >>> invoke = psy.invokes.get('invoke_0_compute_cu')
     >>> schedule = invoke.schedule
@@ -2054,16 +2071,16 @@ class ProfileRegionTrans(Transformation):
 
     >>> from psyclone.parse import parse, ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
-    >>> api="gocean1.0"
-    >>> filename="nemolite2d_alg.f90"
-    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t=TransInfo()
-    >>> p_trans= t.get_trans_name('ProfileRegionTrans')
+    >>> t = TransInfo()
+    >>> p_trans = t.get_trans_name('ProfileRegionTrans')
     >>>
-    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
     >>> # Enclose all children within a single profile region
@@ -2172,16 +2189,16 @@ class ACCDataTrans(Transformation):
 
     >>> from psyclone.parse import parse
     >>> from psyclone.psyGen import PSyFactory
-    >>> api="gocean1.0"
-    >>> filename="nemolite2d_alg.f90"
-    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t=TransInfo()
+    >>> t = TransInfo()
     >>> dtrans = t.get_trans_name('ACCDataTrans')
     >>>
-    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
     >>> # Add an enter-data directive
@@ -2189,7 +2206,7 @@ class ACCDataTrans(Transformation):
     >>> newschedule.view()
     '''
     def __str__(self):
-        return "Adds an OpenACC enter data directive"
+        return "Adds an OpenACC 'enter data' directive"
 
     @property
     def name(self):
@@ -2200,12 +2217,12 @@ class ACCDataTrans(Transformation):
         return "ACCDataTrans"
 
     def apply(self, sched):
-        '''Adds an OpenACC enter data directive to the invoke associated with
-        the supplied Schedule. Any fields accessed by OpenACC kernels
+        '''Adds an OpenACC "enter data" directive to the invoke associated
+        with the supplied Schedule. Any fields accessed by OpenACC kernels
         within this schedule will be added to this data region in
         order to ensure they remain on the target device.
 
-        :param sched: Schedule to which to add an enter-data directive.
+        :param sched: Schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`.
         :returns: Tuple of the modified schedule and a record of the \
                   transformation.
