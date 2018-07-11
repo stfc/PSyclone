@@ -41,7 +41,7 @@ applied via the -s option in the psyclone script.
 
 '''
 from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
-from psyclone.dynamo0p3 import DynLoop
+
 
 def trans(psy):
     '''PSyclone transformation script for the dynamo0.3 API to apply loop
@@ -65,9 +65,8 @@ def trans(psy):
             try:
                 schedule, _ = lf_trans.apply(prev_node, node, same_space=False)
                 local_fused += 1
-            except TransformationError as e:
-                # print str(e.value)
-                pass
+            except TransformationError as error:
+                print str(error.value)
             idx -= 1
         total_fused += local_fused
         if local_fused > 0:
