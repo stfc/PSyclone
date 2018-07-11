@@ -1,5 +1,5 @@
 Developers' guide
-****************
+*****************
 
 New APIs
 ########
@@ -43,8 +43,8 @@ TBD
 .. the same as another existing API then the existing `KernelType`
 .. subclass can be used for the new API.
 .. 
-.. The `KernelType` subclass needs to specialise the `KernelType
-.. __init__` method and initialise the `KernelType` base class with the
+.. The `KernelType` subclass needs to specialise the class constructor
+.. and initialise the `KernelType` base class with the
 .. supplied arguments. The role of the `KernelType` subclass is to create
 .. a kernel-metadata-specific subclass of the `Descriptor` class and
 .. populate this with the relevant API-specific metadata. After doing
@@ -740,3 +740,56 @@ The API-specific sub-classes exist to provide validation/type-checking and
 encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
+
+OpenACC Support
+###############
+
+PSyclone is able to generate code for execution on a GPU through the
+use of OpenACC. Support for generating OpenACC code is implemented via
+:ref:`transformations`. The specification of parallel regions and
+loops is very similar to that in OpenMP and does not require any
+special treatment.  However, a key feature of GPUs is the fact that
+they have their own, on-board memory which is separate from that of
+the host. Managing (i.e. minimising) data movement between host and
+GPU is then a very important part of obtaining good performance.
+
+Since PSyclone operates at the level of Invokes it has no information
+about when an application starts and thus no single place in which to
+initiate data transfers to a GPU. (We assume that the host is
+responsible for model I/O and therefore for populating fields with
+initial values.) Fortunately OpenACC provides support for this kind of
+situation with the ``enter data`` directive. This may be used to
+"define scalars, arrays and subarrays to be allocated in the current
+device memory for the remaining duration of the program"
+:cite:`openacc_enterdata`. The ``ACCDataTrans`` transformation adds
+an ``enter data`` directive to an Invoke:
+
+.. autoclass:: psyclone.transformations.ACCDataTrans
+
+The resulting generated code will then contain an ``enter data``
+directive protected by an ``IF(this is the first time in this
+Invoke)`` block, e.g. (for the GOcean1.0 API):
+
+.. code-block:: fortran
+
+      ! Ensure all fields are on the device and
+      ! copy them over if not.
+      IF (first_time) THEN
+        !$acc enter data  &
+        !$acc& copyin(sshn_t,sshn_t%data,un%grid,un%grid%tmask,...)
+        first_time = .false.
+        ssha_t%data_on_device = .true.
+        ...
+
+Note that the ``IF`` block is not strictly required as the OpenACC
+run-time identifies when a reference is already on the device and does
+not copy it it over again. However, when profiling an application, it
+was seen that there was a small overhead associated with doing the
+``enter data``, even when the data was already on the device. The ``IF``
+block eliminates this.
+
+Of course, a given field may already be on the device (and have been
+updated) due to a previous Invoke. In this case, the fact that the
+OpenACC run-time does not copy over the now out-dated host version of
+the field is essential for correctness.
+
