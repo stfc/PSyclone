@@ -375,7 +375,7 @@ class Invokes(object):
 
     def gen_ocl_init(self, parent, kernels):
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CallGen, UseGen, CommentGen
+            CallGen, UseGen, CommentGen, CharDeclGen
         #import pdb; pdb.set_trace()
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
@@ -390,9 +390,9 @@ class Invokes(object):
         sub.add(CommentGen(sub, " The kernels this PSy layer module requires"))
         nkernstr = str(len(kernels))
 
-        # TODO extend DeclGen to support character!
-        sub.add(DeclGen(sub, datatype="integer",
-                        entity_decls=["kernel_names({0})".format(nkernstr)]))
+        # Declare array of character strings
+        sub.add(CharDeclGen(sub, length="30",
+                            entity_decls=["kernel_names({0})".format(nkernstr)]))
         for idx, kern in enumerate(kernels):
             sub.add(AssignGen(sub, lhs="kernel_names({0})".format(idx+1),
                               rhs='"{0}"'.format(kern)))
@@ -1421,7 +1421,7 @@ class Schedule(Node):
             if_first.add(AssignGen(if_first, lhs="first_time", rhs=".false."))
             if_first.add(AssignGen(if_first, lhs="num_cmd_queues",
                                    rhs="get_num_cmd_queues()"))
-            if_first.add(AssignGen(if_first, lhs="cmd_queues",
+            if_first.add(AssignGen(if_first, lhs="cmd_queues", pointer=True,
                                    rhs="get_cmd_queues()"))
             # Kernel pointers
             kernels = self.walk(self._children, Call)
