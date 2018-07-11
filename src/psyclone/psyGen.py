@@ -1606,19 +1606,19 @@ class ACCParallelDirective(ACCDirective):
     @property
     def fields(self):
         '''
-        Returns a list of field objects required by the Kernel call(s) that are
-        children of this directive.
+        Returns a list of the names of field objects required by the Kernel
+        call(s) that are children of this directive.
 
-        :returns: list of names of field arguments
+        :returns: list of names of field arguments.
         :rtype: list of str
         '''
         # Look-up the calls that are children of this node
-        obj_list = []
+        fld_list = []
         for call in self.calls():
             for arg in call.arguments.fields:
-                if arg not in obj_list:
-                    obj_list.append(arg)
-        return obj_list
+                if arg not in fld_list:
+                    fld_list.append(arg)
+        return fld_list
 
     @property
     def scalars(self):
@@ -1626,7 +1626,7 @@ class ACCParallelDirective(ACCDirective):
         Returns a list of the scalar quantities required by the Calls in
         this region.
 
-        :returns: list of names of scalar arguments
+        :returns: list of names of scalar arguments.
         :rtype: list of str
         '''
         scalars = []
@@ -1639,7 +1639,7 @@ class ACCParallelDirective(ACCDirective):
 
 class ACCLoopDirective(ACCDirective):
     '''
-    Class managing the creation of a '!$acc loop' directive of OpenACC.
+    Class managing the creation of a '!$acc loop' OpenACC directive.
 
     :param children: list of nodes that will be children of this directive.
     :type children: list of :py:class:`psyclone.psyGen.Node`.
@@ -1647,9 +1647,13 @@ class ACCLoopDirective(ACCDirective):
     :type parent: :py:class:`psyclone.psyGen.Node`.
     :param int collapse: Number of nested loops to collapse into a single \
                          iteration space or None.
+    :param bool independent: Whether or not to add the `independent` clause \
+                             to the loop directive.
     '''
-    def __init__(self, children=None, parent=None, collapse=None):
+    def __init__(self, children=None, parent=None, collapse=None,
+                 independent=True):
         self._collapse = collapse
+        self._independent = independent
         super(ACCLoopDirective, self).__init__(children, parent)
 
     @property
@@ -1669,6 +1673,8 @@ class ACCLoopDirective(ACCDirective):
         text = self.indent(indent)+self.coloured_text+"[ACC Loop"
         if self._collapse:
             text += ", collapse={0}".format(self._collapse)
+        if self._independent:
+            text += ", independent"
         text += "]"
         print(text)
         for entity in self._children:
@@ -1697,11 +1703,15 @@ class ACCLoopDirective(ACCDirective):
                 "ACCLoopDirective must have an ACCParallelDirective as an "
                 "ancestor in the Schedule")
 
-        options = ""
+        # Add any clauses to the directive
+        options = []
         if self._collapse:
-            options = "collapse({0})".format(self._collapse)
+            options.append("collapse({0})".format(self._collapse))
+        if self._independent:
+            options.append("independent")
+        options_str = " ".join(options)
 
-        parent.add(DirectiveGen(parent, "acc", "begin", "loop", options))
+        parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
 
         for child in self.children:
             child.gen_code(parent)

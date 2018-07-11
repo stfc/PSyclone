@@ -1750,14 +1750,14 @@ def test_accloop():
     invoke.schedule = new_sched
 
     gen = str(psy.gen)
-
+    print(gen)
     assert '''\
       !$acc parallel default(present)
-      !$acc loop
+      !$acc loop independent
       DO j=2,jstop''' in gen
     assert '''\
       END DO 
-      !$acc loop
+      !$acc loop independent
       DO j=2,jstop+1''' in gen
 
 
@@ -1802,8 +1802,34 @@ def test_acc_collapse():
 
     gen = str(psy.gen)
     assert ("      !$acc parallel default(present)\n"
-            "      !$acc loop collapse(2)\n"
+            "      !$acc loop collapse(2) independent\n"
             "      DO j=2,jstop\n"
             "        DO i=2,istop+1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n" in gen)
+
+
+def test_acc_indep(capsys):
+    ''' Tests for the independent clause to a loop directive. '''
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCDataTrans()
+
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API,
+        name="invoke_0")
+    schedule = invoke.schedule
+    new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
+    new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
+    # Check the view method
+    new_sched.view()
+    output, _ = capsys.readouterr()
+    assert "[ACC Loop]" in output
+    assert "[ACC Loop, independent]" in output
+    new_sched, _ = accpara.apply(new_sched.children)
+    new_sched, _ = accdata.apply(new_sched)
+    # Check the generated code
+    invoke.schedule = new_sched
+    gen = str(psy.gen)
+    assert "!$acc loop\n      DO j=2,jstop" in gen
+    assert "!$acc loop independent\n      DO j=2,jstop+1" in gen

@@ -429,8 +429,7 @@ class ParallelLoopTrans(Transformation):
           end do
           !$OMP END DO
 
-        At code-generation time (when
-        :py:meth:`OMPLoopTrans.gen_code` is called), this node must be
+        At code-generation time (when gen_code()` is called), this node must be
         within (i.e. a child of) a PARALLEL region.
 
         :param node: the supplied node to which we will apply the \
@@ -456,11 +455,12 @@ class ParallelLoopTrans(Transformation):
         node_parent = node.parent
         node_position = node.position
 
-        # Add our orphan loop directive setting its parent to
-        # the node's parent and its children to the node
+        # Add our orphan loop directive setting its parent to the node's
+        # parent and its children to the node. This calls down to the sub-class
+        # to get the type of directive we require.
         directive = self._directive(node_parent, [node], collapse)
 
-        # add the OpenMP loop directive as a child of the node's parent
+        # Add the loop directive as a child of the node's parent
         node_parent.addchild(directive, index=node_position)
 
         # change the node's parent to be the loop directive
@@ -701,7 +701,8 @@ class ACCLoopTrans(ParallelLoopTrans):
         from psyclone.psyGen import ACCLoopDirective
         directive = ACCLoopDirective(parent=parent,
                                      children=children,
-                                     collapse=collapse)
+                                     collapse=collapse,
+                                     independent=self._independent)
         return directive
 
     def _validate(self, node, collapse=None):
@@ -722,6 +723,41 @@ class ACCLoopTrans(ParallelLoopTrans):
                 "OpenACC loop transformations are currently only supported "
                 "for the gocean 1.0 API")
         super(ACCLoopTrans, self)._validate(node, collapse)
+
+    def apply(self, node, collapse=None, independent=True):
+        '''
+        Apply the ACCLoop transformation to the specified node in a
+        Schedule. This node must be a Loop since this transformation
+        corresponds to inserting a directive immediately before a loop, e.g.:
+
+        .. code-block:: fortran
+
+          !$ACC LOOP
+          do ...
+             ...
+          end do
+
+        At code-generation time (when
+        :py:meth:`psyclone.psyGen.ACCLoopDirective.gen_code` is called), this
+        node must be within (i.e. a child of) a PARALLEL region.
+
+        :param node: the supplied node to which we will apply the \
+                     Loop transformation.
+        :type node: :py:class:`psyclone.psyGen.Loop`.
+        :param int collapse: number of loops to collapse into single \
+                             iteration space or None.
+        :param bool independent: whether to add the "independent" clause to \
+                                 the directive (not strictly necessary within \
+                                 PARALLEL regions).
+        :return: (:py:class:`psyclone.psyGen.Schedule`, \
+                  :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        # Store sub-class specific options. These are used when
+        # creating the directive (in the _directive() method).
+        self._independent = independent
+        # Call the apply() method of the base class
+        return super(ACCLoopTrans, self).apply(node, collapse)
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
