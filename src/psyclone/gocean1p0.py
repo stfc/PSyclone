@@ -851,10 +851,10 @@ class GOKernelArguments(Arguments):
     @property
     def fields(self):
         '''
-        Provides the list of field objects that are required by
+        Provides the list of names of field objects that are required by
         the kernel associated with this Arguments object.
 
-        :returns: list of names of (Fortran) field objects
+        :returns: List of names of (Fortran) field objects.
         :rtype: list of str
         '''
         args = args_filter(self._args, arg_types=["field"])
@@ -863,7 +863,11 @@ class GOKernelArguments(Arguments):
     @property
     def scalars(self):
         '''
-        :returns: a list of the names of scalar arguments in this object
+        Provides the list of names of scalar arguments required by the
+        kernel associated with this Arguments object. If there are none
+        then the returned list is empty.
+
+        :returns: A list of the names of scalar arguments in this object.
         :rtype: list of str
         '''
         args = args_filter(self._args, arg_types=["scalar"])
@@ -1371,12 +1375,13 @@ class GOACCDataDirective(ACCDataDirective):
     '''
     def data_on_device(self, parent):
         '''
-        Adds nodes into a Schedule to flag that each of the objects required
-        by the kernels in the data region is now on the device. We do
-        this by setting the data_on_device attribute to .true.
+        Adds nodes into the f2pygen AST to flag that each of the
+        objects required by the kernels in the data region is now on the
+        device. We do this by setting the data_on_device attribute to .true.
 
-        :param parent: the node in the Schedule to which to add nodes
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param parent: The node in the f2pygen AST to which to add the \
+                       assignment nodes.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import AssignGen
         obj_list = []

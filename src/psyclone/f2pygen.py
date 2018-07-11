@@ -79,8 +79,7 @@ class Directive(Comment):
 
     :param root: the parent node in the AST to which we are adding the \
                  directive
-    :type root: either :py:class:`psyclone.psyGen.Node` or \
-                :py:class:`fparser.one.block_statements.Subroutine`
+    :type root: subclass of :py:class:`fparser.common.base_classes.Statement`
     :param line: the fparser object which we will manipulate to create \
                  the desired directive.
     :type line: :py:class:`fparser.common.readfortran.Comment`
@@ -104,13 +103,17 @@ class Directive(Comment):
     @property
     def type(self):
         '''
-        Returns the type of this Directive
+        :returns: the type of this Directive.
+        :rtype: str
         '''
         return self._my_type
 
     @property
     def position(self):
-        ''' Returns the position of this Directive ('begin' or 'end') '''
+        '''
+        :returns: the position of this Directive ('begin' or 'end').
+        :rtype: str
+        '''
         return self._position
 
 
@@ -118,6 +121,16 @@ class OMPDirective(Directive):
     '''
     Subclass Directive for OpenMP directives so we can reason about
     them when walking the tree.
+
+    :param root: the parent node in the AST to which we are adding the \
+                 directive.
+    :type root: subclass of :py:class:`fparser.common.base_classes.Statement`
+    :param line: the fparser object which we will manipulate to create \
+                 the desired directive.
+    :type line: :py:class:`fparser.common.readfortran.Comment`
+    :param str position: e.g. 'begin' or 'end' (language specific).
+    :param str dir_type: the type of directive that this is (e.g. \
+                         'parallel do').
     '''
     def __init__(self, root, line, position, dir_type):
         self._types = ["parallel do", "parallel", "do", "master"]
@@ -130,6 +143,16 @@ class ACCDirective(Directive):
     '''
     Subclass Directive for OpenACC directives so we can reason about them
     when walking the tree.
+
+    :param root: the parent node in the AST to which we are adding the \
+                 directive.
+    :type root: subclass of :py:class:`fparser.common.base_classes.Statement`
+    :param line: the fparser object which we will manipulate to create \
+                 the desired directive.
+    :type line: :py:class:`fparser.common.readfortran.Comment`
+    :param str position: e.g. 'begin' or 'end' (language specific).
+    :param str dir_type: the type of directive that this is (e.g. \
+                         'loop').
     '''
     def __init__(self, root, line, position, dir_type):
         self._types = ["parallel", "kernels", "enter data", "loop"]
@@ -556,21 +579,20 @@ class CommentGen(BaseGen):
 
 
 class DirectiveGen(BaseGen):
-    ''' Base class for creating a Fortran directive. This is then sub-classed
-    to support different types of directive, e.g. OpenMP or OpenACC. '''
-    def __init__(self, parent, language, position, directive_type, content):
-        '''
-        :param parent: node in AST to which to add directive as a child
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :param str language: the type of directive (e.g. OMP or ACC)
-        :param str position: "end" if this is the end of a directive block
-        :param str directive_type: the directive itself (e.g. "PARALLEL DO")
-        :param str content: any additional arguments to add to the directive
-                            (e.g. "PRIVATE(ji)")
+    '''
+    Class for creating a Fortran directive, e.g. OpenMP or OpenACC.
 
-        :raises RuntimeError: if an unrecognised directive language is
-                              specified
-        '''
+    :param parent: node in AST to which to add directive as a child.
+    :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+    :param str language: the type of directive (e.g. OMP or ACC).
+    :param str position: "end" if this is the end of a directive block.
+    :param str directive_type: the directive itself (e.g. "PARALLEL DO").
+    :param str content: any additional arguments to add to the directive \
+                        (e.g. "PRIVATE(ji)").
+
+    :raises RuntimeError: if an unrecognised directive language is specified.
+    '''
+    def __init__(self, parent, language, position, directive_type, content):
         self._supported_languages = ["omp", "acc"]
         self._language = language
         self._directive_type = directive_type
