@@ -1888,22 +1888,12 @@ def test_acc_dag_names():
 
 
 def test_acc_datadevice_virtual():
-    ''' Check that calling ACCDataDirective.data_on_device() raises the
-    expected error '''
+    ''' Check that we can't instantiate an instance of ACCDataDirective. '''
     from psyclone.psyGen import ACCDataDirective
-    from psyclone.transformations import ACCDataTrans
-    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
-                             "gocean1.0", idx=0)
-    schedule = invoke.schedule
-
-    accdt = ACCDataTrans()
-    # Enter-data
-    new_sched, _ = accdt.apply(schedule)
-    # Call data_on_device for the base class
-    with pytest.raises(NotImplementedError) as err:
-        ACCDataDirective.data_on_device(schedule.children[0], schedule)
-    assert ("ACCDataDirective.data_on_device must be implemented in subclass"
-            in str(err))
+    with pytest.raises(TypeError) as err:
+        ACCDataDirective()
+    assert ("instantiate abstract class ACCDataDirective with abstract "
+            "methods data_on_device" in str(err))
 
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):

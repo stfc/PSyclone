@@ -1135,13 +1135,14 @@ class Node(object):
 
     def ancestor(self, my_type, excluding=None):
         '''
-        Search back up tree and check whether we have an
-        ancestor of the supplied type. If we do then we return
-        it otherwise we return None.
+        Search back up tree and check whether we have an ancestor that is
+        an instance of the supplied type. If we do then we return
+        it otherwise we return None. A list of (sub-) classes to ignore
+        may be provided via the `excluding` argument.
 
-        :param type my_type: class to search for.
+        :param type my_type: Class to search for.
         :param list excluding: list of (sub-)classes to ignore or None.
-        :returns: first ancestor Node that is an instance of the requested \
+        :returns: First ancestor Node that is an instance of the requested \
                   class or None if not found.
         '''
         myparent = self.parent
@@ -1400,10 +1401,13 @@ class ACCDirective(Directive):
         return "ACC_directive_" + str(self.abs_position)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class ACCDataDirective(ACCDirective):
     '''
-    Class representing a "!$ACC enter data" OpenACC directive in
-    a Schedule.
+    Abstract class representing a "!$ACC enter data" OpenACC directive in
+    a Schedule. Must be sub-classed for a particular API because the way
+    in which fields are marked as being on the remote device is API-
+    -dependent.
 
     :param children: list of nodes which this directive should \
                      have as children.
@@ -1505,6 +1509,7 @@ class ACCDataDirective(ACCDirective):
                 parent.add(CallGen(parent, "acc_update_device", [var, "1"]))
             parent.add(CommentGen(parent, ""))
 
+    @abc.abstractmethod
     def data_on_device(self, parent):
         '''
         Adds nodes into a Schedule to flag that the data required by the
@@ -1513,8 +1518,6 @@ class ACCDataDirective(ACCDirective):
         :param parent: the node in the Schedule to which to add nodes
         :type parent: :py:class:`psyclone.psyGen.Node`
         '''
-        raise NotImplementedError(
-            "ACCDataDirective.data_on_device must be implemented in subclass")
 
 
 class ACCParallelDirective(ACCDirective):
