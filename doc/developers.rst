@@ -697,8 +697,61 @@ TBD
 .. Create third transformtion which goes over all loops in a schedule and
 .. applies the OpenMP loop transformation.
 
+Modules
+#######
+
+This section describes the functionality of the various Python modules
+that make up PSyclone.
+
+f2pygen
+=======
+
+`f2pygen` provides functionality for generating Fortran code from
+scratch (i.e. when not modifying existing source).
+
+Variable Declarations
+---------------------
+
+Three different classes are provided to support the creation of
+variable declarations (for intrinsic, character and derived-type
+variables). An example of their use might be:
+
+>>> from psyclone.f2pygen import ModuleGen, SubroutineGen, DeclGen, \
+CharDeclGen, TypeDeclGen
+>>> module = ModuleGen(name="testmodule")
+>>> sub = SubroutineGen(module, name="testsubroutine")
+>>> module.add(sub)
+>>> sub.add(DeclGen(sub, datatype="integer", entity_decls=["my_int"]))
+>>> sub.add(CharDeclGen(sub, length="10", entity_decls=["my_char"]))
+>>> sub.add(TypeDeclGen(sub, datatype="field_type", entity_decls=["ufld"]))
+>>> gen = str(module.root)
+>>> print(gen)
+  MODULE testmodule
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE testsubroutine()
+      TYPE(field_type) ufld
+      CHARACTER(LEN=10) my_char
+      INTEGER my_int
+    END SUBROUTINE testsubroutine
+  END MODULE testmodule
+
+The full interface to each of these classes is detailed below:
+
+.. autoclass:: psyclone.f2pygen.DeclGen
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.f2pygen.CharDeclGen
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.f2pygen.TypeDeclGen
+    :members:
+    :noindex:
+
 Configuration
-#############
+=============
 
 PSyclone uses the Python ``ConfigParser`` class
 (https://docs.python.org/3/library/configparser.html) for reading the
