@@ -41,6 +41,13 @@ from __future__ import absolute_import
 import pytest
 
 
+# fixtures defined here are available to all tests
+@pytest.fixture(scope="module", params=[False, True])
+def annexed(request):
+    ''' Return the content of params in turn '''
+    return request.param
+
+
 def pytest_addoption(parser):
     ''' Adds command-line options to py.test '''
     parser.addoption("--f90", action="store", default="gfortran",

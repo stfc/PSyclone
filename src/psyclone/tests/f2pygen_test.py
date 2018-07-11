@@ -36,36 +36,48 @@
 ''' Tests for the f2pygen module of PSyclone '''
 
 from __future__ import absolute_import, print_function
+import pytest
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
-    ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
+    CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
+from psyclone.psyGen import InternalError
 import utils
-import pytest
 
+# Fortran we have to add to some of the generated code in order to
+# perform compilation checks.
+TYPEDECL = '''\
+type :: field_type
+  integer :: halo_dirty
+end type field_type
+'''
 
 def test_decl_no_replication_scalars():
     '''Check that the same scalar variable will only get declared once in
-    a module and a subroutine'''
+    a module and a subroutine.
+
+    '''
     variable_name = "arg_name"
-    datatype = "integer"
-    module = ModuleGen(name="testmodule")
-    module.add(DeclGen(module, datatype=datatype,
-                       entity_decls=[variable_name]))
-    module.add(DeclGen(module, datatype=datatype,
-                       entity_decls=[variable_name]))
-    subroutine = SubroutineGen(module, name="testsubroutine")
-    module.add(subroutine)
-    subroutine.add(DeclGen(subroutine, datatype=datatype,
+    for datatype in DeclGen.SUPPORTED_TYPES:
+        module = ModuleGen(name="testmodule")
+        module.add(DeclGen(module, datatype=datatype,
                            entity_decls=[variable_name]))
-    subroutine.add(DeclGen(subroutine, datatype=datatype,
+        module.add(DeclGen(module, datatype=datatype,
                            entity_decls=[variable_name]))
-    generated_code = str(module.root)
-    assert generated_code.count(variable_name) == 2
+        subroutine = SubroutineGen(module, name="testsubroutine")
+        module.add(subroutine)
+        subroutine.add(DeclGen(subroutine, datatype=datatype,
+                               entity_decls=[variable_name]))
+        subroutine.add(DeclGen(subroutine, datatype=datatype,
+                               entity_decls=[variable_name]))
+        generated_code = str(module.root)
+        assert generated_code.count(variable_name) == 2
 
 
 def test_decl_no_replication_types():
-    '''Check that the same array variable will only get declared once in
-    a module and a subroutine'''
+    '''Check that the same derived-type variable will only get declared
+    once in a module and a subroutine.
+
+    '''
     variable_name = "arg_name"
     datatype = "field_type"
     module = ModuleGen(name="testmodule")
@@ -79,6 +91,23 @@ def test_decl_no_replication_types():
                                entity_decls=[variable_name]))
     subroutine.add(TypeDeclGen(subroutine, datatype=datatype,
                                entity_decls=[variable_name]))
+    generated_code = str(module.root)
+    assert generated_code.count(variable_name) == 2
+
+
+def test_decl_no_replication_char():
+    '''Check that the character variable will only get declared once in a
+    module and a subroutine.
+
+    '''
+    variable_name = "arg_name"
+    module = ModuleGen(name="testmodule")
+    module.add(CharDeclGen(module, entity_decls=[variable_name]))
+    module.add(CharDeclGen(module, entity_decls=[variable_name]))
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+    subroutine.add(CharDeclGen(subroutine, entity_decls=[variable_name]))
+    subroutine.add(CharDeclGen(subroutine, entity_decls=[variable_name]))
     generated_code = str(module.root)
     assert generated_code.count(variable_name) == 2
 
@@ -915,6 +944,29 @@ def test_adduse_default_funcnames():
     assert expected in gen
 
 
+def test_basedecl_errors():
+    ''' Check that the BaseDeclGen class raises the correct errors if
+    invalid combinations are requested. '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    with pytest.raises(RuntimeError) as err:
+        sub.add(DeclGen(sub, datatype="integer", allocatable=True,
+                        entity_decls=["my_int"], initial_values=["1"]))
+    assert ("Cannot specify initial values for variable(s) [\'my_int\'] "
+            "because they have the \'allocatable\' attribute" in str(err))
+    with pytest.raises(NotImplementedError) as err:
+        sub.add(DeclGen(sub, datatype="integer", dimension="10",
+                        entity_decls=["my_int"], initial_values=["1"]))
+    assert ("Specifying initial values for array declarations is not "
+            "currently supported" in str(err))
+    with pytest.raises(RuntimeError) as err:
+        sub.add(DeclGen(sub, datatype="integer", intent="iN",
+                        entity_decls=["my_int"], initial_values=["1"]))
+    assert ("Cannot assign (initial) values to variable(s) [\'my_int\'] as "
+            "they have INTENT(in)" in str(err))
+
+
 def test_decl_logical(tmpdir, f90, f90flags):
     ''' Check that we can create a declaration for a logical variable '''
     module = ModuleGen(name="testmodule")
@@ -934,6 +986,35 @@ def test_decl_logical(tmpdir, f90, f90flags):
     assert utils.string_compiles(gen, tmpdir, f90, f90flags)
 
 
+def test_decl_char(tmpdir, f90, f90flags):
+    ''' Check that we can create a declaration for a character variable '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    sub.add(CharDeclGen(sub, entity_decls=["my_string"]))
+    # This time specifying a length
+    sub.add(CharDeclGen(sub, length="28",
+                        entity_decls=["my_string2"]))
+    # This time specifying a length and an initial value
+    sub.add(CharDeclGen(sub, length="28",
+                        entity_decls=["my_string3"],
+                        initial_values=["\'this is a string\'"]))
+    gen = str(sub.root).lower()
+    assert "character my_string" in gen
+    assert "character(len=28) my_string2" in gen
+    assert "character(len=28) :: my_string3='this is a string'" in gen
+    # Check that the generated Fortran compiles (if compilation testing is
+    # enabled)
+    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+    # Finally, check initialisation using a variable name. Since this
+    # variable isn't declared, we can't include it in the compilation test.
+    sub.add(CharDeclGen(sub, length="my_len",
+                        entity_decls=["my_string4"],
+                        initial_values=["some_variable"]))
+    gen = str(sub.root).lower()
+    assert "character(len=my_len) :: my_string4=some_variable" in gen
+
+
 def test_decl_save(tmpdir, f90, f90flags):
     ''' Check that we can declare variables with the save attribute '''
     module = ModuleGen(name="testmodule")
@@ -942,10 +1023,43 @@ def test_decl_save(tmpdir, f90, f90flags):
     for idx, dtype in enumerate(DeclGen.SUPPORTED_TYPES):
         sub.add(DeclGen(sub, datatype=dtype, save=True,
                         entity_decls=["var"+str(idx)]))
-    gen = str(sub.root).lower()
+    sub.add(CharDeclGen(sub, save=True, length="10",
+                        entity_decls=["varchar"]))
+    sub.add(TypeDeclGen(sub, save=True, datatype="field_type",
+                        entity_decls=["ufld"]))
+    gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
         assert "{0}, save :: var".format(dtype.lower()) in gen
-    # Check that the generated code compiles (if enabled)
+    assert "character(len=10), save :: varchar" in gen
+    assert "type(field_type), save :: ufld" in gen
+    # Check that the generated code compiles (if enabled). We have to
+    # manually add a declaration for "field_type".
+    parts = gen.split("implicit none")
+    gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
+    assert utils.string_compiles(gen, tmpdir, f90, f90flags)
+
+
+def test_decl_target(tmpdir, f90, f90flags):
+    ''' Check that we can declare variables with the target attribute '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    for idx, dtype in enumerate(DeclGen.SUPPORTED_TYPES):
+        sub.add(DeclGen(sub, datatype=dtype, target=True,
+                        entity_decls=["var"+str(idx)]))
+    sub.add(CharDeclGen(sub, target=True, length="10",
+                        entity_decls=["varchar"]))
+    sub.add(TypeDeclGen(sub, target=True, datatype="field_type",
+                        entity_decls=["ufld"]))
+    gen = str(module.root).lower()
+    for dtype in DeclGen.SUPPORTED_TYPES:
+        assert "{0}, target :: var".format(dtype.lower()) in gen
+    assert "character(len=10), target :: varchar" in gen
+    assert "type(field_type), target :: ufld" in gen
+    # Check that the generated code compiles (if enabled). We
+    # must manually add a definition for the derived type.
+    parts = gen.split("implicit none")
+    gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
     assert utils.string_compiles(gen, tmpdir, f90, f90flags)
 
 
@@ -1019,6 +1133,13 @@ def test_declgen_invalid_vals():
                     initial_values=["good", ".fAlse.", "35"])
     assert ("Initial value of '35' for a logical variable is invalid or "
             "unsupported" in str(err))
+    with pytest.raises(RuntimeError) as err:
+        _char = CharDeclGen(sub, entity_decls=["val1", "val2"],
+                            initial_values=["good", ".fAlse."])
+    assert "Initial value of \'.fAlse.' for a character variable" in str(err)
+    with pytest.raises(RuntimeError) as err:
+        _char = CharDeclGen(sub, entity_decls=["val1"], initial_values=["35"])
+    assert "Initial value of \'35\' for a character variable" in str(err)
 
 
 def test_declgen_wrong_type(monkeypatch):
@@ -1030,23 +1151,23 @@ def test_declgen_wrong_type(monkeypatch):
     with pytest.raises(RuntimeError) as err:
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
-    assert ("Only ['integer', 'real', 'logical'] types are currently supported"
-            in str(err))
+    assert ("Only ['integer', 'real', 'logical'] types are "
+            "currently supported" in str(err))
     # Check the internal error is raised within the validation routine if
     # an unsupported type is specified
     dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])
-    with pytest.raises(RuntimeError) as err:
+    with pytest.raises(InternalError) as err:
         dgen._check_initial_values("complex", ["1"])
-    assert ("Internal error: unsupported type 'complex' - should be one "
+    assert ("internal error: unsupported type 'complex' - should be one "
             "of {0}".format(dgen.SUPPORTED_TYPES) in str(err))
     # Check that we get an internal error if the supplied type is in the
     # list of those supported but has not actually been implemented.
     # We have to monkeypatch the list of supported types...
     monkeypatch.setattr(DeclGen, "SUPPORTED_TYPES", value=["complex"])
-    with pytest.raises(RuntimeError) as err:
+    with pytest.raises(InternalError) as err:
         _ = DeclGen(sub, datatype="complex",
                     entity_decls=["rvar1"])
-    assert ("Internal error: type 'complex' is in DeclGen.SUPPORTED_TYPES "
+    assert ("internal error: Type 'complex' is in DeclGen.SUPPORTED_TYPES "
             "but not handled by constructor" in str(err))
 
 
@@ -1083,8 +1204,21 @@ def test_typedeclgen_missing_names():
     module.add(sub)
     with pytest.raises(RuntimeError) as err:
         _ = TypeDeclGen(sub, datatype="my_type")
-    assert ("Cannot create a declaration of a derived-type variable "
-            "without specifying" in str(err))
+    assert ("Cannot create a variable declaration without specifying"
+            in str(err))
+
+
+def test_typedeclgen_values_error():
+    ''' Check that we reject attempts to create a TypeDeclGen with
+    initial values. '''
+    module = ModuleGen(name="testmodule")
+    sub = SubroutineGen(module, name="testsubroutine")
+    module.add(sub)
+    decl = TypeDeclGen(sub, datatype="my_type", entity_decls=["field1"])
+    with pytest.raises(InternalError) as err:
+        decl._check_initial_values("my_type", ["1.0"])
+    assert ("This method should not have been called because initial values "
+            "for derived-type declarations are not supported" in str(err))
 
 
 def test_typedeclgen_multiple_use():

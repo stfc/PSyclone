@@ -13,7 +13,7 @@
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-
+#
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
@@ -39,8 +39,9 @@
 # imports
 from __future__ import absolute_import, print_function
 import os
-import pytest
 import sys
+import pytest
+import fparser
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
@@ -51,14 +52,26 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     VALID_ANY_SPACE_NAMES
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
-import fparser
+from psyclone.configuration import ConfigFactory
 import utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+# Get the root directory of this PSyclone distribution
+ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
+# Construct the path to the default configuration file
+DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
+
+TEST_API = "dynamo0.3"
+
+# Our configuration objects
+_CONFIG = ConfigFactory().create()
+_API_CONFIG = _CONFIG.api(TEST_API)
 
 
+# tests
 def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
@@ -610,12 +623,12 @@ def test_field(tmpdir, f90, f90flags):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     generated_code = psy.gen
     output = (
@@ -692,10 +705,10 @@ def test_field_deref():
     correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.13_single_invoke_field_deref.f90"),
-                           api="dynamo0.3")
+                           api=TEST_API)
     for dist_mem in [False, True]:
 
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
@@ -817,13 +830,13 @@ def test_field_fs(tmpdir, f90, f90flags):
     ''' Tests that a call with a set of fields making use of all
     function spaces and no basis functions produces correct code '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     generated_code = psy.gen
     output = (
@@ -981,8 +994,8 @@ def test_real_scalar():
     real scalar argument (plus fields)'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     expected = (
@@ -1064,8 +1077,8 @@ def test_int_scalar():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.6.1_single_invoke_1_int_scalar.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     expected = (
@@ -1148,8 +1161,8 @@ def test_two_real_scalars():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.9_single_invoke_2_real_scalars.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     expected = (
@@ -1231,8 +1244,8 @@ def test_two_int_scalars():
     scalar arguments '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.6_single_invoke_2_int_scalars.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     expected = (
@@ -1321,8 +1334,8 @@ def test_two_scalars():
     arguments, one real and one integer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     expected = (
@@ -1419,8 +1432,8 @@ def test_vector_field():
     ''' tests that a vector field is declared correctly in the PSy
     layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
     print(str(generated_code))
     assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
@@ -1433,8 +1446,8 @@ def test_vector_field():
 def test_vector_field_2():
     ''' Tests that a vector field is indexed correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
     print(generated_code)
     # all references to chi_proxy should be chi_proxy(1)
@@ -1451,9 +1464,9 @@ def test_vector_field_deref():
     Algorithm layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "8.1_vector_field_deref.f90"),
-                           api="dynamo0.3")
+                           api=TEST_API)
     for dist_mem in [True, False]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = psy.gen
         assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
@@ -1467,8 +1480,8 @@ def test_orientation():
     ''' tests that orientation information is created correctly in
     the PSy '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "9_orientation.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
     print(str(generated_code))
     assert str(generated_code).find("INTEGER, pointer :: orientation_w2(:)"
@@ -1481,8 +1494,8 @@ def test_operator():
     ''' tests that an operator is implemented correctly in the PSy
     layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
@@ -1504,14 +1517,14 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
     implemented correctly in the PSy layer'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.3_operator_different_spaces.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
@@ -1650,14 +1663,14 @@ def test_operator_nofield(tmpdir, f90, f90flags):
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.1_operator_nofield.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_code_str = str(psy.gen)
     print(gen_code_str)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
                              "nofield_type(mm_w2, chi, qr)") != -1
@@ -1682,14 +1695,14 @@ def test_operator_nofield_different_space(
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.5_operator_no_field_different_"
                                         "space.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert "mesh => my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
@@ -1706,8 +1719,8 @@ def test_operator_nofield_scalar():
     scalar argument is implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.6_operator_no_field_scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "mesh => my_mapping%get_mesh()" in gen
@@ -1727,15 +1740,15 @@ def test_operator_nofield_scalar_deref(
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "10.6.1_operator_no_field_scalar_deref.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     for dist_mem in [True, False]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
         print(gen)
 
         if utils.TEST_COMPILE:
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
         if dist_mem:
             assert "mesh => opbox_my_mapping%get_mesh()" in gen
@@ -1762,13 +1775,13 @@ def test_operator_orientation(tmpdir, f90, f90flags):
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.2_operator_orient.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
     print(gen_str)
 
     if utils.TEST_COMPILE:
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
                         "_orient_type(mm_w1, chi, qr)") != -1
@@ -1795,13 +1808,13 @@ def test_op_orient_different_space(
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.4_operator_orient_different_"
                                         "space.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
     print(gen_str)
 
     if utils.TEST_COMPILE:
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
@@ -1830,14 +1843,14 @@ def test_operator_deref(tmpdir, f90, f90flags):
     layer when obtained by de-referencing a derived type in the Algorithm
     layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10.8_operator_deref.f90"),
-                           api="dynamo0.3")
+                           api=TEST_API)
     for dist_mem in [True, False]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
         if utils.TEST_COMPILE:
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
         assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
                                    "_type(mm_w0_op, chi, a, qr)") != -1
@@ -1862,8 +1875,8 @@ def test_operator_no_dofmap_lookup():
     list. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.9_operator_first.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
     # Check that we use the field and not the operator to look-up the dofmap
@@ -1876,8 +1889,8 @@ def test_operator_read_level1_halo():
     operator beyond the level-1 halo '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.7_operator_read.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     # Modify the loop bound so that we attempt to read from the L2 halo
@@ -1896,13 +1909,13 @@ def test_any_space_1(tmpdir, f90, f90flags):
     layer. Includes more than one type of any_space declaration
     and func_type basis functions on any_space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11_any_space.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert ("INTEGER, pointer :: "
             "map_any_space_1_a(:,:) => null(), "
@@ -1939,8 +1952,8 @@ def test_any_space_2():
     func_type declarations and any_space used with an
     operator. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.1_any_space.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     assert "INTEGER, intent(in) :: istp" in generated_code
@@ -1965,8 +1978,8 @@ def test_op_any_space_different_space_1():
     layer. Includes different spaces for an operator and no other
     fields.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.2_any_space.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     assert generated_code.find(
@@ -1980,14 +1993,14 @@ def test_op_any_space_different_space_2(
     ''' tests that any_space is implemented correctly in the PSy
     layer in a more complicated example. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
     assert "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()" in generated_code
     assert "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()" in \
         generated_code
@@ -2015,8 +2028,8 @@ def test_invoke_uniq_declns():
     called for an invalid type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("not_a_type")
     assert 'unique_declarations called with an invalid datatype' \
@@ -2028,8 +2041,8 @@ def test_invoke_uniq_declns_invalid_access():
     called for an invalid access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("gh_field",
                                                        access="invalid_acc")
@@ -2042,8 +2055,8 @@ def test_invoke_uniq_proxy_declns():
     is called for an invalid type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations("not_a_type")
     assert 'unique_proxy_declarations called with an invalid datatype' \
@@ -2055,8 +2068,8 @@ def test_uniq_proxy_declns_invalid_access():
     is called for an invalid access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             "gh_field",
@@ -2070,8 +2083,8 @@ def test_dyninvoke_first_access():
     called for an argument name that doesn't exist '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].first_access("not_an_arg")
     assert 'Failed to find any kernel argument with name' \
@@ -2083,8 +2096,8 @@ def test_dyninvoke_uniq_declns_inv_type():
     is called for an invalid argument type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].unique_declns_by_intent("gh_invalid")
     assert 'unique_declns_by_intent called with an invalid datatype' \
@@ -2096,8 +2109,8 @@ def test_dyninvoke_uniq_declns_intent_fields():
     list of arguments for gh_fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_field")
     assert args['inout'] == []
     assert args['out'] == ['f1']
@@ -2109,8 +2122,8 @@ def test_dyninvoke_uniq_declns_intent_real():
     list of arguments for gh_real '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_real")
     assert args['inout'] == []
     assert args['out'] == []
@@ -2122,8 +2135,8 @@ def test_dyninvoke_uniq_declns_intent_int():
     list of arguments for gh_integer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_integer")
     assert args['inout'] == []
     assert args['out'] == []
@@ -2135,8 +2148,8 @@ def test_dyninvoke_uniq_declns_intent_ops():
     list of arguments for operator arguments '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.4_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     args = psy.invokes.invoke_list[0].unique_declns_by_intent("gh_operator")
     assert args['inout'] == []
     assert args['out'] == ['op']
@@ -2148,8 +2161,8 @@ def test_dyninvoke_arg_for_fs():
     called for an un-used space '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         psy.invokes.invoke_list[0].arg_for_funcspace(FunctionSpace("wtheta",
                                                                    None))
@@ -2162,8 +2175,8 @@ def test_kernel_specific(tmpdir, f90, f90flags):
     following a call to the matrix_vector_kernel_type kernel. Boundary
     conditions are now explicity specified in the Algorithm as required. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "12_kernel_specific.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     output0 = "USE enforce_bc_kernel_mod, ONLY: enforce_bc_code"
@@ -2194,7 +2207,7 @@ def test_kernel_specific(tmpdir, f90, f90flags):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_multi_kernel_specific(tmpdir, f90, f90flags):
@@ -2203,8 +2216,8 @@ def test_multi_kernel_specific(tmpdir, f90, f90flags):
     must now be explicitly specified as part of the Algorithm. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.3_multi_kernel_specific.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
 
@@ -2261,7 +2274,7 @@ def test_multi_kernel_specific(tmpdir, f90, f90flags):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_field_bc_kernel(tmpdir, f90, f90flags):
@@ -2274,8 +2287,8 @@ def test_field_bc_kernel(tmpdir, f90, f90flags):
     support any hacks. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
     output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
     assert str(generated_code).find(output1) != -1
@@ -2289,7 +2302,7 @@ def test_field_bc_kernel(tmpdir, f90, f90flags):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_bc_kernel_field_only(monkeypatch):
@@ -2297,13 +2310,13 @@ def test_bc_kernel_field_only(monkeypatch):
     if it has an operator as argument instead of a field. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
-                           api="dynamo0.3")
+                           api=TEST_API)
     for dist_mem in [False, True]:
         if dist_mem:
             idx = 1
         else:
             idx = 0
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         schedule = psy.invokes.invoke_list[0].schedule
         loop = schedule.children[idx]
@@ -2331,8 +2344,8 @@ def test_operator_bc_kernel(tmpdir, f90, f90flags):
     appropriate code is added to support this. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
@@ -2348,7 +2361,7 @@ def test_operator_bc_kernel(tmpdir, f90, f90flags):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_operator_bc_kernel_fld_err(monkeypatch):
@@ -2356,9 +2369,9 @@ def test_operator_bc_kernel_fld_err(monkeypatch):
     kernel if its argument is not an operator '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
-                           api="dynamo0.3")
+                           api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         schedule = psy.invokes.invoke_list[0].schedule
         loop = schedule.children[0]
@@ -2380,9 +2393,9 @@ def test_operator_bc_kernel_multi_args_err():
     import copy
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
-                           api="dynamo0.3")
+                           api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         schedule = psy.invokes.invoke_list[0].schedule
         loop = schedule.children[0]
@@ -2409,9 +2422,9 @@ def test_operator_bc_kernel_wrong_access_err():
     kernel if its operator argument has the wrong access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
-                           api="dynamo0.3")
+                           api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         schedule = psy.invokes.invoke_list[0].schedule
         loop = schedule.children[0]
@@ -2431,8 +2444,8 @@ def test_multikernel_invoke_1():
     are incorrect at the time of writing '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     # check that argument names are not replicated
@@ -2451,8 +2464,8 @@ def test_multikernel_invoke_qr():
     kernels with (the same) QR within an invoke. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.1_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
     # simple check that two kernel calls exist
     assert str(generated_code).count("CALL testkern_qr_code") == 2
@@ -2463,8 +2476,8 @@ def test_mkern_invoke_vec_fields():
     kernels within an invoke with vector fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.2_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
     # 1st test for duplication of name vector-field declaration
     output1 = "TYPE(field_type), intent(inout) :: f1, chi(3), chi(3)"
@@ -2479,8 +2492,8 @@ def test_multikern_invoke_orient():
     kernels within an invoke with orientation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.3_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
     # 1st test for duplication of name vector-field declaration
     output1 = "TYPE(field_type), intent(in) :: f2, f3(3), f3(3)"
@@ -2496,8 +2509,8 @@ def test_multikern_invoke_oper():
     kernels within an invoke with operators '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.4_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
     # 1st test for duplication of name vector-field declaration
     output1 = "TYPE(field_type), intent(in) :: f1(3), f1(3)"
@@ -2513,8 +2526,8 @@ def test_2kern_invoke_any_space():
     any_space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.1_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
@@ -2542,13 +2555,13 @@ def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
     any_space.  '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
     assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
             "map_any_space_1_f2(:,:) => null(), "
             "map_any_space_2_f1(:,:) => null(), "
@@ -2570,7 +2583,7 @@ def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
         "      map_w0 => f3_proxy(1)%vspace%get_whole_dofmap()\n"
         "      map_any_space_1_f2 => f2_proxy%vspace%get_whole_dofmap()\n"
         "      map_any_space_2_f1 => f1_proxy%vspace%get_whole_dofmap()\n"
-            in gen)
+        in gen)
     assert ("CALL testkern_any_space_1_code(nlayers, f1_proxy%data, rdt, "
             "f2_proxy%data, f3_proxy(1)%data, f3_proxy(2)%data, "
             "f3_proxy(3)%data, ndf_any_space_1_f1, undf_any_space_1_f1, "
@@ -2588,13 +2601,13 @@ def test_mkern_invoke_multiple_any_spaces(
     any_space.  '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
             "dim_any_space_1_f1, ndf_any_space_1_f1, "
@@ -2642,8 +2655,8 @@ def test_loopfuse():
     error but it would be nicer if there were only one '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     loop1 = schedule.children[0]
@@ -2681,8 +2694,8 @@ def test_named_psy_routine():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "1.0.1_single_named_invoke.f90"),
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=distmem).create(invoke_info)
         gen_code = str(psy.gen)
         # Name should be all lower-case and with spaces replaced by underscores
@@ -2694,7 +2707,7 @@ def test_named_psy_routine():
 def test_stub_non_existant_filename():
     ''' fail if the file does not exist '''
     with pytest.raises(IOError) as excinfo:
-        generate("non_existant_file.f90", api="dynamo0.3")
+        generate("non_existant_file.f90", api=TEST_API)
     assert "file 'non_existant_file.f90' not found" in str(excinfo.value)
 
 
@@ -2709,7 +2722,7 @@ def test_stub_file_content_not_fortran():
     ''' fail if the kernel file does not contain fortran '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "dynamo0p3_test.py"), api="dynamo0.3")
+                              "dynamo0p3_test.py"), api=TEST_API)
     assert 'no parse pattern found' \
         in str(excinfo.value)
 
@@ -2718,7 +2731,7 @@ def test_stub_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_invalid_fortran.F90"),
-                 api="dynamo0.3")
+                 api=TEST_API)
     assert 'contain <== no parse pattern found' in str(excinfo.value)
 
 
@@ -2726,7 +2739,7 @@ def test_file_fortran_not_kernel():
     ''' fail if file is valid fortran but is not a kernel file '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                 api="dynamo0.3")
+                 api=TEST_API)
     assert 'file does not contain a module. Is it a Kernel file?' \
         in str(excinfo.value)
 
@@ -2735,14 +2748,14 @@ def test_module_name_too_short():
     ''' fail if length of kernel module name is too short '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_short_name.F90"),
-                 api="dynamo0.3")
+                 api=TEST_API)
     assert "too short to have '_mod' as an extension" in str(excinfo.value)
 
 
 def test_module_name_convention():
     ''' fail if kernel module name does not have _mod at end '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern.F90"), api="dynamo0.3")
+        generate(os.path.join(BASE_PATH, "testkern.F90"), api=TEST_API)
     assert "does not have '_mod' as an extension" in str(excinfo.value)
 
 
@@ -2750,7 +2763,7 @@ def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
     with pytest.raises(RuntimeError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_no_datatype.F90"),
-                 api="dynamo0.3")
+                 api=TEST_API)
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
 
@@ -2775,7 +2788,7 @@ SIMPLE = (
 def test_stub_generate_working():
     ''' check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "simple.f90"),
-                      api="dynamo0.3")
+                      api=TEST_API)
     print(SIMPLE)
     print(result)
     assert str(result).find(SIMPLE) != -1
@@ -2813,7 +2826,7 @@ def test_stub_generate_with_scalars():
     ''' check that the stub generate produces the expected output when
     the kernel has scalar arguments '''
     result = generate(os.path.join(BASE_PATH, "simple_with_scalars.f90"),
-                      api="dynamo0.3")
+                      api=TEST_API)
     print(result)
     assert str(result).find(SIMPLE_WITH_SCALARS) != -1
 
@@ -2845,7 +2858,7 @@ def test_stub_generate_with_scalar_sums():
     with pytest.raises(ParseError) as err:
         _ = generate(
             os.path.join(BASE_PATH, "simple_with_reduction.f90"),
-            api="dynamo0.3")
+            api=TEST_API)
     assert (
         "user-supplied Dynamo 0.3 kernel must not write/update a scalar "
         "argument but kernel simple_with_reduction_type has gh_real with "
@@ -3720,13 +3733,13 @@ def test_DynKernelArgument_intent_invalid():
     '''Tests that an error is raised in DynKernelArgument when an invalid
     intent value is found. Tests with and without distributed memory '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
+                           api=TEST_API)
     for dist_mem in [False, True]:
         if dist_mem:
             idx = 3
         else:
             idx = 0
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -3745,8 +3758,8 @@ def test_arg_ref_name_method_error1():
     when ref_name() is called with a function space that is not
     associated with this field'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
     first_argument = first_kernel.arguments.args[1]
@@ -3762,8 +3775,8 @@ def test_arg_ref_name_method_error2():
     when ref_name() is called when the argument type is not one of
     gh_field or gh_operator'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
     first_argument = first_kernel.arguments.args[1]
@@ -3778,8 +3791,8 @@ def test_arg_intent_error():
     when intent() is called and the argument access property is not one of
     gh_{read,write,inc,readwrite} '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
     first_argument = first_kernel.arguments.args[0]
@@ -3793,16 +3806,16 @@ def test_arg_intent_error():
 
 
 @pytest.mark.skipif(
-        sys.version_info>(3,),
-        reason="Deepcopy of function_space not working in Python 3")
+    sys.version_info > (3,),
+    reason="Deepcopy of function_space not working in Python 3")
 def test_no_arg_on_space(monkeypatch):
     ''' Tests that DynKernelArguments.get_arg_on_space[,_name] raise
     the appropriate error when there is no kernel argument on the
     supplied space. '''
     from psyclone.psyGen import FieldNotFoundError
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
     kernel_args = first_kernel.arguments
@@ -3948,8 +3961,8 @@ def test_mangle_no_space_error():
     from psyclone.psyGen import FieldNotFoundError
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
     with pytest.raises(FieldNotFoundError) as excinfo:
@@ -3963,8 +3976,8 @@ def test_mangle_function_space():
     from psyclone.dynamo0p3 import mangle_fs_name
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5.2_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
     name = mangle_fs_name(first_kernel.arguments.args, "any_space_2")
@@ -3977,8 +3990,8 @@ def test_no_mangle_specified_function_space():
     from psyclone.dynamo0p3 import mangle_fs_name
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
     name = mangle_fs_name(first_kernel.arguments.args, "w2")
@@ -3991,8 +4004,8 @@ def test_fsdescriptors_get_descriptor():
     argument '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     first_kernel = first_invoke.schedule.kern_calls()[0]
     fspace = FunctionSpace("w0", None)
@@ -4059,8 +4072,8 @@ def test_dynkern_arg_for_fs():
     ''' Test that DynInvoke.arg_for_funcspace() raises an error if
     passed an invalid function space '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     with pytest.raises(GenerationError) as err:
         _ = first_invoke.arg_for_funcspace(FunctionSpace("waah", "waah"))
@@ -4068,16 +4081,17 @@ def test_dynkern_arg_for_fs():
 
 
 def test_dist_memory_true():
-    ''' test that the distributed memory flag is on by default '''
-    import psyclone.config
-    assert psyclone.config.DISTRIBUTED_MEMORY
+    ''' Test that the distributed memory flag is on by default. '''
+    from psyclone import configuration
+    _config = configuration.Config(config_file=DEFAULT_CFG_FILE)
+    assert _config.distributed_memory
 
 
 def test_halo_dirty_1():
     ''' check halo_dirty call is added correctly with a simple example '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     expected = (
@@ -4092,8 +4106,8 @@ def test_halo_dirty_1():
 def test_halo_dirty_2():
     ''' check halo_dirty calls only for write and inc (not for read) '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.1_halo_writers.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     expected = (
@@ -4115,8 +4129,8 @@ def test_halo_dirty_3():
     ''' check halo_dirty calls with multiple kernel calls '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
     print(generated_code)
     assert str(generated_code).count("CALL f1_proxy%set_dirty()") == 2
@@ -4125,8 +4139,8 @@ def test_halo_dirty_3():
 def test_halo_dirty_4():
     ''' check halo_dirty calls with field vectors '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     expected = (
@@ -4145,8 +4159,8 @@ def test_halo_dirty_5():
     ''' check no halo_dirty calls for operators '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.1_operator_nofield.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     assert "set_dirty()" not in generated_code
@@ -4157,8 +4171,8 @@ def test_no_halo_dirty():
     '''check that no halo_dirty code is produced if distributed_memory is
     set to False'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     assert "set_dirty()" not in generated_code
@@ -4169,8 +4183,8 @@ def test_halo_exchange():
     ''' test that a halo_exchange call is added for a loop with a
     stencil operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     output1 = (
@@ -4191,8 +4205,8 @@ def test_halo_exchange_inc():
     the l1 halo '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     output1 = (
@@ -4237,8 +4251,8 @@ def test_no_halo_exchange_for_operator():
     from an operator '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.7_operator_read.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     # This kernel reads from an operator and a scalar and these
@@ -4251,8 +4265,8 @@ def test_no_set_dirty_for_operator():
     by a kernel. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.6_operator_no_field_scalar.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     # This kernel only writes to an operator and since operators are
@@ -4265,8 +4279,8 @@ def test_halo_exchange_different_spaces():
     access result in halo calls including any_space'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.3_halo_readers_all_fs.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     assert result.count("halo_exchange") == 9
@@ -4277,8 +4291,8 @@ def test_halo_exchange_vectors_1():
     fields. Test a field with gh_inc '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4.1_halo_vector.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     assert result.count("halo_exchange(") == 3
@@ -4297,8 +4311,8 @@ def test_halo_exchange_vectors():
     fields. Test both a field with a stencil and a field with gh_inc '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     assert result.count("halo_exchange(") == 7
@@ -4319,8 +4333,8 @@ def test_halo_exchange_depths():
     depth with gh_write '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.5_halo_depth.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     expected = ("      IF (f2_proxy%is_dirty(depth=extent)) THEN\n"
@@ -4345,8 +4359,8 @@ def test_halo_exchange_depths_gh_inc():
     redundant computation is performed in the l1 halo) '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.6_halo_depth_2.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     expected = ("      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -4432,8 +4446,8 @@ def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.get('invoke_0_testkern_stencil_type').schedule
     schedule.view()
     result, _ = capsys.readouterr()
@@ -4466,8 +4480,8 @@ def test_no_mesh_mod():
     not required. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     result = str(psy.gen)
     print(result)
     assert "USE mesh_mod, ONLY: mesh_type" not in result
@@ -4481,8 +4495,8 @@ def test_mesh_mod():
     bounds for distributed memory '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     assert "USE mesh_mod, ONLY: mesh_type" in result
@@ -4530,8 +4544,8 @@ def test_lower_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
     method - first GenerationError'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     my_loop = psy.invokes.invoke_list[0].schedule.children[0]
     my_loop.set_lower_bound("inner", index=1)
     with pytest.raises(GenerationError) as excinfo:
@@ -4544,8 +4558,8 @@ def test_lower_bound_fortran_2(monkeypatch):
     '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
     method - second GenerationError'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     my_loop = psy.invokes.invoke_list[0].schedule.children[3]
     # we can not use the standard set_lower_bound function as that
     # checks for valid input
@@ -4560,8 +4574,8 @@ def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method when 'cell_halo', 'dof_halo' or 'inner' are used'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     my_loop = psy.invokes.invoke_list[0].schedule.children[0]
     for option in ["cell_halo", "dof_halo", "inner"]:
         my_loop.set_upper_bound(option, index=1)
@@ -4577,8 +4591,8 @@ def test_upper_bound_fortran_2(monkeypatch):
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method if an invalid value is provided'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     my_loop = psy.invokes.invoke_list[0].schedule.children[0]
     monkeypatch.setattr(my_loop, "_upper_bound_name", value="invalid")
     with pytest.raises(GenerationError) as excinfo:
@@ -4592,9 +4606,9 @@ def test_intent_multi_kern():
     same fields are passed to different kernels with different intents '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.8_multikernel_invokes.f90"),
-                           api="dynamo0.3")
+                           api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         output = str(psy.gen)
         print(output)
@@ -4643,8 +4657,8 @@ def test_derived_type_arg():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "1.6.2_single_invoke_1_int_from_derived_type.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
         print(gen)
@@ -4689,8 +4703,8 @@ def test_multiple_derived_type_args():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "1.6.3_single_invoke_multiple_derived_types.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
         print(gen)
@@ -4734,8 +4748,8 @@ def test_single_stencil_extent():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -4781,8 +4795,8 @@ def test_single_stencil_xory1d():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -4836,8 +4850,8 @@ def test_single_stencil_literal():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -4887,8 +4901,8 @@ def test_stencil_region_unsupported():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.12_single_stencil_region.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         with pytest.raises(GenerationError) as excinfo:
             _ = str(psy.gen)
@@ -4902,8 +4916,8 @@ def test_single_stencil_xory1d_literal():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.5_single_stencil_xory1d_literal.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -4959,8 +4973,8 @@ def test_single_stencil_xory1d_literal_mixed():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.5.1_single_stencil_xory1d_literal.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5014,8 +5028,8 @@ def test_multiple_stencils():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.7_multiple_stencils.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5097,8 +5111,8 @@ def test_multiple_stencil_same_name():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5164,8 +5178,8 @@ def test_multi_stencil_same_name_direction():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5246,8 +5260,8 @@ def test_multi_kerns_stencils_diff_fields():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.20_multiple_kernels_stencils.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5316,8 +5330,8 @@ def test_extent_name_clash():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.13_single_stencil.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5395,8 +5409,8 @@ def test_two_stencils_same_field():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.14_two_stencils_same_field.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5461,8 +5475,8 @@ def test_stencils_same_field_literal_extent():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.15_stencils_same_field_literal_extent.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5522,8 +5536,8 @@ def test_stencils_same_field_literal_direct():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.16_stencils_same_field_literal_direction.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5594,8 +5608,8 @@ def test_stencil_extent_specified():
     # load an example with an argument that has stencil metadata
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # access the argument with stencil metadata
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule.children[3].children[0]
@@ -5617,8 +5631,8 @@ def test_haloexchange_unknown_halo_depth():
     # load an example with an argument that has stencil metadata
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # access the argument with stencil metadata
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule.children[3].children[0]
@@ -5634,8 +5648,8 @@ def test_haloexchange_correct_parent():
     been added to a schedule.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     for child in schedule.children:
         assert child.parent == schedule
@@ -5648,8 +5662,8 @@ def test_one_kern_multi_field_same_stencil():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.17_single_kernel_multi_field_same_stencil.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5714,8 +5728,8 @@ def test_single_kernel_any_space_stencil():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.18_anyspace_stencil_1.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5769,8 +5783,8 @@ def test_multi_kernel_any_space_stencil_1():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.19_anyspace_stencil_2.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5806,8 +5820,8 @@ def test_stencil_args_unique_1():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.21_stencil_names_clash.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5856,8 +5870,8 @@ def test_stencil_args_unique_2():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.22_stencil_names_indexed.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5923,8 +5937,8 @@ def test_stencil_args_unique_3():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.23_stencil_names_deref.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API, distributed_memory=dist_mem)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
         print(result)
@@ -5958,8 +5972,8 @@ def test_dynloop_load_unexpected_func_space():
     # first create a working instance of the DynLoop class
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # now get access to the DynLoop class, the associated kernel class
     # and the associated field.
     schedule = psy.invokes.invoke_list[0].schedule
@@ -5993,7 +6007,7 @@ def test_dynkernargs_unexpect_stencil_extent():
     # parse some valid code with a stencil
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     # find the parsed code's call class
     call = list(invoke_info.calls.values())[0].kcalls[0]
     # add an extent to the stencil metadata
@@ -6020,8 +6034,8 @@ def test_unsupported_halo_read_access():
     # create a valid loop with a stencil access
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     # get access to the DynLoop object
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
@@ -6045,8 +6059,8 @@ def test_dynglobalsum_unsupported_scalar():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.6.1_single_invoke_1_int_scalar.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -6065,8 +6079,8 @@ def test_dynglobalsum_nodm_error():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "1.9_single_invoke_2_real_scalars.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -6180,9 +6194,9 @@ def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
     the second field argument which is continuous '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.1_single_invoke_write_multi_fs.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
@@ -6201,7 +6215,7 @@ def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
         if utils.TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_fld_and_op_writers(tmpdir, f90, f90flags):
@@ -6212,9 +6226,9 @@ def test_itn_space_fld_and_op_writers(tmpdir, f90, f90flags):
     operator.) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.2_single_invoke_write_fld_op.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
@@ -6233,7 +6247,7 @@ def test_itn_space_fld_and_op_writers(tmpdir, f90, f90flags):
         if utils.TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_any_w3(tmpdir, f90, f90flags):
@@ -6241,9 +6255,9 @@ def test_itn_space_any_w3(tmpdir, f90, f90flags):
     a kernel writes to fields on any-space and W3 (discontinuous) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.3_single_invoke_write_anyspace_w3.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
@@ -6262,7 +6276,7 @@ def test_itn_space_any_w3(tmpdir, f90, f90flags):
         if utils.TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_any_w1():
@@ -6270,9 +6284,9 @@ def test_itn_space_any_w1():
     a kernel writes to fields on any-space and W1 (continuous) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1.5.4_single_invoke_write_anyspace_w1.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
@@ -6300,8 +6314,8 @@ def test_unexpected_type_error():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "1.0.1_single_named_invoke.f90"),
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=distmem).create(invoke_info)
         schedule = psy.invokes.invoke_list[0].schedule
         if distmem:
@@ -6329,8 +6343,8 @@ def test_argordering_exceptions():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "1.0.1_single_named_invoke.f90"),
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=distmem).create(invoke_info)
         schedule = psy.invokes.invoke_list[0].schedule
         if distmem:
@@ -6374,7 +6388,7 @@ def test_kernel_args_has_op():
     DynKernelArguments.has_operator() is not a valid operator '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     # find the parsed code's call class
     call = list(invoke_info.calls.values())[0].kcalls[0]
     from psyclone.dynamo0p3 import DynKernelArguments
@@ -6443,8 +6457,8 @@ def test_kerncallarglist_arglist_error():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "1.0.1_single_named_invoke.f90"),
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
+            api=TEST_API)
+        psy = PSyFactory(TEST_API,
                          distributed_memory=distmem).create(invoke_info)
         schedule = psy.invokes.invoke_list[0].schedule
         if distmem:
@@ -6491,9 +6505,9 @@ def test_multi_anyw2():
     fields. Particularly check that we only generate a single lookup.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.1_single_invoke_multi_anyw2.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
@@ -6559,9 +6573,9 @@ def test_anyw2_vectors():
     vectors'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.3_single_invoke_anyw2_vector.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
@@ -6575,9 +6589,9 @@ def test_anyw2_operators():
     with operators'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.4_single_invoke_anyw2_operator.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
@@ -6604,9 +6618,9 @@ def test_anyw2_stencils():
     with stencils'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "21.5_single_invoke_anyw2_stencil.f90"),
-        api="dynamo0.3")
+        api=TEST_API)
     for dist_mem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
@@ -6628,7 +6642,7 @@ def test_stub_generate_with_anyw2():
     have specific sizes associated with the particular function space'''
     result = generate(os.path.join(BASE_PATH,
                                    "testkern_multi_anyw2_basis_mod.f90"),
-                      api="dynamo0.3")
+                      api=TEST_API)
     print(result)
     expected_output = (
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_any_w2,"
@@ -6645,8 +6659,8 @@ def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
     stencil accesses '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w2v.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
     print(result)
     assert "halo_exchange" not in result
@@ -6654,67 +6668,104 @@ def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
-def test_halo_for_discontinuous(tmpdir, f90, f90flags):
-    ''' Test that we create halo exchange call when our loop iterates
-    over owned cells (e.g. it writes to a discontinuous field), we
-    read from a continuous field, there are no stencil accesses, but
-    we do not know anything about the previous writer. As the previous
-    writer may have been over dofs we could have dirty annexed dofs
-    so need to add a halo exchange. '''
+def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
+    '''This test checks the case when our loop iterates over owned cells
+    (e.g. it writes to a discontinuous field), we read from a
+    continuous field, there are no stencil accesses, but we do not
+    know anything about the previous writer.
+
+    As we don't know anything about the previous writer we have to
+    assume that it may have been over dofs. If so, we could have dirty
+    annexed dofs so need to add a halo exchange (for the three
+    continuous fields being read (f1, f2 and m1). This is the case
+    when _API_CONFIG.compute_annexed_dofs is False.
+
+    If we always iterate over annexed dofs by default, our annexed
+    dofs will always be clean. Therefore we do not need to add a halo
+    exchange. This is the case when
+    _API_CONFIG.compute_annexed_dofs is True.
+
+    '''
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
-    print(result)
-    assert "IF (f1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL f1_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f2_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    if annexed:
+        assert "halo_exchange" not in result
+    else:
+        assert "IF (f1_proxy%is_dirty(depth=1)) THEN" in result
+        assert "CALL f1_proxy%halo_exchange(depth=1)" in result
+        assert "IF (f2_proxy%is_dirty(depth=1)) THEN" in result
+        assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+        assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+        assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
-def test_halo_for_discontinuous_2(tmpdir, f90, f90flags):
-    ''' Test that we create halo exchange call when our loop iterates
-    over owned cells (e.g. it writes to a discontinuous field), we
-    read from a continuous field, there are no stencil accesses, and
-    the previous writer iterates over ndofs. We therefore have dirty
-    annexed dofs so need to add a halo exchange. '''
+def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
+    '''This test checks the case when our loop iterates over owned cells
+    (e.g. it writes to a discontinuous field), we read from a
+    continuous field, there are no stencil accesses, and the previous
+    writer iterates over ndofs or nannexed.
+
+    When the previous writer iterates over ndofs we have dirty annexed
+    dofs so need to add a halo exchange. This is the case when
+    _API_CONFIG.compute_annexed_dofs is False.
+
+    When the previous writer iterates over nannexed we have clean
+    annexed dofs so do not need to add a halo exchange. This is the
+    case when _API_CONFIG.compute_annexed_dofs is True
+
+    '''
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.7_halo_annexed.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     result = str(psy.gen)
-    print(result)
-    assert "IF (f1_proxy%is_dirty(depth=1)) THEN" not in result
-    assert "CALL f1_proxy%halo_exchange(depth=1)" in result
-    assert "IF (f2_proxy%is_dirty(depth=1)) THEN" not in result
-    assert "CALL f2_proxy%halo_exchange(depth=1)" in result
-    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
-    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    if annexed:
+        assert "halo_exchange" not in result
+    else:
+        assert "IF (f1_proxy%is_dirty(depth=1)) THEN" not in result
+        assert "CALL f1_proxy%halo_exchange(depth=1)" in result
+        assert "IF (f2_proxy%is_dirty(depth=1)) THEN" not in result
+        assert "CALL f2_proxy%halo_exchange(depth=1)" in result
+        assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+        assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
-def test_arg_discontinous():
-    ''' Test that the discontinuous method in the dynamo argument
-    class returns the correct values '''
+def test_arg_discontinuous(monkeypatch, annexed):
+    '''Test that the discontinuous method in the dynamo argument class
+    returns the correct values. Check that the code is generated
+    correctly when annexed dofs are and are not computed by default as
+    the number of halo exchanges produced is different in the two
+    cases.
+
+    '''
 
     # 1 discontinuous field returns true
     # Check w3, wtheta and w2v in turn
-    idchld_list = [3, 0, 0]
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    if annexed:
+        # no halo exchanges produced for the w3 example
+        idchld_list = [0, 0, 0]
+    else:
+        # 3 halo exchanges produced for the w3 example
+        idchld_list = [3, 0, 0]
     idarg_list = [4, 0, 0]
     fs_dict = dict(zip(DISCONTINUOUS_FUNCTION_SPACES,
                        zip(idchld_list, idarg_list)))
@@ -6723,8 +6774,8 @@ def test_arg_discontinous():
         idchld = fs_dict[fspace][0]
         idarg = fs_dict[fspace][1]
         _, info = parse(os.path.join(BASE_PATH, filename),
-                        api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3").create(info)
+                        api=TEST_API)
+        psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
         schedule = psy.invokes.invoke_list[0].schedule
         kernel = schedule.children[idchld].children[0]
         field = kernel.arguments.args[idarg]
@@ -6734,8 +6785,8 @@ def test_arg_discontinous():
     # 2 any_space field returns false
     _, info = parse(os.path.join(BASE_PATH,
                                  "11_any_space.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule.children[5].children[0]
     field = kernel.arguments.args[0]
@@ -6745,8 +6796,8 @@ def test_arg_discontinous():
     # 3 continuous field returns false
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     kernel = schedule.children[3].children[0]
     field = kernel.arguments.args[1]
@@ -6765,8 +6816,8 @@ def test_halo_stencil_redundant_computation():
 
     _, info = parse(os.path.join(BASE_PATH,
                                  "19.1_single_stencil.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     stencil_halo_exchange = schedule.children[0]
     assert stencil_halo_exchange._compute_stencil_type() == "region"
@@ -6780,8 +6831,8 @@ def test_halo_same_stencils_no_red_comp():
     case both are cross'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.8_halo_same_stencils.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     stencil_halo_exchange = schedule.children[1]
     assert stencil_halo_exchange._compute_stencil_type() == "cross"
@@ -6796,8 +6847,8 @@ def test_halo_different_stencils_no_red_comp():
     cross!'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.9_halo_different_stencils.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     stencil_halo_exchange = schedule.children[1]
     assert stencil_halo_exchange._compute_stencil_type() == "region"
@@ -6809,8 +6860,8 @@ def test_comp_halo_intern_err(monkeypatch):
     never be the case. We use monkeypatch to force the exception to be
     raised'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
@@ -6825,8 +6876,8 @@ def test_halo_exch_1_back_dep(monkeypatch):
     '''Check that an internal error is raised if a halo exchange returns
     with more than one write dependency. It should only ever be 0 or 1.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
@@ -6849,8 +6900,8 @@ def test_halo_ex_back_dep_no_call(monkeypatch):
     write dependency is not a call.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.9_halo_different_stencils.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[1]
     field = halo_exchange.field
@@ -6867,7 +6918,8 @@ def test_halo_ex_back_dep_no_call(monkeypatch):
     # not matter in practice as we are just trying to get PSyclone to
     # raise the appropriate exception.
     assert ("Generation Error: In HaloInfo class, field 'f2' should be from a "
-            "call but found %s"%type(lambda: halo_exchange)) in str(excinfo.value)
+            "call but found %s" % type(lambda: halo_exchange)
+            in str(excinfo.value))
 
 
 def test_HaloReadAccess_input_field():
@@ -6879,7 +6931,7 @@ def test_HaloReadAccess_input_field():
     assert (
         "Generation Error: HaloInfo class expects an argument of type "
         "DynArgument, or equivalent, on initialisation, but found, "
-        "'%s'"%type(None) in str(excinfo.value))
+        "'%s'" % type(None) in str(excinfo.value))
 
 
 def test_HaloReadAccess_field_in_call():
@@ -6887,8 +6939,8 @@ def test_HaloReadAccess_field_in_call():
     builtin. If it is not then an exception is raised. This test
     checks that this exception is raised correctly'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
@@ -6907,8 +6959,8 @@ def test_HaloReadAccess_field_not_reader():
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1_single_invoke_wtheta.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     kernel = loop.children[0]
@@ -6928,8 +6980,8 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
     raised correctly
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
@@ -6949,8 +7001,8 @@ def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
     checks that HaloReadAccess works correctly in this situation '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_wtheta.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     kernel = loop.children[0]
@@ -6964,19 +7016,29 @@ def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
-def test_loop_cont_read_inv_bound(monkeypatch):
-    ''' When a continuous argument is read it may access the halo. The
+def test_loop_cont_read_inv_bound(monkeypatch, annexed):
+    '''When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
-    that this exception is raised correctly '''
+    that this exception is raised correctly. We test separately for
+    annexed dofs being computed or not as this affects the number of
+    halo exchanges produced.
+
+    '''
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.children[3]
+    if annexed:
+        # no halo exchanges generated
+        loop = schedule.children[0]
+    else:
+        # 3 halo exchanges generated
+        loop = schedule.children[3]
     kernel = loop.children[0]
     f1_arg = kernel.arguments.args[1]
     #
@@ -6997,8 +7059,8 @@ def test_new_halo_exch_vect_field(monkeypatch):
     case. This test checks that the exception is raised correctly.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[7]
@@ -7027,8 +7089,8 @@ def test_new_halo_exch_vect_deps(monkeypatch):
     case. This test checks that the exception is raised correctly.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[7]
@@ -7058,8 +7120,8 @@ def test_new_halo_exch_vect_deps2(monkeypatch):
     exception is raised correctly.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     loop = schedule.children[7]
@@ -7086,8 +7148,8 @@ def test_halo_req_no_read_deps(monkeypatch):
     raised correctly.'''
 
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     halo_exchange = schedule.children[0]
     field = halo_exchange.field
@@ -7100,9 +7162,10 @@ def test_halo_req_no_read_deps(monkeypatch):
             "dependence for a halo exchange" in str(excinfo.value))
 
 
-def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags):
-    ''' If a kernel writes to a discontinuous field and also reads from
-    a continuous field then that fields annexed dofs are read (but not
+def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
+                                     annexed):
+    '''If a kernel writes to a discontinuous field and also reads from a
+    continuous field then that fields annexed dofs are read (but not
     the rest of its level1 halo). If the previous modification of this
     continuous field makes the annexed dofs valid then no halo
     exchange is required. This is the case when the previous loop
@@ -7111,14 +7174,62 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags):
     subsequent reading (whilst the rest of the l1 halo ends up being
     dirty).
 
+    We test that this is True both when annexed dofs are computed by
+    default and when they are not. In the former case we also get one
+    fewer halo exchange call generated.
+
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "14.7.1_halo_annexed.f90"),
-                           api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "14.7.1_halo_annexed.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
     if utils.TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
-    assert "CALL f1_proxy%halo_exchange" in result
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert utils.code_compiles(TEST_API, psy, tmpdir,
+                                   f90, f90flags)
+    if annexed:
+        assert "CALL f1_proxy%halo_exchange" not in result
+    else:
+        assert "CALL f1_proxy%halo_exchange" in result
     assert "CALL f2_proxy%halo_exchange" not in result
+
+
+def test_annexed_default():
+    ''' Test that we do not compute annexed dofs by default (i.e. when
+    using the default configuration file). '''
+    from psyclone import configuration
+    _config = configuration.Config(config_file=DEFAULT_CFG_FILE)
+    assert not _config.api(TEST_API).compute_annexed_dofs
+
+
+def test_haloex_not_required(monkeypatch):
+    '''The dynamic halo exchange required() logic should always return
+    False if read dependencies are to annexed dofs and
+    Config.compute_annexed_dofs is True, as they are computed by
+    default when iterating over dofs and kept up-to-date by redundant
+    computation when iterating over cells. However, it should return
+    True if there are no previous write dependencies and
+    Config.compute_annexed_dofs is False, as a previous writer may
+    have iterated over dofs and only written to its own dofs, leaving
+    the annexed dofs dirty. This test checks these two cases. Note the
+    former case should currently never happen in real code as a halo
+    exchange would not be added in the first place.
+    '''
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", False)
+    _, info = parse(os.path.join(
+        BASE_PATH, "1_single_invoke_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    for index in range(3):
+        haloex = schedule.children[index]
+        assert haloex.required() == (True, False)
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", True)
+    for index in range(3):
+        haloex = schedule.children[index]
+        assert haloex.required() == (False, True)

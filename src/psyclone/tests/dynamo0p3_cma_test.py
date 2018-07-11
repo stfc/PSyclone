@@ -908,7 +908,8 @@ def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
         assert "ncell_2d = cma_op2_proxy%ncell_2d" in code
         assert ("INTEGER, pointer :: "
                 "cma_indirection_map_w2v(:) => null(), "
-                "cma_indirection_map_any_space_2_field_d(:) => null()\n") in code
+                "cma_indirection_map_any_space_2_field_d(:) => "
+                "null()\n") in code
         assert ("ndf_w2v = field_c_proxy%vspace%get_ndf()\n"
                 "      undf_w2v = field_c_proxy%vspace%"
                 "get_undf()") in code

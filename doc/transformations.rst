@@ -49,6 +49,10 @@ API-specific sections).
     :members:
     :noindex:
 
+.. autoclass:: psyclone.transformations.ProfileRegionTrans
+    :members:
+    :noindex:
+
 .. autoclass:: psyclone.transformations.ColourTrans
     :members:
     :noindex:
@@ -234,6 +238,8 @@ theoretically work for all API's) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
 this document.
+
+.. _openmp-reductions:
 
 Reductions
 ++++++++++

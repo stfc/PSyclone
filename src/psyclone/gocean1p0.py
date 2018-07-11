@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
     the required base classes for both code generation (PSy, Invokes,
@@ -177,7 +179,15 @@ class GOInvoke(Invoke):
         method so that we generate GOcean specific invocation code and
         provides three methods which separate arguments that are arrays from
         arguments that are {integer, real} scalars. '''
+
     def __init__(self, alg_invocation, idx):
+        '''Constructor for the GOcean-specific invoke class.
+        :param alg_invocation: Node in the AST describing the invoke call.
+        :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
+        :param int idx: The position of the invoke in the list of invokes
+                        contained in the Algorithm.
+        '''
+
         if False:  # pylint: disable=using-constant-test
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule)

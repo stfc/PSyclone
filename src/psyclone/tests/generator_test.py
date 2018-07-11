@@ -16,6 +16,7 @@ functions.
 
 from __future__ import absolute_import
 import os
+import re
 import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
@@ -276,6 +277,7 @@ def test_script_trans():
         transformation is provided as a script, i.e. it applies the
         transformations correctly. We use loop fusion as an
         example.'''
+    # pylint: disable=too-many-locals
     from psyclone.parse import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans
@@ -284,7 +286,7 @@ def test_script_trans():
     # first loop fuse explicitly (without using generator.py)
     parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
     _, invoke_info = parse(parse_file, api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     loop1 = schedule.children[3]
@@ -380,6 +382,128 @@ def test_main_version(capsys):
     assert "PSyclone version: {0}".format(__VERSION__) in output
 
 
+def test_main_profile(capsys):
+    '''Tests that the profiling command line flags are working as expected.
+    '''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test27_loop_swap.f90")
+
+    from psyclone.profiler import Profiler
+    options = ["-api", "gocean1.0"]
+
+    # Check for invokes only parameter:
+    main(options+["--profile", "invokes", filename])
+    assert not Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for kernels only parameter:
+    main(options+["--profile", "kernels", filename])
+    assert Profiler.profile_kernels()
+    assert not Profiler.profile_invokes()
+
+    # Check for invokes + kernels
+    main(options+["--profile", "kernels",
+                  '--profile', 'invokes', filename])
+    assert Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for missing parameter (argparse then
+    # takes the filename as parameter for profiler):
+    with pytest.raises(SystemExit):
+        main(options+["--profile", filename])
+    _, outerr = capsys.readouterr()
+
+    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for invalid parameter
+    with pytest.raises(SystemExit):
+        main(options+["--profile", "invalid", filename])
+    _, outerr = capsys.readouterr()
+
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for warning in case of script with profiling"
+    with pytest.raises(SystemExit):
+        main(options+["--profile", "kernels", "-s", "somescript", filename])
+    out, _ = capsys.readouterr()
+    out = out.replace("\n", " ")
+
+    warning = ("Error: use of automatic profiling in combination with an "
+               "optimisation script is not recommened since it may not work "
+               "as expected.")
+
+    assert warning in out
+
+    # Reset profile flags to avoid further failures in other tests
+    Profiler.set_options(None)
+
+
+def test_main_force_profile(capsys):
+    '''Tests that the profiling command line flags are working as expected.
+    '''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test27_loop_swap.f90")
+
+    from psyclone.profiler import Profiler
+    options = ["-api", "gocean1.0"]
+
+    # Check for invokes only parameter:
+    main(options+["--force-profile", "invokes", filename])
+    assert not Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for kernels only parameter:
+    main(options+["--force-profile", "kernels", filename])
+    assert Profiler.profile_kernels()
+    assert not Profiler.profile_invokes()
+
+    # Check for invokes + kernels
+    main(options+["--force-profile", "kernels",
+                  '--force-profile', 'invokes', filename])
+    assert Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for missing parameter (argparse then
+    # takes the filename as parameter for profiler):
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", filename])
+    _, outerr = capsys.readouterr()
+
+    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for invalid parameter
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "invalid", filename])
+    _, outerr = capsys.readouterr()
+
+    assert re.search(correct_re, outerr) is not None
+
+    # Check that there is indeed no warning when using --force-profile
+    # with a script. Note that this will raise an error because the
+    # script does not exist, but the point of this test is to make sure
+    # the error about mixing --profile and -s does not happen
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "kernels", "-s", "invalid", filename])
+    out, outerr = capsys.readouterr()
+    error = "expected the script file 'invalid' to have the '.py' extension"
+    assert error in out
+
+    # Test that --profile and --force-profile can not be used together
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "kernels", "--profile", "invokes",
+                      filename])
+    out, outerr = capsys.readouterr()
+    error = "Specify only one of --profile and --force-profile."
+    assert error in out
+
+    # Reset profile flags to avoid further failures in other tests
+    Profiler.set_options(None)
+
+
 def test_main_invalid_api(capsys):
     '''Tests that we get the expected output and the code exits
     with an error if the supplied API is not known'''
@@ -439,7 +563,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
         "argument of type 'int' is not iterable\n"
         "Type ...\n"
         "%s\n"
-        "Stacktrace ...\n"%type(TypeError()))
+        "Stacktrace ...\n" % type(TypeError()))
     assert expected_output in output
 
 

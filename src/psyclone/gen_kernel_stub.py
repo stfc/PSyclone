@@ -48,8 +48,11 @@ import fparser
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 from psyclone.psyGen import GenerationError
 from psyclone.parse import ParseError
-from psyclone.config import SUPPORTEDSTUBAPIS, DEFAULTSTUBAPI
+from psyclone.configuration import ConfigFactory
 from psyclone.line_length import FortLineLength
+
+# Get our one and only Configuration object
+_CONFIG = ConfigFactory().create()
 
 
 def generate(filename, api=""):
@@ -62,13 +65,13 @@ def generate(filename, api=""):
        format.
     '''
     if api == "":
-        api = DEFAULTSTUBAPI
-    if api not in SUPPORTEDSTUBAPIS:
-        print("Unsupported API '{0}' specified. Supported API's are {1}.".\
-              format(api, SUPPORTEDSTUBAPIS))
+        api = _CONFIG.default_stub_api
+    if api not in _CONFIG.supported_stub_apis:
+        print("Unsupported API '{0}' specified. Supported API's are {1}.".
+              format(api, _CONFIG.supported_stub_apis))
         raise GenerationError(
             "generate: Unsupported API '{0}' specified. Supported types are "
-            "{1}.".format(api, SUPPORTEDSTUBAPIS))
+            "{1}.".format(api, _CONFIG.supported_stub_apis))
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
@@ -97,9 +100,10 @@ def run():
     parser = argparse.ArgumentParser(description="Create Kernel stub code from"
                                                  " Kernel metadata")
     parser.add_argument("-o", "--outfile", help="filename of output")
-    parser.add_argument("-api", default=DEFAULTSTUBAPI,
+    parser.add_argument("-api", default=_CONFIG.default_stub_api,
                         help="choose a particular api from {0}, default {1}".
-                        format(str(SUPPORTEDSTUBAPIS), DEFAULTSTUBAPI))
+                        format(str(_CONFIG.supported_stub_apis),
+                               _CONFIG.default_stub_api))
     parser.add_argument('filename', help='Kernel metadata')
     parser.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
