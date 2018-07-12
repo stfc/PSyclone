@@ -47,7 +47,7 @@
 
 from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
+from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, args_filter, \
     Loop, Kern, Arguments, Argument, KernelArgument, GenerationError
 import psyclone.expression as expr
 
@@ -209,10 +209,9 @@ class GOInvoke(Invoke):
             as those that are r_scalar 'space'. '''
         result = []
         for call in self._schedule.calls():
-            for arg in call.arguments.args:
-                if arg.type == 'scalar' and \
-                   arg.space.lower() == "r_scalar" and \
-                   not arg.is_literal and arg.name not in result:
+            for arg in args_filter(call.arguments.args, arg_types=["scalar"],
+                                   is_literal=False):
+                if arg.space.lower() == "r_scalar" and arg.name not in result:
                     result.append(arg.name)
         return result
 
@@ -222,10 +221,9 @@ class GOInvoke(Invoke):
             as those that are i_scalar 'space'). '''
         result = []
         for call in self._schedule.calls():
-            for arg in call.arguments.args:
-                if arg.type == 'scalar' and \
-                   arg.space.lower() == "i_scalar" and \
-                   not arg.is_literal and arg.name not in result:
+            for arg in args_filter(call.arguments.args, arg_types=["scalar"],
+                                   is_literal=False):
+                if arg.space.lower() == "i_scalar" and arg.name not in result:
                     result.append(arg.name)
         return result
 
@@ -784,7 +782,7 @@ class GOKern(Kern):
             IfThenGen
 
         garg = self._find_grid_access()
-        parent.add(DeclGen(parent, datatype="integer",
+        parent.add(DeclGen(parent, datatype="integer", target=True,
                            entity_decls=["globalsize(2)"]))
         parent.add(AssignGen(
             parent, lhs="globalsize",
@@ -805,9 +803,10 @@ class GOKern(Kern):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind="c_intptr_t", target=True,
                                    entity_decls=["write_event"]))
-                ifthen.add(AssignGen(
-                    ifthen, lhs="size_in_bytes",
-                    rhs="int({0}%grid%nx*{0}%grid%ny, 8)*8_8".format(garg.name)))
+                size_expr = "int({0}%grid%nx*{0}%grid%ny, 8)*8_8".\
+                            format(garg.name)
+                ifthen.add(AssignGen(ifthen, lhs="size_in_bytes",
+                                     rhs=size_expr))
                 ifthen.add(AssignGen(
                     ifthen, lhs="ierr",
                     rhs="clEnqueueWriteBuffer(cmd_queues(1), {0}%device_ptr, "
@@ -839,19 +838,79 @@ class GOKern(Kern):
             parent, "{0}_set_args".format(self.name), arguments))
 
         # Then we call clEnqueueNDRangeKernel
+        parent.add(CommentGen(parent, " Launch the kernel"))
         cnull = "C_NULL_PTR"
         cmd_queue = "cmd_queues(1)"  # TODO use namespace manager
 
         gsize = "globalsize" # TODO use namespace manager
-        args = [cmd_queue, kernel, "2", cnull, "C_LOC({0})".format(gsize),
-                cnull, "0", cnull, cnull]
-        parent.add(CallGen(parent, "clEnqueueNDRangeKernel", args))
+        args = ", ".join([cmd_queue, kernel, "2", cnull,
+                          "C_LOC({0})".format(gsize),
+                          cnull, "0", cnull, cnull])
+        parent.add(
+            AssignGen(parent, lhs="ierr",
+                      rhs="clEnqueueNDRangeKernel({0})".format(args)))
         parent.add(CommentGen(parent, ""))
 
     @property
     def index_offset(self):
         ''' The grid index-offset convention that this kernel expects '''
         return self._index_offset
+
+    def gen_arg_setter_code(self, parent):
+        '''
+        Creates a Fortran routine to set the arguments of the OpenCL
+        version of this kernel.
+
+        :param parent: Parent node of the set-kernel-arguments routine
+        :type parent: :py:class:`psyclone.f2pygen.moduleGen`
+        '''
+        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
+            AssignGen, CommentGen
+        # TODO take care with literal arguments
+        # TODO use name-space manager for name of kernel-object arg
+        arguments = ["kernel_obj"] + [arg.name for arg in self._arguments.args]
+        sub = SubroutineGen(parent, name=self.name+"_set_args",
+                            args=arguments)
+        parent.add(sub)
+        sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
+                          funcnames=["check_status"]))
+        sub.add(UseGen(sub, name="iso_c_binding", only=True,
+                       funcnames=["c_sizeof", "c_loc", "c_intptr_t"]))
+        sub.add(UseGen(sub, name="clfortran", only=True,
+                       funcnames=["clSetKernelArg"]))
+        # Declare arguments
+        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                        target=True, entity_decls=["kernel_obj"]))
+
+        # Arrays (grid properties and fields)
+        args = args_filter(self._arguments.args,
+                           arg_types=["field", "grid_property"])
+        if args:
+            sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
+                            target=True,
+                            entity_decls=[arg.name for arg in args]))
+        # Scalars
+        args = args_filter(self._arguments.args,
+                           arg_types=["scalar"],
+                           is_literal=False)
+        for arg in args:
+            if arg.space.lower() == "r_scalar":
+                sub.add(DeclGen(
+                    sub, datatype="REAL", intent="in", kind="wp",
+                    target=True, entity_decls=[arg.name]))
+            else:
+                sub.add(DeclGen(sub, datatype="INTEGER", intent="in",
+                                target=True, entity_decls=[arg.name]))
+
+        # Declare local variables
+        sub.add(DeclGen(sub, datatype="integer", entity_decls=["ierr",
+                                                               "arg_idx"]))
+        sub.add(CommentGen(
+            sub,
+            " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
+        sub.add(AssignGen(sub, lhs="arg_idx", rhs="0"))
+        for arg in self.arguments.args:
+            arg.set_kernel_arg(sub)
 
 
 class GOKernelArguments(Arguments):

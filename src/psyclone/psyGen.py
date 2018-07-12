@@ -146,7 +146,8 @@ def zero_reduction_variables(red_call_list, parent):
         parent.add(CommentGen(parent, ""))
 
 
-def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
+def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
+                is_literal=True):
     '''
     Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
@@ -160,7 +161,8 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
     :type arg_accesses: list of str
     :param arg_meshes: List of meshes that arguments must be on
     :type arg_meshes: list of str
-
+    :param bool is_literal: Whether or not to include literal arguments in \
+                            the returned list.
     :returns: list of kernel arguments matching the requirements
     :rtype: list of :py:class:`psyclone.parse.Descriptor`
     '''
@@ -174,6 +176,11 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
                 continue
         if arg_meshes:
             if argument.mesh not in arg_meshes:
+                continue
+        if not is_literal:
+            # We're not including literal arguments so skip this argument
+            # if it is literal.
+            if argument.is_literal:
                 continue
         arguments.append(argument)
     return arguments
@@ -2654,42 +2661,8 @@ class Kern(Call):
         :param parent: Parent node of the set-kernel-arguments routine
         :type parent: :py:class:`psyclone.f2pygen.moduleGen`
         '''
-        from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
-            AssignGen, CommentGen
-        # TODO take care with literal arguments
-        # TODO use name-space manager for name of kernel-object arg
-        arguments = ["kernel_obj"] + [arg.name for arg in self._arguments.args if arg.type != "scalar"]
-        sub = SubroutineGen(parent, name=self.name+"_set_args",
-                            args=arguments)
-        parent.add(sub)
-        # TODO add a use for check_status() routine
-        sub.add(UseGen(sub, name="iso_c_binding", only=True,
-                       funcnames=["c_sizeof", "c_loc", "c_intptr_t"]))
-        sub.add(UseGen(sub, name="clfortran", only=True,
-                       funcnames=["clSetKernelArg"]))
-        # Declare arguments
-        sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                        target=True, entity_decls=["kernel_obj"]))
-        args = []
-        for arg in self._arguments.args:
-            if arg.type == "field":
-                args.append(arg.name)
-            elif arg.type == "grid_property":
-                args.append(arg.name)
-        if args:
-            sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                            target=True, entity_decls=args))
-
-        # Declare local variables
-        sub.add(DeclGen(sub, datatype="integer", entity_decls=["ierr",
-                                                               "arg_idx"]))
-        sub.add(CommentGen(
-            sub,
-            " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
-        sub.add(AssignGen(sub, lhs="arg_idx", rhs="0"))
-        for arg in self.arguments.args:
-            if arg.type != "scalar":
-                arg.set_kernel_arg(sub)
+        raise NotImplementedError("gen_arg_setter_code must be implemented "
+                                  "by sub-class.")
 
     def incremented_arg(self, mapping={}):
         ''' Returns the argument that has INC access. Raises a
@@ -2925,7 +2898,8 @@ class Argument(object):
             parent, lhs="ierr",
             rhs="clSetKernelArg({0}, arg_idx, C_SIZEOF({1}), C_LOC({2}))".
             format("kernel_obj", self.name, self.name)))
-        parent.add(CallGen(parent, "check_status", ["clSetKernelArg", "ierr"]))
+        parent.add(CallGen(parent, "check_status",
+                           ["'clSetKernelArg'", "ierr"]))
         parent.add(AssignGen(parent, lhs="arg_idx", rhs="arg_idx + 1"))
 
     def backward_dependence(self):
