@@ -37,12 +37,13 @@
 API-agnostic tests for various transformation classes.
 '''
 
+from __future__ import absolute_import, print_function
 import pytest
 
 
 def test_accloop():
     ''' Generic tests for the ACCLoopTrans transformation class '''
-    from psyclone.transformations import ACCLoopTrans, TransformationError
+    from psyclone.transformations import ACCLoopTrans
     from psyclone.psyGen import Node, ACCLoopDirective
     trans = ACCLoopTrans()
     assert trans.name == "ACCLoopTrans"
@@ -50,8 +51,8 @@ def test_accloop():
 
     pnode = Node()
     cnode = Node()
-    dir = trans._directive(pnode, [cnode])
-    assert isinstance(dir, ACCLoopDirective)
+    tdir = trans._directive(pnode, [cnode])
+    assert isinstance(tdir, ACCLoopDirective)
 
 
 def test_accparallel():

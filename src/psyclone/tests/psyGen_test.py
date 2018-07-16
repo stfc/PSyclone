@@ -691,9 +691,8 @@ def test_ompdo_constructor():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    otrans = OMPParallelLoopTrans()
     ompdo = OMPDoDirective(parent=schedule)
-    assert len(ompdo.children) == 0
+    assert not ompdo.children
     ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
     assert len(ompdo.children) == 1
 
@@ -752,16 +751,14 @@ def test_acc_dir_view(capsys):
     ''' Test the view() method of OpenACC directives '''
     from psyclone.transformations import ACCDataTrans, ACCLoopTrans, \
         ACCParallelTrans
-    from psyclone.psyGen import ACCDataDirective, ACCLoopDirective, \
-        ACCParallelDirective
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
     acclt = ACCLoopTrans()
     accdt = ACCDataTrans()
     accpt = ACCParallelTrans()
 
-    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
-                             "gocean1.0", idx=0)
+    _, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
+                           "gocean1.0", idx=0)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
     # Enter-data
@@ -1773,8 +1770,8 @@ def test_node_is_valid_location():
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
     from psyclone.psyGen import Node, Loop
-    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
-                             "gocean1.0", idx=0)
+    _, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
+                           "gocean1.0", idx=0)
     sched = invoke.schedule
     sched.view()
     kern = sched.children[0].children[0].children[0]
@@ -1867,8 +1864,8 @@ def test_acc_dag_names():
     from psyclone.psyGen import ACCDataDirective
     from psyclone.transformations import ACCDataTrans, ACCParallelTrans, \
         ACCLoopTrans
-    psy, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
-                             "gocean1.0", idx=0)
+    _, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
+                           "gocean1.0", idx=0)
     schedule = invoke.schedule
 
     acclt = ACCLoopTrans()
@@ -1884,14 +1881,17 @@ def test_acc_dag_names():
     new_sched, _ = acclt.apply(new_sched.children[1].children[0])
     assert schedule.children[1].children[0].dag_name == "ACC_loop_3"
     # Base class
-    super(ACCDataDirective, schedule.children[0]).dag_name == "ACC_directive_1"
+    name = super(ACCDataDirective, schedule.children[0]).dag_name
+    assert name == "ACC_directive_1"
 
 
 def test_acc_datadevice_virtual():
     ''' Check that we can't instantiate an instance of ACCDataDirective. '''
     from psyclone.psyGen import ACCDataDirective
+    # pylint:disable=abstract-class-instantiated
     with pytest.raises(TypeError) as err:
         ACCDataDirective()
+    # pylint:enable=abstract-class-instantiated
     assert ("instantiate abstract class ACCDataDirective with abstract "
             "methods data_on_device" in str(err))
 
@@ -1916,10 +1916,6 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
 
 # Use a regex to allow for whitespace differences between graphviz
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
-# pylint fails to spot the 'r' at the beginning of the string (presumably
-# because it is split over several lines) so disable the (many)
-# warnings about anomalous backslashes.
-# pylint: disable=anomalous-backslash-in-string
 EXPECTED2 = re.compile(
     r"digraph {\n"
     r"\s*schedule_start\n"
