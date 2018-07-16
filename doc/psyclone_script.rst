@@ -9,8 +9,7 @@ on your PATH (see :ref:`getting_going_env` for more
 details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
 directory. The script takes an algorithm file as input and outputs
 modified algorithm code and generated PSy code. This section walks
-through its functionality. The :ref:`api-label` section gives a more
-concise overview.
+through its functionality.
 
 Running
 -------
@@ -54,11 +53,11 @@ by the script:
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
     --profile {invokes,kernels}, -p {invokes,kernels}
-                        Add profiling hooks for either 'kernels' or 'invokes'
+                          Add profiling hooks for either 'kernels' or 'invokes'
     --force-profile {invokes,kernels}
-                        Add profiling hooks for either 'kernels' or 'invokes'
-                        even if a transformation script is used. Use at your
-                        own risk.
+                          Add profiling hooks for either 'kernels' or 'invokes'
+                          even if a transformation script is used. Use at your
+                          own risk.
     -v, --version         Display version information (1.6.0)
 
 Basic Use
@@ -73,9 +72,9 @@ If the algorithm file is invalid for some reason, the script should
 return with an appropriate error. For example, if we use the Python
 ``genkernelstub`` script as an algorithm file we get the following::
 
-    > cd <PSYCLONEHOME>/bin
-    > psyclone genkernelstub
+    > psyclone <PSYCLONEHOME>/bin/genkernelstub
     ...
+        1:#!/usr/bin/env python <== no parse pattern found for "#" in 'BeginSource' block.
     'Parse Error: Fatal error in external fparser tool'
 
 If the algorithm file is valid then the modified algorithm code and
@@ -132,22 +131,25 @@ Kernel directory
 ----------------
 
 When an algorithm file is parsed, the parser looks for the associated
-kernel files. The way in which this is done requires that any kernel routine
-called within an invoke must have an explicit use statement. For
-example, the following code gives an error:
+kernel files. The way in which this is done requires that any
+user-defined kernel routine (as opposed to :ref:`built-ins`) called
+within an invoke must have an explicit use statement. For example, the
+following code gives an error:
 
 .. code-block:: bash
 
     > cat no_use.f90
     program no_use
-      call invoke(testkern_type(a,b,c,d))
+      call invoke(testkern_type(a,b,c,d,e))
     end program no_use
-    > psyclone no_use.f90
-    "Parse Error: kernel call 'testkern_type' must be named in a use statement"
+    > psyclone -api gocean1.0 no_use.f90
+    "Parse Error: kernel call 'testkern_type' must either be named in a use statement or be a recognised built-in (one of '[]' for this API)"
 
-If the name of the kernel is provided in a use statement then the
-parser will look for a file with the same name as the module in the
-use statement. In the example below, the parser will look for a file
+(If the chosen API has any :ref:`built-ins` defined then
+these will be listed within the ``[]`` in the above error message.)  If the
+name of the kernel is provided in a use statement then the parser will
+look for a file with the same name as the module in the use
+statement. In the example below, the parser will look for a file
 called "testkern.f90" or "testkern.F90":
 
 .. code-block:: bash
@@ -155,7 +157,7 @@ called "testkern.f90" or "testkern.F90":
     > cat use.f90
     program use
       use testkern, only : testkern_type
-      call invoke(testkern_type(a,b,c,d))
+      call invoke(testkern_type(a,b,c,d,e))
     end program use
 
 Therefore, for PSyclone to find Kernel files, the module name of a
@@ -176,7 +178,7 @@ specified directory:
 
 .. code-block:: bash
 		  
-    > cd <PSYCLONEHOME>/psyclone/src
+    > cd <PSYCLONEHOME>/src/psyclone
     > psyclone -d . use.f90 
     More than one match for kernel file 'testkern.[fF]90' found!
     > psyclone -d tests/test_files/dynamo0p3 -api dynamo0.3 use.f90 

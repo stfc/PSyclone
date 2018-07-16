@@ -362,6 +362,8 @@ on your PATH:
    > psyclone
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
                    [-d DIRECTORY] [-l] [-dm] [-nodm]
+		   [--profile {invokes,kernels}]
+                   [--force-profile {invokes,kernels}] [-v]
                    filename
    psyclone: error: too few arguments
 
