@@ -680,8 +680,9 @@ class ACCLoopTrans(ParallelLoopTrans):
 
     '''
     def __init__(self):
-        self._independent = True  # Whether to add the "independent" clause
-                                  # to the loop directive.
+        # Whether to add the "independent" clause
+        # to the loop directive.
+        self._independent = True
         super(ACCLoopTrans, self).__init__()
 
     def __str__(self):
@@ -1279,14 +1280,14 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
 @six.add_metaclass(abc.ABCMeta)
 class ParallelRegionTrans(Transformation):
-
     '''
     Base class for transformations that create a parallel region.
 
     '''
     def __init__(self):
-        self._pdirective = None  # Holds the class instance for the
-                                 # type of parallel region to generate
+        # Holds the class instance for the type of parallel region
+        # to generate
+        self._pdirective = None
         Transformation.__init__(self)
 
     @abc.abstractmethod
@@ -1331,7 +1332,6 @@ class ParallelRegionTrans(Transformation):
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes are not "
                     "children of the same Schedule/parent.".format(self.name))
-
 
     def apply(self, nodes):
         '''
@@ -2235,7 +2235,7 @@ class ACCDataTrans(Transformation):
         # Check that the supplied node is a Schedule
         from psyclone.psyGen import Schedule
         from psyclone.gocean1p0 import GOSchedule
-        
+
         if isinstance(sched, GOSchedule):
             from psyclone.gocean1p0 import GOACCDataDirective as AccDataDir
         elif isinstance(sched, Schedule):
