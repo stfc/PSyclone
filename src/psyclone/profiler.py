@@ -208,7 +208,7 @@ class ProfileNode(Node):
         profile_name = NameSpaceFactory().create().create_name("profile")
         prof_var_decl = TypeDeclGen(parent, datatype="ProfileData",
                                     entity_decls=[profile_name],
-                                    attrspec=["save"])
+                                    save=True)
         parent.add(prof_var_decl)
 
         prof_start = CallGen(parent, "ProfileStart",

@@ -78,6 +78,7 @@ This section contains entries that are, in principle, applicable to all APIs
 supported by PSyclone.
 
 .. tabularcolumns:: |l|L|
+
 =======================	=======================================================
 Entry         		Description
 =======================	=======================================================
@@ -109,6 +110,7 @@ This section contains configuration options that are only applicable when
 using the Dynamo 0.3 API.
 
 .. tabularcolumns:: |l|L|
+
 =======================	=======================================================
 Entry         		Description
 =======================	=======================================================
