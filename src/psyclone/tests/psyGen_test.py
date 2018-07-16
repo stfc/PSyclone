@@ -64,9 +64,10 @@ from psyclone.generator import generate
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "gocean1p0")
+                                "test_files", "gocean1p0")
 
 # PSyFactory class unit tests
+
 
 def test_invalid_api():
     '''test that psyfactory raises appropriate error when an invalid api
@@ -688,8 +689,7 @@ def test_ompdo_constructor():
     children '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).\
-                                                      create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     otrans = OMPParallelLoopTrans()
     ompdo = OMPDoDirective(parent=schedule)
@@ -1922,23 +1922,23 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
 # pylint: disable=anomalous-backslash-in-string
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    "\s*schedule_start\n"
-    "\s*schedule_end\n"
-    "\s*loop_1_start\n"
-    "\s*loop_1_end\n"
-    "\s*loop_1_end -> loop_3_start \[color=green\]\n"
-    "\s*schedule_start -> loop_1_start \[color=blue\]\n"
-    "\s*kernel_testkern_qr_code_2\n"
-    "\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
-    "\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
-    "\s*loop_3_start\n"
-    "\s*loop_3_end\n"
-    "\s*loop_3_end -> schedule_end \[color=blue\]\n"
-    "\s*loop_1_end -> loop_3_start \[color=red\]\n"
-    "\s*kernel_testkern_qr_code_4\n"
-    "\s*kernel_testkern_qr_code_4 -> loop_3_end \[color=blue\]\n"
-    "\s*loop_3_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
-    "}")
+    r"\s*schedule_start\n"
+    r"\s*schedule_end\n"
+    r"\s*loop_1_start\n"
+    r"\s*loop_1_end\n"
+    r"\s*loop_1_end -> loop_3_start \[color=green\]\n"
+    r"\s*schedule_start -> loop_1_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_2\n"
+    r"\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
+    r"\s*loop_3_start\n"
+    r"\s*loop_3_end\n"
+    r"\s*loop_3_end -> schedule_end \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_3_start \[color=red\]\n"
+    r"\s*kernel_testkern_qr_code_4\n"
+    r"\s*kernel_testkern_qr_code_4 -> loop_3_end \[color=blue\]\n"
+    r"\s*loop_3_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
+    r"}")
 # pylint: enable=anomalous-backslash-in-string
 
 

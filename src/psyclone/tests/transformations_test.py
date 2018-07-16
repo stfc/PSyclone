@@ -39,6 +39,7 @@ API-agnostic tests for various transformation classes.
 
 import pytest
 
+
 def test_accloop():
     ''' Generic tests for the ACCLoopTrans transformation class '''
     from psyclone.transformations import ACCLoopTrans, TransformationError

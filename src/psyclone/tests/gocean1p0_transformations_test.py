@@ -1417,7 +1417,7 @@ def test_acc_parallel_trans():
     new_sched, _ = accdt.apply(schedule)
     invoke.schedule = new_sched
     code = str(psy.gen)
-    
+
     acc_idx = -1
     acc_end_idx = -1
     do_idx = -1
@@ -1450,7 +1450,7 @@ def test_acc_data_not_a_schedule():
             "a Schedule" in str(err))
 
     new_sched, _ = acct.apply(schedule)
-    
+
     # Add a parallel region *around* the enter-data directive so that it
     # (erroneously) comes before it...
     new_sched, _ = accpara.apply(new_sched.children[0])
@@ -1716,7 +1716,7 @@ def test_accloop():
     psy, invoke = get_invoke(
         os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
-        
+
     with pytest.raises(TransformationError) as err:
         _ = acclpt.apply(schedule)
     assert ("Cannot apply a parallel-loop directive to something that is not "
@@ -1755,10 +1755,9 @@ def test_accloop():
       !$acc parallel default(present)
       !$acc loop independent
       DO j=2,jstop''' in gen
-    assert '''\
-      END DO 
-      !$acc loop independent
-      DO j=2,jstop+1''' in gen
+    assert ("END DO \n"
+            "      !$acc loop independent\n"
+            "      DO j=2,jstop+1" in gen)
 
 
 def test_acc_collapse():
@@ -1797,7 +1796,7 @@ def test_acc_collapse():
 
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
-    
+
     invoke.schedule = new_sched
 
     gen = str(psy.gen)
