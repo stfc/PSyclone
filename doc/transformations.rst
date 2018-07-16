@@ -43,8 +43,8 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.ACCDataTrans
-    :members:
     :noindex:
+    :members:
 
 ####
 
