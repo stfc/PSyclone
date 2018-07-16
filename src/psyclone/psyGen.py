@@ -2803,12 +2803,25 @@ class Call(Node):
 
 
 class Kern(Call):
+    '''
+    Class representing a Kernel call within the Schedule (AST) of an Invoke.
+
+    :param KernelArguments:
+    :param call:
+    :param parent:
+    :param bool check: Whether or not to check that the number of arguments \
+                       specified in the kernel meta-data matches the number \
+                       provided by the call in the Algorithm layer.
+    :raises GenerationError: if(check) and the number of arguments in the \
+                             call does not match that in the meta-data.
+    '''
     def __init__(self, KernelArguments, call, parent=None, check=True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
         self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
+        self._fp2_ast = None  # The fparser2 AST for the kernel
         self._module_inline = False
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
@@ -2933,6 +2946,26 @@ class Kern(Call):
         ''' Returns true if this kernel is being called from within a
         coloured loop '''
         return self.parent.loop_type == "colour"
+
+    @property
+    def ast(self):
+        '''
+        Generate and return the fparser2 AST of the kernel source.
+
+        :returns: fparser2 AST of the Fortran file containing this kernel.
+        :rtype: :py:class:`fparser.two.Fortran2003.Program`
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two import Fortran2003
+        # If we've already got the AST then just return it
+        if self._fp2_ast:
+            return self._fp2_ast
+        # Use the fparser1 AST to generate Fortran source
+        fortran = self._module_code.tofortran()
+        # Parse that Fortran using fparser2
+        reader = FortranStringReader(fortran)
+        self._fp2_ast = Fortran2003.Program(reader)
+        return self._fp2_ast
 
 
 class BuiltIn(Call):
