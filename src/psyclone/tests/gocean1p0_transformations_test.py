@@ -1832,3 +1832,29 @@ def test_acc_indep(capsys):
     gen = str(psy.gen)
     assert "!$acc loop\n      DO j=2,jstop" in gen
     assert "!$acc loop independent\n      DO j=2,jstop+1" in gen
+
+
+def test_accroutine():
+    ''' Test that we can transform a kernel by adding a "!$acc routine"
+    directive to it. '''
+    from psyclone.gocean1p0 import GOKern
+    from psyclone.transformations import ACCRoutineTrans
+    from fparser.two import Fortran2003
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", 0)
+    sched = invoke.schedule
+    sched.view()
+    kern = sched.children[0].children[0].children[0]
+    assert isinstance(kern, GOKern)
+    rtrans = ACCRoutineTrans()
+    new_kern, _ = rtrans.apply(kern)
+    # The transformation should have populated the fparser2 AST of
+    # the kernel...
+    assert new_kern._fp2_ast
+    assert isinstance(new_kern._fp2_ast, Fortran2003.Program)
+    # Check AST contains directive
+    comments = Fortran2003.walk_ast(new_kern._fp2_ast.content,
+                                    [Fortran2003.Comment])
+    assert len(comments) == 1
+    assert str(comments[0]) == "!$acc routine"
+    # Check that we generate new kernel file
+    assert 0  # TODO

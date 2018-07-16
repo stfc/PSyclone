@@ -2262,3 +2262,55 @@ class ACCDataTrans(Transformation):
         schedule.addchild(data_dir, index=0)
 
         return schedule, keep
+
+
+class ACCRoutineTrans(Transformation):
+    '''
+    TODO
+    '''
+    def name(self):
+        '''
+        :returns: the name of this transformation class.
+        :rtype: str
+        '''
+        return "ACCRoutineTrans"
+
+    def apply(self, kern):
+        '''
+        :param kern: The kernel object to transform.
+        :type kern: :py:class:`psyclone.psyGen.Call`
+        :returns: the transformed kernel
+        '''
+        # TODO walk_ast is 1. not a good name and 2. not in a
+        # released version of fparser.
+        from fparser.two.Fortran2003 import walk_ast, Subroutine_Subprogram, \
+            Subroutine_Stmt, Name, Specification_Part, Type_Declaration_Stmt, \
+            Implicit_Part, Comment
+        from fparser.common.readfortran import FortranStringReader
+        # Get the fparser2 AST of the kernel
+        ast = kern.ast
+        # Find the kernel subroutine
+        name = ""
+        subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
+        for sub in subroutines:
+            for child in sub.content:
+                if isinstance(child, Subroutine_Stmt):
+                    name = child.items[1]
+                    break
+            if str(name) == kern.name:
+                break
+        if not name:
+            raise TransformationError("blurgh")
+        # Find the last declaration statement in the subroutine
+        spec = walk_ast(sub.content, [Specification_Part])[0]
+        for idx, node in enumerate(spec.content):
+            if not (isinstance(node, Type_Declaration_Stmt) or
+                    isinstance(node, Implicit_Part)):
+                break
+        # Create the directive and insert it
+        cmt = Comment(FortranStringReader("!$acc routine",
+                                          ignore_comments=False))
+        spec.content.insert(idx, cmt)
+
+        # Return the now modified kernel
+        return kern, None
