@@ -197,6 +197,11 @@ def test_profile_invokes_gocean1p0():
                   r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
 
+    # Check that if gen() is called more than once the same profile
+    # variables and region names are created:
+    code_again = str(invoke.gen()).replace("\n", "")
+    assert code == code_again
+
     # Test that two kernels in one invoke get instrumented correctly.
     _, invoke = get_invoke("gocean1.0", "single_invoke_"
                            "two_kernels.f90", 0)
