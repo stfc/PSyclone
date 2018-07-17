@@ -31,24 +31,29 @@
 ! -----------------------------------------------------------------------------
 ! Authors: A. R. Porter, STFC Daresbury Lab
 
-PROGRAM single_invoke_with_grid_props_test
+program single_invoke_two_kernels_scalars
 
-  ! Fake Fortran program for testing aspects of the PSyclone code
-  ! generation system. Single invoke of two kernels which both require
-  ! grid properties.
+  ! Fake Fortran program for testing aspects of
+  ! the PSyclone code generation system.
 
   use kind_params_mod
   use grid_mod
   use field_mod
-  use kernel_requires_grid_props, only: next_sshu
+  use kernel_scalar_float, only: bc_ssh_value, bc_ssh
   implicit none
 
-  type(r2d_field) :: u_fld, d_fld
-  type(r2d_field) :: cu_fld, du_fld
+  !> Loop counter for time-stepping loop
+  integer :: ncycle
+  real :: a_scalar = 1.0
 
-  call invoke( next_sshu(cu_fld, u_fld), &
-               next_sshu(du_fld, d_fld) )
+  !  ** Start of time loop ** 
+  do ncycle=1,100
+    
+    call invoke( bc_ssh(a_scalar, ssh_fld), &
+                 bc_ssh_value(a_scalar, ncycle, ssh_fld))
+
+  end do
 
   !===================================================
 
-END PROGRAM single_invoke_with_grid_props_test
+end PROGRAM single_invoke_two_kernels_scalars

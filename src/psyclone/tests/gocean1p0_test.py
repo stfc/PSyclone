@@ -155,9 +155,10 @@ def test_grid_property():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_next_sshu(cu_fld, u_fld)\n"
+        "    SUBROUTINE invoke_0(cu_fld, u_fld, du_fld, d_fld)\n"
         "      USE kernel_requires_grid_props, ONLY: next_sshu_code\n"
-        "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld, du_fld, "
+        "d_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
@@ -172,7 +173,13 @@ def test_grid_property():
         "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
         "        END DO \n"
         "      END DO \n"
-        "    END SUBROUTINE invoke_0_next_sshu\n"
+        "      DO j=2,jstop\n"
+        "        DO i=2,istop-1\n"
+        "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
+        "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_with_grid_props_test")
 
     assert generated_code.find(expected_output) != -1
