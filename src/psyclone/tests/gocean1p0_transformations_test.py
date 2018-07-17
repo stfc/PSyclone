@@ -1378,6 +1378,7 @@ def test_go_loop_swap_errors():
     assert re.search("Given node .* is not a GOLoop, "
                      "but an instance of .*DynLoop",
                      str(error.value)) is not None
+<<<<<<< ff0c89d0eda1d556c694f45df8d801e02a84b4ae
 
 
 def test_acc_parallel_not_a_loop():
@@ -1858,3 +1859,5 @@ def test_accroutine():
     assert str(comments[0]) == "!$acc routine"
     # Check that we generate new kernel file
     assert 0  # TODO
+=======
+>>>>>>> #185 mv tests into new kernel_transformation_tests file [skip ci]
