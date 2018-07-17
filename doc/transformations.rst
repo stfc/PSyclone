@@ -239,6 +239,8 @@ theoretically work for all API's) were given in the
 of these transformations are described in the API-specific sections of
 this document.
 
+.. _openmp-reductions:
+
 Reductions
 ++++++++++
 
