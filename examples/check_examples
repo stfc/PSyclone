@@ -114,6 +114,7 @@ python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
 python runme_dag.py
+python runme_openacc.py
 cd -
 
 echo "Running transformation examples"

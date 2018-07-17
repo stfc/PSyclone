@@ -48,7 +48,8 @@
 from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, Argument, KernelArgument, GenerationError
+    Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
+    GenerationError, args_filter
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -692,7 +693,7 @@ class GOKern(Kern):
         '''
         return []
 
-    def _find_grid_access(self):
+    def find_grid_access(self):
         '''Determine the best kernel argument from which to get properties of
             the grid. For this, an argument must be a field (i.e. not
             a scalar) and must be supplied by the algorithm layer
@@ -718,7 +719,7 @@ class GOKern(Kern):
 
         # Before we do anything else, go through the arguments and
         # determine the best one from which to obtain the grid properties.
-        grid_arg = self._find_grid_access()
+        grid_arg = self.find_grid_access()
 
         # A GOcean 1.0 kernel always requires the [i,j] indices of the
         # grid-point that is to be updated
@@ -810,6 +811,67 @@ class GOKernelArguments(Arguments):
                           "readwrite": "readwrite", "inc": ""}
         arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
+
+    @property
+    def acc_args(self):
+        '''
+        Provide the list of references (both objects and arrays) that must
+        be present on an OpenACC device before the kernel associated with
+        this Arguments object may be launched.
+
+        :returns: list of (Fortran) quantities
+        :rtype: list of str
+        '''
+        arg_list = []
+
+        # First off, specify the field object which we will de-reference in
+        # order to get any grid properties (if this kernel requires them).
+        # We do this as some compilers do less optimisation if we get (read-
+        # -only) grid properties from a field object that has read-write
+        # access.
+        grid_fld = self._parent_call.find_grid_access()
+        grid_ptr = grid_fld.name + "%grid"
+        arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
+
+        for arg in self._args:
+            if arg.type == "scalar":
+                arg_list.append(arg.name)
+            elif arg.type == "field" and arg != grid_fld:
+                # The remote device will need the reference to the field
+                # object *and* the reference to the array within that object.
+                arg_list.extend([arg.name, arg.name+"%data"])
+            elif arg.type == "grid_property":
+                if grid_ptr not in arg_list:
+                    # This kernel needs a grid property and therefore the
+                    # pointer to the grid object must be copied to the device.
+                    arg_list.append(grid_ptr)
+                arg_list.append(grid_ptr+"%"+arg.name)
+        return arg_list
+
+    @property
+    def fields(self):
+        '''
+        Provides the list of names of field objects that are required by
+        the kernel associated with this Arguments object.
+
+        :returns: List of names of (Fortran) field objects.
+        :rtype: list of str
+        '''
+        args = args_filter(self._args, arg_types=["field"])
+        return [arg.name for arg in args]
+
+    @property
+    def scalars(self):
+        '''
+        Provides the list of names of scalar arguments required by the
+        kernel associated with this Arguments object. If there are none
+        then the returned list is empty.
+
+        :returns: A list of the names of scalar arguments in this object.
+        :rtype: list of str
+        '''
+        args = args_filter(self._args, arg_types=["scalar"])
+        return [arg.name for arg in args]
 
 
 class GOKernelArgument(KernelArgument):
@@ -1167,7 +1229,6 @@ class GO1p0Descriptor(Descriptor):
             access = kernel_arg.args[0].name
             grid_var = kernel_arg.args[1].name
             funcspace = ""
-            stencil = ""
 
             self._grid_prop = grid_var
             self._type = "grid_property"
@@ -1304,3 +1365,31 @@ class GOKernelType1p0(KernelType):
     def index_offset(self):
         ''' Return the grid index-offset that this kernel expects '''
         return self._index_offset
+
+
+class GOACCDataDirective(ACCDataDirective):
+    '''
+    Sub-classes ACCDataDirective to provide an API-specific implementation
+    of data_on_device().
+
+    '''
+    def data_on_device(self, parent):
+        '''
+        Adds nodes into the f2pygen AST to flag that each of the
+        objects required by the kernels in the data region is now on the
+        device. We do this by setting the data_on_device attribute to .true.
+
+        :param parent: The node in the f2pygen AST to which to add the \
+                       assignment nodes.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import AssignGen
+        obj_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.fields:
+                if var not in obj_list:
+                    parent.add(AssignGen(parent,
+                                         lhs=var+"%data_on_device",
+                                         rhs=".true."))
+                    obj_list.append(var)
+        return
