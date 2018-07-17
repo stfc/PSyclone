@@ -2266,7 +2266,8 @@ class ACCDataTrans(Transformation):
 
 class ACCRoutineTrans(Transformation):
     '''
-    TODO
+    Transform a kernel subroutine through the addition of a "!$acc routine"
+    directive.
     '''
     def name(self):
         '''
@@ -2279,7 +2280,11 @@ class ACCRoutineTrans(Transformation):
         '''
         :param kern: The kernel object to transform.
         :type kern: :py:class:`psyclone.psyGen.Call`
-        :returns: the transformed kernel
+        :returns: (transformed kernel, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
+                :py:class:`psyclone.undoredo.Memento`).
+        :raises TransformationError: if we fail to find the subroutine \
+                                     corresponding to the kernel object.
         '''
         # TODO walk_ast is 1. not a good name and 2. not in a
         # released version of fparser.
@@ -2289,6 +2294,9 @@ class ACCRoutineTrans(Transformation):
         from fparser.common.readfortran import FortranStringReader
         # Get the fparser2 AST of the kernel
         ast = kern.ast
+        # Keep a record of this transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(kern, self)
         # Find the kernel subroutine
         name = ""
         subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
@@ -2300,7 +2308,9 @@ class ACCRoutineTrans(Transformation):
             if str(name) == kern.name:
                 break
         if not name:
-            raise TransformationError("blurgh")
+            raise TransformationError(
+                "Failed to find subroutine source for kernel {0}".
+                format(kern.name))
         # Find the last declaration statement in the subroutine
         spec = walk_ast(sub.content, [Specification_Part])[0]
         for idx, node in enumerate(spec.content):
@@ -2313,4 +2323,4 @@ class ACCRoutineTrans(Transformation):
         spec.content.insert(idx, cmt)
 
         # Return the now modified kernel
-        return kern, None
+        return kern, keep
