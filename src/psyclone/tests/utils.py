@@ -54,11 +54,17 @@ COMPILE = pytest.mark.skipif(not TEST_COMPILE,
 
 
 class CompileError(Exception):
-    ''' Exception raised when compilation of a Fortran source file
-    fails '''
+    '''
+    Exception raised when compilation of a Fortran source file
+    fails.
+
+    :param value: description of the error condition.
+    :type value: str or :py:class:`bytes`
+
+    '''
     def __init__(self, value):
         # pylint: disable=super-init-not-called
-        self.value = "Compile error: " + value
+        self.value = "Compile error: " + str(value)
 
     def __str__(self):
         return repr(self.value)

@@ -42,7 +42,7 @@
 from __future__ import print_function
 import abc
 import six
-from psyclone import config
+from psyclone import configuration
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -65,6 +65,10 @@ except ImportError:
         :rtype: string
         '''
         return text
+
+# Get our one-and-only Config object - this holds the global configuration
+# options read from the psyclone.cfg file.
+_CONFIG = configuration.ConfigFactory().create()
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -112,17 +116,21 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
 
 def get_api(api):
     ''' If no API is specified then return the default. Otherwise, check that
-    the supplied API is valid. '''
+    the supplied API is valid.
+    :param str api: The PSyclone API to check or an empty string.
+    :returns: The API that is in use.
+    :rtype: str
+    :raises GenerationError: if the specified API is not supported.
+
+    '''
     if api == "":
-        from psyclone.config import DEFAULTAPI
-        api = DEFAULTAPI
+        api = _CONFIG.default_api
     else:
-        from psyclone.config import SUPPORTEDAPIS as supported_types
-        if api not in supported_types:
+        if api not in _CONFIG.supported_apis:
             raise GenerationError("get_api: Unsupported API '{0}' "
                                   "specified. Supported types are "
                                   "{1}.".format(api,
-                                                supported_types))
+                                                _CONFIG.supported_apis))
     return api
 
 
@@ -194,25 +202,43 @@ class FieldNotFoundError(Exception):
         return repr(self.value)
 
 
-class PSyFactory(object):
-    '''Creates a specific version of the PSy. If a particular api is not
-        provided then the default api, as specified in the config.py
-        file, is chosen. Note, for pytest to work we need to set
-        distributed_memory to the same default as the value found in
-        config.DISTRIBUTED_MEMORY. If we set it to None and then test
-        the value, it then fails. I've no idea why. '''
+class InternalError(Exception):
+    '''
+    PSyclone-specific exception for use when an internal error occurs (i.e.
+    something that 'should not happen').
 
-    def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "PSyclone internal error: "+value
+
+    def __str__(self):
+        return repr(self.value)
+
+
+class PSyFactory(object):
+    '''
+    Creates a specific version of the PSy. If a particular api is not
+    provided then the default api, as specified in the psyclone.cfg
+    file, is chosen.
+    '''
+    def __init__(self, api="", distributed_memory=None):
         '''Initialises a factory which can create API specific PSY objects.
-        :param api: Name of the API to use.
-        :param distributed_memory: True if distributed memory should be
-                                   supported.
+        :param str api: Name of the API to use.
+        :param bool distributed_memory: True if distributed memory should be \
+                                        supported.
         '''
-        if distributed_memory not in [True, False]:
+        if distributed_memory is None:
+            _distributed_memory = _CONFIG.distributed_memory
+        else:
+            _distributed_memory = distributed_memory
+
+        if _distributed_memory not in [True, False]:
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
-        config.DISTRIBUTED_MEMORY = distributed_memory
+        _CONFIG.distributed_memory = _distributed_memory
         self._type = get_api(api)
 
     def create(self, invoke_info):
@@ -1525,14 +1551,25 @@ class OMPParallelDirective(OMPDirective):
 
 
 class OMPDoDirective(OMPDirective):
+    '''
+    Class representing an OpenMP DO directive in the PSyclone AST.
 
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :param str omp_schedule: the OpenMP schedule to use.
+    :param bool reprod: whether or not to generate code for run-reproducible \
+                        OpenMP reductions.
+
+    '''
     def __init__(self, children=None, parent=None, omp_schedule="static",
                  reprod=None):
 
         if children is None:
             children = []
         if reprod is None:
-            reprod = config.REPRODUCIBLE_REDUCTIONS
+            # Look-up the value read from the config file
+            reprod = _CONFIG.reproducible_reductions
 
         self._omp_schedule = omp_schedule
         self._reprod = reprod
@@ -2312,9 +2349,20 @@ class Call(Node):
                         label=var_name)
 
     def zero_reduction_variable(self, parent, position=None):
-        '''Generate code to zero the reduction variable and to zero the local
+        '''
+        Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
-        reductions, if specified.'''
+        reductions, if specified.
+
+        :param parent: the Node in the AST to which to add new code.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param str position: where to position the new code in the AST.
+        :raises GenerationError: if the variable to zero is not of type \
+                                 gh_real or gh_integer.
+        :raises GenerationError: if the reprod_pad_size (read from the \
+                                 configuration file) is less than 1.
+
+        '''
         from psyclone.f2pygen import AssignGen, DeclGen, AllocateGen
         if not position:
             position = ["auto"]
@@ -2343,12 +2391,12 @@ class Call(Node):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
-            if config.REPROD_PAD_SIZE < 1:
+            if _CONFIG.reprod_pad_size < 1:
                 raise GenerationError(
-                    "REPROD_PAD_SIZE in config.py should be a positive "
-                    "integer, but it is set to '{0}'.".format(
-                        config.REPROD_PAD_SIZE))
-            pad_size = str(config.REPROD_PAD_SIZE)
+                    "REPROD_PAD_SIZE in {0} should be a positive "
+                    "integer, but it is set to '{1}'.".format(
+                        _CONFIG.filename, _CONFIG.reprod_pad_size))
+            pad_size = str(_CONFIG.reprod_pad_size)
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
@@ -2358,6 +2406,8 @@ class Call(Node):
         '''generate the appropriate code to place after the end parallel
         region'''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
+        # TODO we should initialise self._name_space_manager in the
+        # constructor!
         self._name_space_manager = NameSpaceFactory().create()
         thread_idx = self._name_space_manager.create_name(
             root_name="th_idx", context="PSyVars", label="thread_index")

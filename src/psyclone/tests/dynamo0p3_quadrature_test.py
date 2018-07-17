@@ -284,7 +284,7 @@ def test_dynkern_setup(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     # Get hold of a DynKern object
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[3].children[0]
