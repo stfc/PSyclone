@@ -188,7 +188,7 @@ example ...
     > psyclone -s /home/me/PSyclone/scripts/opt.py algspec.f90
 
 PSyclone also provides the same functionality via a function (which is
-what the **psyclone** script calls internally)
+what the **psyclone** script calls internally).
 
 .. autofunction:: psyclone.generator.generate
 		  :noindex:

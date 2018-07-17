@@ -38,7 +38,7 @@ Similarly the "line_length" argument can be set to "True" if calling the
 argument on to the :func:`parse.parse` function.
 ::
 
-    >>> from generator import generate
+    >>> from psyclone.generator import generate
     >>> alg, psy = generate("argspec.F90", line_length=True)
 
 Line wrapping is performed as a post processing step, i.e. after the
@@ -46,7 +46,7 @@ code has been generated. This is done by an instance of the
 :class:`line_length.FortLineLength` class. For example:
 ::
 
-    >>> from generator import generate
+    >>> from psyclone.generator import generate
     >>> from line_length import FortLineLength
     >>> psy, alg = generate("algspec.f90", line_length=True)
     >>> line_length = FortLineLength()

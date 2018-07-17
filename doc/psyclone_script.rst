@@ -1,10 +1,10 @@
 .. _psyclone_script:
 
-psyclone script
+PSyclone Script
 ===============
 
 The simplest way to run PSyclone is to use the ``psyclone`` script. If
-you installed PSyclone using pip then this script should be available
+you installed PSyclone using ``pip`` then this script should be available
 on your PATH (see :ref:`getting_going_env` for more
 details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
 directory. The script takes an algorithm file as input and outputs
@@ -85,7 +85,7 @@ Choosing the API
 ----------------
 
 In the previous section we relied on PSyclone using the default
-API. The default API, along with the supported API's can be seen by
+API. The default API, along with the supported APIs can be seen by
 running the ``psyclone`` script with the ``-h`` option.
 
 If you use a particular API frequently and it is not the default then
@@ -105,7 +105,7 @@ File output
 By default the modified algorithm code and the generated PSy code are
 output to the terminal. These can instead be output to files by using the
 ``-oalg <file>`` and ``-opsy <file>`` options, respectively. For example, the
-following will output the generated psy code to the file 'psy.f90' but
+following will output the generated PSy code to the file 'psy.f90' but
 the algorithm code will be output to the terminal:
 ::
 
@@ -146,7 +146,7 @@ following code gives an error:
     "Parse Error: kernel call 'testkern_type' must either be named in a use statement or be a recognised built-in (one of '[]' for this API)"
 
 (If the chosen API has any :ref:`built-ins` defined then
-these will be listed within the ``[]`` in the above error message.)  If the
+these will be listed within the ``[]`` in the above error message.) If the
 name of the kernel is provided in a use statement then the parser will
 look for a file with the same name as the module in the use
 statement. In the example below, the parser will look for a file
@@ -160,8 +160,8 @@ called "testkern.f90" or "testkern.F90":
       call invoke(testkern_type(a,b,c,d,e))
     end program use
 
-Therefore, for PSyclone to find Kernel files, the module name of a
-kernel file must be the same as its filename.  By default the parser
+Therefore, for PSyclone to find kernel files, the module name of a
+kernel file must be the same as its filename. By default the parser
 looks for the kernel file in the same directory as the algorithm
 file. If this file is not found then an error is reported.
 
@@ -171,7 +171,7 @@ file. If this file is not found then an error is reported.
     Kernel file 'testkern.[fF]90' not found in <location>
 
 The ``-d`` option can be used to tell ``psyclone`` where to look for
-Kernel files by supplying it with a directory. The script will recurse
+kernel files by supplying it with a directory. The script will recurse
 from the specified directory path to look for the required file. There
 must be only one instance of the specified file within (or below) the
 specified directory:
@@ -186,7 +186,7 @@ specified directory:
 
 .. note::
     The ``-d`` option is limited to a single directory. Therefore a
-    current limitation in PSyclone is that all Kernel files
+    current limitation in PSyclone is that all kernel files
     required by an algorithm file must exist within a directory
     hierarchy where their file names are unique.
 
