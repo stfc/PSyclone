@@ -44,11 +44,15 @@ from utils import get_invoke
 def test_accroutine_err():
     ''' Check that we raise the expected error if we can't find the
     source of the kernel subroutine. '''
+    from psyclone.psyGen import Kern
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", 0)
-    # Edit the fparser1 AST of the kernel so that it does not have a
-    # subroutine of the correct name
     sched = invoke.schedule
     sched.view()
+    kern = sched.children[0].children[0]
+    assert isinstance(kern, Kern)
+    # Edit the fparser1 AST of the kernel so that it does not have a
+    # subroutine of the correct name
+    ast = kern._module_code
     assert 0
 
 
