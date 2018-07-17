@@ -1312,14 +1312,14 @@ class ExtractTrans(Transformation):
     ''' Provides a transformation to extract code contained within one
     or more nodes in the tree.
 
-    Nodes to extract can be individual constructs within an invoke
-    (e.g. a loop) or entire invokes. For now, this functionality
+    Nodes to extract can be individual constructs within an invoke (e.g.
+    (kernel or built-in) or entire invokes. For now, this functionality
     does not include distributed memory (HaloExchange).
 
     '''
 
     def __str__(self):
-        return "Extract code within one or more nodes in the tree."
+        return "Extract code within one or more nodes in an invoke."
 
     @property
     def name(self):
@@ -1349,6 +1349,7 @@ class ExtractTrans(Transformation):
                 raise TransformationError(
                     "Extract transformation does not "
                     "currently support HaloExchange ")
+
 
     def apply(self, nodes):
         ''' Extract the nodes represented by :py:obj:`node`. Exceptions

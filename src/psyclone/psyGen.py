@@ -105,13 +105,13 @@ VALID_ACCESS_DESCRIPTOR_NAMES = []
 # coloured.) See https://pypi.python.org/pypi/termcolor for details.
 SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
                        "Loop": "white",
-                       "Extract": "brown",
                        "GlobalSum": "cyan",
                        "Directive": "green",
                        "HaloExchange": "blue",
                        "Call": "red",
                        "KernCall": "magenta",
-                       "Profile": "green"}
+                       "Profile": "green",
+                       "Extract": "brown"}
 
 
 def get_api(api):
@@ -2173,29 +2173,26 @@ class Loop(Node):
             parent.add(my_decl)
 
 
-class Extract(Node):
+class ExtractNode(Node):
+
+    def __init__(self, children=None, parent=None):
+        ''' Constructor for an ExtractNode that is inserted in a schedule.
+
+            :param children: A list of children nodes for this node.
+            :type children: A list of :py::class::`psyclone.psyGen.Node` \
+            or derived classes.
+            :param parent: The parent of this node.
+            :type parent: A :py::class::`psyclone.psyGen.Node`.
+        '''
+        Node.__init__(self, children=children, parent=parent)
+        self._namespace = NameSpace()
 
     def __str__(self):
-        return self._name
-
-    def __init__(self, alg_i):
-        '''
-        Constructs an extract object
-        '''
-        self._name = "extract"
-
-    def view(self, indent=0):
-        '''
-        Print a text representation of this Extract node to stdout.
-
-        :param indent: Depth of indent for output text
-        :type indent: integer
-        '''
-        print(self.indent(indent) + self.coloured_text)
-
-    @property
-    def name(self):
-        return self._name
+        ''' Returns a name for an ExtractNode. '''
+        result = "ExtractStart[]\n"
+        for child in self.children:
+            result += str(child)+"\n"
+        return result+"ExtractEnd"
 
     @property
     def coloured_text(self):
@@ -2213,6 +2210,16 @@ class Extract(Node):
     def dag_name(self):
         ''' Return the base dag name for this Extract node '''
         return "extract_" + str(self.abs_position)
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this Extract node to stdout.
+
+        :param int indent: Depth of indent for output text
+        '''
+        print(self.indent(indent) + self.coloured_text)
+        for entity in self._children:
+            entity.view(indent=indent + 1)
 
 
 class Call(Node):
