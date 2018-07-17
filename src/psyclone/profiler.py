@@ -113,13 +113,12 @@ class Profiler(object):
         '''
 
         from psyclone.transformations import ProfileRegionTrans
+        profile_trans = ProfileRegionTrans()
         if Profiler.profile_kernels():
-            profile_trans = ProfileRegionTrans()
             for i in schedule.children:
                 if isinstance(i, loop_class):
                     profile_trans.apply(i)
         if Profiler.profile_invokes():
-            profile_trans = ProfileRegionTrans()
             profile_trans.apply(schedule.children)
 
     # -------------------------------------------------------------------------
@@ -148,12 +147,12 @@ class ProfileNode(Node):
             :type parent: A :py::class::`psyclone.psyGen.Node`.
         '''
         Node.__init__(self, children=children, parent=parent)
-        self._namespace = NameSpace()
+        self._var_name = NameSpaceFactory().create().create_name("profile")
 
     # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a name for the ProfileNode. '''
-        result = "ProfileStart[]\n"
+        result = "ProfileStart[var={0}]\n".format(self._var_name)
         for child in self.children:
             result += str(child)+"\n"
         return result+"ProfileEnd"
@@ -205,21 +204,20 @@ class ProfileNode(Node):
         use = UseGen(parent, "profile_mod", only=True,
                      funcnames=["ProfileData, ProfileStart, ProfileEnd"])
         parent.add(use)
-        profile_name = NameSpaceFactory().create().create_name("profile")
         prof_var_decl = TypeDeclGen(parent, datatype="ProfileData",
-                                    entity_decls=[profile_name],
+                                    entity_decls=[self._var_name],
                                     save=True)
         parent.add(prof_var_decl)
 
         prof_start = CallGen(parent, "ProfileStart",
                              ["\"{0}\"".format(module_name),
                               "\"{0}\"".format(region_name),
-                              profile_name])
+                              self._var_name])
         parent.add(prof_start)
 
         for child in self.children:
             child.gen_code(parent)
 
         prof_end = CallGen(parent, "ProfileEnd",
-                           [profile_name])
+                           [self._var_name])
         parent.add(prof_end)

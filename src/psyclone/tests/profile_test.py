@@ -137,10 +137,16 @@ def test_profile_basic(capsys):
                              .children[0].children[0])
 
     new_sched_str = str(new_sched)
+
+    # Note that the first profile node is created using the get_invoke
+    # call above using the name "profile". Then ProfileNode().coloured_text
+    # will create (an otherwise unused) node using "profile_1". Applying
+    # the profile transform will create a new profile node using "profile_2".
+    # So the schedule view will use the name profile and profile_2!!!
     correct = ("""GOSchedule(Constant loop bounds=True):
-ProfileStart[]
+ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop-1,1
-ProfileStart[]
+ProfileStart[var=profile_2]
 Loop[]: i= lower=2,istop,1
 kern call: compute_cv_code
 EndLoop
@@ -448,7 +454,7 @@ def test_transform(capsys):
     sched1, _ = prt.apply(schedule.children)
 
     correct = ("""OSchedule(Constant loop bounds=True):
-ProfileStart[]
+ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop,1
 Loop[]: i= lower=2,istop,1
 kern call: bc_ssh_code
@@ -473,13 +479,13 @@ End Schedule""")
     sched2, _ = prt.apply(schedule.children[0].children[1])
 
     correct = ("""GOSchedule(Constant loop bounds=True):
-ProfileStart[]
+ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop,1
 Loop[]: i= lower=2,istop,1
 kern call: bc_ssh_code
 EndLoop
 EndLoop
-ProfileStart[]
+ProfileStart[var=profile_1]
 Loop[]: j= lower=1,jstop+1,1
 Loop[]: i= lower=1,istop,1
 kern call: bc_solid_u_code
@@ -641,10 +647,10 @@ def test_omp_transform():
     code = str(invoke.gen())
 
     correct = '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
-"bc_ssh_code_1", profile_1)
+"bc_ssh_code_1", profile)
       !$omp parallel default(shared), private(j,i)
       CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_2", \
-profile_2)
+profile_1)
       !$omp do schedule(static)
       DO j=2,jstop
         DO i=2,istop
@@ -652,7 +658,7 @@ profile_2)
         END DO\x20
       END DO\x20
       !$omp end do
-      CALL ProfileEnd(profile_2)
+      CALL ProfileEnd(profile_1)
       !$omp end parallel
-      CALL ProfileEnd(profile_1)'''
+      CALL ProfileEnd(profile)'''
     assert correct in code
