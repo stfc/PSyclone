@@ -381,33 +381,48 @@ class Invokes(object):
                 self.gen_ocl_init(parent, opencl_kernels)
 
     def gen_ocl_init(self, parent, kernels):
+        '''
+        '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
-            CallGen, UseGen, CommentGen, CharDeclGen
-        #import pdb; pdb.set_trace()
+            CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
         sub.add(UseGen(sub, name="ocl_env_mod", only=True,
                        funcnames=["ocl_env_init", "add_kernels"]))
+        # Add a logical variable used to ensure that this routine is only
+        # executed once.
+        sub.add(DeclGen(sub, datatype="logical", save=True,
+                        entity_decls=["initialised"],
+                        initial_values=[".False."]))
+        # Check whether or not this is our first time in the routine
+        sub.add(CommentGen(sub, " Check to make sure we only execute this "
+                           "routine once"))
+        ifthen = IfThenGen(sub, ".not. initialised")
+        sub.add(ifthen)
+        ifthen.add(AssignGen(ifthen, lhs="initialised", rhs=".True."))
 
         # Initialise the OpenCL environment
-        sub.add(CommentGen(sub, " Initialise the OpenCL environment/device"))
-        sub.add(CallGen(sub, "ocl_env_init"))
+        ifthen.add(CommentGen(ifthen,
+                              " Initialise the OpenCL environment/device"))
+        ifthen.add(CallGen(ifthen, "ocl_env_init"))
 
         # Create a list of our kernels
-        sub.add(CommentGen(sub, " The kernels this PSy layer module requires"))
+        ifthen.add(CommentGen(ifthen,
+                              " The kernels this PSy layer module requires"))
         nkernstr = str(len(kernels))
 
         # Declare array of character strings
-        sub.add(CharDeclGen(sub, length="30",
-                            entity_decls=["kernel_names({0})".format(nkernstr)]))
+        ifthen.add(CharDeclGen(
+            ifthen, length="30",
+            entity_decls=["kernel_names({0})".format(nkernstr)]))
         for idx, kern in enumerate(kernels):
-            sub.add(AssignGen(sub, lhs="kernel_names({0})".format(idx+1),
-                              rhs='"{0}"'.format(kern)))
-        sub.add(CommentGen(sub,
-                           " Create the OpenCL kernel objects. Expects "
-                           "to find all of the compiled "))
-        sub.add(CommentGen(sub, " kernels in PSYCLONE_KERNELS_FILE."))
-        sub.add(CallGen(sub, "add_kernels", [nkernstr, "kernel_names"]))
+            ifthen.add(AssignGen(ifthen, lhs="kernel_names({0})".format(idx+1),
+                                 rhs='"{0}"'.format(kern)))
+        ifthen.add(CommentGen(ifthen,
+                              " Create the OpenCL kernel objects. Expects "
+                              "to find all of the compiled "))
+        ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
+        ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 
 
 class NameSpaceFactory(object):
@@ -1403,7 +1418,7 @@ class Schedule(Node):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
-            IfThenGen
+            IfThenGen, CallGen
 
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
@@ -1426,6 +1441,10 @@ class Schedule(Node):
             if_first = IfThenGen(parent, "first_time")
             parent.add(if_first)
             if_first.add(AssignGen(if_first, lhs="first_time", rhs=".false."))
+            if_first.add(CommentGen(if_first,
+                                    " Ensure OpenCL run-time is initialised "
+                                    "for this PSy-layer module"))
+            if_first.add(CallGen(if_first, "psy_init"))
             if_first.add(AssignGen(if_first, lhs="num_cmd_queues",
                                    rhs="get_num_cmd_queues()"))
             if_first.add(AssignGen(if_first, lhs="cmd_queues", pointer=True,
