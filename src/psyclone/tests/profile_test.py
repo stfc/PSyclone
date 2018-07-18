@@ -647,9 +647,9 @@ def test_omp_transform():
     code = str(invoke.gen())
 
     correct = '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
-"bc_ssh_code_1", profile)
+"bc_ssh_code", profile)
       !$omp parallel default(shared), private(j,i)
-      CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_2", \
+      CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_1", \
 profile_1)
       !$omp do schedule(static)
       DO j=2,jstop

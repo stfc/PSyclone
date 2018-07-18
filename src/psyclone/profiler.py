@@ -148,6 +148,8 @@ class ProfileNode(Node):
         '''
         Node.__init__(self, children=children, parent=parent)
         self._var_name = NameSpaceFactory().create().create_name("profile")
+        self._region_name = None
+        self._module_name = None
 
     # -------------------------------------------------------------------------
     def __str__(self):
@@ -187,17 +189,20 @@ class ProfileNode(Node):
         :param parent: The parent of this node.
         :type parent: :py:class:`psyclone.psyGen.Node`.'''
 
-        # Find the first kernel and use its name. In plain PSyclone there
-        # should be only one kernel, but if Profile is invoked after e.g.
-        # a loop merge more kernels might be there
-        region_name = "unknown-kernel"
-        module_name = "unknown-module"
-        for kernel in self.walk(self.children, Kern):
-            region_name = kernel.name
-            module_name = kernel.module_name
-            break
-
-        region_name = Profiler.create_unique_region(region_name)
+        if self._module_name is None or self._region_name is None:
+            # Find the first kernel and use its name. In plain PSyclone there
+            # should be only one kernel, but if Profile is invoked after e.g.
+            # a loop merge more kernels might be there
+            region_name = "unknown-kernel"
+            module_name = "unknown-module"
+            for kernel in self.walk(self.children, Kern):
+                region_name = kernel.name
+                module_name = kernel.module_name
+                break
+            if self._region_name is None:
+                self._region_name = Profiler.create_unique_region(region_name)
+            if self._module_name is None:
+                self._module_name = module_name
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
@@ -210,8 +215,8 @@ class ProfileNode(Node):
         parent.add(prof_var_decl)
 
         prof_start = CallGen(parent, "ProfileStart",
-                             ["\"{0}\"".format(module_name),
-                              "\"{0}\"".format(region_name),
+                             ["\"{0}\"".format(self._module_name),
+                              "\"{0}\"".format(self._region_name),
                               self._var_name])
         parent.add(prof_start)
 
