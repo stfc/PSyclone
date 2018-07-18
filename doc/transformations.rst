@@ -200,22 +200,20 @@ transformations are also given in the previous section.
 Script
 ++++++
 
-PSyclone provides a Python script (**generator.py**) that can be used from
+PSyclone provides a Python script (**psyclone**) that can be used from
 the command line to generate PSy layer code and to modify algorithm
 layer code appropriately. By default this script will generate
-"vanilla" (unoptimised) PSy layer code. For example:
-::
+"vanilla" (unoptimised) PSy layer code. For example::
 
-    > python generator.py algspec.f90
-    > python generator.py -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
+    > psyclone algspec.f90
+    > psyclone -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
 
-The generator.py script has an optional **-s** flag which allows the
+The **psyclone** script has an optional **-s** flag which allows the
 user to specify a script file to modify the PSy layer as
 required. Script files may be specified without a path. For
-example:
-::
+example::
 
-    > python generator.py -s opt.py algspec.f90
+    > psyclone -s opt.py algspec.f90
 
 In this case the Python search path **PYTHONPATH** will be used to try
 to find the script file.
@@ -225,12 +223,12 @@ the file is expected to be found in the specified location. For
 example ...
 ::
 
-    > python generator.py -s ./opt.py algspec.f90
-    > python generator.py -s ../scripts/opt.py algspec.f90
-    > python generator.py -s /home/me/PSyclone/scripts/opt.py algspec.f90
+    > psyclone -s ./opt.py algspec.f90
+    > psyclone -s ../scripts/opt.py algspec.f90
+    > psyclone -s /home/me/PSyclone/scripts/opt.py algspec.f90
 
 PSyclone also provides the same functionality via a function (which is
-what the **generator.py** script calls internally)
+what the **psyclone** script calls internally).
 
 .. autofunction:: psyclone.generator.generate
 		  :noindex:

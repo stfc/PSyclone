@@ -85,7 +85,7 @@ interface. See the :ref:`api-label` section for different ways to
 translate/generate code.
 ::
 
-	>>> from generator import generate
+	>>> from psyclone.generator import generate
 	>>> alg, psy = generate("solver_mod.x90")
 	>>> print alg
 	>>> print psy
