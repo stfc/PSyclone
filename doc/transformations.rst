@@ -31,17 +31,53 @@ transformations are API-specific (or specific to a set of API's
 e.g. dynamo). Currently these different types of transformation are
 indicated by their names.
 
-The generic transformations currently available are given below (a
-number of these have specialisations which can be found in the
-API-specific sections).
+The generic transformations currently available are listed in
+alphabetical order below (a number of these have specialisations which
+can be found in the API-specific sections).
+
+.. note:: PSyclone currently only supports OpenACC transformations
+	  for the GOcean 1.0 API. Attempts to apply these
+	  transformations to (members of) Schedules from other
+	  APIs will be rejected.
+
+####
+
+.. autoclass:: psyclone.transformations.ACCDataTrans
+    :noindex:
+    :members:
+
+####
+
+.. autoclass:: psyclone.transformations.ACCLoopTrans
+    :members:
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.ACCParallelTrans
+    :members:
+    :inherited-members:
+    :noindex:
+
+####
+	       
+.. autoclass:: psyclone.transformations.ColourTrans
+    :members:
+    :noindex:
+
+####
 
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
     :members:
     :noindex:
 
+####
+
 .. autoclass:: psyclone.transformations.LoopFuseTrans
     :members:
     :noindex:
+
+####
 
 .. _sec_move_trans:
 
@@ -49,23 +85,27 @@ API-specific sections).
     :members:
     :noindex:
 
+####
+
 .. autoclass:: psyclone.transformations.ProfileRegionTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.ColourTrans
-    :members:
-    :noindex:
+####
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.OMPParallelTrans
+####
+
+.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+####
+
+.. autoclass:: psyclone.transformations.OMPParallelTrans
     :members:
     :noindex:
 
