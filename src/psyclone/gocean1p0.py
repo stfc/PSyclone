@@ -476,7 +476,8 @@ class GOLoop(Loop):
         indices depending on offset, field type, and iteration space.
         All occurences of {start} and {stop} in _bounds_loopup will
         be replaced with the constant loop boundary variable, e.g.
-        "{stop}+1" will become "istop+1".'''
+        "{stop}+1" will become "istop+1" (or "jstop+1 depending on
+        loop type).'''
         schedule = self.ancestor(GOSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
@@ -542,7 +543,8 @@ class GOLoop(Loop):
         indices depending on offset, field type, and iteration space.
         All occurences of {start} and {stop} in _bounds_loopup will
         be replaced with the constant loop boundary variable, e.g.
-        "{stop}+1" will become "istop+1".'''
+        "{stop}+1" will become "istop+1" (or "jstop+1" depending on
+        loop type).'''
 
         schedule = self.ancestor(GOSchedule)
         if schedule.const_loop_bounds:
