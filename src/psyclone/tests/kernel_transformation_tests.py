@@ -39,21 +39,34 @@ from __future__ import absolute_import
 import os
 import pytest
 from utils import get_invoke
+from psyclone.transformations import TransformationError
 
 
 def test_accroutine_err():
     ''' Check that we raise the expected error if we can't find the
     source of the kernel subroutine. '''
     from psyclone.psyGen import Kern
-    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", 0)
+    import fparser
+    psy, invoke = get_invoke(os.path.join("dynamo0p3", "1_single_invoke.f90"),
+                             api="dynamo0.3", idx=0)
     sched = invoke.schedule
     sched.view()
-    kern = sched.children[0].children[0]
+    kernels = sched.walk(sched.children, Kern)
+    kern = kernels[0]
     assert isinstance(kern, Kern)
     # Edit the fparser1 AST of the kernel so that it does not have a
     # subroutine of the correct name
     ast = kern._module_code
-    assert 0
+    mod = ast.content[0]
+    for child in mod.content:
+        if isinstance(child, fparser.one.block_statements.Subroutine):
+            sub = child
+        print(type(child))
+    import pdb; pdb.set_trace()
+    child.name = "some_other_name"
+    with pytest.raises(TransformationError) as err:
+        _ = kern.ast
+    assert "blah" in str(err)
 
 
 def test_accroutine():
@@ -62,7 +75,9 @@ def test_accroutine():
     from psyclone.gocean1p0 import GOKern
     from psyclone.transformations import ACCRoutineTrans
     from fparser.two import Fortran2003
-    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", 0)
+    psy, invoke = get_invoke(os.path.join("gocean1p0",
+                                          "nemolite2d_alg_mod.f90"),
+                             api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
     assert isinstance(kern, GOKern)

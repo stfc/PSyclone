@@ -2269,6 +2269,7 @@ class ACCRoutineTrans(Transformation):
     Transform a kernel subroutine through the addition of a "!$acc routine"
     directive.
     '''
+    @property
     def name(self):
         '''
         :returns: the name of this transformation class.
