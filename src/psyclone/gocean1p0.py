@@ -297,7 +297,9 @@ class GOSchedule(Schedule):
         self._const_loop_bounds = True
 
     def view(self, indent=0):
-        ''' Print a representation of this GOSchedule '''
+        '''Print a representation of this GOSchedule.
+        :param int indent: optional argument indicating the level of
+        indentation to add before outputting the class information.'''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
               self.invoke.name + "',Constant loop bounds=" +
               str(self._const_loop_bounds) + "]")
@@ -370,6 +372,12 @@ class GOLoop(Loop):
         in the Dynamo api. '''
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
+        '''Constructs a GOLoop instance.
+        :param parent: Optional parent node (default None).
+        :type parent: :py:class:`psyclone.psyGen.node`
+        :param str topology_name: Optional opology of the loop (unused atm).
+        :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
+
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
@@ -461,7 +469,14 @@ class GOLoop(Loop):
 
     # pylint: disable=too-many-branches
     def _upper_bound(self):
-        ''' Returns the upper bound of this loop as a string '''
+        ''' Returns the upper bound of this loop as a string.
+        This takes the field type and usage of const_loop_bounds
+        into account. In case of const_loop_bounds it will be
+        using the data in self._bounds_lookup to find the appropriate
+        indices depending on offset, field type, and iteration space.
+        All occurences of {start} and {stop} in _bounds_loopup will
+        be replaced with the constant loop boundary variable, e.g.
+        "{stop}+1" will become "istop+1".'''
         schedule = self.ancestor(GOSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
@@ -520,8 +535,15 @@ class GOLoop(Loop):
 
     # pylint: disable=too-many-branches
     def _lower_bound(self):
-        ''' Returns a string containing the expression for the lower
-        bound of the loop '''
+        ''' Returns the lower bound of this loop as a string.
+        This takes the field type and usage of const_loop_bounds
+        into account. In case of const_loop_bounds it will be
+        using the data in self._bounds_lookup to find the appropriate
+        indices depending on offset, field type, and iteration space.
+        All occurences of {start} and {stop} in _bounds_loopup will
+        be replaced with the constant loop boundary variable, e.g.
+        "{stop}+1" will become "istop+1".'''
+
         schedule = self.ancestor(GOSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
