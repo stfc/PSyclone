@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
 
 def trans(psy):
     '''PSyclone transformation script for the dynamo0.3 API to apply loop
-    fusion generically to all top level loops
+    fusion generically to all top level loops.
 
     '''
     total_fused = 0

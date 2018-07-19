@@ -35,7 +35,7 @@
 
 '''File containing a PSyclone transformation script for the Dynamo0.3
 API to apply redundant computation to halo depth 1 for all loops that
-iterate over dofs and do not contain a reduction
+iterate over dofs and do not contain a reduction.
 
 '''
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
@@ -48,7 +48,7 @@ def trans(psy):
     '''PSyclone transformation script for the dynamo0.3 API to apply
     redundant computation generically to all loops that iterate over
     dofs, with the exception of loops containing kernels with
-    reductions
+    reductions.
 
     '''
     rc_trans = Dynamo0p3RedundantComputationTrans()
