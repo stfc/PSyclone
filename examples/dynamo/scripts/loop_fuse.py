@@ -66,13 +66,13 @@ def trans(psy):
                 schedule, _ = lf_trans.apply(prev_node, node, same_space=False)
                 local_fused += 1
             except TransformationError as error:
-                print str(error.value)
+                print (str(error.value))
             idx -= 1
         total_fused += local_fused
         if local_fused > 0:
-            print "After fusing ..."
+            print ("After fusing ...")
             schedule.view()
             invoke.schedule = schedule
 
-    print "I fused {0} loops".format(total_fused)
+    print ("I fused {0} loops".format(total_fused))
     return psy
