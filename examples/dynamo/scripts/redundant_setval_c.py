@@ -70,6 +70,7 @@ def trans(psy):
                 for call in loop.calls():
                     if not call.name in KERNEL_NAMES:
                         setcalls = False
+                        break
                 if setcalls:
                     transformed += 1
                     schedule, _ = rc_trans.apply(loop, depth=DEPTH)

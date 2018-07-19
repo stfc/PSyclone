@@ -65,6 +65,7 @@ def trans(psy):
                 for call in loop.calls():
                     if call.is_reduction:
                         reduction = True
+                        break
                 if not reduction:
                     transformed += 1
                     schedule, _ = rc_trans.apply(loop, depth=DEPTH)
