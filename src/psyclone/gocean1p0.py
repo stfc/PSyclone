@@ -796,31 +796,46 @@ class GOKern(Kern):
         parent.add(CommentGen(parent,
                               " Ensure field data is on device"))
         for arg in self._arguments.args:
-            if arg.type == "field":
-                ifthen = IfThenGen(parent,
-                                   ".NOT. {0}%data_on_device".format(arg.name))
+            if arg.type == "field" or arg.type == "grid_property":
+
+                if arg.type == "field":
+                    condition = ".NOT. {0}%data_on_device".format(arg.name)
+                    device_buff = "{0}%device_ptr".format(arg.name)
+                    host_buff = "{0}%data".format(arg.name)
+                else:
+                    device_buff = "{0}%grid%{1}_device".format(garg.name,
+                                                               arg.name)
+                    condition = device_buff + " == 0"
+                    host_buff = "{0}%grid%{1}".format(garg.name, arg.name)
+
+                ifthen = IfThenGen(parent, condition)
                 parent.add(ifthen)
                 parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
                                    entity_decls=["size_in_bytes"]))
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind="c_intptr_t", target=True,
                                    entity_decls=["write_event"]))
+
                 size_expr = "int({0}%grid%nx*{0}%grid%ny, 8)*8_8".\
                             format(garg.name)
                 ifthen.add(AssignGen(ifthen, lhs="size_in_bytes",
                                      rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
+
                 ifthen.add(AssignGen(
-                    ifthen, lhs="{0}%device_ptr".format(arg.name),
+                    ifthen, lhs=device_buff,
                     rhs="create_buffer(CL_MEM_READ_WRITE, size_in_bytes)"))
                 ifthen.add(AssignGen(
                     ifthen, lhs="ierr",
-                    rhs="clEnqueueWriteBuffer(cmd_queues(1), {0}%device_ptr, "
-                    "CL_TRUE, 0_8, size_in_bytes, C_LOC({0}%data), "
-                    "0, C_NULL_PTR, C_LOC(write_event))".format(arg.name)))
-                ifthen.add(AssignGen(ifthen,
-                                     lhs="{0}%data_on_device".format(arg.name),
-                                     rhs=".true."))
+                    rhs="clEnqueueWriteBuffer(cmd_queues(1), {0}, "
+                    "CL_TRUE, 0_8, size_in_bytes, C_LOC({1}), "
+                    "0, C_NULL_PTR, C_LOC(write_event))".format(device_buff,
+                                                                host_buff)))
+                if arg.type == "field":
+                    ifthen.add(AssignGen(ifthen,
+                                         lhs="{0}%data_on_device".format(arg.name),
+                                         rhs=".true."))
+
         # Ensure data copies have finished
         parent.add(CommentGen(parent,
                               " Block until data copies have finished"))
