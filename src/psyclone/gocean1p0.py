@@ -827,7 +827,7 @@ class GOKern(Kern):
         parent.add(AssignGen(parent, lhs="ierr",
                              rhs="clFinish(cmd_queues(1))"))
         # Then we set the kernel arguments
-        arguments = [kernel]
+        arguments = [kernel, garg.name+"%grid%nx"]
         # TODO this argument-list generation duplicates that in
         # GOKern.gen_code(). We need to re-factor ala dynamo0p3.ArgOrdering.
         for arg in self._arguments.args:
@@ -874,17 +874,20 @@ class GOKern(Kern):
             AssignGen, CommentGen
         # TODO take care with literal arguments
         # TODO use name-space manager for name of kernel-object arg
-        arguments = ["kernel_obj"] + [arg.name for arg in self._arguments.args]
+        arguments = ["kernel_obj", "nx"] + \
+                    [arg.name for arg in self._arguments.args]
         sub = SubroutineGen(parent, name=self.name+"_set_args",
                             args=arguments)
         parent.add(sub)
         sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
-                          funcnames=["check_status"]))
+                       funcnames=["check_status"]))
         sub.add(UseGen(sub, name="iso_c_binding", only=True,
                        funcnames=["c_sizeof", "c_loc", "c_intptr_t"]))
         sub.add(UseGen(sub, name="clfortran", only=True,
                        funcnames=["clSetKernelArg"]))
         # Declare arguments
+        sub.add(DeclGen(sub, datatype="integer", target=True,
+                        entity_decls=["nx"]))
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         target=True, entity_decls=["kernel_obj"]))
 
@@ -909,14 +912,21 @@ class GOKern(Kern):
                                 target=True, entity_decls=[arg.name]))
 
         # Declare local variables
-        sub.add(DeclGen(sub, datatype="integer", entity_decls=["ierr",
-                                                               "arg_idx"]))
+        sub.add(DeclGen(sub, datatype="integer", entity_decls=["ierr"]))
         sub.add(CommentGen(
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
-        sub.add(AssignGen(sub, lhs="arg_idx", rhs="0"))
+        # We must always pass "nx" (the horizontal dimension of the grid) into
+        # a kernel
+        index = 0
+        sub.add(AssignGen(
+            sub, lhs="ierr",
+            rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+            format("kernel_obj", index, "nx")))
+        # Now all of the 'standard' kernel arguments
         for arg in self.arguments.args:
-            arg.set_kernel_arg(sub)
+            index += 1
+            arg.set_kernel_arg(sub, index, self.name)
 
 
 class GOKernelArguments(Arguments):
