@@ -783,7 +783,7 @@ class GOKern(Kern):
 
         garg = self._find_grid_access()
         parent.add(DeclGen(parent, datatype="integer", target=True,
-                           entity_decls=["globalsize(2)"]))
+                           kind="c_size_t", entity_decls=["globalsize(2)"]))
         parent.add(AssignGen(
             parent, lhs="globalsize",
             rhs="(/{0}%grid%nx, {0}%grid%ny/)".format(garg.name)))
@@ -816,8 +816,8 @@ class GOKern(Kern):
                                    kind="c_intptr_t", target=True,
                                    entity_decls=["write_event"]))
 
-                size_expr = "int({0}%grid%nx*{0}%grid%ny, 8)*8_8".\
-                            format(garg.name)
+                size_expr = "int({0}%grid%nx*{0}%grid%ny, 8)*c_sizeof({1}(1,1))".\
+                            format(garg.name, host_buff)
                 ifthen.add(AssignGen(ifthen, lhs="size_in_bytes",
                                      rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
