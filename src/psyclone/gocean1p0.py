@@ -779,7 +779,7 @@ class GOKern(Kern):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
-            IfThenGen
+            IfThenGen, UseGen
 
         garg = self._find_grid_access()
         parent.add(DeclGen(parent, datatype="integer", target=True,
@@ -790,6 +790,8 @@ class GOKern(Kern):
 
         kernel = "kernel_" + self._name  # TODO use namespace manager
 
+        parent.add(UseGen(parent, name="ocl_env_mod", only=True,
+                          funcnames=["create_buffer"]))
         # Ensure fields are on device TODO this belongs somewhere else!
         parent.add(CommentGen(parent,
                               " Ensure field data is on device"))
@@ -807,6 +809,10 @@ class GOKern(Kern):
                             format(garg.name)
                 ifthen.add(AssignGen(ifthen, lhs="size_in_bytes",
                                      rhs=size_expr))
+                ifthen.add(CommentGen(ifthen, " Create buffer on device"))
+                ifthen.add(AssignGen(
+                    ifthen, lhs="{0}%device_ptr".format(arg.name),
+                    rhs="create_buffer(CL_MEM_READ_WRITE, size_in_bytes)"))
                 ifthen.add(AssignGen(
                     ifthen, lhs="ierr",
                     rhs="clEnqueueWriteBuffer(cmd_queues(1), {0}%device_ptr, "
