@@ -38,6 +38,7 @@ API to apply redundant computation to halo depth 1 for all loops that
 iterate over dofs and do not contain a reduction.
 
 '''
+from __future__ import absolute_import
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 
 ITERATION_SPACES = ["dofs"]
@@ -70,5 +71,6 @@ def trans(psy):
                     transformed += 1
                     schedule, _ = rc_trans.apply(loop, depth=DEPTH)
 
-    print ("Transformed {0} loops".format(transformed))
+    output = "Transformed {0} loops".format(transformed)
+    print (output)
     return psy

@@ -38,6 +38,7 @@ API to apply redundant computation to halo depth 1 for all instances
 of loops that iterate over dofs and contain the setval_c builtin.
 
 '''
+from __future__ import absolute_import
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 
 ITERATION_SPACES = ["dofs"]
@@ -68,12 +69,13 @@ def trans(psy):
                 # kernel names
                 setcalls = True
                 for call in loop.calls():
-                    if not call.name in KERNEL_NAMES:
+                    if call.name not in KERNEL_NAMES:
                         setcalls = False
                         break
                 if setcalls:
                     transformed += 1
                     schedule, _ = rc_trans.apply(loop, depth=DEPTH)
 
-    print ("Transformed {0} loops".format(transformed))
+    output = "Transformed {0} loops".format(transformed)
+    print (output)
     return psy

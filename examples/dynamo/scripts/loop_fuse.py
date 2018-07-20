@@ -40,6 +40,7 @@ that are lower in the schedule e.g. coloured loops. This can be
 applied via the -s option in the psyclone script.
 
 '''
+from __future__ import absolute_import
 from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
 
 
@@ -66,13 +67,16 @@ def trans(psy):
                 schedule, _ = lf_trans.apply(prev_node, node, same_space=False)
                 local_fused += 1
             except TransformationError as error:
-                print (str(error.value))
+                # print (str(error.value))
+                pass
             idx -= 1
         total_fused += local_fused
         if local_fused > 0:
-            print ("After fusing ...")
+            output = "After fusing ..."
+            print (output)
             schedule.view()
             invoke.schedule = schedule
 
-    print ("I fused {0} loops".format(total_fused))
+    output = "Fused {0} loops".format(total_fused)
+    print (output)
     return psy

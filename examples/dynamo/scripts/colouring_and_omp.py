@@ -38,7 +38,7 @@
 ''' File containing a PSyclone transformation script for the Dynamo0p3
 API to apply colouring and OpenMP generically. This can be applied via
 the -s option in the generator.py script. '''
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans
 from psyclone.psyGen import Loop
