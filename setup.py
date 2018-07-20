@@ -76,13 +76,13 @@ CLASSIFIERS = [
     'Operating System :: Unix',
     'Operating System :: MacOS']
 
-# We read the version number from version.py in the src/psyclone directory.
-# Rather than importing it (which would require that PSyclone already be
-# installed), we read it using execfile().
+# We read the version number ('__VERSION__') from version.py in the
+# src/psyclone directory. Rather than importing it (which would require
+# that PSyclone already be installed), we read it and then exec() it:
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
-    exec(f.read())
-VERSION = __VERSION__
+with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as vfile:
+    exec(vfile.read())
+VERSION = __VERSION__  # pylint:disable=undefined-variable
 
 if __name__ == '__main__':
 
@@ -98,6 +98,9 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser>=0.0.7', 'six'],
+        install_requires=['pyparsing', 'fparser>=0.0.7', 'configparser',
+                          'six'],
         include_package_data=True,
-        scripts=['bin/psyclone', 'bin/genkernelstub'])
+        scripts=['bin/psyclone', 'bin/genkernelstub'],
+        data_files=[('share/psyclone', ['config/psyclone.cfg'])]
+    )
