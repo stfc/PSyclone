@@ -790,8 +790,8 @@ class GOKern(Kern):
 
         kernel = "kernel_" + self._name  # TODO use namespace manager
 
-        parent.add(UseGen(parent, name="ocl_env_mod", only=True,
-                          funcnames=["create_buffer"]))
+        parent.add(UseGen(parent, name="fortcl", only=True,
+                          funcnames=["create_rw_buffer"]))
         # Ensure fields are on device TODO this belongs somewhere else!
         parent.add(CommentGen(parent,
                               " Ensure field data is on device"))
@@ -815,16 +815,18 @@ class GOKern(Kern):
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind="c_intptr_t", target=True,
                                    entity_decls=["write_event"]))
-
-                size_expr = "int({0}%grid%nx*{0}%grid%ny, 8)*c_sizeof({1}(1,1))".\
-                            format(garg.name, host_buff)
+                # Use c_sizeof() on first element of array to be copied over in
+                # order to cope with the fact that some grid properties are
+                # integer.
+                size_expr = ("int({0}%grid%nx*{0}%grid%ny, 8)*"
+                             "c_sizeof({1}(1,1))".format(garg.name, host_buff))
                 ifthen.add(AssignGen(ifthen, lhs="size_in_bytes",
                                      rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
 
                 ifthen.add(AssignGen(
                     ifthen, lhs=device_buff,
-                    rhs="create_buffer(CL_MEM_READ_WRITE, size_in_bytes)"))
+                    rhs="create_rw_buffer(size_in_bytes)"))
                 ifthen.add(AssignGen(
                     ifthen, lhs="ierr",
                     rhs="clEnqueueWriteBuffer(cmd_queues(1), {0}, "

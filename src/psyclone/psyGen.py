@@ -387,7 +387,7 @@ class Invokes(object):
             CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
-        sub.add(UseGen(sub, name="ocl_env_mod", only=True,
+        sub.add(UseGen(sub, name="fortcl", only=True,
                        funcnames=["ocl_env_init", "add_kernels"]))
         # Add a logical variable used to ensure that this routine is only
         # executed once.
@@ -1423,7 +1423,7 @@ class Schedule(Node):
         if self._opencl:
             parent.add(UseGen(parent, name="iso_c_binding"))
             parent.add(UseGen(parent, name="clfortran"))
-            parent.add(UseGen(parent, name="ocl_env_mod", only=True,
+            parent.add(UseGen(parent, name="fortcl", only=True,
                               funcnames=["get_num_cmd_queues",
                                          "get_cmd_queues",
                                          "get_kernel_by_name"]))
