@@ -71,6 +71,5 @@ def trans(psy):
                     transformed += 1
                     schedule, _ = rc_trans.apply(loop, depth=DEPTH)
 
-    output = "Transformed {0} loops".format(transformed)
-    print (output)
+    print("Transformed {0} loops".format(transformed))
     return psy
