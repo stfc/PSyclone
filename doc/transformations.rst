@@ -221,9 +221,10 @@ Of course the script may apply as many transformations as is required
 for a particular schedule and may apply transformations to all the
 schedules (i.e. invokes) contained within the PSy layer.
 
-An example of the use of transformations scripts can be found in the
-examples/dynamo/eg3 directory. Please read the examples/dynamo/README
-file first as it explains how to run the example.
+Examples of the use of transformation scripts can be found in the
+examples/dynamo/eg3 and examples/dynamo/scripts directories. Please
+read the examples/dynamo/README file first as it explains how to run
+the examples (and see also the examples/check_examples script).
 
 OpenMP
 ------
