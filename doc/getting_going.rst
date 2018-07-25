@@ -225,6 +225,8 @@ If you do not have it then py.test can again be installed using
 ``pip`` or from here http://pytest.org/latest/ (or specifically here
 http://pytest.org/latest/getting-started.html).
 
+.. _getting_going_env:
+
 Environment
 -----------
 
@@ -356,6 +358,8 @@ on your PATH:
    > psyclone
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
                    [-d DIRECTORY] [-l] [-dm] [-nodm]
+		   [--profile {invokes,kernels}]
+                   [--force-profile {invokes,kernels}] [-v]
                    filename
    psyclone: error: too few arguments
 

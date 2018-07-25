@@ -186,3 +186,8 @@ that by prolonging it twice:
 ::
     cd eg10/
     psyclone intergrid_3levels.x90
+
+scripts
+-------
+
+A collection of example PSyclone scripts.
