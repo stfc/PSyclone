@@ -2270,11 +2270,12 @@ def test_kern_ast():
     ''' Test that we can obtain the fparser2 AST of a kernel. '''
     from psyclone.gocean1p0 import GOKern
     from fparser.two import Fortran2003
-    _, invoke = get_invoke("nemolite2d_alg_mod.f90", 0)
+    _, invoke = get_invoke(os.path.join("gocean1p0",
+                                        "nemolite2d_alg_mod.f90"),
+                           api="gocean1.0", idx=0)
     sched = invoke.schedule
-    sched.view()
     kern = sched.children[0].children[0].children[0]
     assert isinstance(kern, GOKern)
-    assert new_kern.ast
-    assert isinstance(new_kern.ast, Fortran2003.Program)
+    assert kern.ast
+    assert isinstance(kern.ast, Fortran2003.Program)
 
