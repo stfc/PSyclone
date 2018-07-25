@@ -73,7 +73,7 @@ def test_const_loop_bounds_toggle():
     ''' Check that we can toggle constant loop bounds on and off and
     that the default behaviour is "on" '''
     psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                             API, idx=0);
+                             API, idx=0)
     schedule = invoke.schedule
     cbtrans = GOConstLoopBoundsTrans()
 

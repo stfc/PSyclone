@@ -4401,8 +4401,8 @@ def test_fs_discontinuous_and_inc_error():
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in DISCONTINUOUS_FUNCTION_SPACES:
         code = CODE.replace("arg_type(gh_field,gh_read, w3)",
-                            "arg_type(gh_field,gh_inc, "
-                            + fspace + ")", 1)
+                            "arg_type(gh_field,gh_inc, " +
+                            fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
@@ -4417,8 +4417,8 @@ def test_fs_continuous_and_readwrite_error():
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in CONTINUOUS_FUNCTION_SPACES:
         code = CODE.replace("arg_type(gh_field,gh_read, w2)",
-                            "arg_type(gh_field,gh_readwrite, "
-                            + fspace + ")", 1)
+                            "arg_type(gh_field,gh_readwrite, " +
+                            fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
@@ -4433,8 +4433,8 @@ def test_fs_anyspace_and_readwrite_error():
     fparser.logging.disable(fparser.logging.CRITICAL)
     for fspace in VALID_ANY_SPACE_NAMES:
         code = CODE.replace("arg_type(gh_field,gh_read, w2)",
-                            "arg_type(gh_field,gh_readwrite, "
-                            + fspace + ")", 1)
+                            "arg_type(gh_field,gh_readwrite, " +
+                            fspace + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name="testkern_qr_type")
@@ -7190,7 +7190,7 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
         # If compilation testing has been enabled (--compile flag
         # to py.test)
         assert code_compiles(TEST_API, psy, tmpdir,
-                                   f90, f90flags)
+                             f90, f90flags)
     if annexed:
         assert "CALL f1_proxy%halo_exchange" not in result
     else:

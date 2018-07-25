@@ -135,8 +135,8 @@ def test_cma_mdata_multi_writes():
                 "updates 2") in str(excinfo)
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_field,gh_read, any_space_1)",
-            cmaopstring + ",&\n"
-            + cmaopstring, 1)
+            cmaopstring + ",&\n" +
+            cmaopstring, 1)
         code = code.replace("meta_args(4) = ", "meta_args(5) = ", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
@@ -178,8 +178,8 @@ def test_cma_mdata_writes_lma_op():
                    ", any_space_1, any_space_2), &\n"
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n",
-            "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n"
-            + opstring, 1)
+            "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n" +
+            opstring, 1)
         code = code.replace("meta_args(4)", "meta_args(5)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
@@ -551,8 +551,8 @@ def test_cma_mdata_matrix_2_writes():
             "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
             "ANY_SPACE_2),&\n",
             "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
-            "ANY_SPACE_2),&\n"
-            + cmaopstring, 1)
+            "ANY_SPACE_2),&\n" +
+            cmaopstring, 1)
         code = code.replace("meta_args(4)", "meta_args(5)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"

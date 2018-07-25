@@ -141,8 +141,7 @@ def test_subroutine_var_intent_in_with_directive():
     subroutine.add(DeclGen(subroutine, datatype="integer",
                            intent="in", entity_decls=["var1"]))
     idx_par = line_number(subroutine.root, "!$omp parallel")
-    idx_var = line_number(subroutine.root,
-                                "INTEGER, intent(in) :: var1")
+    idx_var = line_number(subroutine.root, "INTEGER, intent(in) :: var1")
     assert idx_par - idx_var == 1, \
         "variable declaration must be before directive"
 

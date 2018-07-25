@@ -37,15 +37,13 @@
 
 from __future__ import absolute_import
 
-import os
 import re
 import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.gocean1p0 import GOKern, GOSchedule
-from psyclone.parse import parse
 from psyclone.profiler import Profiler, ProfileNode
-from psyclone.psyGen import Loop, NameSpace, PSyFactory
+from psyclone.psyGen import Loop, NameSpace
 from psyclone.tests.utils import get_invoke
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
     ProfileRegionTrans, TransformationError
@@ -487,7 +485,7 @@ def test_transform_errors(capsys):
 
     # This has been imported and tested before, so we can assume
     # here that this all works as expected/
-    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0", 
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1")
 
     schedule = invoke.schedule
