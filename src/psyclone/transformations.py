@@ -2299,16 +2299,17 @@ class ACCRoutineTrans(Transformation):
         from psyclone.undoredo import Memento
         keep = Memento(kern, self)
         # Find the kernel subroutine
-        name = ""
+        found = False
         subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
         for sub in subroutines:
             for child in sub.content:
-                if isinstance(child, Subroutine_Stmt):
-                    name = child.items[1]
+                if isinstance(child, Subroutine_Stmt) and \
+                   str(child.items[1]) == kern.name:
+                    found = True
                     break
-            if str(name) == kern.name:
+            if found:
                 break
-        if not name:
+        if not found:
             raise TransformationError(
                 "Failed to find subroutine source for kernel {0}".
                 format(kern.name))

@@ -46,11 +46,11 @@ def test_accroutine_err():
     ''' Check that we raise the expected error if we can't find the
     source of the kernel subroutine. '''
     from psyclone.psyGen import Kern
+    from psyclone.transformations import ACCRoutineTrans
     import fparser
     psy, invoke = get_invoke(os.path.join("dynamo0p3", "1_single_invoke.f90"),
                              api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    sched.view()
     kernels = sched.walk(sched.children, Kern)
     kern = kernels[0]
     assert isinstance(kern, Kern)
@@ -58,15 +58,21 @@ def test_accroutine_err():
     # subroutine of the correct name
     ast = kern._module_code
     mod = ast.content[0]
+    # Find the subroutine statement
     for child in mod.content:
         if isinstance(child, fparser.one.block_statements.Subroutine):
             sub = child
-        print(type(child))
-    import pdb; pdb.set_trace()
-    child.name = "some_other_name"
+    # Find the end subroutine statement
+    for child in sub.content:
+        if isinstance(child, fparser.one.block_statements.EndSubroutine):
+            end = child
+    sub.name = "some_other_name"
+    end.name = sub.name
+    rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
-        _ = kern.ast
-    assert "blah" in str(err)
+        _ = rtrans.apply(kern)
+    assert ("Failed to find subroutine source for kernel testkern_code"
+            in str(err))
 
 
 def test_accroutine():
