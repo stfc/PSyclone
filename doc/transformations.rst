@@ -119,6 +119,16 @@ can be found in the API-specific sections).
 	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
+Kernels
+-------
+
+Occasionally it is not sufficient to transform only the generated
+PSy-layer code - the kernels called from the PSy layer must also be
+modified. Currently just one transformation is provided for this purpose:
+
+.. autoclass:: psyclone.transformations.ACCRoutineTrans
+   :noindex:
+   :members:
    
 Applying
 --------

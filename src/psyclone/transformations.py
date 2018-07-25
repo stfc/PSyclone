@@ -2267,7 +2267,24 @@ class ACCDataTrans(Transformation):
 class ACCRoutineTrans(Transformation):
     '''
     Transform a kernel subroutine through the addition of a "!$acc routine"
-    directive.
+    directive (causing it to be compiled for the OpenACC accelerator device).
+    For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import ACCRoutineTrans
+    >>> rtrans = ACCRoutineTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> kern = schedule.children[0].children[0].children[0]
+    >>> # Transform the kernel
+    >>> newkern, _ = rtrans.apply(kern)
     '''
     @property
     def name(self):

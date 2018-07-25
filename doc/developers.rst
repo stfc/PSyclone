@@ -750,7 +750,7 @@ The full interface to each of these classes is detailed below:
     :members:
     :noindex:
 
-Configuration
+configuration
 =============
 
 PSyclone uses the Python ``ConfigParser`` class
@@ -793,6 +793,18 @@ The API-specific sub-classes exist to provide validation/type-checking and
 encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
+
+transformations
+===============
+
+It should come as no surprise that the transformations module holds the
+various transformation classes that may be used to modify the Schedule
+of an Invoke and/or the kernels called from within it.
+
+Kernel Transformations
+----------------------
+
+TBD
 
 OpenACC Support
 ###############
