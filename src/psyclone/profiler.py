@@ -147,13 +147,24 @@ class ProfileNode(Node):
             :type parent: A :py::class::`psyclone.psyGen.Node`.
         '''
         Node.__init__(self, children=children, parent=parent)
+
+        # Store the name of the profile variable that is used for this
+        # profile name. This allows to show the variable name in __str__
+        # (and also if we would call create_name in gen(), the name would
+        # change every time gen() is called).
         self._var_name = NameSpaceFactory().create().create_name("profile")
+
+        # Name of the region. In general at constructor time we might not
+        # have a parent subroutine or a child for the kernel, so we leave
+        # the name empty for now. The region and module names are set the
+        # first time gen() is called (and then remain unchanged).
         self._region_name = None
         self._module_name = None
 
     # -------------------------------------------------------------------------
     def __str__(self):
-        ''' Returns a name for the ProfileNode. '''
+        ''' Returns a string representation of the subtree starting at
+        this node. '''
         result = "ProfileStart[var={0}]\n".format(self._var_name)
         for child in self.children:
             result += str(child)+"\n"
@@ -190,9 +201,9 @@ class ProfileNode(Node):
         :type parent: :py:class:`psyclone.psyGen.Node`.'''
 
         if self._module_name is None or self._region_name is None:
-            # Find the first kernel and use its name. In plain PSyclone there
-            # should be only one kernel, but if Profile is invoked after e.g.
-            # a loop merge more kernels might be there
+            # Find the first kernel and use its name. In an untransformed
+            # Schedule  there should be only one kernel, but if Profile is
+            # invoked after e.g. a loop merge more kernels might be there.
             region_name = "unknown-kernel"
             module_name = "unknown-module"
             for kernel in self.walk(self.children, Kern):

@@ -109,7 +109,7 @@ def test_profile_basic(capsys):
     coloured_schedule = GOSchedule([]).coloured_text
     coloured_loop = Loop().coloured_text
     coloured_kern = GOKern().coloured_text
-    coloured_profile = ProfileNode().coloured_text
+    coloured_profile = invoke.schedule.children[0].coloured_text
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
@@ -138,15 +138,10 @@ def test_profile_basic(capsys):
 
     new_sched_str = str(new_sched)
 
-    # Note that the first profile node is created using the get_invoke
-    # call above using the name "profile". Then ProfileNode().coloured_text
-    # will create (an otherwise unused) node using "profile_1". Applying
-    # the profile transform will create a new profile node using "profile_2".
-    # So the schedule view will use the name profile and profile_2!!!
     correct = ("""GOSchedule(Constant loop bounds=True):
 ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop-1,1
-ProfileStart[var=profile_2]
+ProfileStart[var=profile_1]
 Loop[]: i= lower=2,istop,1
 kern call: compute_cv_code
 EndLoop
