@@ -282,9 +282,20 @@ def get_invoke(algfile, api, idx=None, name=None):
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
+    if api == "gocean1.0":
+        dir_name = "gocean1p0"
+    elif api == "dynamo0.3":
+        dir_name = "dynamo0p3"
+    elif api == "gocean0.1":
+        dir_name = "gocean0p1"
+    elif api == "dyanmo0.1":
+        dir_name = "dynamo0p1"
+    else:
+        assert False
+
     _, info = parse(os.path.
                     join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", algfile),
+                         "test_files", dir_name, algfile),
                     api=api)
     psy = PSyFactory(api).create(info)
     if name:

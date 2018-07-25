@@ -47,7 +47,7 @@ from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.configuration import ConfigFactory
 from psyclone import dynamo0p3_builtins
-import utils
+from psyclone.tests.utils import TEST_COMPILE, code_compiles
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -426,11 +426,10 @@ def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch):
                     output_dm_2 = output_dm_2.replace("annexed", "owned")
                 assert output_dm_2 in code
 
-            if utils.TEST_COMPILE:
+            if TEST_COMPILE:
                 # If compilation testing has been enabled (--compile
                 # flag to py.test)
-                assert utils.code_compiles(API, psy, tmpdir,
-                                           f90, f90flags)
+                assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
 
 def test_inc_X_plus_Y(monkeypatch, annexed):
@@ -1802,10 +1801,10 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed):
         code = str(psy.gen)
         print(code)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
         if not distmem:
             output = (
@@ -2273,10 +2272,10 @@ def test_builtin_set(tmpdir, f90, f90flags, monkeypatch, annexed):
         code = str(psy.gen)
         print(code)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
         if not distmem:
             output_seq = (

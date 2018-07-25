@@ -51,7 +51,7 @@ from psyclone.transformations import TransformationError, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans
 from psyclone.configuration import ConfigFactory
-import utils
+from psyclone.tests.utils import TEST_COMPILE, code_compiles
 
 
 # The version of the API that the tests in this file
@@ -107,10 +107,10 @@ def test_colour_trans_declarations(tmpdir, f90, f90flags):
             assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen
         assert "integer colour" in gen
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_trans(tmpdir, f90, f90flags):
@@ -182,10 +182,10 @@ def test_colour_trans(tmpdir, f90, f90flags):
             assert dirty_str in gen
             assert gen.count("set_dirty()") == 1
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_trans_operator(tmpdir, f90, f90flags):
@@ -219,10 +219,10 @@ def test_colour_trans_operator(tmpdir, f90, f90flags):
         # check the first argument is a colourmap lookup
         assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_trans_cma_operator(tmpdir, f90, f90flags):
@@ -283,10 +283,10 @@ def test_colour_trans_cma_operator(tmpdir, f90, f90flags):
             "        END DO \n"
             "      END DO \n") in gen
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_trans_stencil():
@@ -495,10 +495,10 @@ def test_omp_colour_trans(tmpdir, f90, f90flags):
 
         assert output in code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_omp_colour_orient_trans():
@@ -656,11 +656,11 @@ def test_check_seq_colours_omp_do(tmpdir, f90, f90flags):
         assert "target loop is over colours" in str(excinfo.value)
         assert "must be computed serially" in str(excinfo.value)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test) This test checks the code without OpenMP as
             # this transformation fails
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colouring_after_openmp():
@@ -1241,10 +1241,10 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert cell_enddo_idx > call2_idx
         assert omp_endpara_idx - cell_enddo_idx == 1
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_fuse_colour_loops(tmpdir, f90, f90flags):
@@ -1372,10 +1372,10 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags):
             assert set_dirty_str in code
             assert code.count("set_dirty()") == 2
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_loop_fuse_cma():
@@ -4259,10 +4259,10 @@ def test_rc_discontinuous_depth(tmpdir, f90, f90flags, monkeypatch, annexed):
     assert ("      CALL m2_proxy%set_dirty()\n"
             "      CALL m2_proxy%set_clean(3)") in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_discontinuous_no_depth(monkeypatch, annexed):
@@ -4327,10 +4327,10 @@ def test_rc_all_discontinuous_depth(tmpdir, f90, f90flags):
     assert "CALL f1_proxy%set_dirty()" in result
     assert "CALL f1_proxy%set_clean(3)" in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_discontinuous_no_depth(tmpdir, f90, f90flags):
@@ -4358,10 +4358,10 @@ def test_rc_all_discontinuous_no_depth(tmpdir, f90, f90flags):
     assert "DO cell=1,mesh%get_last_halo_cell()" in result
     assert "CALL f1_proxy%set_clean(mesh%get_halo_depth())" in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
@@ -4392,10 +4392,10 @@ def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
         assert "CALL f1_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f1_proxy({0})%set_clean(3)".format(idx) in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
@@ -4426,10 +4426,10 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
         assert ("CALL f1_proxy({0})%set_clean(mesh%get_halo_"
                 "depth())".format(idx)) in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
@@ -4460,10 +4460,10 @@ def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
     assert "CALL f3_proxy%set_dirty()" in result
     assert "CALL f3_proxy%set_clean(3)" in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_disc_prev_depend_no_depth():
@@ -4525,10 +4525,10 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir, f90, f90flags):
         assert "CALL f3_proxy({0})%set_dirty()".format(idx) in result
         assert "CALL f3_proxy({0})%set_clean(3)".format(idx) in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
@@ -4561,10 +4561,10 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
         assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
                 format(idx)) in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir, f90, f90flags):
@@ -4603,10 +4603,10 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir, f90, f90flags):
         assert ("CALL f3_proxy({0})%set_clean(mesh%get_halo_depth())".
                 format(idx)) in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_dofs_depth():
@@ -5004,10 +5004,10 @@ def test_rc_remove_halo_exchange(tmpdir, f90, f90flags, monkeypatch):
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     #
     invoke = psy.invokes.invoke_list[0]
@@ -5077,10 +5077,10 @@ def test_rc_max_remove_halo_exchange(tmpdir, f90, f90flags):
     # bother as that is not relevant to this test.
     assert "CALL f4_proxy%halo_exchange(depth=1)" not in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_continuous_halo_remove():
@@ -5737,10 +5737,10 @@ def test_rc_colour(tmpdir, f90, f90flags):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(1)" in result)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_max_colour(tmpdir, f90, f90flags):
@@ -5788,10 +5788,10 @@ def test_rc_max_colour(tmpdir, f90, f90flags):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_discontinuous():
@@ -5874,10 +5874,10 @@ def test_rc_then_colour(tmpdir, f90, f90flags):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(2)" in result)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_rc_then_colour2(tmpdir, f90, f90flags):
@@ -5931,10 +5931,10 @@ def test_rc_then_colour2(tmpdir, f90, f90flags):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
@@ -5993,10 +5993,10 @@ def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
         "      CALL f1_proxy%set_dirty()\n"
         "      CALL f1_proxy%set_clean(mesh%get_halo_depth()-1)" in result)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_haloex_colouring(tmpdir, f90, f90flags):
@@ -6061,10 +6061,10 @@ def test_haloex_colouring(tmpdir, f90, f90flags):
         halo_exchange = schedule.children[4]
         check_halo_exchange(halo_exchange)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         print("OK for iteration ", idx)
 
@@ -6143,10 +6143,10 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
         halo_exchange = schedule.children[4]
         check_halo_exchange(halo_exchange)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         print("OK for iteration ", idx)
 
@@ -6228,10 +6228,10 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
         halo_exchange = schedule.children[4]
         check_halo_exchange(halo_exchange)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         print("OK for iteration ", idx)
 
@@ -6312,10 +6312,10 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
         halo_exchange = schedule.children[4]
         check_halo_exchange(halo_exchange)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         print("OK for iteration ", idx)
 
@@ -6384,10 +6384,10 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
         assert isinstance(schedule.children[0], DynHaloExchange)
         assert schedule.children[0].field.name == "f1"
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         print("OK for iteration ", idx)
 

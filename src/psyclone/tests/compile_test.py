@@ -39,7 +39,8 @@ the compilation of generated Fortran code '''
 from __future__ import absolute_import
 import os
 import pytest
-import utils
+from psyclone.tests.utils import code_compiles, COMPILE, compile_file, \
+    CompileError, find_fortran_file, string_compiles
 
 
 HELLO_CODE = '''
@@ -49,7 +50,7 @@ end program hello
 '''
 
 
-@utils.COMPILE
+@COMPILE
 def test_compiler_works(tmpdir, f90, f90flags):
     ''' Check that the specified compiler works for a hello-world
     example '''
@@ -57,20 +58,20 @@ def test_compiler_works(tmpdir, f90, f90flags):
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
-            success = utils.compile_file("hello_world.f90", f90, f90flags)
+            success = compile_file("hello_world.f90", f90, f90flags)
     finally:
         os.chdir(str(old_pwd))
     assert success
 
 
 def code_compiles_invalid_api(tmpdir, f90, f90flags):
-    ''' Check that utils.code_compiles() reject an unrecognised API '''
-    with pytest.raises(utils.CompileError) as excinfo:
-        utils.code_compiles("not_an_api", "fake_psy", tmpdir, f90, f90flags)
+    ''' Check that code_compiles() reject an unrecognised API '''
+    with pytest.raises(CompileError) as excinfo:
+        code_compiles("not_an_api", "fake_psy", tmpdir, f90, f90flags)
     assert "Unsupported API in " in str(excinfo)
 
 
-@utils.COMPILE
+@COMPILE
 def test_compiler_with_flags(tmpdir, f90):
     ''' Check that we can pass through flags to the Fortran compiler.
     Since correct flags are compiler-dependent and hard to test,
@@ -81,18 +82,18 @@ def test_compiler_with_flags(tmpdir, f90):
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
-        with pytest.raises(utils.CompileError) as excinfo:
-            _ = utils.compile_file("hello_world.f90", f90, "not-a-flag")
+        with pytest.raises(CompileError) as excinfo:
+            _ = compile_file("hello_world.f90", f90, "not-a-flag")
         assert "not-a-flag" in str(excinfo)
         # For completeness we also try with a valid flag although we
         # can't actually check its effect.
-        success = utils.compile_file("hello_world.f90", f90, "-g")
+        success = compile_file("hello_world.f90", f90, "-g")
     finally:
         os.chdir(str(old_pwd))
     assert success
 
 
-@utils.COMPILE
+@COMPILE
 def test_build_invalid_fortran(tmpdir, f90, f90flags):
     ''' Check that we raise the expected error when attempting
     to compile some invalid Fortran. Skips test if --compile not
@@ -102,8 +103,8 @@ def test_build_invalid_fortran(tmpdir, f90, f90flags):
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(invalid_code)
-        with pytest.raises(utils.CompileError) as excinfo:
-            _ = utils.compile_file("hello_world.f90", f90, f90flags)
+        with pytest.raises(CompileError) as excinfo:
+            _ = compile_file("hello_world.f90", f90, f90flags)
     finally:
         os.chdir(str(old_pwd))
     assert "Compile error" in str(excinfo)
@@ -114,31 +115,31 @@ def test_find_fortran_file(tmpdir):
     error if it can't find a matching file. Also check that it returns
     the correct name if the file does exist. '''
     with pytest.raises(IOError) as excinfo:
-        utils.find_fortran_file(str(tmpdir), "missing_file")
+        find_fortran_file(str(tmpdir), "missing_file")
     assert "missing_file' with suffix in ['f90', 'F90'," in str(excinfo)
     old_pwd = tmpdir.chdir()
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
-        name = utils.find_fortran_file(str(tmpdir), "hello_world")
+        name = find_fortran_file(str(tmpdir), "hello_world")
         assert name.endswith("hello_world.f90")
     finally:
         os.chdir(str(old_pwd))
 
 
-@utils.COMPILE
+@COMPILE
 def test_compile_str(monkeypatch, tmpdir, f90, f90flags):
     ''' Checks for the routine that compiles Fortran supplied as a string '''
     # Check that we always return True if compilation testing is disabled
-    monkeypatch.setattr(utils, "TEST_COMPILE", value=False)
-    assert utils.string_compiles("not fortran", tmpdir, f90, f90flags)
+    monkeypatch.setattr(psyclone.tests.utils, "TEST_COMPILE", value=False)
+    assert string_compiles("not fortran", tmpdir, f90, f90flags)
     # Re-enable compilation testing and check that we can build hello world
-    monkeypatch.setattr(utils, "TEST_COMPILE", value=True)
-    assert utils.string_compiles(HELLO_CODE, tmpdir, f90, f90flags)
+    monkeypatch.setattr(psyclone.tests.utils, "TEST_COMPILE", value=True)
+    assert string_compiles(HELLO_CODE, tmpdir, f90, f90flags)
     # Check that we've cleaned up
     assert not tmpdir.listdir()
     # Repeat for some broken code
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
-    assert not utils.string_compiles(invalid_code, tmpdir, f90, f90flags)
+    assert not string_compiles(invalid_code, tmpdir, f90, f90flags)
     # Check that we've cleaned up
     assert not tmpdir.listdir()
