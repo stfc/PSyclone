@@ -131,11 +131,10 @@ def test_find_fortran_file(tmpdir):
 def test_compile_str(monkeypatch, tmpdir, f90, f90flags):
     ''' Checks for the routine that compiles Fortran supplied as a string '''
     # Check that we always return True if compilation testing is disabled
-    import psyclone.tests.utils
-    monkeypatch.setattr(psyclone.tests.utils, "TEST_COMPILE", value=False)
+    monkeypatch.setattr("psyclone.tests.utils.TEST_COMPILE", False)
     assert string_compiles("not fortran", tmpdir, f90, f90flags)
     # Re-enable compilation testing and check that we can build hello world
-    monkeypatch.setattr(psyclone.tests.utils, "TEST_COMPILE", value=True)
+    monkeypatch.setattr("psyclone.tests.utils.TEST_COMPILE", True)
     assert string_compiles(HELLO_CODE, tmpdir, f90, f90flags)
     # Check that we've cleaned up
     assert not tmpdir.listdir()
