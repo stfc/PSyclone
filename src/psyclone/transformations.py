@@ -67,7 +67,11 @@ class TransformationError(Exception):
 
 
 # =============================================================================
-# pylint: disable=too-few-public-methods
+# pylint commplains about self.name, which is part of a transformation, but
+# not of this class itself. So it works as long as this class is used in
+# a multi-inheritance of a transform - so this error is disabled .
+
+# pylint: disable=too-few-public-methods,no-member
 class CheckChildrenList(object):
     '''This is a simple 'mixin' class for any transforms that acts on a
     list of nodes. It gives access to a check function that makes sure that
@@ -90,7 +94,7 @@ class CheckChildrenList(object):
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes "
                     "are not children of the same Schedule/parent."
-                    .format(str(self)))
+                    .format(self.name))
             if prev_position >= 0 and prev_position+1 != child.position:
                 raise TransformationError(
                     "Children are not consecutive children of one parent: "
