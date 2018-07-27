@@ -51,6 +51,7 @@ type :: field_type
 end type field_type
 '''
 
+
 def test_decl_no_replication_scalars():
     '''Check that the same scalar variable will only get declared once in
     a module and a subroutine.

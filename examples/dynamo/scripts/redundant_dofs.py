@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,54 +30,46 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-#------------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''A simple test script showing basic usage of the PSyclone API.
-In order to use it you must first install PSyclone like so:
-
- >>> pip install --user psyclone
-
-(or see the Getting Going section in ../../psyclone.pdf). Once PSyclone
-is installed this script may be run by doing:
-
- >>> python runme.py
-
-This should generate a lot of output, ending with a view of the
-Schedules:
-
- >>> ...
- >>> Schedule[invoke='invoke_0']
- >>>    Loop[type='outer',field_space='cu',it_space='internal_pts']
- >>>        Loop[type='inner',field_space='cu',it_space='internal_pts']
- >>>            Call compute_cu_code(cu_fld,p_fld,u_fld)
- >>>    Loop[type='outer',field_space='cv',it_space='internal_pts']
- >>>        Loop[type='inner',field_space='cv',it_space='internal_pts']
- >>>            Call compute_cv_code(cv_fld,p_fld,v_fld)
- >>>...
+'''File containing a PSyclone transformation script for the Dynamo0.3
+API to apply redundant computation to halo depth 1 for all loops that
+iterate over dofs and do not contain a reduction.
 
 '''
+from __future__ import absolute_import
+from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 
-from __future__ import print_function
-from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
+ITERATION_SPACES = ["dofs"]
+DEPTH = 1
 
-API = "gocean1.0"
-_, INVOKEINFO = parse("shallow_alg.f90", api=API)
-PSY = PSyFactory(API).create(INVOKEINFO)
 
-# Print the 'vanilla' generated Fortran
-print(PSY.gen)
+def trans(psy):
+    '''PSyclone transformation script for the dynamo0.3 API to apply
+    redundant computation generically to all loops that iterate over
+    dofs, with the exception of loops containing kernels with
+    reductions.
 
-# Print a list of all of the invokes found
-print(PSY.invokes.names)
+    '''
+    rc_trans = Dynamo0p3RedundantComputationTrans()
 
-# Print the Schedule of each of these Invokes
-SCHEDULE = PSY.invokes.get('invoke_0').schedule
-SCHEDULE.view()
+    transformed = 0
 
-SCHEDULE = PSY.invokes.get('invoke_1').schedule
-SCHEDULE.view()
+    for invoke in psy.invokes.invoke_list:
+        schedule = invoke.schedule
+        for loop in schedule.loops():
+            if loop.iteration_space in ITERATION_SPACES:
+                # we may have more than one kernel in the loop so
+                # check that none of them are reductions
+                reduction = False
+                for call in loop.calls():
+                    if call.is_reduction:
+                        reduction = True
+                        break
+                if not reduction:
+                    transformed += 1
+                    schedule, _ = rc_trans.apply(loop, depth=DEPTH)
 
-SCHEDULE = PSY.invokes.get('invoke_2').schedule
-SCHEDULE.view()
+    print("Transformed {0} loops".format(transformed))
+    return psy
