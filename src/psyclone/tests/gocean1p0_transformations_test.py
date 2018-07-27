@@ -37,7 +37,7 @@
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
 
-from __future__ import absolute_import, print_function
+from __future__ import absolute_import
 import os
 import re
 import pytest
@@ -309,15 +309,15 @@ def test_omp_region_with_slice():
     assert call_count == 2
 
 
-@pytest.mark.xfail(reason="OMP transform incorrectly allows change "
-                   "of order of children nodes")
 def test_omp_region_with_slice_change_order():
     ''' Test that the OpenMP transform does not allow to switch
     child nodes. At this stage it is not clear what exactly should
     happen (probably raise an exception). This test only shows
     that atm it is indeed possible to switch the order of statements.
     '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", 0)
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0",
+                     "single_invoke_three_kernels.f90"), API, 0)
     schedule = invoke.schedule
 
     code = str(psy.gen).replace("\n", "")
@@ -336,8 +336,9 @@ def test_omp_region_with_slice_change_order():
     ompr = OMPParallelTrans()
 
     # Note that the order of the nodes is reversed!
-    omp_schedule, _ = ompr.apply([schedule.children[2], schedule.children[1]])
-    invoke.schedule = omp_schedule
+    with pytest.raises(TransformationError) as err:
+        ompr.apply([schedule.children[2], schedule.children[1]])
+    assert "Children are not consecutive children of one parent" in str(err)
 
     # Store the results of applying this code transformation as
     # a string
@@ -352,7 +353,9 @@ def test_omp_region_with_slice_change_order():
     # raised by node_parent.children.remove(x) - the transform will try
     # to remove the (same) node twice. Imho this should also raise
     # a GenerateTransform exception instead.
-    omp_schedule, _ = ompr.apply([schedule.children[0], schedule.children[0]])
+    with pytest.raises(TransformationError) as err:
+        ompr.apply([schedule.children[0], schedule.children[0]])
+    assert "Children are not consecutive children of one parent" in str(err)
 
     # Store the results of applying this code transformation as
     # a string
@@ -1535,7 +1538,6 @@ def test_acc_data_copyin():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    print(code)
 
     # Check that we've correctly declared the logical variable that
     # records whether this is the first time we've entered this invoke.
@@ -1574,7 +1576,7 @@ def test_acc_data_grid_copyin():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    print(code)
+
     # TODO grid properties are effectively duplicated in this list (but the
     # OpenACC deep-copy support should spot this).
     pcopy = ("!$acc enter data copyin(u_fld,u_fld%data,cu_fld,cu_fld%data,"
@@ -1684,7 +1686,7 @@ def test_acc_update_two_scalars():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    print(code)
+
     # Check that the use statement has been added
     assert ("USE kernel_scalar_float, ONLY: bc_ssh_code\n"
             "      USE openacc, ONLY: acc_update_device" in code)
@@ -1805,7 +1807,7 @@ def test_accloop():
     invoke.schedule = new_sched
 
     gen = str(psy.gen)
-    print(gen)
+
     assert '''\
       !$acc parallel default(present)
       !$acc loop independent

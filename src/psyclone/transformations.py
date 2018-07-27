@@ -66,6 +66,41 @@ class TransformationError(Exception):
         return repr(self.value)
 
 
+# =============================================================================
+# pylint: disable=too-few-public-methods
+class CheckChildrenList(object):
+    '''This is a simple 'mixin' class for any transforms that acts on a
+    list of nodes. It gives access to a check function that makes sure that
+    there nodes in the list are in the same order as in the original AST,
+    no node is duplicated, and that all nodes have the same parent.
+    '''
+
+    def _validate(self, node_list):
+        '''Test if the nodes in node_list are in the original order.
+        If not, raises a TransformationError.
+        :param list node_list: List of nodes .
+        :raises TransformationError: If the nodes in the list are not
+                       in the original order in which they are in the AST.
+        '''
+
+        node_parent = node_list[0].parent
+        prev_position = -1
+        for child in node_list:
+            if child.parent is not node_parent:
+                raise TransformationError(
+                    "Error in {0} transformation: supplied nodes "
+                    "are not children of the same Schedule/parent."
+                    .format(str(self)))
+            if prev_position >= 0 and prev_position+1 != child.position:
+                raise TransformationError(
+                    "Children are not consecutive children of one parent: "
+                    "child '{0}' has position {1}, but previous child had "
+                    "position {2}."
+                    .format(str(child), child.position, prev_position))
+            prev_position = child.position
+
+
+# =============================================================================
 def check_intergrid(node):
     '''
     Utility function to check that the supplied node does not have
@@ -1406,7 +1441,7 @@ class ParallelRegionTrans(Transformation):
         return schedule, keep
 
 
-class OMPParallelTrans(ParallelRegionTrans):
+class OMPParallelTrans(ParallelRegionTrans, CheckChildrenList):
     '''
     Create an OpenMP PARALLEL region by inserting directives. For
     example:
@@ -1474,6 +1509,7 @@ class OMPParallelTrans(ParallelRegionTrans):
 
         # Now call the general validation checks
         super(OMPParallelTrans, self)._validate(node_list)
+        CheckChildrenList._validate(self, node_list)
 
 
 class ACCParallelTrans(ParallelRegionTrans):
@@ -2064,7 +2100,7 @@ class GOLoopSwapTrans(Transformation):
         return schedule, keep
 
 
-class ProfileRegionTrans(Transformation):
+class ProfileRegionTrans(Transformation, CheckChildrenList):
 
     ''' Create a profile region around a list of statements. For
     example:
@@ -2136,22 +2172,7 @@ class ProfileRegionTrans(Transformation):
                                       "the loop(s) to which it applies!")
         node_position = node_list[0].position
 
-        # We need to make sure that the nodes are consecutive children,
-        # otherwise code might get moved in an incorrect order
-        prev_position = -1
-        for child in node_list:
-            if child.parent is not node_parent:
-                raise TransformationError(
-                    "Error in {0} transformation: supplied nodes "
-                    "are not children of the same Schedule/parent."
-                    .format(str(self)))
-            if prev_position >= 0 and prev_position+1 != child.position:
-                raise TransformationError(
-                    "Children are not consecutive children of one parent: "
-                    "child '{0}' has position {1}, but previous child had "
-                    "position {2}."
-                    .format(str(child), child.position, prev_position))
-            prev_position = child.position
+        CheckChildrenList._validate(self, node_list)
 
         # create a memento of the schedule and the proposed
         # transformation
