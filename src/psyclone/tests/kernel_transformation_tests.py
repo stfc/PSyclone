@@ -48,8 +48,8 @@ def test_accroutine_err():
     from psyclone.psyGen import Kern
     from psyclone.transformations import ACCRoutineTrans
     import fparser
-    psy, invoke = get_invoke(os.path.join("dynamo0p3", "1_single_invoke.f90"),
-                             api="dynamo0.3", idx=0)
+    _, invoke = get_invoke(os.path.join("dynamo0p3", "1_single_invoke.f90"),
+                           api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
     kern = kernels[0]
@@ -81,9 +81,8 @@ def test_accroutine():
     from psyclone.gocean1p0 import GOKern
     from psyclone.transformations import ACCRoutineTrans
     from fparser.two import Fortran2003
-    psy, invoke = get_invoke(os.path.join("gocean1p0",
-                                          "nemolite2d_alg_mod.f90"),
-                             api="gocean1.0", idx=0)
+    _, invoke = get_invoke(os.path.join("gocean1p0", "nemolite2d_alg_mod.f90"),
+                           api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
     assert isinstance(kern, GOKern)

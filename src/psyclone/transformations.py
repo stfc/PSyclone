@@ -2304,10 +2304,8 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if we fail to find the subroutine \
                                      corresponding to the kernel object.
         '''
-        # TODO walk_ast is 1. not a good name and 2. not in a
-        # released version of fparser.
         from fparser.two.Fortran2003 import walk_ast, Subroutine_Subprogram, \
-            Subroutine_Stmt, Name, Specification_Part, Type_Declaration_Stmt, \
+            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
         from fparser.common.readfortran import FortranStringReader
         # Get the fparser2 AST of the kernel
@@ -2316,25 +2314,25 @@ class ACCRoutineTrans(Transformation):
         from psyclone.undoredo import Memento
         keep = Memento(kern, self)
         # Find the kernel subroutine
-        found = False
+        kern_sub = None
         subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
         for sub in subroutines:
             for child in sub.content:
                 if isinstance(child, Subroutine_Stmt) and \
                    str(child.items[1]) == kern.name:
-                    found = True
+                    kern_sub = sub
                     break
-            if found:
+            if kern_sub:
                 break
-        if not found:
+        if not kern_sub:
             raise TransformationError(
                 "Failed to find subroutine source for kernel {0}".
                 format(kern.name))
         # Find the last declaration statement in the subroutine
-        spec = walk_ast(sub.content, [Specification_Part])[0]
+        spec = walk_ast(kern_sub.content, [Specification_Part])[0]
+        idx = 0
         for idx, node in enumerate(spec.content):
-            if not (isinstance(node, Type_Declaration_Stmt) or
-                    isinstance(node, Implicit_Part)):
+            if not (isinstance(node, (Implicit_Part, Type_Declaration_Stmt))):
                 break
         # Create the directive and insert it
         cmt = Comment(FortranStringReader("!$acc routine",

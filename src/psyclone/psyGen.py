@@ -2806,9 +2806,11 @@ class Kern(Call):
     '''
     Class representing a Kernel call within the Schedule (AST) of an Invoke.
 
-    :param KernelArguments:
-    :param call:
-    :param parent:
+    :param type KernelArguments: the sub-class of KernelArguments to create.
+    :param call: Details of the call to this kernel in the Algorithm layer.
+    :type call: :py:class:`psyclone.parse.KernelCall`.
+    :param parent: the parent of this Node (kernel call) in the Schedule.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`.
     :param bool check: Whether or not to check that the number of arguments \
                        specified in the kernel meta-data matches the number \
                        provided by the call in the Algorithm layer.
