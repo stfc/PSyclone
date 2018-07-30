@@ -381,6 +381,9 @@ class GOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
+
+    _bounds_lookup = {}
+
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
         '''Constructs a GOLoop instance.
@@ -404,86 +407,132 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
+        if len(GOLoop._bounds_lookup)==0:
+            GOLoop.setup_bounds()
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def setup_bounds():
         # Create a dictionary to simplify the business of looking-up
         # loop bounds
-        self._bounds_lookup = {}
         for grid_offset in SUPPORTED_OFFSETS:
-            self._bounds_lookup[grid_offset] = {}
+            GOLoop._bounds_lookup[grid_offset] = {}
             for gridpt_type in VALID_FIELD_GRID_TYPES:
-                self._bounds_lookup[grid_offset][gridpt_type] = {}
+                GOLoop._bounds_lookup[grid_offset][gridpt_type] = {}
                 for itspace in VALID_ITERATES_OVER:
-                    self._bounds_lookup[grid_offset][gridpt_type][itspace] = {}
+                    GOLoop._bounds_lookup[grid_offset][gridpt_type][itspace] = {}
 
         # Loop bounds for a mesh with NE offset
-        self._bounds_lookup['offset_ne']['ct']['all_pts'] = \
+        GOLoop._bounds_lookup['offset_ne']['ct']['all_pts'] = \
             {'inner': {'start': "1", 'stop': "{stop}+1"},
              'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
+        GOLoop._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
             {'inner': {'start': "2", 'stop': "{stop}"},
              'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cu']['all_pts'] = \
+        GOLoop._bounds_lookup['offset_ne']['cu']['all_pts'] = \
             {'inner': {'start': "1", 'stop': "{stop}"},
              'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
+        GOLoop._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
             {'inner': {'start': "2", 'stop': "{stop}-1"},
              'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cv']['all_pts'] = \
+        GOLoop._bounds_lookup['offset_ne']['cv']['all_pts'] = \
             {'inner': {'start': "1", 'stop': "{stop}+1"},
              'outer': {'start': "1", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
+        GOLoop._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
             {'inner': {'start': "2", 'stop': "{stop}"},
              'outer': {'start': "2", 'stop': "{stop}-1"}}
-        self._bounds_lookup['offset_ne']['cf']['all_pts'] = \
+        GOLoop._bounds_lookup['offset_ne']['cf']['all_pts'] = \
             {'inner': {'start': "1", 'stop': "{stop}"},
              'outer': {'start': "1", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
+        GOLoop._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
             {'inner': {'start': "1", 'stop': "{stop}-1"},
              'outer': {'start': "1", 'stop': "{stop}-1"}}
         # Loop bounds for a mesh with SE offset
-        self._bounds_lookup['offset_sw']['ct']['all_pts'] = \
+        GOLoop._bounds_lookup['offset_sw']['ct']['all_pts'] = \
             {'inner': {'start': "1", 'stop': "{stop}+1"},
              'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
+        GOLoop._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
             {'inner': {'start': "2", 'stop': "{stop}"},
              'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_sw']['cu']['all_pts'] = \
+        GOLoop._bounds_lookup['offset_sw']['cu']['all_pts'] = \
             {'inner': {'start': "1", 'stop': "{stop}+1"},
              'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
+        GOLoop._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
             {'inner': {'start': "2", 'stop': "{stop}+1"},
              'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_sw']['cv']['all_pts'] = \
+        GOLoop._bounds_lookup['offset_sw']['cv']['all_pts'] = \
             {'inner': {'start': "1", 'stop': "{stop}+1"},
              'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
+        GOLoop._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
             {'inner': {'start': "2", 'stop': "{stop}"},
              'outer': {'start': "2", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cf']['all_pts'] = \
+        GOLoop._bounds_lookup['offset_sw']['cf']['all_pts'] = \
             {'inner': {'start': "1", 'stop': "{stop}+1"},
              'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
+        GOLoop._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
             {'inner': {'start': "2", 'stop': "{stop}+1"},
              'outer': {'start': "2", 'stop': "{stop}+1"}}
         # For offset 'any'
         for gridpt_type in VALID_FIELD_GRID_TYPES:
             for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup['offset_any'][gridpt_type][itspace] = \
+                GOLoop._bounds_lookup['offset_any'][gridpt_type][itspace] = \
                     {'inner': {'start': "1", 'stop': "{stop}"},
                      'outer': {'start': "1", 'stop': "{stop}"}}
         # For 'every' grid-point type
         for offset in SUPPORTED_OFFSETS:
             for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup[offset]['every'][itspace] = \
+                GOLoop._bounds_lookup[offset]['every'][itspace] = \
                     {'inner': {'start': "1", 'stop': "{stop}+1"},
                      'outer': {'start': "1", 'stop': "{stop}+1"}}
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def add_bounds(bound_info):
+        '''
+        bound_info = offset_ne:ct:all_pts:outer-start=...:outer-stop=...:inner-start=...:outer-stop=...
+        bound_info = offset_ne:ct:all_pts:outer:start=1:stop={stop}+1
+        '''
+
+        if type(bound_info) != type(""):
+            raise ValueError()
+
+        data = bound_info.split(":")
+        if len(data) != 7:
+            raise ValueError("The argument must be in the form"
+                "\"offset-type:field-type:iteration-space:outer-start:outer-stop:inner-start:inner-stop\"")
+
+        
+        if len(GOLoop._bounds_lookup)==0:
+            GOLoop.setup_bounds()
+
+        dict = GOLoop._bounds_lookup   # Shortcut
+
+        # Check offset-type exists
+        if not dict.has_key(data[0]):
+            dict[data[0]] = {}
+
+        print(data)
+        # Check field-type exists
+        print(dict[data[0]][data[1]])
+        if not dict[data[0]].has_key(data[1]):
+            dict[data[0]][data[1]] = {}
+
+        # Check iteration space exists:
+        if not dict[data[0]][data[1]].has_key(data[2]):
+            dict[data[0]][data[1]][data[2]] = {}
+            VALID_ITERATES_OVER.append(data[2])
+
+        dict[data[0]][data[1]][data[2]] = {'inner' : {'start':data[3], 'stop':data[4]},
+                                            'outer' : {'start':data[5], 'stop':data[6]} }
+        print(dict[data[0]][data[1]][data[2]])
+
+    # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
     def _upper_bound(self):
         ''' Returns the upper bound of this loop as a string.
         This takes the field type and usage of const_loop_bounds
         into account. In case of const_loop_bounds it will be
-        using the data in self._bounds_lookup to find the appropriate
+        using the data in GOLoop._bounds_lookup to find the appropriate
         indices depending on offset, field type, and iteration space.
         All occurences of {start} and {stop} in _bounds_loopup will
         be replaced with the constant loop boundary variable, e.g.
@@ -509,7 +558,7 @@ class GOLoop(Loop):
                 # This strange line splitting was the only way I could find
                 # to avoid pep8 warnings: using [..._space]\ keeps on
                 # complaining about a white space
-                bounds = self._bounds_lookup[index_offset][self.field_space][
+                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
                     self._iteration_space][self._loop_type]
                 stop = bounds["stop"].format(start='', stop=stop)
             else:
@@ -545,12 +594,13 @@ class GOLoop(Loop):
                     stop += "%ystop"
         return stop
 
+    # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
     def _lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
         This takes the field type and usage of const_loop_bounds
         into account. In case of const_loop_bounds it will be
-        using the data in self._bounds_lookup to find the appropriate
+        using the data in GOLoop._bounds_lookup to find the appropriate
         indices depending on offset, field type, and iteration space.
         All occurences of {start} and {stop} in _bounds_loopup will
         be replaced with the constant loop boundary variable, e.g.
@@ -576,7 +626,7 @@ class GOLoop(Loop):
                 # This strange line splitting was the only way I could find
                 # to avoid pep8 warnings: using [..._space]\ keeps on
                 # complaining about a white space
-                bounds = self._bounds_lookup[index_offset][self.field_space][
+                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
                     self._iteration_space][self._loop_type]
                 start = bounds["start"].format(start='', stop=stop)
             else:
@@ -604,6 +654,7 @@ class GOLoop(Loop):
                     start += "%ystart"
         return start
 
+    # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string describing this Loop object '''
         step = self._step
@@ -618,6 +669,7 @@ class GOLoop(Loop):
         result += "EndLoop"
         return result
 
+    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
