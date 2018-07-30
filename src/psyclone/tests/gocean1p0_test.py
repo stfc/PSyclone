@@ -43,6 +43,7 @@ import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
+from psyclone.gocean1p0 import GOLoop
 
 
 API = "gocean1.0"
@@ -1175,6 +1176,33 @@ def test05p1_kernel_invalid_iterates_over():
                    "test05.1_invoke_kernel_invalid_iterates_over.f90"),
               api="gocean1.0")
 
+
+def test05p1_kernel_add_iteration_spaces():
+    '''Check that adding a new iteration space works
+    '''
+
+    # Add new iteration space 'dofs'
+    GOLoop.add_bounds("offset_sw:cu:dofs:1:2:3:{stop}")
+
+    _, invoke_info = \
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+              "test_files", "gocean1p0",
+              "test05.1_invoke_kernel_invalid_iterates_over.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    expected_sched = (
+        "GOSchedule(Constant loop bounds=True):\n"
+        "Loop[]: j= lower=3,jstop,1\n"
+        "Loop[]: i= lower=1,2,1\n"
+        "kern call: compute_cu_code\n"
+        "EndLoop\n"
+        "EndLoop\n"
+        "End Schedule\n")
+    sched_str = str(schedule)
+    print(sched_str)
+    assert sched_str in expected_sched
 
 def test06_kernel_invalid_access():
     ''' Check that we raise an error if a kernel's meta-data specifies
