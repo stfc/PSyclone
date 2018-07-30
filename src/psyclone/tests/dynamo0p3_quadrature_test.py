@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -208,6 +208,26 @@ def test_field_xyoz(tmpdir, f90, f90flags):
         "    END SUBROUTINE invoke_0_testkern_qr_type"
     )
     assert compute_output in generated_code
+
+
+def test_face_qr(tmpdir, f90, f90flags, dist_mem):
+    ''' Check that we generate correct code when a kernel specifies
+    that it requires face quadrature. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.4_face_qr.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    if utils.TEST_COMPILE:
+        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+
+
+def test_edge_qr(tmpdir, f90, f90flags, dist_mem):
+    ''' Check that we generate correct code when a kernel specifies
+    that it requires edge quadrature. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.5_edge_qr.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    if utils.TEST_COMPILE:
+        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
 
 def test_field_qr_deref(tmpdir, f90, f90flags):

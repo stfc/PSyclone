@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,12 @@ import pytest
 # fixtures defined here are available to all tests
 @pytest.fixture(scope="module", params=[False, True])
 def annexed(request):
+    ''' Return the content of params in turn '''
+    return request.param
+
+
+@pytest.fixture(scope="module", params=[False, True])
+def dist_mem(request):
     ''' Return the content of params in turn '''
     return request.param
 
