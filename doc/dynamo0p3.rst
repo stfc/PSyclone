@@ -1057,16 +1057,19 @@ gh_shape
 If a kernel requires basis or differential-basis functions then the
 meta-data must also specify the set of points on which these functions
 are required. This information is provided by the ``gh_shape``
-component of the meta-data.  Currently PSyclone supports two shapes;
-``gh_quadrature_XYoZ`` for Gaussian quadrature points and
-``gh_evaluator`` for evaluation at nodal points. For the latter,
-the values of the basis/differential-basis functions are computed at
-the nodes defined by the function space of the quantity that the
+component of the meta-data.  Currently PSyclone supports four shapes;
+``gh_quadrature_XYoZ`` for Gaussian quadrature points,
+``gh_quadrature_face`` for quadrature points on cell faces,
+``gh_quadrature_edge`` for quadrature points on cell edges and
+``gh_evaluator`` for evaluation at nodal points. For the latter, the
+values of the basis/differential-basis functions are computed at the
+nodes defined by the function space of the quantity that the
 associated kernel is updating. All necessary data is extracted in the
 PSy layer and passed to the kernel(s) as required - nothing is
 required from the Algorithm layer. If a kernel requires quadrature on
 the other hand, the Algorithm writer must supply a ``quadrature_type``
-object as the last argument to the kernel (see Section :ref:`dynamo0.3-quadrature`).
+object as the last argument to the kernel (see Section
+:ref:`dynamo0.3-quadrature`).
 
 Note that it is an error for kernel meta-data to specify a value for
 ``gh_shape`` if no basis or differential-basis functions are
@@ -1170,7 +1173,9 @@ rules, along with PSyclone's naming conventions, are:
 
             2) If ``gh_shape`` is ``gh_quadrature_xyoz`` then basis and diff basis are ``real`` arrays of rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xy``, ``np_z``)
 
-           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom (dofs) associated with the function space and ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in all directions (3D); ii) ``*_xy`` in the horizontal plane (2D); iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the vertical (1D). The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
+	    3) If ``gh_shape`` is ``gh_quadrature_face`` or ``gh_quadrature_edge`` then basis and diff basis are again of rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xyz``, ``nfaces`` or ``nedges``)
+
+           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom (dofs) associated with the function space and ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in all directions (3D); ii) ``*_xy`` in the horizontal plane (2D); iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the vertical (1D). ``nfaces`` and ``nedges`` are the number of horizontal faces/edges in the reference element. The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
 
         2) If it is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
 
@@ -1179,11 +1184,13 @@ rules, along with PSyclone's naming conventions, are:
     1) include integer scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
 
        1) If ``gh_shape`` is ``gh_evaluator`` then pass ``n_xyz``
-       2) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``n_xy`` and ``n_z``
+       2) If ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``n_xy`` and ``n_z``
+       3) If ``gh_shape`` is ``gh_quadrature_face``/``_edge`` then pass ``n_xyz``
 
     2) if Quadrature is required (``gh_shape`` is of type ``gh_quadrature_*``) then include weights which are real arrays of kind ``r_def``:
 
        1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(n_xy)`` and ``w_Z(n_z)``
+       2) If ``gh_quadrature_face``/``_edge`` pass in ``w_XYZ(n_xy, n_z)``  
 
 
 Rules for CMA Kernels
