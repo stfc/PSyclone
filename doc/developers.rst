@@ -804,7 +804,17 @@ of an Invoke and/or the kernels called from within it.
 Kernel Transformations
 ----------------------
 
-TBD
+Kernel transformations work on the fparser2 AST of the target kernel
+code.  This AST is obtained by converting the fparser1 AST (obtained
+when the kernel code was originally parsed to obtain the meta-data)
+back into a Fortran string and then parsing that with fparser2. (Note
+that in future we intend to adopt fparser2 throughout PSyclone so that
+this translation between ASTs will be unnecessary.) The `ast` property
+of the `psyclone.psyGen.Kern` class is responsible for performing this
+translation the first time it is called. It also stores the resulting
+AST in `Kern._fp2_ast` for return by future calls.
+Transforming a kernel is then a matter of manipulating this AST.
+(See `psyclone.transformations.ACCRoutineTrans` for an example.)
 
 OpenACC Support
 ###############
