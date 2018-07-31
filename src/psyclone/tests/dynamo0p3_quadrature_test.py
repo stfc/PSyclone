@@ -210,20 +210,20 @@ def test_field_xyoz(tmpdir, f90, f90flags):
     assert compute_output in generated_code
 
 
-def test_face_qr(tmpdir, f90, f90flags, dist_mem):
+def test_edge_qr(tmpdir, f90, f90flags, dist_mem):
     ''' Check that we generate correct code when a kernel specifies
-    that it requires face quadrature. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.4_face_qr.f90"),
+    that it requires edge quadrature. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.5_edge_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     if utils.TEST_COMPILE:
         assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
 
-def test_edge_qr(tmpdir, f90, f90flags, dist_mem):
+def test_face_qr(tmpdir, f90, f90flags, dist_mem):
     ''' Check that we generate correct code when a kernel specifies
-    that it requires edge quadrature. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.5_edge_qr.f90"),
+    that it requires face quadrature. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.6_face_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     if utils.TEST_COMPILE:
