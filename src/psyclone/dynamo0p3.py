@@ -83,14 +83,21 @@ VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
 VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES + ["gh_orientation"]
 
 # Evaluators: quadrature
-VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz"]
+VALID_QUADRATURE_SHAPES = ["gh_quadrature_xyoz", "gh_quadrature_face",
+                           "gh_quadrature_edge"]
 VALID_EVALUATOR_SHAPES = VALID_QUADRATURE_SHAPES + ["gh_evaluator"]
 # Dictionary allowing us to look-up the name of the Fortran module, type
 # and proxy-type associated with each quadrature shape
 QUADRATURE_TYPE_MAP = {
     "gh_quadrature_xyoz": {"module": "quadrature_xyoz_mod",
                            "type": "quadrature_xyoz_type",
-                           "proxy_type": "quadrature_xyoz_proxy_type"}}
+                           "proxy_type": "quadrature_xyoz_proxy_type"},
+    "gh_quadrature_face": {"module": "quadrature_face_mod",
+                           "type": "quadrature_face_type",
+                           "proxy_type": "quadrature_face_proxy_type"},
+    "gh_quadrature_edge": {"module": "quadrature_edge_mod",
+                           "type": "quadrature_edge_type",
+                           "proxy_type": "quadrature_edge_proxy_type"}}
 
 # Datatypes (scalars, fields, operators)
 VALID_SCALAR_NAMES = ["gh_real", "gh_integer"]
@@ -325,9 +332,15 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     #                   "np_x"+"_"+basis_fn["qr_var"],
     #                   "np_y"+"_"+basis_fn["qr_var"],
     #                   "np_z"+"_"+basis_fn["qr_var"]]
+    elif basis_fn["shape"] == "gh_quadrature_face":
+        alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+                      "np_xyz"+"_"+basis_fn["qr_var"], "nfaces"]        
+    elif basis_fn["shape"] == "gh_quadrature_edge":
+        alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+                      "np_xyz"+"_"+basis_fn["qr_var"], "nedges"]                
     else:
-        raise GenerationError(
-            "Internal error: unrecognised shape ({0}) specified in "
+        raise InternalError(
+            "unrecognised shape ({0}) specified in "
             "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
             "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
     return alloc_args
@@ -2268,9 +2281,12 @@ class DynInvokeBasisFns(object):
                                   funcnames=[
                                       QUADRATURE_TYPE_MAP[shp]["type"],
                                       QUADRATURE_TYPE_MAP[shp]["proxy_type"]]))
+            # TODO is there a nicer way of doing the following?
             self._initialise_xyz_qr(parent)
             self._initialise_xyoz_qr(parent)
             self._initialise_xoyoz_qr(parent)
+            self._initialise_face_qr(parent)
+            self._initialise_edge_qr(parent)
 
         if self._unique_evaluator_args:
             parent.add(CommentGen(parent, ""))
@@ -2479,6 +2495,64 @@ class DynInvokeBasisFns(object):
         # This shape is not yet supported so we do nothing
         return
 
+    def _initialise_face_qr(self, parent):
+        '''
+        Add in the initialisation of variables needed for face
+        quadrature
+
+        :param parent: the node in the AST representing the PSy subroutine
+                       in which to insert the initialisation
+        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import AssignGen, DeclGen
+
+        if "gh_quadrature_face" not in self._qr_vars:
+            return
+
+        qr_vars = ["np_xyz"]
+        qr_ptr_vars = ["weights_xyz"]
+
+        for qr_arg_name in self._qr_vars["gh_quadrature_face"]:
+
+            # We generate unique names for the integers holding the numbers
+            # of quadrature points by appending the name of the quadrature
+            # argument
+            parent.add(
+                DeclGen(
+                    parent, datatype="integer",
+                    entity_decls=[name+"_"+qr_arg_name for name in qr_vars]))
+            decl_list = [name+"_"+qr_arg_name+"(:,:) => null()"
+                         for name in qr_ptr_vars]
+            parent.add(
+                DeclGen(parent, datatype="real", pointer=True,
+                        kind="r_def", entity_decls=decl_list))
+            # Get the quadrature proxy
+            proxy_name = qr_arg_name + "_proxy"
+            parent.add(
+                AssignGen(parent, lhs=proxy_name,
+                          rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
+            # Number of points in each dimension
+            for qr_var in qr_vars:
+                parent.add(
+                    AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
+                              rhs=proxy_name+"%"+qr_var))
+            # Pointers to the weights arrays
+            for qr_var in qr_ptr_vars:
+                parent.add(
+                    AssignGen(parent, pointer=True,
+                              lhs=qr_var+"_"+qr_arg_name,
+                              rhs=proxy_name+"%"+qr_var))
+
+    def _initialise_edge_qr(self, parent):
+        '''
+        Add in the initialisation of variables needed for face
+        quadrature
+
+        :param parent: the node in the AST representing the PSy subroutine
+                       in which to insert the initialisation
+        :type parent: :py:class:``psyclone.f2pygen.SubroutineGen`
+        '''
+        
     def compute_basis_fns(self, parent):
         '''
         Generates the necessary Fortran to compute the values of
@@ -4770,10 +4844,13 @@ class DynKern(Kern):
             # elif self._eval_shape == "gh_quadrature_xoyoz":
             #     self._qr_args = ["np_x", "np_y", "np_z",
             #                      "weights_x", "weights_y", "weights_z"]
+            elif self._eval_shape == "gh_quadrature_face":
+                self._qr_args = ["np_xyz", "nface", "weights"]
+            elif self._eval_shape == "gh_quadrature_edge":
+                self._qr_args = ["np_xyz", "nedge", "weights"]
             else:
-                raise GenerationError(
-                    "Internal error: unsupported shape ({0}) found in "
-                    "DynKern._setup".format(self._eval_shape))
+                raise InternalError("unsupported shape ({0}) found in "
+                                    "DynKern._setup".format(self._eval_shape))
 
             # If we're not a kernel stub then we will have a name for the qr
             # argument. We append this to the names of the qr-related
