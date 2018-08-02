@@ -113,13 +113,12 @@ class Profiler(object):
         '''
 
         from psyclone.transformations import ProfileRegionTrans
+        profile_trans = ProfileRegionTrans()
         if Profiler.profile_kernels():
-            profile_trans = ProfileRegionTrans()
             for i in schedule.children:
                 if isinstance(i, loop_class):
                     profile_trans.apply(i)
         if Profiler.profile_invokes():
-            profile_trans = ProfileRegionTrans()
             profile_trans.apply(schedule.children)
 
     # -------------------------------------------------------------------------
@@ -148,12 +147,25 @@ class ProfileNode(Node):
             :type parent: A :py::class::`psyclone.psyGen.Node`.
         '''
         Node.__init__(self, children=children, parent=parent)
-        self._namespace = NameSpace()
+
+        # Store the name of the profile variable that is used for this
+        # profile name. This allows to show the variable name in __str__
+        # (and also if we would call create_name in gen(), the name would
+        # change every time gen() is called).
+        self._var_name = NameSpaceFactory().create().create_name("profile")
+
+        # Name of the region. In general at constructor time we might not
+        # have a parent subroutine or a child for the kernel, so we leave
+        # the name empty for now. The region and module names are set the
+        # first time gen() is called (and then remain unchanged).
+        self._region_name = None
+        self._module_name = None
 
     # -------------------------------------------------------------------------
     def __str__(self):
-        ''' Returns a name for the ProfileNode. '''
-        result = "ProfileStart[]\n"
+        ''' Returns a string representation of the subtree starting at
+        this node. '''
+        result = "ProfileStart[var={0}]\n".format(self._var_name)
         for child in self.children:
             result += str(child)+"\n"
         return result+"ProfileEnd"
@@ -188,38 +200,40 @@ class ProfileNode(Node):
         :param parent: The parent of this node.
         :type parent: :py:class:`psyclone.psyGen.Node`.'''
 
-        # Find the first kernel and use its name. In plain PSyclone there
-        # should be only one kernel, but if Profile is invoked after e.g.
-        # a loop merge more kernels might be there
-        region_name = "unknown-kernel"
-        module_name = "unknown-module"
-        for kernel in self.walk(self.children, Kern):
-            region_name = kernel.name
-            module_name = kernel.module_name
-            break
-
-        region_name = Profiler.create_unique_region(region_name)
+        if self._module_name is None or self._region_name is None:
+            # Find the first kernel and use its name. In an untransformed
+            # Schedule  there should be only one kernel, but if Profile is
+            # invoked after e.g. a loop merge more kernels might be there.
+            region_name = "unknown-kernel"
+            module_name = "unknown-module"
+            for kernel in self.walk(self.children, Kern):
+                region_name = kernel.name
+                module_name = kernel.module_name
+                break
+            if self._region_name is None:
+                self._region_name = Profiler.create_unique_region(region_name)
+            if self._module_name is None:
+                self._module_name = module_name
 
         # Note that adding a use statement makes sure it is only
         # added once, so we don't need to test this here!
         use = UseGen(parent, "profile_mod", only=True,
                      funcnames=["ProfileData, ProfileStart, ProfileEnd"])
         parent.add(use)
-        profile_name = NameSpaceFactory().create().create_name("profile")
         prof_var_decl = TypeDeclGen(parent, datatype="ProfileData",
-                                    entity_decls=[profile_name],
+                                    entity_decls=[self._var_name],
                                     save=True)
         parent.add(prof_var_decl)
 
         prof_start = CallGen(parent, "ProfileStart",
-                             ["\"{0}\"".format(module_name),
-                              "\"{0}\"".format(region_name),
-                              profile_name])
+                             ["\"{0}\"".format(self._module_name),
+                              "\"{0}\"".format(self._region_name),
+                              self._var_name])
         parent.add(prof_start)
 
         for child in self.children:
             child.gen_code(parent)
 
         prof_end = CallGen(parent, "ProfileEnd",
-                           [profile_name])
+                           [self._var_name])
         parent.add(prof_end)

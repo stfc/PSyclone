@@ -169,7 +169,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     For example:
 
-    >>> from generator import generate
+    >>> from psyclone.generator import generate
     >>> alg, psy = generate("algspec.f90")
     >>> alg, psy = generate("algspec.f90", kernel_path="src/kernels")
     >>> alg, psy = generate("algspec.f90", script_name="optimise.py")
