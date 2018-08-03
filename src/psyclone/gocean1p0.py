@@ -407,20 +407,22 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
-        if len(GOLoop._bounds_lookup)==0:
+        if len(GOLoop._bounds_lookup) == 0:
             GOLoop.setup_bounds()
 
     # -------------------------------------------------------------------------
     @staticmethod
     def setup_bounds():
-        # Create a dictionary to simplify the business of looking-up
-        # loop bounds
+        '''Create a dictionary to simplify the business of looking-up
+        loop bounds.'''
+
         for grid_offset in SUPPORTED_OFFSETS:
             GOLoop._bounds_lookup[grid_offset] = {}
             for gridpt_type in VALID_FIELD_GRID_TYPES:
                 GOLoop._bounds_lookup[grid_offset][gridpt_type] = {}
                 for itspace in VALID_ITERATES_OVER:
-                    GOLoop._bounds_lookup[grid_offset][gridpt_type][itspace] = {}
+                    GOLoop._bounds_lookup[grid_offset][gridpt_type][\
+                                          itspace] = {}
 
         # Loop bounds for a mesh with NE offset
         GOLoop._bounds_lookup['offset_ne']['ct']['all_pts'] = \
@@ -489,42 +491,39 @@ class GOLoop(Loop):
     @staticmethod
     def add_bounds(bound_info):
         '''
-        bound_info = offset_ne:ct:all_pts:outer-start=...:outer-stop=...:inner-start=...:outer-stop=...
+        bound_info = offset_ne:ct:all_pts:outer-start=...:
+                      outer-stop=...:inner-start=...:outer-stop=...
         bound_info = offset_ne:ct:all_pts:outer:start=1:stop={stop}+1
         '''
 
-        if type(bound_info) != type(""):
+        if not isinstance(bound_info, str):
             raise ValueError()
 
         data = bound_info.split(":")
         if len(data) != 7:
-            raise ValueError("The argument must be in the form"
-                "\"offset-type:field-type:iteration-space:outer-start:outer-stop:inner-start:inner-stop\"")
+            raise ValueError("The argument must be in the form "
+                             "\"offset-type:field-type:iteration-space:"
+                             "outer-start:outer-stop:inner-start:inner-stop\"")
 
-        
-        if len(GOLoop._bounds_lookup)==0:
+        if len(GOLoop._bounds_lookup) == 0:
             GOLoop.setup_bounds()
 
         dict = GOLoop._bounds_lookup   # Shortcut
-
         # Check offset-type exists
-        if not dict.has_key(data[0]):
+        if not data[0] in dict:
             dict[data[0]] = {}
 
-        print(data)
         # Check field-type exists
-        print(dict[data[0]][data[1]])
-        if not dict[data[0]].has_key(data[1]):
+        if not data[1] in dict[data[0]]:
             dict[data[0]][data[1]] = {}
 
         # Check iteration space exists:
-        if not dict[data[0]][data[1]].has_key(data[2]):
+        if not data[2] in dict[data[0]][data[1]]:
             dict[data[0]][data[1]][data[2]] = {}
             VALID_ITERATES_OVER.append(data[2])
-
-        dict[data[0]][data[1]][data[2]] = {'inner' : {'start':data[3], 'stop':data[4]},
-                                            'outer' : {'start':data[5], 'stop':data[6]} }
-        print(dict[data[0]][data[1]][data[2]])
+        dict[data[0]][data[1]][data[2]] = \
+            {'inner': {'start': data[3], 'stop': data[4]},
+             'outer': {'start': data[5], 'stop': data[6]}}
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
@@ -1488,3 +1487,58 @@ class GOACCDataDirective(ACCDataDirective):
                                          rhs=".true."))
                     obj_list.append(var)
         return
+
+
+# =============================================================================
+class GOReadConfigFile(object):
+    '''A simple wrapper class to store function to handle a gocean1.0
+    specific config file.'''
+
+    @staticmethod
+    def read_config_file(config_file):
+        '''Raises something.
+        KeyError
+        :raises ConfiguartionError: If the file was not found or could not \
+                be read.
+        :raises ConfiguartionError: If the files does not contain a gocean1.0\
+                section.
+        '''
+
+        import os
+        from configparser import ConfigParser, Error
+        from psyclone. configuration import ConfigurationError
+
+        # Check if the have a valid file:
+        if not os.path.isfile(config_file):
+            raise ConfigurationError(
+                "File {0} does not exist".format(config_file))
+
+        config_parser = ConfigParser()
+        # While Error is the base class for all errors in the configuration
+        # parser, afaik the read() method will never raise an exception,
+        # and silently ignore error.
+        try:
+            config_parser.read(config_file)
+        except Error as err:
+            raise ConfigurationError(
+                "ConfigParser failed to read the configuration file '{0}'."
+                " Is it formatted correctly? (Error was: {1})"
+                .format(config_file, str(err)),)
+
+        # Make sure the config file contains a gocean1.0 section:
+        if "gocean1.0" not in config_parser:
+            raise ConfigurationError(
+                "Configuration file '{0}' does not contain a "
+                "'gocean1.0' section".format(config_file))
+
+        gocean = config_parser["gocean1.0"]
+
+        for key in gocean.keys():
+            if key == "iteration-spaces":
+                # Convert from ustr to str:
+                value_as_str = str(gocean[key])
+                for it_space in value_as_str.split("\n"):
+                    GOLoop.add_bounds(it_space)
+            else:
+                raise ConfigurationError("Invalid key '{0}' in file '{1}'"
+                                         .format(key, config_file))

@@ -1,0 +1,4 @@
+[gocean1.0]
+iteration-spaces=offset_sw:ct:internal_we_halo:1:2:3:4
+                 offset_sw:ct:internal_ns_halo:1:{stop}:1:{stop}+1
+                 offset_sw:ct:n_halo:{start}:{start}:{start}:{stop}+1

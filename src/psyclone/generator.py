@@ -53,6 +53,7 @@ import traceback
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.algGen import NoInvokesError
+from psyclone.gocean1p0 import GOReadConfigFile
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
@@ -254,6 +255,8 @@ def main(args):
              "transformation script is used. Use at your own risk.")
     parser.set_defaults(dist_mem=_CONFIG.distributed_memory)
 
+    parser.add_argument("--config", help="Additional config file with "
+                        "PSyclone specific options.")
     parser.add_argument(
         '-v', '--version', dest='version', action="store_true",
         help='Display version information ({0})'.format(__VERSION__))
@@ -285,6 +288,10 @@ def main(args):
         Profiler.set_options(args.profile)
     elif args.force_profile:
         Profiler.set_options(args.force_profile)
+
+    if args.config:
+        # For now only gocean supports an additional config file:
+        GOReadConfigFile.read_config_file(args.config)
 
     try:
         alg, psy = generate(args.filename, api=args.api,
