@@ -1,11 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,11 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the generation of Fortran from
     the PSy representation of NEMO code '''
 
+from __future__ import print_function
 import os
 import fparser
 import pytest
@@ -60,7 +57,7 @@ def test_explicit_gen():
     ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    print str(psy.gen)
+    print(str(psy.gen))
     assert 0
 
 

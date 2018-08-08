@@ -41,6 +41,7 @@
     representation of NEMO code '''
 
 
+from __future__ import print_function
 import os
 import fparser
 import pytest
@@ -62,14 +63,14 @@ def test_explicit_do_sched():
     ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    assert isinstance(psy, nemo0p1.NEMOPSy)
+    assert isinstance(psy, nemo0p1.NemoPSy)
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     # The schedule should contain 3 loop objects
-    loops = sched.walk(sched.children, nemo0p1.NEMOLoop)
+    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
     assert len(loops) == 3
     # The schedule should contain just 1 kernel
-    assert isinstance(loops[2].children[0], nemo0p1.NEMOKern)
+    assert isinstance(loops[2].children[0], nemo0p1.NemoKern)
 
 
 @pytest.mark.xfail(reason="We do not yet create the Loop objects for an "
@@ -79,13 +80,13 @@ def test_implicit_loop_sched():
     ast, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    assert isinstance(psy, nemo0p1.NEMOPSy)
-    print len(psy.invokes.invoke_list)
+    assert isinstance(psy, nemo0p1.NemoPSy)
+    print(len(psy.invokes.invoke_list))
     sched = psy.invokes.invoke_list[0].schedule
     sched.view()
-    loops = sched.walk(sched.children, nemo0p1.NEMOLoop)
+    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
     assert len(loops) == 3
-    kerns = sched.walk(sched.children, nemo0p1.NEMOKern)
+    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
     assert len(kerns) == 1
 
 
@@ -98,9 +99,9 @@ def test_implicit_loop_sched():
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo0p1.NEMOLoop)
+    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
     assert len(loops) == 3
-    kerns = sched.walk(sched.children, nemo0p1.NEMOKern)
+    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
     assert len(kerns) == 1
 
 
@@ -111,11 +112,11 @@ def test_codeblock():
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo0p1.NEMOLoop)
+    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
     assert len(loops) == 3
-    cblocks = sched.walk(sched.children, nemo0p1.NEMOCodeBlock)
+    cblocks = sched.walk(sched.children, nemo0p1.NemoCodeBlock)
     assert len(cblocks) == 3
-    kerns = sched.walk(sched.children, nemo0p1.NEMOKern)
+    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
     assert len(kerns) == 2
 
 
@@ -127,9 +128,9 @@ def test_io_not_kernel():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     # We should have only 1 actual kernel and 2 code blocks
-    cblocks = sched.walk(sched.children, nemo0p1.NEMOCodeBlock)
+    cblocks = sched.walk(sched.children, nemo0p1.NemoCodeBlock)
     assert len(cblocks) == 2
-    kerns = sched.walk(sched.children, nemo0p1.NEMOKern)
+    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
     assert len(kerns) == 1
 
 
@@ -143,15 +144,15 @@ def test_schedule_view(capsys):
     sched = psy.invokes.invoke_list[0].schedule
     sched_str = str(sched)
     assert "CodeBlock[2 statements]" in sched_str
-    assert "NEMOLoop[]: jk=1,jpk,1" in sched_str
-    assert "NEMOLoop[]: jj=1,jpj,1" in sched_str
-    assert "NEMOLoop[]: ji=1,jpi,1" in sched_str
+    assert "NemoLoop[]: jk=1,jpk,1" in sched_str
+    assert "NemoLoop[]: jj=1,jpj,1" in sched_str
+    assert "NemoLoop[]: ji=1,jpi,1" in sched_str
     sched.view()
     output, _ = capsys.readouterr()
 
     # Have to allow for colouring of output text
     loop_str = colored("Loop", NEMO_SCHEDULE_COLOUR_MAP["Loop"])
-    cb_str = colored("NEMOCodeBlock", NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"])
+    cb_str = colored("NemoCodeBlock", NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"])
     kern_str = colored("KernCall", NEMO_SCHEDULE_COLOUR_MAP["KernCall"])
     sched_str = colored("Schedule", NEMO_SCHEDULE_COLOUR_MAP["Schedule"])
 
@@ -180,5 +181,5 @@ def test_schedule_view(capsys):
         "it_space='None']\n"
         "                " + cb_str + "[<class 'fparser.Fortran2003."
         "Assignment_Stmt'>]")
-    print expected_sched
+    print(expected_sched)
     assert expected_sched in output

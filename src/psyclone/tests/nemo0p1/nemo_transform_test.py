@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 ''' Module containing py.test tests for the transformation of
     the PSy representation of NEMO code '''
 
+from __future__ import print_function
 import os
 import fparser
 import pytest
@@ -62,28 +63,26 @@ def test_explicit_gen():
 
     for loop in schedule.loops():
         kernel = loop.kernel
-        if kernel:
-            if kernel.type == "3D" and loop.loop_type == "levels":
-                schedule, _ = omp_trans.apply(loop)
-            elif kernel.type == "2D" and loop.loop_type == "lat":
-                schedule, _ = omp_trans.apply(loop)
+        if kernel and loop.loop_type == "levels":
+            schedule, _ = omp_trans.apply(loop)
     schedule.view()
-    gen_code = str(psy.gen)
-    print gen_code
+    gen_code = str(psy.gen).lower()
+    print(gen_code)
     expected = (
-        "PROGRAM explicit_do\n"
-        "  IMPLICIT NONE\n"
-        "  INTEGER :: ji, jj, jk\n"
-        "  INTEGER :: jpi, jpj, jpk\n"
-        "  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
-        "  !$OMP PARALLEL DO\n"
-        "  DO , jk = 1, jpk\n"
-        "    DO , jj = 1, jpj\n"
-        "      DO , ji = 1, jpi\n"
+        "program explicit_do\n"
+        "  implicit none\n"
+        "  integer :: ji, jj, jk\n"
+        "  integer :: jpi, jpj, jpk\n"
+        "  real, dimension(jpi, jpj, jpk) :: umask\n"
+        "  !$omp parallel do default(shared), private(jk,jj,ji), "
+        "schedule(static)\n"
+        "  do jk = 1, jpk\n"
+        "    do jj = 1, jpj\n"
+        "      do ji = 1, jpi\n"
         "        umask(ji, jj, jk) = ji * jj * jk / r\n"
-        "      END DO\n"
-        "    END DO\n"
-        "  END DO\n"
-        "  !$OMP END PARALLEL DO\n"
-        "END PROGRAM explicit_do")
+        "      end do\n"
+        "    end do\n"
+        "  end do\n"
+        "  !$omp end parallel do\n"
+        "end program explicit_do")
     assert expected in gen_code
