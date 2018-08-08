@@ -48,6 +48,7 @@
 
 '''
 
+from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, Arguments, KernelArgument, GenerationError, colored, \
@@ -136,7 +137,7 @@ def renamed_translate_ast(node, parent, indent=0, debug=False):
     for idx, child in enumerate(children[:]):
         child._parent = parent # ARPDBG - retro-fix parent
         if debug:
-            print indent*"  " + "child type = ", type(child)
+            print(indent*"  " + "child type = ", type(child))
             
         if type(child) in [Fortran2003.Block_Nonlabel_Do_Construct]:
 
@@ -494,14 +495,13 @@ class NemoSchedule(Schedule):
 
     def view(self, indent=0):
         ''' Print a representation of this NemoSchedule '''
-        print self.indent(indent) + self.coloured_text + "[]"
+        print(self.indent(indent) + self.coloured_text + "[]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def __str__(self):
         ''' Returns the string representation of this NemoSchedule '''
-        result = "NemoSchedule(Constant loop bounds=" + \
-                 str(self._const_loop_bounds) + "):\n"
+        result = "NemoSchedule():\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
@@ -580,8 +580,8 @@ class NemoCodeBlock(Node):
 
     def view(self, indent=0):
         ''' Print a representation of this node in the schedule '''
-        print self.indent(indent) + self.coloured_text + "[" + \
-            str(type(self._statements[0])) + "]"
+        print(self.indent(indent) + self.coloured_text + "[" +
+              str(type(self._statements[0])) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -778,8 +778,8 @@ class NemoKern(Kern):
 
     def view(self, indent=0):
         ''' Print representation of this node to stdout '''
-        print (self.indent(indent) + self.coloured_text + "[" +
-               self._kernel_type + "]")
+        print(self.indent(indent) + self.coloured_text + "[" +
+              self._kernel_type + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 

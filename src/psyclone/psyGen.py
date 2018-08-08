@@ -258,7 +258,7 @@ class PSyFactory(object):
             from psyclone.gocean1p0 import GOPSy
             return GOPSy(invoke_info)
         elif self._type == "nemo0.1":
-            from nemo0p1 import NemoPSy
+            from psyclone.nemo0p1 import NemoPSy
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed
             return NemoPSy(invoke_info)
@@ -2077,7 +2077,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-        import pdb; pdb.set_trace()
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
@@ -2100,17 +2099,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         if self._ast:
             return
         # Find the locations in which we must insert the begin/end
-        # directives
-        start_idx = -1
-        end_idx = -1
+        # directives...
         # Find the children of this node in the AST of our parent node
-        #import pdb; pdb.set_trace()
-        for idx, child in enumerate(self._parent._ast.content):
-            if child is self._children[0]._ast:
-                start_idx = idx
-            if child is self._children[-1]._ast:
-                end_idx = idx
-        if start_idx == -1 or end_idx == -1:
+        try:
+            start_idx = self._parent._ast.content.index(self._children[0]._ast)
+            end_idx = self._parent._ast.content.index(self._children[-1]._ast)
+        except:
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
         # Create the start directive
