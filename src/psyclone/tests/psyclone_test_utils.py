@@ -337,9 +337,14 @@ def get_invoke(algfile, api, idx=None, name=None):
         dir_name = "gocean0p1"
     elif api == "dynamo0.1":
         dir_name = "dynamo0p1"
+    elif api == "gunghoproto":
+        dir_name = "gunghoproto"
     else:
-        raise RuntimeError("The API '{0}' is not supported by get_invoke.".
-                           format(api))
+        from psyclone.configuration import ConfigFactory
+        config = ConfigFactory().create()
+        raise RuntimeError("The API '{0}' is not supported by get_invoke. "
+                           "Supported types are {1}.".
+                           format(api, config.supported_apis))
 
     _, info = parse(os.path.
                     join(os.path.dirname(os.path.abspath(__file__)),
@@ -351,23 +356,3 @@ def get_invoke(algfile, api, idx=None, name=None):
     else:
         invoke = psy.invokes.invoke_list[idx]
     return psy, invoke
-
-
-# -----------------------------------------------------------------------------
-def test_get_invoke():
-    '''Tests get_invokes. '''
-
-    # First test all 4 valid APIs - we only make sure that no exception
-    # is raised, so no assert required
-    _, _ = get_invoke("openmp_fuse_test.f90", "gocean0.1", idx=0)
-    _, _ = get_invoke("test14_module_inline_same_kernel.f90",
-                      "gocean1.0", idx=0)
-
-    _, _ = get_invoke("algorithm/1_single_function.f90", "dynamo0.1", idx=0)
-    _, _ = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
-
-    # Test if an invalid API raises the right exception:
-    with pytest.raises(RuntimeError) as excinfo:
-        _, _ = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                          "gocean1.0", name="invalid_name")
-    assert "Cannot find an invoke named 'invalid_name'" in str(excinfo)

@@ -40,7 +40,7 @@ from __future__ import absolute_import
 import os
 import pytest
 from psyclone_test_utils import code_compiles, COMPILE, compile_file, \
-    CompileError, find_fortran_file, string_compiles
+    CompileError, find_fortran_file, get_invoke, string_compiles
 
 
 HELLO_CODE = '''
@@ -143,3 +143,31 @@ def test_compile_str(monkeypatch, tmpdir, f90, f90flags):
     assert not string_compiles(invalid_code, tmpdir, f90, f90flags)
     # Check that we've cleaned up
     assert not tmpdir.listdir()
+
+
+# -----------------------------------------------------------------------------
+def test_get_invoke():
+    '''Tests get_invokes. '''
+
+    # First test all 4 valid APIs - we only make sure that no exception
+    # is raised, so no assert required
+    _, _ = get_invoke("openmp_fuse_test.f90", "gocean0.1", idx=0)
+    _, _ = get_invoke("test14_module_inline_same_kernel.f90",
+                      "gocean1.0", idx=0)
+    _, _ = get_invoke("algorithm/1_single_function.f90", "dynamo0.1", idx=0)
+    _, _ = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+    # It seems that none of the gungho tests actually work :(
+    # _, _ = get_invoke("1_single_function.f90",
+    #                   "gunghoproto", idx=0)
+
+    # Test that an invalid name raises an exception
+    with pytest.raises(RuntimeError) as excinfo:
+        _, _ = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                          "gocean1.0", name="invalid_name")
+    assert "Cannot find an invoke named 'invalid_name'" in str(excinfo)
+
+    # Test that an invalid API raises the right exception:
+    with pytest.raises(RuntimeError) as excinfo:
+        _, _ = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                          "invalid-api", name="invalid_name")
+    assert "The API 'invalid-api' is not supported" in str(excinfo)
