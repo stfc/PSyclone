@@ -2113,6 +2113,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         if start_idx == -1 or end_idx == -1:
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
+        # Create the start directive
+        text = ("!$omp parallel do default(shared), private({0}), "
+                "schedule({1})".format(",".join(self._get_private_list()),
+                                       self._omp_schedule))
+        startdir = Comment(FortranStringReader(text,
+                                               ignore_comments=False))
 
         # Create the end directive and insert it after the node in
         # the AST representing our last child
@@ -2122,10 +2128,10 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             self._parent._ast.content.append(enddir)
         else:
             self._parent._ast.content.insert(end_idx+1, enddir)
-        # Create the start directive and insert it (do this second
-        # so we don't have to correct end_idx)
-        self._ast = Comment(FortranStringReader("!$omp parallel do",
-                                                ignore_comments=False))
+
+        # Insert the start directive (do this second so we don't have
+        # to correct end_idx)
+        self._ast = startdir
         self._parent._ast.content.insert(start_idx, self._ast)
 
 
