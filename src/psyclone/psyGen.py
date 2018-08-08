@@ -1269,6 +1269,11 @@ class Node(object):
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
+    def update(self):
+        ''' By default we assume there is no need to update the existing
+        fparser2 AST which this Node represents. '''
+        return
+
 
 class Schedule(Node):
 
@@ -2043,6 +2048,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                                 children=children,
                                 parent=parent,
                                 omp_schedule=omp_schedule)
+        self._ast = None  # fparser2 AST representing this directive
 
     @property
     def dag_name(self):
@@ -2071,7 +2077,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-
+        import pdb; pdb.set_trace()
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
@@ -2086,6 +2092,22 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
                    position=["after", position])
 
+    def update(self):
+        ''' TBD '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        # Check that we haven't already been called
+        if self._ast:
+            return
+        for idx, child in enumerate(self._parent._ast.content):
+            if child is self._children[0]._ast:
+                break
+                
+        # Create the directive and insert it
+        self._ast = Comment(FortranStringReader("!$omp parallel do",
+                                                ignore_comments=False))
+        self._parent._ast.content.insert(idx, self._ast)
+  
 
 class GlobalSum(Node):
     '''

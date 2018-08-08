@@ -361,6 +361,12 @@ class NemoInvoke(Invoke):
     def psy_unique_var_names(self):
         return self._psy_unique_vars
 
+    def update(self):
+        ''' TBD '''
+        if not self._schedule:
+            return
+        self._schedule.update()
+
 
 class NemoInvokes(Invokes):
 
@@ -407,6 +413,11 @@ class NemoInvokes(Invokes):
     def gen_code(self):
         return self._ast
 
+    def update(self):
+        ''' TBD '''
+        for invoke in self.invoke_list:
+            invoke.update()
+
 
 class NemoPSy(PSy):
     ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
@@ -427,28 +438,16 @@ class NemoPSy(PSy):
     @property
     def gen(self):
         '''
-        Generate PSy code for the GOcean api v.1.0.
+        Update the PSy code for the NEMO api v.0.1.
 
         :rtype: ast
 
         '''
-        #from psyclone.f2pygen2 import ModuleGen, UseGen
-
-        # create an empty PSy layer module
-        #psy_module = ModuleGen(self.name)
-        # include the kind_params module
-        #psy_module.add(UseGen(psy_module, name="kind_params_mod"))
-        # include the field_mod module
-        #psy_module.add(UseGen(psy_module, name="field_mod"))
-        # add in the subroutines for each invocation
-        #self.invokes.gen_code() #psy_module)
+        # Walk down our Schedule and update the underlying fparser2 AST
+        # to account for any transformations
+        self.invokes.update()
         
-        # We don't need to create anything here because the original
-        # AST (the XML DOM) already contains the full definition of
-        # the parent module
-
-        # inline kernels where requested
-        #self.inline(psy_module)
+        # Return the fparser2 AST
         return self._ast
 
 
@@ -553,6 +552,11 @@ class NemoSchedule(Schedule):
         for entity in self._children:
             entity.gen_code(parent)
 
+    def update(self):
+        ''' TBD '''
+        for child in self._children:
+            child.update()
+
 
 class NemoCodeBlock(Node):
     ''' Node representing some generic Fortran code that PSyclone
@@ -592,6 +596,10 @@ class NemoCodeBlock(Node):
             parent.add(statement)
         for entity in self._children:
             entity.gen_code(parent)
+
+    def update(self):
+        ''' TBD '''
+        return
 
 
 class NemoKern(Kern):
@@ -788,6 +796,10 @@ class NemoKern(Kern):
         for item in self._body:
             parent.add(AssignGen(item))
 
+    def update(self):
+        ''' TBD '''
+        return
+
 
 class NemoLoop(Loop):
     '''
@@ -805,7 +817,7 @@ class NemoLoop(Loop):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES+["unknown"])
         # Keep a ptr to the corresponding node in the AST
-        self._ast_node = ast
+        self._ast = ast
 
         # Get the loop variable
         ctrl = walk_ast(ast.content, [Loop_Control])
@@ -840,13 +852,13 @@ class NemoLoop(Loop):
         code_block_nodes = []
 
         # Is this loop body a kernel?
-        if NemoKern.is_kernel(self._ast_node):
+        if NemoKern.is_kernel(self._ast):
             kern = NemoKern()
-            kern.load(self._ast_node, parent=self)
+            kern.load(self._ast, parent=self)
             self.addchild(kern)
             return
 
-        for child in self._ast_node.content:
+        for child in self._ast.content:
             if isinstance(child, Block_Nonlabel_Do_Construct):
                 # The start of a loop is taken as the end of any exising
                 # code block so we create that now
@@ -872,3 +884,8 @@ class NemoLoop(Loop):
             return kernels[0]
         else:
             return None
+
+    def update(self):
+        ''' TBD '''
+        for child in self._children:
+            child.update()

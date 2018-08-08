@@ -20,33 +20,34 @@ This should generate a lot of output, ending with generated
 Fortran.
 '''
 
+from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
 if __name__ == "__main__":
-    API = "nemo0.1"
-    _, INVOKEINFO = parse("tra_adv.F90", api=API)
-    PSY = PSyFactory(API).create(INVOKEINFO)
-    print PSY.gen
+    api = "nemo0.1"
+    _, invokeinfo = parse("tra_adv.F90", api=api)
+    psy = PSyFactory(api).create(invokeinfo)
+    print(psy.gen)
 
-    print PSY.invokes.names
-    SCHEDULE = PSY.invokes.get('tra_adv').schedule
-    SCHEDULE.view()
+    print("Invokes found:")
+    print(psy.invokes.names)
+    
+    sched = psy.invokes.get('tra_adv').schedule
+    sched.view()
 
     TRANS_INFO = TransInfo()
-    print TRANS_INFO.list
+    print(TRANS_INFO.list)
     FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
     OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
 
-    for loop in SCHEDULE.loops():
+    for loop in sched.loops():
         kernel = loop.kernel
         if kernel:
-            if kernel.type == "3D" and loop.loop_type == "levels":
-                SCHEDULE, _ = OMP_TRANS.apply(loop)
-            elif kernel.type == "2D" and loop.loop_type == "lat":
-                SCHEDULE, _ = OMP_TRANS.apply(loop)
+            if loop.loop_type == "levels":
+                sched, _ = OMP_TRANS.apply(loop)
 
-    SCHEDULE.view()
+    sched.view()
 
-    PSY.invokes.get('tra_adv').schedule = SCHEDULE
-    print PSY.gen
+    psy.invokes.get('tra_adv').schedule = sched
+    print(psy.gen)
