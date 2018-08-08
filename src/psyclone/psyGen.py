@@ -2099,15 +2099,35 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Check that we haven't already been called
         if self._ast:
             return
+        # Find the locations in which we must insert the begin/end
+        # directives
+        start_idx = -1
+        end_idx = -1
+        # Find the children of this node in the AST of our parent node
+        #import pdb; pdb.set_trace()
         for idx, child in enumerate(self._parent._ast.content):
             if child is self._children[0]._ast:
-                break
-                
-        # Create the directive and insert it
+                start_idx = idx
+            if child is self._children[-1]._ast:
+                end_idx = idx
+        if start_idx == -1 or end_idx == -1:
+            raise InternalError("Failed to find locations to insert "
+                                "begin/end directives.")
+
+        # Create the end directive and insert it after the node in
+        # the AST representing our last child
+        enddir = Comment(FortranStringReader("!$omp end parallel do",
+                                             ignore_comments=False))
+        if end_idx == len(self._parent._ast.content) - 1:
+            self._parent._ast.content.append(enddir)
+        else:
+            self._parent._ast.content.insert(end_idx+1, enddir)
+        # Create the start directive and insert it (do this second
+        # so we don't have to correct end_idx)
         self._ast = Comment(FortranStringReader("!$omp parallel do",
                                                 ignore_comments=False))
-        self._parent._ast.content.insert(idx, self._ast)
-  
+        self._parent._ast.content.insert(start_idx, self._ast)
+
 
 class GlobalSum(Node):
     '''
