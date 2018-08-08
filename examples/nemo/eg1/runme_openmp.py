@@ -1,4 +1,5 @@
-# -------------------------------------------------------------------------
+#!/usr/bin/env python
+## -------------------------------------------------------------------------
 # (c) The copyright relating to this work is owned jointly by the Crown,
 # Met Office and NERC 20145
 # However, it has been created with the help of the GungHo Consortium,
@@ -22,29 +23,30 @@ Fortran.
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
-API = "nemo0.1"
-_, INVOKEINFO = parse("tra_adv.F90", api=API)
-PSY = PSyFactory(API).create(INVOKEINFO)
-print PSY.gen
+if __name__ == "__main__":
+    API = "nemo0.1"
+    _, INVOKEINFO = parse("tra_adv.F90", api=API)
+    PSY = PSyFactory(API).create(INVOKEINFO)
+    print PSY.gen
 
-print PSY.invokes.names
-SCHEDULE = PSY.invokes.get('tra_adv').schedule
-SCHEDULE.view()
+    print PSY.invokes.names
+    SCHEDULE = PSY.invokes.get('tra_adv').schedule
+    SCHEDULE.view()
 
-TRANS_INFO = TransInfo()
-print TRANS_INFO.list
-FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
-OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
+    TRANS_INFO = TransInfo()
+    print TRANS_INFO.list
+    FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
+    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
 
-for loop in SCHEDULE.loops():
-    kernel = loop.kernel
-    if kernel:
-        if kernel.type == "3D" and loop.loop_type == "levels":
-            SCHEDULE, _ = OMP_TRANS.apply(loop)
-        elif kernel.type == "2D" and loop.loop_type == "lat":
-            SCHEDULE, _ = OMP_TRANS.apply(loop)
-     
-SCHEDULE.view()
+    for loop in SCHEDULE.loops():
+        kernel = loop.kernel
+        if kernel:
+            if kernel.type == "3D" and loop.loop_type == "levels":
+                SCHEDULE, _ = OMP_TRANS.apply(loop)
+            elif kernel.type == "2D" and loop.loop_type == "lat":
+                SCHEDULE, _ = OMP_TRANS.apply(loop)
 
-PSY.invokes.get('tra_adv').schedule = SCHEDULE
-print PSY.gen
+    SCHEDULE.view()
+
+    PSY.invokes.get('tra_adv').schedule = SCHEDULE
+    print PSY.gen
