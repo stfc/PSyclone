@@ -200,8 +200,7 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     if api == "dynamo0.3":
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3")
-        from psyclone.tests.dynamo0p3_build import INFRASTRUCTURE_MODULES as \
-            module_files
+        from dynamo0p3_build import INFRASTRUCTURE_MODULES as module_files
 
     kernel_modules = set()
     # Get the names of the modules associated with the kernels. By definition,

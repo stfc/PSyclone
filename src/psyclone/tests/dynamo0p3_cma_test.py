@@ -46,7 +46,7 @@ from psyclone.parse import ParseError, parse
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.gen_kernel_stub import generate
-from psyclone.tests.utils import code_compiles, TEST_COMPILE
+from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

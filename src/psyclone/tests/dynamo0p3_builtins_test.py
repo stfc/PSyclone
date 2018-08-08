@@ -47,7 +47,7 @@ from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.configuration import ConfigFactory
 from psyclone import dynamo0p3_builtins
-from psyclone.tests.utils import TEST_COMPILE, code_compiles
+from psyclone_test_utils import TEST_COMPILE, code_compiles
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

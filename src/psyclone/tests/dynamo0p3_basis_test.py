@@ -45,7 +45,7 @@ from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-from  psyclone.tests.utils import code_compiles, print_diffs, TEST_COMPILE
+from psyclone_test_utils import code_compiles, print_diffs, TEST_COMPILE
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

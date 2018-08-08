@@ -44,9 +44,9 @@ from psyclone.generator import GenerationError
 from psyclone.gocean1p0 import GOKern, GOSchedule
 from psyclone.profiler import Profiler, ProfileNode
 from psyclone.psyGen import Loop, NameSpace
-from psyclone.tests.utils import get_invoke
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
     ProfileRegionTrans, TransformationError
+from psyclone_test_utils import get_invoke
 
 
 # -----------------------------------------------------------------------------

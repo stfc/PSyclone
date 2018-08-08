@@ -50,7 +50,7 @@ import os
 import re
 import pytest
 from fparser import api as fpapi
-from psyclone.tests.utils import get_invoke
+from psyclone_test_utils import get_invoke
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
@@ -142,7 +142,7 @@ def test_new_module():
     transformations.  There should be no transformations
     available as the new module uses a different
     transformation base class'''
-    from psyclone.tests.test_files import dummy_transformations
+    from test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations)
     assert trans.num_trans == 0
 
@@ -152,7 +152,7 @@ def test_new_baseclass():
     should be no transformations available as the default
     transformations module does not use the specified base
     class'''
-    from psyclone.tests.test_files.dummy_transformations import \
+    from test_files.dummy_transformations import \
         LocalTransformation
     trans = TransInfo(base_class=LocalTransformation)
     assert trans.num_trans == 0
@@ -163,7 +163,7 @@ def test_new_module_and_baseclass():
     transformations and the baseclass. There should be one
     transformation available as the module specifies one test
     transformation using the specified base class '''
-    from psyclone.tests.test_files import dummy_transformations
+    from test_files import dummy_transformations
     trans = TransInfo(module=dummy_transformations,
                       base_class=dummy_transformations.LocalTransformation)
     assert trans.num_trans == 1

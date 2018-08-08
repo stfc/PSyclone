@@ -49,7 +49,7 @@ from fparser import api as fpapi
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse import ParseError, parse
 from psyclone.psyGen import PSyFactory
-from psyclone.tests.utils import code_compiles, TEST_COMPILE
+from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

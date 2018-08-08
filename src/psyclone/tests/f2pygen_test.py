@@ -41,7 +41,7 @@ from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
     CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
 from psyclone.psyGen import InternalError
-from psyclone.tests.utils import count_lines, line_number, string_compiles
+from psyclone_test_utils import count_lines, line_number, string_compiles
 
 # Fortran we have to add to some of the generated code in order to
 # perform compilation checks.

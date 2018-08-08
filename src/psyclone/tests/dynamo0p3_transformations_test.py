@@ -51,7 +51,7 @@ from psyclone.transformations import TransformationError, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans
 from psyclone.configuration import ConfigFactory
-from psyclone.tests.utils import TEST_COMPILE, code_compiles
+from psyclone_test_utils import TEST_COMPILE, code_compiles
 
 
 # The version of the API that the tests in this file
