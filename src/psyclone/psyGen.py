@@ -258,10 +258,10 @@ class PSyFactory(object):
             from psyclone.gocean1p0 import GOPSy
             return GOPSy(invoke_info)
         elif self._type == "nemo0.1":
-            from nemo0p1 import NEMOPSy
+            from nemo0p1 import NemoPSy
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed
-            return NEMOPSy(invoke_info)
+            return NemoPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
