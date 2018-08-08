@@ -257,54 +257,6 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     return success
 
 
-def get_invoke(algfile, api, idx=None, name=None):
-    '''
-    Utility method to get the idx'th or named invoke from the algorithm
-    in the specified file.
-    :param str algfile: name of the Algorithm source file (Fortran)
-    :param str api: which PSyclone API this Algorithm uses
-    :param int idx: the index of the invoke from the Algorithm to return
-                    or None if name is specified
-    :param str name: the name of the required invoke or None if an index
-                     is supplied
-    :returns: (psy object, invoke object)
-    :rtype: 2-tuple containing :py:class:`psyclone.psyGen.PSy` and
-            :py:class:`psyclone.psyGen.Invoke` objects.
-    :raises RuntimeError: if neither idx or name are supplied or if
-                          both are supplied
-    :raises RuntimeError: if the supplied name does not match an invoke in
-                          the Algorithm
-    '''
-    from psyclone.parse import parse
-    from psyclone.psyGen import PSyFactory
-
-    if (idx is None and not name) or (idx is not None and name):
-        raise RuntimeError("Either the index or the name of the "
-                           "requested invoke must be specified")
-
-    if api == "gocean1.0":
-        dir_name = "gocean1p0"
-    elif api == "dynamo0.3":
-        dir_name = "dynamo0p3"
-    elif api == "gocean0.1":
-        dir_name = "gocean0p1"
-    elif api == "dyanmo0.1":
-        dir_name = "dynamo0p1"
-    else:
-        assert False
-
-    _, info = parse(os.path.
-                    join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", dir_name, algfile),
-                    api=api)
-    psy = PSyFactory(api).create(info)
-    if name:
-        invoke = psy.invokes.get(name)
-    else:
-        invoke = psy.invokes.invoke_list[idx]
-    return psy, invoke
-
-
 def string_compiles(code, tmpdir, f90, f90flags):
     '''
     Attempts to build the Fortran code supplied as a string.
@@ -349,3 +301,73 @@ def string_compiles(code, tmpdir, f90, f90flags):
             ofile.remove()
 
     return success
+
+
+# =============================================================================
+def get_invoke(algfile, api, idx=None, name=None):
+    '''
+    Utility method to get the idx'th or named invoke from the algorithm
+    in the specified file.
+    :param str algfile: name of the Algorithm source file (Fortran)
+    :param str api: which PSyclone API this Algorithm uses
+    :param int idx: the index of the invoke from the Algorithm to return
+                    or None if name is specified
+    :param str name: the name of the required invoke or None if an index
+                     is supplied
+    :returns: (psy object, invoke object)
+    :rtype: 2-tuple containing :py:class:`psyclone.psyGen.PSy` and
+            :py:class:`psyclone.psyGen.Invoke` objects.
+    :raises RuntimeError: if neither idx or name are supplied or if
+                          both are supplied
+    :raises RuntimeError: if the supplied name does not match an invoke in
+                          the Algorithm
+    '''
+    from psyclone.parse import parse
+    from psyclone.psyGen import PSyFactory
+
+    if (idx is None and not name) or (idx is not None and name):
+        raise RuntimeError("Either the index or the name of the "
+                           "requested invoke must be specified")
+
+    if api == "gocean1.0":
+        dir_name = "gocean1p0"
+    elif api == "dynamo0.3":
+        dir_name = "dynamo0p3"
+    elif api == "gocean0.1":
+        dir_name = "gocean0p1"
+    elif api == "dynamo0.1":
+        dir_name = "dynamo0p1"
+    else:
+        raise RuntimeError("The API '{0}' is not supported by get_invoke.".
+                           format(api))
+
+    _, info = parse(os.path.
+                    join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", dir_name, algfile),
+                    api=api)
+    psy = PSyFactory(api).create(info)
+    if name:
+        invoke = psy.invokes.get(name)
+    else:
+        invoke = psy.invokes.invoke_list[idx]
+    return psy, invoke
+
+
+# -----------------------------------------------------------------------------
+def test_get_invoke():
+    '''Tests get_invokes. '''
+
+    # First test all 4 valid APIs - we only make sure that no exception
+    # is raised, so no assert required
+    _, _ = get_invoke("openmp_fuse_test.f90", "gocean0.1", idx=0)
+    _, _ = get_invoke("test14_module_inline_same_kernel.f90",
+                      "gocean1.0", idx=0)
+
+    _, _ = get_invoke("algorithm/1_single_function.f90", "dynamo0.1", idx=0)
+    _, _ = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
+
+    # Test if an invalid API raises the right exception:
+    with pytest.raises(RuntimeError) as excinfo:
+        _, _ = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                          "gocean1.0", name="invalid_name")
+    assert "Cannot find an invoke named 'invalid_name'" in str(excinfo)
