@@ -6,10 +6,10 @@
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
-
+!
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,9 @@ use stencil_dofmap_mod,    only: stencil_dofmap_type, STENCIL_POINT
 implicit none
 
 private
+
+integer(i_def), public, parameter :: BASIS      = 100
+integer(i_def), public, parameter :: DIFF_BASIS = 101
 
 type, public :: function_space_type
 
@@ -106,12 +109,14 @@ contains
   procedure, public :: get_element_order
   procedure, public :: get_fs_order
   procedure get_last_dof_owned
+  procedure get_last_dof_annexed
   procedure get_last_dof_halo
   procedure, public   :: get_stencil_dofmap
   procedure, public  :: get_colours
   procedure, public  :: get_ncolours
   procedure, public  :: set_colours
-
+  procedure, public  :: call_function
+  procedure, public  :: get_cell_orientation
 end type function_space_type
 
 contains
@@ -372,6 +377,16 @@ function get_last_dof_owned(self) result (last_dof_owned)
   return
 end function get_last_dof_owned
 
+function get_last_dof_annexed(self) result (last_dof_annexed)
+
+  implicit none
+  class(function_space_type) :: self
+  integer(i_def) :: last_dof_annexed
+
+  last_dof_annexed = 0
+  return
+end function get_last_dof_annexed
+
 function get_last_dof_halo(self) result (last_dof_halo)
 
   implicit none
@@ -422,5 +437,25 @@ subroutine get_colours(self, ncolours, ncells_per_colour, colour_map)
   colour_map => null()
 
 end subroutine get_colours
+
+function call_function(self, function_to_call, df, xi) result(evaluate)
+
+  class(function_space_type)  :: self
+  integer(i_def), intent(in)  :: function_to_call
+  integer(i_def), intent(in)  :: df
+  real(r_def),    intent(in)  :: xi(3)
+  real(r_def),   allocatable  :: evaluate(:)
+
+  allocate(evaluate(1))
+  evaluate = 0.0_r_def
+end function call_function
+
+function get_cell_orientation(self, cell) result(orientation)
+  implicit none
+  class(function_space_type)  :: self
+  integer, intent(in) :: cell
+  integer, dimension(:), pointer :: orientation
+  orientation => null()
+end function get_cell_orientation
 
 end module function_space_mod

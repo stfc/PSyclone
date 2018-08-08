@@ -31,35 +31,81 @@ transformations are API-specific (or specific to a set of API's
 e.g. dynamo). Currently these different types of transformation are
 indicated by their names.
 
-The generic transformations currently available are given below (a
-number of these have specialisations which can be found in the
-API-specific sections).
+The generic transformations currently available are listed in
+alphabetical order below (a number of these have specialisations which
+can be found in the API-specific sections).
+
+.. note:: PSyclone currently only supports OpenACC transformations
+	  for the GOcean 1.0 API. Attempts to apply these
+	  transformations to (members of) Schedules from other
+	  APIs will be rejected.
+
+####
+
+.. autoclass:: psyclone.transformations.ACCDataTrans
+    :noindex:
+    :members:
+
+####
+
+.. autoclass:: psyclone.transformations.ACCLoopTrans
+    :members:
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.ACCParallelTrans
+    :members:
+    :inherited-members:
+    :noindex:
+
+####
+	       
+.. autoclass:: psyclone.transformations.ColourTrans
+    :members:
+    :noindex:
+
+####
 
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
     :members:
     :noindex:
 
+####
+
 .. autoclass:: psyclone.transformations.LoopFuseTrans
     :members:
     :noindex:
+
+####
+
+.. _sec_move_trans:
 
 .. autoclass:: psyclone.transformations.MoveTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.ColourTrans
+####
+
+.. autoclass:: psyclone.transformations.ProfileRegionTrans
     :members:
     :noindex:
+
+####
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.OMPParallelTrans
+####
+
+.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.OMPParallelLoopTrans
+####
+
+.. autoclass:: psyclone.transformations.OMPParallelTrans
     :members:
     :noindex:
 
@@ -69,11 +115,9 @@ API-specific sections).
           halo swaps or global sums will produce an error. In such
           cases it may be possible to re-order the nodes in the
           Schedule such that the halo swaps or global sums are
-          performed outside the parallel region. At the moment any
-          such reordering would have to be performed by directly
-          modifying the schedule and would be at the users own
-          risk. In the future a transformation will be added to
-          support the re-ordering of nodes.
+          performed outside the parallel region. The 
+	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
+          for this.
 
    
 Applying
@@ -156,22 +200,20 @@ transformations are also given in the previous section.
 Script
 ++++++
 
-PSyclone provides a Python script (**generator.py**) that can be used from
+PSyclone provides a Python script (**psyclone**) that can be used from
 the command line to generate PSy layer code and to modify algorithm
 layer code appropriately. By default this script will generate
-"vanilla" (unoptimised) PSy layer code. For example:
-::
+"vanilla" (unoptimised) PSy layer code. For example::
 
-    > python generator.py algspec.f90
-    > python generator.py -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
+    > psyclone algspec.f90
+    > psyclone -oalg alg.f90 -opsy psy.f90 -api dynamo0.3 algspec.f90
 
-The generator.py script has an optional **-s** flag which allows the
+The **psyclone** script has an optional **-s** flag which allows the
 user to specify a script file to modify the PSy layer as
 required. Script files may be specified without a path. For
-example:
-::
+example::
 
-    > python generator.py -s opt.py algspec.f90
+    > psyclone -s opt.py algspec.f90
 
 In this case the Python search path **PYTHONPATH** will be used to try
 to find the script file.
@@ -181,12 +223,12 @@ the file is expected to be found in the specified location. For
 example ...
 ::
 
-    > python generator.py -s ./opt.py algspec.f90
-    > python generator.py -s ../scripts/opt.py algspec.f90
-    > python generator.py -s /home/me/PSyclone/scripts/opt.py algspec.f90
+    > psyclone -s ./opt.py algspec.f90
+    > psyclone -s ../scripts/opt.py algspec.f90
+    > psyclone -s /home/me/PSyclone/scripts/opt.py algspec.f90
 
 PSyclone also provides the same functionality via a function (which is
-what the **generator.py** script calls internally)
+what the **psyclone** script calls internally).
 
 .. autofunction:: psyclone.generator.generate
 		  :noindex:
@@ -217,9 +259,10 @@ Of course the script may apply as many transformations as is required
 for a particular schedule and may apply transformations to all the
 schedules (i.e. invokes) contained within the PSy layer.
 
-An example of the use of transformations scripts can be found in the
-examples/dynamo/eg3 directory. Please read the examples/dynamo/README
-file first as it explains how to run the example.
+Examples of the use of transformation scripts can be found in the
+examples/dynamo/eg3 and examples/dynamo/scripts directories. Please
+read the examples/dynamo/README file first as it explains how to run
+the examples (and see also the examples/check_examples script).
 
 OpenMP
 ------
@@ -234,6 +277,8 @@ theoretically work for all API's) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
 this document.
+
+.. _openmp-reductions:
 
 Reductions
 ++++++++++
@@ -280,8 +325,5 @@ PSyclone does not support (distributed-memory) halo swaps or global
 sums within OpenMP parallel regions.  Attempting to create a parallel
 region for a set of nodes that includes halo swaps or global sums will
 produce an error.  In such cases it may be possible to re-order the
-nodes in the Schedule such that the halo swaps or global sums are
-performed outside the parallel region. At the moment any such
-reordering would have to be performed by directly modifying the
-schedule and would be at the users own risk. In the future a
-transformation will be added to support the re-ordering of nodes.
+nodes in the Schedule using the :ref:`MoveTrans <sec_move_trans>`
+transformation.

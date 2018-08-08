@@ -6,21 +6,22 @@
 #-------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
+from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 api="dynamo0.1"
 ast,invokeInfo=parse("dynamo_algorithm_mod.F90",api=api)
 psy=PSyFactory(api).create(invokeInfo)
-print psy.gen
+print(psy.gen)
 
-print psy.invokes.names
+print(psy.invokes.names)
 
 schedule=psy.invokes.get('invoke_0').schedule
 schedule.view()
 
 from psyclone.psyGen import TransInfo
 t=TransInfo()
-print t.list
+print(t.list)
 
 lf=t.get_trans_name('LoopFuse')
 
@@ -29,4 +30,4 @@ new_schedule,memento=lf.apply(schedule.children[0],schedule.children[1])
 new_schedule.view()
 
 psy.invokes.get('invoke_0').schedule=new_schedule
-print psy.gen
+print(psy.gen)

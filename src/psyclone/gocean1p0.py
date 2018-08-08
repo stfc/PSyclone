@@ -1,11 +1,40 @@
-# ----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ----------------------------------------------------------------------------
+# pylint: disable=too-many-lines
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
 # Authors R. Ford and A. R. Porter, STFC Daresbury Lab
-# Funded by the GOcean project
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
     the required base classes for both code generation (PSy, Invokes,
@@ -17,9 +46,12 @@
 
 '''
 
+from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, KernelArgument, GenerationError
+    Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
+    GenerationError, args_filter
+import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
 VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
@@ -44,7 +76,7 @@ VALID_ARG_ACCESSES = ["read", "write", "readwrite"]
 # The list of valid stencil properties. We currently only support
 # pointwise. This property could probably be removed from the
 # GOcean API altogether.
-VALID_STENCILS = ["pointwise"]
+VALID_STENCIL_NAMES = ["pointwise"]
 
 # A dictionary giving the mapping from meta-data names for
 # properties of the grid to their names in the Fortran grid_type.
@@ -145,7 +177,15 @@ class GOInvoke(Invoke):
         method so that we generate GOcean specific invocation code and
         provides three methods which separate arguments that are arrays from
         arguments that are {integer, real} scalars. '''
+
     def __init__(self, alg_invocation, idx):
+        '''Constructor for the GOcean-specific invoke class.
+        :param alg_invocation: Node in the AST describing the invoke call.
+        :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
+        :param int idx: The position of the invoke in the list of invokes
+                        contained in the Algorithm.
+        '''
+
         if False:  # pylint: disable=using-constant-test
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule)
@@ -169,7 +209,8 @@ class GOInvoke(Invoke):
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if arg.type == 'scalar' and \
-                   arg.space.lower() == "r_scalar" and arg.name not in result:
+                   arg.space.lower() == "r_scalar" and \
+                   not arg.is_literal and arg.name not in result:
                     result.append(arg.name)
         return result
 
@@ -181,7 +222,8 @@ class GOInvoke(Invoke):
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if arg.type == 'scalar' and \
-                   arg.space.lower() == "i_scalar" and arg.name not in result:
+                   arg.space.lower() == "i_scalar" and \
+                   not arg.is_literal and arg.name not in result:
                     result.append(arg.name)
         return result
 
@@ -266,10 +308,12 @@ class GOSchedule(Schedule):
         self._const_loop_bounds = True
 
     def view(self, indent=0):
-        ''' Print a representation of this GOSchedule '''
-        print self.indent(indent) + self.coloured_text + "[invoke='" + \
-            self.invoke.name + "',Constant loop bounds=" + \
-            str(self._const_loop_bounds) + "]"
+        '''Print a representation of this GOSchedule.
+        :param int indent: optional argument indicating the level of
+        indentation to add before outputting the class information.'''
+        print(self.indent(indent) + self.coloured_text + "[invoke='" +
+              self.invoke.name + "',Constant loop bounds=" +
+              str(self._const_loop_bounds) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -330,6 +374,7 @@ class GOSchedule(Schedule):
         self._const_loop_bounds = obj
 
 
+# pylint: disable=too-many-instance-attributes
 class GOLoop(Loop):
     ''' The GOcean specific Loop class. This passes the GOcean specific
         single loop information to the base class so it creates the one we
@@ -338,6 +383,12 @@ class GOLoop(Loop):
         in the Dynamo api. '''
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
+        '''Constructs a GOLoop instance.
+        :param parent: Optional parent node (default None).
+        :type parent: :py:class:`psyclone.psyGen.node`
+        :param str topology_name: Optional opology of the loop (unused atm).
+        :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
+
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
@@ -366,69 +417,78 @@ class GOLoop(Loop):
 
         # Loop bounds for a mesh with NE offset
         self._bounds_lookup['offset_ne']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': ""}}
+            {'inner': {'start': "2", 'stop': "{stop}"},
+             'outer': {'start': "2", 'stop': "{stop}"}}
         self._bounds_lookup['offset_ne']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': ""},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "-1"},
-             'outer': {'start': "2", 'stop': ""}}
+            {'inner': {'start': "2", 'stop': "{stop}-1"},
+             'outer': {'start': "2", 'stop': "{stop}"}}
         self._bounds_lookup['offset_ne']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': ""}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}"}}
         self._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': "-1"}}
+            {'inner': {'start': "2", 'stop': "{stop}"},
+             'outer': {'start': "2", 'stop': "{stop}-1"}}
         self._bounds_lookup['offset_ne']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': ""},
-             'outer': {'start': "1", 'stop': ""}}
+            {'inner': {'start': "1", 'stop': "{stop}"},
+             'outer': {'start': "1", 'stop': "{stop}"}}
         self._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
-            {'inner': {'start': "1", 'stop': "-1"},
-             'outer': {'start': "1", 'stop': "-1"}}
+            {'inner': {'start': "1", 'stop': "{stop}-1"},
+             'outer': {'start': "1", 'stop': "{stop}-1"}}
         # Loop bounds for a mesh with SE offset
         self._bounds_lookup['offset_sw']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': ""}}
+            {'inner': {'start': "2", 'stop': "{stop}"},
+             'outer': {'start': "2", 'stop': "{stop}"}}
         self._bounds_lookup['offset_sw']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "+1"},
-             'outer': {'start': "2", 'stop': ""}}
+            {'inner': {'start': "2", 'stop': "{stop}+1"},
+             'outer': {'start': "2", 'stop': "{stop}"}}
         self._bounds_lookup['offset_sw']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': "+1"}}
+            {'inner': {'start': "2", 'stop': "{stop}"},
+             'outer': {'start': "2", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
+            {'inner': {'start': "1", 'stop': "{stop}+1"},
+             'outer': {'start': "1", 'stop': "{stop}+1"}}
         self._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "+1"},
-             'outer': {'start': "2", 'stop': "+1"}}
+            {'inner': {'start': "2", 'stop': "{stop}+1"},
+             'outer': {'start': "2", 'stop': "{stop}+1"}}
         # For offset 'any'
         for gridpt_type in VALID_FIELD_GRID_TYPES:
             for itspace in VALID_ITERATES_OVER:
                 self._bounds_lookup['offset_any'][gridpt_type][itspace] = \
-                    {'inner': {'start': "1", 'stop': ""},
-                     'outer': {'start': "1", 'stop': ""}}
+                    {'inner': {'start': "1", 'stop': "{stop}"},
+                     'outer': {'start': "1", 'stop': "{stop}"}}
         # For 'every' grid-point type
         for offset in SUPPORTED_OFFSETS:
             for itspace in VALID_ITERATES_OVER:
                 self._bounds_lookup[offset]['every'][itspace] = \
-                    {'inner': {'start': "1", 'stop': "+1"},
-                     'outer': {'start': "1", 'stop': "+1"}}
+                    {'inner': {'start': "1", 'stop': "{stop}+1"},
+                     'outer': {'start': "1", 'stop': "{stop}+1"}}
 
+    # pylint: disable=too-many-branches
     def _upper_bound(self):
-        ''' Returns the upper bound of this loop as a string '''
+        ''' Returns the upper bound of this loop as a string.
+        This takes the field type and usage of const_loop_bounds
+        into account. In case of const_loop_bounds it will be
+        using the data in self._bounds_lookup to find the appropriate
+        indices depending on offset, field type, and iteration space.
+        All occurences of {start} and {stop} in _bounds_loopup will
+        be replaced with the constant loop boundary variable, e.g.
+        "{stop}+1" will become "istop+1" (or "jstop+1 depending on
+        loop type).'''
         schedule = self.ancestor(GOSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
@@ -446,8 +506,12 @@ class GOLoop(Loop):
                 stop = schedule.jloop_stop
 
             if index_offset:
-                stop += (self._bounds_lookup[index_offset][self.field_space]
-                         [self._iteration_space][self._loop_type]["stop"])
+                # This strange line splitting was the only way I could find
+                # to avoid pep8 warnings: using [..._space]\ keeps on
+                # complaining about a white space
+                bounds = self._bounds_lookup[index_offset][self.field_space][
+                    self._iteration_space][self._loop_type]
+                stop = bounds["stop"].format(start='', stop=stop)
             else:
                 stop = "not yet set"
         else:
@@ -481,9 +545,18 @@ class GOLoop(Loop):
                     stop += "%ystop"
         return stop
 
+    # pylint: disable=too-many-branches
     def _lower_bound(self):
-        ''' Returns a string containing the expression for the lower
-        bound of the loop '''
+        ''' Returns the lower bound of this loop as a string.
+        This takes the field type and usage of const_loop_bounds
+        into account. In case of const_loop_bounds it will be
+        using the data in self._bounds_lookup to find the appropriate
+        indices depending on offset, field type, and iteration space.
+        All occurences of {start} and {stop} in _bounds_loopup will
+        be replaced with the constant loop boundary variable, e.g.
+        "{stop}+1" will become "istop+1" (or "jstop+1" depending on
+        loop type).'''
+
         schedule = self.ancestor(GOSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
@@ -495,9 +568,17 @@ class GOLoop(Loop):
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
+            if self._loop_type == "inner":
+                stop = schedule.iloop_stop
+            else:
+                stop = schedule.jloop_stop
             if index_offset:
-                start = (self._bounds_lookup[index_offset][self.field_space]
-                         [self._iteration_space][self._loop_type]["start"])
+                # This strange line splitting was the only way I could find
+                # to avoid pep8 warnings: using [..._space]\ keeps on
+                # complaining about a white space
+                bounds = self._bounds_lookup[index_offset][self.field_space][
+                    self._iteration_space][self._loop_type]
+                start = bounds["start"].format(start='', stop=stop)
             else:
                 start = "not yet set"
         else:
@@ -576,6 +657,7 @@ class GOLoop(Loop):
         Loop.gen_code(self, parent)
 
 
+# pylint: disable=too-few-public-methods
 class GOBuiltInCallFactory(object):
     ''' A GOcean-specific built-in call factory. No built-ins
         are supported in GOcean at the moment. '''
@@ -589,6 +671,7 @@ class GOBuiltInCallFactory(object):
             "Built-ins are not supported for the GOcean 1.0 API")
 
 
+# pylint: disable=too-few-public-methods
 class GOKernCallFactory(object):
     ''' A GOcean-specific kernel-call factory. A standard kernel call in
     GOcean consists of a doubly-nested loop (over i and j) and a call to
@@ -652,7 +735,7 @@ class GOKern(Kern):
         '''
         return []
 
-    def _find_grid_access(self):
+    def find_grid_access(self):
         '''Determine the best kernel argument from which to get properties of
             the grid. For this, an argument must be a field (i.e. not
             a scalar) and must be supplied by the algorithm layer
@@ -678,7 +761,7 @@ class GOKern(Kern):
 
         # Before we do anything else, go through the arguments and
         # determine the best one from which to obtain the grid properties.
-        grid_arg = self._find_grid_access()
+        grid_arg = self.find_grid_access()
 
         # A GOcean 1.0 kernel always requires the [i,j] indices of the
         # grid-point that is to be updated
@@ -771,6 +854,67 @@ class GOKernelArguments(Arguments):
         arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
 
+    @property
+    def acc_args(self):
+        '''
+        Provide the list of references (both objects and arrays) that must
+        be present on an OpenACC device before the kernel associated with
+        this Arguments object may be launched.
+
+        :returns: list of (Fortran) quantities
+        :rtype: list of str
+        '''
+        arg_list = []
+
+        # First off, specify the field object which we will de-reference in
+        # order to get any grid properties (if this kernel requires them).
+        # We do this as some compilers do less optimisation if we get (read-
+        # -only) grid properties from a field object that has read-write
+        # access.
+        grid_fld = self._parent_call.find_grid_access()
+        grid_ptr = grid_fld.name + "%grid"
+        arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
+
+        for arg in self._args:
+            if arg.type == "scalar":
+                arg_list.append(arg.name)
+            elif arg.type == "field" and arg != grid_fld:
+                # The remote device will need the reference to the field
+                # object *and* the reference to the array within that object.
+                arg_list.extend([arg.name, arg.name+"%data"])
+            elif arg.type == "grid_property":
+                if grid_ptr not in arg_list:
+                    # This kernel needs a grid property and therefore the
+                    # pointer to the grid object must be copied to the device.
+                    arg_list.append(grid_ptr)
+                arg_list.append(grid_ptr+"%"+arg.name)
+        return arg_list
+
+    @property
+    def fields(self):
+        '''
+        Provides the list of names of field objects that are required by
+        the kernel associated with this Arguments object.
+
+        :returns: List of names of (Fortran) field objects.
+        :rtype: list of str
+        '''
+        args = args_filter(self._args, arg_types=["field"])
+        return [arg.name for arg in args]
+
+    @property
+    def scalars(self):
+        '''
+        Provides the list of names of scalar arguments required by the
+        kernel associated with this Arguments object. If there are none
+        then the returned list is empty.
+
+        :returns: A list of the names of scalar arguments in this object.
+        :rtype: list of str
+        '''
+        args = args_filter(self._args, arg_types=["scalar"])
+        return [arg.name for arg in args]
+
 
 class GOKernelArgument(KernelArgument):
     ''' Provides information about individual GOcean kernel call arguments
@@ -793,7 +937,7 @@ class GOKernelArgument(KernelArgument):
         return self._arg.function_space
 
 
-class GOKernelGridArgument(object):
+class GOKernelGridArgument(Argument):
     ''' Describes arguments that supply grid properties to a kernel.
         These arguments are provided by the PSy layer rather than in
         the Algorithm layer. '''
@@ -831,6 +975,252 @@ class GOKernelGridArgument(object):
             algorithm layer so None is returned.'''
         return None
 
+    def forward_dependence(self):
+        '''
+        A grid-property argument is read-only and supplied by the
+        PSy layer so has no dependencies
+
+        :returns: None to indicate no dependencies
+        :rtype: NoneType
+        '''
+        return None
+
+    def backward_dependence(self):
+        '''
+        A grid-property argument is read-only and supplied by the
+        PSy layer so has no dependencies
+
+        :returns: None to indicate no dependencies
+        :rtype: NoneType
+        '''
+        return None
+
+
+class GOStencil(object):
+    '''GOcean 1.0 stencil information for a kernel argument as obtained by
+    parsing the kernel meta-data. The expected structure of the
+    metadata and its meaning is provided in the description of the
+    load method
+
+    '''
+    def __init__(self):
+        ''' Set up any internal variables. '''
+        self._has_stencil = None
+        self._stencil = [[0 for _ in range(3)] for _ in range(3)]
+        self._name = None
+        self._initialised = False
+
+    # pylint: disable=too-many-branches
+    def load(self, stencil_info, kernel_name):
+        '''Take parsed stencil metadata information, check it is valid and
+        store it in a convenient form. The kernel_name argument is
+        only used to provide the location if there is an error.
+
+        The stencil information should either be a name which
+        indicates a particular type of stencil or in the form
+        stencil(xxx,yyy,zzz) which explicitly specifies a stencil
+        shape where xxx, yyy and zzz are triplets of integers
+        indicating whether there is a stencil access in a particular
+        direction and the depth of that access. For example:
+
+        stencil(010,  !   N
+                212,  !  W E
+                010)  !   S
+
+        indicates that there is a stencil access of depth 1 in the
+        "North" and "South" directions and stencil access of depth 2
+        in the "East" and "West" directions. The value at the centre
+        of the stencil will not be used by PSyclone but can be 0 or 1
+        and indicates whether the local field value is accessed.
+
+        The convention is for the associated arrays to be
+        2-dimensional. If we denote the first dimension as "i" and the
+        second dimension as "j" then the following directions are
+        assumed:
+
+        j
+        ^
+        |
+        |
+        ---->i
+
+        For example a stencil access like:
+
+        a(i,j) + a(i+1,j) + a(i,j-1)
+
+        would be stored as:
+
+        stencil(000,
+                011,
+                010)
+
+        :param stencil_info: contains the appropriate part of the parser AST
+        :type stencil_info: :py:class:`psyclone.expression.FunctionVar`
+        :param string kernel_name: the name of the kernel from where
+        this stencil information came from.
+        :raises ParseError: if the supplied stencil information is invalid
+
+        '''
+        self._initialised = True
+
+        if not isinstance(stencil_info, expr.FunctionVar):
+            # the stencil information is not in the expected format
+            raise ParseError(
+                "Meta-data error in kernel '{0}': 3rd descriptor (stencil) of "
+                "field argument is '{1}' but expected either a name or the "
+                "format 'stencil(...)'".format(kernel_name, str(stencil_info)))
+
+        # Get the name
+        name = stencil_info.name.lower()
+
+        if stencil_info.args:
+            # The stencil info is of the form 'name(a,b,...), so the
+            # name should be 'stencil' and there should be 3
+            # arguments'
+            self._has_stencil = True
+            args = stencil_info.args
+            if name != "stencil":
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument is '{1}' but must be "
+                    "'stencil(...)".format(kernel_name, name))
+            if len(args) != 3:
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument with format "
+                    "'stencil(...)', has {1} arguments but should have "
+                    "3".format(kernel_name, len(args)))
+            # Each of the 3 args should be of length 3 and each
+            # character should be a digit from 0-9. Whilst we are
+            # expecting numbers, the parser represents these numbers
+            # as strings so we have to perform string manipulation to
+            # check and that extract them
+            for arg_idx in range(3):
+                arg = args[arg_idx]
+                if not isinstance(arg, str):
+                    raise ParseError(
+                        "Meta-data error in kernel '{0}': 3rd descriptor "
+                        "(stencil) of field argument with format "
+                        "'stencil(...)'. Argument index {1} should be a "
+                        "number but found "
+                        "'{2}'.".format(kernel_name, arg_idx, str(arg)))
+                if len(arg) != 3:
+                    raise ParseError(
+                        "Meta-data error in kernel '{0}': 3rd descriptor "
+                        "(stencil) of field argument with format "
+                        "'stencil(...)'. Argument index {1} should "
+                        "consist of 3 digits but found "
+                        "{2}.".format(kernel_name, arg_idx, len(arg)))
+            # The central value is constrained to be 0 or 1
+            if args[1][1] not in ["0", "1"]:
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument with format "
+                    "'stencil(...)'. Argument index 1 position 1 "
+                    "should be a number from 0-1 "
+                    "but found {1}.".format(kernel_name, args[1][1]))
+            # It is not valid to specify a zero stencil. This is
+            # indicated by the 'pointwise' name
+            if args[0] == "000" and \
+               (args[1] == "000" or args[1] == "010") and \
+               args[2] == "000":
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument with format "
+                    "'stencil(...)'. A zero sized stencil has been "
+                    "specified. This should be specified with the "
+                    "'pointwise' keyword.".format(kernel_name))
+            # store the values in an internal array as integers in i,j
+            # order
+            for idx0 in range(3):
+                for idx1 in range(3):
+                    self._stencil[idx0][idx1] = int(args[idx1][idx0])
+        else:
+            # stencil info is of the form 'name' so should be one of
+            # our valid names
+            if name not in VALID_STENCIL_NAMES:
+                raise ParseError(
+                    "Meta-data error in kernel '{0}': 3rd descriptor "
+                    "(stencil) of field argument is '{1}' but must be one "
+                    "of {2} or stencil(...)".format(kernel_name, name,
+                                                    VALID_STENCIL_NAMES))
+            self._name = name
+            # We currently only support one valid name ('pointwise')
+            # which indicates that there is no stencil
+            self._has_stencil = False
+
+    def _check_init(self):
+        '''Internal method which checks that the stencil information has been
+        loaded.
+
+        :raises GenerationError: if the GOStencil object has not been
+        initialised i.e. the load() method has not been called
+
+        '''
+        if not self._initialised:
+            raise GenerationError(
+                "Error in class GOStencil: the object has not yet been "
+                "initialised. Please ensure the load() method is called.")
+
+    @property
+    def has_stencil(self):
+        '''Specifies whether this argument has stencil information or not. The
+        only case when this is False is when the stencil information
+        specifies 'pointwise' as this indicates that there is no
+        stencil access.
+
+        :return Bool: True if this argument has stencil information
+        and False if not.
+
+        '''
+        self._check_init()
+        return self._has_stencil
+
+    @property
+    def name(self):
+        '''Provides the stencil name if one is provided
+
+        :return string: the name of the type of stencil if this is
+        provided and 'None' if not.
+
+        '''
+        self._check_init()
+        return self._name
+
+    def depth(self, index0, index1):
+        '''Provides the depth of the stencil in the 8 possible stencil
+        directions in a 2d regular grid (see the description in the
+        load class for more information). Values must be between -1
+        and 1 as they are considered to be relative to the centre of
+        the stencil For example:
+
+        stencil(234,
+                915,
+                876)
+
+        returns
+
+        depth(-1,0) = 9
+        depth(1,1) = 4
+
+        :param int index0: the relative stencil offset for the first
+        index of the associated array. This value must be between -1
+        and 1
+        :param int index1: the relative stencil offset for the second
+        index of the associated array. This value must be between -1
+        and 1
+        :return int: the depth of the stencil in the specified direction
+        :raises GenerationError: if the indices are out-of-bounds
+
+        '''
+        self._check_init()
+        if index0 < -1 or index0 > 1 or index1 < -1 or index1 > 1:
+            raise GenerationError(
+                "The indices arguments to the depth method in the GOStencil "
+                "object must be between -1 and 1 but found "
+                "({0},{1})".format(index0, index1))
+        return self._stencil[index0+1][index1+1]
+
 
 class GO1p0Descriptor(Descriptor):
     '''Description of a GOcean 1.0 kernel argument, as obtained by
@@ -839,8 +1229,17 @@ class GO1p0Descriptor(Descriptor):
     '''
 
     def __init__(self, kernel_name, kernel_arg):
+        '''Test and extract the required kernel metadata
+
+        :param str kernel_name: the name of the kernel metadata type
+        that contains this metadata
+        :param kernel_arg: the relevant part of the parser's AST
+        :type kernel_arg: :py:class:`psyclone.expression.FunctionVar`
+
+        '''
 
         nargs = len(kernel_arg.args)
+        stencil_info = None
 
         if nargs == 3:
             # This kernel argument is supplied by the Algorithm layer
@@ -848,7 +1247,9 @@ class GO1p0Descriptor(Descriptor):
 
             access = kernel_arg.args[0].name
             funcspace = kernel_arg.args[1].name
-            stencil = kernel_arg.args[2].name
+            stencil_info = GOStencil()
+            stencil_info.load(kernel_arg.args[2],
+                              kernel_name)
 
             # Valid values for the grid-point type that a kernel argument
             # may have. (We use the funcspace argument for this as it is
@@ -866,18 +1267,11 @@ class GO1p0Descriptor(Descriptor):
                                  "of {2} ".format(kernel_name, funcspace,
                                                   valid_func_spaces))
 
-            if stencil.lower() not in VALID_STENCILS:
-                raise ParseError("Meta-data error in kernel {0}: 3rd "
-                                 "descriptor (stencil) of field argument "
-                                 "is '{1}' but must be one of {2}".
-                                 format(kernel_name, stencil, VALID_STENCILS))
-
         elif nargs == 2:
             # This kernel argument is a property of the grid
             access = kernel_arg.args[0].name
             grid_var = kernel_arg.args[1].name
             funcspace = ""
-            stencil = ""
 
             self._grid_prop = grid_var
             self._type = "grid_property"
@@ -904,7 +1298,7 @@ class GO1p0Descriptor(Descriptor):
                              format(kernel_name, access, VALID_ARG_ACCESSES))
 
         # Finally we can call the __init__ method of our base class
-        Descriptor.__init__(self, access, funcspace, stencil)
+        Descriptor.__init__(self, access, funcspace, stencil_info)
 
     def __str__(self):
         return repr(self)
@@ -1014,3 +1408,31 @@ class GOKernelType1p0(KernelType):
     def index_offset(self):
         ''' Return the grid index-offset that this kernel expects '''
         return self._index_offset
+
+
+class GOACCDataDirective(ACCDataDirective):
+    '''
+    Sub-classes ACCDataDirective to provide an API-specific implementation
+    of data_on_device().
+
+    '''
+    def data_on_device(self, parent):
+        '''
+        Adds nodes into the f2pygen AST to flag that each of the
+        objects required by the kernels in the data region is now on the
+        device. We do this by setting the data_on_device attribute to .true.
+
+        :param parent: The node in the f2pygen AST to which to add the \
+                       assignment nodes.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import AssignGen
+        obj_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.fields:
+                if var not in obj_list:
+                    parent.add(AssignGen(parent,
+                                         lhs=var+"%data_on_device",
+                                         rhs=".true."))
+                    obj_list.append(var)
+        return

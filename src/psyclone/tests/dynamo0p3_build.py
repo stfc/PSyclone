@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 ''' Module containing configuration required to build code generated
 for the Dynamo0p3 API '''
 
+from __future__ import absolute_import
 import os
 
 # constants
@@ -50,9 +51,15 @@ INFRASTRUCTURE_MODULES = ["constants_mod",
                           "argument_mod",
                           "kernel_mod",
                           "partition_mod",
+                          "mesh_map_mod",
                           "mesh_mod",
                           "stencil_dofmap_mod",
                           "function_space_mod",
                           "field_mod",
+                          "abstract_quadrature_mod",
+                          "quadrature_rule_mod",
+                          "quadrature_xyz_mod",
+                          "quadrature_xyoz_mod",
+                          "quadrature_xoyoz_mod",
                           "quadrature_mod",
                           "operator_mod"]

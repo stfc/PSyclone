@@ -31,15 +31,39 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
 ''' A module to perform pytest unit and functional tests on the parse
 function. '''
 
+
+from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse import parse, ParseError
+
+
+def test_default_api():
+    ''' Check that parse() picks up the default API if none is specified
+    by the caller. We do this simply by checking that it returns OK
+    having parsed some dynamo0.3 code. '''
+    _, invoke_info = parse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "test_files", "dynamo0p3", "1_single_invoke.f90"))
+    assert len(list(invoke_info.calls.keys())) == 1
+
+
+def test_dm_not_bool():
+    ''' Check that we raise the correct error if the distributed_memory
+    argument is not a bool '''
+    with pytest.raises(ParseError) as err:
+        _, __info = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3", "1_single_invoke.f90"),
+            distributed_memory="a string")
+    assert ("The distributed_memory flag in parse() must be set to 'True' "
+            "or 'False'" in str(err))
 
 
 def test_continuators_kernel():
@@ -48,7 +72,7 @@ def test_continuators_kernel():
        does not cause an error. '''
     _, _ = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "test_files", "dynamo0p3",
-                              "1.1_single_invoke_qr.f90"),
+                              "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="dynamo0.3", line_length=True)
 
 
@@ -84,12 +108,13 @@ def test_kerneltypefactory_default_api():
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
     from psyclone.parse import KernelTypeFactory
-    from psyclone.config import DEFAULTAPI
+    from psyclone import configuration
+    _config = configuration.ConfigFactory().create()
     factory = KernelTypeFactory(api="")
-    assert factory._type == DEFAULTAPI
+    assert factory._type == _config.default_api
 
 
-def test_kerneltypefactory_create_broken_type():
+def test_kerntypefactory_create_broken_type():
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
     from psyclone.parse import KernelTypeFactory
@@ -167,8 +192,8 @@ def test_too_many_names_invoke():
                          "test_files", "dynamo0p3",
                          "1.0.2_many_named_invoke.f90"),
             api="dynamo0.3")
-    print str(err)
     assert "An invoke must contain one or zero " in str(err)
+    assert "1.0.2_many_named_invoke.f90" in str(err)
 
 
 def test_wrong_named_invoke():
@@ -180,7 +205,7 @@ def test_wrong_named_invoke():
                          "test_files", "dynamo0p3",
                          "1.0.3_wrong_named_arg_invoke.f90"),
             api="dynamo0.3")
-    print str(err)
+    print(str(err))
     assert (
         "The arguments to an invoke() must be either kernel calls or an "
         "(optional) name=" in str(err))
@@ -197,6 +222,22 @@ def test_wrong_type_named_invoke():
             api="dynamo0.3")
     assert ("The (optional) name of an invoke must be specified as a "
             "string" in str(err))
+    assert "1.0.4_wrong_type_named_arg_invoke.f90" in str(err)
+
+
+def test_invalid_named_invoke():
+    ''' Test that we raise the expected error when the invoke contains
+    a named argument but its value is not a valid Fortran name '''
+    with pytest.raises(ParseError) as err:
+        _, _ = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "1.0.6_invoke_name_invalid_chars.f90"),
+            api="dynamo0.3")
+    assert ("The (optional) name of an invoke must be a string containing a "
+            "valid Fortran name (with any spaces replaced by underscores) but "
+            "got 'ja_ck(1)' " in str(err))
+    assert "1.0.6_invoke_name_invalid_chars.f90" in str(err)
 
 
 def test_duplicate_named_invoke():
@@ -208,4 +249,48 @@ def test_duplicate_named_invoke():
                          "test_files", "dynamo0p3",
                          "3.3_multi_functions_multi_invokes_name_clash.f90"),
             api="dynamo0.3")
-    assert "Found multiple named invoke()'s with the same name" in str(err)
+    print(str(err))
+    assert ("Found multiple named invoke()'s with the same name ('jack') "
+            "when parsing " in str(err))
+    assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
+
+
+def test_duplicate_named_invoke_case():
+    ''' Test that we raise the expected error when an algorithm file
+    contains two invokes that are given the same name but with different
+    case '''
+    with pytest.raises(ParseError) as err:
+        _, _ = parse(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files", "dynamo0p3",
+                         "3.4_multi_invoke_name_clash_case_insensitive.f90"),
+            api="dynamo0.3")
+    print(str(err))
+    assert ("Found multiple named invoke()'s with the same name ('jack') "
+            "when parsing " in str(err))
+    assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
+
+
+def test_get_stencil():
+    ''' Check that parse.get_stencil() raises the correct errors when
+    passed various incorrect inputs '''
+    from psyclone.parse import get_stencil
+    from psyclone.expression import ExpressionNode, FunctionVar
+    enode = ExpressionNode(["1"])
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(enode, ["cross"])
+    assert ("Expecting format stencil(<type>[,<extent>]) but found the "
+            "literal" in str(excinfo))
+    node = FunctionVar(["stencil()"])
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("Expecting format stencil(<type>[,<extent>]) but found stencil()"
+            in str(excinfo))
+    node = FunctionVar(["stencil", "cross"])
+    # Deliberately break the args member of node in order to trigger an
+    # internal error
+    node.args = [True]
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_stencil(node, ["cross"])
+    assert ("expecting either FunctionVar or str from the expression analyser"
+            in str(excinfo))

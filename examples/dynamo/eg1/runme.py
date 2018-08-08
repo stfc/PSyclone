@@ -6,8 +6,18 @@
 #-------------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 
+from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.profiler import Profiler
+
+# This example shows also how to automatically enable
+# inserting of profiling calls. The code below will
+# automatically instrument all kernel calls. You can
+# also use Profiler.INVOKES to automatically instrument
+# all invokes (or both by specifying both options as
+# the list parameter).
+Profiler.set_options([Profiler.KERNELS])
 
 # This example uses version 0.1 of the Dynamo API
 api="dynamo0.1"
@@ -19,10 +29,10 @@ ast,invokeInfo=parse("dynamo.F90",api=api)
 # Create the PSy-layer object using the invokeInfo
 psy=PSyFactory(api).create(invokeInfo)
 # Generate the Fortran code for the PSy layer
-print psy.gen
+print(psy.gen)
 
 # List the invokes that the PSy layer has
-print psy.invokes.names
+print(psy.invokes.names)
 
 # Examine the 'schedule' (e.g. loop structure) that each
 # invoke has

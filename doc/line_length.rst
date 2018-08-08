@@ -1,3 +1,5 @@
+.. _line-length:
+
 Line length
 ===========
 
@@ -17,13 +19,13 @@ scripting and when working interactively respectively.
 Script
 ------
 
-The generate.py script provides the -l option to wrap lines. Please
+The `psyclone` script provides the -l option to wrap lines. Please
 see the :ref:`fort_line_length` section for more details.
 
 Interactive
 -----------
 
-When using PSyclone interactively the line length of the input
+When using PSyclone interactively the line lengths of the input
 algorithm and Kernel files can be checked by setting the
 :func:`parse.parse` function's "line_length" argument to "True".
 ::
@@ -36,7 +38,7 @@ Similarly the "line_length" argument can be set to "True" if calling the
 argument on to the :func:`parse.parse` function.
 ::
 
-    >>> from generator import generate
+    >>> from psyclone.generator import generate
     >>> alg, psy = generate("argspec.F90", line_length=True)
 
 Line wrapping is performed as a post processing step, i.e. after the
@@ -44,7 +46,7 @@ code has been generated. This is done by an instance of the
 :class:`line_length.FortLineLength` class. For example:
 ::
 
-    >>> from generator import generate
+    >>> from psyclone.generator import generate
     >>> from line_length import FortLineLength
     >>> psy, alg = generate("algspec.f90", line_length=True)
     >>> line_length = FortLineLength()

@@ -5,6 +5,8 @@
 # whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+
 
 '''
 A module to perform pytest unit and functional tests on the code in
@@ -12,7 +14,9 @@ the generator.py file. This includes the generate and the main
 functions.
 '''
 
+from __future__ import absolute_import
 import os
+import re
 import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
@@ -67,7 +71,7 @@ def test_wrong_kernel_path():
         code cannot be found in the specified search path '''
     with pytest.raises(IOError):
         generate(os.path.join(BASE_PATH, "dynamo0p3",
-                              "1.1_single_invoke_qr.f90"),
+                              "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="dynamo0.3",
                  kernel_path=os.path.join(BASE_PATH, "gocean0p1"))
 
@@ -101,6 +105,7 @@ def test_similar_kernel_name():
 
 
 def test_recurse_correct_kernel_path():
+    # pylint: disable=invalid-name
     '''checks that the generator succeeds when the location of the kernel
        source code is *not* the same as that of the algorithm code and
        recursion through subdirectories is required'''
@@ -122,6 +127,7 @@ def test_script_file_not_found():
 
 
 def test_script_file_not_found_relative():
+    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a script
         file is supplied that can't be found in the Python path. In
         this case the script path is not supplied so must be found via the
@@ -155,6 +161,7 @@ def test_script_file_no_extension():
 
 
 def test_script_file_wrong_extension():
+    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a
         script file does not have the '.py' extension'''
     with pytest.raises(GenerationError):
@@ -177,6 +184,7 @@ def test_script_invalid_content():
 
 
 def test_script_invalid_content_runtime():
+    # pylint: disable=invalid-name
     ''' checks that generator.py raises an appropriate error when a
         script file contains valid python syntactically but produces a
         runtime exception. '''
@@ -269,6 +277,7 @@ def test_script_trans():
         transformation is provided as a script, i.e. it applies the
         transformations correctly. We use loop fusion as an
         example.'''
+    # pylint: disable=too-many-locals
     from psyclone.parse import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans
@@ -277,13 +286,9 @@ def test_script_trans():
     # first loop fuse explicitly (without using generator.py)
     parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
     _, invoke_info = parse(parse_file, api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
-    # remove unecessary halos between loops. At the moment we have no
-    # intra halo analysis so we add them before all loops just in
-    # case.
-    del schedule.children[4:7]
     loop1 = schedule.children[3]
     loop2 = schedule.children[4]
     trans = LoopFuseTrans()
@@ -301,6 +306,7 @@ def test_script_trans():
     # third - check that the results are the same ...
     assert str(generated_code_1) == str(generated_code_2)
 
+
 DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dynamo0p3")
 
@@ -317,6 +323,7 @@ def test_alg_lines_too_long_tested():
 
 
 def test_alg_lines_too_long_not_tested():
+    # pylint: disable=invalid-name
     ''' Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when the algorithm file has lines longer than 132 characters. We
@@ -338,6 +345,7 @@ def test_kern_lines_too_long_tested():
 
 
 def test_kern_lines_too_long_not_tested():
+    # pylint: disable=invalid-name
     ''' Test that the generate function returns successfully if the
     line_length argument is not set (as it should default to False)
     when a kernel file has lines longer than 132 characters. We
@@ -352,8 +360,148 @@ def test_continuators():
        do not cause an error '''
     _, _ = generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
-                                 "1.1_single_invoke_qr.f90"),
+                                 "1.1.0_single_invoke_xyoz_qr.f90"),
                     api="dynamo0.3", line_length=True)
+
+
+def test_main_version(capsys):
+    '''Tests that the version info is printed correctly.'''
+    # First test if -h includes the right version info:
+    with pytest.raises(SystemExit):
+        main(["-h"])
+    output, _ = capsys.readouterr()
+    from psyclone.version import __VERSION__
+    assert "Display version information ({0})".format(__VERSION__) in output
+
+    # Now test -v, but it needs a filename for argparse to work. Just use
+    # some invalid parameters - "-v" prints its output before that.
+    with pytest.raises(SystemExit) as _:
+        main(["-v", "does-not-exist"])
+    output, _ = capsys.readouterr()
+
+    assert "PSyclone version: {0}".format(__VERSION__) in output
+
+
+def test_main_profile(capsys):
+    '''Tests that the profiling command line flags are working as expected.
+    '''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test27_loop_swap.f90")
+
+    from psyclone.profiler import Profiler
+    options = ["-api", "gocean1.0"]
+
+    # Check for invokes only parameter:
+    main(options+["--profile", "invokes", filename])
+    assert not Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for kernels only parameter:
+    main(options+["--profile", "kernels", filename])
+    assert Profiler.profile_kernels()
+    assert not Profiler.profile_invokes()
+
+    # Check for invokes + kernels
+    main(options+["--profile", "kernels",
+                  '--profile', 'invokes', filename])
+    assert Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for missing parameter (argparse then
+    # takes the filename as parameter for profiler):
+    with pytest.raises(SystemExit):
+        main(options+["--profile", filename])
+    _, outerr = capsys.readouterr()
+
+    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for invalid parameter
+    with pytest.raises(SystemExit):
+        main(options+["--profile", "invalid", filename])
+    _, outerr = capsys.readouterr()
+
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for warning in case of script with profiling"
+    with pytest.raises(SystemExit):
+        main(options+["--profile", "kernels", "-s", "somescript", filename])
+    out, _ = capsys.readouterr()
+    out = out.replace("\n", " ")
+
+    warning = ("Error: use of automatic profiling in combination with an "
+               "optimisation script is not recommened since it may not work "
+               "as expected.")
+
+    assert warning in out
+
+    # Reset profile flags to avoid further failures in other tests
+    Profiler.set_options(None)
+
+
+def test_main_force_profile(capsys):
+    '''Tests that the profiling command line flags are working as expected.
+    '''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test27_loop_swap.f90")
+
+    from psyclone.profiler import Profiler
+    options = ["-api", "gocean1.0"]
+
+    # Check for invokes only parameter:
+    main(options+["--force-profile", "invokes", filename])
+    assert not Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for kernels only parameter:
+    main(options+["--force-profile", "kernels", filename])
+    assert Profiler.profile_kernels()
+    assert not Profiler.profile_invokes()
+
+    # Check for invokes + kernels
+    main(options+["--force-profile", "kernels",
+                  '--force-profile', 'invokes', filename])
+    assert Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for missing parameter (argparse then
+    # takes the filename as parameter for profiler):
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", filename])
+    _, outerr = capsys.readouterr()
+
+    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for invalid parameter
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "invalid", filename])
+    _, outerr = capsys.readouterr()
+
+    assert re.search(correct_re, outerr) is not None
+
+    # Check that there is indeed no warning when using --force-profile
+    # with a script. Note that this will raise an error because the
+    # script does not exist, but the point of this test is to make sure
+    # the error about mixing --profile and -s does not happen
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "kernels", "-s", "invalid", filename])
+    out, outerr = capsys.readouterr()
+    error = "expected the script file 'invalid' to have the '.py' extension"
+    assert error in out
+
+    # Test that --profile and --force-profile can not be used together
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "kernels", "--profile", "invokes",
+                      filename])
+    out, outerr = capsys.readouterr()
+    error = "Specify only one of --profile and --force-profile."
+    assert error in out
+
+    # Reset profile flags to avoid further failures in other tests
+    Profiler.set_options(None)
 
 
 def test_main_invalid_api(capsys):
@@ -393,6 +541,7 @@ def test_main_expected_fatal_error(capsys):
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
+    # pylint: disable=invalid-name
     '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
     function.'''
@@ -413,8 +562,8 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
         "Description ...\n"
         "argument of type 'int' is not iterable\n"
         "Type ...\n"
-        "<type 'exceptions.TypeError'>\n"
-        "Stacktrace ...\n")
+        "%s\n"
+        "Stacktrace ...\n" % type(TypeError()))
     assert expected_output in output
 
 

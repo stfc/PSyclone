@@ -9,7 +9,8 @@
 
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2018, Science and Technology
+! Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,7 +44,7 @@ module mesh_mod
   use constants_mod,        only : i_def, r_def, l_def, pi, imdi
   use linked_list_data_mod, only : linked_list_data_type
   use partition_mod, only: partition_type
-
+  use mesh_map_mod, only: mesh_map_type
   implicit none
 
   private
@@ -89,6 +90,8 @@ module mesh_mod
     integer(i_def), allocatable, private :: ncells_per_colour(:)
     integer(i_def), allocatable, private :: cells_in_colour(:,:)
 
+    integer(i_def),allocatable           :: last_halo_cell_per_colour(:,:)
+
   contains
 
     procedure, public :: get_nlayers
@@ -127,9 +130,22 @@ module mesh_mod
     procedure, public :: get_last_edge_cell
     procedure, public :: get_halo_depth
     procedure, public :: get_num_cells_halo
-    procedure, public :: get_last_halo_cell
+    procedure, public :: get_last_halo_cell_any
+    procedure, public :: get_last_halo_cell_deepest
+    generic           :: get_last_halo_cell => &
+                            get_last_halo_cell_any, &
+                            get_last_halo_cell_deepest
+
+    procedure, public :: get_last_halo_cell_per_colour_any
+    procedure, public :: get_last_halo_cell_per_colour_deepest
+    generic           :: get_last_halo_cell_per_colour => &
+                            get_last_halo_cell_per_colour_any, &
+                            get_last_halo_cell_per_colour_deepest
+    
     procedure, public :: get_num_cells_ghost
     procedure, public :: get_gid_from_lid
+    procedure, private :: get_mesh_map_id
+    procedure, private :: get_mesh_map_ptr
 
     procedure, public :: get_total_ranks
     procedure, public :: get_local_rank
@@ -137,7 +153,10 @@ module mesh_mod
     procedure, public :: set_colours
     procedure, public :: get_ncolours
     procedure, public :: get_colours
+    procedure, public :: get_colour_map
     procedure, public :: is_coloured
+
+    generic, public :: get_mesh_map => get_mesh_map_id, get_mesh_map_ptr
 
   end type mesh_type
 
@@ -494,7 +513,7 @@ contains
     halo_cells = 0
   end function get_num_cells_halo
 
-  function get_last_halo_cell( self, depth ) result ( last_halo_cell )
+  function get_last_halo_cell_any( self, depth ) result ( last_halo_cell )
     implicit none
 
     class(mesh_type), intent(in) :: self
@@ -503,7 +522,42 @@ contains
     integer(i_def)             :: last_halo_cell
 
     last_halo_cell = 0
-  end function get_last_halo_cell
+  end function get_last_halo_cell_any
+
+
+  function get_last_halo_cell_deepest( self ) result ( last_halo_cell )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def)             :: last_halo_cell
+    last_halo_cell = 0
+  end function get_last_halo_cell_deepest
+
+  function get_last_halo_cell_per_colour_any( self, colour, depth ) &
+                                        result ( ncells_colour )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: depth
+    integer(i_def), intent(in) :: colour
+    integer(i_def)             :: ncells_colour
+
+    ncells_colour = 0
+  end function get_last_halo_cell_per_colour_any
+
+  function get_last_halo_cell_per_colour_deepest( self, colour) &
+                                        result ( ncells_colour )
+    implicit none
+
+    class(mesh_type), intent(in) :: self
+
+    integer(i_def), intent(in) :: colour
+    integer(i_def)             :: ncells_colour
+
+    ncells_colour = 0
+  end function get_last_halo_cell_per_colour_deepest
 
   function get_num_cells_ghost( self ) result ( ghost_cells )
 
@@ -564,6 +618,16 @@ contains
     colour_map => null()
   end subroutine get_colours
 
+
+  function get_colour_map(self) result (colour_map)
+    implicit none
+    class(mesh_type), intent(in), target      :: self
+    integer(i_def), pointer                   :: colour_map(:,:)
+
+    colour_map => null()
+
+  end function get_colour_map
+
   function is_coloured(self) result(cstat)
     implicit none
     class(mesh_type), intent(in) :: self
@@ -577,5 +641,21 @@ contains
     class(mesh_type), intent(inout) :: self
 
   end subroutine set_colours
+
+  function get_mesh_map_ptr(self, target_mesh) result(mesh_map)
+    class(mesh_type),         intent(in) :: self
+    type(mesh_type), pointer, intent(in) :: target_mesh    
+    type(mesh_map_type), pointer :: mesh_map
+
+    mesh_map => null()
+  end function get_mesh_map_ptr
+
+  function get_mesh_map_id(self, target_mesh_id) result(mesh_map)
+    class(mesh_type), intent(in) :: self
+    integer(i_def),   intent(in) :: target_mesh_id
+    type(mesh_map_type), pointer :: mesh_map
+
+    mesh_map => null()
+  end function get_mesh_map_id
 
 end module mesh_mod

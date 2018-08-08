@@ -1,14 +1,14 @@
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
-!-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! LICENCE.original is available from the Met Office Science Repository Service:
 ! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2018, Science and Technology Facilities Council
 ! All rights reserved.
 ! 
 ! Redistribution and use in source and binary forms, with or without
@@ -36,21 +36,22 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified by I Kavcic, Met Office.
+! Modified by I. Kavcic, Met Office
 !
 !> @brief Example of columnwise assembled (CMA) operators.
-
 module alg
   use columnwise_op_asm_kernel_mod,      only : columnwise_op_asm_kernel_type
   use columnwise_op_app_kernel_mod,      only : columnwise_op_app_kernel_type
   use columnwise_op_mul_kernel_mod,      only : columnwise_op_mul_kernel_type
-  use matrix_vector_kernel_mod,          only: matrix_vector_kernel_type
+  use matrix_vector_kernel_mod,          only : matrix_vector_kernel_type
 
 contains
 
   subroutine test_cma_multiply_grad_v_div_v(grad_v_cma, &
                                             div_v_cma) 
+
     implicit none
+
     type(field_type) :: p_tmp, u_v_in, u_v_out, u_v_out_cma
     type(columnwise_operator_type) :: grad_v_cma, div_v_cma
     type(columnwise_operator_type) :: grad_v_div_v_cma

@@ -15,12 +15,21 @@ def trans(psy):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
-    # loop fuse the two builtin kernels
-    schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
-                               same_space=True)
+    from psyclone.configuration import ConfigFactory
+    config = ConfigFactory().create()
+    if config.api("dynamo0.3").compute_annexed_dofs and \
+       config.distributed_memory:
+        # We can't loop fuse as the loop bounds differ so add
+        # OpenMP parallel do directives to the loops
+        schedule, _ = otrans.apply(schedule.children[0])
+        schedule, _ = otrans.apply(schedule.children[1])
+    else:
+        # loop fuse the two builtin kernels
+        schedule, _ = ftrans.apply(schedule.children[0], schedule.children[1],
+                                   same_space=True)
 
-    # Add an OpenMP parallel do directive to the resultant loop-fused loop
-    schedule, _ = otrans.apply(schedule.children[0])
+        # Add an OpenMP parallel do directive to the resultant loop-fused loop
+        schedule, _ = otrans.apply(schedule.children[0])
 
     # take a look at what we've done
     schedule.view()

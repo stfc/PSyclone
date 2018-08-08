@@ -1,3 +1,121 @@
+
+	1) #172 and PR #173 Add support for logical declaration, the save
+	attribute and initialisation in f2pygen (required for the OpenACC
+	transformation)
+
+        2) #137 Add support for Python 3. Travis now runs the test suite
+	for both Python 2 and Python 3.
+
+        3) #159 and PR #165. Adds a configuration option for the Dynamo
+	0.3 API to turn on (redundant) computation over annexed dofs in
+	order to reduce the number of halo exchanges required.
+
+	4) #119 and PR #171. Adds support for inserting profiling/
+	monitoring into a Schedule.
+
+	5) #179 and PR #183. Bug fix in CompileError constructor to run
+	tests under Python 3.
+
+	6) #121 and PR #166. Adds a user editable configuration file.
+
+	7) #181 and PR #182. Adds support for generating declarations of
+	character variables and for the target attribute.
+
+	8) #170 and PR #177. Adds OpenACC transformations for use with the
+	GOcean1.0 API. Appropriate Kernel transformations need to be added
+	for full automated OpenACC code parallelisation.
+
+	9) #164 and PR #184. Updates documentation to refer to psyclone
+	script instead of generator.py.
+
+        10) PR #187. Add example transformation scripts for the Dynamo
+        0.3 API.
+
+	11) PR #180. Makes the specification of loop limits in the GOcean
+	API more flexible. This will enable us to support single-iteration
+	loops.
+
+        12) #188 and PR #189. Bug fix to ensure that the name of profiling
+        regions remains the same when gen() is called multiple times.
+
+release 1.6.0 18th May 2018
+
+        1) #91 and PR #111 Remove unnecessary __init__.py files.
+
+        2) PR #107 Fix errors in Fortran test files revealed by update
+	to fparser 0.0.6. Update to catch new AnalyzeError raised by
+        fparser.
+
+        3) #90 and PR #102 Add support for integer, read-only, scalar
+        arguments to built-in kernels. Add new inc_X_powint_n Built-in
+        that raises a field to an integer power.
+
+        4) #67 Bug fix - printing Invoke object caused crash.
+
+        5) #112 and PR #113 - add travis support for codecov coverage tool
+
+	6) #118 and PR #122 - add .pylintrc file in tests directory
+	to disable some warnings that we don't care about (for testing
+	code).
+
+	7) #117 and PR #125 - bug fix for passing kernel arguments by value
+	in the GOcean API.
+
+	8) #105 and PR #115 - add support for coloured loops when
+	performing redundant computation.
+
+        9) #84 and PR #128 - make w2v and wtheta discontinuous function
+        spaces
+
+	10) PR #93 - add support for a swap-loop transform for the GOcean
+	API.
+
+        11) PR #152 - add pylintrc so that pylint's line-length limit
+        matches that of pep8.
+
+	12) PR #143 - bug fix for DAG generation in the GOcean API.
+
+        13) PR #153 - added -v option to the psyclone script to show the
+	version
+
+	14) PR #136 - add support for intergrid kernels (required for
+	multigrid)
+
+	15) PR #149 - add support for GH_READWRITE access for
+	discontinuous fields
+
+	16) PR #163 - updating PSyclone to work with the latest version of
+	the parser (0.0.7) as the API has changed
+
+	17) PR #169 - add support for specifying stencils in the GOcean
+	kernel meta-data.
+
+release 1.5.1 3rd December 2017
+
+	1) #53 and PR #88 Add a version file so that PSyclone does not
+	need to be installed to generate documentation.
+
+	2) #94, #96, #98 and PR #97 Make name="name" support in invoke
+	calls more robust e.g. names must be valid fortran and match
+	should be insensitive to case.
+
+	3) #76 and PR #89 Add support for the new LFRic quadrature
+	api. Currently only gh_quadrature_xyoz is supported.
+
+        4) #99 and PR #100 Make the author list for the user manual
+        strictly alphabetical.
+
+        5) #50 and PR #78 Implement a redundant-computation transformation.
+        This enables a user to request that a kernel (or kernels) is
+        computed out into the halo region and any affected halo swaps
+        be updated (and/or removed) as required.
+
+        6) #103 and PR #104. Bug fix to ensure that a halo swap is not
+        inserted if read annexed dofs are already clean due to a previous
+	write to the L1 halo.
+
+release 1.5.0 3rd October 2017
+
         1) #20 and PR #28 Add dependence analysis (and a Move
         transformation) to PSyclone. This will subsequently allow for
         the safe implementation of more complex schedule transformations
@@ -43,6 +161,20 @@
 	failing tests (with file not found) in some environments when
 	running py.test from a different directory to the tests
 	themselves.
+
+	12) #59 and PR #75 added metadata support for inter-grid kernels
+	which will be used for the multi-grid code.
+
+	13) #82 and PR #83 modified a test to work with different versions
+	of graphviz which output files with different ammounts of white
+	space
+
+	14) #52 and PR #60 added support for evaluators. An evaluator is
+	specified by setting the gh_shape metadata in kernels
+	appropriately.
+
+	15) #85 and PR #86 - minor correction to documentation (section
+	on Inter-Grid kernel rules was in the wrong place).
 
 release 1.4.1
 

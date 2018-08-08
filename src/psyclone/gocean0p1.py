@@ -11,8 +11,9 @@
     the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
     Arguments and KernelArgument). '''
 
-from psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, \
-    KernelArgument
+from __future__ import absolute_import
+from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+    Arguments, KernelArgument
 
 
 class GOPSy(PSy):
@@ -32,7 +33,7 @@ class GOPSy(PSy):
         :rtype: ast
 
         '''
-        from f2pygen import ModuleGen, UseGen
+        from psyclone.f2pygen import ModuleGen, UseGen
 
         # create an empty PSy layer module
         psy_module = ModuleGen(self.name)
@@ -106,7 +107,7 @@ class GOInvoke(Invoke):
             by the associated invoke call in the algorithm layer). This
             consists of the PSy invocation subroutine and the declaration of
             its arguments.'''
-        from f2pygen import SubroutineGen, DeclGen, TypeDeclGen
+        from psyclone.f2pygen import SubroutineGen, DeclGen, TypeDeclGen
         # create the subroutine
         invoke_sub = SubroutineGen(parent, name=self.name,
                                    args=self.psy_unique_var_names)
@@ -158,7 +159,7 @@ class GOLoop(Loop):
     def gen_code(self, parent):
 
         if self.field_space == "every":
-            from f2pygen import DeclGen
+            from psyclone.f2pygen import DeclGen
             dim_var = DeclGen(parent, datatype="INTEGER",
                               entity_decls=[self._variable_name])
             parent.add(dim_var)
@@ -242,7 +243,7 @@ class GOKern(Kern):
     def gen_code(self, parent):
         ''' Generates GOcean specific psy code for a call to the dynamo
             kernel instance. '''
-        from f2pygen import CallGen, UseGen
+        from psyclone.f2pygen import CallGen, UseGen
         arguments = ["i", "j"]
         for arg in self._arguments.args:
             if arg.space.lower() == "r":

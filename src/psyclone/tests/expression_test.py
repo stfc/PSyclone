@@ -1,7 +1,9 @@
 
 ''' Module containing tests for the Fortran expression parser '''
 
+from __future__ import absolute_import
 from psyclone.expression import VAR_OR_FUNCTION, FORT_EXPRESSION, SLICING
+import six
 
 
 def my_test(name, parser, test_string, names=None):
@@ -10,14 +12,28 @@ def my_test(name, parser, test_string, names=None):
     preserved by the parsing operation, so the test_string must conform to
     the whitespace conventions of the unparser for the test to succeed.'''
     # These imports are required in order for the exec in the code below
-    # to work
-    from psyclone.expression import Grouping, BinaryOperator, FunctionVar, \
-        Slicing, LiteralArray, NamedArg
+    # to work. Pylint complains about those as unused variables
     pstr = parser.parseString(test_string)
     assert (str(pstr[0]) == test_string), "Failed to parse " + name + "."
     # ast.literal_eval can't be used here as the generated expression
     # calls constructors of user-defined objects
-    exec("pstr="+repr(pstr[0]))
+
+    # Create and execute in a context with PSyclone's expressions available
+    # Unlike Python2 Python3's exec requries an explicit context
+    import psyclone.expression
+    context = {
+            'BinaryOperator': psyclone.expression.BinaryOperator,
+            'FunctionVar': psyclone.expression.FunctionVar,
+            'Grouping': psyclone.expression.Grouping,
+            'LiteralArray': psyclone.expression.LiteralArray,
+            'NamedArg': psyclone.expression.NamedArg,
+            'Slicing': psyclone.expression.Slicing,
+            }
+    # pylint: disable=exec-used
+    six.exec_("pstr="+repr(pstr[0]), context)
+    # pylint: enable=exec-used
+    pstr = context['pstr']
+
     assert (str(pstr) == test_string), "Error in repr for " + name + "."
     if names:
         assert pstr.names == set(names), "Names do not match for " + name + "."

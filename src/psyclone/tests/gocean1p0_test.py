@@ -1,19 +1,49 @@
-# ----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
+from __future__ import absolute_import, print_function
+import os
+import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
-import pytest
-import os
 from psyclone.generator import GenerationError, ParseError
+
 
 API = "gocean1.0"
 
@@ -125,9 +155,10 @@ def test_grid_property():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_next_sshu(cu_fld, u_fld)\n"
+        "    SUBROUTINE invoke_0(cu_fld, u_fld, du_fld, d_fld)\n"
         "      USE kernel_requires_grid_props, ONLY: next_sshu_code\n"
-        "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld, du_fld, "
+        "d_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
@@ -142,7 +173,13 @@ def test_grid_property():
         "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
         "        END DO \n"
         "      END DO \n"
-        "    END SUBROUTINE invoke_0_next_sshu\n"
+        "      DO j=2,jstop\n"
+        "        DO i=2,istop-1\n"
+        "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
+        "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_with_grid_props_test")
 
     assert generated_code.find(expected_output) != -1
@@ -733,7 +770,7 @@ def test_offset_any_all_cu_points():
         "      END DO \n"
         "    END SUBROUTINE invoke_0_compute_u\n"
         "  END MODULE psy_single_invoke_test")
-    print generated_code
+    print(generated_code)
     assert generated_code.find(expected_output) != -1
 
 
@@ -775,7 +812,7 @@ def test_offset_any_all_points():
         "      END DO \n"
         "    END SUBROUTINE invoke_0_copy\n"
         "  END MODULE psy_single_invoke_test")
-    print generated_code
+    print(generated_code)
     assert generated_code.find(expected_output) != -1
 
 
@@ -843,9 +880,7 @@ def test_goschedule_str():
         "EndLoop\n"
         "EndLoop\n"
         "End Schedule\n")
-
     sched_str = str(schedule)
-    print sched_str
     assert sched_str in expected_sched
 
     # Switch-off constant loop bounds
@@ -865,8 +900,6 @@ def test_goschedule_str():
         "EndLoop\n"
         "EndLoop\n"
         "End Schedule\n")
-
-    print sched_str
     assert sched_str in expected_sched
 
 
@@ -956,6 +989,63 @@ def test_goloop_unmatched_offsets():
     with pytest.raises(GenerationError):
         goiloop.gen_code(None)
 
+
+def test_writetoread_dag(tmpdir, have_graphviz):
+    ''' Test that the GOSchedule::dag() method works as expected when we
+    have two kernels with a write -> read dependency '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "single_invoke_write_to_read.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    _ = tmpdir.chdir()
+    invoke.schedule.dag()
+    if have_graphviz:
+        dot_file = os.path.join(str(tmpdir), "dag")
+        assert os.path.isfile(dot_file)
+        with open(dot_file, "r") as dfile:
+            dot = dfile.read()
+        assert dot.startswith("digraph")
+        # write -> read means that the second loop can only begin once the
+        # first loop is complete. Check that we have the correct forwards
+        # dependence (green) and backwards dependence (red).
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=red]'
+                in dot or
+                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '[color=#ff0000]' in dot)
+        assert ('"loop_[outer]_1_end" -> "loop_[outer]_4_start" [color=green]'
+                in dot or
+                '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
+                '[color=#00ff00]' in dot)
+
+
+def test_dag(tmpdir, have_graphviz):
+    ''' Test that the GOSchedule::dag() method works as expected '''
+    _, invoke_info = parse(os.path.join(os.path.
+                                        dirname(os.path.
+                                                abspath(__file__)),
+                                        "test_files", "gocean1p0",
+                                        "nemolite2d_alg_mod.f90"),
+                           api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    _ = tmpdir.chdir()
+    invoke.schedule.dag()
+    if have_graphviz:
+        assert os.path.isfile(os.path.join(str(tmpdir), "dag.svg"))
+        dot_file = os.path.join(str(tmpdir), "dag")
+        assert os.path.isfile(dot_file)
+        with open(dot_file, "r") as dfile:
+            dot = dfile.read()
+        # The two kernels in this example are independent so we should
+        # have no forwards/backwards dependencies
+        for col in ["red", "#ff0000", "green", "#00ff00"]:
+            assert '[color={0}]'.format(col) not in dot
+
+
 # -----------------------------------
 # Parser Tests for the GOcean 1.0 API
 # -----------------------------------
@@ -970,6 +1060,23 @@ def test00p1_kernel_wrong_meta_arg_count():
                    "test_files", "gocean1p0",
                    "test00.1_invoke_kernel_wrong_meta_arg_count.f90"),
               api="gocean1.0")
+
+
+def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
+    '''Check that using a const scalar as parameter works.'''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test00.1_invoke_kernel_using_const_scalar.f90")
+    _, invoke_info = parse(filename, api="gocean1.0")
+    out = str(PSyFactory(API).create(invoke_info).gen)
+    # Old versions of PSyclone tried to declare '0' as a variable:
+    # REAL(KIND=wp), intent(inout) :: 0
+    # INTEGER, intent(inout) :: 0
+    # Make sure this is not happening anymor
+    import re
+    assert re.search(r"\s*real.*:: *0", out, re.I) is None
+    assert re.search(r"\s*integer.*:: *0", out, re.I) is None
+    assert re.search(r"\s*real.*:: *real_val", out, re.I) is not None
 
 
 def test00p2_kernel_invalid_meta_args():
@@ -1152,4 +1259,4 @@ def test14_no_builtins():
     from psyclone.gocean1p0 import GOBuiltInCallFactory
     with pytest.raises(GenerationError) as excinfo:
         GOBuiltInCallFactory.create()
-    assert ("Built-ins are not supported for the GOcean" in str(excinfo.value))
+    assert "Built-ins are not supported for the GOcean" in str(excinfo.value)

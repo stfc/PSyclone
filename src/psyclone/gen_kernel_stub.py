@@ -32,22 +32,27 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
 
 '''A python script and python function to generate an empty kernel
     subroutine with the required arguments and datatypes (which we
     call a stub) when presented with Kernel Metadata.
 '''
 
-import fparser
-from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata
-from psyclone.psyGen import GenerationError
-from psyclone.parse import ParseError
-from psyclone.config import SUPPORTEDSTUBAPIS, DEFAULTSTUBAPI
-from psyclone.line_length import FortLineLength
+from __future__ import print_function
 import os
 import sys
 import traceback
+
+import fparser
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata
+from psyclone.psyGen import GenerationError
+from psyclone.parse import ParseError
+from psyclone.configuration import ConfigFactory
+from psyclone.line_length import FortLineLength
+
+# Get our one and only Configuration object
+_CONFIG = ConfigFactory().create()
 
 
 def generate(filename, api=""):
@@ -60,24 +65,26 @@ def generate(filename, api=""):
        format.
     '''
     if api == "":
-        api = DEFAULTSTUBAPI
-    if api not in SUPPORTEDSTUBAPIS:
-        print "Unsupported API '{0}' specified. Supported API's are {1}.".\
-              format(api, SUPPORTEDSTUBAPIS)
+        api = _CONFIG.default_stub_api
+    if api not in _CONFIG.supported_stub_apis:
+        print("Unsupported API '{0}' specified. Supported API's are {1}.".
+              format(api, _CONFIG.supported_stub_apis))
         raise GenerationError(
             "generate: Unsupported API '{0}' specified. Supported types are "
-            "{1}.".format(api, SUPPORTEDSTUBAPIS))
+            "{1}.".format(api, _CONFIG.supported_stub_apis))
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
 
     # drop cache
-    fparser.parsefortran.FortranParser.cache.clear()
-    fparser.logging.disable('CRITICAL')
+    fparser.one.parsefortran.FortranParser.cache.clear()
+    fparser.logging.disable(fparser.logging.CRITICAL)
     try:
         ast = fparser.api.parse(filename, ignore_comments=False)
-    except AttributeError:
-        raise ParseError("Code appears to be invalid Fortran")
+
+    except (fparser.common.utils.AnalyzeError, AttributeError) as error:
+        raise ParseError("Code appears to be invalid Fortran: " +
+                         str(error))
 
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -93,9 +100,10 @@ def run():
     parser = argparse.ArgumentParser(description="Create Kernel stub code from"
                                                  " Kernel metadata")
     parser.add_argument("-o", "--outfile", help="filename of output")
-    parser.add_argument("-api", default=DEFAULTSTUBAPI,
+    parser.add_argument("-api", default=_CONFIG.default_stub_api,
                         help="choose a particular api from {0}, default {1}".
-                        format(str(SUPPORTEDSTUBAPIS), DEFAULTSTUBAPI))
+                        format(str(_CONFIG.supported_stub_apis),
+                               _CONFIG.default_stub_api))
     parser.add_argument('filename', help='Kernel metadata')
     parser.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
@@ -106,13 +114,13 @@ def run():
     try:
         stub = generate(args.filename, api=args.api)
     except (IOError, ParseError, GenerationError, RuntimeError) as error:
-        print "Error:", error
+        print("Error:", error)
         exit(1)
-    except Exception as error:
-        print "Error, unexpected exception:\n"
+    except Exception as error:   # pylint: disable=broad-except
+        print("Error, unexpected exception:\n")
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        print exc_type
-        print exc_value
+        print(exc_type)
+        print(exc_value)
         traceback.print_tb(exc_traceback)
         exit(1)
 
@@ -126,4 +134,4 @@ def run():
         my_file.write(stub_str)
         my_file.close()
     else:
-        print "Kernel stub code:\n", stub_str
+        print("Kernel stub code:\n", stub_str)

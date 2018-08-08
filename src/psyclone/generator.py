@@ -1,12 +1,40 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -17,20 +45,99 @@
     from within another Python program.
 '''
 
+from __future__ import absolute_import, print_function
 import argparse
 import sys
 import os
 import traceback
-from parse import parse, ParseError
-from psyGen import PSyFactory, GenerationError
-from algGen import NoInvokesError
-from config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
-from line_length import FortLineLength
+from psyclone.parse import parse, ParseError
+from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.algGen import NoInvokesError
+from psyclone.line_length import FortLineLength
+from psyclone.profiler import Profiler
+from psyclone.version import __VERSION__
+from psyclone.configuration import ConfigFactory
+
+# Get (a reference to) our one-and-only Config object
+_CONFIG = ConfigFactory().create()
+
+
+def handle_script(script_name, psy):
+    '''Loads and applies the specified script to the given psy layer.
+    The 'trans' function of the script is called with psy as parameter.
+    :param script_name: Name of the script to load.
+    :type script_name: string
+    :param psy: The psy layer to which the script is applied.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :raises IOError: If the file is not found.
+    :raises GenerationError: if the file does not have .py extension
+        or can not be imported.
+    :raises GenerationError: if trans() can not be called.
+    :raises GenerationError: if any exception is raised when trans()
+        was called.
+    '''
+    sys_path_appended = False
+    try:
+        # a script has been provided
+        filepath, filename = os.path.split(script_name)
+        if filepath:
+            # a path to a file has been provided
+            # we need to check the file exists
+            if not os.path.isfile(script_name):
+                raise IOError("script file '{0}' not found".
+                              format(script_name))
+            # it exists so we need to add the path to the python
+            # search path
+            sys_path_appended = True
+            sys.path.append(filepath)
+        filename, fileext = os.path.splitext(filename)
+        if fileext != '.py':
+            raise GenerationError(
+                "generator: expected the script file '{0}' to have "
+                "the '.py' extension".format(filename))
+        try:
+            transmod = __import__(filename)
+        except ImportError:
+            raise GenerationError(
+                "generator: attempted to import '{0}' but script file "
+                "'{1}' has not been found".
+                format(filename, script_name))
+        except SyntaxError:
+            raise GenerationError(
+                "generator: attempted to import '{0}' but script file "
+                "'{1}' is not valid python".
+                format(filename, script_name))
+        if callable(getattr(transmod, 'trans', None)):
+            try:
+                psy = transmod.trans(psy)
+            except Exception:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                lines = traceback.format_exception(exc_type, exc_value,
+                                                   exc_traceback)
+                e_str = '{\n' +\
+                    ''.join('    ' + line for line in lines[2:]) + '}'
+                raise GenerationError(
+                    "Generator: script file '{0}'\nraised the "
+                    "following exception during execution "
+                    "...\n{1}\nPlease check your script".format(
+                        script_name, e_str))
+        else:
+            raise GenerationError(
+                "generator: attempted to import '{0}' but script file "
+                "'{1}' does not contain a 'trans()' function".
+                format(filename, script_name))
+    except Exception as msg:
+        if sys_path_appended:
+            os.sys.path.pop()
+        raise msg
+    if sys_path_appended:
+        os.sys.path.pop()
 
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
-             distributed_memory=DISTRIBUTED_MEMORY):
+             distributed_memory=None):
+    # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and GungHo
@@ -62,92 +169,41 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     For example:
 
-    >>> from generator import generate
-    >>> psy, alg = generate("algspec.f90")
-    >>> psy, alg = generate("algspec.f90", kernel_path="src/kernels")
-    >>> psy, alg = generate("algspec.f90", script_name="optimise.py")
-    >>> psy, alg = generate("algspec.f90", line_length=True)
-    >>> psy, alg = generate("algspec.f90", distributed_memory=False)
+    >>> from psyclone.generator import generate
+    >>> alg, psy = generate("algspec.f90")
+    >>> alg, psy = generate("algspec.f90", kernel_path="src/kernels")
+    >>> alg, psy = generate("algspec.f90", script_name="optimise.py")
+    >>> alg, psy = generate("algspec.f90", line_length=True)
+    >>> alg, psy = generate("algspec.f90", distributed_memory=False)
 
     '''
 
+    if distributed_memory is None:
+        distributed_memory = _CONFIG.distributed_memory
+
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
-        api = DEFAULTAPI
+        api = _CONFIG.default_api
     else:
-        if api not in SUPPORTEDAPIS:
+        if api not in _CONFIG.supported_apis:
             raise GenerationError(
                 "generate: Unsupported API '{0}' specified. Supported "
-                "types are {1}.".format(api, SUPPORTEDAPIS))
+                "types are {1}.".format(api, _CONFIG.supported_apis))
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
     if (len(kernel_path) > 0) and (not os.access(kernel_path, os.R_OK)):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
-        from algGen import Alg
+        from psyclone.algGen import Alg
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
-        psy = PSyFactory(api, distributed_memory=distributed_memory).\
-            create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
+
         if script_name is not None:
-            sys_path_appended = False
-            try:
-                # a script has been provided
-                filepath, filename = os.path.split(script_name)
-                if filepath:
-                    # a path to a file has been provided
-                    # we need to check the file exists
-                    if not os.path.isfile(script_name):
-                        raise IOError("script file '{0}' not found".
-                                      format(script_name))
-                    # it exists so we need to add the path to the python
-                    # search path
-                    sys_path_appended = True
-                    sys.path.append(filepath)
-                filename, fileext = os.path.splitext(filename)
-                if fileext != '.py':
-                    raise GenerationError(
-                        "generator: expected the script file '{0}' to have "
-                        "the '.py' extension".format(filename))
-                try:
-                    transmod = __import__(filename)
-                except ImportError:
-                    raise GenerationError(
-                        "generator: attempted to import '{0}' but script file "
-                        "'{1}' has not been found".
-                        format(filename, script_name))
-                except SyntaxError:
-                    raise GenerationError(
-                        "generator: attempted to import '{0}' but script file "
-                        "'{1}' is not valid python".
-                        format(filename, script_name))
-                if callable(getattr(transmod, 'trans', None)):
-                    try:
-                        # Apply the tranformation script to the psy layer
-                        psy = transmod.trans(psy)
-                    except Exception:
-                        exc_type, exc_value, exc_traceback = sys.exc_info()
-                        lines = traceback.format_exception(exc_type, exc_value,
-                                                           exc_traceback)
-                        e_str = '{\n' +\
-                            ''.join('    ' + line for line in lines[2:]) + '}'
-                        raise GenerationError(
-                            "Generator: script file '{0}'\nraised the "
-                            "following exception during execution "
-                            "...\n{1}\nPlease check your script".format(
-                                script_name, e_str))
-                else:
-                    raise GenerationError(
-                        "generator: attempted to import '{0}' but script file "
-                        "'{1}' does not contain a 'trans()' function".
-                        format(filename, script_name))
-            except Exception as msg:
-                if sys_path_appended:
-                    os.sys.path.pop()
-                raise msg
-            if sys_path_appended:
-                os.sys.path.pop()
+            handle_script(script_name, psy)
         if api != "nemo0.1":
             alg = Alg(ast, psy)
     except Exception:
@@ -160,20 +216,23 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
 
 def main(args):
-
-    ''' Parses and checks the command line arguments, calls the generate
-    function if all is well, catches any errors and outputs the
-    results
     '''
-
+    Parses and checks the command line arguments, calls the generate
+    function if all is well, catches any errors and outputs the
+    results.
+    :param list args: the list of command-line arguments that PSyclone has \
+                      been invoked with.
+    '''
+    # pylint: disable=too-many-statements,too-many-branches
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
     parser.add_argument(
         '-opsy', help='filename of generated PSy code')
     parser.add_argument(
-        '-api', default=DEFAULTAPI, help='choose a particular api from {0}, '
-        'default {1}'.format(str(SUPPORTEDAPIS), DEFAULTAPI))
+        '-api', default=_CONFIG.default_api,
+        help='choose a particular api from {0}, '
+        'default {1}'.format(str(_CONFIG.supported_apis), _CONFIG.default_api))
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -189,14 +248,48 @@ def main(args):
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
-    parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
+    parser.add_argument(
+        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
+        help="Add profiling hooks for either 'kernels' or 'invokes'")
+    parser.add_argument(
+        '--force-profile', action="append",
+        choices=Profiler.SUPPORTED_OPTIONS,
+        help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
+             "transformation script is used. Use at your own risk.")
+    parser.set_defaults(dist_mem=_CONFIG.distributed_memory)
+
+    parser.add_argument(
+        '-v', '--version', dest='version', action="store_true",
+        help='Display version information ({0})'.format(__VERSION__))
 
     args = parser.parse_args(args)
 
-    if args.api not in SUPPORTEDAPIS:
-        print "Unsupported API '{0}' specified. Supported API's are "\
-            "{1}.".format(args.api, SUPPORTEDAPIS)
+    if args.api not in _CONFIG.supported_apis:
+        print("Unsupported API '{0}' specified. Supported API's are "
+              "{1}.".format(args.api, _CONFIG.supported_apis))
         exit(1)
+
+    if args.version:
+        print("PSyclone version: {0}".format(__VERSION__))
+
+    if args.script is not None and args.profile is not None:
+        print("Error: use of automatic profiling in combination with an")
+        print("optimisation script is not recommened since it may not work")
+        print("as expected.")
+        print("You can use --force-profile instead of --profile if you "
+              "really want to use both options")
+        print("at the same time.")
+        exit(1)
+
+    if args.profile is not None and args.force_profile is not None:
+        print("Specify only one of --profile and --force-profile.")
+        exit(1)
+
+    if args.profile:
+        Profiler.set_options(args.profile)
+    elif args.force_profile:
+        Profiler.set_options(args.force_profile)
+
     try:
         alg, psy = generate(args.filename, api=args.api,
                             kernel_path=args.directory,
@@ -205,7 +298,7 @@ def main(args):
                             distributed_memory=args.dist_mem)
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
-        print "Warning: {0}".format(exc_value)
+        print("Warning: {0}".format(exc_value))
         # no invoke calls were found in the algorithm file so we need
         # not need to process it, or generate any psy layer code so
         # output the original algorithm file and set the psy file to
@@ -216,16 +309,16 @@ def main(args):
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError):
         _, exc_value, _ = sys.exc_info()
-        print exc_value
+        print(exc_value)
         exit(1)
-    except Exception:
-        print "Error, unexpected exception, please report to the authors:"
+    except Exception:  # pylint: disable=broad-except
+        print("Error, unexpected exception, please report to the authors:")
         exc_type, exc_value, exc_tb = sys.exc_info()
-        print "Description ..."
-        print exc_value
-        print "Type ..."
-        print exc_type
-        print "Stacktrace ..."
+        print("Description ...")
+        print(exc_value)
+        print("Type ...")
+        print(exc_type)
+        print("Stacktrace ...")
         traceback.print_tb(exc_tb, limit=10, file=sys.stdout)
         exit(1)
     if args.limit:
@@ -240,7 +333,7 @@ def main(args):
         my_file.write(alg_str)
         my_file.close()
     else:
-        print "Transformed algorithm code:\n", alg_str
+        print("Transformed algorithm code:\n%s" % alg_str)
 
     if not psy_str:
         # empty file so do not output anything
@@ -250,7 +343,7 @@ def main(args):
         my_file.write(psy_str)
         my_file.close()
     else:
-        print "Generated psy layer code:\n", psy_str
+        print("Generated psy layer code:\n", psy_str)
 
 
 if __name__ == "__main__":

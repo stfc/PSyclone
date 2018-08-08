@@ -37,7 +37,15 @@
 ''' Module which performs pytest set-up so that we can specify
     command-line options '''
 
+from __future__ import absolute_import
 import pytest
+
+
+# fixtures defined here are available to all tests
+@pytest.fixture(scope="module", params=[False, True])
+def annexed(request):
+    ''' Return the content of params in turn '''
+    return request.param
 
 
 def pytest_addoption(parser):
@@ -60,3 +68,12 @@ def f90(request):
 def f90flags(request):
     ''' Gets the value of the f90flags command-line option '''
     return request.config.getoption("--f90flags")
+
+
+@pytest.fixture
+def have_graphviz():
+    ''' Whether or not the system has graphviz installed. Note that this
+    only checks for the Python bindings. The underlying library must
+    also have been installed for dag generation to work correctly. '''
+    import sys
+    return "graphviz" in sys.modules
