@@ -962,29 +962,9 @@ class NemoOMPParallelLoopTrans(OMPParallelLoopTrans):
         ''' Perform NEMO specific loop validity checks then call the
         :py:meth:`~OMPParallelLoopTrans.apply` method of the
         :py:class:`base class <OMPParallelLoopTrans>`. '''
-        from fparser import Fortran2003
-        from fparser.readfortran import FortranStringReader
+        from fparser.two import Fortran2003
+        from fparser.common.readfortran import FortranStringReader
         OMPParallelLoopTrans._validate(self, node)
-
-        # Find the location in the AST of the node representing this
-        # loop (nest)
-        idx = node._ast._parent.content.index(node._ast)
-        # Create the directive.
-        # TODO use a Directive rather than and if-then block
-        reader = FortranStringReader("if (FAKE_OMP_DIRECTIVE) then\n"
-                                     "end if\n")
-        reader.set_mode(True, True)
-        new_ast_node = Fortran2003.If_Construct(reader)
-        # Add this new node to the parent of the Loop node
-        node._ast._parent.content.insert(idx, new_ast_node)
-        new_ast_node._parent = node._ast._parent
-        # Remove the loop body from the old parent node. Its index has
-        # increased by +1 due to the insertion of the Directive block
-        loop_ast = node._ast._parent.content.pop(idx+1)
-        # and add it to the new directive node
-        new_ast_node.content.insert(1, loop_ast)
-        # Update the parent information for the loop body
-        loop_ast._parent = new_ast_node
 
         return OMPParallelLoopTrans.apply(self, node)
 
