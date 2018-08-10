@@ -1,15 +1,7 @@
-# ----------------------------------------------------------------------------
-# (c) Copyright Science and Technology Facilities Council, 2017
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''This module implements the PSyclone NEMO 0.1 API by specialising
     the required base classes for both code generation (PSy, Invokes,
@@ -48,7 +40,7 @@
 
 '''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, Arguments, KernelArgument, GenerationError, colored, \
@@ -281,7 +273,7 @@ def get_routine_type(ast):
 def _add_code_block(parent, statements):
     ''' Create a NemoCodeBlock for the supplied list of statements
     and then wipe the list of statements '''
-    from nemo0p1 import NemoCodeBlock
+    from psyclone.nemo0p1 import NemoCodeBlock
 
     if not statements:
         return None
@@ -835,17 +827,17 @@ class NemoLoop(Loop):
         else:
             self.loop_type = "unknown"
 
-        # Get the loop limits. These are the members of a list which is
-        # the second element of the items tuple.
-        self._start = str(ctrl[0].items[1][0])
-        self._stop = str(ctrl[0].items[1][1])
-
-        # TODO check that the third element of items really does contain
-        # the loop increment
-        if ctrl[0].items[2]:
-            self._step = str(ctrl[0].items[2])
+        # Get the loop limits. These are given in a list which is the second
+        # element of a tuple which is itself the second element of the items
+        # tuple:
+        #(None, (Name('jk'), [Int_Literal_Constant('1', None), Name('jpk'), Int_Literal_Constant('1', None)]), None)
+        limits_list = ctrl[0].items[1][1]
+        self._start = str(limits_list[0])
+        self._stop = str(limits_list[1])
+        if len(limits_list) == 3:
+            self._step = str(limits_list[2])
         else:
-            self._step = ""
+            self._step = "1"
 
         # List of nodes we will use to create 'code blocks' that we don't
         # attempt to understand
@@ -872,6 +864,14 @@ class NemoLoop(Loop):
 
         # Finish any open code block
         _add_code_block(self, code_block_nodes)
+
+    def __str__(self):
+        result = "NemoLoop[" + self._loop_type + "]: " + self._variable_name + \
+                 "=" + ",".join([self._start, self._stop, self._step]) + "\n"
+        for entity in self._children:
+            result += str(entity) + "\n"
+        result += "EndLoop"
+        return result
 
     @property
     def kernel(self):
