@@ -103,6 +103,24 @@ def test_implicit_loop_sched():
     assert len(kerns) == 1
 
 
+def test_implicit_loop_assign():
+    ''' Check that we only identify an implicit loop when array syntax
+    is used as part of an assignment statement. '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "array_syntax.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
+    sched.view()
+    print(ast)
+    # Our implicit loop gives us 3 explicit loops
+    assert len(loops) == 3
+    assert isinstance(sched.children[0], nemo0p1.NemoLoop)
+    # The other statements (that use array syntax) are not assignments
+    # and therefore are not implicit loops
+    assert isinstance(sched.children[1], nemo0p1.NemoCodeBlock)
+
+
 def test_codeblock():
     ''' Check that we get the right schedule when the code contains
     some unrecognised statements as well as both an explict and an

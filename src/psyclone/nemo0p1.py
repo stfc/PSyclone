@@ -106,30 +106,6 @@ NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
                           "jt": "tracers", "jn": "tracers"}
 
 
-# TODO this routine belongs with the higher-level wrapper around
-# fparser2
-def is_implicit_loop(node):
-    '''
-    Checks whether the supplied node uses Fortran array syntax and is
-    thus an implicit loop
-
-    :param node: the node in the fparser2 AST to check for array syntax
-    :type node: :py:class:`fparser.Fortran2003.Assignment_Stmt`
-    :return: True if the statement contains an implicit loop, False otherwise
-    '''
-    from fparser.two import Fortran2003
-
-    if not isinstance(node, Fortran2003.Assignment_Stmt):
-        return False
-
-    for child in node.items:
-        if isinstance(child, Fortran2003.Part_Ref):
-            colons = walk_ast(child.items, [Fortran2003.Subscript_Triplet])
-            if colons:
-                return True
-    return False
-
-
 def get_routine_type(ast):
     '''
     Identify the type for Fortran routine the ast represents
@@ -143,8 +119,9 @@ def get_routine_type(ast):
     for child in ast.content:
         if isinstance(child, Fortran2003.Program_Stmt):
             return "program"
-        #elif isinstance(child, fparser.Fortran2003.)
-    raise ParseError("Unrecognised Fortran unit: {0}".format(str(ast)))
+        if isinstance(child, Fortran2003.Subroutine_Stmt):
+            return "subroutine"
+    raise ParseError("Unrecognised Fortran unit: {0}".format(type(child)))
 
 
 def _add_code_block(parent, statements):
@@ -176,14 +153,14 @@ class NemoInvoke(Invoke):
         # Store the whole fparser2 AST
         self._ast = ast
 
-        from habakkuk.parse2003 import get_child
+        from habakkuk.parse2003 import get_child, ParseError as perror
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
         # Find the section of the tree containing the execution part
         # of the code
         try:
             exe_part = get_child(ast, Execution_Part)
-        except ParseError:
+        except perror:
             # This subroutine has no execution part so we skip it
             # TODO log this event
             return
@@ -224,7 +201,7 @@ class NemoInvoke(Invoke):
 class NemoInvokes(Invokes):
 
     def __init__(self, ast):
-        from habakkuk.parse2003 import get_child
+        from habakkuk.parse2003 import get_child, ParseError as perror
         from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
             Subroutine_Stmt
@@ -243,7 +220,7 @@ class NemoInvokes(Invokes):
         try:
             main_prog = get_child(ast, Main_Program)
             routines.append(main_prog)
-        except ParseError:
+        except perror:
             pass
 
         # Analyse each routine we've found
