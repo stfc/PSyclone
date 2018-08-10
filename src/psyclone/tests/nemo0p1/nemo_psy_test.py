@@ -1,11 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,13 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the construction of a PSy
     representation of NEMO code '''
 
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import os
 import fparser
 import pytest
@@ -113,6 +109,7 @@ def test_codeblock():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo0p1.NemoLoop)
+    sched.view()
     assert len(loops) == 3
     cblocks = sched.walk(sched.children, nemo0p1.NemoCodeBlock)
     assert len(cblocks) == 3
@@ -143,10 +140,11 @@ def test_schedule_view(capsys):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     sched_str = str(sched)
+    print(sched_str)
     assert "CodeBlock[2 statements]" in sched_str
-    assert "NemoLoop[]: jk=1,jpk,1" in sched_str
-    assert "NemoLoop[]: jj=1,jpj,1" in sched_str
-    assert "NemoLoop[]: ji=1,jpi,1" in sched_str
+    assert "NemoLoop[levels]: jk=1,jpk,1" in sched_str
+    assert "NemoLoop[lat]: jj=1,jpj,1" in sched_str
+    assert "NemoLoop[lon]: ji=1,jpi,1" in sched_str
     sched.view()
     output, _ = capsys.readouterr()
 
@@ -164,14 +162,14 @@ def test_schedule_view(capsys):
         "it_space='None']\n"
         "            " + loop_str + "[type='lon',field_space='None',"
         "it_space='None']\n"
-        "                " + kern_str + "[3D]\n"
+        "                " + kern_str + "[]\n"
         "    " + loop_str + "[type='levels',field_space='None',"
         "it_space='None']\n"
         "        " + loop_str + "[type='lat',field_space='None',"
         "it_space='None']\n"
         "            " + loop_str + "[type='lon',field_space='None',"
         "it_space='None']\n"
-        "                " + cb_str + "[<class 'fparser.Fortran2003."
+        "                " + cb_str + "[<class 'fparser.two.Fortran2003."
         "Assignment_Stmt'>]\n"
         "    " + loop_str + "[type='levels',field_space='None',"
         "it_space='None']\n"
@@ -179,7 +177,6 @@ def test_schedule_view(capsys):
         "it_space='None']\n"
         "            " + loop_str + "[type='lon',field_space='None',"
         "it_space='None']\n"
-        "                " + cb_str + "[<class 'fparser.Fortran2003."
+        "                " + cb_str + "[<class 'fparser.two.Fortran2003."
         "Assignment_Stmt'>]")
-    print(expected_sched)
     assert expected_sched in output

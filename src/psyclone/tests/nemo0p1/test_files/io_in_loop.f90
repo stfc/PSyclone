@@ -39,7 +39,7 @@ program io_in_loop
 
   ! Test code with valid NEMO kernels as well as some that must be
   ! discounted because they contain IO statements
-  DO jk = 1, jpk
+  DO jk = 1, jpk, 1
      DO jj = 1, jpj
         DO ji = 1, jpi
            umask(ji,jj,jk) = ji*jj*jk/r
