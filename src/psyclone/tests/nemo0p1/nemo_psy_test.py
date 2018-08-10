@@ -105,13 +105,13 @@ def test_implicit_loop_sched():
 
 def test_codeblock():
     ''' Check that we get the right schedule when the code contains
-    some unrecognised statements as well as a loop '''
+    some unrecognised statements as well as both an explict and an
+    implicit loop. '''
     ast, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo0p1.NemoLoop)
-    sched.view()
     assert len(loops) == 4
     cblocks = sched.walk(sched.children, nemo0p1.NemoCodeBlock)
     assert len(cblocks) == 3
