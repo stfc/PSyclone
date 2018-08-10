@@ -1,11 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +35,7 @@
 
 ''' Module containing py.test tests for the parsing of NEMO code '''
 
-
+from __future__ import print_function, absolute_import
 import os
 import fparser
 from psyclone.parse import parse, ParseError
@@ -54,7 +50,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 def test_identify_implicit_loop():
     ''' Check that we correctly identify implicit loops in the fparser2 AST '''
-    from fparser import Fortran2003
+    from fparser.two import Fortran2003
     from habakkuk.parse2003 import walk_ast
     ast, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
                              api=API, line_length=False)
