@@ -112,7 +112,7 @@ def test_codeblock():
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo0p1.NemoLoop)
     sched.view()
-    assert len(loops) == 3
+    assert len(loops) == 4
     cblocks = sched.walk(sched.children, nemo0p1.NemoCodeBlock)
     assert len(cblocks) == 3
     kerns = sched.walk(sched.children, nemo0p1.NemoKern)

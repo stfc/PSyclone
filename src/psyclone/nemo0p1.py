@@ -41,15 +41,15 @@
 '''
 
 from __future__ import print_function, absolute_import
-from psyclone.parse import Descriptor, KernelType, ParseError
+import copy
+from psyclone.parse import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
-    Loop, Kern, Arguments, KernelArgument, GenerationError, colored, \
+    Loop, Kern, GenerationError, colored, \
     SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.Fortran2003 import walk_ast
 
 # The base colour map doesn't have CodeBlock as that is currently
 # a NEMO-API-specific entity.
-import copy
 NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
 NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
 
@@ -106,124 +106,6 @@ NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
                           "jt": "tracers", "jn": "tracers"}
 
 
-def renamed_translate_ast(node, parent, indent=0, debug=False):
-    '''' Walk down the tree produced by the f2003 parser where children
-    are listed under 'content'.  Replace any loop nests that we've
-    identified as kernels with the corresponding Kernel object. '''
-    import fparser
-    from fparser.two import Fortran2003
-    from habakkuk.parse2003 import walk_ast
-    cblock_list = []
-    # If a node is an instance of Fortran2003.BlockBase then it has children
-    # listed in .content. Otherwise, it has children listed under
-    # .items. If a node has neither then it has no children.
-    if hasattr(parent, "content"):
-        children = parent.content
-    elif hasattr(parent, "items"):
-        children = parent.items
-    else:
-        return
-
-    code_block_statements = []
-
-    for idx, child in enumerate(children[:]):
-        child._parent = parent # ARPDBG - retro-fix parent
-        if debug:
-            print(indent*"  " + "child type = ", type(child))
-            
-        if type(child) in [Fortran2003.Block_Nonlabel_Do_Construct]:
-
-            # The start of a loop is taken as the end of any exising
-            # code block so we create that now
-            _add_code_block(node, code_block_statements)
-
-            ctrl = walk_ast(child.content, [Fortran2003.Loop_Control])
-            # items member of Loop Control contains:
-            #   Loop variable, start value expression, end value expression
-            # Loop variable will be an instance of Fortran2003.Name
-            loop_var = str(ctrl[0].items[0])
-
-            nested_loops = walk_ast(child.content,
-                                   [Fortran2003.Block_Nonlabel_Do_Construct])
-            is_kern = True
-            io_statements = []
-            if not nested_loops:
-                # A Kernel must be a loop nest
-                is_kern = False
-            else:
-                # Check the content of the innermost loop
-                io_statements = walk_ast(nested_loops[-1].content,
-                                         [Fortran2003.Write_Stmt,
-                                          Fortran2003.Read_Stmt])
-                if io_statements:
-                    # A kernel cannot contain IO statements
-                    is_kern = False
-
-            if not nested_loops and not io_statements:
-                # Does this loop itself contain an implicit loop?
-                # TODO implement this!
-                pass
-                #walk_ast(, [Fortran2003.Section_Subscript_List])
-
-            # TODO check for perfect nesting (i.e. no statements between
-            # the nested DO's or END DO's)
-            if is_kern and ((loop_var == "jk" and len(nested_loops) == 2) or
-                            (loop_var == "jj" and len(nested_loops) == 1)):
-                depth = 0
-                ploop = NemoLoop(parent=node, loop_ast=child, #ctrl[depth],
-                                 loop_var=loop_var, contains_kern=True)
-                node.addchild(ploop)
-                for loop in nested_loops:
-                    depth += 1
-                    loop_var = str(ctrl[depth].items[0])
-                    nloop = NemoLoop(parent=ploop,
-                                     loop_ast=loop, #ctrl[depth],
-                                     loop_var=loop_var)
-                    ploop.addchild(nloop)
-                    ploop = nloop
-
-                kern = NemoKern(child, parent=ploop)
-                ploop.addchild(kern)
-            else:
-                loop = NemoLoop(parent=node, loop_ast=child,
-                                loop_var=loop_var)
-                node.addchild(loop)
-                translate_ast(loop, child, indent+1, debug)
-        elif isinstance(child, Fortran2003.BlockBase):
-            code_block_statements.append(child)
-            loops = walk_ast(child.content,
-                             [Fortran2003.Block_Nonlabel_Do_Construct])
-            if loops:
-                # It contains one or more loops so we walk further down
-                # the tree
-                block = _add_code_block(node, code_block_statements)
-                if block:
-                    translate_ast(block, child, indent+1, debug)
-                else:
-                    translate_ast(node, child, indent+1, debug)
-        else:
-            # Check whether this is an implicit loop
-            if is_implicit_loop(child):
-                # An implicit loop marks the end of any current
-                # code block
-                _add_code_block(node, code_block_statements)
-
-                # Create a kernel for this implicit loop
-                node.addchild(NemoKern(child, parent=node))
-            else:
-                # Add this node in the AST to our list for the current
-                # code block (unless it is loop-related in which case we
-                # ignore it)
-                if type(child) not in [fparser.two.Fortran2003.Nonlabel_Do_Stmt,
-                                       fparser.two.Fortran2003.End_Do_Stmt]:
-                    code_block_statements.append(child)
-
-    # Finish any open code block
-    _add_code_block(node, code_block_statements)
-
-    return
-
-
 # TODO this routine belongs with the higher-level wrapper around
 # fparser2
 def is_implicit_loop(node):
@@ -236,7 +118,6 @@ def is_implicit_loop(node):
     :return: True if the statement contains an implicit loop, False otherwise
     '''
     from fparser.two import Fortran2003
-    from habakkuk.parse2003 import walk_ast
 
     if not isinstance(node, Fortran2003.Assignment_Stmt):
         return False
@@ -259,12 +140,11 @@ def get_routine_type(ast):
     :rtype: string
     '''
     from fparser.two import Fortran2003
-    from habakkuk.parse2003 import walk_ast
     for child in ast.content:
         if isinstance(child, Fortran2003.Program_Stmt):
             return "program"
         #elif isinstance(child, fparser.Fortran2003.)
-    raise ParseError("Unrecognised Fortran unit: {0}", str(ast))
+    raise ParseError("Unrecognised Fortran unit: {0}".format(str(ast)))
 
 
 def _add_code_block(parent, statements):
@@ -274,7 +154,7 @@ def _add_code_block(parent, statements):
 
     if not statements:
         return None
-    
+
     code_block = NemoCodeBlock(statements,
                                parent=parent)
     parent.addchild(code_block)
@@ -296,11 +176,8 @@ class NemoInvoke(Invoke):
         # Store the whole fparser2 AST
         self._ast = ast
 
-        from habakkuk.parse2003 import walk_ast, Loop, get_child, ParseError
-        from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
-            Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
-            Subroutine_Stmt, Block_Nonlabel_Do_Construct, Execution_Part, \
-            Name, Specification_Part
+        from habakkuk.parse2003 import get_child
+        from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
         # Find the section of the tree containing the execution part
         # of the code
@@ -320,7 +197,6 @@ class NemoInvoke(Invoke):
         # We now walk through the AST produced by fparser2 and construct a
         # new AST using objects from the nemo0p1 module.
         self._schedule = NemoSchedule(self, exe_part)
-        #translate_ast(self._schedule, exe_part, debug=True)
 
     def gen(self):
         return str(self._ast)
@@ -331,21 +207,8 @@ class NemoInvoke(Invoke):
         :param parent: Parent of this node in the AST we are creating
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
-        from psyclone.f2pygen2 import SubroutineGen, DeclGen, TypeDeclGen, \
-            CommentGen, AssignGen, ProgramGen
-
-        if not self._schedule:
-            return
-        
-        # create the parent routine
-        if self._routine_type == "subroutine":
-            top_node = SubroutineGen(parent, name=self.name,
-                                     args=self.psy_unique_var_names)
-        elif self._routine_type == "program":
-            top_node = ProgramGen(parent, self.name, implicitnone=False)
-
-        parent.add(top_node)
-        self.schedule.gen_code(top_node)
+        # Nothing to do here because we keep the fparser2 AST
+        pass
 
     @property
     def psy_unique_var_names(self):
@@ -361,11 +224,11 @@ class NemoInvoke(Invoke):
 class NemoInvokes(Invokes):
 
     def __init__(self, ast):
-        from habakkuk.parse2003 import walk_ast, get_child, ParseError
+        from habakkuk.parse2003 import get_child
         from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
             Subroutine_Stmt
-        
+
         self.invoke_map = {}
         self.invoke_list = []
         # Keep a pointer to the whole fparser2 AST
@@ -414,7 +277,7 @@ class NemoPSy(PSy):
         invokes object (which controls all the required invocation calls).
         Also overrides the PSy gen method so that we generate GOcean-
         specific PSy module code. '''
-    
+
     def __init__(self, ast):
 
         self._name = "NEMO-PSY"  # TODO use a meaningful name
@@ -436,7 +299,7 @@ class NemoPSy(PSy):
         # Walk down our Schedule and update the underlying fparser2 AST
         # to account for any transformations
         self.invokes.update()
-        
+
         # Return the fparser2 AST
         return self._ast
 
@@ -468,12 +331,18 @@ class NemoSchedule(Schedule):
         code_block_nodes = []
 
         for child in ast.content:
+            # The fparser2 AST does not hold parent information so add
+            # that now.
             child._parent = ast
             if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
                 # The start of a loop is taken as the end of any exising
                 # code block so we create that now
                 _add_code_block(self, code_block_nodes)
                 self.addchild(NemoLoop(child, parent=self))
+            elif NemoImplicitLoop.match(child):
+                # Similarly, an implicit loop ends any existing code block
+                _add_code_block(self, code_block_nodes)
+                self.addchild(NemoImplicitLoop(child, parent=self))
             else:
                 code_block_nodes.append(child)
 
@@ -624,12 +493,12 @@ class NemoKern(Kern):
     @staticmethod
     def is_kernel(node):
         '''
-        :param node: Node in fparser2 AST to check
-        :type node: xml.minidom.XXXX
-        :returns: True if this node conforms to the rules for a kernel
+        :param node: Node in fparser2 AST to check.
+        :type node: :py:class:`fparser.two.Fortran2003.Base`
+        :returns: True if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
-        from fparser.two.Fortran2003 import walk_ast, Subscript_Triplet,  \
+        from fparser.two.Fortran2003 import Subscript_Triplet,  \
             Block_Nonlabel_Do_Construct, Write_Stmt, Read_Stmt
         child_loops = walk_ast(node.content,
                                [Block_Nonlabel_Do_Construct, Write_Stmt,
@@ -659,10 +528,9 @@ class NemoKern(Kern):
         :param node:
         :param parent:
         '''
-        from habakkuk.parse2003 import walk_ast
         from fparser.two.Fortran2003 import Block_Nonlabel_Do_Construct, \
             Assignment_Stmt
-        
+
         if isinstance(loop, Block_Nonlabel_Do_Construct):
             self._load_from_loop(loop, parent=parent)
         elif isinstance(loop, Assignment_Stmt):
@@ -676,9 +544,7 @@ class NemoKern(Kern):
     def _load_from_loop(self, loop, parent=None):
         ''' Populate the state of this NemoKern object from an fparser2
         AST for a loop nest '''
-        from habakkuk.parse2003 import walk_ast
-        from fparser.two.Fortran2003 import Loop_Control, \
-            Nonlabel_Do_Stmt, End_Do_Stmt
+        from fparser.two.Fortran2003 import Nonlabel_Do_Stmt, End_Do_Stmt
 
         # Keep a pointer to the original loop in the AST
         self._loop = loop
@@ -703,7 +569,7 @@ class NemoKern(Kern):
 
         # TODO bring habakkuk up-to-date with changes to fparser and then
         # uncomment this code.
-        
+
         # Analyse the loop body to identify private and shared variables
         #from habakkuk.make_dag import dag_of_code_block
         # Create a DAG of the kernel code block using Habakkuk
@@ -732,7 +598,7 @@ class NemoKern(Kern):
         #print "OpenMP first-private vars: " + \
         #    ",".join(self._first_private_vars)
         return
-    
+
     def _load_from_implicit_loop(self, loop, parent=None):
         ''' Populate the state of this NemoKern object from an fparser2
         AST for an implicit loop (Fortran array syntax) '''
@@ -808,7 +674,6 @@ class NemoLoop(Loop):
         '''
         from fparser.two.Fortran2003 import Loop_Control, \
             Block_Nonlabel_Do_Construct, Nonlabel_Do_Stmt, End_Do_Stmt
-        from psyclone.psyGen import Loop
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES+["unknown"])
         # Keep a ptr to the corresponding node in the AST
@@ -889,8 +754,7 @@ class NemoLoop(Loop):
             # TODO cope with case where loop contains >1 kernel (e.g.
             # following loop fusion)
             return kernels[0]
-        else:
-            return None
+        return None
 
     def update(self):
         ''' TBD '''
@@ -902,42 +766,22 @@ class NemoImplicitLoop(NemoLoop):
     '''
     Class representing an implicit loop in NEMO (i.e. using Fortran array
     syntax).
-    '''
-    @staticmethod
-    def match(node):
-        from fparser.two import Fortran2003
-        from habakkuk.parse2003 import walk_ast
 
-        if not isinstance(node, Fortran2003.Assignment_Stmt):
-            return False
-        # We are expecting something like:
-        #    array(:,:,jk) = some_expression
-        # so we check the left-hand side...
-        lhs = node.items[0]
-        if isinstance(lhs, Fortran2003.Part_Ref):
-            colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
-            if colons:
-                return True
-        return False
-    
+    :param ast: the part of the fparser2 AST representing the loop
+    :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+    :param parent: the parent of this Loop in the PSyclone AST
+    '''
     def __init__(self, ast, parent=None):
-        '''
-        :param ast: the part of the fparser2 AST representing the loop
-        :type ast: :py:class:`fparser.two.Fortran2003.xxx`
-        :param parent: the parent of this Loop in the PSyclone AST
-        '''
         from fparser.two import Fortran2003
         from fparser.common.readfortran import FortranStringReader
-        from psyclone.psyGen import Loop
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES+["unknown"])
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
         # Find all uses of array syntax in the statement
-        subsections = Fortran2003.walk_ast(ast.items,
-                                           [Fortran2003.Section_Subscript_List])
-        loop_mask = [False, False, False]
+        subsections = Fortran2003.walk_ast(
+            ast.items, [Fortran2003.Section_Subscript_List])
         # A Section_Subscript_List is a tuple with each item the
         # array-index expressions for the corresponding dimension of the array.
         for idx, item in enumerate(subsections[0].items):
@@ -1002,3 +846,27 @@ end do
         else:
             # We must be left with a kernel
             self.addchild(NemoKern(ast, parent=self))
+
+    @staticmethod
+    def match(node):
+        '''
+        Checks whether the supplied node in the fparser2 AST represents
+        an implicit loop (using Fortran array syntax).
+        :param node: node in the fparser2 AST to check
+        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :returns: True if the node does represet an implicit loop.
+        :rtype: bool
+        '''
+        from fparser.two import Fortran2003
+
+        if not isinstance(node, Fortran2003.Assignment_Stmt):
+            return False
+        # We are expecting something like:
+        #    array(:,:,jk) = some_expression
+        # so we check the left-hand side...
+        lhs = node.items[0]
+        if isinstance(lhs, Fortran2003.Part_Ref):
+            colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
+            if colons:
+                return True
+        return False
