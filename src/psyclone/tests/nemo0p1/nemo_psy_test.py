@@ -86,7 +86,6 @@ def test_implicit_loop_sched():
     assert len(kerns) == 1
 
 
-@pytest.mark.xfail(reason="Loop objects not yet created for implicit loops")
 def test_implicit_loop_sched():
     ''' Check that we get the correct schedule for an explicit loop over
     levels containing an implicit loop over the i-j slab '''
@@ -95,6 +94,9 @@ def test_implicit_loop_sched():
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
+    sched.view()
+    # We should have 3 loops (one from the explicit loop over levels and
+    # the other two from the implicit loops over ji and jj).
     loops = sched.walk(sched.children, nemo0p1.NemoLoop)
     assert len(loops) == 3
     kerns = sched.walk(sched.children, nemo0p1.NemoKern)
