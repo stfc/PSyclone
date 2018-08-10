@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
 
-''' Module containing py.test tests for the parsing of NEMO code '''
+''' Module containing py.test tests for the parsing of NEMO code. '''
 
 from __future__ import print_function, absolute_import
 import os
@@ -54,8 +54,8 @@ def test_identify_implicit_loop():
     from habakkuk.parse2003 import walk_ast
     ast, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
                              api=API, line_length=False)
-    assert not nemo0p1.is_implicit_loop(ast)
+    assert not nemo0p1.NemoImplicitLoop.match(ast)
     stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
-    assert not nemo0p1.is_implicit_loop(stmts[1])
-    assert nemo0p1.is_implicit_loop(stmts[0])
+    assert not nemo0p1.NemoImplicitLoop.match(stmts[1])
+    assert nemo0p1.NemoImplicitLoop.match(stmts[0])
 
