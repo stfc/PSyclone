@@ -109,7 +109,7 @@ def test_profile_basic(capsys):
     coloured_schedule = GOSchedule([]).coloured_text
     coloured_loop = Loop().coloured_text
     coloured_kern = GOKern().coloured_text
-    coloured_profile = ProfileNode().coloured_text
+    coloured_profile = invoke.schedule.children[0].coloured_text
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
@@ -137,10 +137,11 @@ def test_profile_basic(capsys):
                              .children[0].children[0])
 
     new_sched_str = str(new_sched)
+
     correct = ("""GOSchedule(Constant loop bounds=True):
-ProfileStart[]
+ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop-1,1
-ProfileStart[]
+ProfileStart[var=profile_1]
 Loop[]: i= lower=2,istop,1
 kern call: compute_cv_code
 EndLoop
@@ -196,6 +197,11 @@ def test_profile_invokes_gocean1p0():
                   "end.*"
                   r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
+
+    # Check that if gen() is called more than once the same profile
+    # variables and region names are created:
+    code_again = str(invoke.gen()).replace("\n", "")
+    assert code == code_again
 
     # Test that two kernels in one invoke get instrumented correctly.
     _, invoke = get_invoke("gocean1.0", "single_invoke_"
@@ -443,7 +449,7 @@ def test_transform(capsys):
     sched1, _ = prt.apply(schedule.children)
 
     correct = ("""OSchedule(Constant loop bounds=True):
-ProfileStart[]
+ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop,1
 Loop[]: i= lower=2,istop,1
 kern call: bc_ssh_code
@@ -468,13 +474,13 @@ End Schedule""")
     sched2, _ = prt.apply(schedule.children[0].children[1])
 
     correct = ("""GOSchedule(Constant loop bounds=True):
-ProfileStart[]
+ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop,1
 Loop[]: i= lower=2,istop,1
 kern call: bc_ssh_code
 EndLoop
 EndLoop
-ProfileStart[]
+ProfileStart[var=profile_1]
 Loop[]: j= lower=1,jstop+1,1
 Loop[]: i= lower=1,istop,1
 kern call: bc_solid_u_code
@@ -635,10 +641,10 @@ def test_omp_transform():
     code = str(invoke.gen())
 
     correct = '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
-"bc_ssh_code_1", profile_1)
+"bc_ssh_code", profile)
       !$omp parallel default(shared), private(j,i)
-      CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_2", \
-profile_2)
+      CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_1", \
+profile_1)
       !$omp do schedule(static)
       DO j=2,jstop
         DO i=2,istop
@@ -646,7 +652,7 @@ profile_2)
         END DO\x20
       END DO\x20
       !$omp end do
-      CALL ProfileEnd(profile_2)
+      CALL ProfileEnd(profile_1)
       !$omp end parallel
-      CALL ProfileEnd(profile_1)'''
+      CALL ProfileEnd(profile)'''
     assert correct in code
