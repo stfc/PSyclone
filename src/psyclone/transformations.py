@@ -67,7 +67,6 @@ class TransformationError(Exception):
 
 
 # =============================================================================
-@six.add_metaclass(abc.ABCMeta)
 class RegionTrans(Transformation):
     '''This class is a base class for all transforms that act on list of
     nodes. It gives access to a _validate function that makes sure that
@@ -75,10 +74,9 @@ class RegionTrans(Transformation):
     no node is duplicated, and that all nodes have the same parent.
     '''
 
-    # Avoid pylint warning about abstract function not overwritten
-    @abc.abstractmethod
-    def apply(self):
-        return super(RegionTrans, self).apply()
+    # Avoid pylint warning about abstract functions (apply, name) not
+    # overwritten:
+    # pylint: disable=abstract-method
 
     def _validate(self, node_list):
         '''Test if the nodes in node_list are in the original order.
