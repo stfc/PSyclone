@@ -311,9 +311,7 @@ def test_omp_region_with_slice():
 
 def test_omp_region_with_slice_change_order():
     ''' Test that the OpenMP transform does not allow to switch
-    child nodes. At this stage it is not clear what exactly should
-    happen (probably raise an exception). This test only shows
-    that atm it is indeed possible to switch the order of statements.
+    or duplicate child nodes.
     '''
     psy, invoke = get_invoke(
         os.path.join("gocean1p0",
@@ -335,36 +333,17 @@ def test_omp_region_with_slice_change_order():
     # -----------------------------------------------------
     ompr = OMPParallelTrans()
 
-    # Note that the order of the nodes is reversed!
+    # Note that the order of the nodes is reversed, which
+    # could result in changing the order of operations:
     with pytest.raises(TransformationError) as err:
         ompr.apply([schedule.children[2], schedule.children[1]])
     assert "Children are not consecutive children of one parent" in str(err)
 
-    # Store the results of applying this code transformation as
-    # a string
-    code = str(psy.gen).replace("\n", "")
-
-    # We should probably raise an exception here, but for now only show
-    # that the resulting transformed schedule does not preserver the
-    # order of kernel calls:
-    assert re.search(correct_re, code, re.I) is not None
-
-    # Worst: duplicate a line - this leads to a 'ValueError' exception
-    # raised by node_parent.children.remove(x) - the transform will try
-    # to remove the (same) node twice. Imho this should also raise
-    # a GenerateTransform exception instead.
+    # Also test the case of duplicated children:
+    # ------------------------------------------
     with pytest.raises(TransformationError) as err:
         ompr.apply([schedule.children[0], schedule.children[0]])
     assert "Children are not consecutive children of one parent" in str(err)
-
-    # Store the results of applying this code transformation as
-    # a string
-    code = str(psy.gen).replace("\n", "")
-
-    # We should probably raise an exception here, but for now only show
-    # that the resulting transformed schedule does not preserver the
-    # order of kernel calls:
-    assert re.search(correct_re, code, re.I) is not None
 
 
 def test_omp_region_no_slice():

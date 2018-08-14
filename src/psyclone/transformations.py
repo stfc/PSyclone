@@ -70,8 +70,8 @@ class TransformationError(Exception):
 @six.add_metaclass(abc.ABCMeta)
 class RegionTrans(Transformation):
     '''This class is a base class for all transforms that act on list of
-    nodes. It gives access to a check function that makes sure that
-    there nodes in the list are in the same order as in the original AST,
+    nodes. It gives access to a _validate function that makes sure that
+    the nodes in the list are in the same order as in the original AST,
     no node is duplicated, and that all nodes have the same parent.
     '''
 
@@ -82,10 +82,9 @@ class RegionTrans(Transformation):
 
     def _validate(self, node_list):
         '''Test if the nodes in node_list are in the original order.
-        If not, raises a TransformationError.
         :param list node_list: List of nodes .
-        :raises TransformationError: If the nodes in the list are not
-                       in the original order in which they are in the AST.
+        :raises TransformationError: If the nodes in the list are not\
+                in the original order in which they are in the AST.
         '''
 
         node_parent = node_list[0].parent
