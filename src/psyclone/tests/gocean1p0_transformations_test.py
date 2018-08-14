@@ -1492,6 +1492,29 @@ def test_acc_parallel_trans():
     assert do_idx == (acc_idx + 1)
 
 
+def test_acc_incorrect_parallel_trans():
+    '''Test that the acc transform can not be used to change
+    the order of operations.'''
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    schedule = invoke.schedule
+
+    acct = ACCParallelTrans()
+    # Apply the OpenACC Parallel transformation
+    # to the children in the wrong order
+    with pytest.raises(TransformationError) as err:
+        _, _ = acct.apply([schedule.children[1], schedule.children[0]])
+
+    assert "Children are not consecutive children" in str(err)
+
+    with pytest.raises(TransformationError) as err:
+        _, _ = acct.apply([schedule.children[0].children[0],
+                           schedule.children[0]])
+
+    assert ("supplied nodes are not children of the same Schedule/parent"
+            in str(err))
+
+
 def test_acc_data_not_a_schedule():
     ''' Test that we raise an appropriate error if we attempt to apply
     an OpenACC Data transformation to something that is not a Schedule '''

@@ -67,17 +67,18 @@ class TransformationError(Exception):
 
 
 # =============================================================================
-# pylint commplains about self.name, which is part of a transformation, but
-# not of this class itself. So it works as long as this class is used in
-# a multi-inheritance of a transform - so this error is disabled .
-
-# pylint: disable=too-few-public-methods,no-member
-class CheckChildrenList(object):
-    '''This is a simple 'mixin' class for any transforms that acts on a
-    list of nodes. It gives access to a check function that makes sure that
+@six.add_metaclass(abc.ABCMeta)
+class RegionTrans(Transformation):
+    '''This class is a base class for all transforms that act on list of
+    nodes. It gives access to a check function that makes sure that
     there nodes in the list are in the same order as in the original AST,
     no node is duplicated, and that all nodes have the same parent.
     '''
+
+    # Avoid pylint warning about abstract function not overwritten
+    @abc.abstractmethod
+    def apply(self):
+        return super(RegionTrans, self).apply()
 
     def _validate(self, node_list):
         '''Test if the nodes in node_list are in the original order.
@@ -1318,7 +1319,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ParallelRegionTrans(Transformation):
+class ParallelRegionTrans(RegionTrans):
     '''
     Base class for transformations that create a parallel region.
 
@@ -1327,7 +1328,7 @@ class ParallelRegionTrans(Transformation):
         # Holds the class instance for the type of parallel region
         # to generate
         self._pdirective = None
-        Transformation.__init__(self)
+        super(ParallelRegionTrans, self).__init__()
 
     @abc.abstractmethod
     def __str__(self):
@@ -1371,6 +1372,7 @@ class ParallelRegionTrans(Transformation):
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes are not "
                     "children of the same Schedule/parent.".format(self.name))
+        super(ParallelRegionTrans, self)._validate(node_list)
 
     def apply(self, nodes):
         '''
@@ -1445,7 +1447,7 @@ class ParallelRegionTrans(Transformation):
         return schedule, keep
 
 
-class OMPParallelTrans(ParallelRegionTrans, CheckChildrenList):
+class OMPParallelTrans(ParallelRegionTrans):
     '''
     Create an OpenMP PARALLEL region by inserting directives. For
     example:
@@ -1513,7 +1515,6 @@ class OMPParallelTrans(ParallelRegionTrans, CheckChildrenList):
 
         # Now call the general validation checks
         super(OMPParallelTrans, self)._validate(node_list)
-        CheckChildrenList._validate(self, node_list)
 
 
 class ACCParallelTrans(ParallelRegionTrans):
@@ -2104,7 +2105,7 @@ class GOLoopSwapTrans(Transformation):
         return schedule, keep
 
 
-class ProfileRegionTrans(Transformation, CheckChildrenList):
+class ProfileRegionTrans(RegionTrans):
 
     ''' Create a profile region around a list of statements. For
     example:
@@ -2176,7 +2177,7 @@ class ProfileRegionTrans(Transformation, CheckChildrenList):
                                       "the loop(s) to which it applies!")
         node_position = node_list[0].position
 
-        CheckChildrenList._validate(self, node_list)
+        super(ProfileRegionTrans, self)._validate(node_list)
 
         # create a memento of the schedule and the proposed
         # transformation
