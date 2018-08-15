@@ -1724,7 +1724,7 @@ class ExtractTrans(Transformation):
         '''
 
         # Check that we do not extract parallel code
-        if psyclone.config.DISTRIBUTED_MEMORY:
+        if _CONFIG.distributed_memory:
             raise TransformationError("Extract transformation does not "
                                       "currently support distributed memory")
 
@@ -1778,19 +1778,26 @@ class ExtractTrans(Transformation):
         # Create a memento of the schedule and the proposed
         # transformation
         from .undoredo import Memento
-        keep = Memento(schedule, self, [node, location])
+        keep = Memento(schedule, self)
 
         # keep a reference to the node's original parent and its index
-        parent = node.parent
-        node_position = node.position
+        parent = first_node.parent
 
-        my_node = parent.children.pop(node.position)
+        from psyclone.psyGen import ExtractNode
+        extract_node = ExtractNode(parent=node_parent, children=node_list[:])
 
-        location_index = location.position
-        # Insert Extract transformation (possibly use "before" as well?)
-        schedule.children.insert(location_index, my_node)
+        for child in node_list[:]:
+            node_parent.children.remove(child)
+            child.parent = extract_node
+
+        node_parent.addchild(extract_node,
+                             index=first_node_position)
 
         return schedule, keep
+
+        #location_index = location.position
+        ## Insert Extract transformation (possibly use "before" as well?)
+        #schedule.children.insert(location_index, my_node)
 
 
 class Dynamo0p3RedundantComputationTrans(Transformation):
