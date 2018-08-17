@@ -2586,6 +2586,12 @@ class ExtractNode(Node):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    def gen(self):
+        from psyclone.f2pygen import ModuleGen
+        module = ModuleGen("extractor")
+        self.gen_code(module)
+        return module.root
+
     def gen_code(self, parent):
         for child in self.children:
             child.gen_code(parent)

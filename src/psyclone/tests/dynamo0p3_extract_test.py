@@ -41,10 +41,12 @@ import re
 import pytest
 
 from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory, GenerationError, ExtractNode
 from psyclone.configuration import ConfigFactory
 from psyclone.transformations import ExtractTrans, \
     MoveTrans
+from psyclone.dynamo0p3 import DynKern
+from psyclone.dynamo0p3_builtins import DynBuiltIn
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -79,11 +81,15 @@ def test_move_extract_trans():
     schedule, _ = mtrans.apply(schedule.children[1],
                                schedule.children[0])
     schedule.view()
-    schedule, _ = etrans.apply(schedule.children)
+
+    schedule, _ = etrans.apply(schedule.children[1:3])
     schedule.view()
 
-    generated_code = str(psy.gen)
+    fobj = schedule.children[1]
+    generated_code = str(fobj.gen())
     print(generated_code)
+
+    #assert "blah" in generated_code
 
 
 def test_extract_trans():
@@ -91,18 +97,39 @@ def test_extract_trans():
     dist_mem = False
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+                     "3_multi_invokes.f90"),
+                     #"15.1.2_builtin_and_normal_kernel_invoke.f90"),
         distributed_memory=dist_mem, api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    schedule.view()
+    for invoke in psy.invokes.invoke_list:
+        print(invoke.name)
 
     etrans = ExtractTrans()
 
-    schedule, _ = etrans.apply(schedule.children[1])
-    schedule.view()
+    for invoke in psy.invokes.invoke_list:
+        ischedule = invoke.schedule
+        ischedule.view()
+        for child in ischedule.children:
+            node = child.children[0]
+            ##if isinstance(node, DynBuiltIn): # Extract all built-ins
+            ##if isinstance(node, DynKern): # Extract all kernels
+            if node.name == "testkern_qr_code": # Extract a specific kernel
+            #if node.name == "testkern_code_w2_only": # Extract a specific kernel
+                schedule, _ = etrans.apply(child)
+                #schedule, _ = etrans.apply(schedule.children[1:4])
+                schedule.view()
+                invoke_name = invoke.name
+
+    for node in schedule.children:
+        if isinstance(node, ExtractNode):
+            generated_code = str(node.gen())
+            print(generated_code)
+
+    for invoke in psy.invokes.invoke_list:
+        if invoke.name == invoke_name:
+            generated_code = str(invoke.gen())
+            print(generated_code)
 
     arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
     arg_f1_write_2 = schedule.children[3].children[0].arguments.args[1]
-    # assert arg_f1_write_1._depends_on(arg_f1_write_2)
+    assert arg_f1_write_1._depends_on(arg_f1_write_2)

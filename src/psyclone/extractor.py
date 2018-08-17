@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,28 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified: I.Kavcic, Met Office
+# Author I. Kavcic, Met Office
+# -----------------------------------------------------------------------------
 
-# This is the PSyclone configuration file.
+'''
+    A Python script and Python functions to generate an subroutine
+    from the extracted code within a specified invoke or kernel.
+'''
 
-# Settings common to all APIs
-[DEFAULT]
-SUPPORTEDAPIS = gunghoproto, dynamo0.1, dynamo0.3, gocean0.1, gocean1.0
-DEFAULTAPI = dynamo0.3
-SUPPORTEDSTUBAPIS = dynamo0.3
-DEFAULTSTUBAPI = dynamo0.3
-SUPPORTEDEXTRACTAPIS = dynamo0.3, gocean1.0
-DEFAULTEXTRACTAPI = dynamo0.3
-DISTRIBUTED_MEMORY = true
-REPRODUCIBLE_REDUCTIONS = false
-# Ammount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is true
-REPROD_PAD_SIZE = 8
+from __future__ import print_function
+import os
+import sys
+import traceback
 
-# Settings specific to the Dynamo 0.3 API
-[dynamo0.3]
-# Specify whether we compute annexed dofs when a kernel is written so
-# that it iterates over dofs. This is currently only the case for
-# builtins. If annexed dofs are computed then in certain cases we
-# remove the need for a halo exchange call.
-COMPUTE_ANNEXED_DOFS = false
+import fparser
+
+# Get our one and only Configuration object
+_CONFIG = ConfigFactory().create()
+
+def generate(filename, api=""):
+    ''' 
+    Generates subroutine from the extracted code. If extraction is 
+    applied to kernels then Kernel Metadata must be presented in the
+    standard Kernel format.
+    '''
