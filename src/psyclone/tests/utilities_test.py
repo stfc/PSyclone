@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-''' This module contains tests for the infrastructure used to test
-the compilation of generated Fortran code '''
+''' This module contains tests for the the various utility functions in
+psyclone_test_utils.'''
 
 from __future__ import absolute_import
 import os
