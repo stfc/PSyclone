@@ -794,6 +794,23 @@ encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
 
+
+Transformations
+===============
+
+The base class for any transformation must be the class ``Transformation``:
+
+.. autoclass:: psyclone.psyGen.Transformation
+    :members:
+    :private-members:
+
+----
+
+.. autoclass:: psyclone.transformations.RegionTrans
+    :members:
+    :private-members:
+    :noindex:
+
 OpenACC Support
 ###############
 

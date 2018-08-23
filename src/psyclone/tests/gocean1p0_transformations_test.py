@@ -37,7 +37,7 @@
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
 
-from __future__ import absolute_import, print_function
+from __future__ import absolute_import
 import os
 import re
 import pytest
@@ -307,6 +307,43 @@ def test_omp_region_with_slice():
             call_count += 1
 
     assert call_count == 2
+
+
+def test_omp_region_with_slice_change_order():
+    ''' Test that the OpenMP transform does not allow to switch
+    or duplicate child nodes.
+    '''
+    psy, invoke = get_invoke(
+        os.path.join("gocean1p0",
+                     "single_invoke_three_kernels.f90"), API, 0)
+    schedule = invoke.schedule
+
+    code = str(psy.gen).replace("\n", "")
+
+    # This is the correct ordering of the kernel calls:
+    correct_re = ("call compute_cu_code.*"
+                  "call compute_cv_code.*"
+                  "call time_smooth_code.*")
+
+    # Make sure that the test case still has the expected
+    # order of kernel calls:
+    assert re.search(correct_re, code, re.I)
+
+    # Now apply the transform, but reverse the child nodes:
+    # -----------------------------------------------------
+    ompr = OMPParallelTrans()
+
+    # Note that the order of the nodes is reversed, which
+    # could result in changing the order of operations:
+    with pytest.raises(TransformationError) as err:
+        ompr.apply([schedule.children[2], schedule.children[1]])
+    assert "Children are not consecutive children of one parent" in str(err)
+
+    # Also test the case of duplicated children:
+    # ------------------------------------------
+    with pytest.raises(TransformationError) as err:
+        ompr.apply([schedule.children[0], schedule.children[0]])
+    assert "Children are not consecutive children of one parent" in str(err)
 
 
 def test_omp_region_no_slice():
@@ -1434,6 +1471,29 @@ def test_acc_parallel_trans():
     assert do_idx == (acc_idx + 1)
 
 
+def test_acc_incorrect_parallel_trans():
+    '''Test that the acc transform can not be used to change
+    the order of operations.'''
+    _, invoke = get_invoke(
+        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    schedule = invoke.schedule
+
+    acct = ACCParallelTrans()
+    # Apply the OpenACC Parallel transformation
+    # to the children in the wrong order
+    with pytest.raises(TransformationError) as err:
+        _, _ = acct.apply([schedule.children[1], schedule.children[0]])
+
+    assert "Children are not consecutive children" in str(err)
+
+    with pytest.raises(TransformationError) as err:
+        _, _ = acct.apply([schedule.children[0].children[0],
+                           schedule.children[0]])
+
+    assert ("supplied nodes are not children of the same Schedule/parent"
+            in str(err))
+
+
 def test_acc_data_not_a_schedule():
     ''' Test that we raise an appropriate error if we attempt to apply
     an OpenACC Data transformation to something that is not a Schedule '''
@@ -1480,7 +1540,6 @@ def test_acc_data_copyin():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    print(code)
 
     # Check that we've correctly declared the logical variable that
     # records whether this is the first time we've entered this invoke.
@@ -1519,7 +1578,7 @@ def test_acc_data_grid_copyin():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    print(code)
+
     # TODO grid properties are effectively duplicated in this list (but the
     # OpenACC deep-copy support should spot this).
     pcopy = ("!$acc enter data copyin(u_fld,u_fld%data,cu_fld,cu_fld%data,"
@@ -1629,7 +1688,7 @@ def test_acc_update_two_scalars():
 
     invoke.schedule = new_sched
     code = str(psy.gen)
-    print(code)
+
     # Check that the use statement has been added
     assert ("USE kernel_scalar_float, ONLY: bc_ssh_code\n"
             "      USE openacc, ONLY: acc_update_device" in code)
@@ -1750,7 +1809,7 @@ def test_accloop():
     invoke.schedule = new_sched
 
     gen = str(psy.gen)
-    print(gen)
+
     assert '''\
       !$acc parallel default(present)
       !$acc loop independent
