@@ -329,29 +329,17 @@ def get_invoke(algfile, api, idx=None, name=None):
         raise RuntimeError("Either the index or the name of the "
                            "requested invoke must be specified")
 
-    if api == "gocean1.0":
-        dir_name = "gocean1p0"
-    elif api == "dynamo0.3":
-        dir_name = "dynamo0p3"
-    elif api == "gocean0.1":
-        dir_name = "gocean0p1"
-    elif api == "dynamo0.1":
-        dir_name = "dynamo0p1"
-    else:
-        from psyclone.configuration import ConfigFactory
-        config = ConfigFactory().create()
-        # TODO remove this once support for gungho is removed, see #207
-        # Remove gunghoproto from the list of supported
-        # APIs, since de-facto it doesn't work anymore.
-        apis = config.supported_apis[:]
-        try:
-            apis.remove("gunghoproto")
-        except ValueError:
-            # gunghoproto does not exist, that's fine :)
-            pass
+    # Set up a mapping of supported APIs and corresponding directories
+    api_2_path = {"dynamo0.1": "dynamo0p1",
+                  "dynamo0.3": "dynamo0p3",
+                  "gocean1.0": "gocean1p0",
+                  "gocean0.1": "gocean0p1"}
+    try:
+        dir_name = api_2_path[api]
+    except KeyError:
         raise RuntimeError("The API '{0}' is not supported by get_invoke. "
                            "Supported types are {1}.".
-                           format(api, apis))
+                           format(api, api_2_path.keys()))
 
     _, info = parse(os.path.
                     join(os.path.dirname(os.path.abspath(__file__)),
