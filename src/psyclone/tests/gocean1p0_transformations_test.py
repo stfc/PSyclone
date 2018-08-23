@@ -303,9 +303,7 @@ def test_omp_region_with_slice_change_order():
     ''' Test that the OpenMP transform does not allow to switch
     or duplicate child nodes.
     '''
-    psy, invoke = get_invoke(
-        os.path.join("gocean1p0",
-                     "single_invoke_three_kernels.f90"), API, 0)
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 
     code = str(psy.gen).replace("\n", "")
@@ -1424,8 +1422,7 @@ def test_acc_parallel_trans():
 def test_acc_incorrect_parallel_trans():
     '''Test that the acc transform can not be used to change
     the order of operations.'''
-    _, invoke = get_invoke(
-        os.path.join("gocean1p0", "single_invoke_three_kernels.f90"), API, 0)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 
     acct = ACCParallelTrans()
