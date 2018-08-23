@@ -48,6 +48,8 @@ before_install:
   - ./bin/install_optional.sh
   - pip install coveralls
   - pip install codecov
+# TODO remove following two lines (which install the master branch of fparser)
+# before final merge
   - git clone https://github.com/stfc/fparser.git
   - cd fparser; pip install .; cd -
 install:
