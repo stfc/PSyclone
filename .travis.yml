@@ -48,6 +48,8 @@ before_install:
   - ./bin/install_optional.sh
   - pip install coveralls
   - pip install codecov
+  - git clone git@github.com:stfc/fparser.git
+  - cd fparser; pip install .; cd -
 install:
   - "pip install ."
 script:
