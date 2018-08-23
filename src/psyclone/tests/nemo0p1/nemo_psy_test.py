@@ -69,9 +69,7 @@ def test_explicit_do_sched():
     assert isinstance(loops[2].children[0], nemo0p1.NemoKern)
 
 
-@pytest.mark.xfail(reason="We do not yet create the Loop objects for an "
-                   "implicit loop")
-def test_implicit_loop_sched():
+def test_implicit_loop_sched1():
     ''' Check that we get the correct schedule for an implicit loop '''
     ast, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
                              api=API, line_length=False)
@@ -86,7 +84,7 @@ def test_implicit_loop_sched():
     assert len(kerns) == 1
 
 
-def test_implicit_loop_sched():
+def test_implicit_loop_sched2():
     ''' Check that we get the correct schedule for an explicit loop over
     levels containing an implicit loop over the i-j slab '''
     ast, invoke_info = parse(os.path.join(BASE_PATH,
@@ -200,3 +198,14 @@ def test_schedule_view(capsys):
         "                " + cb_str + "[<class 'fparser.two.Fortran2003."
         "Assignment_Stmt'>]")
     assert expected_sched in output
+
+
+def test_kern_inside_if():
+    ''' Check that we identify kernels when they are within an if block. '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    sched.view()
+    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
+    assert len(kerns) == 5
