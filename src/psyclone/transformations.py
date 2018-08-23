@@ -76,13 +76,15 @@ class RegionTrans(Transformation):
 
     # Avoid pylint warning about abstract functions (apply, name) not
     # overwritten:
-    # pylint: disable=abstract-method
+    # pylint: disable=abstract-method,arguments-differ
 
     def _validate(self, node_list):
         '''Test if the nodes in node_list are in the original order.
-        :param list node_list: List of nodes .
+
+        :param list node_list: List of nodes.
         :raises TransformationError: If the nodes in the list are not\
-                in the original order in which they are in the AST.
+                in the original order in which they are in the AST,\
+                a node is duplicated or the nodes have different parents.
         '''
 
         node_parent = node_list[0].parent
@@ -174,7 +176,6 @@ class LoopFuseTrans(Transformation):
         :raises TransformationError: if the
         :py:class:`psyclone.psyGen.Loop`s do not have the same
         iteration space
-
         '''
 
         # Check that the supplied Node is a Loop
