@@ -156,9 +156,6 @@ def test_get_invoke():
                       "gocean1.0", idx=0)
     _, _ = get_invoke("algorithm/1_single_function.f90", "dynamo0.1", idx=0)
     _, _ = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
-    # It seems that none of the gungho tests actually work :(
-    # _, _ = get_invoke("1_single_function.f90",
-    #                   "gunghoproto", idx=0)
 
     # Test that an invalid name raises an exception
     with pytest.raises(RuntimeError) as excinfo:
@@ -171,3 +168,6 @@ def test_get_invoke():
         _, _ = get_invoke("test11_different_iterates_over_one_invoke.f90",
                           "invalid-api", name="invalid_name")
     assert "The API 'invalid-api' is not supported" in str(excinfo)
+    # Make sure that gungho is not reported as being supported
+    # TODO can be removed one #207 is fixed
+    assert "gunghoproto" not in str(excinfo)

@@ -337,14 +337,21 @@ def get_invoke(algfile, api, idx=None, name=None):
         dir_name = "gocean0p1"
     elif api == "dynamo0.1":
         dir_name = "dynamo0p1"
-    elif api == "gunghoproto":
-        dir_name = "gunghoproto"
     else:
         from psyclone.configuration import ConfigFactory
         config = ConfigFactory().create()
+        # TODO remove this once support for gungho is removed, see #207
+        # Remove gunghoproto from the list of supported
+        # APIs, since de-facto it doesn't work anymore.
+        apis = config.supported_apis[:]
+        try:
+            apis.remove("gunghoproto")
+        except ValueError:
+            # gunghoproto does not exist, that's fine :)
+            pass
         raise RuntimeError("The API '{0}' is not supported by get_invoke. "
                            "Supported types are {1}.".
-                           format(api, config.supported_apis))
+                           format(api, apis))
 
     _, info = parse(os.path.
                     join(os.path.dirname(os.path.abspath(__file__)),
