@@ -1694,13 +1694,13 @@ class MoveTrans(Transformation):
         return schedule, keep
 
 
-class ExtractTrans(Transformation):
+class ExtractRegionTrans(Transformation):
     ''' Provides a transformation to extract code contained within one
     or more nodes in the tree.
 
     Nodes to extract can be individual constructs within an invoke (e.g.
     (kernel or built-in) or entire invokes. For now, this functionality
-    does not include distributed memory (HaloExchange).
+    does not include distributed memory (HaloExchange, GlobalSum).
 
     '''
 
@@ -1719,7 +1719,8 @@ class ExtractTrans(Transformation):
         :type node: list of :py:class:`psyclone.psyGen.Node`
         :raises TransformationError: if distributed memory is configured
         :raises TransformationError: if the node is a
-        :py:class:`psyclone.psyGen.HaloExchange`
+        :py:class:`psyclone.psyGen.HaloExchange` or
+        :py:class:`psyclone.psyGen.GlobalSum`
 
         '''
 
@@ -1729,12 +1730,12 @@ class ExtractTrans(Transformation):
                                       "currently support distributed memory")
 
         # Check that the supplied node is not a HaloExchange
-        from psyclone.psyGen import HaloExchange
+        from psyclone.psyGen import HaloExchange, GlobalSum
         for node in node_list:
-            if isinstance(node, HaloExchange):
+            if isinstance(node, (HaloExchange, GlobalSum)):
                 raise TransformationError(
-                    "Extract transformation does not "
-                    "currently support HaloExchange ")
+                    "Extract transformation does not currently "
+                    "support: {0}".format(type(node)))
 
 
     def apply(self, nodes):
@@ -1783,7 +1784,7 @@ class ExtractTrans(Transformation):
         # keep a reference to the node's original parent and its index
         parent = first_node.parent
 
-        from psyclone.psyGen import ExtractNode
+        from psyclone.extractor import ExtractNode
         extract_node = ExtractNode(parent=node_parent, children=node_list[:])
 
         for child in node_list[:]:
@@ -1794,10 +1795,6 @@ class ExtractTrans(Transformation):
                              index=first_node_position)
 
         return schedule, keep
-
-        #location_index = location.position
-        ## Insert Extract transformation (possibly use "before" as well?)
-        #schedule.children.insert(location_index, my_node)
 
 
 class Dynamo0p3RedundantComputationTrans(Transformation):

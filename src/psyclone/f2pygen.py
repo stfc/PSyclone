@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 ''' Fortran code-generation library. This wraps the f2py fortran parser to
     provide routines which can be used to generate fortran code. '''
@@ -536,6 +537,31 @@ class ProgUnitGen(BaseGen):
         return end_index
 
 
+class ProgramGen(ProgUnitGen):
+    ''' Create a Fortran program '''
+    def __init__(self, name="", contains=False, implicitnone=True):
+        from fparser import api
+
+        code = '''\
+program vanilla
+'''
+        if contains:
+            code += '''\
+contains
+'''
+        code += '''\
+end program vanilla
+'''
+        tree = api.parse(code, ignore_comments=False)
+        program = tree.content[0]
+        program.name = name
+        endprog = program.content[len(program.content)-1]
+        endprog.name = name
+        ProgUnitGen.__init__(self, None, program)
+        if implicitnone:
+            self.add(ImplicitNoneGen(self))
+
+
 class ModuleGen(ProgUnitGen):
     ''' create a fortran module '''
     def __init__(self, name="", contains=True, implicitnone=True):
@@ -646,13 +672,13 @@ class ImplicitNoneGen(BaseGen):
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen` or
                       :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises Exception: if `parent` is not a ModuleGen or SubroutineGen
+        :raises Exception: if `parent` is not a ProgramGen, ModuleGen or
+                           SubroutineGen
         '''
-        if not isinstance(parent, ModuleGen) and not isinstance(parent,
-                                                                SubroutineGen):
+        if not isinstance(parent, (ProgramGen, ModuleGen, SubroutineGen)):
             raise Exception(
-                "The parent of ImplicitNoneGen must be a module or a "
-                "subroutine, but found {0}".format(type(parent)))
+                "The parent of ImplicitNoneGen must be a program, a module "
+                "or a subroutine, but found {0}".format(type(parent)))
         reader = FortranStringReader("IMPLICIT NONE\n")
         reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()

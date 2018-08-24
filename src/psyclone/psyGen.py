@@ -2538,65 +2538,6 @@ class Loop(Node):
             parent.add(my_decl)
 
 
-class ExtractNode(Node):
-
-    def __init__(self, children=None, parent=None):
-        ''' Constructor for an ExtractNode that is inserted in a schedule.
-
-            :param children: A list of children nodes for this node.
-            :type children: A list of :py::class::`psyclone.psyGen.Node` \
-            or derived classes.
-            :param parent: The parent of this node.
-            :type parent: A :py::class::`psyclone.psyGen.Node`.
-        '''
-        Node.__init__(self, children=children, parent=parent)
-        self._namespace = NameSpace()
-
-    def __str__(self):
-        ''' Returns a name for an ExtractNode. '''
-        result = "ExtractStart[]\n"
-        for child in self.children:
-            result += str(child)+"\n"
-        return result+"ExtractEnd"
-
-    @property
-    def coloured_text(self):
-        '''
-        Returns a string containing the name of this node along with
-        control characters for colouring in terminals that support it.
-
-        :return: The name of this node, possibly with control codes for
-                 colouring
-        :rtype: string
-        '''
-        return colored("Extract", SCHEDULE_COLOUR_MAP["Extract"])
-
-    @property
-    def dag_name(self):
-        ''' Return the base dag name for this Extract node '''
-        return "extract_" + str(self.abs_position)
-
-    def view(self, indent=0):
-        '''
-        Print a text representation of this Extract node to stdout.
-
-        :param int indent: Depth of indent for output text
-        '''
-        print(self.indent(indent) + self.coloured_text)
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def gen(self):
-        from psyclone.f2pygen import ModuleGen
-        module = ModuleGen("extractor")
-        self.gen_code(module)
-        return module.root
-
-    def gen_code(self, parent):
-        for child in self.children:
-            child.gen_code(parent)
-
-
 class Call(Node):
 
     @property

@@ -4614,6 +4614,7 @@ class DynKern(Kern):
     def __init__(self):
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
+        self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
         # Whether this kernel requires quadrature
@@ -4732,6 +4733,15 @@ class DynKern(Kern):
         Kern.__init__(self, DynKernelArguments,
                       KernelCall(module_name, ktype, args),
                       parent, check=False)
+        # Remove "_code" from the name if it exists to determine the
+        # base name which (if dynamo0.3 naming conventions are
+        # followed) is used as the root for the module and subroutine
+        # names.
+        if self.name.lower().endswith("_code"):
+            self._base_name = self.name[:-5]
+        else:
+            # TODO: add a warning here when logging is added
+            self._base_name = self.name
         self._func_descriptors = ktype.func_descriptors
         # Keep a record of the type of CMA kernel identified when
         # parsing the kernel meta-data
@@ -4880,25 +4890,21 @@ class DynKern(Kern):
         return lvars
 
     @property
+    def base_name(self):
+        " Returns a base name for this kernel "
+        return self._base_name
+
+    @property
     def gen_stub(self):
         ''' output a kernel stub '''
         from psyclone.f2pygen import ModuleGen, SubroutineGen
 
-        # remove "_code" from the name if it exists to determine the
-        # base name which (if dynamo0.3 naming conventions are
-        # followed) is used as the root for the module and subroutine
-        # names.
-        if self.name.lower().endswith("_code"):
-            base_name = self.name[:-5]
-        else:
-            # TODO: add a warning here when logging is added
-            base_name = self.name
-
         # create an empty PSy layer module
-        psy_module = ModuleGen(base_name+"_mod")
+        base_name = self._base_name
+        psy_module = ModuleGen(self._base_name+"_mod")
 
         # create the subroutine
-        sub_stub = SubroutineGen(psy_module, name=base_name+"_code",
+        sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
         # create the arglist and declarations
         create_arg_list = KernStubArgList(self, sub_stub)
@@ -6140,10 +6146,46 @@ class KernStubArgList(ArgOrdering):
         return self._arglist
 
 
+class KernExtractArgList(ArgOrdering):
+    ''' Creates the argument list required to create and declare the
+    required arguments for a kernel extraction. The ordering and type
+    of the arguments is captured by the base class '''
+    def __init__(self, kern, parent):
+        '''
+        :param kern: Kernel for which to create extract argument list
+        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+        :param parent: Parent subroutine which calls the kernel
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises NotImplementedError: ???
+        '''
+        from psyclone.f2pygen import UseGen
+        
+        # This use gen goes to generating the kdriver
+        #parent.add(UseGen(parent, name="constants_mod", only=True,
+                          #funcnames=["r_def", "i_def"]))
+        self._first_arg = True
+        self._first_arg_decl = None
+        ArgOrdering.__init__(self, kern)
+        self._parent = parent
+        self._arglist = []
+        self._name_space_manager = NameSpaceFactory().create()
+
+    def cell_position(self):
+        ''' Add cell position to the argument list if required '''
+        from psyclone.f2pygen import DeclGen
+        self._arglist.append("cell")
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 kind="i_def", entity_decls=["cell"]))
+
+    def mesh_height(self):
+        ''' add mesh height (nlayers) to the argument list if required '''
+        from psyclone.f2pygen import DeclGen
+        self._arglist.append("nlayers")
+        self._parent.add(DeclGen(self._parent, datatype="integer",
+                                 kind="i_def", entity_decls=["nlayers"]))
+
 # class DinoWriters(ArgOrdering):
-#    '''Creates the required writers to dump the state of a Kernel call
-#    using dino. The integers are output first, followed by the fields,
-#    arrays etc'''
 #    def __init__(self, kern, parent=None, position=None):
 #        ArgOrdering.__init__(self, kern)
 #        self._parent = parent
