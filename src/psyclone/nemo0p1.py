@@ -728,6 +728,7 @@ class NemoLoop(Loop, ASTProcessor):
         if NemoKern.match(self._ast):
             self.addchild(NemoKern(self._ast, parent=self))
             return
+        # It's not - walk on down the AST...
         self.process_nodes(self, self._ast.content, self._ast)
 
     def __str__(self):
