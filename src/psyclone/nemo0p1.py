@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 import copy
 from psyclone.parse import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
-    Loop, Kern, GenerationError, colored, IfBlock, \
+    Loop, Kern, GenerationError, colored, IfBlock, IfClause, \
     SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.Fortran2003 import walk_ast
 
@@ -857,12 +857,22 @@ end do
 
 class NemoIfBlock(IfBlock):
     '''
+    Represents an if-block within a NEMO Schedule.
+    Within the fparser2 AST, an if-block is represented as:
+      If_Then_Stmt
+      statement(s)
+      Else_Stmt
+      further statement(s)
+      End_If_Stmt
+    i.e. the statements contained inside the if-block are siblings
+    of the control statements, not children of them.
     '''
     def __init__(self, ast, parent=None):
         from fparser.two import Fortran2003
         super(NemoIfBlock, self).__init__(parent=parent)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
+        # TODO convert these into proper exceptions
         assert isinstance(ast.content[0], Fortran2003.If_Then_Stmt)
         assert isinstance(ast.content[-1], Fortran2003.End_If_Stmt)
         clause_indices = []
@@ -873,45 +883,21 @@ class NemoIfBlock(IfBlock):
                                   Fortran2003.Else_If_Stmt,
                                   Fortran2003.End_If_Stmt)):
                 clause_indices.append(idx)
-        # An If block has one fewer clauses than it has statements (c.f.
-        # panels and posts):
+        # Create the body of the main If
+        end_idx = clause_indices[1]
+        self._create_clause_body(parent=self,
+                                 nodes=ast.content[1:end_idx])
+        # Now deal with any other clauses (i.e. "else if" or "else")
+        # An If block has one fewer clauses than it has control statements
+        # (c.f. panels and posts):
         num_clauses = len(clause_indices) - 1
-        for idx in range(num_clauses):
-            start_idx = clause_indices[idx] + 1
+        for idx in range(1, num_clauses):
+            start_idx = clause_indices[idx]
             # No need to subtract 1 here as Python's slice notation means
             # that the end_idx'th element is excluded
             end_idx = clause_indices[idx+1]
-            loops = walk_ast(ast.content[start_idx:end_idx],
-                             [Fortran2003.Subscript_Triplet,
-                              Fortran2003.Block_Nonlabel_Do_Construct])
-            if loops:
-                # This clause contains a loop of some kind (at some level
-                # in the tree)
-                code_block_nodes = []
-                for child in ast.content[start_idx:end_idx]:
-                    if isinstance(child,
-                                  Fortran2003.Block_Nonlabel_Do_Construct):
-                        # The start of a loop is taken as the end of any
-                        # existing code block so we create that now
-                        _add_code_block(self, code_block_nodes)
-                        self.addchild(NemoLoop(child, parent=self))
-                    elif NemoImplicitLoop.match(child):
-                        # An implicit loop marks the end of any current
-                        # code block
-                        _add_code_block(self, code_block_nodes)
-                        self.addchild(NemoImplicitLoop(child, parent=self))
-                    elif NemoIfBlock.match(child):
-                        _add_code_block(self, code_block_nodes)
-                        self.addchild(NemoIfBlock(child, parent=self))
-                    else:
-                        code_block_nodes.append(child)
-            else:
-                _add_code_block(self, ast.content[start_idx:end_idx])
-#If_Then_Stmt
-#statement(s)
-#Else_Stmt
-#further statement(s)
-#End_If_Stmt
+            self.addchild(NemoIfClause(ast.content[start_idx:end_idx],
+                                       parent=self))
 
     @staticmethod
     def match(node):
@@ -924,8 +910,63 @@ class NemoIfBlock(IfBlock):
 
         # We only care about if-blocks if they contain something significant
         # i.e. a recognised type of loop (whether implicit or explicit).
-        loops = walk_ast(node.content, [Fortran2003.Subscript_Triplet,
-                                        Fortran2003.Block_Nonlabel_Do_Construct])
+        loops = walk_ast(node.content,
+                         [Fortran2003.Subscript_Triplet,
+                          Fortran2003.Block_Nonlabel_Do_Construct])
         if loops:
             return True
         return False
+
+    @staticmethod
+    def _create_clause_body(parent, nodes):
+        '''
+        Populate the body of a clause of an if-block.
+        '''
+        from fparser.two import Fortran2003
+        loops = walk_ast(nodes,
+                         [Fortran2003.Subscript_Triplet,
+                          Fortran2003.Block_Nonlabel_Do_Construct])
+        if loops:
+            # This clause contains a loop of some kind (at some level
+            # in the tree)
+            code_block_nodes = []
+            for child in nodes:
+                if isinstance(child,
+                              Fortran2003.Block_Nonlabel_Do_Construct):
+                    # The start of a loop is taken as the end of any
+                    # existing code block so we create that now
+                    _add_code_block(parent, code_block_nodes)
+                    parent.addchild(NemoLoop(child, parent=parent))
+                elif NemoImplicitLoop.match(child):
+                    # An implicit loop marks the end of any current
+                    # code block
+                    _add_code_block(parent, code_block_nodes)
+                    parent.addchild(NemoImplicitLoop(child, parent=parent))
+                elif NemoIfBlock.match(child):
+                    _add_code_block(parent, code_block_nodes)
+                    parent.addchild(NemoIfBlock(child, parent=parent))
+                else:
+                    code_block_nodes.append(child)
+        else:
+            # This clause contains no loops and therefore is just a code block
+            _add_code_block(parent, nodes)
+
+
+class NemoIfClause(IfClause):
+    '''
+    Represents a sub-clause of an if-block (else-if or else).
+    '''
+    def __init__(self, ast_nodes, parent=None):
+        from fparser.two import Fortran2003
+        super(NemoIfClause, self).__init__(parent=parent)
+        # Keep a ptr to the corresponding node in the AST
+        self._ast = ast_nodes[0]
+        if isinstance(ast_nodes[0], Fortran2003.Else_Stmt):
+            self._clause_type = "Else"
+        elif isinstance(ast_nodes[0], Fortran2003.Else_If_Stmt):
+            self._clause_type = "Else If"
+        else:
+            raise InternalError("blah")
+
+        NemoIfBlock._create_clause_body(parent=self,
+                                        nodes=ast_nodes[1:])

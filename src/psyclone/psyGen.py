@@ -3545,7 +3545,9 @@ class DummyTransformation(Transformation):
 
 
 class IfBlock(Node):
-    
+    '''
+    Class representing an if-block within a Schedule.
+    '''
     @property
     def coloured_text(self):
         '''
@@ -3556,6 +3558,32 @@ class IfBlock(Node):
         :rtype: string
         '''
         return colored("If", SCHEDULE_COLOUR_MAP["If"])
+
+    def view(self, indent=0):
+        ''' Print representation of this node to stdout '''
+        print(self.indent(indent) + self.coloured_text + "[" +
+              "]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+
+class IfClause(Node):
+
+    def __init__(self, parent=None):
+        super(IfClause, self).__init__(parent=parent)
+        self._clause_type = ""
+        self._condition = ""
+
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type
+
+        :return: the name of this node type, possibly with control codes
+                 for colour
+        :rtype: string
+        '''
+        return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
     def view(self, indent=0):
         ''' Print representation of this node to stdout '''
