@@ -885,6 +885,7 @@ class NemoIfBlock(IfBlock):
                 clause_indices.append(idx)
         # Create the body of the main If
         end_idx = clause_indices[1]
+        self._condition = str(ast.content[0].items[0])
         self._create_clause_body(parent=self,
                                  nodes=ast.content[1:end_idx])
         # Now deal with any other clauses (i.e. "else if" or "else")
@@ -902,6 +903,9 @@ class NemoIfBlock(IfBlock):
     @staticmethod
     def match(node):
         '''
+        Checks whether the supplied fparser2 AST represents an if-block
+        that must be represented in the Schedule AST. If-blocks that do
+        not contain kernels are just treated as code blocks.
         '''
         from fparser.two import Fortran2003
 
@@ -921,6 +925,12 @@ class NemoIfBlock(IfBlock):
     def _create_clause_body(parent, nodes):
         '''
         Populate the body of a clause of an if-block.
+
+        :param parent: Node in PSyclone AST representing parent of this
+                       clause. Can be an IfBlock or an IfClause.
+        :type parent: :py:class:`psyclone.nemo0p1.NemoIfBlock`
+        :param list nodes: the nodes in the fparser2 AST that represent
+                           the body of the clause.
         '''
         from fparser.two import Fortran2003
         loops = walk_ast(nodes,
@@ -955,6 +965,11 @@ class NemoIfBlock(IfBlock):
 class NemoIfClause(IfClause):
     '''
     Represents a sub-clause of an if-block (else-if or else).
+
+    :param list ast_nodes: List of nodes making up the clause. First node \
+                           is the else/else-if statement itself.
+    :param parent: Parent of this clause in the AST (must be an IfBlock).
+    :type parent: :py:class:`psyclone.nemo0p1.NemoIfBlock`
     '''
     def __init__(self, ast_nodes, parent=None):
         from fparser.two import Fortran2003
@@ -966,7 +981,8 @@ class NemoIfClause(IfClause):
         elif isinstance(ast_nodes[0], Fortran2003.Else_If_Stmt):
             self._clause_type = "Else If"
         else:
-            raise InternalError("blah")
+            raise InternalError("Unrecognised member of if block: {0}".
+                                format(type(ast_nodes[0])))
 
         NemoIfBlock._create_clause_body(parent=self,
                                         nodes=ast_nodes[1:])

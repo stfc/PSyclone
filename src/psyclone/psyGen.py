@@ -3548,6 +3548,10 @@ class IfBlock(Node):
     '''
     Class representing an if-block within a Schedule.
     '''
+    def __init__(self, parent=None):
+        super(IfBlock, self).__init__(parent=parent)
+        self._condition = ""
+
     @property
     def coloured_text(self):
         '''
@@ -3562,17 +3566,18 @@ class IfBlock(Node):
     def view(self, indent=0):
         ''' Print representation of this node to stdout '''
         print(self.indent(indent) + self.coloured_text + "[" +
-              "]")
+              self._condition + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
 
-class IfClause(Node):
-
+class IfClause(IfBlock):
+    '''
+    Represents a sub-clause of an If block - e.g. an "else if()".
+    '''
     def __init__(self, parent=None):
         super(IfClause, self).__init__(parent=parent)
-        self._clause_type = ""
-        self._condition = ""
+        self._clause_type = ""  # Whether this is an else, else-if etc.
 
     @property
     def coloured_text(self):
@@ -3585,9 +3590,3 @@ class IfClause(Node):
         '''
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
-    def view(self, indent=0):
-        ''' Print representation of this node to stdout '''
-        print(self.indent(indent) + self.coloured_text + "[" +
-              "]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
