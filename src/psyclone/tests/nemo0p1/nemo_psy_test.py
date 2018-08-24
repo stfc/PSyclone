@@ -209,3 +209,6 @@ def test_kern_inside_if():
     sched.view()
     kerns = sched.walk(sched.children, nemo0p1.NemoKern)
     assert len(kerns) == 5
+    assert isinstance(sched.children[0].children[1], nemo0p1.NemoIfBlock)
+    assert isinstance(sched.children[0].children[1].children[1],
+                      nemo0p1.NemoIfClause)

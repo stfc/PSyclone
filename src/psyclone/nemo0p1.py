@@ -47,6 +47,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, GenerationError, colored, IfBlock, IfClause, \
     SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.Fortran2003 import walk_ast
+from fparser.two import Fortran2003
 
 # The base colour map doesn't have CodeBlock as that is currently
 # a NEMO-API-specific entity.
@@ -115,7 +116,6 @@ def get_routine_type(ast):
     :return: the type of Fortran routine (program, subroutine, function)
     :rtype: string
     '''
-    from fparser.two import Fortran2003
     for child in ast.content:
         if isinstance(child, Fortran2003.Program_Stmt):
             return "program"
@@ -124,19 +124,56 @@ def get_routine_type(ast):
     raise ParseError("Unrecognised Fortran unit: {0}".format(type(child)))
 
 
-def _add_code_block(parent, statements):
-    ''' Create a NemoCodeBlock for the supplied list of statements
-    and then wipe the list of statements '''
-    from psyclone.nemo0p1 import NemoCodeBlock
+class ASTProcessor(object):
+    '''
+    Mixin class to provide functionality for processing the fparser2 AST.
+    '''
+    @staticmethod
+    def add_code_block(parent, statements):
+        ''' Create a NemoCodeBlock for the supplied list of statements
+        and then wipe the list of statements '''
+        from psyclone.nemo0p1 import NemoCodeBlock
 
-    if not statements:
-        return None
+        if not statements:
+            return None
 
-    code_block = NemoCodeBlock(statements,
-                               parent=parent)
-    parent.addchild(code_block)
-    del statements[:]
-    return code_block
+        code_block = NemoCodeBlock(statements,
+                                   parent=parent)
+        parent.addchild(code_block)
+        del statements[:]
+        return code_block
+
+    # TODO remove nodes_parent argument once fparser2 AST contains
+    # parent information (fparser/#102).
+    def process_nodes(self, parent, nodes, nodes_parent):
+        '''
+        Create the PSyclone AST representation of the code represented
+        by the supplied list of nodes in the fparser2 AST.
+        '''
+        code_block_nodes = []
+        for child in nodes:
+            child._parent = nodes_parent  # Retro-fit parent info
+            if isinstance(child,
+                          Fortran2003.Block_Nonlabel_Do_Construct):
+                # The start of a loop is taken as the end of any
+                # existing code block so we create that now
+                self.add_code_block(parent, code_block_nodes)
+                parent.addchild(NemoLoop(child, parent=parent))
+            elif NemoImplicitLoop.match(child):
+                # An implicit loop marks the end of any current
+                # code block
+                self.add_code_block(parent, code_block_nodes)
+                parent.addchild(NemoImplicitLoop(child, parent=parent))
+            elif NemoIfBlock.match(child):
+                self.add_code_block(parent, code_block_nodes)
+                parent.addchild(NemoIfBlock(child, parent=parent))
+            elif not isinstance(child, (Fortran2003.End_Do_Stmt,
+                                        Fortran2003.Nonlabel_Do_Stmt)):
+                # Don't include the do or end-do in a code block
+                code_block_nodes.append(child)
+
+        # Complete any unfinished code-block
+        self.add_code_block(parent, code_block_nodes)
 
 
 class NemoInvoke(Invoke):
@@ -281,7 +318,7 @@ class NemoPSy(PSy):
         return self._ast
 
 
-class NemoSchedule(Schedule):
+class NemoSchedule(Schedule, ASTProcessor):
     ''' The GOcean specific schedule class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
@@ -289,8 +326,6 @@ class NemoSchedule(Schedule):
     def __init__(self, invoke, ast=None):
         '''
         '''
-        from fparser.two import Fortran2003
-
         Node.__init__(self)
 
         self._invoke = invoke
@@ -314,20 +349,20 @@ class NemoSchedule(Schedule):
             if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
                 # The start of a loop is taken as the end of any exising
                 # code block so we create that now
-                _add_code_block(self, code_block_nodes)
+                self.add_code_block(self, code_block_nodes)
                 self.addchild(NemoLoop(child, parent=self))
             elif NemoImplicitLoop.match(child):
                 # Similarly, an implicit loop ends any existing code block
-                _add_code_block(self, code_block_nodes)
+                self.add_code_block(self, code_block_nodes)
                 self.addchild(NemoImplicitLoop(child, parent=self))
             elif NemoIfBlock.match(child):
-                _add_code_block(self, code_block_nodes)
+                self.add_code_block(self, code_block_nodes)
                 self.addchild(NemoIfBlock(child, parent=self))
             else:
                 code_block_nodes.append(child)
 
         # Finish any open code block
-        _add_code_block(self, code_block_nodes)
+        self.add_code_block(self, code_block_nodes)
 
         return
 
@@ -642,7 +677,7 @@ class NemoKern(Kern):
         return
 
 
-class NemoLoop(Loop):
+class NemoLoop(Loop, ASTProcessor):
     '''
     Class representing a Loop in NEMO.
     '''
@@ -689,36 +724,11 @@ class NemoLoop(Loop):
             # Default loop increment is 1
             self._step = "1"
 
-        # List of nodes we will use to create 'code blocks' that we don't
-        # attempt to understand
-        code_block_nodes = []
-
         # Is this loop body a kernel?
         if NemoKern.match(self._ast):
             self.addchild(NemoKern(self._ast, parent=self))
             return
-
-        for child in self._ast.content:
-            child._parent = self._ast  # Retrofit parent info
-            if isinstance(child, Block_Nonlabel_Do_Construct):
-                # The start of a loop is taken as the end of any exising
-                # code block so we create that now
-                _add_code_block(self, code_block_nodes)
-                self.addchild(NemoLoop(child, parent=self))
-            elif NemoImplicitLoop.match(child):
-                # An implicit loop marks the end of any current
-                # code block
-                _add_code_block(self, code_block_nodes)
-                self.addchild(NemoImplicitLoop(child, parent=self))
-            elif NemoIfBlock.match(child):
-                _add_code_block(self, code_block_nodes)
-                self.addchild(NemoIfBlock(child, parent=self))
-            elif not isinstance(child, (End_Do_Stmt, Nonlabel_Do_Stmt)):
-                # Don't include the do or end-do in a code block
-                code_block_nodes.append(child)
-
-        # Finish any open code block
-        _add_code_block(self, code_block_nodes)
+        self.process_nodes(self, self._ast.content, self._ast)
 
     def __str__(self):
         result = "NemoLoop[" + self._loop_type + "]: " + self._variable_name + \
@@ -755,7 +765,6 @@ class NemoImplicitLoop(NemoLoop):
     :param parent: the parent of this Loop in the PSyclone AST
     '''
     def __init__(self, ast, parent=None):
-        from fparser.two import Fortran2003
         from fparser.common.readfortran import FortranStringReader
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES+["unknown"])
@@ -773,6 +782,7 @@ class NemoImplicitLoop(NemoLoop):
                 # and thus we need an explicit loop for this dimension.
                 outermost_dim = idx
 
+        # TODO allow for implicit loops with specified bounds (e.g. 2:jpjm1)
         self._start = 1
         self._step = 1
         if outermost_dim == 0:
@@ -840,8 +850,6 @@ end do
         :returns: True if the node does represet an implicit loop.
         :rtype: bool
         '''
-        from fparser.two import Fortran2003
-
         if not isinstance(node, Fortran2003.Assignment_Stmt):
             return False
         # We are expecting something like:
@@ -855,7 +863,7 @@ end do
         return False
 
 
-class NemoIfBlock(IfBlock):
+class NemoIfBlock(IfBlock, ASTProcessor):
     '''
     Represents an if-block within a NEMO Schedule.
     Within the fparser2 AST, an if-block is represented as:
@@ -868,7 +876,6 @@ class NemoIfBlock(IfBlock):
     of the control statements, not children of them.
     '''
     def __init__(self, ast, parent=None):
-        from fparser.two import Fortran2003
         super(NemoIfBlock, self).__init__(parent=parent)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
@@ -886,8 +893,9 @@ class NemoIfBlock(IfBlock):
         # Create the body of the main If
         end_idx = clause_indices[1]
         self._condition = str(ast.content[0].items[0])
-        self._create_clause_body(parent=self,
-                                 nodes=ast.content[1:end_idx])
+        self.process_nodes(parent=self,
+                           nodes=ast.content[1:end_idx],
+                           nodes_parent=ast)
         # Now deal with any other clauses (i.e. "else if" or "else")
         # An If block has one fewer clauses than it has control statements
         # (c.f. panels and posts):
@@ -897,6 +905,7 @@ class NemoIfBlock(IfBlock):
             # No need to subtract 1 here as Python's slice notation means
             # that the end_idx'th element is excluded
             end_idx = clause_indices[idx+1]
+            ast.content[start_idx]._parent = ast  # Retrofit parent info
             self.addchild(NemoIfClause(ast.content[start_idx:end_idx],
                                        parent=self))
 
@@ -907,8 +916,6 @@ class NemoIfBlock(IfBlock):
         that must be represented in the Schedule AST. If-blocks that do
         not contain kernels are just treated as code blocks.
         '''
-        from fparser.two import Fortran2003
-
         if not isinstance(node, Fortran2003.If_Construct):
             return False
 
@@ -921,48 +928,8 @@ class NemoIfBlock(IfBlock):
             return True
         return False
 
-    @staticmethod
-    def _create_clause_body(parent, nodes):
-        '''
-        Populate the body of a clause of an if-block.
 
-        :param parent: Node in PSyclone AST representing parent of this
-                       clause. Can be an IfBlock or an IfClause.
-        :type parent: :py:class:`psyclone.nemo0p1.NemoIfBlock`
-        :param list nodes: the nodes in the fparser2 AST that represent
-                           the body of the clause.
-        '''
-        from fparser.two import Fortran2003
-        loops = walk_ast(nodes,
-                         [Fortran2003.Subscript_Triplet,
-                          Fortran2003.Block_Nonlabel_Do_Construct])
-        if loops:
-            # This clause contains a loop of some kind (at some level
-            # in the tree)
-            code_block_nodes = []
-            for child in nodes:
-                if isinstance(child,
-                              Fortran2003.Block_Nonlabel_Do_Construct):
-                    # The start of a loop is taken as the end of any
-                    # existing code block so we create that now
-                    _add_code_block(parent, code_block_nodes)
-                    parent.addchild(NemoLoop(child, parent=parent))
-                elif NemoImplicitLoop.match(child):
-                    # An implicit loop marks the end of any current
-                    # code block
-                    _add_code_block(parent, code_block_nodes)
-                    parent.addchild(NemoImplicitLoop(child, parent=parent))
-                elif NemoIfBlock.match(child):
-                    _add_code_block(parent, code_block_nodes)
-                    parent.addchild(NemoIfBlock(child, parent=parent))
-                else:
-                    code_block_nodes.append(child)
-        else:
-            # This clause contains no loops and therefore is just a code block
-            _add_code_block(parent, nodes)
-
-
-class NemoIfClause(IfClause):
+class NemoIfClause(IfClause, ASTProcessor):
     '''
     Represents a sub-clause of an if-block (else-if or else).
 
@@ -972,10 +939,10 @@ class NemoIfClause(IfClause):
     :type parent: :py:class:`psyclone.nemo0p1.NemoIfBlock`
     '''
     def __init__(self, ast_nodes, parent=None):
-        from fparser.two import Fortran2003
         super(NemoIfClause, self).__init__(parent=parent)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast_nodes[0]
+        # Store what type of clause we are
         if isinstance(ast_nodes[0], Fortran2003.Else_Stmt):
             self._clause_type = "Else"
         elif isinstance(ast_nodes[0], Fortran2003.Else_If_Stmt):
@@ -983,6 +950,7 @@ class NemoIfClause(IfClause):
         else:
             raise InternalError("Unrecognised member of if block: {0}".
                                 format(type(ast_nodes[0])))
-
-        NemoIfBlock._create_clause_body(parent=self,
-                                        nodes=ast_nodes[1:])
+        # Continue on down the AST
+        self.process_nodes(parent=self,
+                           nodes=ast_nodes[1:],
+                           nodes_parent=self._ast._parent)
