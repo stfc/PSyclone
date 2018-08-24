@@ -110,13 +110,17 @@ def test_implicit_loop_assign():
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo0p1.NemoLoop)
     sched.view()
-    print(ast)
+    gen = str(ast).lower()
+    print(gen)
     # Our implicit loop gives us 3 explicit loops
     assert len(loops) == 3
     assert isinstance(sched.children[0], nemo0p1.NemoLoop)
     # The other statements (that use array syntax) are not assignments
     # and therefore are not implicit loops
     assert isinstance(sched.children[1], nemo0p1.NemoCodeBlock)
+    # Check that the loop variables have been declared
+    for var in ["ji", "jj", "jk"]:
+        assert "integer :: {0}".format(var) in gen
 
 
 def test_codeblock():
@@ -158,7 +162,6 @@ def test_schedule_view(capsys):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     sched_str = str(sched)
-    print(sched_str)
     assert "CodeBlock[2 statements]" in sched_str
     assert "NemoLoop[levels]: jk=1,jpk,1" in sched_str
     assert "NemoLoop[lat]: jj=1,jpj,1" in sched_str

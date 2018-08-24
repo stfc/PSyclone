@@ -53,7 +53,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 def test_explicit_gen():
     ''' Check code generation for a single explicit loop containing
-    a kernel '''
+    a kernel. '''
     ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)

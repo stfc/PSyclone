@@ -782,7 +782,19 @@ class NemoImplicitLoop(NemoLoop):
         # information (and no other way of getting to the root node), it is
         # currently not possible to insert a declaration in the correct
         # location.
+        # For the moment, we can work around the fparser2 AST limitation
+        # by using the fact that we *can* get hold of the PSyclone Invoke
+        # object and that contains a reference to the root of the fparser2
+        # AST...
         name = Fortran2003.Name(FortranStringReader(self._variable_name))
+        prog_unit = self.root.invoke._ast
+        spec = walk_ast(prog_unit.content,
+                        [Fortran2003.Specification_Part], debug=True)
+        if not spec:
+            raise InternalError("No specifcation part found!")
+        decln = Fortran2003.Type_Declaration_Stmt(
+            FortranStringReader("integer :: {0}".format(self._variable_name)))
+        spec[0].content.append(decln)
 
         for subsec in subsections:
             # A tuple is immutable so work with a list
