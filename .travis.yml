@@ -50,10 +50,10 @@ before_install:
   - pip install codecov
 # TODO remove following four lines (which install the master branches of
 # fparser and habakkuk) before final merge
-  - git clone https://github.com/stfc/fparser.git
-  - cd fparser; pip install .; cd -
-  - git clone https://github.com/arporter/habakkuk.git
-  - cd habakkuk; pip install .; cd -
+  - git clone https://github.com/stfc/fparser.git ~/fparser
+  - cd ~/fparser; pip install .; cd -
+  - git clone https://github.com/arporter/habakkuk.git ~/habakkuk
+  - cd ~/habakkuk; pip install .; cd -
 install:
   - "pip install ."
 script:
