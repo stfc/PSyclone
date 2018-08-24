@@ -110,7 +110,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
                        "HaloExchange": "blue",
                        "Call": "red",
                        "KernCall": "magenta",
-                       "Profile": "green"}
+                       "Profile": "green",
+                       "If": "red"}
 
 
 def get_api(api):
@@ -3541,3 +3542,24 @@ class DummyTransformation(Transformation):
 
     def apply(self):
         return None, None
+
+
+class IfBlock(Node):
+    
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type
+
+        :return: the name of this node type, possibly with control codes
+                 for colour
+        :rtype: string
+        '''
+        return colored("If", SCHEDULE_COLOUR_MAP["If"])
+
+    def view(self, indent=0):
+        ''' Print representation of this node to stdout '''
+        print(self.indent(indent) + self.coloured_text + "[" +
+              "]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)

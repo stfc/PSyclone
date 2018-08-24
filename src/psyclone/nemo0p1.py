@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 import copy
 from psyclone.parse import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
-    Loop, Kern, GenerationError, colored, \
+    Loop, Kern, GenerationError, colored, IfBlock, \
     SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.Fortran2003 import walk_ast
 
@@ -108,7 +108,7 @@ NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
 
 def get_routine_type(ast):
     '''
-    Identify the type for Fortran routine the ast represents
+    Identify the type of Fortran routine the ast represents.
 
     :param ast: the fparser2 AST representing the Fortran code
     :type ast: `fparser.Fortran2003.Program_Unit`
@@ -320,6 +320,9 @@ class NemoSchedule(Schedule):
                 # Similarly, an implicit loop ends any existing code block
                 _add_code_block(self, code_block_nodes)
                 self.addchild(NemoImplicitLoop(child, parent=self))
+            elif NemoIfBlock.match(child):
+                _add_code_block(self, code_block_nodes)
+                self.addchild(NemoIfBlock(child, parent=self))
             else:
                 code_block_nodes.append(child)
 
@@ -468,7 +471,7 @@ class NemoKern(Kern):
             self.load(loop, parent)
 
     @staticmethod
-    def is_kernel(node):
+    def match(node):
         '''
         :param node: Node in fparser2 AST to check.
         :type node: :py:class:`fparser.two.Fortran2003.Base`
@@ -691,12 +694,12 @@ class NemoLoop(Loop):
         code_block_nodes = []
 
         # Is this loop body a kernel?
-        if NemoKern.is_kernel(self._ast):
+        if NemoKern.match(self._ast):
             self.addchild(NemoKern(self._ast, parent=self))
             return
 
         for child in self._ast.content:
-            child._parent = self._ast
+            child._parent = self._ast  # Retrofit parent info
             if isinstance(child, Block_Nonlabel_Do_Construct):
                 # The start of a loop is taken as the end of any exising
                 # code block so we create that now
@@ -707,6 +710,9 @@ class NemoLoop(Loop):
                 # code block
                 _add_code_block(self, code_block_nodes)
                 self.addchild(NemoImplicitLoop(child, parent=self))
+            elif NemoIfBlock.match(child):
+                _add_code_block(self, code_block_nodes)
+                self.addchild(NemoIfBlock(child, parent=self))
             elif not isinstance(child, (End_Do_Stmt, Nonlabel_Do_Stmt)):
                 # Don't include the do or end-do in a code block
                 code_block_nodes.append(child)
@@ -846,4 +852,80 @@ end do
             colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
             if colons:
                 return True
+        return False
+
+
+class NemoIfBlock(IfBlock):
+    '''
+    '''
+    def __init__(self, ast, parent=None):
+        from fparser.two import Fortran2003
+        super(NemoIfBlock, self).__init__(parent=parent)
+        # Keep a ptr to the corresponding node in the AST
+        self._ast = ast
+        assert isinstance(ast.content[0], Fortran2003.If_Then_Stmt)
+        assert isinstance(ast.content[-1], Fortran2003.End_If_Stmt)
+        clause_indices = []
+        for idx, child in enumerate(ast.content):
+            child._parent = self._ast  # Retrofit parent info
+            if isinstance(child, (Fortran2003.If_Then_Stmt,
+                                  Fortran2003.Else_Stmt,
+                                  Fortran2003.Else_If_Stmt,
+                                  Fortran2003.End_If_Stmt)):
+                clause_indices.append(idx)
+        # An If block has one fewer clauses than it has statements (c.f.
+        # panels and posts):
+        num_clauses = len(clause_indices) - 1
+        for idx in range(num_clauses):
+            start_idx = clause_indices[idx] + 1
+            # No need to subtract 1 here as Python's slice notation means
+            # that the end_idx'th element is excluded
+            end_idx = clause_indices[idx+1]
+            loops = walk_ast(ast.content[start_idx:end_idx],
+                             [Fortran2003.Subscript_Triplet,
+                              Fortran2003.Block_Nonlabel_Do_Construct])
+            if loops:
+                # This clause contains a loop of some kind (at some level
+                # in the tree)
+                code_block_nodes = []
+                for child in ast.content[start_idx:end_idx]:
+                    if isinstance(child,
+                                  Fortran2003.Block_Nonlabel_Do_Construct):
+                        # The start of a loop is taken as the end of any
+                        # existing code block so we create that now
+                        _add_code_block(self, code_block_nodes)
+                        self.addchild(NemoLoop(child, parent=self))
+                    elif NemoImplicitLoop.match(child):
+                        # An implicit loop marks the end of any current
+                        # code block
+                        _add_code_block(self, code_block_nodes)
+                        self.addchild(NemoImplicitLoop(child, parent=self))
+                    elif NemoIfBlock.match(child):
+                        _add_code_block(self, code_block_nodes)
+                        self.addchild(NemoIfBlock(child, parent=self))
+                    else:
+                        code_block_nodes.append(child)
+            else:
+                _add_code_block(self, ast.content[start_idx:end_idx])
+#If_Then_Stmt
+#statement(s)
+#Else_Stmt
+#further statement(s)
+#End_If_Stmt
+
+    @staticmethod
+    def match(node):
+        '''
+        '''
+        from fparser.two import Fortran2003
+
+        if not isinstance(node, Fortran2003.If_Construct):
+            return False
+
+        # We only care about if-blocks if they contain something significant
+        # i.e. a recognised type of loop (whether implicit or explicit).
+        loops = walk_ast(node.content, [Fortran2003.Subscript_Triplet,
+                                        Fortran2003.Block_Nonlabel_Do_Construct])
+        if loops:
+            return True
         return False
