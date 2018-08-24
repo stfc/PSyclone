@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 import copy
 from psyclone.parse import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
-    Loop, Kern, GenerationError, colored, IfBlock, IfClause, \
+    Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
     SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.Fortran2003 import walk_ast
 from fparser.two import Fortran2003
@@ -130,10 +130,17 @@ class ASTProcessor(object):
     '''
     @staticmethod
     def add_code_block(parent, statements):
-        ''' Create a NemoCodeBlock for the supplied list of statements
-        and then wipe the list of statements '''
-        from psyclone.nemo0p1 import NemoCodeBlock
+        '''
+        Create a NemoCodeBlock for the supplied list of statements
+        and then wipe the list of statements.
 
+        :param parent: Node in the PSyclone AST to which to add this code \
+                       block.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param list statements: List of fparser2 AST nodes consituting the \
+                                code block.
+        :rtype: :py:class:`psyclone.nemo0p1.NemoCodeBlock`
+        '''
         if not statements:
             return None
 
@@ -177,13 +184,16 @@ class ASTProcessor(object):
 
 
 class NemoInvoke(Invoke):
+    '''
+    Represents a NEMO 'Invoke' which, since NEMO is existing code, means
+    an existing program unit, e.g. a subroutine.
 
+    :param ast: node in fparser2 AST representing the program unit.
+    :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
+               :py:class:`fparser.two.Fortran2003.Module`
+    :param str name: the name of this Invoke (program unit).
+    '''
     def __init__(self, ast, name):
-        '''
-        :param ast: The fparser2 AST for the Fortran code to process
-        :type ast: :py:class:`fparser.Fortran2003.Main_Program` or Module
-        :param str name: The name of the program unit
-        '''
         self._schedule = None
         self._name = name
         self._psy_unique_vars = ["a_variable"]
@@ -215,15 +225,6 @@ class NemoInvoke(Invoke):
     def gen(self):
         return str(self._ast)
 
-    def gen_code(self, parent):
-        '''
-        Generates the f2pygen AST for this invoke
-        :param parent: Parent of this node in the AST we are creating
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-        '''
-        # Nothing to do here because we keep the fparser2 AST
-        pass
-
     @property
     def psy_unique_var_names(self):
         return self._psy_unique_vars
@@ -241,7 +242,7 @@ class NemoInvokes(Invokes):
         from habakkuk.parse2003 import get_child, ParseError as perror
         from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
-            Subroutine_Stmt
+            Subroutine_Stmt, Name
 
         self.invoke_map = {}
         self.invoke_list = []
@@ -276,9 +277,6 @@ class NemoInvokes(Invokes):
             my_invoke = NemoInvoke(subroutine, name=sub_name)
             self.invoke_map[sub_name] = my_invoke
             self.invoke_list.append(my_invoke)
-
-    def gen_code(self):
-        return self._ast
 
     def update(self):
         ''' TBD '''
@@ -421,11 +419,6 @@ class NemoSchedule(Schedule, ASTProcessor):
         will look them up from the field object for every loop '''
         self._const_loop_bounds = obj
 
-    def gen_code(self, parent):
-        ''' Generates the Fortran for this Schedule '''
-        for entity in self._children:
-            entity.gen_code(parent)
-
     def update(self):
         ''' TBD '''
         for child in self._children:
@@ -461,10 +454,6 @@ class NemoCodeBlock(Node):
 
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
-
-    def gen_code(self, parent):
-        ''' Convert this code block back to Fortran '''
-        pass # We use the fparser2 AST unmodified so nothing to gen
 
     def update(self):
         ''' TBD '''
@@ -617,7 +606,6 @@ class NemoKern(Kern):
     def _load_from_implicit_loop(self, loop, parent=None):
         ''' Populate the state of this NemoKern object from an fparser2
         AST for an implicit loop (Fortran array syntax) '''
-        from fparser.two.Fortran2003 import Section_Subscript_List
         # TODO implement this method!
         self._kernel_type = "Implicit"
         return
@@ -659,19 +647,6 @@ class NemoKern(Kern):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    def gen_code(self, parent):
-        '''
-        Create the node(s) in the f2pygen AST that will generate the code
-        for this object
-
-        :param parent: parent node in the f2pygen AST
-        :type parent: :py:class:`psyclone.f2pygen.DoGen`
-        '''
-        return
-        from psyclone.f2pygen2 import AssignGen
-        for item in self._body:
-            parent.add(AssignGen(item))
-
     def update(self):
         ''' TBD '''
         return
@@ -680,15 +655,14 @@ class NemoKern(Kern):
 class NemoLoop(Loop, ASTProcessor):
     '''
     Class representing a Loop in NEMO.
+
+    :param ast: node in the fparser2 AST representing the loop.
+    :type ast: :py:class:`fparser.two.Block_Nonlabel_Do_Construct`
+    :param parent: parent of this NemoLoop in the PSyclone AST.
+    :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, ast, parent=None):
-        '''
-        :param ast: the part of the fparser2 AST representing the loop
-        :type ast: :py:class:`fparser.two.Fortran2003.xxx`
-        :param parent: the parent of this Loop in the PSyclone AST
-        '''
-        from fparser.two.Fortran2003 import Loop_Control, \
-            Block_Nonlabel_Do_Construct, Nonlabel_Do_Stmt, End_Do_Stmt
+        from fparser.two.Fortran2003 import Loop_Control
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES+["unknown"])
         # Keep a ptr to the corresponding node in the AST
@@ -732,8 +706,8 @@ class NemoLoop(Loop, ASTProcessor):
         self.process_nodes(self, self._ast.content, self._ast)
 
     def __str__(self):
-        result = "NemoLoop[" + self._loop_type + "]: " + self._variable_name + \
-                 "=" + ",".join([self._start, self._stop, self._step]) + "\n"
+        result = ("NemoLoop[" + self._loop_type + "]: " + self._variable_name +
+                  "=" + ",".join([self._start, self._stop, self._step]) + "\n")
         for entity in self._children:
             result += str(entity) + "\n"
         result += "EndLoop"
@@ -804,12 +778,18 @@ class NemoImplicitLoop(NemoLoop):
                                                               str(ast)))
 
         # TODO use namespace manager for this loop variable and add
-        # declaration too.
+        # declaration too. Since the fparser2 AST does not have parent
+        # information (and no other way of getting to the root node), it is
+        # currently not possible to insert a declaration in the correct
+        # location.
         name = Fortran2003.Name(FortranStringReader(self._variable_name))
+
         for subsec in subsections:
             # A tuple is immutable so work with a list
             indices = list(subsec.items)
+            # Replace the colon with our new variable name
             indices[outermost_dim] = name
+            # Replace the original tuple with a new one
             subsec.items = tuple(indices)
 
         # Create an explicit loop
@@ -818,7 +798,8 @@ do {0}=1,{1},{2}
   replace = me
 end do
 '''.format(self._variable_name, self._stop, self._step)
-        loop = Fortran2003.Block_Nonlabel_Do_Construct(FortranStringReader(text))
+        loop = Fortran2003.Block_Nonlabel_Do_Construct(
+            FortranStringReader(text))
         parent_index = ast._parent.content.index(ast)
         # Insert it in the fparser2 AST at the location of the implicit
         # loop
