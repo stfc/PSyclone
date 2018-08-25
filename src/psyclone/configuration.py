@@ -66,43 +66,28 @@ class ConfigurationError(Exception):
         return repr(self.value)
 
 
-def _str_to_list(svalue):
-    '''
-    Helper routine to take a string containing a list of values and return
-    a list of those values.
-
-    :param str svalue: string containing space- or comma-delimited list
-                       of items
-    :returns: list of strings
-    :rtype: list
-    '''
-    if "," in svalue:
-        # Comma delimited
-        return [
-            str(item.strip()) for item in svalue.split(",")
-            if item.strip() != '']
-    # Space delimited
-    return [
-        str(item.strip()) for item in svalue.split(" ")
-        if item.strip() != '']
-
-
+# =============================================================================
 class ConfigFactory(object):
+    # pylint: disable=too-few-public-methods
     '''
     Create our singleton Config object. If config_file is specified
-    then we throw-away the old Config and create a new one.
-
+    automatically load the config file specified (used mainly for testing),
+    otherwise delay loading the config file till load() is called.
     :param str config_file: Specific configuration file to use when \
                             creating the Config object.
     '''
     _instance = None  # Our single Config object
 
-    def __init__(self, config_file=None):
+    def __init__(self, config_file=None, read_config_now=True):
         if not ConfigFactory._instance or config_file:
             # Create a Config object if we've not already got one or if the
             # caller has specified a particular file
-            ConfigFactory._instance = Config(config_file)
+            ConfigFactory._instance = Config()
 
+            if read_config_now:
+                ConfigFactory._instance.load(config_file)
+
+    # -------------------------------------------------------------------------
     @staticmethod
     def create():
         '''
@@ -112,15 +97,34 @@ class ConfigFactory(object):
         return ConfigFactory._instance
 
 
+# =============================================================================
 class Config(object):
+    # pylint: disable=too-many-instance-attributes
     '''
     Handles all configuration management.
-
-    :param str config_file: Override default configuration file to read.
-    :raises ConfigurationError: if there are errors or inconsistencies in \
-                                the specified config file.
     '''
-    def __init__(self, config_file=None):
+    def __init__(self):
+        # Setup the list of supported APIs and stubs before reading any
+        # config file:
+        self._supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
+                                    "gocean0.1", "gocean1.0"]
+        self._supported_stub_api_list = ["dynamo0.3"]
+        self._api = None
+        self._config = None
+        self._config_file = None
+        self._default_api = None
+        self._default_stub_api = None
+        self._distributed_mem = None
+        self._reproducible_reductions = None
+        self._reprod_pad_size = None
+
+    # -------------------------------------------------------------------------
+    def load(self, config_file=None):
+        '''Loads a configuration file.
+        :param str config_file: Override default configuration file to read.
+        :raises ConfigurationError: if there are errors or inconsistencies in \
+                                the specified config file.
+        '''
         if config_file:
             # Caller has explicitly provided the full path to the config
             # file to read
@@ -167,9 +171,6 @@ class Config(object):
         # Default API and supported APIs for psyclone
         self._default_api = self._config['DEFAULT']['DEFAULTAPI']
 
-        self._supported_api_list = _str_to_list(
-            self._config['DEFAULT']['SUPPORTEDAPIS'])
-
         # Sanity check
         if self._default_api not in self._supported_api_list:
             raise ConfigurationError(
@@ -180,10 +181,6 @@ class Config(object):
 
         # Default API and supported APIs for stub-generator
         self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
-
-        self._supported_stub_api_list = _str_to_list(
-            self._config['DEFAULT']['SUPPORTEDSTUBAPIS'])
-
         # Sanity check
         if self._default_stub_api not in self._supported_stub_api_list:
             raise ConfigurationError(

@@ -53,14 +53,13 @@ import traceback
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.algGen import NoInvokesError
-from psyclone.gocean1p0 import GOReadConfigFile
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
 from psyclone.configuration import ConfigFactory
 
 # Get (a reference to) our one-and-only Config object
-_CONFIG = ConfigFactory().create()
+_CONFIG = ConfigFactory(read_config_now=False).create()
 
 
 def handle_script(script_name, psy):
@@ -289,9 +288,9 @@ def main(args):
     elif args.force_profile:
         Profiler.set_options(args.force_profile)
 
-    if args.config:
-        # For now only gocean supports an additional config file:
-        GOReadConfigFile.read_config_file(args.config)
+    # If no config file name is specified, args.config is none
+    # and config will load the default config file.
+    _CONFIG.load(args.config)
 
     try:
         alg, psy = generate(args.filename, api=args.api,
