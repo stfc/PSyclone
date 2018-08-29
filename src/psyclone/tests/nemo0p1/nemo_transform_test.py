@@ -65,7 +65,6 @@ def test_explicit_gen():
         kernel = loop.kernel
         if kernel and loop.loop_type == "levels":
             schedule, _ = omp_trans.apply(loop)
-    schedule.view()
     gen_code = str(psy.gen).lower()
     print(gen_code)
     expected = (
@@ -86,3 +85,61 @@ def test_explicit_gen():
         "  !$omp end parallel do\n"
         "end program explicit_do")
     assert expected in gen_code
+    # Check that calling gen a second time gives the same code
+    gen_code = str(psy.gen).lower()
+    assert expected in gen_code
+
+
+def test_omp_parallel():
+    ''' Check insertion of an OpenMP parallel region containing a single,
+    explicit loop. '''
+    from psyclone.transformations import OMPParallelTrans
+    otrans = OMPParallelTrans()
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('explicit_do').schedule
+    new_sched, _ = otrans.apply([schedule.children[0]])
+    gen_code = str(psy.gen).lower()
+    assert ("  !$omp parallel default(shared), private(jk,jj,ji)\n"
+            "  do jk = 1, jpk\n"
+            "    do jj = 1, jpj\n"
+            "      do ji = 1, jpi\n"
+            "        umask(ji, jj, jk) = ji * jj * jk / r\n"
+            "      end do\n"
+            "    end do\n"
+            "  end do\n"
+            "  !$omp end parallel\n" in gen_code)
+
+
+def test_omp_parallel_multi():
+    ''' Check insertion of an OpenMP parallel region containing more than
+    one node. '''
+    from psyclone.transformations import OMPParallelTrans
+    otrans = OMPParallelTrans()
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    schedule.view()
+    # Apply the OMP Parallel transformation so as to enclose the last two
+    # loop nests (Python's slice notation is such that the expression below
+    # gives elements 2-3).
+    new_sched, _ = otrans.apply(schedule.children[0].children[2:4])
+    new_sched.view()
+    gen_code = str(psy.gen).lower()
+    print(gen_code)
+    assert ("    !$omp parallel default(shared), private(jj,ji)\n"
+            "    do jj = 1, jpjm1\n"
+            "      do ji = 1, fs_jpim1\n"
+            "        zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * "
+            "e3u_n(ji, jj, jk)\n" in gen_code)
+    assert ("    do jj = 2, jpjm1\n"
+            "      do ji = fs_2, fs_jpim1\n"
+            "        pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + "
+            "zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + "
+            "zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / "
+            "e3t_n(ji, jj, jk)\n"
+            "      end do\n"
+            "    end do\n"
+            "    !$omp end parallel\n" in gen_code)

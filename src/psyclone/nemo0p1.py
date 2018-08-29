@@ -271,10 +271,12 @@ class NemoPSy(PSy):
     @property
     def gen(self):
         '''
-        Update the PSy code for the NEMO api v.0.1.
+        Generate the (updated) fparser2 AST for the NEMO code represented
+        by this NemoPSy object.
 
-        :rtype: ast
-
+        :rtype: :py:class:`fparser.two.Fortran2003.Main_Program` or \
+                :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
+                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
         '''
         # Walk down our Schedule and update the underlying fparser2 AST
         # to account for any transformations
@@ -285,13 +287,20 @@ class NemoPSy(PSy):
 
 
 class NemoSchedule(Schedule, ASTProcessor):
-    ''' The GOcean specific schedule class. We call the base class
+    '''
+    The GOcean specific schedule class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
-    user-supplied kernels and built-ins. '''
+    user-supplied kernels and built-ins.
+
+    :param invoke:
+    :param ast: the fparser2 AST of the NEMO code for which to generate \
+                a Schedule.
+    :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
+               :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
+               :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
+    '''
 
     def __init__(self, invoke, ast=None):
-        '''
-        '''
         Node.__init__(self)
 
         self._invoke = invoke
@@ -387,11 +396,6 @@ class NemoSchedule(Schedule, ASTProcessor):
         will look them up from the field object for every loop '''
         self._const_loop_bounds = obj
 
-    def update(self):
-        ''' TBD '''
-        for child in self._children:
-            child.update()
-
 
 class NemoCodeBlock(Node):
     ''' Node representing some generic Fortran code that PSyclone
@@ -422,10 +426,6 @@ class NemoCodeBlock(Node):
 
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
-
-    def update(self):
-        ''' TBD '''
-        return
 
 
 class NemoKern(Kern):
@@ -615,10 +615,6 @@ class NemoKern(Kern):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    def update(self):
-        ''' TBD '''
-        return
-
 
 class NemoLoop(Loop, ASTProcessor):
     '''
@@ -692,11 +688,6 @@ class NemoLoop(Loop, ASTProcessor):
             return kernels[0]
         return None
 
-    def update(self):
-        ''' TBD '''
-        for child in self._children:
-            child.update()
-
 
 class NemoImplicitLoop(NemoLoop):
     '''
@@ -732,6 +723,8 @@ class NemoImplicitLoop(NemoLoop):
         self._start = 1
         self._step = 1
         if outermost_dim == 0:
+            # TODO ensure no name clash is possible with variables that
+            # already exist in the NEMO source.
             self._variable_name = name_space_manager.create_name(
                 root_name="psy_ji", context="PSyVars", label="psy_ji")
             self.loop_type = "lon"
@@ -750,9 +743,7 @@ class NemoImplicitLoop(NemoLoop):
             raise GenerationError("Array section in unsupported dimension "
                                   "({0}) for code {1}".format(outermost_dim,
                                                               str(ast)))
-
-        # TODO use namespace manager for this loop variable and add
-        # declaration too. Since the fparser2 AST does not have parent
+        # TODO Since the fparser2 AST does not have parent
         # information (and no other way of getting to the root node), it is
         # currently not possible to insert a declaration in the correct
         # location.
