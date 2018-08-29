@@ -119,7 +119,7 @@ def test_implicit_loop_assign():
     # and therefore are not implicit loops
     assert isinstance(sched.children[1], nemo0p1.NemoCodeBlock)
     # Check that the loop variables have been declared
-    for var in ["ji", "jj", "jk"]:
+    for var in ["psy_ji", "psy_jj", "psy_jk"]:
         assert "integer :: {0}".format(var) in gen
 
 

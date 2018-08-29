@@ -45,7 +45,7 @@ import copy
 from psyclone.parse import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
-    SCHEDULE_COLOUR_MAP as _BASE_CMAP
+    NameSpaceFactory, SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.Fortran2003 import walk_ast
 from fparser.two import Fortran2003
 
@@ -54,47 +54,14 @@ from fparser.two import Fortran2003
 NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
 NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
 
-# The different grid-point types that a field can live on
-VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
-
 # The two scalar types we support
 VALID_SCALAR_TYPES = ["i_scalar", "r_scalar"]
-
-# Index-offset schemes (for the Arakawa C-grid)
-VALID_OFFSET_NAMES = ["offset_se", "offset_sw",
-                      "offset_ne", "offset_nw", "offset_any"]
-
-# The offset schemes for which we can currently generate constant
-# loop bounds in the PSy layer
-SUPPORTED_OFFSETS = ["offset_ne", "offset_sw", "offset_any"]
 
 # The sets of grid points that a kernel may operate on
 VALID_ITERATES_OVER = ["all_pts", "internal_pts", "external_pts"]
 
 # Valid values for the type of access a kernel argument may have
 VALID_ARG_ACCESSES = ["read", "write", "readwrite"]
-
-# The list of valid stencil properties. We currently only support
-# pointwise. This property could probably be removed from the
-# GOcean API altogether.
-VALID_STENCILS = ["pointwise"]
-
-# A dictionary giving the mapping from meta-data names for
-# properties of the grid to their names in the Fortran grid_type.
-GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
-                      "grid_area_u": "area_u",
-                      "grid_area_v": "area_v",
-                      "grid_mask_t": "tmask",
-                      "grid_dx_t": "dx_t",
-                      "grid_dx_u": "dx_u",
-                      "grid_dx_v": "dx_v",
-                      "grid_dy_t": "dy_t",
-                      "grid_dy_u": "dy_u",
-                      "grid_dy_v": "dy_v",
-                      "grid_lat_u": "gphiu",
-                      "grid_lat_v": "gphiv",
-                      "grid_dx_const": "dx",
-                      "grid_dy_const": "dy"}
 
 # The loop index variables we expect NEMO to use
 NEMO_LOOP_VARS = ["ji", "jj", "jk"]
@@ -199,6 +166,7 @@ class NemoInvoke(Invoke):
         self._psy_unique_vars = ["a_variable"]
         # Store the whole fparser2 AST
         self._ast = ast
+        self._name_space_manager = NameSpaceFactory().create()
 
         from habakkuk.parse2003 import get_child, ParseError as perror
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
@@ -746,6 +714,9 @@ class NemoImplicitLoop(NemoLoop):
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
+        # Get a reference to the name-space manager
+        name_space_manager = NameSpaceFactory().create()
+
         # Find all uses of array syntax in the statement
         subsections = Fortran2003.walk_ast(
             ast.items, [Fortran2003.Section_Subscript_List])
@@ -761,15 +732,18 @@ class NemoImplicitLoop(NemoLoop):
         self._start = 1
         self._step = 1
         if outermost_dim == 0:
-            self._variable_name = "ji"
+            self._variable_name = name_space_manager.create_name(
+                root_name="psy_ji", context="PSyVars", label="psy_ji")
             self.loop_type = "lon"
             self._stop = "jpi"
         elif outermost_dim == 1:
-            self._variable_name = "jj"
+            self._variable_name = name_space_manager.create_name(
+                root_name="psy_jj", context="PSyVars", label="psy_jj")
             self.loop_type = "lat"
             self._stop = "jpj"
         elif outermost_dim == 2:
-            self._variable_name = "jk"
+            self._variable_name = name_space_manager.create_name(
+                root_name="psy_jk", context="PSyVars", label="psy_jk")
             self.loop_type = "levels"
             self._stop = "jpk"
         else:
