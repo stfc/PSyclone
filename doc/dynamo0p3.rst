@@ -1059,14 +1059,25 @@ meta-data must also specify the set of points on which these functions
 are required. This information is provided by the ``gh_shape``
 component of the meta-data.  Currently PSyclone supports two shapes;
 ``gh_quadrature_XYoZ`` for Gaussian quadrature points and
-``gh_evaluator`` for evaluation at nodal points. For the latter,
-the values of the basis/differential-basis functions are computed at
-the nodes defined by the function space of the quantity that the
-associated kernel is updating. All necessary data is extracted in the
-PSy layer and passed to the kernel(s) as required - nothing is
-required from the Algorithm layer. If a kernel requires quadrature on
-the other hand, the Algorithm writer must supply a ``quadrature_type``
-object as the last argument to the kernel (see Section :ref:`dynamo0.3-quadrature`).
+``gh_evaluator`` for evaluation (of the basis/differential-basis
+functions) at nodal points. For the latter, there are two options: if
+an evaluator is required for multiple function spaces then these can
+be specified using the additional ``gh_evaluator_targets`` meta-data
+entry. This entry is a one-dimensional, integer array containing the
+desired function spaces. e.g. to request basis/differential-basis
+functions evaluated on both W0 and W1::
+
+    integer, parameter :: gh_shape = gh_evaluator
+    integer, parameter :: gh_evaluator_targets(2) = (/W0, W1/)
+
+Alternatively, if ``gh_evaluator_targets`` is not specified then
+evaluators are provided for each function-space associated with the
+quantities that the kernel is updating. All necessary data is
+extracted in the PSy layer and passed to the kernel(s) as required -
+nothing is required from the Algorithm layer. If a kernel requires
+quadrature on the other hand, the Algorithm writer must supply a
+``quadrature_type`` object as the last argument to the kernel (see
+Section :ref:`dynamo0.3-quadrature`).
 
 Note that it is an error for kernel meta-data to specify a value for
 ``gh_shape`` if no basis or differential-basis functions are
@@ -1178,7 +1189,10 @@ rules, along with PSyclone's naming conventions, are:
 
     1) include integer scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
 
-       1) If ``gh_shape`` is ``gh_evaluator`` then pass ``n_xyz``
+       1) If ``gh_shape`` is ``gh_evaluator`` then pass ``n_xyz`` for each
+	  function space on which an evaluator is required, in the order in
+	  which they are encountered in the meta-data.
+
        2) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``n_xy`` and ``n_z``
 
     2) if Quadrature is required (``gh_shape`` is of type ``gh_quadrature_*``) then include weights which are real arrays of kind ``r_def``:
