@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-18, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,14 +83,13 @@ def test_eval_mdata():
 
 
 def test_single_updated_arg():
-    ''' Check that we reject any kernel requiring an evaluator
+    ''' Check that we handle any kernel requiring an evaluator
     if it writes to more than one argument '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the access of the read-only argument
     code = CODE.replace("GH_READ", "GH_WRITE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name="testkern_eval_type")
+    dkm = DynKernMetadata(ast, name="testkern_eval_type")
     assert ("kernel testkern_eval_type requires gh_evaluator and updates "
             "2 arguments") in str(excinfo)
     # Change the gh_shape element to specify quadrature and then test again
@@ -98,6 +97,19 @@ def test_single_updated_arg():
     ast = fpapi.parse(qr_code, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
     assert dkm.get_integer_variable('gh_shape') == "gh_quadrature_xyoz"
+
+
+def test_eval_targets():
+    ''' Check that we can specify multiple evaluator targets using
+    the gh_evaluator_targets meta-data entry. '''
+    code = CODE.replace(
+        "gh_evaluator\n",
+        "gh_evaluator\n"
+        "integer, parameter, dimension(2) :: gh_evaluator_targets = [W0, W1]\n")
+    print(code)
+    ast = fpapi.parse(code, ignore_comments=False)
+    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    assert 0
 
 
 def test_single_kern_eval(tmpdir, f90, f90flags):

@@ -859,6 +859,7 @@ class DynKernMetadata(KernelType):
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
         self._eval_shape = self.get_integer_variable('gh_shape')
+        self._eval_targets = None  # List of FS for which evaluator required
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
         # specified for each [field] argument). This property is
@@ -933,6 +934,12 @@ class DynKernMetadata(KernelType):
                             "kernel '{2}'".
                             format(VALID_EVALUATOR_SHAPES, self._eval_shape,
                                    self.name))
+                    # Check to see whether the optional 'gh_evaluator_targets'
+                    # has been supplied
+                    targets = self.get_integer_array('gh_evaluator_targets')
+                    if targets:
+                        self._eval_targets = targets[:]
+
             self._func_descriptors.append(descriptor)
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
@@ -4624,9 +4631,9 @@ class DynKern(Kern):
         self._qr_text = ""
         self._qr_name = None
         self._qr_args = None
-        # The function space on which to evaluate basis/diff-basis functions
+        # The function spaces on which to evaluate basis/diff-basis functions
         # if any are required
-        self._nodal_fspace = None
+        self._nodal_fspaces = []
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel
@@ -4783,9 +4790,11 @@ class DynKern(Kern):
                     arg + "_" + self._qr_name for arg in self._qr_args]
 
         elif self._eval_shape == "gh_evaluator":
-            # Kernel has an evaluator. The FS of the updated argument tells
+            # Kernel has an evaluator. If gh_evaluator_targets is present
+            # then that specifies the function spaces for which the evaluator
+            # is required. Otherwise, the FS of the updated argument(s) tells
             # us upon which nodal points the evaluator will be required
-            arg = self.updated_arg
+            arg = self.updated_arg # TODO allow for multiple, updated args
             if arg.is_operator:
                 self._nodal_fspace = arg.function_space_to
             else:

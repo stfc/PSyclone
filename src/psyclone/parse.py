@@ -632,16 +632,45 @@ class KernelType(object):
     def get_integer_variable(self, name):
         ''' Parse the kernel meta-data and find the value of the
         integer variable with the supplied name. Return None if no
-        matching variable is found.'''
+        matching variable is found.
+        :param str name:
+        :raises ParseError:
+        '''
+        from fparser.two import Fortran2003
         for statement, _ in fpapi.walk(self._ktype, -1):
             if isinstance(statement, fparser1.typedecl_statements.Integer):
                 # fparser only goes down to the statement level. We use
-                # the expression parser (expression.py) to parse the
-                # statement itself.
-                assign = expr.FORT_EXPRESSION.parseString(
+                # fparser2 to parse the statement itself (eventually we'll
+                # use fparser2 to parse the whole thing).
+                assign = Fortran2003.Assignment_Stmt(
                     statement.entity_decls[0])
-                if assign[0].name == name:
-                    return assign[0].value
+                if str(assign.items[0]) == name:
+                    if not isinstance(assign.items[2], Fortran2003.Name):
+                        raise ParseError(
+                            "get_integer_variable: RHS of assignment is not "
+                            "a variable name: {0}".format(str(assign)))
+                    return str(assign.items[2])
+        return None
+
+    def get_integer_array(self, name):
+        ''' Parse the kernel meta-data and find the value of the
+        integer array variable with the supplied name. Return None if no
+        matching variable is found.'''
+        from fparser.two import Fortran2003
+        for statement, _ in fpapi.walk(self._ktype, -1):
+            if isinstance(statement, fparser1.typedecl_statements.Integer):
+                # fparser only goes down to the statement level. We use
+                # fparser2 to parse the statement itself (eventually we'll
+                # use fparser2 to parse the whole thing).
+                assign = Fortran2003.Assignment_Stmt(
+                    statement.entity_decls[0])
+                if str(assign.items[0]) == name:
+                    if not isinstance(assign.items[2],
+                                      Fortran2003.Array_Constructor):
+                        raise ParseError(
+                            "get_integer_array: RHS of assignment is not "
+                            "an array constructor: {0}".format(str(assign)))
+                    return str(assign.items[2])
         return None
 
 
