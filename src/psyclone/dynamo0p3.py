@@ -4634,8 +4634,8 @@ class DynKern(Kern):
         self._qr_name = None
         self._qr_args = None
         # The function spaces on which to evaluate basis/diff-basis functions
-        # if any are required
-        self._nodal_fspaces = []
+        # if any are required. TODO make this a list.
+        self._nodal_fspace = None
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
         self._is_intergrid = False  # Whether this is an inter-grid kernel

@@ -656,6 +656,8 @@ class KernelType(object):
         ''' Parse the kernel meta-data and find the value of the
         integer array variable with the supplied name. Return None if no
         matching variable is found.'''
+        # TODO once we have a release of fparser with 'walk' functionality,
+        # use that to make this routine more robust.
         from fparser.two import Fortran2003
         for statement, _ in fpapi.walk(self._ktype, -1):
             if isinstance(statement, fparser1.typedecl_statements.Integer):
@@ -664,13 +666,32 @@ class KernelType(object):
                 # use fparser2 to parse the whole thing).
                 assign = Fortran2003.Assignment_Stmt(
                     statement.entity_decls[0])
-                if str(assign.items[0]) == name:
+                if isinstance(assign.items[0], Fortran2003.Name):
+                    var_name = str(assign.items[0])
+                elif isinstance(assign.items[0], Fortran2003.Part_Ref):
+                    var_name = str(assign.items[0].items[0])
+                else:
+                    raise InternalError(
+                        "Unsupported assignment statement: {0}".
+                        format(str(assign)))
+                if var_name == name:
                     if not isinstance(assign.items[2],
                                       Fortran2003.Array_Constructor):
                         raise ParseError(
                             "get_integer_array: RHS of assignment is not "
                             "an array constructor: {0}".format(str(assign)))
-                    return str(assign.items[2])
+                    # Structure of Array_Constructor is:
+                    # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
+                    #                                      Name('w1'))), ']')
+                    elements = []
+                    for item in assign.items[2].items[1].items:
+                        if isinstance(item, Fortran2003.Name):
+                            elements.append(str(item))
+                        else:
+                            raise InternalError(
+                                "Failed to parse array constructor: {0}".
+                                format(str(assign.items[2])))
+                    return elements
         return None
 
 

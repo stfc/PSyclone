@@ -54,15 +54,16 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 CODE = '''
 module testkern_eval
   type, extends(kernel_type) :: testkern_eval_type
-    type(arg_type) :: meta_args(2) = (/                                  &
-         arg_type(GH_FIELD,   GH_INC,  W0),                              &
-         arg_type(GH_FIELD,   GH_READ, W1)                               &
+    type(arg_type) :: meta_args(2) = (/       &
+         arg_type(GH_FIELD,   GH_INC,  W0),   &
+         arg_type(GH_FIELD,   GH_READ, W1)    &
          /)
-    type(func_type) :: meta_funcs(2) = (/                                &
-         func_type(W0, GH_BASIS),                                        &
-         func_type(W1, GH_DIFF_BASIS)                                    &
+    type(func_type) :: meta_funcs(2) = (/     &
+         func_type(W0, GH_BASIS),             &
+         func_type(W1, GH_DIFF_BASIS)         &
          /)
     integer, parameter :: gh_shape = gh_evaluator
+    integer, parameter :: gh_evaluator_targets(2) = [W0, W1]
     integer, parameter :: iterates_over = cells
   contains
     procedure() :: code => testkern_eval_code
@@ -82,6 +83,8 @@ def test_eval_mdata():
     assert dkm.get_integer_variable('gh_shape') == 'gh_evaluator'
 
 
+@pytest.mark.xfail(reason="Rule on only 1 written arg relaxed in parser "
+                   "but not yet implemented fully.")
 def test_single_updated_arg():
     ''' Check that we handle any kernel requiring an evaluator
     if it writes to more than one argument '''
@@ -102,14 +105,35 @@ def test_single_updated_arg():
 def test_eval_targets():
     ''' Check that we can specify multiple evaluator targets using
     the gh_evaluator_targets meta-data entry. '''
-    code = CODE.replace(
-        "gh_evaluator\n",
-        "gh_evaluator\n"
-        "integer, parameter, dimension(2) :: gh_evaluator_targets = [W0, W1]\n")
-    print(code)
-    ast = fpapi.parse(code, ignore_comments=False)
+    ast = fpapi.parse(CODE, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
-    assert 0
+    assert dkm._eval_targets == ["w0", "w1"]
+
+
+def test_eval_targets_err():
+    ''' Check that needlessly specifying gh_evaluator_targets raises the
+    expected errors. '''
+    # When the shape is gh_quadrature_* instead of gh_evaluator...
+    code = CODE.replace("gh_evaluator\n", "gh_quadrature_xyoz\n")
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as err:
+        _ = DynKernMetadata(ast, name="testkern_eval_type")
+    assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
+            "an evaluator because gh_shape=gh_quadrature_xyoz" in str(err))
+    # When there are no basis/diff-basis functions required
+    code = CODE.replace(
+        "    type(func_type) :: meta_funcs(2) = (/     &\n"
+        "         func_type(W0, GH_BASIS),             &\n"
+        "         func_type(W1, GH_DIFF_BASIS)         &\n"
+        "         /)\n", "")
+    code = code.replace("    integer, parameter :: gh_shape = gh_evaluator\n",
+                        "")
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as err:
+        _ = DynKernMetadata(ast, name="testkern_eval_type")
+    assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
+            "an evaluator because no basis or differential basis functions "
+            "are required" in str(err))
 
 
 def test_single_kern_eval(tmpdir, f90, f90flags):

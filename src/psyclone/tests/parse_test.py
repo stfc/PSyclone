@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -258,14 +258,13 @@ def test_duplicate_named_invoke():
 def test_duplicate_named_invoke_case():
     ''' Test that we raise the expected error when an algorithm file
     contains two invokes that are given the same name but with different
-    case '''
+    case. '''
     with pytest.raises(ParseError) as err:
         _, _ = parse(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3",
                          "3.4_multi_invoke_name_clash_case_insensitive.f90"),
             api="dynamo0.3")
-    print(str(err))
     assert ("Found multiple named invoke()'s with the same name ('jack') "
             "when parsing " in str(err))
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
@@ -273,7 +272,7 @@ def test_duplicate_named_invoke_case():
 
 def test_get_stencil():
     ''' Check that parse.get_stencil() raises the correct errors when
-    passed various incorrect inputs '''
+    passed various incorrect inputs. '''
     from psyclone.parse import get_stencil
     from psyclone.expression import ExpressionNode, FunctionVar
     enode = ExpressionNode(["1"])
@@ -294,3 +293,51 @@ def test_get_stencil():
         _ = get_stencil(node, ["cross"])
     assert ("expecting either FunctionVar or str from the expression analyser"
             in str(excinfo))
+
+MDATA = '''
+module testkern_eval_mod
+  type, extends(kernel_type) :: testkern_eval_type
+    type(arg_type) :: meta_args(2) = (/       &
+         arg_type(GH_FIELD,   GH_WRITE,  W0), &
+         arg_type(GH_FIELD,   GH_READ, W1)    &
+         /)
+    type(func_type) :: meta_funcs(2) = (/     &
+         func_type(W0, GH_BASIS),             &
+         func_type(W1, GH_DIFF_BASIS)         &
+         /)
+    integer, parameter :: gh_shape = gh_evaluator
+    integer, parameter :: gh_evaluator_targets(2) = [W0, W1]
+    integer, parameter :: iterates_over = cells
+  contains
+    procedure() :: code => testkern_eval_code
+  end type testkern_eval_type
+contains
+  subroutine testkern_eval_code()
+  end subroutine testkern_eval_code
+end module testkern_eval_mod
+'''
+
+
+def test_get_integer():
+    ''' Tests for the KernelType.get_integer(). method '''
+    from fparser import api as fpapi
+    from psyclone.parse import KernelType
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    iter = ktype.get_integer_variable("iterates_over")
+    assert iter == "cells"
+
+
+def test_get_integer_array():
+    ''' Tests for the KernelType.get_integer_array() method. '''
+    from fparser import api as fpapi
+    from psyclone.parse import KernelType
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    targets = ktype.get_integer_array("gh_evaluator_targets")
+    assert targets == ["w0", "w1"]
+    mdata = MDATA.replace("[W0, W1]", "(/W0, W1/)")
+    ast = fpapi.parse(mdata, ignore_comments=False)
+    ktype = KernelType(ast)
+    targets = ktype.get_integer_array("gh_evaluator_targets")
+    assert targets == ["w0", "w1"]
