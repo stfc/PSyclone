@@ -1051,8 +1051,8 @@ functions for W1.
 
 .. _dynamo0.3-gh-shape:
 
-gh_shape
-########
+gh_shape and gh_evaluator_targets
+#################################
 
 If a kernel requires basis or differential-basis functions then the
 meta-data must also specify the set of points on which these functions
@@ -1080,8 +1080,9 @@ quadrature on the other hand, the Algorithm writer must supply a
 Section :ref:`dynamo0.3-quadrature`).
 
 Note that it is an error for kernel meta-data to specify a value for
-``gh_shape`` if no basis or differential-basis functions are
-required.
+``gh_shape`` if no basis or differential-basis functions are required.
+It is also an error to specify ``gh_evaluator_targets`` if the kernel
+does not require an evaluator (i.e. ``gh_shape != gh_evaluator``).
 
 iterates over
 #############
