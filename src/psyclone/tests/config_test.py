@@ -110,13 +110,9 @@ def test_factory_create():
         # Check that we are creating a singleton instance
         _config2 = ConfigFactory().create()
         assert _config is _config2
-        # Check that specifying which config file to use results
-        # in a new instance
-        _config2 = ConfigFactory(config_file=TEST_CONFIG).create()
-        assert _config2 is not _config
     finally:
         # Reset the factory
-        ConfigFactory._instance = None
+        ConfigFactory().create().load()
 
 
 def test_missing_file(tmpdir):
@@ -245,7 +241,7 @@ def test_read_values():
         assert _config.filename == str(TEST_CONFIG)
     finally:
         # Reset the configuration object held in the factory
-        ConfigFactory._instance = None
+        ConfigFactory().create().load()
 
 
 def test_dm():

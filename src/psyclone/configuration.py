@@ -79,12 +79,14 @@ class ConfigFactory(object):
     _instance = None  # Our single Config object
 
     def __init__(self, config_file=None, read_config_now=True):
-        if not ConfigFactory._instance or config_file:
+        if not ConfigFactory._instance:
             # Create a Config object if we've not already got one or if the
             # caller has specified a particular file
             ConfigFactory._instance = Config()
-
             if read_config_now:
+                ConfigFactory._instance.load(config_file)
+        else:
+            if config_file:
                 ConfigFactory._instance.load(config_file)
 
     # -------------------------------------------------------------------------
