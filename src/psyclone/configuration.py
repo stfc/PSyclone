@@ -125,6 +125,7 @@ class Config(object):
         :raises ConfigurationError: if there are errors or inconsistencies in \
                                 the specified config file.
         '''
+        # pylint: disable=too-many-branches
         if config_file:
             # Caller has explicitly provided the full path to the config
             # file to read
@@ -213,6 +214,8 @@ class Config(object):
             if api in self._config:
                 if api == "dynamo0.3":
                     self._api[api] = DynConfig(self, self._config[api])
+                elif api == "gocean1.0":
+                    self._api[api] = GOceanConfig(self, self._config[api])
                 else:
                     raise NotImplementedError(
                         "Configuration file contains a {0} section but no "
@@ -380,7 +383,14 @@ class Config(object):
         '''
         return self._config_file
 
+    def get_default_keys(self):
+        '''Returns all keys from the default section.
+        :returns list: List of all keys of the default section as strings.
+        '''
+        return self._config.defaults()
 
+
+# =============================================================================
 class DynConfig(object):
     '''
     Dynamo0.3-specific Config sub-class. Holds configuration options specific
@@ -391,8 +401,8 @@ class DynConfig(object):
     :param section: The entry for the dynamo0.3 section of \
                     the configuration file, as produced by ConfigParser.
     :type section:  :py:class:`configparser.SectionProxy`
-
     '''
+    # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
 
         self._config = config  # Ref. to parent Config object
@@ -415,3 +425,32 @@ class DynConfig(object):
 
         '''
         return self._compute_annexed_dofs
+
+
+# =============================================================================
+class GOceanConfig(object):
+    '''Gocean1.0-specific Config sub-class. Holds configuration options
+    specific to the GOcean 1.0 API.
+
+    :param config: The 'parent' Config object.
+    :type config: :py:class:`psyclone.configuration.Config`
+    :param section: The entry for the dynamo0.3 section of \
+                    the configuration file, as produced by ConfigParser.
+    :type section:  :py:class:`configparser.SectionProxy`
+
+    '''
+    # pylint: disable=too-few-public-methods
+    def __init__(self, config, section):
+        from psyclone.gocean1p0 import GOLoop
+        for i in section.keys():
+            # Do not handle any keys from the DEFAULT section
+            # since they are handled y Config(), not this subclass
+            if i in config.get_default_keys():
+                continue
+            if i == "iteration-spaces":
+                value_as_str = str(section[i])
+                for it_space in value_as_str.split("\n"):
+                    GOLoop.add_bounds(it_space)
+            else:
+                raise ConfigurationError("Invalid key \"{0}\" found in "
+                                         "\"{1}\".".format(i, config.filename))

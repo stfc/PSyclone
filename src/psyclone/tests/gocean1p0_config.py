@@ -41,12 +41,12 @@ import os
 import tempfile
 import pytest
 
-from psyclone.configuration import ConfigurationError
+from psyclone.configuration import Config, ConfigFactory, ConfigurationError
+    
 from psyclone.generator import main
-from psyclone.gocean1p0 import GOReadConfigFile
 
 
-def xtest_command_line(capsys):
+def test_command_line(capsys):
     '''Tests that the config command line flag works as expected.
     '''
     f90_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -72,46 +72,66 @@ def xtest_command_line(capsys):
 
 
 # =============================================================================
-def xtest_invalid_config_files():
+def test_invalid_config_files():
     ''' Test various error conditions.
     '''
-
-    # Create a config file without any sections
-    content = "COMPUTE_ANNEXED_DOFS = false\n"
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
-        new_cfg.write(content)
-        new_cfg.close()
-
-        with pytest.raises(ConfigurationError) as err:
-            GOReadConfigFile.read_config_file(new_name)
-        assert "ConfigParser failed to read the configuration file '{0}'. Is "\
-               "it formatted correctly? (Error was: File contains no section "\
-               "headers".format(new_name) in str(err)
-
-    # Create a config file with an incorrect section
-    content = "[not-gocean1.0]\nkey=value\n"
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
-        new_cfg.write(content)
-        new_cfg.close()
-
-        with pytest.raises(ConfigurationError) as err:
-            GOReadConfigFile.read_config_file(new_name)
-        assert "Configuration file '{0}' does not contain a "\
-               "'gocean1.0' section".format(new_name) in str(err)
-
+    
+    # Valid configuration file without iteration spaces. We add several
+    # iteration spaces to it to test for various error conditions
+    _CONFIG_CONTENT = '''\
+    [DEFAULT]
+    DEFAULTAPI = dynamo0.3
+    DEFAULTSTUBAPI = dynamo0.3
+    DISTRIBUTED_MEMORY = true
+    REPRODUCIBLE_REDUCTIONS = false
+    REPROD_PAD_SIZE = 8
+    [gocean1.0]
+    '''
     # Create a config files with gocean1.0 section, but an unsupported key:
-    content = "[gocean1.0]\nkey=value\n"
+    content = _CONFIG_CONTENT + "iteration-spaces=a:b"
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
 
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
-            GOReadConfigFile.read_config_file(new_name)
-        assert "Invalid key 'key' in file '{0}'".format(new_name) in str(err)
+            config.load(new_name)
+        assert "An iteration space must be in the form".format(new_name) \
+            in str(err)
+        assert "It was \"a:b\"" in str(err)
 
+    # Try a multi-line specification to make sure all lines are tested
+    content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:4\n        d:e"
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(new_name)
+        assert "An iteration space must be in the form".format(new_name) in str(err)
+        assert "It was \"d:e\"" in str(err)
+
+    # Add an invalid key:""
+    content = _CONFIG_CONTENT + "invalid-key=value"
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(new_name)
+        assert "Invalid key \"invalid-key\" found in \"{0}\".".\
+            format(new_name) in str(err)
+
+        for i in ["DEFAULTAPI", "DEFAULTSTUBAPI", "DISTRIBUTED_MEMORY", 
+                  "REPRODUCIBLE_REDUCTIONS"]:
+            # They keys are returned in lower case
+            assert i.lower() in config.get_default_keys()
+    
 
 # =============================================================================
 def test_valid_config_files():
@@ -124,7 +144,7 @@ def test_valid_config_files():
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
 
-    GOReadConfigFile.read_config_file(config_file)
+    ConfigFactory().create().load(config_file)
 
     psy, _ = get_invoke(
         os.path.join("gocean1p0", "new_iteration_space.f90"), "gocean1.0",

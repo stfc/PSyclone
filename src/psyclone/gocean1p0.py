@@ -501,9 +501,12 @@ class GOLoop(Loop):
 
         data = bound_info.split(":")
         if len(data) != 7:
-            raise ValueError("The argument must be in the form "
-                             "\"offset-type:field-type:iteration-space:"
-                             "outer-start:outer-stop:inner-start:inner-stop\"")
+            from psyclone.configuration import ConfigurationError
+            raise ConfigurationError("An iteration space must be in the form "
+                                     "\"offset-type:field-type:"
+                                     "iteration-space:outer-start:"
+                                     "outer-stop:inner-start:inner-stop\"\n"
+                                     "It was \"{0}\"".format(bound_info))
 
         if len(GOLoop._bounds_lookup) == 0:
             GOLoop.setup_bounds()
@@ -1487,58 +1490,3 @@ class GOACCDataDirective(ACCDataDirective):
                                          rhs=".true."))
                     obj_list.append(var)
         return
-
-
-# =============================================================================
-class GOReadConfigFile(object):
-    '''A simple wrapper class to store function to handle a gocean1.0
-    specific config file.'''
-
-    @staticmethod
-    def read_config_file(config_file):
-        '''Raises something.
-        KeyError
-        :raises ConfiguartionError: If the file was not found or could not \
-                be read.
-        :raises ConfiguartionError: If the files does not contain a gocean1.0\
-                section.
-        '''
-
-        import os
-        from configparser import ConfigParser, Error
-        from psyclone. configuration import ConfigurationError
-
-        # Check if the have a valid file:
-        if not os.path.isfile(config_file):
-            raise ConfigurationError(
-                "File {0} does not exist".format(config_file))
-
-        config_parser = ConfigParser()
-        # While Error is the base class for all errors in the configuration
-        # parser, afaik the read() method will never raise an exception,
-        # and silently ignore error.
-        try:
-            config_parser.read(config_file)
-        except Error as err:
-            raise ConfigurationError(
-                "ConfigParser failed to read the configuration file '{0}'."
-                " Is it formatted correctly? (Error was: {1})"
-                .format(config_file, str(err)),)
-
-        # Make sure the config file contains a gocean1.0 section:
-        if "gocean1.0" not in config_parser:
-            raise ConfigurationError(
-                "Configuration file '{0}' does not contain a "
-                "'gocean1.0' section".format(config_file))
-
-        gocean = config_parser["gocean1.0"]
-
-        for key in gocean.keys():
-            if key == "iteration-spaces":
-                # Convert from ustr to str:
-                value_as_str = str(gocean[key])
-                for it_space in value_as_str.split("\n"):
-                    GOLoop.add_bounds(it_space)
-            else:
-                raise ConfigurationError("Invalid key '{0}' in file '{1}'"
-                                         .format(key, config_file))
