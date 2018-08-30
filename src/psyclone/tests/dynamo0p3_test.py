@@ -68,7 +68,6 @@ TEST_API = "dynamo0.3"
 
 # Our configuration objects
 _CONFIG = ConfigFactory().create()
-_API_CONFIG = _CONFIG.api(TEST_API)
 
 
 # tests
@@ -6682,15 +6681,16 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
     assume that it may have been over dofs. If so, we could have dirty
     annexed dofs so need to add a halo exchange (for the three
     continuous fields being read (f1, f2 and m1). This is the case
-    when _API_CONFIG.compute_annexed_dofs is False.
+    when api_config.compute_annexed_dofs is False.
 
     If we always iterate over annexed dofs by default, our annexed
     dofs will always be clean. Therefore we do not need to add a halo
     exchange. This is the case when
-    _API_CONFIG.compute_annexed_dofs is True.
+    api_config.compute_annexed_dofs is True.
 
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = _CONFIG.api(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -6720,14 +6720,15 @@ def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
 
     When the previous writer iterates over ndofs we have dirty annexed
     dofs so need to add a halo exchange. This is the case when
-    _API_CONFIG.compute_annexed_dofs is False.
+    api_config.compute_annexed_dofs is False.
 
     When the previous writer iterates over nannexed we have clean
     annexed dofs so do not need to add a halo exchange. This is the
-    case when _API_CONFIG.compute_annexed_dofs is True
+    case when api_config.compute_annexed_dofs is True
 
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = _CONFIG.api(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.7_halo_annexed.f90"),
                     api=TEST_API)
@@ -6760,7 +6761,8 @@ def test_arg_discontinuous(monkeypatch, annexed):
 
     # 1 discontinuous field returns true
     # Check w3, wtheta and w2v in turn
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = _CONFIG.api(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     if annexed:
         # no halo exchanges produced for the w3 example
         idchld_list = [0, 0, 0]
@@ -7029,7 +7031,8 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
     halo exchanges produced.
 
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = _CONFIG.api(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -7180,7 +7183,8 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
     fewer halo exchange call generated.
 
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = _CONFIG.api(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.7.1_halo_annexed.f90"),
                            api=TEST_API)
@@ -7221,7 +7225,8 @@ def test_haloex_not_required(monkeypatch):
     former case should currently never happen in real code as a halo
     exchange would not be added in the first place.
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", False)
+    api_config = _CONFIG.api(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -7231,7 +7236,7 @@ def test_haloex_not_required(monkeypatch):
     for index in range(3):
         haloex = schedule.children[index]
         assert haloex.required() == (True, False)
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", True)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
     for index in range(3):
         haloex = schedule.children[index]
         assert haloex.required() == (False, True)
