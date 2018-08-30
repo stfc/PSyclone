@@ -48,7 +48,7 @@ from fparser import api as fpapi
 import psyclone.expression as expr
 from psyclone.line_length import FortLineLength
 from psyclone import configuration
-
+from psyclone.psyGen import InternalError
 
 def check_api(api):
     '''
@@ -633,8 +633,10 @@ class KernelType(object):
         ''' Parse the kernel meta-data and find the value of the
         integer variable with the supplied name. Return None if no
         matching variable is found.
-        :param str name:
-        :raises ParseError:
+        :param str name: the name of the integer variable to find.
+        :returns: value of the specified integer variable or None.
+        :rtype: str
+        :raises ParseError: if the RHS of the assignment is not a Name.
         '''
         from fparser.two import Fortran2003
         for statement, _ in fpapi.walk(self._ktype, -1):
@@ -648,50 +650,62 @@ class KernelType(object):
                     if not isinstance(assign.items[2], Fortran2003.Name):
                         raise ParseError(
                             "get_integer_variable: RHS of assignment is not "
-                            "a variable name: {0}".format(str(assign)))
+                            "a variable name: '{0}'".format(str(assign)))
                     return str(assign.items[2])
         return None
 
     def get_integer_array(self, name):
         ''' Parse the kernel meta-data and find the value of the
         integer array variable with the supplied name. Return None if no
-        matching variable is found.'''
+        matching variable is found.
+        :param str name: the name of the integer array to find.
+        :returns: list of values.
+        :rtype: list of str.
+        :raises InternalError: if we fail to parse the LHS of the array \
+                               declaration or the array constructor.
+        :raises ParseError: if the RHS of the declaration is not an array \
+                            constructor.
+        '''
         # TODO once we have a release of fparser with 'walk' functionality,
         # use that to make this routine more robust.
         from fparser.two import Fortran2003
         for statement, _ in fpapi.walk(self._ktype, -1):
-            if isinstance(statement, fparser1.typedecl_statements.Integer):
-                # fparser only goes down to the statement level. We use
-                # fparser2 to parse the statement itself (eventually we'll
-                # use fparser2 to parse the whole thing).
-                assign = Fortran2003.Assignment_Stmt(
-                    statement.entity_decls[0])
-                if isinstance(assign.items[0], Fortran2003.Name):
-                    var_name = str(assign.items[0])
-                elif isinstance(assign.items[0], Fortran2003.Part_Ref):
-                    var_name = str(assign.items[0].items[0])
-                else:
-                    raise InternalError(
-                        "Unsupported assignment statement: {0}".
-                        format(str(assign)))
-                if var_name == name:
-                    if not isinstance(assign.items[2],
-                                      Fortran2003.Array_Constructor):
-                        raise ParseError(
-                            "get_integer_array: RHS of assignment is not "
-                            "an array constructor: {0}".format(str(assign)))
-                    # Structure of Array_Constructor is:
-                    # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
-                    #                                      Name('w1'))), ']')
-                    elements = []
-                    for item in assign.items[2].items[1].items:
-                        if isinstance(item, Fortran2003.Name):
-                            elements.append(str(item))
-                        else:
-                            raise InternalError(
-                                "Failed to parse array constructor: {0}".
-                                format(str(assign.items[2])))
-                    return elements
+            if not isinstance(statement, fparser1.typedecl_statements.Integer):
+                # This isn't an integer declaration so skip it
+                continue
+            # fparser only goes down to the statement level. We use fparser2 to
+            # parse the statement itself (eventually we'll use fparser2 to
+            # parse the whole thing).
+            assign = Fortran2003.Assignment_Stmt(statement.entity_decls[0])
+            if isinstance(assign.items[0], Fortran2003.Name):
+                # Decln is of form: integer, dimension(2) :: my_array = [..]
+                var_name = str(assign.items[0])
+            elif isinstance(assign.items[0], Fortran2003.Part_Ref):
+                # Decln is of form: integer :: my_array(2) = [...]
+                var_name = str(assign.items[0].items[0])
+            else:
+                raise InternalError("Unsupported assignment statement: '{0}'".
+                                    format(str(assign)))
+            if var_name == name:
+                # This is the variable declaration we're looking for
+                if not isinstance(assign.items[2],
+                                  Fortran2003.Array_Constructor):
+                    raise ParseError(
+                        "get_integer_array: RHS of assignment is not "
+                        "an array constructor: '{0}'".format(str(assign)))
+                # Structure of Array_Constructor is:
+                # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
+                #                                      Name('w1'))), ']')
+                # Construct a list of the elements in the array constructor...
+                elements = []
+                for item in assign.items[2].items[1].items:
+                    if isinstance(item, Fortran2003.Name):
+                        elements.append(str(item))
+                    else:
+                        raise InternalError(
+                            "Failed to parse array constructor: {0}".
+                            format(str(assign.items[2])))
+                return elements
         return None
 
 

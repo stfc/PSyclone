@@ -41,7 +41,9 @@ function. '''
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
+from psyclone.psyGen import InternalError
 
 
 def test_default_api():
@@ -318,9 +320,8 @@ end module testkern_eval_mod
 '''
 
 
-def test_get_integer():
+def test_get_int():
     ''' Tests for the KernelType.get_integer(). method '''
-    from fparser import api as fpapi
     from psyclone.parse import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
@@ -328,9 +329,20 @@ def test_get_integer():
     assert iter == "cells"
 
 
-def test_get_integer_array():
+def test_get_int_err():
+    ''' Tests that we raise the expected error if the meta-data contains
+    an integer literal instead of a name. '''
+    from psyclone.parse import KernelType
+    mdata = MDATA.replace("= cells", "= 1")
+    ast = fpapi.parse(mdata, ignore_comments=False)
+    with pytest.raises(ParseError) as err:
+        _ = KernelType(ast)
+    assert ("RHS of assignment is not a variable name: 'iterates_over = 1'" in
+            str(err))
+
+
+def test_get_int_array():
     ''' Tests for the KernelType.get_integer_array() method. '''
-    from fparser import api as fpapi
     from psyclone.parse import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
@@ -341,3 +353,41 @@ def test_get_integer_array():
     ktype = KernelType(ast)
     targets = ktype.get_integer_array("gh_evaluator_targets")
     assert targets == ["w0", "w1"]
+
+
+def test_get_int_array_err1(monkeypatch):
+    ''' Tests that we raise the correct error if there is something wrong
+    with the assignment statement obtained from fparser2. '''
+    from psyclone.parse import KernelType
+    from fparser.two import Fortran2003
+    # This is difficult as we have to break the result returned by fparser2.
+    # We therefore first create a valid KernelType object...
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    # Next we create a valid fparser2 result...
+    assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
+    # break it (tuples are immutable so make a new one)...
+    new_list = ["invalid"] + list(assign.items[1:])
+    assign.items = tuple(new_list)
+    # and use monkeypatch to ensure that that's the result that is returned
+    # when we attempt to use fparser2 from within the routine under test...
+    monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
+                        lambda arg: assign)
+    with pytest.raises(InternalError) as err:
+        _ = ktype.get_integer_array("gh_evaluator_targets")
+    assert "Unsupported assignment statement: 'invalid = [1, 2]'" in str(err)
+
+
+def test_get_int_array_not_array(monkeypatch):
+    ''' Test that get_integer_array returns the expected error if the
+    requested variable is not an array. '''
+    from psyclone.parse import KernelType
+    from fparser.two import Fortran2003
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    # Erroneously call get_integer_array with the name of a scalar meta-data
+    # entry...
+    with pytest.raises(ParseError) as err:
+        ktype.get_integer_array("iterates_over")
+    assert ("RHS of assignment is not an array constructor: 'iterates_over = "
+            "cells'" in str(err))
