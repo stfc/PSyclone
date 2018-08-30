@@ -325,8 +325,8 @@ def test_get_int():
     from psyclone.parse import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
-    iter = ktype.get_integer_variable("iterates_over")
-    assert iter == "cells"
+    iter_val = ktype.get_integer_variable("iterates_over")
+    assert iter_val == "cells"
 
 
 def test_get_int_err():
@@ -378,16 +378,36 @@ def test_get_int_array_err1(monkeypatch):
     assert "Unsupported assignment statement: 'invalid = [1, 2]'" in str(err)
 
 
-def test_get_int_array_not_array(monkeypatch):
+def test_get_int_array_not_array():
     ''' Test that get_integer_array returns the expected error if the
     requested variable is not an array. '''
     from psyclone.parse import KernelType
-    from fparser.two import Fortran2003
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     # Erroneously call get_integer_array with the name of a scalar meta-data
     # entry...
     with pytest.raises(ParseError) as err:
-        ktype.get_integer_array("iterates_over")
+        _ = ktype.get_integer_array("iterates_over")
     assert ("RHS of assignment is not an array constructor: 'iterates_over = "
             "cells'" in str(err))
+
+
+def test_get_int_array_err2(monkeypatch):
+    ''' Check that we raise the appropriate error if we faile to parse the
+    array constructor expression. '''
+    from psyclone.parse import KernelType
+    from fparser.two import Fortran2003
+    # First create a valid KernelType object
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    # Next we create a valid fparser2 result...
+    assign = Fortran2003.Assignment_Stmt("gh_evaluator_targets(2) = [1, 2]")
+    # break it (tuples are immutable so make a new one)...
+    assign.items[2].items[1].items = tuple(["hello", "goodbye"])
+    # and use monkeypatch to ensure that that's the result that is returned
+    # when we attempt to use fparser2 from within the routine under test...
+    monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
+                        lambda arg: assign)
+    with pytest.raises(InternalError) as err:
+        _ = ktype.get_integer_array("gh_evaluator_targets")
+    assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)

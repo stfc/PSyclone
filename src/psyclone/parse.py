@@ -495,11 +495,20 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
 
 
 class KernelType(object):
-    """ Kernel Metadata baseclass
+    """
+    Base class for describing Kernel Metadata.
 
-    This contains the elemental procedure and metadata associated with
-    how that procedure is mapped over mesh entities."""
+    This contains the name of the elemental procedure and metadata associated
+    with how that procedure is mapped over mesh entities.
 
+    :param ast: fparser1 AST for the parsed kernel meta-data.
+    :type ast: :py:class:`fparser.one.xxxx`
+    :param str name: name of the Fortran derived type describing the kernel.
+
+    :raises ParseError: if the supplied name does not follow the convention \
+                        of ending in "_mod" or the AST does not contain a \
+                        module definition.
+    """
     def __init__(self, ast, name=None):
 
         if name is None:
@@ -703,7 +712,7 @@ class KernelType(object):
                         elements.append(str(item))
                     else:
                         raise InternalError(
-                            "Failed to parse array constructor: {0}".
+                            "Failed to parse array constructor: '{0}'".
                             format(str(assign.items[2])))
                 return elements
         return None
