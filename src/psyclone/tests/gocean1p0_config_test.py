@@ -78,7 +78,9 @@ def test_command_line(capsys):
         main(options+["--config", f90_file])
     _, outerr = capsys.readouterr()
 
-    assert "too few arguments" in str(outerr)
+    # Python 2 has the first error message, python 3 the second :()
+    assert "too few arguments" in str(outerr) or \
+           "the following arguments are required:" in str(outerr)
 
 
 # =============================================================================
