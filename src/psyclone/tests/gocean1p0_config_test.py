@@ -42,10 +42,20 @@ import tempfile
 import pytest
 
 from psyclone.configuration import Config, ConfigFactory, ConfigurationError
-    
+
 from psyclone.generator import main
 
 
+def teardown_function():
+    '''This teardown function is called at the end of all tests and makes
+    sure that we have the default config file loaded (and not a left-over
+    one from a test here).
+    '''
+    # Enforce loading of the default config file
+    ConfigFactory().create().load()
+
+
+# =============================================================================
 def test_command_line(capsys):
     '''Tests that the config command line flag works as expected.
     '''
@@ -75,9 +85,10 @@ def test_command_line(capsys):
 def test_invalid_config_files():
     ''' Test various error conditions.
     '''
-    
+
     # Valid configuration file without iteration spaces. We add several
     # iteration spaces to it to test for various error conditions
+    # pylint: disable=invalid-name
     _CONFIG_CONTENT = '''\
     [DEFAULT]
     DEFAULTAPI = dynamo0.3
@@ -97,8 +108,7 @@ def test_invalid_config_files():
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
-        assert "An iteration space must be in the form".format(new_name) \
-            in str(err)
+        assert "An iteration space must be in the form" in str(err)
         assert "It was \"a:b\"" in str(err)
 
     # Try a multi-line specification to make sure all lines are tested
@@ -111,7 +121,7 @@ def test_invalid_config_files():
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
-        assert "An iteration space must be in the form".format(new_name) in str(err)
+        assert "An iteration space must be in the form" in str(err)
         assert "It was \"d:e\"" in str(err)
 
     # Add an invalid key:""
@@ -127,11 +137,11 @@ def test_invalid_config_files():
         assert "Invalid key \"invalid-key\" found in \"{0}\".".\
             format(new_name) in str(err)
 
-        for i in ["DEFAULTAPI", "DEFAULTSTUBAPI", "DISTRIBUTED_MEMORY", 
+        for i in ["DEFAULTAPI", "DEFAULTSTUBAPI", "DISTRIBUTED_MEMORY",
                   "REPRODUCIBLE_REDUCTIONS"]:
             # They keys are returned in lower case
             assert i.lower() in config.get_default_keys()
-    
+
 
 # =============================================================================
 def test_valid_config_files():
@@ -151,17 +161,18 @@ def test_valid_config_files():
         idx=0)
 
     gen = str(psy.gen)
+    # "# nopep8" suppresses the pep8 warning about trailing white space at end of
+    # line (after the "END DO ")
     new_loop1 = '''      DO j=3,4
         DO i=1,2
           CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO 
-      END DO '''
+      END DO '''   # nopep8
     assert new_loop1 in gen
 
-    # pylint: disable=
     new_loop2 = '''      DO j=1,jstop+1
         DO i=1,istop
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO 
-      END DO '''
+      END DO '''   # nopep8
     assert new_loop2 in gen
