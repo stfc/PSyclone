@@ -50,7 +50,7 @@ from psyclone.transformations import TransformationError, \
     KernelModuleInlineTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans
-from psyclone.configuration import ConfigFactory
+from psyclone.configuration import Config
 import utils
 
 
@@ -61,7 +61,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 # Our configuration objects
-_CONFIG = ConfigFactory().create()
+_CONFIG = Config.get()
 
 
 def test_colour_trans_declarations(tmpdir, f90, f90flags):

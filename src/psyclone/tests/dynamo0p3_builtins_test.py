@@ -46,7 +46,7 @@ import os
 import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
-from psyclone.configuration import ConfigFactory
+from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
 import utils
 
@@ -55,7 +55,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 # Get our configuration object
-_CONFIG = ConfigFactory().create()
+_CONFIG = Config.get()
 
 # The PSyclone API under test
 API = "dynamo0.3"
@@ -441,7 +441,7 @@ def test_inc_X_plus_Y(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = ConfigFactory.create().api(API)
+    api_config = Config.get().api(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(os.path.join(BASE_PATH,

@@ -41,7 +41,7 @@ import os
 import tempfile
 import pytest
 
-from psyclone.configuration import Config, ConfigFactory, ConfigurationError
+from psyclone.configuration import Config, ConfigurationError
 
 from psyclone.generator import main
 
@@ -52,7 +52,7 @@ def teardown_function():
     one from a test here).
     '''
     # Enforce loading of the default config file
-    ConfigFactory().create().load()
+    Config.get().load()
 
 
 # =============================================================================
@@ -107,7 +107,7 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config()
+        config = Config(allow_multi_instances_for_testing=True)
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "An iteration space must be in the form" in str(err)
@@ -120,7 +120,7 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config()
+        config = Config(allow_multi_instances_for_testing=True)
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "An iteration space must be in the form" in str(err)
@@ -133,7 +133,7 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config()
+        config = Config(allow_multi_instances_for_testing=True)
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "Invalid key \"invalid-key\" found in \"{0}\".".\
@@ -156,7 +156,7 @@ def test_valid_config_files():
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
 
-    ConfigFactory().create().load(config_file)
+    Config.get().load(config_file)
 
     psy, _ = get_invoke(
         os.path.join("gocean1p0", "new_iteration_space.f90"), "gocean1.0",

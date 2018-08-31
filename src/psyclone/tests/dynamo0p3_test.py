@@ -52,7 +52,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     VALID_ANY_SPACE_NAMES
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
-from psyclone.configuration import ConfigFactory
+from psyclone.configuration import Config
 import utils
 
 # constants
@@ -67,7 +67,7 @@ DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 TEST_API = "dynamo0.3"
 
 # Our configuration objects
-_CONFIG = ConfigFactory().create()
+_CONFIG = Config.get()
 
 
 # tests
@@ -4081,8 +4081,8 @@ def test_dynkern_arg_for_fs():
 
 def test_dist_memory_true():
     ''' Test that the distributed memory flag is on by default. '''
-    from psyclone import configuration
-    config = configuration.Config()
+    from psyclone.configuration import Config
+    config = Config(allow_multi_instances_for_testing=True)
     config.load(config_file=DEFAULT_CFG_FILE)
     assert config.distributed_memory
 
@@ -7206,8 +7206,8 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
 def test_annexed_default():
     ''' Test that we do not compute annexed dofs by default (i.e. when
     using the default configuration file). '''
-    from psyclone import configuration
-    config = configuration.Config()
+    from psyclone.configuration import Config
+    config = Config(allow_multi_instances_for_testing=True)
     config.load(config_file=DEFAULT_CFG_FILE)
     assert not config.api(TEST_API).compute_annexed_dofs
 

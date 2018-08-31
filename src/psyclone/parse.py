@@ -47,7 +47,7 @@ from fparser import one as fparser1
 from fparser import api as fpapi
 import psyclone.expression as expr
 from psyclone.line_length import FortLineLength
-from psyclone import configuration
+from psyclone.configuration import Config
 
 
 def check_api(api):
@@ -57,7 +57,7 @@ def check_api(api):
     :raises ParseError: if the supplied API is not recognised.
 
     '''
-    _config = configuration.ConfigFactory().create()
+    _config =Config.get()
 
     if api not in _config.supported_apis:
         raise ParseError(
@@ -433,7 +433,7 @@ class KernelTypeFactory(object):
     '''
     def __init__(self, api=""):
         if api == "":
-            _config = configuration.ConfigFactory().create()
+            _config = Config.get()
             self._type = _config.default_api
         else:
             check_api(api)
@@ -888,7 +888,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     >>> ast,info=parse("argspec.F90")
 
     '''
-    _config = configuration.ConfigFactory().create()
+    _config = Config.get()
 
     if distributed_memory is None:
         _dist_mem = _config.distributed_memory

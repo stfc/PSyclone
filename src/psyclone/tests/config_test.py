@@ -65,8 +65,6 @@ COMPUTE_ANNEXED_DOFS = false
 
 # Disable this pylint warning because otherwise it gets upset about the
 # use of these fixtures in the test code.
-
-
 # pylint:disable=redefined-outer-name
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
@@ -96,30 +94,30 @@ def int_entry(request):
     :return: Name of element of config file
     :rtype: str
     '''
-    return request.param
+    return request.param 
 
 
-def test_factory_create():
+def test_singleton_create():
     '''
     Check that we can create a Config object
     '''
-    from psyclone.configuration import ConfigFactory
-    try:
-        _config = ConfigFactory().create()
-        assert isinstance(_config, Config)
-        # Check that we are creating a singleton instance
-        _config2 = ConfigFactory().create()
-        assert _config is _config2
-    finally:
-        # Reset the factory
-        ConfigFactory().create().load()
+    _config = Config.get()
+    assert isinstance(_config, Config)
+    # Check that we are creating a singleton instance
+    _config2 = Config.get()
+    assert _config is _config2
+
+    # Test that we an not create more than one instance
+    with pytest.raises(ConfigurationError) as err:
+        config = Config()
+    assert "Only one instance of Config can be created" in str(err)
 
 
 def test_missing_file(tmpdir):
     ''' Check that we get the expected error when the specified
     config file cannot be found '''
     with pytest.raises(ConfigurationError) as err:
-        config = Config()
+        config = Config(allow_multi_instances_for_testing=True)
         config.load(config_file=os.path.join(str(tmpdir),
                                              "not_a_file.cfg"))
     assert "not_a_file.cfg does not exist" in str(err)
@@ -206,47 +204,43 @@ def test_read_values():
     '''
     Check that we get the expected values from the test config file
     '''
-    from psyclone.configuration import ConfigFactory
-    try:
-        _config = ConfigFactory(config_file=TEST_CONFIG).create()
-        # Whether distributed memory is enabled
-        dist_mem = _config.distributed_memory
-        assert isinstance(dist_mem, bool)
-        assert dist_mem
-        # The default API
-        api = _config.default_api
-        assert isinstance(api, six.text_type)
-        assert api == "dynamo0.3"
-        # The list of supported APIs
-        api_list = _config.supported_apis
-        assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
-                            'gocean0.1', 'gocean1.0']
-        # The default API for kernel stub generation
-        api = _config.default_stub_api
-        assert isinstance(api, six.text_type)
-        assert api == "dynamo0.3"
-        # The list of supported APIs for kernel stub generation
-        api_list = _config.supported_stub_apis
-        assert api_list == ['dynamo0.3']
-        # Whether reproducible reductions are enabled
-        reprod = _config.reproducible_reductions
-        assert isinstance(reprod, bool)
-        assert not reprod
-        # How much to pad arrays by when doing reproducible reductions
-        pad = _config.reprod_pad_size
-        assert isinstance(pad, int)
-        assert pad == 8
-        # The filename of the config file which was parsed to produce
-        # the Config object
-        assert _config.filename == str(TEST_CONFIG)
-    finally:
-        # Reset the configuration object held in the factory
-        ConfigFactory().create().load()
+    _config = Config.get()
+    _config.load(config_file=TEST_CONFIG)
+    # Whether distributed memory is enabled
+    dist_mem = _config.distributed_memory
+    assert isinstance(dist_mem, bool)
+    assert dist_mem
+    # The default API
+    api = _config.default_api
+    assert isinstance(api, six.text_type)
+    assert api == "dynamo0.3"
+    # The list of supported APIs
+    api_list = _config.supported_apis
+    assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
+                        'gocean0.1', 'gocean1.0']
+    # The default API for kernel stub generation
+    api = _config.default_stub_api
+    assert isinstance(api, six.text_type)
+    assert api == "dynamo0.3"
+    # The list of supported APIs for kernel stub generation
+    api_list = _config.supported_stub_apis
+    assert api_list == ['dynamo0.3']
+    # Whether reproducible reductions are enabled
+    reprod = _config.reproducible_reductions
+    assert isinstance(reprod, bool)
+    assert not reprod
+    # How much to pad arrays by when doing reproducible reductions
+    pad = _config.reprod_pad_size
+    assert isinstance(pad, int)
+    assert pad == 8
+    # The filename of the config file which was parsed to produce
+    # the Config object
+    assert _config.filename == str(TEST_CONFIG)
 
 
 def test_dm():
     ''' Checks for getter and setter for distributed memory '''
-    config = Config()
+    config = Config(allow_multi_instances_for_testing=True)
     config.load(config_file=TEST_CONFIG)
     # Check the setter method
     config.distributed_memory = False
@@ -268,7 +262,7 @@ def test_default_api_not_in_list():
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-        config = Config()
+        config = Config(allow_multi_instances_for_testing=True)
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=new_name)
 
@@ -287,7 +281,7 @@ def test_default_stubapi_missing():
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-        config = Config()
+        config = Config(allow_multi_instances_for_testing=True)
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=new_name)
 
@@ -307,7 +301,7 @@ def test_not_bool(bool_entry):
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config()
+        config = Config(allow_multi_instances_for_testing=True)
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=new_name)
 
@@ -328,7 +322,7 @@ def test_not_int(int_entry):
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config()
+        config = Config(allow_multi_instances_for_testing=True)
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=new_name)
 
@@ -348,7 +342,7 @@ def test_broken_fmt():
         new_cfg.close()
 
         with pytest.raises(ConfigurationError) as err:
-            config = Config()
+            config = Config(allow_multi_instances_for_testing=True)
             config.load(config_file=new_name)
         assert ("ConfigParser failed to read the configuration file. Is it "
                 "formatted correctly? (Error was: File contains no section "
@@ -368,7 +362,7 @@ COMPUTE_ANNEXED_DOFS = false
         new_cfg.close()
 
         with pytest.raises(ConfigurationError) as err:
-            config = Config()
+            config = Config(allow_multi_instances_for_testing=True)
             config.load(config_file=new_name)
 
         assert "configuration error (file=" in str(err)
@@ -378,7 +372,7 @@ COMPUTE_ANNEXED_DOFS = false
 def test_wrong_api():
     ''' Check that we raise the correct errors when a user queries
     API-specific configuration options '''
-    _config = Config()
+    _config = Config(allow_multi_instances_for_testing=True)
     _config.load(config_file=TEST_CONFIG)
     with pytest.raises(ConfigurationError) as err:
         _ = _config.api("blah")
@@ -401,7 +395,7 @@ def test_api_unimplemented():
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-        config = Config()
+        config = Config(allow_multi_instances_for_testing=True)
         with pytest.raises(NotImplementedError) as err:
             config.load(new_name)
         assert ("file contains a gocean0.1 section but no Config sub-class "

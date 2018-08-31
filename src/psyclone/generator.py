@@ -56,10 +56,10 @@ from psyclone.algGen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
-from psyclone.configuration import ConfigFactory
+from psyclone.configuration import Config
 
 # Get (a reference to) our one-and-only Config object
-_CONFIG = ConfigFactory(read_config_now=False).create()
+_CONFIG = Config.get()
 
 
 def handle_script(script_name, psy):

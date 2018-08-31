@@ -45,11 +45,11 @@
 import abc
 import six
 from psyclone.psyGen import Transformation
-import psyclone.configuration
+from psyclone.configuration import Config
 
 # Our one-and-only configuration object, populated by reading the
 # psyclone.cfg file
-_CONFIG = psyclone.configuration.ConfigFactory().create()
+_CONFIG = Config.get()
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 

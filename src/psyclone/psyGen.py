@@ -42,7 +42,7 @@
 from __future__ import print_function
 import abc
 import six
-from psyclone import configuration
+from psyclone.configuration import Config
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -68,7 +68,7 @@ except ImportError:
 
 # Get our one-and-only Config object - this holds the global configuration
 # options read from the psyclone.cfg file.
-_CONFIG = configuration.ConfigFactory().create()
+_CONFIG = Config.get()
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have

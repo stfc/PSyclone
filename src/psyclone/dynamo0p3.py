@@ -48,7 +48,7 @@ import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
-from psyclone.configuration import ConfigFactory
+from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
@@ -56,7 +56,7 @@ from collections import OrderedDict
 
 # Get our one-and-only Config object - this holds the global configuration
 # options read from the psyclone.cfg file.
-_CONFIG = ConfigFactory().create()
+_CONFIG = Config.get()
 
 # First section : Parser specialisations and classes
 

@@ -81,8 +81,8 @@ def test_psyfactory_valid_return_object():
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from psyclone.configuration import ConfigFactory
-    _config = ConfigFactory().create()
+    from psyclone.configuration import Config
+    _config = Config.get()
     apis = _config.supported_apis[:]
     apis.insert(0, "")
     for api in apis:

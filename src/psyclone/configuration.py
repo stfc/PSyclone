@@ -67,45 +67,46 @@ class ConfigurationError(Exception):
 
 
 # =============================================================================
-class ConfigFactory(object):
-    # pylint: disable=too-few-public-methods
-    '''
-    Create our singleton Config object. If config_file is specified
-    automatically load the config file specified (used mainly for testing),
-    otherwise delay loading the config file till load() is called.
-    :param str config_file: Specific configuration file to use when \
-                            creating the Config object.
-    '''
-    _instance = None  # Our single Config object
-
-    def __init__(self, config_file=None, read_config_now=True):
-        if not ConfigFactory._instance:
-            # Create a Config object if we've not already got one or if the
-            # caller has specified a particular file
-            ConfigFactory._instance = Config()
-            if read_config_now:
-                ConfigFactory._instance.load(config_file)
-        else:
-            if config_file:
-                ConfigFactory._instance.load(config_file)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def create():
-        '''
-        :returns: the singleton Config instance
-        :rtype: :py:class:`psyclone.config.Config`
-        '''
-        return ConfigFactory._instance
-
-
-# =============================================================================
 class Config(object):
     # pylint: disable=too-many-instance-attributes
     '''
-    Handles all configuration management.
+    Handles all configuration management. It is implemented as a singleton
+    using a class _instance variable and a get() function.
     '''
-    def __init__(self):
+    # Class variable to store the singleton instance
+    _instance = None
+
+    @staticmethod
+    def get():
+        '''Static function that if necessary creates and returns the singleton
+        config instance.
+        '''
+        if not Config._instance:
+            Config._instance = Config()
+            Config._instance.load()
+        return Config._instance
+
+    # -------------------------------------------------------------------------
+    def __init__(self, allow_multi_instances_for_testing=False):
+        '''This is the basic constructor that only sets the supported APIs
+        and stub APIs, it does not load a config file. The Config instance
+        is a singleton, and as such will test that no instance already exists
+        and raise an exception otherwise. But for testing it is convenient
+        if several config instances can be created, so the parameter
+        allow_multi_instances_for_testing can be set to true to disable this
+        test (which should only be done for testing).
+        :param bool allow_multi_instances_for_testing: Can be set to true to \
+               disable the test if a Config instance already exists. Used in \
+               some of the unit tests.
+        :raises GenerationError: If a singleton instance of Config already \
+                exists (and the testing flag is not specified).
+        '''
+
+        if not allow_multi_instances_for_testing and \
+           Config._instance is not None:
+            raise ConfigurationError("Only one instance of "
+                                     "Config can be created")
+
         # Setup the list of supported APIs and stubs before reading any
         # config file:
         self._supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
@@ -138,7 +139,6 @@ class Config(object):
         else:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
-
         from configparser import ConfigParser, MissingSectionHeaderError
         self._config = ConfigParser()
         try:
