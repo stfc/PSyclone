@@ -66,6 +66,45 @@ class TransformationError(Exception):
         return repr(self.value)
 
 
+# =============================================================================
+class RegionTrans(Transformation):
+    '''This class is a base class for all transforms that act on list of
+    nodes. It gives access to a _validate function that makes sure that
+    the nodes in the list are in the same order as in the original AST,
+    no node is duplicated, and that all nodes have the same parent.
+    '''
+
+    # Avoid pylint warning about abstract functions (apply, name) not
+    # overwritten:
+    # pylint: disable=abstract-method,arguments-differ
+
+    def _validate(self, node_list):
+        '''Test if the nodes in node_list are in the original order.
+
+        :param list node_list: List of nodes.
+        :raises TransformationError: If the nodes in the list are not\
+                in the original order in which they are in the AST,\
+                a node is duplicated or the nodes have different parents.
+        '''
+
+        node_parent = node_list[0].parent
+        prev_position = -1
+        for child in node_list:
+            if child.parent is not node_parent:
+                raise TransformationError(
+                    "Error in {0} transformation: supplied nodes "
+                    "are not children of the same Schedule/parent."
+                    .format(self.name))
+            if prev_position >= 0 and prev_position+1 != child.position:
+                raise TransformationError(
+                    "Children are not consecutive children of one parent: "
+                    "child '{0}' has position {1}, but previous child had "
+                    "position {2}."
+                    .format(str(child), child.position, prev_position))
+            prev_position = child.position
+
+
+# =============================================================================
 def check_intergrid(node):
     '''
     Utility function to check that the supplied node does not have
@@ -137,7 +176,6 @@ class LoopFuseTrans(Transformation):
         :raises TransformationError: if the
         :py:class:`psyclone.psyGen.Loop`s do not have the same
         iteration space
-
         '''
 
         # Check that the supplied Node is a Loop
@@ -1307,7 +1345,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class ParallelRegionTrans(Transformation):
+class ParallelRegionTrans(RegionTrans):
     '''
     Base class for transformations that create a parallel region.
 
@@ -1316,7 +1354,7 @@ class ParallelRegionTrans(Transformation):
         # Holds the class instance for the type of parallel region
         # to generate
         self._pdirective = None
-        Transformation.__init__(self)
+        super(ParallelRegionTrans, self).__init__()
 
     @abc.abstractmethod
     def __str__(self):
@@ -1360,6 +1398,7 @@ class ParallelRegionTrans(Transformation):
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes are not "
                     "children of the same Schedule/parent.".format(self.name))
+        super(ParallelRegionTrans, self)._validate(node_list)
 
     def apply(self, nodes):
         '''
@@ -2092,7 +2131,7 @@ class GOLoopSwapTrans(Transformation):
         return schedule, keep
 
 
-class ProfileRegionTrans(Transformation):
+class ProfileRegionTrans(RegionTrans):
 
     ''' Create a profile region around a list of statements. For
     example:
@@ -2164,22 +2203,7 @@ class ProfileRegionTrans(Transformation):
                                       "the loop(s) to which it applies!")
         node_position = node_list[0].position
 
-        # We need to make sure that the nodes are consecutive children,
-        # otherwise code might get moved in an incorrect order
-        prev_position = -1
-        for child in node_list:
-            if child.parent is not node_parent:
-                raise TransformationError(
-                    "Error in {0} transformation: supplied nodes "
-                    "are not children of the same Schedule/parent."
-                    .format(str(self)))
-            if prev_position >= 0 and prev_position+1 != child.position:
-                raise TransformationError(
-                    "Children are not consecutive children of one parent: "
-                    "child '{0}' has position {1}, but previous child had "
-                    "position {2}."
-                    .format(str(child), child.position, prev_position))
-            prev_position = child.position
+        super(ProfileRegionTrans, self)._validate(node_list)
 
         # create a memento of the schedule and the proposed
         # transformation

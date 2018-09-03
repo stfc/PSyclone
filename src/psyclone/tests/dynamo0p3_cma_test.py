@@ -46,7 +46,7 @@ from psyclone.parse import ParseError, parse
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.gen_kernel_stub import generate
-import utils
+from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -135,8 +135,8 @@ def test_cma_mdata_multi_writes():
                 "updates 2") in str(excinfo)
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_field,gh_read, any_space_1)",
-            cmaopstring + ",&\n"
-            + cmaopstring, 1)
+            cmaopstring + ",&\n" +
+            cmaopstring, 1)
         code = code.replace("meta_args(4) = ", "meta_args(5) = ", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
@@ -178,8 +178,8 @@ def test_cma_mdata_writes_lma_op():
                    ", any_space_1, any_space_2), &\n"
         code = CMA_ASSEMBLE.replace(
             "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n",
-            "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n"
-            + opstring, 1)
+            "arg_type(gh_operator,gh_read, any_space_1, any_space_2), &\n" +
+            opstring, 1)
         code = code.replace("meta_args(4)", "meta_args(5)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
@@ -551,8 +551,8 @@ def test_cma_mdata_matrix_2_writes():
             "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
             "ANY_SPACE_2),&\n",
             "arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, "
-            "ANY_SPACE_2),&\n"
-            + cmaopstring, 1)
+            "ANY_SPACE_2),&\n" +
+            cmaopstring, 1)
         code = code.replace("meta_args(4)", "meta_args(5)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         name = "testkern_cma_type"
@@ -662,10 +662,10 @@ def test_cma_asm(tmpdir, f90, f90flags):
                 "cbanded_map_any_space_1_lma_op1, ndf_any_space_2_lma_op1, "
                 "cbanded_map_any_space_2_lma_op1)") in code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_cma_asm_field():
@@ -871,10 +871,10 @@ def test_cma_apply(tmpdir, f90, f90flags):
         # We do not perform halo swaps for operators
         assert "cma_op1_proxy%is_dirty(" not in code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
@@ -955,10 +955,10 @@ def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
             assert "CALL field_c_proxy%set_dirty()" in code
             assert "cma_op2_proxy%is_dirty(" not in code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_cma_apply_same_space():
@@ -1036,10 +1036,10 @@ def test_cma_matrix_matrix(tmpdir, f90, f90flags):
         if distmem:
             assert "_dirty(" not in code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_cma_matrix_matrix_2scalars(tmpdir, f90, f90flags):
@@ -1082,10 +1082,10 @@ def test_cma_matrix_matrix_2scalars(tmpdir, f90, f90flags):
         if distmem:
             assert "_dirty(" not in code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_cma_multi_kernel(tmpdir, f90, f90flags):
@@ -1165,10 +1165,10 @@ def test_cma_multi_kernel(tmpdir, f90, f90flags):
                 "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, "
                 "cma_opc_gamma_m, cma_opc_gamma_p)") in code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 # Tests for the kernel-stub generator

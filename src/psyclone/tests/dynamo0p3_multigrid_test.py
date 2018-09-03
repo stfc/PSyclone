@@ -46,10 +46,10 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-import utils
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse import ParseError, parse
 from psyclone.psyGen import PSyFactory
+from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -231,8 +231,8 @@ def test_field_prolong(tmpdir, f90, f90flags):
         psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         gen_code = str(psy.gen)
 
-        if utils.TEST_COMPILE:
-            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+        if TEST_COMPILE:
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
         expected = (
             "      USE prolong_kernel_mod, ONLY: prolong_kernel_code\n"
@@ -311,8 +311,8 @@ def test_field_restrict(tmpdir, f90, f90flags):
         output = str(psy.gen)
         print(output)
 
-        if utils.TEST_COMPILE:
-            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+        if TEST_COMPILE:
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
         defs = (
             "      USE restrict_kernel_mod, ONLY: restrict_kernel_code\n"
@@ -412,8 +412,8 @@ def test_restrict_prolong_chain(tmpdir, f90, f90flags):
         psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         output = str(psy.gen)
 
-        if utils.TEST_COMPILE:
-            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+        if TEST_COMPILE:
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
         expected = (
             "      ! Look-up mesh objects and loop limits for inter-grid "
@@ -585,8 +585,8 @@ def test_prolong_vector(tmpdir, f90, f90flags):
     output = str(psy.gen)
     print(output)
 
-    if utils.TEST_COMPILE:
-        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
     assert "TYPE(field_type), intent(inout) :: field1(3)" in output
     assert "TYPE(field_proxy_type) field1_proxy(3)" in output
