@@ -116,6 +116,7 @@ def test_omp_parallel_multi():
     ''' Check insertion of an OpenMP parallel region containing more than
     one node. '''
     from psyclone.transformations import OMPParallelTrans
+    from psyclone.psyGen import OMPParallelDirective
     otrans = OMPParallelTrans()
     ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
                              api=API, line_length=False)
@@ -128,7 +129,6 @@ def test_omp_parallel_multi():
     new_sched, _ = otrans.apply(schedule.children[0].children[2:4])
     new_sched.view()
     gen_code = str(psy.gen).lower()
-    print(gen_code)
     assert ("    !$omp parallel default(shared), private(jj,ji)\n"
             "    do jj = 1, jpjm1\n"
             "      do ji = 1, fs_jpim1\n"
@@ -143,3 +143,10 @@ def test_omp_parallel_multi():
             "      end do\n"
             "    end do\n"
             "    !$omp end parallel\n" in gen_code)
+    # Check that further calls to the update() method don't change the
+    # stored AST.
+    directive = new_sched.children[0].children[2]
+    assert isinstance(directive, OMPParallelDirective)
+    old_ast = directive._ast
+    directive.update()
+    assert old_ast is directive._ast
