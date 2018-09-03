@@ -797,9 +797,9 @@ belong.
 transformations
 ===============
 
-It should come as no surprise that the transformations module holds the
-various transformation classes that may be used to modify the Schedule
-of an Invoke and/or the kernels called from within it.
+As one might expect, the transformations module holds the various
+transformation classes that may be used to modify the Schedule of an
+Invoke and/or the kernels called from within it.
 
 Kernel Transformations
 ----------------------
