@@ -60,7 +60,8 @@ from psyclone.configuration import ConfigFactory
 
 # Get (a reference to) our one-and-only Config object
 _CONFIG = ConfigFactory().create()
-
+# Those APIs that do not have a separate Algorithm layer
+API_WITHOUT_ALGORITHM = ["nemo0.1"]
 
 def handle_script(script_name, psy):
     '''Loads and applies the specified script to the given psy layer.
@@ -204,15 +205,15 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
         if script_name is not None:
             handle_script(script_name, psy)
-        if api != "nemo0.1":
-            alg = Alg(ast, psy)
+
+        if api not in API_WITHOUT_ALGORITHM:
+            alg_gen = Alg(ast, psy).gen
+        else:
+            alg_gen = None
     except Exception:
         raise
 
-    if api == "nemo0.1":
-        return None, psy.gen
-    else:
-        return alg.gen, psy.gen
+    return alg_gen, psy.gen
 
 
 def main(args):

@@ -74,23 +74,6 @@ NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
                           "jt": "tracers", "jn": "tracers"}
 
 
-def get_routine_type(ast):
-    '''
-    Identify the type of Fortran routine the ast represents.
-
-    :param ast: the fparser2 AST representing the Fortran code
-    :type ast: `fparser.Fortran2003.Program_Unit`
-    :return: the type of Fortran routine (program, subroutine, function)
-    :rtype: string
-    '''
-    for child in ast.content:
-        if isinstance(child, Fortran2003.Program_Stmt):
-            return "program"
-        if isinstance(child, Fortran2003.Subroutine_Stmt):
-            return "subroutine"
-    raise ParseError("Unrecognised Fortran unit: {0}".format(type(child)))
-
-
 class ASTProcessor(object):
     '''
     Mixin class to provide functionality for processing the fparser2 AST.
@@ -180,9 +163,6 @@ class NemoInvoke(Invoke):
             # TODO log this event
             return
 
-        # Identify whether we have a Program, a Subroutine or a Function
-        self._routine_type = get_routine_type(ast)
-
         # Store the root of this routine's specification in the AST
         self._spec_part = get_child(ast, Specification_Part)
 
@@ -198,7 +178,11 @@ class NemoInvoke(Invoke):
         return self._psy_unique_vars
 
     def update(self):
-        ''' TBD '''
+        '''Updates the fparser2 AST associated with this Schedule to make it
+        reflect any transformations that have been applied to the
+        PSyclone AST.
+
+        '''
         if not self._schedule:
             return
         self._schedule.update()

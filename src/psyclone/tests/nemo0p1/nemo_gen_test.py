@@ -44,9 +44,6 @@ from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone import nemo0p1
 
-# TODO can this module be removed given that we now just use fparser2 to
-# re-create the parsed Fortran?
-
 # Constants
 API = "nemo0.1"
 # Location of the Fortran files associated with these tests
@@ -54,22 +51,12 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 
 
-def test_explicit_gen():
-    ''' Check code generation for a single explicit loop containing
-    a kernel '''
-    ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
-                             api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    print(str(psy.gen))
-    pass
-
-
-def test_implicit_gen():
-    ''' Check code generation for a single, implicit loop '''
-    pass
-
-
-def test_codeblock_gen():
-    ''' Check that we successfully re-create the Fortran statements
-    contained in a CodeBlock '''
-    pass
+def test_api_no_alg():
+    ''' Checks that generate works OK for an API which doesn't have an
+    Algorithm layer '''
+    from psyclone.generator import generate
+    alg, psy = generate(os.path.join(BASE_PATH, "explicit_do.f90"),
+                        api="nemo0.1")
+    assert alg is None
+    assert isinstance(psy, fparser.two.Fortran2003.Program)
+    
