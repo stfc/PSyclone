@@ -42,7 +42,7 @@ from utils import get_invoke
 from psyclone.transformations import TransformationError
 
 
-def test_accroutine_err():
+def test_accroutine_err(monkeypatch):
     ''' Check that we raise the expected error if we can't find the
     source of the kernel subroutine. '''
     from psyclone.psyGen import Kern
@@ -66,8 +66,8 @@ def test_accroutine_err():
     for child in sub.content:
         if isinstance(child, fparser.one.block_statements.EndSubroutine):
             end = child
-    sub.name = "some_other_name"
-    end.name = sub.name
+    monkeypatch.setattr(sub, "name", "some_other_name")
+    monkeypatch.setattr(end, "name", "some_other_name")
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         _ = rtrans.apply(kern)
@@ -98,3 +98,9 @@ def test_accroutine():
                                     [Fortran2003.Comment])
     assert len(comments) == 1
     assert str(comments[0]) == "!$acc routine"
+    # Check that directive is in correct place (end of declarations)
+    gen = str(new_kern._fp2_ast)
+    assert ("REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
+            "sshn_v, hu, hv, un, vn\n"
+            "    !$acc routine\n"
+            "    ssha (ji, jj) = 0.0_wp\n" in gen)
