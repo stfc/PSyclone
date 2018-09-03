@@ -2267,8 +2267,7 @@ def test_find_w_args_multiple_deps():
 def test_loop_props():
     ''' Tests for the properties of a Loop object. '''
     from psyclone.psyGen import Loop
-    _, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
-                           "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].children[0]
     assert isinstance(loop, Loop)
@@ -2282,8 +2281,7 @@ def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
     from psyclone.psyGen import Node
-    _, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
-                           "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].children[0]
     with pytest.raises(NotImplementedError) as err:
