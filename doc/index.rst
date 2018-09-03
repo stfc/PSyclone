@@ -17,6 +17,7 @@
    built_ins
    dynamo0p3
    gocean1p0
+   nemo0p1
    stub_gen
    line_length
    api
