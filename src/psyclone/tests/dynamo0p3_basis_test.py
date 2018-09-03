@@ -85,7 +85,7 @@ def test_eval_mdata():
 
 @pytest.mark.xfail(reason="Rule on only 1 written arg relaxed in parser "
                    "but not yet implemented fully.")
-def test_single_updated_arg():
+def test_multi_updated_arg():
     ''' Check that we handle any kernel requiring an evaluator
     if it writes to more than one argument '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -134,6 +134,17 @@ def test_eval_targets_err():
     assert ("specifies gh_evaluator_targets (['w0', 'w1']) but does not need "
             "an evaluator because no basis or differential basis functions "
             "are required" in str(err))
+
+
+def test_eval_targets_wrong_space():
+    ''' Check that we reject meta-data where there is no argument for one of
+    the function spaces listed in gh_evaluator_targets. '''
+    code = CODE.replace("[W0, W1]", "[W0, W3]")
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as err:
+        _ = DynKernMetadata(ast, name="testkern_eval_type")
+    assert ("specifies that an evaluator is required on w3 but does not have "
+            "an argument on this space" in str(err))
 
 
 def test_single_kern_eval(tmpdir, f90, f90flags):

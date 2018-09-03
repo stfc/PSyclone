@@ -1070,6 +1070,8 @@ functions evaluated on both W0 and W1::
     integer, parameter :: gh_shape = gh_evaluator
     integer, parameter :: gh_evaluator_targets(2) = (/W0, W1/)
 
+The kernel must have an argument (field or operator) on each of the
+function spaces listed in ``gh_evaluator_targets``.
 Alternatively, if ``gh_evaluator_targets`` is not specified then
 evaluators are provided for each function-space associated with the
 quantities that the kernel is updating. All necessary data is

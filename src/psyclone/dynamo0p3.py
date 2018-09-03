@@ -992,7 +992,16 @@ class DynKernMetadata(KernelType):
                     "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
                     "does not need an evaluator because gh_shape={2}".
                     format(self.name, self._eval_targets, self._eval_shape))
-
+            # Check that there is a kernel argument on each of the
+            # specified spaces
+            # TODO allow for operators in the below?
+            fs_list = [arg.function_space for arg in self._arg_descriptors]
+            for eval_fs in self._eval_targets:
+                if eval_fs not in fs_list:
+                    raise ParseError(
+                        "Kernel '{0}' specifies that an evaluator is required "
+                        "on {1} but does not have an argument on this space."
+                        .format(self.name, eval_fs))
         # If we have a columnwise operator as argument then we need to
         # identify the operation that this kernel performs (one of
         # assemble, apply/apply-inverse and matrix-matrix)
