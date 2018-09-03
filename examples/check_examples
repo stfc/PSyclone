@@ -117,9 +117,14 @@ python runme_dag.py
 python runme_openacc.py
 cd -
 
-echo "Running NEMO examples"
+echo "Running example nemo/eg1"
 cd nemo/eg1
 ${PSYCLONE} -api "nemo0.1" tra_adv.F90
+./runme_openmp.py
+cd -
+echo "Running example nemo/eg2"
+cd nemo/eg2
+./runme_openmp.py
 cd -
 
 echo "Running transformation examples"
