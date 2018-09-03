@@ -41,7 +41,7 @@ import os
 import fparser
 import pytest
 from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import PSyFactory, TransInfo, InternalError
 from psyclone import nemo0p1
 
 # Constants
@@ -150,3 +150,28 @@ def test_omp_parallel_multi():
     old_ast = directive._ast
     directive.update()
     assert old_ast is directive._ast
+
+
+def test_omp_parallel_errs():
+    ''' Check insertion of an OpenMP parallel region containing more than
+    one node. '''
+    from psyclone.transformations import OMPParallelTrans
+    from psyclone.psyGen import OMPParallelDirective
+    otrans = OMPParallelTrans()
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    schedule.view()
+    # Apply the OMP Parallel transformation so as to enclose the last two
+    # loop nests (Python's slice notation is such that the expression below
+    # gives elements 2-3).
+    new_sched, _ = otrans.apply(schedule.children[0].children[2:4])
+    directive = new_sched.children[0].children[2]
+    # Break the AST by deleting some of it
+    _ = new_sched.children[0]._ast.content.remove(directive._children[0]._ast)
+    with pytest.raises(InternalError) as err:
+        _ = psy.gen
+    assert ("Failed to find locations to insert begin/end directives" in
+            str(err))
+

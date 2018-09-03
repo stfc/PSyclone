@@ -754,7 +754,7 @@ class NemoImplicitLoop(NemoLoop):
         name = Fortran2003.Name(FortranStringReader(self._variable_name))
         prog_unit = self.root.invoke._ast
         spec = walk_ast(prog_unit.content,
-                        [Fortran2003.Specification_Part], debug=True)
+                        [Fortran2003.Specification_Part]) #, debug=True)
         if not spec:
             raise InternalError("No specifcation part found!")
         decln = Fortran2003.Type_Declaration_Stmt(
