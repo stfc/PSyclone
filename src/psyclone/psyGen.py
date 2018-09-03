@@ -2960,15 +2960,17 @@ class Kern(Call):
         :rtype: :py:class:`fparser.two.Fortran2003.Program`
         '''
         from fparser.common.readfortran import FortranStringReader
-        from fparser.two import Fortran2003
+        from fparser.two import parser
         # If we've already got the AST then just return it
         if self._fp2_ast:
             return self._fp2_ast
         # Use the fparser1 AST to generate Fortran source
         fortran = self._module_code.tofortran()
-        # Parse that Fortran using fparser2
+        # Create an fparser2 Fortran2003 parser
+        my_parser = parser.ParserFactory().create()
+        # Parse that Fortran using our parser
         reader = FortranStringReader(fortran)
-        self._fp2_ast = Fortran2003.Program(reader)
+        self._fp2_ast = my_parser(reader)
         return self._fp2_ast
 
 
