@@ -3511,21 +3511,45 @@ class TransInfo(object):
 
 @six.add_metaclass(abc.ABCMeta)
 class Transformation(object):
-    ''' abstract baseclass for a transformation. Uses the abc module so it
+    '''Abstract baseclass for a transformation. Uses the abc module so it
         can not be instantiated. '''
 
     @abc.abstractproperty
     def name(self):
+        '''Returns the name of the transformation.'''
         return
 
     @abc.abstractmethod
-    def apply(self):
+    def apply(self, *args):
+        '''Abstract method that applies the transformation. This function
+        must be implemented by each transform.
+
+        :param args: Arguments for the transformation - specific to\
+                    the actual transform used.
+        :type args: Type depends on actual transformation.
+        :returns: A tuple of the new schedule, and a momento.
+        :rtype: Tuple.
+        '''
+        # pylint: disable=no-self-use
         schedule = None
         momento = None
         return schedule, momento
 
+    def _validate(self, *args):
+        '''Method that alidates that the input data is correct.
+        It will raise exceptions if the input data is incorrect. This function
+        needs to be implemented by each transformation.
+
+        :param args: Arguments for the applying the transformation - specific\
+                    to the actual transform used.
+        :type args: Type depends on actual transformation.
+        '''
+        # pylint: disable=no-self-use, unused-argument
+        return
+
 
 class DummyTransformation(Transformation):
+    '''Dummy transformation use elsewhere to keep pyreverse happy.'''
     def name(self):
         return
 
