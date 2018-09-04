@@ -48,12 +48,14 @@ before_install:
   # Specify "fparser" (without quotes) as an argument to install_optional.sh
   # in order to run the tests with the version of fparser pointed to by
   # the git submodule.
-  - ./bin/install_optional.sh fparser
+  - ./bin/install_optional.sh fparser_submodule
   - pip install coveralls
   - pip install codecov
 install:
   - "pip install ."
 script:
+  # We specify the tests directory to avoid pytest running the fparser test
+  # suite (pulled in with the fparser submodule)
   - coverage run --source=psyclone -m py.test src/psyclone/tests
   - coverage report -m
 after_success:
