@@ -999,8 +999,8 @@ def test_invalid_reprod_pad_size(monkeypatch):
     '''Check that we raise an exception if the pad size in psyclone.cfg is
     set to an invalid value '''
     # Make sure we monkey patch the correct Config object
-    from psyclone import psyGen
-    monkeypatch.setattr(psyGen._CONFIG, "_reprod_pad_size", 0)
+    from psyclone.configuration import Config
+    monkeypatch.setattr(Config._instance, "_reprod_pad_size", 0)
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1024,7 +1024,7 @@ def test_invalid_reprod_pad_size(monkeypatch):
             _ = str(psy.gen)
         assert (
             "REPROD_PAD_SIZE in {0} should be a positive "
-            "integer".format(psyGen._CONFIG.filename) in str(excinfo.value))
+            "integer".format(Config.get().filename) in str(excinfo.value))
 
 
 def test_argument_depends_on():
