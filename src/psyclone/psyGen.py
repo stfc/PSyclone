@@ -2162,7 +2162,20 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the child of this node in the AST of our parent node
-        start_idx = self._parent._ast.content.index(self._children[0]._ast)
+        # TODO make this robust by using the new 'children' method to
+        # be introduced in fparser#105
+        # We have to take care to find a parent node (in the fparser2 AST)
+        # that has 'content'. This is because If-else-if blocks have their
+        # 'content' as siblings of the If-then and else-if nodes.
+        parent = self._parent._ast
+        while parent:
+            if hasattr(parent, "content"):
+                break
+            parent = parent._parent
+        if not parent:
+            raise InternalError("Failed to find parent node in which to "
+                                "insert OpenMP parallel do directive")
+        start_idx = parent.content.index(self._children[0]._ast)
 
         # Create the start directive
         text = ("!$omp parallel do default(shared), private({0}), "
@@ -2175,15 +2188,15 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # the AST representing our last child
         enddir = Comment(FortranStringReader("!$omp end parallel do",
                                              ignore_comments=False))
-        if start_idx == len(self._parent._ast.content) - 1:
-            self._parent._ast.content.append(enddir)
+        if start_idx == len(parent.content) - 1:
+            parent.content.append(enddir)
         else:
-            self._parent._ast.content.insert(start_idx+1, enddir)
+            parent.content.insert(start_idx+1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct the location)
         self._ast = startdir
-        self._parent._ast.content.insert(start_idx, self._ast)
+        parent.content.insert(start_idx, self._ast)
 
 
 class GlobalSum(Node):
