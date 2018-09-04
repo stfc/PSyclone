@@ -66,10 +66,6 @@ except ImportError:
         '''
         return text
 
-# Get our one-and-only Config object - this holds the global configuration
-# options read from the psyclone.cfg file.
-_CONFIG = Config.get()
-
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
@@ -123,13 +119,13 @@ def get_api(api):
 
     '''
     if api == "":
-        api = _CONFIG.default_api
+        api = Config.get().default_api
     else:
-        if api not in _CONFIG.supported_apis:
+        if api not in Config.get().supported_apis:
             raise GenerationError("get_api: Unsupported API '{0}' "
                                   "specified. Supported types are "
                                   "{1}.".format(api,
-                                                _CONFIG.supported_apis))
+                                                Config.get().supported_apis))
     return api
 
 
@@ -229,7 +225,7 @@ class PSyFactory(object):
                                         supported.
         '''
         if distributed_memory is None:
-            _distributed_memory = _CONFIG.distributed_memory
+            _distributed_memory = Config.get().distributed_memory
         else:
             _distributed_memory = distributed_memory
 
@@ -237,7 +233,7 @@ class PSyFactory(object):
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
-        _CONFIG.distributed_memory = _distributed_memory
+        Config.get().distributed_memory = _distributed_memory
         self._type = get_api(api)
 
     def create(self, invoke_info):
@@ -1934,7 +1930,7 @@ class OMPDoDirective(OMPDirective):
             children = []
 
         if reprod is None:
-            self._reprod = _CONFIG.reproducible_reductions
+            self._reprod = Config.get().reproducible_reductions
         else:
             self._reprod = reprod
 
@@ -2713,12 +2709,12 @@ class Call(Node):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
-            if _CONFIG.reprod_pad_size < 1:
+            if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
                     "integer, but it is set to '{1}'.".format(
-                        _CONFIG.filename, _CONFIG.reprod_pad_size))
-            pad_size = str(_CONFIG.reprod_pad_size)
+                        Config.get().filename, Config.get().reprod_pad_size))
+            pad_size = str(Config.get().reprod_pad_size)
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,

@@ -77,17 +77,21 @@ class Config(object):
     _instance = None
 
     @staticmethod
-    def get():
+    def get(do_not_load_file=False):
         '''Static function that if necessary creates and returns the singleton
         config instance.
+        :param bool do_not_load_file: If set it will not load the default \
+               config file. This is used when handling the command line so \
+               that the user can specify the file to load.
         '''
         if not Config._instance:
             Config._instance = Config()
-            Config._instance.load()
+            if not do_not_load_file:
+                Config._instance.load()
         return Config._instance
 
     # -------------------------------------------------------------------------
-    def __init__(self, allow_multi_instances_for_testing=False):
+    def __init__(self, allow_multi_instances_for_testing=False,):
         '''This is the basic constructor that only sets the supported APIs
         and stub APIs, it does not load a config file. The Config instance
         is a singleton, and as such will test that no instance already exists
@@ -128,7 +132,7 @@ class Config(object):
         :raises ConfigurationError: if there are errors or inconsistencies in \
                                 the specified config file.
         '''
-        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-branches, too-many-statements
         if config_file:
             # Caller has explicitly provided the full path to the config
             # file to read
@@ -139,6 +143,7 @@ class Config(object):
         else:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
+
         from configparser import ConfigParser, MissingSectionHeaderError
         self._config = ConfigParser()
         try:
@@ -171,8 +176,20 @@ class Config(object):
                 "error while parsing DISTRIBUTED_MEMORY: {0}".
                 format(str(err)), config=self)
 
-        # Default API and supported APIs for psyclone
-        self._default_api = self._config['DEFAULT']['DEFAULTAPI']
+        # Default API for psyclone
+        if "DEFAULTAPI" in self._config["DEFAULT"]:
+            self._default_api = self._config['DEFAULT']['DEFAULTAPI']
+        else:
+            # Test if we have exactly one section (besides DEFAULT).
+            # If so, make this section the default API
+            if len(self._config) == 2:
+                for section in self._config:
+                    self._default_api = section.lower()
+                    if self._default_api != "default":
+                        break
+            else:
+                raise ConfigurationError("No DEFAULTAPI specified.",
+                                         config=self)
 
         # Sanity check
         if self._default_api not in self._supported_api_list:
@@ -182,9 +199,14 @@ class Config(object):
                                      self._supported_api_list),
                 config=self)
 
-        # Default API and supported APIs for stub-generator
-        self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
-        # Sanity check
+        # Default API for stub-generator
+        if 'defaultstubapi' not in self._config['DEFAULT']:
+            # Use the default API if no default is specified for stub API
+            self._default_stub_api = self._default_api
+        else:
+            self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
+
+        # Sanity check for defaultstubapi:
         if self._default_stub_api not in self._supported_stub_api_list:
             raise ConfigurationError(
                 "The default stub API ({0}) is not in the list of "
@@ -443,15 +465,16 @@ class GOceanConfig(object):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
-        from psyclone.gocean1p0 import GOLoop
         for i in section.keys():
             # Do not handle any keys from the DEFAULT section
-            # since they are handled y Config(), not this subclass
+            # since they are handled by Config(), not this class.
             if i in config.get_default_keys():
                 continue
             if i == "iteration-spaces":
                 value_as_str = str(section[i])
-                for it_space in value_as_str.split("\n"):
+                new_iteration_spaces = value_as_str.split("\n")
+                from psyclone.gocean1p0 import GOLoop
+                for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
