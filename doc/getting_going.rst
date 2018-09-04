@@ -122,6 +122,35 @@ latest version simply do:
 
    > pip install fparser --upgrade
 
+git submodule
++++++++++++++
+
+Although PSyclone releases always work with a released version of
+fparser, the same is not always true of other versions (e.g. the HEAD
+of the master branch). For those versions of PSyclone requiring
+fparser functionality that is not yet in a release, we use the git
+submodule feature such that the PSyclone repository always has a link
+to the correct version of fparser. In order to obtain this version
+the PSyclone repository must be cloned with the ``--recursive`` flag::
+  
+   > git clone --recursive https://github.com/stfc/PSyclone.git``
+
+Alternatively, if you already have a local clone of the PSyclone github
+repository then doing::
+
+  > cd <PSYCLONEHOME>
+  > git submodule init
+  > git submodule update
+
+will fetch the correct version of fparser.
+
+Once either of the above steps have been performed, the
+``<PSYCLONEHOME>/external/fparser`` directory will contain the fparser
+code. This can then be installed using ``pip``::
+
+  > cd <PSYCLONEHOME>/external/fparser
+  > pip install .
+
 
 pyparsing
 ^^^^^^^^^
