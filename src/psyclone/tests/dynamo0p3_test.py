@@ -66,9 +66,6 @@ DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 
 TEST_API = "dynamo0.3"
 
-# Our configuration objects
-_CONFIG = Config.get()
-
 
 # tests
 def test_get_op_wrong_name():
@@ -4081,7 +4078,6 @@ def test_dynkern_arg_for_fs():
 
 def test_dist_memory_true():
     ''' Test that the distributed memory flag is on by default. '''
-    from psyclone.configuration import Config
     config = Config(allow_multi_instances_for_testing=True)
     config.load(config_file=DEFAULT_CFG_FILE)
     assert config.distributed_memory
@@ -6689,7 +6685,7 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
     api_config.compute_annexed_dofs is True.
 
     '''
-    api_config = _CONFIG.api(TEST_API)
+    api_config = Config.get().api(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
@@ -6727,7 +6723,7 @@ def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
     case when api_config.compute_annexed_dofs is True
 
     '''
-    api_config = _CONFIG.api(TEST_API)
+    api_config = Config.get().api(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.7_halo_annexed.f90"),
@@ -6761,7 +6757,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
 
     # 1 discontinuous field returns true
     # Check w3, wtheta and w2v in turn
-    api_config = _CONFIG.api(TEST_API)
+    api_config = Config.get().api(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     if annexed:
         # no halo exchanges produced for the w3 example
@@ -7031,7 +7027,7 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
     halo exchanges produced.
 
     '''
-    api_config = _CONFIG.api(TEST_API)
+    api_config = Config.get().api(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api=TEST_API)
@@ -7183,7 +7179,7 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
     fewer halo exchange call generated.
 
     '''
-    api_config = _CONFIG.api(TEST_API)
+    api_config = Config.get().api(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.7.1_halo_annexed.f90"),
@@ -7206,7 +7202,6 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
 def test_annexed_default():
     ''' Test that we do not compute annexed dofs by default (i.e. when
     using the default configuration file). '''
-    from psyclone.configuration import Config
     config = Config(allow_multi_instances_for_testing=True)
     config.load(config_file=DEFAULT_CFG_FILE)
     assert not config.api(TEST_API).compute_annexed_dofs
@@ -7225,7 +7220,7 @@ def test_haloex_not_required(monkeypatch):
     former case should currently never happen in real code as a halo
     exchange would not be added in the first place.
     '''
-    api_config = _CONFIG.api(TEST_API)
+    api_config = Config.get().api(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w3.f90"),

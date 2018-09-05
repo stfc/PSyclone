@@ -64,6 +64,15 @@ COMPUTE_ANNEXED_DOFS = false
 '''
 
 
+def teardown_function():
+    '''This teardown function is called at the end of all tests and makes
+    sure that we have the default config file loaded (and not a left-over
+    one from a test here).
+    '''
+    # Enforce loading of the default config file
+    Config.get().load()
+
+
 # Disable this pylint warning because otherwise it gets upset about the
 # use of these fixtures in the test code.
 # pylint:disable=redefined-outer-name
