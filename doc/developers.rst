@@ -9,7 +9,8 @@ Working With PSyclone from GitHub
 A PSyclone developer will, by definition, be working with the GitHub
 PSyclone repository rather than installing a released version from
 pypi (using e.g. ``pip``).  This section describes the set-up
-necessary when using PSyclone in this way.
+necessary when using PSyclone in this way. It also describes some of
+the development practises of the PSyclone project
 
 .. _dev-installation:
 
@@ -53,6 +54,29 @@ where ``-e`` requests an 'editable' installation so that changes to
 the PSyclone source are immediately reflected in the installed
 package.  (For alternatives to using pip please see the
 :ref:`getting-going` section.)
+
+Working Practises
+^^^^^^^^^^^^^^^^^
+
+Test Suite
+----------
+
+* Parallel execution
+* Gotchas (tests with the same name)
+* Coverage
+* Compilation testing
+
+Continuous Integration
+----------------------
+
+* Travis
+* Configuration
+* fparser submodule
+
+Code Review
+-----------
+
+* GitHub wiki pages.
 
 New APIs
 ########
