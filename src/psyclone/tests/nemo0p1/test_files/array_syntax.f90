@@ -36,4 +36,5 @@ SUBROUTINE tra_ldf_iso()
   zftv(:,:,:) = 0.0d0
   IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
   CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
+  zftu(:,:,1) = 1.0d0
 end SUBROUTINE tra_ldf_iso

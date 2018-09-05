@@ -101,6 +101,8 @@ def test_implicit_loop_sched2():
     assert len(kerns) == 1
 
 
+@pytest.mark.xfail(reason="Do not currently check for previous variable"
+                   "declarations when add loop variables")
 def test_implicit_loop_assign():
     ''' Check that we only identify an implicit loop when array syntax
     is used as part of an assignment statement. '''
@@ -112,15 +114,15 @@ def test_implicit_loop_assign():
     sched.view()
     gen = str(ast).lower()
     print(gen)
-    # Our implicit loop gives us 3 explicit loops
-    assert len(loops) == 3
+    # Our implicit loops gives us 5 explicit loops
+    assert len(loops) == 5
     assert isinstance(sched.children[0], nemo0p1.NemoLoop)
     # The other statements (that use array syntax) are not assignments
     # and therefore are not implicit loops
     assert isinstance(sched.children[1], nemo0p1.NemoCodeBlock)
-    # Check that the loop variables have been declared
+    # Check that the loop variables have been declared just once
     for var in ["psy_ji", "psy_jj", "psy_jk"]:
-        assert "integer :: {0}".format(var) in gen
+        assert gen.count("integer :: {0}".format(var)) == 1
 
 
 def test_codeblock():
