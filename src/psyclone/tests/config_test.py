@@ -63,6 +63,7 @@ REPROD_PAD_SIZE = 8
 COMPUTE_ANNEXED_DOFS = false
 '''
 
+
 # Disable this pylint warning because otherwise it gets upset about the
 # use of these fixtures in the test code.
 # pylint:disable=redefined-outer-name
@@ -94,13 +95,21 @@ def int_entry(request):
     :return: Name of element of config file
     :rtype: str
     '''
-    return request.param 
+    return request.param
 
 
 def test_singleton_create():
     '''
     Check that we can create a Config object
     '''
+
+    # In general loading the config file when using Config.get() will be
+    # tested, but if the tests are executed in a specific order (e.g.
+    # gocean1p0_config first, which manually loads a Config file), the
+    # line to load a config file when the singleton is created might not
+    # be executed. So to be certain explicitly delete the singleton here
+    # to force that the next line will test loading the default config file.
+    Config._instance = None
     _config = Config.get()
     assert isinstance(_config, Config)
     # Check that we are creating a singleton instance
@@ -109,7 +118,7 @@ def test_singleton_create():
 
     # Test that we an not create more than one instance
     with pytest.raises(ConfigurationError) as err:
-        config = Config()
+        Config()
     assert "Only one instance of Config can be created" in str(err)
 
 
@@ -270,7 +279,7 @@ def test_default_api_not_in_list():
                 "supported APIs" in str(err))
 
 
-def test_default_stubapi_missing():
+def test_default_stubapi_invalid():
     ''' Check that we raise an error if the default stub API is not in
     the list of supported stub APIs '''
     content = re.sub(r"^DEFAULTSTUBAPI = .*$",
@@ -287,6 +296,23 @@ def test_default_stubapi_missing():
 
         assert ("The default stub API (invalid) is not in the list of "
                 "supported stub APIs" in str(err))
+
+
+def test_default_stubapi_missing():
+    ''' Check that we raise an error if the default stub API is missing,
+    in which case it defaults to the default_api'''
+    content = re.sub(r"^DEFAULTSTUBAPI = .*$",
+                     "",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config(allow_multi_instances_for_testing=True)
+        config.load(config_file=new_name)
+
+        assert config.default_stub_api == config.default_api
 
 
 def test_not_bool(bool_entry):
@@ -400,3 +426,56 @@ def test_api_unimplemented():
             config.load(new_name)
         assert ("file contains a gocean0.1 section but no Config sub-class "
                 "has been implemented for this API" in str(err))
+
+
+def test_default_api():
+    '''If a config file has no default-api specified, but contains only
+    a single (non-default) section, this section should be used as the
+    default api.
+    '''
+    content = re.sub(r"^DEFAULTAPI.*$",
+                     "",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config(allow_multi_instances_for_testing=True)
+        config.load(new_name)
+        assert config.default_api == "dynamo0.3"
+
+
+def test_no_default_api():
+    '''If a config file has no default-api specified and contains 0
+    or more than noe non-default sections, ane exception must be raised.
+    '''
+
+    # First test no API specific section at all:
+    content = "[DEFAULT]\nCOMPUTE_ANNEXED_DOFS = false\n"
+
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config(allow_multi_instances_for_testing=True)
+        with pytest.raises(ConfigurationError) as err:
+            config.load(new_name)
+        assert "No DEFAULTAPI specified" in str(err)
+
+    # Then test if there are two API specific sections (and no default)
+    content = '''[DEFAULT]
+COMPUTE_ANNEXED_DOFS = false
+[dynamo0.3]
+[gocean1.0]
+'''
+
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config(allow_multi_instances_for_testing=True)
+        with pytest.raises(ConfigurationError) as err:
+            config.load(new_name)
+        assert "No DEFAULTAPI specified" in str(err)
