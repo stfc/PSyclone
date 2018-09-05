@@ -1,5 +1,58 @@
+.. _developers-guide:
+
 Developers' guide
 *****************
+
+Working With PSyclone from GitHub
+#################################
+
+A PSyclone developer will, by definition, be working with the GitHub
+PSyclone repository rather than installing a released version from
+pypi (using e.g. ``pip``).  This section describes the set-up
+necessary when using PSyclone in this way.
+
+.. _dev-installation:
+
+Installation
+^^^^^^^^^^^^
+
+Although PSyclone releases always work with a released version of
+fparser, the same is not always true of other versions (e.g. the HEAD
+of the master branch). For those versions of PSyclone requiring
+fparser functionality that is not yet in a release, we use the git
+submodule feature such that the PSyclone repository always has a link
+to the correct version of fparser. In order to obtain this version
+the PSyclone repository must be cloned with the ``--recursive`` flag::
+  
+   > git clone --recursive https://github.com/stfc/PSyclone.git``
+
+Alternatively, if you already have a local clone of the PSyclone github
+repository then doing::
+
+  > cd <PSYCLONEHOME>
+  > git submodule init
+  > git submodule update
+
+will fetch the correct version of fparser.
+
+Once either of the above steps have been performed, the
+``<PSYCLONEHOME>/external/fparser`` directory will contain the fparser
+code. This can then be installed using ``pip``::
+
+  > cd <PSYCLONEHOME>/external/fparser
+  > pip install --user .
+
+Once you have the correct version of fparser installed you are ready to
+install PSyclone itself. Again, the simplest way of doing this is to use
+``pip``::
+
+  > cd <PSYCLONEHOME>
+  > pip install -e --user .
+
+where ``-e`` requests an 'editable' installation so that changes to
+the PSyclone source are immediately reflected in the installed
+package.  (For alternatives to using pip please see the
+:ref:`getting-going` section.)
 
 New APIs
 ########

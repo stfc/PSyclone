@@ -6,8 +6,13 @@ Getting Going
 Download
 --------
 
+The following instructions are intended for a PSyclone user who wants
+to work with a released version of the code. If you are a developer or
+wish to test a specific branch of PSyclone from the GitHub repository
+please see :ref:`dev-installation` in the :ref:`developers-guide`.
+
 PSyclone is available on the Python Package Index (pypi.org) and is
-hosted on github:
+hosted on GitHub:
 
 ``https://github.com/stfc/PSyclone``
 
@@ -30,19 +35,8 @@ PSyclone directly, e.g.
    > ls
    PSyclone-\ |release|\ 
    
-
-Alternatively the PSyclone repository can be cloned:
-
-``> git clone https://github.com/stfc/PSyclone.git``
-
-By default you will have access to the master branch if you clone. To
-change to the latest release then subsequently do the following
-
-.. parsed-literal::
-    > git checkout tags/\ |release|\ 
-
 Hereon the location where you download or clone PSyclone (including the
-PSyclone directory itself) will be referred to as <PSYCLONEHOME>
+PSyclone directory itself) will be referred to as ``<PSYCLONEHOME>``.
 
 Dependencies
 ------------
@@ -121,35 +115,6 @@ latest version simply do:
 ::
 
    > pip install fparser --upgrade
-
-git submodule
-+++++++++++++
-
-Although PSyclone releases always work with a released version of
-fparser, the same is not always true of other versions (e.g. the HEAD
-of the master branch). For those versions of PSyclone requiring
-fparser functionality that is not yet in a release, we use the git
-submodule feature such that the PSyclone repository always has a link
-to the correct version of fparser. In order to obtain this version
-the PSyclone repository must be cloned with the ``--recursive`` flag::
-  
-   > git clone --recursive https://github.com/stfc/PSyclone.git``
-
-Alternatively, if you already have a local clone of the PSyclone github
-repository then doing::
-
-  > cd <PSYCLONEHOME>
-  > git submodule init
-  > git submodule update
-
-will fetch the correct version of fparser.
-
-Once either of the above steps have been performed, the
-``<PSYCLONEHOME>/external/fparser`` directory will contain the fparser
-code. This can then be installed using ``pip``::
-
-  > cd <PSYCLONEHOME>/external/fparser
-  > pip install .
 
 
 pyparsing
