@@ -94,10 +94,10 @@ GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
                       "grid_lat_v": "gphiv",
                       "grid_dx_const": "dx",
                       "grid_dy_const": "dy",
-                      "grid_x_min_index":"simulation_domain%xstart",
-                      "grid_x_max_index":"simulation_domain%xstop",
-                      "grid_y_min_index":"simulation_domain%ystart",
-                      "grid_y_max_index":"simulation_domain%ystop"}
+                      "grid_x_min_index": "simulation_domain%xstart",
+                      "grid_x_max_index": "simulation_domain%xstop",
+                      "grid_y_min_index": "simulation_domain%ystart",
+                      "grid_y_max_index": "simulation_domain%ystop"}
 
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
@@ -495,11 +495,12 @@ class GOLoop(Loop):
     @staticmethod
     def add_bounds(bound_info):
         '''
-        bound_info = offset_ne:ct:all_pts:outer-start=...:
-                      outer-stop=...:inner-start=...:outer-stop=...
-        bound_info = offset_ne:ct:all_pts:outer:start=1:stop={stop}+1
+        bound_info = offset_ne:ct:all_pts:outer-start:
+                      outer-stop:inner-start=:inner-stop
+        Example:
+        bound_info = offset_ne:ct:all_pts:outer:1:{stop}+1:2:{stop}
         '''
-
+        print("adding {0}".format(bound_info))
         if not isinstance(bound_info, str):
             raise ValueError()
 
@@ -529,8 +530,8 @@ class GOLoop(Loop):
             dict[data[0]][data[1]][data[2]] = {}
             VALID_ITERATES_OVER.append(data[2])
         dict[data[0]][data[1]][data[2]] = \
-            {'inner': {'start': data[3], 'stop': data[4]},
-             'outer': {'start': data[5], 'stop': data[6]}}
+            {'outer': {'start': data[3], 'stop': data[4]},
+             'inner': {'start': data[5], 'stop': data[6]}}
 
     # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
