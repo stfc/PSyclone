@@ -25,7 +25,7 @@ submodule feature such that the PSyclone repository always has a link
 to the correct version of fparser. In order to obtain this version
 the PSyclone repository must be cloned with the ``--recursive`` flag::
   
-   > git clone --recursive https://github.com/stfc/PSyclone.git``
+   > git clone --recursive https://github.com/stfc/PSyclone.git
 
 Alternatively, if you already have a local clone of the PSyclone github
 repository then doing::
@@ -193,7 +193,7 @@ quotes) to the end of the associated git commit message.
 Code Review
 ===========
 
-Before a branch can be merged to master it must pass code review.  The
+Before a branch can be merged to master it must pass code review. The
 guidelines for performing a review (i.e. what is expected from the
 developer) are available on the GitHub PSyclone wiki pages:
 https://github.com/stfc/PSyclone/wiki.
