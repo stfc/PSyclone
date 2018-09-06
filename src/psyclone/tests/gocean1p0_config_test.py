@@ -165,15 +165,15 @@ def test_valid_config_files():
     gen = str(psy.gen)
     # "# nopep8" suppresses the pep8 warning about trailing white space at end of
     # line (after the "END DO ")
-    new_loop1 = '''      DO j=3,4
-        DO i=1,2
+    new_loop1 = '''      DO j=1,2
+        DO i=3,4
           CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO 
       END DO '''   # nopep8
     assert new_loop1 in gen
 
-    new_loop2 = '''      DO j=1,jstop+1
-        DO i=1,istop
+    new_loop2 = '''      DO j=1,jstop
+        DO i=1,istop+1
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO 
       END DO '''   # nopep8
