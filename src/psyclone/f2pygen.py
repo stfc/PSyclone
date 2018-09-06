@@ -583,7 +583,7 @@ class CommentGen(BaseGen):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param str content: the content of the comment
         '''
-        reader = FortranStringReader("! content\n")
+        reader = FortranStringReader("! content\n", ignore_comments=False)
         reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()
 
@@ -612,7 +612,7 @@ class DirectiveGen(BaseGen):
         self._language = language
         self._directive_type = directive_type
 
-        reader = FortranStringReader("! content\n")
+        reader = FortranStringReader("! content\n", ignore_comments=False)
         reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()
 

@@ -1,5 +1,202 @@
+.. _developers-guide:
+
 Developers' guide
 *****************
+
+Working With PSyclone from GitHub
+#################################
+
+A PSyclone developer will, by definition, be working with the GitHub
+PSyclone repository rather than installing a released version from
+pypi (using e.g. ``pip install psyclone``).  This section describes
+the set-up necessary when using PSyclone in this way. It also
+describes some of the development practises of the PSyclone project.
+
+.. _dev-installation:
+
+Installation
+============
+
+Although PSyclone releases always work with a released version of
+fparser, the same is not always true of other versions (e.g. the HEAD
+of the master branch). For those versions of PSyclone requiring
+fparser functionality that is not yet in a release, we use the git
+submodule feature such that the PSyclone repository always has a link
+to the correct version of fparser. In order to obtain this version
+the PSyclone repository must be cloned with the ``--recursive`` flag::
+  
+   > git clone --recursive https://github.com/stfc/PSyclone.git
+
+Alternatively, if you already have a local clone of the PSyclone github
+repository then doing::
+
+  > cd <PSYCLONEHOME>
+  > git submodule init
+  > git submodule update
+
+will fetch the fparser submodule. (Failure to do this will mean that
+the ``<PSYCLONEHOME>/external/fparser`` directory will be empty.)
+
+Note that after cloning the repository from GitHub, the local copy
+will be on the master branch. If you are working with some other
+branch then this must be checked out by doing::
+
+  > cd <PSYCLONEHOME>
+  > git checkout <BRANCH_NAME>
+
+Once the above steps have been performed, the
+``<PSYCLONEHOME>/external/fparser`` directory will contain the correct
+version of the fparser code. This can then be installed using ``pip``::
+
+  > cd <PSYCLONEHOME>/external/fparser
+  > pip install --user .
+
+Once you have the correct version of fparser installed you are ready to
+install PSyclone itself. Again, the simplest way of doing this is to use
+``pip``::
+
+  > cd <PSYCLONEHOME>
+  > pip install -e --user .
+
+where ``-e`` requests an 'editable' installation so that changes to
+the PSyclone source are immediately reflected in the installed
+package.  (For alternatives to using pip please see the
+:ref:`getting-going` section.)
+
+Test Suite
+==========
+
+The PSyclone test suite is integral to the development process and all
+new code must be covered (i.e. executed) by one or more tests. As
+described in :ref:`getting-going`, the test suite is written for use
+with ``pytest``.
+
+Coverage
+--------
+
+The easiest and most user-friendly way of checking the coverage of any
+new code is to use CodeCov (https://codecov.io/gh/stfc/PSyclone) which
+is integrated with GitHub. Coverage for Pull Requests is automatically
+reported and will appear as a comment on the Pull Request. This
+comment is then automatically updated whenever new code is pushed to
+the associated branch.
+
+For checking test coverage on your local machine you will need to install
+the ``cov`` plugin (``pip install pytest-cov``). You can then
+request various types of coverage report when running the test suite. e.g.
+to ask for a terminal report of missed lines for the ``dynamo0p3`` module
+you would do::
+
+  > cd <PSYCLONEHOME>
+  > py.test --cov-report term-missing --cov psyclone.dynamo0p3
+
+This will produce output along the lines of::
+  
+  ----------- coverage: platform linux, python 3.5.4-final-0 -----------
+  Name                        Stmts   Miss  Cover   Missing
+  ---------------------------------------------------------
+  src/psyclone/dynamo0p3.py    2540     23    99%   558, 593, 777, 2731, 2972, 3865, 4132-4133, 4135-4136, 4139-4140, 4143-4144, 4149-4151, 4255, 4270, 4488, 5026, 6540, 6658, 6768
+
+showing the line numbers which are not covered.
+
+Parallel execution
+------------------
+
+The size of the test suite is such that running all of it in serial
+can take many minutes, especially if you have requested a coverage
+report. It is therefore very helpful to run it in parallel and pytest
+provides support for this via the ``xdist`` plugin (``pip install
+pytest-xdist``). Once you have this plugin, the test suite may be run
+in parallel simply by providing the number of cores to use via the
+``-n`` flag::
+
+  > cd <PSYCLONEHOME>
+  > py.test -n 4
+
+Running the test suite in parallel also changes the order in which
+tests are run which can reveal any problems resulting from tests not
+being sufficiently isolated from one another.
+
+Gotchas
+-------
+
+Note that pytest will not complain if two tests (within a module) have
+the same name - it will just silently ignore one of them! The best way
+of checking for this is to run pylint on any modified test modules.
+(This needs to be done anyway as one of the requirements of the
+:ref:`code-review` is that all new code be pylint-clean.)
+
+Compilation testing
+-------------------
+
+The test suite provides support for testing that the code generated by
+PSyclone is valid Fortran. This is performed by writing the generated
+code to file and then invoking a Fortran compiler. This testing is not
+performed by default since it requires a Fortran compiler and
+significantly increases the time taken to run the test suite.  Since
+configuration of these tests uses a pytest fixture, the tests must be
+run from the ``tests`` directory when requesting that compilation
+checks be performed::
+
+  > cd <PSYCLONEHOME>/src/psyclone/tests
+  > py.test --compile
+
+The Gnu Fortran compiler (gfortran) is used by default. If you wish to
+use a different compiler and/or supply specific flags then these are
+specified by further command-line flags::
+
+  > py.test --compile --f90=ifort --f90flags="-O3"
+
+Note that compilaton testing is currently only supported for the
+"dynamo0.3" API. Since the code generated by PSyclone makes calls to the
+LFRic infrastructure, we maintain a stub implementation of the necessary
+routines in ``tests/test_files/dynamo0p3/infrastructure``.
+
+Continuous Integration
+======================
+
+The PSyclone project uses Travis (https://travis-ci.org/stfc/PSyclone)
+for continuous integration. GitHub triggers Travis to execute the test
+suite whenever there is a push to the repository. The work performed
+by Travis is configured by the ``.travis.yml`` file in the root
+directory of the repository. Currently Travis is configured to run the
+test suite for both Python 2.7 and 3.6.
+
+By default, the Travis configuration uses ``pip`` to install the
+dependencies required by PSyclone before running the test suite. This
+works well when PSyclone only depends upon released versions of other
+packages. However, PSyclone relies heavily upon fparser which is also
+under development. Occasionally it may be that a given branch of
+PSyclone requires a version of fparser that is not yet released. As
+described in :ref:`dev-installation`, PSyclone has fparser as a git
+submodule. In order to configure Travis to use that version of fparser
+instead of a release, the ``.travis.yml`` file must be edited and the
+line executing the "install_optional.sh" script (in the
+``before_install`` section) must be edited to pass in the
+"fparser_submodule" argument::
+
+    - ./bin/install_optional.sh fparser_submodule
+
+Note that this functionality is only for development purposes. Any
+release of PSyclone must work with a released version of fparser
+and therefore the "fparser_submodule" argument must be removed
+before making a release.
+
+Given that a run of the test-suite on Travis uses approximately 45
+minutes of CPU time, it is good practise to avoid triggering it
+unnecessarily (e.g. if you know that a certain commit won't
+pass). This can be achieved by appending "[skip ci]" (without the
+quotes) to the end of the associated git commit message.
+
+.. _code-review:
+
+Code Review
+===========
+
+Before a branch can be merged to master it must pass code review. The
+guidelines for performing a review (i.e. what is expected from the
+developer) are available on the GitHub PSyclone wiki pages:
+https://github.com/stfc/PSyclone/wiki.
 
 New APIs
 ########
