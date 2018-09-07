@@ -495,14 +495,22 @@ class GOLoop(Loop):
     @staticmethod
     def add_bounds(bound_info):
         '''
-        bound_info = offset_ne:ct:all_pts:outer-start:
-                      outer-stop:inner-start=:inner-stop
+        Adds a new iteration space to PSyclone. An iteration space in the
+        gocean1.0 API is for a certain offset type and field type. It defines
+        the loop boundaries for the outer and inner loop. The format is a
+        ":" separated tuple:
+        bound_info = offset-type:field-type:iteration-space:outer-start:
+                      outer-stop:inner-start:inner-stop
         Example:
         bound_info = offset_ne:ct:all_pts:outer:1:{stop}+1:2:{stop}
+        :param str bound_info: A string that contains a ":" separated \
+               tuple with the iteration space definition.
         '''
-        print("adding {0}".format(bound_info))
+
         if not isinstance(bound_info, str):
-            raise ValueError()
+            raise ValueError("The parameter 'bound_info' must be a string, "
+                             "got '{0}' (type {1}".format(bound_info,
+                                                          type(bound_info)))
 
         data = bound_info.split(":")
         if len(data) != 7:
@@ -516,20 +524,20 @@ class GOLoop(Loop):
         if len(GOLoop._bounds_lookup) == 0:
             GOLoop.setup_bounds()
 
-        dict = GOLoop._bounds_lookup   # Shortcut
+        current_bounds = GOLoop._bounds_lookup   # Shortcut
         # Check offset-type exists
-        if not data[0] in dict:
-            dict[data[0]] = {}
+        if not data[0] in current_bounds:
+            current_bounds[data[0]] = {}
 
         # Check field-type exists
-        if not data[1] in dict[data[0]]:
-            dict[data[0]][data[1]] = {}
+        if not data[1] in current_bounds[data[0]]:
+            current_bounds[data[0]][data[1]] = {}
 
         # Check iteration space exists:
-        if not data[2] in dict[data[0]][data[1]]:
-            dict[data[0]][data[1]][data[2]] = {}
+        if not data[2] in current_bounds[data[0]][data[1]]:
+            current_bounds[data[0]][data[1]][data[2]] = {}
             VALID_ITERATES_OVER.append(data[2])
-        dict[data[0]][data[1]][data[2]] = \
+        current_bounds[data[0]][data[1]][data[2]] = \
             {'outer': {'start': data[3], 'stop': data[4]},
              'inner': {'start': data[5], 'stop': data[6]}}
 

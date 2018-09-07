@@ -144,6 +144,12 @@ def test_invalid_config_files():
             # They keys are returned in lower case
             assert i.lower() in config.get_default_keys()
 
+    from psyclone.gocean1p0 import GOLoop
+    with pytest.raises(ValueError) as err:
+        GOLoop.add_bounds(1)
+    assert "The parameter 'bound_info' must be a string, got '1' "\
+           "(type <type 'int'>" in str(err)
+
 
 # =============================================================================
 def test_valid_config_files():
