@@ -147,8 +147,11 @@ def test_invalid_config_files():
     from psyclone.gocean1p0 import GOLoop
     with pytest.raises(ValueError) as err:
         GOLoop.add_bounds(1)
+    # Different error message (for type) in python2 vs python3:
     assert "The parameter 'bound_info' must be a string, got '1' "\
-           "(type <type 'int'>" in str(err)
+           "(type <type 'int'>" in str(err) or \
+           "The parameter 'bound_info' must be a string, got '1' "\
+           "(type <class 'int'>" in str(err)
 
 
 # =============================================================================
