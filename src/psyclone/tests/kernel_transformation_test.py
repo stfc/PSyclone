@@ -38,7 +38,7 @@
 from __future__ import absolute_import
 import os
 import pytest
-from utils import get_invoke
+from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError
 
 
@@ -48,8 +48,7 @@ def test_accroutine_err(monkeypatch):
     from psyclone.psyGen import Kern
     from psyclone.transformations import ACCRoutineTrans
     import fparser
-    _, invoke = get_invoke(os.path.join("dynamo0p3", "1_single_invoke.f90"),
-                           api="dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
     kern = kernels[0]
@@ -81,8 +80,7 @@ def test_accroutine():
     from psyclone.gocean1p0 import GOKern
     from psyclone.transformations import ACCRoutineTrans
     from fparser.two import Fortran2003
-    _, invoke = get_invoke(os.path.join("gocean1p0", "nemolite2d_alg_mod.f90"),
-                           api="gocean1.0", idx=0)
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
     assert isinstance(kern, GOKern)
