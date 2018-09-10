@@ -51,9 +51,6 @@ from psyclone.parse import ParseError
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 
-# Get our one and only Configuration object
-_CONFIG = Config.get()
-
 
 def generate(filename, api=""):
 
@@ -65,13 +62,13 @@ def generate(filename, api=""):
        format.
     '''
     if api == "":
-        api = _CONFIG.default_stub_api
-    if api not in _CONFIG.supported_stub_apis:
+        api = Config.get().default_stub_api
+    if api not in Config.get().supported_stub_apis:
         print("Unsupported API '{0}' specified. Supported API's are {1}.".
-              format(api, _CONFIG.supported_stub_apis))
+              format(api, Config.get().supported_stub_apis))
         raise GenerationError(
             "generate: Unsupported API '{0}' specified. Supported types are "
-            "{1}.".format(api, _CONFIG.supported_stub_apis))
+            "{1}.".format(api, Config.get().supported_stub_apis))
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
@@ -100,10 +97,10 @@ def run():
     parser = argparse.ArgumentParser(description="Create Kernel stub code from"
                                                  " Kernel metadata")
     parser.add_argument("-o", "--outfile", help="filename of output")
-    parser.add_argument("-api", default=_CONFIG.default_stub_api,
+    parser.add_argument("-api", default=Config.get().default_stub_api,
                         help="choose a particular api from {0}, default {1}".
-                        format(str(_CONFIG.supported_stub_apis),
-                               _CONFIG.default_stub_api))
+                        format(str(Config.get().supported_stub_apis),
+                               Config.get().default_stub_api))
     parser.add_argument('filename', help='Kernel metadata')
     parser.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
