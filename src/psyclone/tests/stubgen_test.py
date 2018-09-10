@@ -66,8 +66,8 @@ def test_run(monkeypatch, capsys):
     result, _ = capsys.readouterr()
 
     # Now read output file into a string and check:
-    output = "".join(filetemp_psy.readlines())
-    assert "MODULE testkern_w0_mod" in output
+    output = filetemp_psy.read()
+    assert "MODULE testkern_w0_mod" in str(output)
 
 
 # -----------------------------------------------------------------------------
