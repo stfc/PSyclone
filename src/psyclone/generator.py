@@ -228,11 +228,8 @@ def main(args):
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
     parser.add_argument(
         '-opsy', help='filename of generated PSy code')
-    parser.add_argument(
-        '-api', default=Config.get().default_api,
-        help='choose a particular api from {0}, '
-        'default {1}'.format(str(Config.get().supported_apis),
-                             Config.get().default_api))
+    parser.add_argument('-api', help='choose a particular api from {0}.'
+                        .format(str(Config.get().supported_apis)))
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -266,11 +263,6 @@ def main(args):
 
     args = parser.parse_args(args)
 
-    if args.api not in Config.get().supported_apis:
-        print("Unsupported API '{0}' specified. Supported API's are "
-              "{1}.".format(args.api, Config.get().supported_apis))
-        exit(1)
-
     if args.version:
         print("PSyclone version: {0}".format(__VERSION__))
 
@@ -296,8 +288,18 @@ def main(args):
     # and config will load the default config file.
     Config.get().load(args.config)
 
+    # Check API, if none is specified, take the default from the config file
+    if args.api is None:
+        api = Config.get().default_api
+    elif args.api not in Config.get().supported_apis:
+        print("Unsupported API '{0}' specified. Supported API's are "
+              "{1}.".format(args.api, Config.get().supported_apis))
+        exit(1)
+    else:
+        api = args.api
+
     try:
-        alg, psy = generate(args.filename, api=args.api,
+        alg, psy = generate(args.filename, api=api,
                             kernel_path=args.directory,
                             script_name=args.script,
                             line_length=args.limit,
