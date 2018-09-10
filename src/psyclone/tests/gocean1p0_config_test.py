@@ -158,7 +158,7 @@ def test_invalid_config_files():
 def test_valid_config_files():
     ''' Test if valid config files lead to the expected new loop boundaries
     '''
-    from utils import get_invoke
+    from psyclone_test_utils import get_invoke
 
     # Using "" adds the directory separator to the end:
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -167,9 +167,7 @@ def test_valid_config_files():
 
     Config.get().load(config_file)
 
-    psy, _ = get_invoke(
-        os.path.join("gocean1p0", "new_iteration_space.f90"), "gocean1.0",
-        idx=0)
+    psy, _ = get_invoke("new_iteration_space.f90", "gocean1.0", idx=0)
 
     gen = str(psy.gen)
     # "# nopep8" suppresses the pep8 warning about trailing white space at end of
