@@ -683,8 +683,9 @@ class KernelType(object):
         # use that to make this routine more robust.
         from fparser.two.parser import ParserFactory
         from fparser.two import Fortran2003
-        # Ensure the Fortran2003 parser is initialised
+        # Ensure the classes are setup for the Fortran2003 parser
         _ = ParserFactory().create()
+
         for statement, _ in fpapi.walk(self._ktype, -1):
             if not isinstance(statement, fparser1.typedecl_statements.Integer):
                 # This isn't an integer declaration so skip it

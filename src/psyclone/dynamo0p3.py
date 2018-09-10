@@ -993,9 +993,13 @@ class DynKernMetadata(KernelType):
                     "does not need an evaluator because gh_shape={2}".
                     format(self.name, self._eval_targets, self._eval_shape))
             # Check that there is a kernel argument on each of the
-            # specified spaces
-            # TODO allow for operators in the below?
-            fs_list = [arg.function_space for arg in self._arg_descriptors]
+            # specified spaces...
+            # Create a list (set) of the function spaces for with
+            # associated kernel arguments
+            fs_list = set()
+            for arg in self._arg_descriptors:
+                fs_list.update(arg.function_spaces)
+            # Check each evaluator_target against this list
             for eval_fs in self._eval_targets:
                 if eval_fs not in fs_list:
                     raise ParseError(
