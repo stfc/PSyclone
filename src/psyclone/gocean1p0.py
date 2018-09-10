@@ -503,8 +503,11 @@ class GOLoop(Loop):
                       outer-stop:inner-start:inner-stop
         Example:
         bound_info = offset_ne:ct:all_pts:outer:1:{stop}+1:2:{stop}
+
         :param str bound_info: A string that contains a ":" separated \
                tuple with the iteration space definition.
+        :raises ValueError: if bound_info is not a string.
+        :raises ConfigurationError: if bound_info is not formatted correctly.
         '''
 
         if not isinstance(bound_info, str):
