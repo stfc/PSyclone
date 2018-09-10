@@ -147,6 +147,24 @@ def test_eval_targets_wrong_space():
             "an argument on this space" in str(err))
 
 
+def test_eval_targets_op_space():
+    code = CODE.replace("arg_type(GH_FIELD,   GH_INC,  W0),   &",
+                        "arg_type(GH_FIELD,   GH_INC,  W0),   &\n"
+                        "    arg_type(GH_OPERATOR, GH_READ, W2, W1), &")
+    code = code.replace("meta_args(2)", "meta_args(3)")
+    code = code.replace("[W0, W1]", "[W0, W3]")
+    ast = fpapi.parse(code, ignore_comments=False)
+    with pytest.raises(ParseError) as err:
+        _ = DynKernMetadata(ast, name="testkern_eval_type")
+    assert ("specifies that an evaluator is required on w3 but does not have "
+            "an argument on this space" in str(err))
+    # Change to a space that is referenced by an operator
+    code = code.replace("[W0, W3]", "[W0, W2]")
+    ast = fpapi.parse(code, ignore_comments=False)
+    dkm = DynKernMetadata(ast, name="testkern_eval_type")
+    assert isinstance(dkm, DynKernMetadata)
+
+
 def test_single_kern_eval(tmpdir, f90, f90flags):
     ''' Check that we generate correct code for a single kernel that
     requires both basis and differential basis functions for an

@@ -647,7 +647,11 @@ class KernelType(object):
         :rtype: str
         :raises ParseError: if the RHS of the assignment is not a Name.
         '''
+        from fparser.two.parser import ParserFactory
         from fparser.two import Fortran2003
+        # Ensure the Fortran2003 parser is initialised
+        _ = ParserFactory().create()
+
         for statement, _ in fpapi.walk(self._ktype, -1):
             if isinstance(statement, fparser1.typedecl_statements.Integer):
                 # fparser only goes down to the statement level. We use
@@ -677,7 +681,10 @@ class KernelType(object):
         '''
         # TODO once we have a release of fparser with 'walk' functionality,
         # use that to make this routine more robust.
+        from fparser.two.parser import ParserFactory
         from fparser.two import Fortran2003
+        # Ensure the Fortran2003 parser is initialised
+        _ = ParserFactory().create()
         for statement, _ in fpapi.walk(self._ktype, -1):
             if not isinstance(statement, fparser1.typedecl_statements.Integer):
                 # This isn't an integer declaration so skip it
