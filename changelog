@@ -38,6 +38,18 @@
         12) #188 and PR #189. Bug fix to ensure that the name of profiling
         regions remains the same when gen() is called multiple times.
 
+        13) #176 and PR #200. Introduce new RegionTrans base class and
+	add _validate method to ensure that the list of nodes to
+	be transformed (with OpenMP or OpenACC) is correct.
+
+        14) #197. Tidying of the test suite to use the new, get_invoke()
+	utility everywhere.
+
+	15) #212 and PR #213. Adds fparser as a submodule of psyclone to
+	allow concurrent development of PSyclone and fparser (by allowing
+	development versions of PSyclone to point to development versions
+	of fparser).
+
 release 1.6.0 18th May 2018
 
         1) #91 and PR #111 Remove unnecessary __init__.py files.

@@ -45,7 +45,7 @@ from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-import utils
+from psyclone_test_utils import code_compiles, print_diffs, TEST_COMPILE
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -175,9 +175,9 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     # First, check the declarations
     expected_decl = (
@@ -289,9 +289,9 @@ def test_single_kern_eval_op(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     # Kernel writes to an operator, the 'to' space of which is W0. Kernel
     # requires basis on W2 ('from'-space of operator) and diff-basis on
@@ -366,9 +366,9 @@ def test_two_qr(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     expected_declns = (
         "    SUBROUTINE invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
@@ -463,7 +463,7 @@ def test_two_qr(tmpdir, f90, f90flags):
         "n2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_w3_qr2)\n"
         "      !\n")
     if expected_code not in gen_code:
-        utils.print_diffs(expected_code, gen_code)
+        print_diffs(expected_code, gen_code)
         assert 0
     expected_kern_call = (
         "      ! Call our kernels\n"
@@ -494,7 +494,7 @@ def test_two_qr(tmpdir, f90, f90flags):
         "diff_basis_w3_qr2)\n"
     )
     if expected_kern_call not in gen_code:
-        utils.print_diffs(expected_kern_call, gen_code)
+        print_diffs(expected_kern_call, gen_code)
         assert 0
 
 
@@ -508,9 +508,9 @@ def test_two_identical_qr(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     expected_init = (
         "      ! Look-up quadrature variables\n"
@@ -591,9 +591,9 @@ def test_anyw2(tmpdir, f90, f90flags):
         generated_code = str(psy.gen)
         print(generated_code)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # Test that generated code compiles
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
         output = (
             "      ! Initialise number of DoFs for any_w2\n"
@@ -643,9 +643,9 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # Test that generated code compiles
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
@@ -778,9 +778,9 @@ def test_two_eval_same_space(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # Test that generated code compiles
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     output_init = (
         "      !\n"
@@ -849,9 +849,9 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     # The first kernel in the invoke (testkern_eval_type) requires basis and
     # diff basis functions for the spaces of the first and second field
@@ -946,9 +946,9 @@ def test_two_eval_same_var_same_space(
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # Test that generated code compiles
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     # We should only get one set of basis and diff-basis functions in the
     # generated code
@@ -988,9 +988,9 @@ def test_two_eval_op_to_space(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # Test that generated code compiles
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     # testkern_eval writes to W0. testkern_eval_op_to writes to W3.
     # testkern_eval requires basis fns on W0 and eval_op_to requires basis
@@ -1105,9 +1105,9 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # Test that generated code compiles
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     expected_alloc = (
         "      ndf_nodal_w3 = f1_proxy%vspace%get_ndf()\n"

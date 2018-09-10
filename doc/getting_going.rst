@@ -6,8 +6,13 @@ Getting Going
 Download
 --------
 
+The following instructions are intended for a PSyclone user who wants
+to work with a released version of the code. If you are a developer or
+wish to test a specific branch of PSyclone from the GitHub repository
+please see :ref:`dev-installation` in the :ref:`developers-guide`.
+
 PSyclone is available on the Python Package Index (pypi.org) and is
-hosted on github:
+hosted on GitHub:
 
 ``https://github.com/stfc/PSyclone``
 
@@ -30,19 +35,8 @@ PSyclone directly, e.g.
    > ls
    PSyclone-\ |release|\ 
    
-
-Alternatively the PSyclone repository can be cloned:
-
-``> git clone https://github.com/stfc/PSyclone.git``
-
-By default you will have access to the master branch if you clone. To
-change to the latest release then subsequently do the following
-
-.. parsed-literal::
-    > git checkout tags/\ |release|\ 
-
 Hereon the location where you download or clone PSyclone (including the
-PSyclone directory itself) will be referred to as <PSYCLONEHOME>
+PSyclone directory itself) will be referred to as ``<PSYCLONEHOME>``.
 
 Dependencies
 ------------
