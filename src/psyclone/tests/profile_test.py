@@ -37,45 +37,16 @@
 
 from __future__ import absolute_import
 
-import os
 import re
 import pytest
 
 from psyclone.generator import GenerationError
 from psyclone.gocean1p0 import GOKern, GOSchedule
-from psyclone.parse import parse
 from psyclone.profiler import Profiler, ProfileNode
-from psyclone.psyGen import Loop, NameSpace, PSyFactory
-
+from psyclone.psyGen import Loop, NameSpace
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans, \
     ProfileRegionTrans, TransformationError
-
-
-# TODO: Once #170 is merged, use the new tests/utils.py module
-def get_invoke(api, algfile, key):
-    ''' Utility method to get the idx'th invoke from the algorithm
-    specified in file '''
-
-    if api == "gocean1.0":
-        dir_name = "gocean1p0"
-    elif api == "dynamo0.3":
-        dir_name = "dynamo0p3"
-    else:
-        assert False
-    _, info = parse(os.path.
-                    join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", dir_name, algfile),
-                    api=api)
-    psy = PSyFactory(api).create(info)
-    invokes = psy.invokes
-    if isinstance(key, str):
-        invoke = invokes.get(key)
-    else:
-        # invokes does not have a method by which to request the i'th
-        # in the list so we do this rather clumsy lookup of the name
-        # of the invoke that we want
-        invoke = invokes.get(list(invokes.names)[key])
-    return psy, invoke
+from psyclone_test_utils import get_invoke
 
 
 # -----------------------------------------------------------------------------
@@ -98,8 +69,8 @@ def test_profile_basic(capsys):
     '''Check basic functionality: node names, schedule view.
     '''
     Profiler.set_options([Profiler.INVOKES])
-    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
-                           "one_invoke.f90", 0)
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
 
     assert isinstance(invoke.schedule.children[0], ProfileNode)
 
@@ -109,7 +80,7 @@ def test_profile_basic(capsys):
     coloured_schedule = GOSchedule([]).coloured_text
     coloured_loop = Loop().coloured_text
     coloured_kern = GOKern().coloured_text
-    coloured_profile = ProfileNode().coloured_text
+    coloured_profile = invoke.schedule.children[0].coloured_text
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
@@ -137,10 +108,11 @@ def test_profile_basic(capsys):
                              .children[0].children[0])
 
     new_sched_str = str(new_sched)
+
     correct = ("""GOSchedule(Constant loop bounds=True):
-ProfileStart[]
+ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop-1,1
-ProfileStart[]
+ProfileStart[var=profile_1]
 Loop[]: i= lower=2,istop,1
 kern call: compute_cv_code
 EndLoop
@@ -173,8 +145,8 @@ def test_profile_invokes_gocean1p0():
     '''Check that an invoke is instrumented correctly
     '''
     Profiler.set_options([Profiler.INVOKES])
-    _, invoke = get_invoke("gocean1.0", "test11_different_iterates_over_"
-                           "one_invoke.f90", 0)
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -197,9 +169,13 @@ def test_profile_invokes_gocean1p0():
                   r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
 
+    # Check that if gen() is called more than once the same profile
+    # variables and region names are created:
+    code_again = str(invoke.gen()).replace("\n", "")
+    assert code == code_again
+
     # Test that two kernels in one invoke get instrumented correctly.
-    _, invoke = get_invoke("gocean1.0", "single_invoke_"
-                           "two_kernels.f90", 0)
+    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0", 0)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -231,8 +207,8 @@ def test_unique_region_names():
     names are identical.'''
 
     Profiler.set_options([Profiler.KERNELS])
-    _, invoke = get_invoke("gocean1.0",
-                           "single_invoke_two_identical_kernels.f90", 0)
+    _, invoke = get_invoke("single_invoke_two_identical_kernels.f90",
+                           "gocean1.0", 0)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -284,8 +260,8 @@ def test_profile_kernels_gocean1p0():
     '''Check that all kernels are instrumented correctly
     '''
     Profiler.set_options([Profiler.KERNELS])
-    _, invoke = get_invoke("gocean1.0", "single_invoke_"
-                           "two_kernels.f90", 0)
+    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
+                           idx=0)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -333,7 +309,7 @@ def test_profile_invokes_dynamo0p3():
     Profiler.set_options([Profiler.INVOKES])
 
     # First test for a single invoke with a single kernel work as expected:
-    _, invoke = get_invoke("dynamo0.3", "1_single_invoke.f90", 0)
+    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -351,7 +327,7 @@ def test_profile_invokes_dynamo0p3():
     assert re.search(correct_re, code, re.I) is not None
 
     # Next test two kernels in one invoke:
-    _, invoke = get_invoke("dynamo0.3", "1.2_multi_invoke.f90", 0)
+    _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -381,7 +357,7 @@ def test_profile_kernels_dynamo0p3():
     Dynamo 0.3 invoke.
     '''
     Profiler.set_options([Profiler.KERNELS])
-    _, invoke = get_invoke("dynamo0.3", "1_single_invoke.f90", 0)
+    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -399,7 +375,7 @@ def test_profile_kernels_dynamo0p3():
                   r"call ProfileEnd\(profile\)")
     assert re.search(correct_re, code, re.I) is not None
 
-    _, invoke = get_invoke("dynamo0.3", "1.2_multi_invoke.f90", 0)
+    _, invoke = get_invoke("1.2_multi_invoke.f90", "dynamo0.3", idx=0)
 
     # Convert the invoke to code, and remove all new lines, to make
     # regex matching easier
@@ -432,7 +408,8 @@ def test_profile_kernels_dynamo0p3():
 def test_transform(capsys):
     '''Tests normal behaviour of profile region transformation.'''
 
-    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+                           name="invoke_loop1")
     schedule = invoke.schedule
 
     prt = ProfileRegionTrans()
@@ -443,7 +420,7 @@ def test_transform(capsys):
     sched1, _ = prt.apply(schedule.children)
 
     correct = ("""OSchedule(Constant loop bounds=True):
-ProfileStart[]
+ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop,1
 Loop[]: i= lower=2,istop,1
 kern call: bc_ssh_code
@@ -468,13 +445,13 @@ End Schedule""")
     sched2, _ = prt.apply(schedule.children[0].children[1])
 
     correct = ("""GOSchedule(Constant loop bounds=True):
-ProfileStart[]
+ProfileStart[var=profile]
 Loop[]: j= lower=2,jstop,1
 Loop[]: i= lower=2,istop,1
 kern call: bc_ssh_code
 EndLoop
 EndLoop
-ProfileStart[]
+ProfileStart[var=profile_1]
 Loop[]: j= lower=1,jstop+1,1
 Loop[]: i= lower=1,istop,1
 kern call: bc_solid_u_code
@@ -514,7 +491,8 @@ def test_transform_errors(capsys):
 
     # This has been imported and tested before, so we can assume
     # here that this all works as expected/
-    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+                           name="invoke_loop1")
 
     schedule = invoke.schedule
     prt = ProfileRegionTrans()
@@ -577,7 +555,8 @@ def test_transform_errors(capsys):
 
     # Test that we don't add a profile node inside a OMP do loop (which
     # would be invalid syntax):
-    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+                           name="invoke_loop1")
     schedule = invoke.schedule
 
     prt = ProfileRegionTrans()
@@ -600,7 +579,8 @@ def test_omp_transform():
     '''Tests that the profiling transform works correctly with OMP
      parallelisation.'''
 
-    _, invoke = get_invoke("gocean1.0", "test27_loop_swap.f90", "invoke_loop1")
+    _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
+                           name="invoke_loop1")
     schedule = invoke.schedule
 
     prt = ProfileRegionTrans()
@@ -635,10 +615,10 @@ def test_omp_transform():
     code = str(invoke.gen())
 
     correct = '''      CALL ProfileStart("boundary_conditions_ne_offset_mod", \
-"bc_ssh_code_1", profile_1)
+"bc_ssh_code", profile)
       !$omp parallel default(shared), private(j,i)
-      CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_2", \
-profile_2)
+      CALL ProfileStart("boundary_conditions_ne_offset_mod", "bc_ssh_code_1", \
+profile_1)
       !$omp do schedule(static)
       DO j=2,jstop
         DO i=2,istop
@@ -646,7 +626,7 @@ profile_2)
         END DO\x20
       END DO\x20
       !$omp end do
-      CALL ProfileEnd(profile_2)
+      CALL ProfileEnd(profile_1)
       !$omp end parallel
-      CALL ProfileEnd(profile_1)'''
+      CALL ProfileEnd(profile)'''
     assert correct in code

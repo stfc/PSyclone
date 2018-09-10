@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -53,7 +54,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
-import utils
+from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -622,9 +623,9 @@ def test_field(tmpdir, f90, f90flags):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     generated_code = psy.gen
     output = (
@@ -829,10 +830,10 @@ def test_field_fs(tmpdir, f90, f90flags):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     generated_code = psy.gen
     output = (
@@ -1518,9 +1519,9 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
     generated_code = str(psy.gen)
     print(generated_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
@@ -1664,9 +1665,9 @@ def test_operator_nofield(tmpdir, f90, f90flags):
     gen_code_str = str(psy.gen)
     print(gen_code_str)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
                              "nofield_type(mm_w2, chi, qr)") != -1
@@ -1696,9 +1697,9 @@ def test_operator_nofield_different_space(
     gen = str(psy.gen)
     print(gen)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert "mesh => my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
@@ -1743,8 +1744,8 @@ def test_operator_nofield_scalar_deref(
         gen = str(psy.gen)
         print(gen)
 
-        if utils.TEST_COMPILE:
-            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        if TEST_COMPILE:
+            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
         if dist_mem:
             assert "mesh => opbox_my_mapping%get_mesh()" in gen
@@ -1776,8 +1777,8 @@ def test_operator_orientation(tmpdir, f90, f90flags):
     gen_str = str(psy.gen)
     print(gen_str)
 
-    if utils.TEST_COMPILE:
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
                         "_orient_type(mm_w1, chi, qr)") != -1
@@ -1809,8 +1810,8 @@ def test_op_orient_different_space(
     gen_str = str(psy.gen)
     print(gen_str)
 
-    if utils.TEST_COMPILE:
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
@@ -1845,8 +1846,8 @@ def test_operator_deref(tmpdir, f90, f90flags):
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
-        if utils.TEST_COMPILE:
-            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        if TEST_COMPILE:
+            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
         assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
                                    "_type(mm_w0_op, chi, a, qr)") != -1
@@ -1909,9 +1910,9 @@ def test_any_space_1(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
     assert ("INTEGER, pointer :: "
             "map_any_space_1_a(:,:) => null(), "
@@ -1994,9 +1995,9 @@ def test_op_any_space_different_space_2(
     generated_code = str(psy.gen)
     print(generated_code)
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
     assert "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()" in generated_code
     assert "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()" in \
         generated_code
@@ -2200,10 +2201,10 @@ def test_kernel_specific(tmpdir, f90, f90flags):
         "boundary_dofs)")
     assert output6 not in generated_code
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_multi_kernel_specific(tmpdir, f90, f90flags):
@@ -2267,10 +2268,10 @@ def test_multi_kernel_specific(tmpdir, f90, f90flags):
         "boundary_dofs_1)")
     assert output10 not in generated_code
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_field_bc_kernel(tmpdir, f90, f90flags):
@@ -2295,10 +2296,10 @@ def test_field_bc_kernel(tmpdir, f90, f90flags):
         "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs)")
     assert str(generated_code).find(output3) != -1
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_bc_kernel_field_only(monkeypatch):
@@ -2354,10 +2355,10 @@ def test_operator_bc_kernel(tmpdir, f90, f90flags):
         "ndf_any_space_2_op_a, boundary_dofs)")
     assert output3 in generated_code
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_operator_bc_kernel_fld_err(monkeypatch):
@@ -2555,9 +2556,9 @@ def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
     assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
             "map_any_space_1_f2(:,:) => null(), "
             "map_any_space_2_f1(:,:) => null(), "
@@ -2601,9 +2602,9 @@ def test_mkern_invoke_multiple_any_spaces(
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
             "dim_any_space_1_f1, ndf_any_space_1_f1, "
@@ -6208,10 +6209,10 @@ def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
                 "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
             assert output in generated_code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_fld_and_op_writers(tmpdir, f90, f90flags):
@@ -6240,10 +6241,10 @@ def test_itn_space_fld_and_op_writers(tmpdir, f90, f90flags):
                 "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
             assert output in generated_code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_any_w3(tmpdir, f90, f90flags):
@@ -6269,10 +6270,10 @@ def test_itn_space_any_w3(tmpdir, f90, f90flags):
                 "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
             assert output in generated_code
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_itn_space_any_w1():
@@ -6661,10 +6662,10 @@ def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
     print(result)
     assert "halo_exchange" not in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
@@ -6702,10 +6703,10 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
@@ -6740,10 +6741,10 @@ def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_arg_discontinuous(monkeypatch, annexed):
@@ -7012,10 +7013,10 @@ def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
     assert halo_access.literal_depth == 0
     assert halo_access.stencil_type is None
 
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_loop_cont_read_inv_bound(monkeypatch, annexed):
@@ -7187,11 +7188,11 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
-    if utils.TEST_COMPILE:
+    if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert utils.code_compiles(TEST_API, psy, tmpdir,
-                                   f90, f90flags)
+        assert code_compiles(TEST_API, psy, tmpdir,
+                             f90, f90flags)
     if annexed:
         assert "CALL f1_proxy%halo_exchange" not in result
     else:
