@@ -6474,3 +6474,64 @@ def test_no_acc():
         _ = acclt.apply(sched.children[0])
     assert ("OpenACC loop transformations are currently only supported for "
             "the gocean 1.0 API" in str(err))
+
+
+def test_async_hex_wrong_node():
+    '''Test that we raise the expected exception if an asynchronous halo
+    exchange transformation is applied to a node that is not a halo
+    exchange
+
+    '''
+    from psyclone.psyGen import Loop
+    from psyclone.transformations import DynAsyncHaloExchangeTrans, \
+        TransformationError
+    node = Loop()
+    ahex = DynAsyncHaloExchangeTrans()
+    with pytest.raises(TransformationError) as err:
+        _, _ = ahex.apply(node)
+    assert("node must be a synchronous halo exchange" in str(err.value))
+
+
+def test_async_hex_name():
+    ''' Name test for the DynAsyncHaloExchangeTrans class '''
+    from psyclone.transformations import DynAsyncHaloExchangeTrans
+    ahex = DynAsyncHaloExchangeTrans()
+    assert ahex.name == "DynAsyncHaloExchangeTrans"
+
+
+def test_async_hex_str():
+    ''' String test for the DynAsyncHaloExchangeTrans class '''
+    from psyclone.transformations import DynAsyncHaloExchangeTrans
+    ahex = DynAsyncHaloExchangeTrans()
+    assert (str(ahex) == "Changes a synchronous halo exchange into an "
+            "asynchronous one.")
+
+
+def test_async_hex():
+    '''Test that we can convert a synchronous halo exchange to an
+    asynchronous one using the DynAsyncHaloExchangeTrans transformation
+
+    '''
+    _, invoke_info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        "test_files", "dynamo0p3",
+                                        "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    f2_hex = schedule.children[0]
+    from psyclone.transformations import DynAsyncHaloExchangeTrans
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    schedule, _ = ahex_trans.apply(f2_hex)
+    result = str(psy.gen)
+    assert (
+        "      ! Call kernels and communication routines\n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange_start(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange_finish(depth=1)\n"
+        "      END IF \n"
+        "      !\n") in result
+    print (result)

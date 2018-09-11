@@ -103,12 +103,14 @@ VALID_ACCESS_DESCRIPTOR_NAMES = []
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
 # coloured.) See https://pypi.python.org/pypi/termcolor for details.
-SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
-                       "Loop": "white",
+SCHEDULE_COLOUR_MAP = {"Schedule": "white",
+                       "Loop": "red",
                        "GlobalSum": "cyan",
                        "Directive": "green",
                        "HaloExchange": "blue",
-                       "Call": "red",
+                       "HaloExchangeStart": "yellow",
+                       "HaloExchangeEnd": "yellow",
+                       "Call": "magenta",
                        "KernCall": "magenta",
                        "Profile": "green"}
 

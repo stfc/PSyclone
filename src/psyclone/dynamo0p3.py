@@ -3541,8 +3541,19 @@ class DynHaloExchange(HaloExchange):
                                       self._compute_halo_depth(),
                                       runtime_check)))
 
-    def gen_code(self, parent):
-        ''' Dynamo specific code generation for this class '''
+    def gen_code(self, parent, halo_exchange_name=None):
+        '''Dynamo specific code generation for this class. An optional
+        halo_exchange_name is provided so that different types of halo
+        exchange call can be specified.
+
+        :param parent: an f2pygen object that will be the parent of \
+        f2pygen objects created in this method
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str halo_exchange_name: specifies the name of the
+        Fortran halo exchange method to generate. This is optional
+        with the default being "halo_exchange".
+
+        '''
         from psyclone.f2pygen import IfThenGen, CallGen, CommentGen
         if self.vector_index:
             ref = "(" + str(self.vector_index) + ")"
@@ -3557,11 +3568,115 @@ class DynHaloExchange(HaloExchange):
             halo_parent = if_then
         else:
             halo_parent = parent
+        if not halo_exchange_name:
+            # default name is a standard halo exchange"
+            halo_exchange_name = "halo_exchange"
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +
-                "%halo_exchange(depth=" + self._compute_halo_depth() + ")"))
+                "%" + halo_exchange_name + "(depth=" + self._compute_halo_depth() + ")"))
         parent.add(CommentGen(parent, ""))
+
+
+class DynHaloExchangeStart(DynHaloExchange):
+    '''The start of an asynchronous halo exchange. This is similar to a
+    regular halo exchange except that the Fortran name of the call is
+    different and the routine only reads the data being
+    transferred. As the data is only read it is not able to determine
+    some inportant properties (such as whether the halo exchange is
+    known to be required or not). This is solved by finding the
+    associated asynchronous halo exchange end and calling its methods
+    (as it writes to its field and therefore is able to determine the
+    required properties.
+
+    :param field:
+    :param check_dirty:
+    :param vector_index:
+    :param parent:
+
+    '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                 vector_index=vector_index, parent=parent)
+        if field:
+            # Update fields values appropriately. Here "gh_read"
+            # specifies that the start of a halo exchange only reads the data
+            self._field.access = "gh_read"
+
+    def gen_code(self, parent):
+        ''' xxx '''
+        DynHaloExchange.gen_code(self, parent,
+                                 halo_exchange_name="halo_exchange_start")
+
+    @property
+    def coloured_text(self):
+        ''' xxx '''
+        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+        return colored("HaloExchangeStart", SCHEDULE_COLOUR_MAP["HaloExchangeStart"])
+        
+    def _get_hex_end(self):
+        ''' xxx '''
+        for node in self.following():
+            if self.sameParent(node):
+                if isinstance(node, DynHaloExchange):
+                    # What about matching field vectors?????
+                    if node.field.name == self.field.name:
+                        if isinstance(node, DynHaloExchangeEnd):
+                            return node
+                        else:
+                            print ("ERROR halo exchange start for field '{0}' should match with a halo exchange end, but found {1}".format(self.field.name, type(node)))
+                            exit(1)
+        print ("ERROR, halo exchange start for field '{0}' has no matching halo exchange end".format(self.field.name))
+        exit(1)
+
+    def _compute_stencil_type(self):
+        ''' xxx '''
+        remote_node = self._get_hex_end()
+        return remote_node._compute_stencil_type()
+    
+    def _compute_halo_depth(self):
+        ''' xxx '''
+        remote_node = self._get_hex_end()
+        return remote_node._compute_halo_depth()
+
+    def required(self):
+        ''' Find the corresponding halo-exchange-end object and ask it to give the info. We do this as the required() info is determined dynamically '''
+        remote_node = self._get_hex_end()
+        return remote_node.required()
+
+    @property
+    def dag_name(self):
+        ''' xxx '''
+        HaloExchange.dag_name(self, name="haloexchangestart")
+
+
+class DynHaloExchangeEnd(DynHaloExchange):
+    ''' xxx '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                 vector_index=vector_index, parent=parent)
+        if field:
+            # Update fields values appropriately. Here "gh_read"
+            # specifies that the start of a halo exchange only reads the data
+            self._field.access = "gh_write"
+
+    def gen_code(self, parent):
+        ''' xxx '''
+        DynHaloExchange.gen_code(self, parent,
+                                 halo_exchange_name="halo_exchange_finish")
+
+    @property
+    def coloured_text(self):
+        ''' xxx '''
+        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+        return colored("HaloExchangeEnd", SCHEDULE_COLOUR_MAP["HaloExchangeEnd"])
+        
+    @property
+    def dag_name(self):
+        ''' xxx '''
+        HaloExchange.dag_name(self, name="haloexchangeend")
 
 
 class HaloDepth(object):
