@@ -1,10 +1,14 @@
 !> Module holding basic KIND parameters
-MODULE kind_params_mod
-  IMPLICIT none
+module kind_params_mod
+  use iso_c_binding
+  implicit none
 
-  PUBLIC
+  public
 
   !> Douple precision kind parameter
-  INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND(12,307)
+  integer, parameter :: GO_WP = SELECTED_REAL_KIND(12,307)
 
-END MODULE kind_params_mod
+  ! Kind type for double precision
+  integer, parameter :: GO_DP = c_double
+
+end module kind_params_mod

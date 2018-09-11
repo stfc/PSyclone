@@ -1,33 +1,53 @@
+!------------------------------------------------------------------------------
+! BSD 2-Clause License
+! 
+! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! All rights reserved.
+! 
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+! 
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+! 
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+! 
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+!------------------------------------------------------------------------------
+! Author: A. R. Porter, STFC Daresbury Laboratory
+
+!> Module for describing all aspects of a field (which exists on some
+!! grid).
 module field_mod
   use kind_params_mod
   use region_mod
   use halo_mod
   use grid_mod
   use gocean_mod, only: gocean_stop
+  use tile_mod
   implicit none
 
   private
 
   ! Enumeration of grid-point types on the Arakawa C grid. A
   ! field lives on one of these types.
-  integer, public, parameter :: U_POINTS   = 0
-  integer, public, parameter :: V_POINTS   = 1
-  integer, public, parameter :: T_POINTS   = 2
-  integer, public, parameter :: F_POINTS   = 3
+  integer, public, parameter :: GO_U_POINTS   = 0
+  integer, public, parameter :: GO_V_POINTS   = 1
+  integer, public, parameter :: GO_T_POINTS   = 2
+  integer, public, parameter :: GO_F_POINTS   = 3
   !> A field that lives on all grid-points of the grid
-  integer, public, parameter :: ALL_POINTS = 4
-
-  !> A field is sub-divided into tiles for coarse-grained OpenMP
-  type :: tile_type
-     !> Tile region to use when only a field's 'internal'
-     !! points are required
-     type(region_type) :: internal
-     !> Tile region to use when all of a field's points are required
-     type(region_type) :: whole
-     ! Could potentially physically divide up an array into 
-     ! distinct tiles and store the data for each separately...
-     !real(wp), dimension(:,:), allocatable :: data
-  end type tile_type
+  integer, public, parameter :: GO_ALL_POINTS = 4
 
   !> The base field type. Intended to represent a global field
   !! such as the x-component of velocity.
@@ -47,11 +67,10 @@ module field_mod
      integer :: num_halos
      !> Array of objects describing the halos belonging to this field.
      type(halo_type), dimension(:), allocatable :: halo
+     !> Whether the data for this field lives in a remote memory space
+     !! (e.g. on a GPU)
+     logical :: data_on_device
   end type field_type
-
-  type, public, extends(field_type) :: scalar_field
-     real(wp) :: data
-  end TYPE scalar_field
 
   !> A real, 2D field.
   type, public, extends(field_type) :: r2d_field
@@ -60,29 +79,16 @@ module field_mod
      !! is sub-divided.
      type(tile_type), dimension(:), allocatable :: tile
      !> Array holding the actual field values
-     real(wp), dimension(:,:), allocatable :: data
+     real(go_wp), dimension(:,:), allocatable :: data
   end type r2d_field
 
-  !interface set_field
-  !   module procedure set_scalar_field
-  !end interface set_field
-
   !> Interface for the copy_field operation. Overloaded to take
-  !! a scalar, an array or an r2d_field type.
+  !! an array or an r2d_field type.
   !! \todo Remove support for raw arrays from this interface.
   interface copy_field
-     module procedure copy_scalar_field,                            &
-                      copy_2dfield_array, copy_2dfield_array_patch, &
+     module procedure copy_2dfield_array, copy_2dfield_array_patch, &
                       copy_2dfield, copy_2dfield_patch
   end interface copy_field
-
-  interface increment_field
-     module procedure increment_scalar_field, increment_scalar_field_r8
-  end interface increment_field
-
-!  interface field_type
-!     module procedure field_constructor
-!  end interface field_type
 
   ! User-defined constructor for r2d_field type objects
   interface r2d_field
@@ -90,7 +96,7 @@ module field_mod
   end interface r2d_field
 
   !> Interface for the field checksum operation. Overloaded to take either
-  !! a field object or a 2D, real(wp) array.
+  !! a field object or a 2D, real(go_wp) array.
   interface field_checksum
      module procedure fld_checksum, array_checksum
   end interface field_checksum
@@ -99,7 +105,6 @@ module field_mod
   INTEGER, SAVE :: max_tile_width
   INTEGER, SAVE :: max_tile_height
 
-  public increment_field
   public copy_field
   public set_field
   public field_checksum
@@ -146,6 +151,7 @@ contains
 
   function r2d_field_constructor(grid,    &
                                  grid_points) result(self)
+    use subdomain_mod, only: decompose, decomposition_type
     implicit none
     ! Arguments
     !> Pointer to the grid on which this field lives
@@ -160,35 +166,59 @@ contains
     !> The upper bounds actually used to allocate arrays (as opposed
     !! to the limits carried around with the field)
     integer :: upper_x_bound, upper_y_bound
+    integer :: itile, nthreads, ntilex, ntiley
+    type(decomposition_type) :: decomp
 
     ! Set this field's grid pointer to point to the grid pointed to
     ! by the supplied grid_ptr argument
     self%grid => grid
 
+    !> The data associated with this device is currently local
+    !! to where we're executing
+    self%data_on_device = .FALSE.
+
     ! Set-up the limits of the 'internal' region of this field
     !
     call set_field_bounds(self,fld_type,grid_points)
 
-    call tile_setup(self)
+    ! Dimensions of the grid of tiles. 
+    if(.not. get_grid_dims(ntilex, ntiley) )then
+       ntilex = 1
+       ntiley = 1
+    end if
+    nthreads = 1
+!$  nthreads = omp_get_max_threads()
+    WRITE (*,"(/'Have ',I3,' OpenMP threads available.')") nthreads
+    decomp = decompose(self%internal%nx, self%internal%ny, &
+                       nthreads, ntilex, ntiley)
+    self%ntiles = nthreads
+    allocate(self%tile(self%ntiles), Stat=ierr)
+    if(ierr /= 0)then
+       call gocean_stop('r2d constructor failed to allocate tiling structures')
+    end if
+    do itile = 1, nthreads
+       self%tile(itile)%whole = decomp%subdomains(itile)%global
+       self%tile(itile)%internal = decomp%subdomains(itile)%internal
+    end do
 
-    ! We allocate all fields to have the same extent as that
-    ! with the greatest extents. This enables the (Cray) compiler
+    ! We allocate *all* fields to have the same extent as that
+    ! of the grid. This enables the (Cray) compiler
     ! to safely evaluate code within if blocks that are
     ! checking for conditions at the boundary of the domain.
     ! Hence we use self%whole%{x,y}stop + 1...
-    !> \todo Implement calculation of largest array extents
-    !! required by any field type rather than hard-wiring
-    !! a simple increase of each extent.
-    upper_x_bound = self%whole%xstop + 1
-    upper_y_bound = self%whole%ystop + 1
+    upper_x_bound = self%grid%nx
+    upper_y_bound = self%grid%ny
 
-    write(*,"('Allocating ',(A),' field with bounds: (',I1,':',I3, ',',I1,':',I3,')')") &
+    write(*, "('Allocating ',(A),' field with bounds: (',I1,':',I3, "// &
+             "',',I1,':',I3,')')") &
                TRIM(ADJUSTL(fld_type)), &
                1, upper_x_bound, 1, upper_y_bound
+    write(*,"('Internal region is:(',I1,':',I3, ',',I1,':',I3,')' )") &
+         self%internal%xstart, self%internal%xstop, &
+         self%internal%ystart, self%internal%ystop
+    write(*,"('Grid has bounds:  (',I1,':',I3, ',',I1,':',I3,')')") &
+         1, self%grid%nx, 1, self%grid%ny
 
-    !allocate(self%data(self%internal%xstart-1:self%internal%xstop+1, &
-    !                   self%internal%ystart-1:self%internal%ystop+1),&
-    !                   Stat=ierr)
     ! Allocating with a lower bound != 1 causes problems whenever
     ! array passed as assumed-shape dummy argument because lower
     ! bounds default to 1 in called unit.
@@ -210,10 +240,12 @@ contains
     ! us the opportunity to do a 'first touch' policy to aid with
     ! memory<->thread locality...
 !$OMP PARALLEL DO schedule(runtime), default(none), &
-!$OMP private(ji,jj), shared(self, upper_x_bound, upper_y_bound)
-    do jj = 1, upper_y_bound, 1
-       do ji = 1, upper_x_bound, 1
-          self%data(ji,jj) = -999.0
+!$OMP private(it,ji,jj), shared(self)
+    do itile = 1, self%ntiles
+       do jj = self%tile(itile)%whole%ystart, self%tile(itile)%whole%ystop
+          do ji = self%tile(itile)%whole%xstart, self%tile(itile)%whole%xstop
+             self%data(ji,jj) = -999.0
+          end do
        end do
     end do
 !$OMP END PARALLEL DO
@@ -235,19 +267,19 @@ contains
 
     select case(grid_points)
 
-    case(U_POINTS)
+    case(GO_U_POINTS)
        write(fld_type, "('C-U')")
        call cu_field_init(fld)
-    case(V_POINTS)
+    case(GO_V_POINTS)
        write(fld_type, "('C-V')")
        call cv_field_init(fld)
-    case(T_POINTS)
+    case(GO_T_POINTS)
        write(fld_type, "('C-T')")
        call ct_field_init(fld)
-    case(F_POINTS)
+    case(GO_F_POINTS)
        write(fld_type, "('C-F')")
        call cf_field_init(fld)
-    case(ALL_POINTS)
+    case(GO_ALL_POINTS)
        write(fld_type, "('C-All')")
        call field_init(fld)
     case default
@@ -265,14 +297,14 @@ contains
     ! points.
     !> \todo Replace the use of NBOUNDARY here with info. computed
     !! from the T-point mask.
-    if(fld%grid%boundary_conditions(1) /= BC_PERIODIC)then
+    if(fld%grid%boundary_conditions(1) /= GO_BC_PERIODIC)then
        fld%whole%xstart = fld%internal%xstart - NBOUNDARY
        fld%whole%xstop  = fld%internal%xstop  + NBOUNDARY
     else
        fld%whole%xstart = fld%internal%xstart - NBOUNDARY
        fld%whole%xstop  = fld%internal%xstop  + NBOUNDARY
     end if
-    if(fld%grid%boundary_conditions(2) /= BC_PERIODIC)then
+    if(fld%grid%boundary_conditions(2) /= go_BC_PERIODIC)then
        fld%whole%ystart = fld%internal%ystart - NBOUNDARY
        fld%whole%ystop  = fld%internal%ystop  + NBOUNDARY
     else
@@ -293,7 +325,7 @@ contains
     ! Locals
     integer :: M, N
 
-    fld%defined_on = ALL_POINTS
+    fld%defined_on = GO_ALL_POINTS
 
     M = fld%grid%nx
     N = fld%grid%ny
@@ -315,14 +347,14 @@ contains
     implicit none
     class(field_type), intent(inout) :: fld
 
-    fld%defined_on = U_POINTS
+    fld%defined_on = GO_U_POINTS
 
     select case(fld%grid%offset)
 
-    case(OFFSET_SW)
+    case(GO_OFFSET_SW)
        call cu_sw_init(fld)
 
-    case(OFFSET_NE)
+    case(GO_OFFSET_NE)
        call cu_ne_init(fld)
 
     case default
@@ -353,7 +385,7 @@ contains
     !   Ti-1j-1--uij-1---Tij-1---ui+1j-1
 
     !
-    if(fld%grid%boundary_conditions(1) == BC_PERIODIC)then
+    if(fld%grid%boundary_conditions(1) == GO_BC_PERIODIC)then
        ! When implementing periodic boundary conditions, all mesh
        ! point types have the same extents as the grid of T points. We
        ! then have a halo of width grid_mod::HALO_WIDTH_X on either
@@ -369,8 +401,8 @@ contains
        !  o  x  x  x  a  j=ystart
        !  a  a  a  a  a
 
-       fld%internal%xstart = fld%grid%simulation_domain%xstart
-       fld%internal%xstop  = fld%grid%simulation_domain%xstop
+       fld%internal%xstart = fld%grid%subdomain%internal%xstart
+       fld%internal%xstop  = fld%grid%subdomain%internal%xstop
     else
        ! When updating a quantity on U points with this offset convention
        ! we write to (using 'x' to indicate a location that is written,
@@ -383,12 +415,12 @@ contains
        !  o  b  x  x  b
        !  o  b  x  x  b
        !  o  b  b  b  b   j=1
-       fld%internal%xstart = fld%grid%simulation_domain%xstart + 1
-       fld%internal%xstop  = fld%grid%simulation_domain%xstop
+       fld%internal%xstart = fld%grid%subdomain%internal%xstart + 1
+       fld%internal%xstop  = fld%grid%subdomain%internal%xstop
     end if
 
-    fld%internal%ystart = fld%grid%simulation_domain%ystart
-    fld%internal%ystop  = fld%grid%simulation_domain%ystop
+    fld%internal%ystart = fld%grid%subdomain%internal%ystart
+    fld%internal%ystop  = fld%grid%subdomain%internal%ystop
 
     ! When applying periodic (wrap-around) boundary conditions (PBCs)
     ! we must fill the regions marked with 'b' above.
@@ -456,21 +488,21 @@ contains
 
     ! i.e. fld(2:M,2:N+1) = ...
 
-    if(fld%grid%boundary_conditions(1) /= BC_PERIODIC)then
+    if(fld%grid%boundary_conditions(1) /= GO_BC_PERIODIC)then
       ! If we do not have periodic boundary conditions then we do
       ! not need to allow for boundary points here - they are
       ! already contained within the region defined by T mask.
-      ! The T mask has been used to determine the grid%simulation_domain
+      ! The T mask has been used to determine the grid%subdomain
       ! which describes the area on the grid that is actually being
       ! modelled (as opposed to having values supplied from B.C.'s etc.)
-      fld%internal%xstart = fld%grid%simulation_domain%xstart
-      fld%internal%xstop  = fld%grid%simulation_domain%xstop - 1
+      fld%internal%xstart = fld%grid%subdomain%internal%xstart
+      fld%internal%xstop  = fld%grid%subdomain%internal%xstop - 1
     else
       call gocean_stop('ERROR: cu_ne_init: implement periodic boundary conditions!')
     end if
-    if(fld%grid%boundary_conditions(2) /= BC_PERIODIC)then
-      fld%internal%ystart = fld%grid%simulation_domain%ystart
-      fld%internal%ystop  = fld%grid%simulation_domain%ystop
+    if(fld%grid%boundary_conditions(2) /= GO_BC_PERIODIC)then
+      fld%internal%ystart = fld%grid%subdomain%internal%ystart
+      fld%internal%ystop  = fld%grid%subdomain%internal%ystop
     else
       call gocean_stop('ERROR: cu_ne_init: implement periodic BCs!')
     end if
@@ -486,14 +518,14 @@ contains
     implicit none
     class(field_type), intent(inout) :: fld
 
-    fld%defined_on = V_POINTS
+    fld%defined_on = GO_V_POINTS
 
     select case(fld%grid%offset)
 
-    case(OFFSET_SW)
+    case(GO_OFFSET_SW)
        call cv_sw_init(fld)
 
-    case(OFFSET_NE)
+    case(GO_OFFSET_NE)
        call cv_ne_init(fld)
 
     case default
@@ -509,16 +541,16 @@ contains
     implicit none
     class(field_type), intent(inout) :: fld
 
-    if(fld%grid%boundary_conditions(2) == BC_PERIODIC)then
+    if(fld%grid%boundary_conditions(2) == GO_BC_PERIODIC)then
        ! When implementing periodic boundary conditions, all
        ! mesh point types have the same extents as the grid of
        ! T points. We then have a halo of width 1 on either side
        ! of the domain.
-       fld%internal%xstart = fld%grid%simulation_domain%xstart
-       fld%internal%xstop  = fld%grid%simulation_domain%xstop
+       fld%internal%xstart = fld%grid%subdomain%internal%xstart
+       fld%internal%xstop  = fld%grid%subdomain%internal%xstop
 
-       fld%internal%ystart = fld%grid%simulation_domain%ystart
-       fld%internal%ystop  = fld%grid%simulation_domain%ystop
+       fld%internal%ystart = fld%grid%subdomain%internal%ystart
+       fld%internal%ystop  = fld%grid%subdomain%internal%ystop
     else
        ! When updating a quantity on V points we write to:
        ! (using x to indicate a location that is written):
@@ -531,11 +563,11 @@ contains
        !  o  o  o  o   j=1
        ! We're not offset from the T points in the x dimension so
        ! we have the same x bounds.
-       fld%internal%xstart = fld%grid%simulation_domain%xstart
-       fld%internal%xstop  = fld%grid%simulation_domain%xstop
+       fld%internal%xstart = fld%grid%subdomain%internal%xstart
+       fld%internal%xstop  = fld%grid%subdomain%internal%xstop
 
-       fld%internal%ystart = fld%grid%simulation_domain%ystart + 1
-       fld%internal%ystop  = fld%grid%simulation_domain%ystop
+       fld%internal%ystart = fld%grid%subdomain%internal%ystart + 1
+       fld%internal%ystop  = fld%grid%subdomain%internal%ystop
        call gocean_stop('cv_sw_init: IMPLEMENT non-periodic BCs!')
     endif
 
@@ -593,19 +625,19 @@ contains
     !  b  b  b  b   j=1
     !
 
-    if(fld%grid%boundary_conditions(1) /= BC_PERIODIC)then
+    if(fld%grid%boundary_conditions(1) /= GO_BC_PERIODIC)then
       ! If we do not have periodic boundary conditions then we do
       ! not need to allow for boundary points here - they are
       ! already contained within the region.
-      fld%internal%xstart = fld%grid%simulation_domain%xstart
-      fld%internal%xstop  = fld%grid%simulation_domain%xstop
+      fld%internal%xstart = fld%grid%subdomain%internal%xstart
+      fld%internal%xstop  = fld%grid%subdomain%internal%xstop
     else
       call gocean_stop('ERROR: cv_ne_init: implement periodic BCs!')
     end if
 
-    if(fld%grid%boundary_conditions(2) /= BC_PERIODIC)then
-      fld%internal%ystart = fld%grid%simulation_domain%ystart
-      fld%internal%ystop  = fld%grid%simulation_domain%ystop - 1
+    if(fld%grid%boundary_conditions(2) /= GO_BC_PERIODIC)then
+      fld%internal%ystart = fld%grid%subdomain%internal%ystart
+      fld%internal%ystop  = fld%grid%subdomain%internal%ystop - 1
     else
       call gocean_stop('ERROR: cv_ne_init: implement periodic BCs!')
     end if
@@ -618,14 +650,14 @@ contains
     implicit none
     class(field_type), intent(inout) :: fld
 
-    fld%defined_on = T_POINTS
+    fld%defined_on = GO_T_POINTS
 
     select case(fld%grid%offset)
 
-    case(OFFSET_SW)
+    case(GO_OFFSET_SW)
        call ct_sw_init(fld)
 
-    case(OFFSET_NE)
+    case(GO_OFFSET_NE)
        call ct_ne_init(fld)
 
     case default
@@ -650,10 +682,10 @@ contains
     !  b  x  x  b
     !  b  b  b  b   j=1
 
-    fld%internal%xstart = fld%grid%simulation_domain%xstart
-    fld%internal%xstop  = fld%grid%simulation_domain%xstop
-    fld%internal%ystart = fld%grid%simulation_domain%ystart
-    fld%internal%ystop  = fld%grid%simulation_domain%ystop
+    fld%internal%xstart = fld%grid%subdomain%internal%xstart
+    fld%internal%xstop  = fld%grid%subdomain%internal%xstop
+    fld%internal%ystart = fld%grid%subdomain%internal%ystart
+    fld%internal%ystop  = fld%grid%subdomain%internal%ystop
 
     ! When applying periodic (wrap-around) boundary conditions
     ! (PBCs) we must fill the regions marked with 'b' above.
@@ -694,23 +726,23 @@ contains
     !  b  x  x  x  b
     !  b  b  b  b  b j=1
 
-    if(fld%grid%boundary_conditions(1) /= BC_PERIODIC)then
+    if(fld%grid%boundary_conditions(1) /= GO_BC_PERIODIC)then
       ! If we do not have periodic boundary conditions then we do
       ! not need to allow for boundary points here - they are
       ! already contained within the region.
       ! Start and stop are just the same as those calculated from the T mask
       ! earlier because this is a field on T points.
-      fld%internal%xstart = fld%grid%simulation_domain%xstart
-      fld%internal%xstop  = fld%grid%simulation_domain%xstop
+      fld%internal%xstart = fld%grid%subdomain%internal%xstart
+      fld%internal%xstop  = fld%grid%subdomain%internal%xstop
     else
       call gocean_stop('ERROR: ct_ne_init: implement periodic BCs!')
     end if
 
-    if(fld%grid%boundary_conditions(2) /= BC_PERIODIC)then
+    if(fld%grid%boundary_conditions(2) /= GO_BC_PERIODIC)then
       ! Start and stop are just the same as those calculated from the T mask
       ! earlier because this is a field on T points.
-      fld%internal%ystart = fld%grid%simulation_domain%ystart
-      fld%internal%ystop  = fld%grid%simulation_domain%ystop
+      fld%internal%ystart = fld%grid%subdomain%internal%ystart
+      fld%internal%ystop  = fld%grid%subdomain%internal%ystop
     else
       call gocean_stop('ERROR: ct_ne_init: implement periodic BCs!')
     end if
@@ -723,14 +755,14 @@ contains
     implicit none
     class(field_type), intent(inout) :: fld
 
-    fld%defined_on = F_POINTS
+    fld%defined_on = GO_F_POINTS
 
     select case(fld%grid%offset)
 
-    case(OFFSET_SW)
+    case(GO_OFFSET_SW)
        call cf_sw_init(fld)
 
-    case(OFFSET_NE)
+    case(GO_OFFSET_NE)
        call cf_ne_init(fld)
 
     case default
@@ -755,23 +787,23 @@ contains
     !  o  b  x  x  b
     !  o  b  b  b  b
     !  o  o  o  o  o   j=1
-    if(fld%grid%boundary_conditions(1) == BC_PERIODIC)then
-       fld%internal%xstart = fld%grid%simulation_domain%xstart + 1
-       fld%internal%xstop  = fld%internal%xstart + fld%grid%simulation_domain%nx - 1
+    if(fld%grid%boundary_conditions(1) == GO_BC_PERIODIC)then
+       fld%internal%xstart = fld%grid%subdomain%internal%xstart
+       fld%internal%xstop  = fld%grid%subdomain%internal%xstop !internal%xstart + fld%grid%simulation_domain%nx - 1
     else
-       fld%internal%xstart = fld%grid%simulation_domain%xstart + 1
-       fld%internal%xstop  = fld%grid%simulation_domain%xstop
+       fld%internal%xstart = fld%grid%subdomain%internal%xstart + 1
+       fld%internal%xstop  = fld%grid%subdomain%internal%xstop
        ! I think these are correct but we stop because I've not properly
        ! gone through the coding.
        call gocean_stop('cf_sw_init: CHECK non-periodic BCs!')
     end if
 
-    if(fld%grid%boundary_conditions(2) == BC_PERIODIC)then
-       fld%internal%ystart = fld%grid%simulation_domain%ystart + 1
-       fld%internal%ystop  = fld%internal%ystart + fld%grid%simulation_domain%ny - 1
+    if(fld%grid%boundary_conditions(2) == GO_BC_PERIODIC)then
+       fld%internal%ystart = fld%grid%subdomain%internal%ystart
+       fld%internal%ystop  = fld%grid%subdomain%internal%ystop !fld%internal%ystart + fld%grid%simulation_domain%ny - 1
     else
-       fld%internal%ystart = fld%grid%simulation_domain%ystart + 1
-       fld%internal%ystop  = fld%grid%simulation_domain%ystop
+       fld%internal%ystart = fld%grid%subdomain%internal%ystart + 1
+       fld%internal%ystop  = fld%grid%subdomain%internal%ystop
        ! I think these are correct but we stop because I've not properly
        ! gone through the coding.
        call gocean_stop('cf_sw_init: CHECK non-periodic BCs!')
@@ -819,20 +851,20 @@ contains
     !  b  x  b  o
     !  b  b  b  o   j=1
 
-    if(fld%grid%boundary_conditions(1) /= BC_PERIODIC)then
+    if(fld%grid%boundary_conditions(1) /= GO_BC_PERIODIC)then
       ! If we do not have periodic boundary conditions then we do
       ! not need to allow for boundary points here - they are
       ! already contained within the region.
-      fld%internal%xstart = fld%grid%simulation_domain%xstart
-      fld%internal%xstop  = fld%grid%simulation_domain%xstop - 1
+      fld%internal%xstart = fld%grid%subdomain%internal%xstart
+      fld%internal%xstop  = fld%grid%subdomain%internal%xstop - 1
     else
       call gocean_stop('ERROR: cf_ne_init: implement periodic BCs!')
       stop
     end if
 
-    if(fld%grid%boundary_conditions(2) /= BC_PERIODIC)then
-      fld%internal%ystart = fld%grid%simulation_domain%ystart
-      fld%internal%ystop  = fld%grid%simulation_domain%ystop - 1
+    if(fld%grid%boundary_conditions(2) /= GO_BC_PERIODIC)then
+      fld%internal%ystart = fld%grid%subdomain%internal%ystart
+      fld%internal%ystop  = fld%grid%subdomain%internal%ystop - 1
     else
       call gocean_stop('ERROR: cf_ne_init: implement periodic BCs!')
     end if
@@ -841,21 +873,10 @@ contains
 
   !===================================================
 
-  SUBROUTINE copy_scalar_field(field_in, field_out)
-    IMPLICIT none
-    type(scalar_field), INTENT(in) :: field_in
-    type(scalar_field), INTENT(out) :: field_out
-
-    field_out = field_in
-
-  END SUBROUTINE copy_scalar_field
-
-  !===================================================
-
   SUBROUTINE copy_2dfield_array(field_in, field_out)
     IMPLICIT none
-    REAL(wp), INTENT(in),  DIMENSION(:,:) :: field_in
-    REAL(wp), INTENT(out), DIMENSION(:,:) :: field_out
+    REAL(go_wp), INTENT(in),  DIMENSION(:,:) :: field_in
+    REAL(go_wp), INTENT(out), DIMENSION(:,:) :: field_out
         
     field_out(:,:) = field_in(:,:)
         
@@ -868,7 +889,7 @@ contains
   !! instead of array data.
   subroutine copy_2dfield_array_patch(field, src, dest)
     implicit none
-    real(wp),          intent(inout), dimension(:,:) :: field
+    real(go_wp),       intent(inout), dimension(:,:) :: field
     type(region_type), intent(in)                    :: src, dest
 
     field(dest%xstart:dest%xstop,dest%ystart:dest%ystop) = &
@@ -911,36 +932,12 @@ contains
 
   !===================================================
 
-  subroutine increment_scalar_field(field, incr)
-    implicit none
-    type(scalar_field), intent(inout) :: field
-    type(scalar_field), intent(in)    :: incr
-
-    field%data = field%data + incr%data
-
-  END SUBROUTINE increment_scalar_field
-
-  !===================================================
-
-  subroutine increment_scalar_field_r8(field, incr)
-    implicit none
-    type(scalar_field), intent(inout) :: field
-    real(wp), intent(in)    :: incr
-
-    field%data = field%data + incr
-
-  END SUBROUTINE increment_scalar_field_r8
-
-  !===================================================
-
   SUBROUTINE set_field(fld, val)
     implicit none
     class(field_type), INTENT(out) :: fld
-    real(wp), INTENT(in) :: val
+    real(go_wp), INTENT(in) :: val
 
     select type(fld)
-    type is (scalar_field)
-       fld%data = val
     type is (r2d_field)
        fld%data = val
     class default
@@ -955,23 +952,50 @@ contains
   function fld_checksum(field) result(val)
     implicit none
     type(r2d_field), intent(in) :: field
-    real(wp) :: val
+    real(go_wp) :: val
 
-    !> \todo Could add an OpenMP implementation
-    val = SUM( ABS(field%data(field%internal%xstart:field%internal%xstop, &
-                              field%internal%ystart:field%internal%ystop)) )
+    val = array_checksum(field%data, field%data_on_device,           &
+                         field%internal%xstart, field%internal%xstop, &
+                         field%internal%ystart, field%internal%ystop)
+    return
 
+! The code below fails with the Cray compiler - the update host(field%data)
+! seems to get the wrong pointer.
+
+    ! If we're using OpenACC then make sure we get the data back from
+    ! the GPU
+!    if(field%data_on_device)then
+!!acc update host(field%data)
+!    end if
+!
+!    !> \todo Could add an OpenMP implementation
+!    val = SUM( ABS(field%data(field%internal%xstart:field%internal%xstop, &
+!                              field%internal%ystart:field%internal%ystop)) )
   end function fld_checksum
 
   !===================================================
 
   !> Compute the checksum of ALL of the elements of supplied array
-  function array_checksum(field) result(val)
+  function array_checksum(field, update, &
+                          xstart, xstop, &
+                          ystart, ystop) result(val)
     implicit none
-    real(wp), dimension(:,:), intent(in) :: field
-    real(wp) :: val
+    real(go_wp), dimension(:,:), intent(in) :: field
+    logical, optional, intent(in) :: update
+    integer, optional, intent(in) :: xstart, xstop, ystart, ystop
+    real(go_wp) :: val
 
-    val = SUM( ABS(field(:,:) ) )
+    if( present(update) )then
+       if(update)then
+          !$acc update host(field)
+       end if
+    end if
+
+    if( present(xstart) )then
+       val = SUM( ABS(field(xstart:xstop,ystart:ystop) ) )
+    else
+       val = SUM( ABS(field(:,:)) )
+    end if
 
   end function array_checksum
 
@@ -985,17 +1009,17 @@ contains
 
     ! Check whether we have PBCs in x AND y dimensions
     fld%num_halos = 0
-    if( fld%grid%boundary_conditions(1) == BC_PERIODIC )then
+    if( fld%grid%boundary_conditions(1) == GO_BC_PERIODIC )then
        fld%num_halos = fld%num_halos + 2
     end if
-    if( fld%grid%boundary_conditions(2) == BC_PERIODIC )then
+    if( fld%grid%boundary_conditions(2) == GO_BC_PERIODIC )then
        fld%num_halos = fld%num_halos + 2
     end if
 
     allocate( fld%halo(fld%num_halos) )
 
     ihalo = 0
-    if( fld%grid%boundary_conditions(1) == BC_PERIODIC )then
+    if( fld%grid%boundary_conditions(1) == GO_BC_PERIODIC )then
        ! E-most column set to W-most internal column
        ihalo = ihalo + 1
        fld%halo(ihalo)%dest%xstart = fld%internal%xstop + 1
@@ -1021,7 +1045,7 @@ contains
        fld%halo(ihalo)%source%ystop  = fld%internal%ystop
     end if
 
-    if( fld%grid%boundary_conditions(2) == BC_PERIODIC )then
+    if( fld%grid%boundary_conditions(2) == GO_BC_PERIODIC )then
        ! N-most row set to S-most internal row
        ihalo = ihalo + 1
        fld%halo(ihalo)%dest%xstart = fld%internal%xstart - 1   
@@ -1048,293 +1072,6 @@ contains
     end if
 
   end subroutine init_periodic_bc_halos
-
-  !================================================
-
-  SUBROUTINE tile_setup(fld, nx_arg, ny_arg)
-    use omp_lib, only: omp_get_max_threads
-    implicit none
-    !> Dimensions of the model mesh
-    type(r2d_field), intent(inout) :: fld
-    !> Optional specification of the dimensions of the tiling grid
-    integer, intent(in), optional :: nx_arg, ny_arg
-    integer :: nx, ny
-    INTEGER :: ival, jval ! For tile extent calculation
-    integer :: internal_width, internal_height
-    INTEGER :: ierr, nwidth
-    INTEGER :: ji,jj, ith
-    INTEGER :: nthreads       ! No. of OpenMP threads being used
-    INTEGER :: jover, junder, idytmp
-    INTEGER :: iover, iunder, idxtmp
-    ! For doing stats on tile sizes
-    INTEGER :: nvects, nvects_sum, nvects_min, nvects_max 
-    LOGICAL, PARAMETER :: print_tiles = .TRUE.
-    ! Whether to automatically compute the dimensions of the tiling grid
-    logical :: auto_tile
-    integer :: xlen, ylen
-    integer :: ntilex, ntiley
-
-    if(.not. TILED_FIELDS)then
-       fld%ntiles = 1
-       allocate(fld%tile(fld%ntiles), Stat=ierr)
-       if(ierr /= 0 )then
-          call gocean_stop('Harness: ERROR: failed to allocate tiling structures')
-       end if
-
-       ! We only have one tile and so we can simply copy in the
-       ! regions already defined for the field as a whole
-       fld%tile(1)%whole    = fld%whole
-       fld%tile(1)%internal = fld%internal
-
-       return
-    end if
-
-    xlen = fld%internal%nx
-    ylen = fld%internal%ny
-
-    ! Set-up regular grid of tiles
-    auto_tile = .TRUE.
-
-    ! Dimensions of the grid of tiles. 
-    if(get_grid_dims(nx,ny) )then
-       ntilex = nx
-       ntiley = ny
-       auto_tile = .FALSE.
-    else if( present(nx_arg) .and. present(ny_arg) )then
-       ntilex = nx_arg
-       ntiley = ny_arg
-       auto_tile = .FALSE.
-    else
-       ntilex = 1
-       ntiley = 1
-    end if
-    
-    fld%ntiles = ntilex*ntiley
-    nthreads = 1
-!$  nthreads = omp_get_max_threads()
-    WRITE (*,"(/'Have ',I3,' OpenMP threads available.')") nthreads
-
-    ! If we've not manually specified a grid of tiles then use the no. of
-    ! threads
-    IF(fld%ntiles == 1 .AND. auto_tile)fld%ntiles = nthreads
-
-    IF(auto_tile)THEN
-
-       ntilex = INT( SQRT(REAL(fld%ntiles)) )
-       DO WHILE(MOD(fld%ntiles,ntilex) /= 0)
-          ntilex = ntilex - 1
-       END DO
-       ntiley = fld%ntiles/ntilex
-
-       ! Match longest dimension of MPI domain to longest dimension of 
-       ! thread grid
-       IF(xlen > ylen)THEN
-          IF( ntilex < ntiley )THEN
-             ierr   = ntiley
-             ntiley = ntilex
-             ntilex = ierr
-          END IF
-       ELSE
-          ! N >= M so want nthready >= nthreadx
-          IF( ntiley < ntilex )THEN
-             ierr   = ntiley
-             ntiley = ntilex
-             ntilex = ierr
-          END IF
-       END IF
-
-    END IF ! automatic determination of tiling grid
-
-    WRITE (*,"('OpenMP thread tiling using grid of ',I3,'x',I3)") ntilex,ntiley
-    write(*,*) 'ntiles for this field = ',fld%ntiles
-
-    ALLOCATE(fld%tile(fld%ntiles), Stat=ierr)
-    IF(ierr /= 0 )THEN
-       call gocean_stop('Harness: ERROR: failed to allocate tiling structures')
-    END IF
-
-    ! Tiles at left and right of domain only have single
-    ! overlap. Every other tile has two overlaps. So: 
-    ! xlen = (ntilex-2)*(idx-2) + 2*(idx-1)
-    !      = ntilex.idx - 2.ntilex - 2.idx + 4 + 2.idx - 2
-    !      = ntilex.idx + 2 - 2.ntilex
-    !=> idx = (xlen - 2 + 2.ntilex)/ntilex
-    ! where idx is the whole width of a tile.
-    !idx = NINT(REAL(xlen - 2 + 2*ntilex)/REAL(ntilex))
-    !idy = NINT(REAL(ylen - 2 + 2*ntiley)/REAL(ntiley))
-    ! Alternatively, if we think about the internal regions of the tiles,
-    ! then they should share the domain between them:
-    internal_width = NINT(REAL(xlen) / REAL(ntilex))
-    internal_height = NINT(REAL(ylen) / REAL(ntiley))
-
-    ! Integer arithmetic means that ntiley tiles of height idy might
-    ! actually span a height greater or less than N. If so, we try and
-    ! reduce the height of each row by just one until we've accounted
-    ! for the <jover> extra rows.
-    !nwidth = (ntiley-2)*(idy-2) + 2*(idy-1)
-    nwidth = ntiley * internal_height
-    IF(nwidth > ylen)THEN
-       jover  = nwidth - ylen
-       junder = 0
-    ELSE IF(nwidth < ylen)THEN
-       jover  = 0
-       junder = ylen - nwidth
-    ELSE
-       jover  = 0
-       junder = 0
-    END IF
-    ! Ditto for x dimension
-    !nwidth = (ntilex-2)*(idx-2) + 2*(idx-1)
-    nwidth = ntilex * internal_width
-    IF(nwidth > xlen)THEN
-       iover  = nwidth - xlen
-       iunder = 0
-    ELSE IF(nwidth < xlen)THEN
-       iover  = 0
-       iunder = xlen - nwidth
-    ELSE
-       iover  = 0
-       iunder = 0
-    END IF
-
-    ! For AVX (256-bit vector) instructions, I think we want
-    ! MOD(idx,4) == 0 idx = idx + (4 - MOD(idx,4))
-
-    WRITE(*,"('Tile width = ',I4,', tile height = ',I4)") &
-         internal_width, internal_height
-    WRITE(*,"('iover = ',I3,', iunder = ',I3)") iover, iunder
-    WRITE(*,"('jover = ',I3,', junder = ',I3)") jover, junder
-
-    ith = 1
-    ! The starting point of the tiles in y
-    jval = fld%internal%ystart
-
-    nvects_max = 0
-    nvects_min = 1000000
-    nvects_sum = 0
-    max_tile_width  = 0
-    max_tile_height = 0
-
-    IF(print_tiles)WRITE(*,"(/'Tile dimensions:')")
-
-    DO jj = 1, ntiley, 1
-
-       ! If necessary, correct the height of this tile row
-       IF(jover > 0)THEN
-          idytmp = internal_height - 1
-          jover = jover - 1
-       ELSE IF(junder > 0)THEN
-          idytmp = internal_height + 1
-          junder = junder - 1
-       ELSE
-          idytmp = internal_height
-       END IF
-
-       ! The starting point of the tiles in x
-       ival = fld%internal%xstart
-
-       DO ji = 1, ntilex, 1
-         
-          ! If necessary, correct the width of this tile column
-          IF(iover > 0)THEN
-             idxtmp = internal_width - 1
-             iover = iover - 1
-          ELSE IF(iunder > 0)THEN
-             idxtmp = internal_width + 1
-             iunder = iunder - 1
-          ELSE
-             idxtmp = internal_width
-          END IF
-
-          if(ji == 1)then
-             fld%tile(ith)%whole%xstart    = fld%whole%xstart
-             fld%tile(ith)%internal%xstart = ival
-          else
-             fld%tile(ith)%internal%xstart = ival
-             fld%tile(ith)%whole%xstart    = ival
-          end if
-          
-          IF(ji == ntilex)THEN
-             fld%tile(ith)%internal%xstop = fld%internal%xstop
-             fld%tile(ith)%whole%xstop = fld%whole%xstop
-          ELSE
-             fld%tile(ith)%internal%xstop =  MIN(fld%internal%xstop-1, &
-                                     fld%tile(ith)%internal%xstart + idxtmp - 1)
-             fld%tile(ith)%whole%xstop = fld%tile(ith)%internal%xstop
-          END IF
-          
-          if(jj == 1)then
-             fld%tile(ith)%whole%ystart    = fld%whole%ystart
-             fld%tile(ith)%internal%ystart = jval
-          else
-             fld%tile(ith)%whole%ystart    = jval
-             fld%tile(ith)%internal%ystart = jval
-          end if
-
-          IF(jj /= ntiley)THEN
-             fld%tile(ith)%internal%ystop =  MIN(fld%tile(ith)%internal%ystart+idytmp-1, &
-                                             fld%internal%ystop-1)
-             fld%tile(ith)%whole%ystop = fld%tile(ith)%internal%ystop
-          ELSE
-             fld%tile(ith)%internal%ystop = fld%internal%ystop
-             fld%tile(ith)%whole%ystop = fld%whole%ystop
-          END IF
-
-          IF(print_tiles)THEN
-             WRITE(*,"('tile[',I4,'](',I4,':',I4,')(',I4,':',I4,'), "// &
-                  & "interior:(',I4,':',I4,')(',I4,':',I4,') ')")       &
-                  ith,                                                  &
-                  fld%tile(ith)%whole%xstart, fld%tile(ith)%whole%xstop,       &
-                  fld%tile(ith)%whole%ystart, fld%tile(ith)%whole%ystop,       &
-                  fld%tile(ith)%internal%xstart, fld%tile(ith)%internal%xstop, &
-                  fld%tile(ith)%internal%ystart, fld%tile(ith)%internal%ystop
-          END IF
-
-          ! Collect some data on the distribution of tile sizes for 
-          ! loadbalance info
-          nvects = (fld%tile(ith)%internal%xstop - fld%tile(ith)%internal%xstart + 1) &
-                  * (fld%tile(ith)%internal%ystop - fld%tile(ith)%internal%ystart + 1)
-          nvects_sum = nvects_sum + nvects
-          nvects_min = MIN(nvects_min, nvects)
-          nvects_max = MAX(nvects_max, nvects)
-
-          ! For use when allocating tile-'private' work arrays
-          max_tile_width  = MAX(max_tile_width, &
-                  (fld%tile(ith)%whole%xstop - fld%tile(ith)%whole%xstart + 1) )
-          max_tile_height = MAX(max_tile_height, &
-                  (fld%tile(ith)%whole%ystop - fld%tile(ith)%whole%ystart + 1) )
-
-          ival = fld%tile(ith)%whole%xstop
-          ith = ith + 1
-       END DO
-       jval = fld%tile(ith-1)%whole%ystop
-    END DO
-
-    ! Allocate tiles themselves
-!!$    do ith = 1, fld%ntiles, 1
-!!$       allocate(fld%tile(ith)%data(fld%tile(ith)%whole%xstop, &
-!!$                                   fld%tile(ith)%whole%ystop)
-!!$    end do
-
-    ! First-touch policy
-!OMP PARALLEL DO schedule(runtime), default(none), shared(fld), &
-!OMP             private(ith)
-!!$    do ith = 1, fld%ntiles, 1
-!!$       fld%tile(ith)%data(:,:) = 0.0
-!!$    end do
-!OMP END PARALLEL DO
-
-    ! Print tile-size statistics
-    WRITE(*,"(/'Mean tile size = ',F8.1,' pts = ',F7.1,' KB')") &
-                                 REAL(nvects_sum)/REAL(fld%ntiles), &
-                                 REAL(8*nvects_sum)/REAL(fld%ntiles*1024)
-    WRITE(*,"('Min,max tile size (pts) = ',I6,',',I6)") nvects_min,nvects_max
-    WRITE(*,"('Tile load imbalance (%) =',F6.2)") &
-                           100.0*(nvects_max-nvects_min)/REAL(nvects_min)
-    WRITE (*,"('Max tile dims are ',I4,'x',I4/)") max_tile_width, &
-                                                  max_tile_height
-
-  END SUBROUTINE tile_setup
 
   !==============================================
 
