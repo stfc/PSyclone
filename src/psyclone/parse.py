@@ -980,7 +980,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     builtin_names, builtin_defs_file = get_builtin_defs(api)
 
     # drop cache
-    fparser1.parsefortran.FortranParser.cache.clear()
+    parsefortran.FortranParser.cache.clear()
     fparser.logging.disable(fparser.logging.CRITICAL)
     if not os.path.isfile(alg_filename):
         raise IOError("File %s not found" % alg_filename)

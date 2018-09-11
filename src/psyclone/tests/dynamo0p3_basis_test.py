@@ -148,6 +148,8 @@ def test_eval_targets_wrong_space():
 
 
 def test_eval_targets_op_space():
+    ''' Check that listing a space associated with an operator in
+    gh_evaluator_targets works OK. '''
     code = CODE.replace("arg_type(GH_FIELD,   GH_INC,  W0),   &",
                         "arg_type(GH_FIELD,   GH_INC,  W0),   &\n"
                         "    arg_type(GH_OPERATOR, GH_READ, W2, W1), &")
