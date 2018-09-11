@@ -2286,3 +2286,85 @@ class ACCDataTrans(Transformation):
         schedule.addchild(data_dir, index=0)
 
         return schedule, keep
+
+
+class ACCRoutineTrans(Transformation):
+    '''
+    Transform a kernel subroutine by adding a "!$acc routine" directive
+    (causing it to be compiled for the OpenACC accelerator device).
+    For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import ACCRoutineTrans
+    >>> rtrans = ACCRoutineTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> kern = schedule.children[0].children[0].children[0]
+    >>> # Transform the kernel
+    >>> newkern, _ = rtrans.apply(kern)
+    '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation class.
+        :rtype: str
+        '''
+        return "ACCRoutineTrans"
+
+    def apply(self, kern):
+        '''
+        Modifies the AST of the supplied kernel so that it contains an
+        '!$acc routine' OpenACC directive.
+
+        :param kern: The kernel object to transform.
+        :type kern: :py:class:`psyclone.psyGen.Call`
+        :returns: (transformed kernel, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
+                :py:class:`psyclone.undoredo.Memento`).
+        :raises TransformationError: if we fail to find the subroutine \
+                                     corresponding to the kernel object.
+        '''
+        from fparser.two.Fortran2003 import walk_ast, Subroutine_Subprogram, \
+            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
+            Implicit_Part, Comment
+        from fparser.common.readfortran import FortranStringReader
+        # Get the fparser2 AST of the kernel
+        ast = kern.ast
+        # Keep a record of this transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(kern, self)
+        # Find the kernel subroutine
+        kern_sub = None
+        subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
+        for sub in subroutines:
+            for child in sub.content:
+                if isinstance(child, Subroutine_Stmt) and \
+                   str(child.items[1]) == kern.name:
+                    kern_sub = sub
+                    break
+            if kern_sub:
+                break
+        if not kern_sub:
+            raise TransformationError(
+                "Failed to find subroutine source for kernel {0}".
+                format(kern.name))
+        # Find the last declaration statement in the subroutine
+        spec = walk_ast(kern_sub.content, [Specification_Part])[0]
+        idx = 0
+        for idx, node in enumerate(spec.content):
+            if not (isinstance(node, (Implicit_Part, Type_Declaration_Stmt))):
+                break
+        # Create the directive and insert it
+        cmt = Comment(FortranStringReader("!$acc routine",
+                                          ignore_comments=False))
+        spec.content.insert(idx, cmt)
+
+        # Return the now modified kernel
+        return kern, keep
