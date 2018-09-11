@@ -994,8 +994,8 @@ class DynKernMetadata(KernelType):
                     format(self.name, self._eval_targets, self._eval_shape))
             # Check that there is a kernel argument on each of the
             # specified spaces...
-            # Create a list (set) of the function spaces for with
-            # associated kernel arguments
+            # Create a list (set) of the function spaces associated with
+            # the kernel arguments
             fs_list = set()
             for arg in self._arg_descriptors:
                 fs_list.update(arg.function_spaces)

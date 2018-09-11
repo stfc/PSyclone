@@ -502,7 +502,7 @@ class KernelType(object):
     with how that procedure is mapped over mesh entities.
 
     :param ast: fparser1 AST for the parsed kernel meta-data.
-    :type ast: :py:class:`fparser.one.xxxx`
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
     :param str name: name of the Fortran derived type describing the kernel.
 
     :raises ParseError: if the supplied name does not follow the convention \
@@ -679,10 +679,9 @@ class KernelType(object):
         :raises ParseError: if the RHS of the declaration is not an array \
                             constructor.
         '''
-        # TODO once we have a release of fparser with 'walk' functionality,
-        # use that to make this routine more robust.
         from fparser.two.parser import ParserFactory
         from fparser.two import Fortran2003
+        from fparser.two.utils import walk_ast
         # Ensure the classes are setup for the Fortran2003 parser
         _ = ParserFactory().create()
 
@@ -691,38 +690,28 @@ class KernelType(object):
                 # This isn't an integer declaration so skip it
                 continue
             # fparser only goes down to the statement level. We use fparser2 to
-            # parse the statement itself (eventually we'll use fparser2 to
-            # parse the whole thing).
+            # parse the statement itself.
             assign = Fortran2003.Assignment_Stmt(statement.entity_decls[0])
-            if isinstance(assign.items[0], Fortran2003.Name):
-                # Decln is of form: integer, dimension(2) :: my_array = [..]
-                var_name = str(assign.items[0])
-            elif isinstance(assign.items[0], Fortran2003.Part_Ref):
-                # Decln is of form: integer :: my_array(2) = [...]
-                var_name = str(assign.items[0].items[0])
-            else:
+            names = walk_ast(assign.items, [Fortran2003.Name])
+            if not names:
                 raise InternalError("Unsupported assignment statement: '{0}'".
                                     format(str(assign)))
-            if var_name == name:
+            if str(names[0]) == name:
                 # This is the variable declaration we're looking for
                 if not isinstance(assign.items[2],
                                   Fortran2003.Array_Constructor):
                     raise ParseError(
                         "get_integer_array: RHS of assignment is not "
                         "an array constructor: '{0}'".format(str(assign)))
-                # Structure of Array_Constructor is:
+                # fparser2 AST for Array_Constructor is:
                 # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
                 #                                      Name('w1'))), ']')
-                # Construct a list of the elements in the array constructor...
-                elements = []
-                for item in assign.items[2].items[1].items:
-                    if isinstance(item, Fortran2003.Name):
-                        elements.append(str(item))
-                    else:
-                        raise InternalError(
-                            "Failed to parse array constructor: '{0}'".
-                            format(str(assign.items[2])))
-                return elements
+                # Construct a list of the names in the array constructor...
+                names = walk_ast(assign.items[2].items, [Fortran2003.Name])
+                if not names:
+                    raise InternalError("Failed to parse array constructor: "
+                                        "'{0}'".format(str(assign.items[2])))
+                return [str(name) for name in names]
         return None
 
 

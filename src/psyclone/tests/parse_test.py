@@ -366,7 +366,8 @@ def test_get_int_array_err1(monkeypatch):
     ktype = KernelType(ast)
     # Next we create a valid fparser2 result...
     assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
-    # break it (tuples are immutable so make a new one)...
+    # break it by replacing the Name object with a string (tuples are
+    # immutable so make a new one)...
     new_list = ["invalid"] + list(assign.items[1:])
     assign.items = tuple(new_list)
     # and use monkeypatch to ensure that that's the result that is returned
@@ -393,7 +394,7 @@ def test_get_int_array_not_array():
 
 
 def test_get_int_array_err2(monkeypatch):
-    ''' Check that we raise the appropriate error if we faile to parse the
+    ''' Check that we raise the appropriate error if we fail to parse the
     array constructor expression. '''
     from psyclone.parse import KernelType
     from fparser.two import Fortran2003
@@ -402,7 +403,8 @@ def test_get_int_array_err2(monkeypatch):
     ktype = KernelType(ast)
     # Next we create a valid fparser2 result...
     assign = Fortran2003.Assignment_Stmt("gh_evaluator_targets(2) = [1, 2]")
-    # break it (tuples are immutable so make a new one)...
+    # break the array constructor expression (tuples are immutable so make a
+    # new one)...
     assign.items[2].items[1].items = tuple(["hello", "goodbye"])
     # and use monkeypatch to ensure that that's the result that is returned
     # when we attempt to use fparser2 from within the routine under test...
