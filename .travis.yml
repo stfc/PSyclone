@@ -45,16 +45,14 @@ env:
     - WITH_TERMCOLOR=1
 # command to install dependencies
 before_install:
-  # Specify "fparser" (without quotes) as an argument to install_optional.sh
-  # in order to run the tests with the version of fparser pointed to by
-  # the git submodule.
+  # Specify "fparser_submodule" (without quotes) as an argument to
+  # install_optional.sh in order to run the tests with the version of fparser
+  # pointed to by the git submodule.
   - ./bin/install_optional.sh fparser_submodule
   - pip install coveralls
   - pip install codecov
-# TODO remove following four lines (which install the master branches of
-# fparser and habakkuk) before final merge
-  - git clone https://github.com/stfc/fparser.git ~/fparser
-  - cd ~/fparser; pip install .; cd -
+# TODO remove following two lines (which install the master branch of
+# habakkuk) before final merge
   - git clone https://github.com/arporter/habakkuk.git ~/habakkuk
   - cd ~/habakkuk; pip install .; cd -
 install:
