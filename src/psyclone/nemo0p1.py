@@ -46,7 +46,7 @@ from psyclone.parse import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
     NameSpaceFactory, SCHEDULE_COLOUR_MAP as _BASE_CMAP
-from fparser.two.Fortran2003 import walk_ast
+from fparser.two.utils import walk_ast
 from fparser.two import Fortran2003
 
 # The base colour map doesn't have CodeBlock as that is currently
@@ -217,8 +217,7 @@ class NemoInvokes(Invokes):
         for subroutine in routines:
             # Get the name of this (sub)routine
             substmt = walk_ast(subroutine.content,
-                               [Subroutine_Stmt, Function_Stmt,
-                                Program_Stmt])
+                               [Subroutine_Stmt, Function_Stmt, Program_Stmt])
             if isinstance(substmt[0], Function_Stmt):
                 for item in substmt[0].items:
                     if isinstance(item, Name):
@@ -693,8 +692,7 @@ class NemoImplicitLoop(NemoLoop):
         name_space_manager = NameSpaceFactory().create()
 
         # Find all uses of array syntax in the statement
-        subsections = Fortran2003.walk_ast(
-            ast.items, [Fortran2003.Section_Subscript_List])
+        subsections = walk_ast(ast.items, [Fortran2003.Section_Subscript_List])
         # A Section_Subscript_List is a tuple with each item the
         # array-index expressions for the corresponding dimension of the array.
         for idx, item in enumerate(subsections[0].items):

@@ -2290,3 +2290,15 @@ def test_node_abstract_methods():
     with pytest.raises(NotImplementedError) as err:
         Node.view(loop)
     assert ("BaseClass of a Node must implement the view method" in str(err))
+
+
+def test_kern_ast():
+    ''' Test that we can obtain the fparser2 AST of a kernel. '''
+    from psyclone.gocean1p0 import GOKern
+    from fparser.two import Fortran2003
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.children[0].children[0].children[0]
+    assert isinstance(kern, GOKern)
+    assert kern.ast
+    assert isinstance(kern.ast, Fortran2003.Program)
