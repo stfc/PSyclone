@@ -623,9 +623,9 @@ class NemoImplicitLoop(NemoLoop):
             self.loop_type = "levels"
             self._stop = "jpk"
         else:
-            raise GenerationError("Array section in unsupported dimension "
-                                  "({0}) for code {1}".format(outermost_dim,
-                                                              str(ast)))
+            raise GenerationError(
+                "Array section in unsupported dimension ({0}) for code "
+                "'{1}'".format(outermost_dim+1, str(ast)))
         # TODO Since the fparser2 AST does not have parent
         # information (and no other way of getting to the root node), it is
         # currently not possible to insert a declaration in the correct
@@ -639,7 +639,8 @@ class NemoImplicitLoop(NemoLoop):
         spec = walk_ast(prog_unit.content, [Fortran2003.Specification_Part])
         if not spec:
             names = walk_ast(prog_unit.content, [Fortran2003.Name])
-            raise InternalError("No specifcation part found for routine {0}!".
+            # TODO create a Specification_Part
+            raise InternalError("No specification part found for routine {0}!".
                                 format(names[0]))
         # TODO check that this variable has not already been declared
         # Requires that we capture all variable declarations in the routine

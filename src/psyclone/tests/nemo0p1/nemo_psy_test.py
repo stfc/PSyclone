@@ -39,11 +39,12 @@
 
 from __future__ import print_function, absolute_import
 import os
-import fparser
 import pytest
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.parser import ParserFactory
 import psyclone
 from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory, InternalError
+from psyclone.psyGen import PSyFactory, InternalError, GenerationError
 from psyclone import nemo0p1
 
 
@@ -52,6 +53,8 @@ API = "nemo0.1"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
+# Fortran parser
+_PARSER = ParserFactory().create()
 
 def test_explicit_do_sched():
     ''' Check that we generate a correct schedule for a triply-nested,
@@ -123,6 +126,39 @@ def test_implicit_loop_assign():
     # Check that the loop variables have been declared just once
     for var in ["psy_ji", "psy_jj", "psy_jk"]:
         assert gen.count("integer :: {0}".format(var)) == 1
+
+
+def test_unrecognised_implicit():
+    ''' Check that we raise the expected error if we encounter an
+    unrecognised form of implicit loop. '''
+    from psyclone.nemo0p1 import NemoImplicitLoop, NemoInvoke
+    from fparser.two import Fortran2003
+    from fparser.two.utils import walk_ast
+    reader = FortranStringReader("umask(:, :, :, :) = 0.0D0")
+    assign = Fortran2003.Assignment_Stmt(reader)
+    with pytest.raises(GenerationError) as err:
+        NemoImplicitLoop(assign)
+    assert ("Array section in unsupported dimension (4) for code "
+            "'umask(:, :, :, :) = 0.0D0'" in str(err))
+    # and now for the case where the Program unit doesn't have a
+    # specification section to modify. This is hard to trigger
+    # so we manually construct some objects and put them together
+    # to create an artificial example...
+    reader = FortranStringReader("umask(:, :, :) = 0.0D0")
+    assign = Fortran2003.Assignment_Stmt(reader)
+    reader = FortranStringReader("program atest\nreal :: umask(1,1,1,1)\n"
+                                 "umask(:, :, :) = 0.0\nend program atest")
+    prog = Fortran2003.Program_Unit(reader)
+    invoke = NemoInvoke(prog, name="atest")
+    loop = NemoImplicitLoop.__new__(NemoImplicitLoop)
+    loop._parent = None
+    loop.invoke = invoke
+    loop.root.invoke._ast = prog
+    spec = walk_ast(prog.content, [Fortran2003.Specification_Part])
+    prog.content.remove(spec[0])
+    with pytest.raises(InternalError) as err:
+        loop.__init__(assign)
+    assert "No specification part found for routine atest" in str(err)
 
 
 def test_codeblock():
