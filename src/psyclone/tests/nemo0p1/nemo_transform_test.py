@@ -229,7 +229,7 @@ def test_omp_do_within_if():
     schedule = psy.invokes.get('imperfect_nest').schedule
     # Apply the transformation to a loop within an else clause
     new_sched, _ = otrans.apply(schedule.children[0].children[1].
-                                children[1].children[0])
+                                children[2].children[0])
     gen = str(psy.gen)
     print(gen)
     expected = (

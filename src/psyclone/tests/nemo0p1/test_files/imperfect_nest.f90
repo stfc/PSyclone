@@ -60,7 +60,9 @@ program imperfect_nest
       END DO
     END DO
     IF (jk == 1) THEN
-      zdkt(:, :) = zdk1t(:, :)
+       zdkt(:, :) = zdk1t(:, :)
+    else if (jk == jpkm1) then
+       zdkt(:, :) = 0.5*zdk1t(:, :)
     ELSE
       zdkt(:, :) = (ptb(:, :, jk - 1, jn) - ptb(:, :, jk, jn)) * wmask(:, :, jk)
     END IF

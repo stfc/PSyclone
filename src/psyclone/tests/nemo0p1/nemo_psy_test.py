@@ -41,6 +41,7 @@ from __future__ import print_function, absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 import psyclone
 from psyclone.parse import parse, ParseError
@@ -132,7 +133,6 @@ def test_unrecognised_implicit():
     ''' Check that we raise the expected error if we encounter an
     unrecognised form of implicit loop. '''
     from psyclone.nemo0p1 import NemoImplicitLoop, NemoInvoke
-    from fparser.two import Fortran2003
     from fparser.two.utils import walk_ast
     reader = FortranStringReader("umask(:, :, :, :) = 0.0D0")
     assign = Fortran2003.Assignment_Stmt(reader)
@@ -251,10 +251,23 @@ def test_kern_inside_if():
     sched = psy.invokes.invoke_list[0].schedule
     sched.view()
     kerns = sched.walk(sched.children, nemo0p1.NemoKern)
-    assert len(kerns) == 5
+    assert len(kerns) == 6
     assert isinstance(sched.children[0].children[1], nemo0p1.NemoIfBlock)
     assert isinstance(sched.children[0].children[1].children[1],
                       nemo0p1.NemoIfClause)
+    assert isinstance(sched.children[0].children[1].children[2],
+                      nemo0p1.NemoIfClause)
+
+
+def test_invalid_if_clause():
+    ''' Check that we raise the expected error if the NemoIfClause
+    is passed something that isn't an if-clause. '''
+    from psyclone.nemo0p1 import NemoIfClause
+    reader = FortranStringReader("umask(:, :, :, :) = 0")
+    assign = Fortran2003.Assignment_Stmt(reader)
+    with pytest.raises(InternalError) as err:
+        _ = NemoIfClause([assign])
+    assert "Unrecognised member of if block: " in str(err)
 
 
 def test_kern_load_errors(monkeypatch):

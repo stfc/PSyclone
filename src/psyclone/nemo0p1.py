@@ -795,8 +795,9 @@ class NemoIfClause(IfClause, ASTProcessor):
         elif isinstance(ast_nodes[0], Fortran2003.Else_If_Stmt):
             self._clause_type = "Else If"
         else:
-            raise InternalError("Unrecognised member of if block: {0}".
-                                format(type(ast_nodes[0])))
+            raise InternalError(
+                "Unrecognised member of if block: '{0}'. Expected one of "
+                "Else_Stmt or Else_If_Stmt.".format(type(ast_nodes[0])))
         # Continue on down the AST
         self.process_nodes(parent=self,
                            nodes=ast_nodes[1:],
