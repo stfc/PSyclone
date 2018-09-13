@@ -3258,7 +3258,7 @@ class DynHaloExchange(HaloExchange):
         type (as it is safe for all stencils).
 
         :return: Return the type of stencil required for this halo exchange
-        :rtype: string
+        :rtype: str
 
         '''
         # get information about stencil accesses from all read fields
@@ -3279,8 +3279,8 @@ class DynHaloExchange(HaloExchange):
         as the depth can change as transformations are applied to the
         schedule
 
-        :return: Return the halo exchange depth as a fortran string
-        :rtype: int
+        :return: Return the halo exchange depth as a Fortran string
+        :rtype: str
 
         '''
         # get information about reading from the halo from all read fields
@@ -3544,7 +3544,8 @@ class DynHaloExchange(HaloExchange):
     def gen_code(self, parent, halo_exchange_name=None):
         '''Dynamo specific code generation for this class. An optional
         halo_exchange_name is provided so that different types of halo
-        exchange call can be specified.
+        exchange call (i.e asynchronous start, asynchronous end, or
+        synchronous) can be specified.
 
         :param parent: an f2pygen object that will be the parent of \
         f2pygen objects created in this method
@@ -3569,7 +3570,7 @@ class DynHaloExchange(HaloExchange):
         else:
             halo_parent = parent
         if not halo_exchange_name:
-            # default name is a standard halo exchange"
+            # default name is for a standard halo exchange"
             halo_exchange_name = "halo_exchange"
         halo_parent.add(
             CallGen(
@@ -3583,16 +3584,24 @@ class DynHaloExchangeStart(DynHaloExchange):
     regular halo exchange except that the Fortran name of the call is
     different and the routine only reads the data being
     transferred. As the data is only read it is not able to determine
-    some inportant properties (such as whether the halo exchange is
+    some important properties (such as whether the halo exchange is
     known to be required or not). This is solved by finding the
     associated asynchronous halo exchange end and calling its methods
     (as it writes to its field and therefore is able to determine the
     required properties.
 
-    :param field:
-    :param check_dirty:
-    :param vector_index:
-    :param parent:
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument default True indicating
+    whether this halo exchange should be subject to a run-time check
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to
+    identify which index of a vector field this halo exchange is
+    responsible for
+    :type vector_index: int
+    :param parent: optional parent (default None) of this object
+    :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
     def __init__(self, field, check_dirty=True,
@@ -3600,82 +3609,190 @@ class DynHaloExchangeStart(DynHaloExchange):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
                                  vector_index=vector_index, parent=parent)
         if field:
-            # Update fields values appropriately. Here "gh_read"
-            # specifies that the start of a halo exchange only reads the data
+            # Update the field's access appropriately. Here "gh_read"
+            # specifies that the start of a halo exchange only reads
+            # the field's data.
             self._field.access = "gh_read"
 
     def gen_code(self, parent):
-        ''' xxx '''
+        '''Generate the Fortran halo exchange start call. Makes heavy use of
+        the parent class, just providing the appropriate name to call.
+
+        :param parent: an f2pygen object that will be the parent of \
+        f2pygen objects created in this method
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
         DynHaloExchange.gen_code(self, parent,
                                  halo_exchange_name="halo_exchange_start")
 
     @property
     def coloured_text(self):
-        ''' xxx '''
+        '''Return an appropriate name for this object (which is used in the
+        view() method, coloured in a way specified by the
+        SCHEDULE_COLOUR_MAP dictionary. Colors are only used if the
+        appropriate package (termcolor) is installed.
+
+        :return: Returns HaloExchangeStart as a string. This string is
+        coloured in the way specified in the SCHEDULE_COLOUR_MAP
+        dictionary if the package (termcolor) is installed.
+        :rtype: str
+
+        '''
         from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-        return colored("HaloExchangeStart", SCHEDULE_COLOUR_MAP["HaloExchangeStart"])
-        
-    def _get_hex_end(self):
-        ''' xxx '''
-        for node in self.following():
-            if self.sameParent(node):
-                if isinstance(node, DynHaloExchange):
-                    # What about matching field vectors?????
-                    if node.field.name == self.field.name:
-                        if isinstance(node, DynHaloExchangeEnd):
-                            return node
-                        else:
-                            print ("ERROR halo exchange start for field '{0}' should match with a halo exchange end, but found {1}".format(self.field.name, type(node)))
-                            exit(1)
-        print ("ERROR, halo exchange start for field '{0}' has no matching halo exchange end".format(self.field.name))
-        exit(1)
+        return colored("HaloExchangeStart",
+                       SCHEDULE_COLOUR_MAP["HaloExchangeStart"])
 
     def _compute_stencil_type(self):
-        ''' xxx '''
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analyis beneath this call
+        requires the field to be modified.
+
+        :return: Return the type of stencil required for this pair of
+        halo exchanges
+        :rtype: str
+
+        '''
         remote_node = self._get_hex_end()
         return remote_node._compute_stencil_type()
-    
+
     def _compute_halo_depth(self):
-        ''' xxx '''
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analyis beneath this call
+        requires the field to be modified.
+
+        :return: Return the halo exchange depth as a Fortran string
+        :rtype: str
+
+        '''
         remote_node = self._get_hex_end()
         return remote_node._compute_halo_depth()
 
     def required(self):
-        ''' Find the corresponding halo-exchange-end object and ask it to give the info. We do this as the required() info is determined dynamically '''
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analyis beneath this call
+        requires the field to be modified.
+
+        :return: Returns (x, y) where x specifies whether this halo
+        exchange is (or might be) required - True, or is not required
+        - False. If the first argument is True then the second
+        argument specifies whether we definitely know that we need the
+        HaloExchange - True, or are not sure - False.
+        :rtype: (bool, bool)
+
+        '''
         remote_node = self._get_hex_end()
         return remote_node.required()
 
     @property
     def dag_name(self):
-        ''' xxx '''
+        '''Specify the name to use for this node if outputting a dag
+
+        :return: Returns the dag name as a string
+        :rtype: str
+
+        '''
         HaloExchange.dag_name(self, name="haloexchangestart")
+
+    def _get_hex_end(self):
+        '''An internal helper routine for this class which finds the halo
+        exchange end object corresponding to this halo exchange start
+        object or raises an exception if one is not found.
+
+        :return: The corresponding halo exhange end object
+        :rtype::py:class:`psyclone.dynamo0p3.DynHaloExchangeEnd`
+        :raises GenerationError: If a matching HaloExchangeEnd is not
+        found, or if the first matching haloexchange that is found is
+        not a HaloExchangeEnd
+
+        '''
+        
+        for node in self.following():
+            if self.sameParent(node):
+                if isinstance(node, DynHaloExchange):
+                    # ************** What about matching field vectors?????
+                    if node.field.name == self.field.name:
+                        if isinstance(node, DynHaloExchangeEnd):
+                            return node
+                        else:
+                            raise GenerationError(
+                                "Halo exchange start for field '{0}' should "
+                                "match with a halo exchange end, but found "
+                                "{1}".format(self.field.name, type(node)))
+        raise GenerationError(
+            "Halo exchange start for field '{0}' has no matching halo "
+            "exchange end".format(self.field.name))
 
 
 class DynHaloExchangeEnd(DynHaloExchange):
-    ''' xxx '''
+    '''The end of an asynchronous halo exchange. This is similar to a
+    regular halo exchange except that the Fortran name of the call is
+    different and the routine only writes to the data being
+    transferred.
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument default True indicating
+    whether this halo exchange should be subject to a run-time check
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to
+    identify which index of a vector field this halo exchange is
+    responsible for
+    :type vector_index: int
+    :param parent: optional parent (default None) of this object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
                                  vector_index=vector_index, parent=parent)
         if field:
-            # Update fields values appropriately. Here "gh_read"
-            # specifies that the start of a halo exchange only reads the data
+            # Update fields values appropriately. Here "gh_write"
+            # specifies that the end of a halo exchange only writes to
+            # the data
             self._field.access = "gh_write"
 
     def gen_code(self, parent):
-        ''' xxx '''
+        '''Generate the Fortran halo exchange end call. Makes heavy use of
+        the parent class, just providing the appropriate name to call.
+
+        :param parent: an f2pygen object that will be the parent of \
+        f2pygen objects created in this method
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
         DynHaloExchange.gen_code(self, parent,
                                  halo_exchange_name="halo_exchange_finish")
 
     @property
     def coloured_text(self):
-        ''' xxx '''
+        '''Return an appropriate name for this object (which is used in the
+        view() method, coloured in a way specified by the
+        SCHEDULE_COLOUR_MAP dictionary. Colors are only used if the
+        appropriate package (termcolor) is installed.
+
+        :return: Returns HaloExchangeEnd as a string. This string is
+        coloured in the way specified in the SCHEDULE_COLOUR_MAP
+        dictionary if the package (termcolor) is installed.
+        :rtype: str
+
+        '''
         from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
         return colored("HaloExchangeEnd", SCHEDULE_COLOUR_MAP["HaloExchangeEnd"])
         
     @property
     def dag_name(self):
-        ''' xxx '''
+        '''Specify the name to use for this node if outputting a dag
+
+        :return: Returns the dag name as a string
+        :rtype: str
+
+        '''
         HaloExchange.dag_name(self, name="haloexchangeend")
 
 
