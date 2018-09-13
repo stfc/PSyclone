@@ -41,7 +41,8 @@ import os
 import fparser
 import pytest
 from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory, TransInfo, InternalError
+from psyclone.psyGen import PSyFactory, TransInfo, InternalError, \
+    GenerationError
 from psyclone import nemo0p1
 
 # Constants
@@ -175,3 +176,72 @@ def test_omp_parallel_errs():
     assert ("Failed to find locations to insert begin/end directives" in
             str(err))
 
+
+def test_omp_do_children_err():
+    ''' Tests that we raise the expected error when an OpenMP parallel do
+    directive has more than one child. '''
+    from psyclone.transformations import OMPParallelLoopTrans
+    from psyclone.psyGen import OMPParallelDoDirective
+    otrans = OMPParallelLoopTrans()
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    new_sched, _ = otrans.apply(schedule.children[0].children[2])
+    directive = new_sched.children[0].children[2]
+    assert isinstance(directive, OMPParallelDoDirective)
+    # Make the schedule invalid by adding a second child to the
+    # OMPParallelDoDirective
+    directive.children.append(new_sched.children[0].children[3])
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("An OpenMP PARALLEL DO can only be applied to a single loop but "
+            "this Node has 2 children:" in str(err))
+
+
+def test_omp_do_missing_parent(monkeypatch):
+    ''' Check that we raise the expected error when we cannot find the
+    parent node in the fparser2 AST. '''
+    from psyclone.transformations import OMPParallelLoopTrans
+    from psyclone.psyGen import OMPParallelDoDirective
+    otrans = OMPParallelLoopTrans()
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    new_sched, _ = otrans.apply(schedule.children[0])
+    # Remove the reference to the fparser2 AST from the Schedule node
+    monkeypatch.setattr(schedule, "_ast", None)
+    with pytest.raises(InternalError) as err:
+        _ = psy.gen
+    assert ("Failed to find parent node in which to insert OpenMP parallel "
+            "do directive" in str(err))
+
+
+def test_omp_do_within_if():
+    ''' Check that we can insert an OpenMP parallel do within an if block. '''
+    from psyclone.transformations import OMPParallelLoopTrans
+    from psyclone.psyGen import OMPParallelDoDirective
+    otrans = OMPParallelLoopTrans()
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    # Apply the transformation to a loop within an else clause
+    new_sched, _ = otrans.apply(schedule.children[0].children[1].
+                                children[1].children[0])
+    gen = str(psy.gen)
+    print(gen)
+    expected = (
+        "    ELSE\n"
+        "      !$omp parallel do default(shared), private(psy_jj,psy_ji), "
+        "schedule(static)\n"
+        "      DO psy_jj = 1, jpj, 1\n"
+        "        DO psy_ji = 1, jpi, 1\n"
+        "          zdkt(psy_ji, psy_jj) = (ptb(psy_ji, psy_jj, jk - 1, jn) - "
+        "ptb(psy_ji, psy_jj, jk, jn)) * wmask(psy_ji, psy_jj, jk)\n"
+        "        END DO\n"
+        "      END DO\n"
+        "      !$omp end parallel do\n"
+        "    END IF\n")
+    assert expected in gen
