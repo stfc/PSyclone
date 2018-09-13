@@ -43,7 +43,7 @@ import fparser
 import pytest
 import psyclone
 from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InternalError
 from psyclone import nemo0p1
 
 
@@ -102,7 +102,7 @@ def test_implicit_loop_sched2():
 
 
 @pytest.mark.xfail(reason="Do not currently check for previous variable"
-                   "declarations when add loop variables")
+                   "declarations when adding loop variables")
 def test_implicit_loop_assign():
     ''' Check that we only identify an implicit loop when array syntax
     is used as part of an assignment statement. '''
@@ -134,11 +134,13 @@ def test_codeblock():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo0p1.NemoLoop)
-    assert len(loops) == 4
+    assert len(loops) == 5
     cblocks = sched.walk(sched.children, nemo0p1.NemoCodeBlock)
-    assert len(cblocks) == 3
+    assert len(cblocks) == 4
     kerns = sched.walk(sched.children, nemo0p1.NemoKern)
     assert len(kerns) == 2
+    # The last loop does not contain a kernel
+    assert loops[-1].kernel is None
 
 
 def test_io_not_kernel():
@@ -217,3 +219,62 @@ def test_kern_inside_if():
     assert isinstance(sched.children[0].children[1], nemo0p1.NemoIfBlock)
     assert isinstance(sched.children[0].children[1].children[1],
                       nemo0p1.NemoIfClause)
+
+
+def test_kern_load_errors(monkeypatch):
+    ''' Check that the various load methods of the NemoKern class raise
+    the expected errors. '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    sched = invoke.schedule
+    # The schedule should contain 3 loop objects
+    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
+    with pytest.raises(InternalError) as err:
+        kerns[0].load("Not an fparser2 AST node")
+    assert ("internal error: Expecting either Block_Nonlabel_Do_Construct "
+            "or Assignment_Stmt but got " in str(err))
+    # TODO why hasn't the Kernel or Loop objects got a valid _ast?
+    loop = sched.children[0].children[0].children[0]._ast
+    monkeypatch.setattr(loop, "content", ["not_a_loop"])
+    with pytest.raises(InternalError) as err:
+        kerns[0]._load_from_loop(loop)
+    assert ("Expecting Nonlabel_Do_Stmt as first child of "
+            "Block_Nonlabel_Do_Construct but got" in str(err))
+
+
+def test_no_inline():
+    ''' Check that calling the NemoPSy.inline() method raises the expected
+    error (since we haven't implemented it yet). '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    with pytest.raises(NotImplementedError) as err:
+        psy.inline(None)
+    assert ("The NemoPSy.inline method has not yet been implemented!"
+            in str(err))
+
+
+def test_empty_routine():
+    ''' Check that we handle the case where a program unit does not
+    contain any executable statements. '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "empty_routine.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    assert len(psy.invokes.invoke_list) == 1
+    assert psy.invokes.invoke_list[0].schedule is None
+    # Calling update() on this Invoke should do nothing
+    psy.invokes.invoke_list[0].update()
+
+
+def test_invoke_function():
+    ''' Check that we successfully construct an Invoke if the program
+    unit is a function. '''
+    ast, invoke_info = parse(os.path.join(BASE_PATH, "afunction.f90"),
+                             api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    assert len(psy.invokes.invoke_list) == 1
+    invoke = psy.invokes.invoke_list[0]
+    assert invoke.name == "afunction"
+    assert isinstance(invoke.schedule.children[0], nemo0p1.NemoCodeBlock)

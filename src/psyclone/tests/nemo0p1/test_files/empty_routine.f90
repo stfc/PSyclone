@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council.
+! Copyright (c) 2018, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,33 +31,11 @@
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
 
-program code_block
+program empty
   implicit none
-  integer :: ji, jj, jk, iloop
-  integer :: jpi=10, jpj=10, jpk=10
-  real, allocatable, dimension(:,:,:) :: umask
+  integer :: ji, jj, jk
+  integer :: jpi, jpj, jpk
 
-  ! Test code with explicit NEMO-style do loop as well as some general,
-  ! executable statements
+  ! Empty program unit for testing purposes
 
-  write (*,*) "Hello world"
-  allocate(umask(jpi,jpj,jpk))
-  umask(1,1,:) = 0.0d0
-  umask(1,1,1) = -10.0d0
-
-  do jk = 1, jpk
-     do jj = 1, jpj
-        do ji = 1, jpi
-           umask(ji,jj,jk) = ji*jj*jk/r
-        end do
-     end do
-  end do
-
-  do iloop = 1, jpi
-     write (*,*) "This is not a kernel"
-  end do
-  
-  write (*,*) "Goodbye world"
-  deallocate(umask)
-
-end program code_block
+end program 

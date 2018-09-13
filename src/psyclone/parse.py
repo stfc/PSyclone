@@ -1164,7 +1164,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
 
 def parse_nemo(filename):
-    ''' Parse a NEMO routine and identify kernels '''
+    ''' Parse a NEMO routine using fparser2 and identify kernels. '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranFileReader
 

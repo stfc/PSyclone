@@ -54,17 +54,8 @@ from fparser.two import Fortran2003
 NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
 NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
 
-# The two scalar types we support
-VALID_SCALAR_TYPES = ["i_scalar", "r_scalar"]
-
-# The sets of grid points that a kernel may operate on
-VALID_ITERATES_OVER = ["all_pts", "internal_pts", "external_pts"]
-
-# Valid values for the type of access a kernel argument may have
-VALID_ARG_ACCESSES = ["read", "write", "readwrite"]
-
 # The loop index variables we expect NEMO to use
-NEMO_LOOP_VARS = ["ji", "jj", "jk"]
+NEMO_LOOP_VARS = ["ji", "jj", "jk", "jt", "jn"]
 
 # The valid types of loop.
 VALID_LOOP_TYPES = ["lon", "lat", "levels", "tracers"]
@@ -170,12 +161,6 @@ class NemoInvoke(Invoke):
         # new AST using objects from the nemo0p1 module.
         self._schedule = NemoSchedule(self, exe_part)
 
-    def gen(self):
-        return str(self._ast)
-
-    @property
-    def psy_unique_var_names(self):
-        return self._psy_unique_vars
 
     def update(self):
         '''Updates the fparser2 AST associated with this Schedule to make it
@@ -222,6 +207,7 @@ class NemoInvokes(Invokes):
                 for item in substmt[0].items:
                     if isinstance(item, Name):
                         sub_name = str(item)
+                        break
             else:
                 sub_name = str(substmt[0].get_name())
 
@@ -230,7 +216,8 @@ class NemoInvokes(Invokes):
             self.invoke_list.append(my_invoke)
 
     def update(self):
-        ''' TBD '''
+        ''' Walk down the tree and update the underlying fparser2 AST
+        to reflect any transformations. '''
         for invoke in self.invoke_list:
             invoke.update()
 
@@ -249,7 +236,8 @@ class NemoPSy(PSy):
 
     def inline(self, module):
         # Override base-class method because we don't yet support it
-        pass
+        raise NotImplementedError("The NemoPSy.inline method has not yet "
+                                  "been implemented!")
 
     @property
     def gen(self):
@@ -271,11 +259,12 @@ class NemoPSy(PSy):
 
 class NemoSchedule(Schedule, ASTProcessor):
     '''
-    The GOcean specific schedule class. We call the base class
-    constructor and pass it factories to create GO-specific calls to both
-    user-supplied kernels and built-ins.
+    The NEMO-specific schedule class. This is the top-level node in
+    PSyclone's representation of a NEMO program unit (program,
+    subroutine etc).
 
-    :param invoke:
+    :param invoke: The Invoke to which this Schedule belongs.
+    :type invoke: :py:class:`psyclone.nemo0p1.NemoInvoke`
     :param ast: the fparser2 AST of the NEMO code for which to generate \
                 a Schedule.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
@@ -283,46 +272,12 @@ class NemoSchedule(Schedule, ASTProcessor):
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
     '''
 
-    def __init__(self, invoke, ast=None):
+    def __init__(self, invoke, ast):
         Node.__init__(self)
 
         self._invoke = invoke
-
-        if not ast:
-            # This Schedule will be populated by a subsequent call
-            # to load()
-            # TODO - implement load()
-            return
-
         self._ast = ast
-
-        # List of nodes we will use to create 'codeBlocks' that we don't
-        # attempt to understand
-        code_block_nodes = []
-
-        for child in ast.content:
-            # The fparser2 AST does not hold parent information so add
-            # that now.
-            child._parent = ast
-            if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
-                # The start of a loop is taken as the end of any exising
-                # code block so we create that now
-                self.add_code_block(self, code_block_nodes)
-                self.addchild(NemoLoop(child, parent=self))
-            elif NemoImplicitLoop.match(child):
-                # Similarly, an implicit loop ends any existing code block
-                self.add_code_block(self, code_block_nodes)
-                self.addchild(NemoImplicitLoop(child, parent=self))
-            elif NemoIfBlock.match(child):
-                self.add_code_block(self, code_block_nodes)
-                self.addchild(NemoIfBlock(child, parent=self))
-            else:
-                code_block_nodes.append(child)
-
-        # Finish any open code block
-        self.add_code_block(self, code_block_nodes)
-
-        return
+        self.process_nodes(self, ast.content, ast)
 
 
     def view(self, indent=0):
@@ -339,50 +294,11 @@ class NemoSchedule(Schedule, ASTProcessor):
         result += "End Schedule"
         return result
 
-    @property
-    def iloop_stop(self):
-        '''Returns the variable name to use for the upper bound of inner
-        loops if we're generating loops with constant bounds. Raises
-        an error if constant bounds are not being used.
-
-        '''
-        if self._const_loop_bounds:
-            return "istop"
-        else:
-            raise GenerationError(
-                "Refusing to supply name of inner loop upper bound "
-                "because constant loop bounds are not being used.")
-
-    @property
-    def jloop_stop(self):
-        '''Returns the variable name to use for the upper bound of outer
-        loops if we're generating loops with constant bounds. Raises
-        an error if constant bounds are not being used.
-
-        '''
-        if self._const_loop_bounds:
-            return "jstop"
-        else:
-            raise GenerationError(
-                "Refusing to supply name of outer loop upper bound "
-                "because constant loop bounds are not being used.")
-
-    @property
-    def const_loop_bounds(self):
-        ''' Returns True if constant loop bounds are enabled for this
-        schedule. Returns False otherwise. '''
-        return self._const_loop_bounds
-
-    @const_loop_bounds.setter
-    def const_loop_bounds(self, obj):
-        ''' Set whether the Schedule will use constant loop bounds or
-        will look them up from the field object for every loop '''
-        self._const_loop_bounds = obj
-
 
 class NemoCodeBlock(Node):
     ''' Node representing some generic Fortran code that PSyclone
-    does not attempt to manipulate '''
+    does not attempt to manipulate. As such it is a leaf in the PSyclone
+    AST and therefore has no children. '''
 
     def __init__(self, statements, parent=None):
         Node.__init__(self, parent=parent)
@@ -401,11 +317,9 @@ class NemoCodeBlock(Node):
         return colored("NemoCodeBlock", NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"])
 
     def view(self, indent=0):
-        ''' Print a representation of this node in the schedule '''
+        ''' Print a representation of this node in the schedule. '''
         print(self.indent(indent) + self.coloured_text + "[" +
               str(type(self._statements[0])) + "]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
 
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
@@ -413,7 +327,15 @@ class NemoCodeBlock(Node):
 
 class NemoKern(Kern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. '''
+    NEMO code. Kernels are leaves in the Schedule AST (i.e. they have
+    no children).
+
+    :param loop: Reference to the loop (in the fparser2 AST) containing \
+                 this kernel
+    :type loop: :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
+    :param parent: the parent of this Kernel node in the PSyclone AST
+    type parent: :py:class:`psyclone.nemo0p1.NemoLoop`
+    '''
     def __init__(self, loop=None, parent=None):
         ''' Create an empty NemoKern object. The object is given state via
         a subsequent call to the load method if loop is None. '''
@@ -448,6 +370,11 @@ class NemoKern(Kern):
     @staticmethod
     def match(node):
         '''
+        Whether or not the AST fragment pointed to by node represents a
+        kernel. A kernel is defined as a section of code that sits
+        within a recognised loop structure and does not itself contain
+        loops or IO operations.
+
         :param node: Node in fparser2 AST to check.
         :type node: :py:class:`fparser.two.Fortran2003.Base`
         :returns: True if this node conforms to the rules for a kernel.
@@ -473,7 +400,7 @@ class NemoKern(Kern):
         return True
 
     @property
-    def type(self):
+    def ktype(self):
         ''' Returns what type of kernel this is '''
         return self._kernel_type
 
@@ -491,10 +418,9 @@ class NemoKern(Kern):
         elif isinstance(loop, Assignment_Stmt):
             self._load_from_implicit_loop(loop, parent=parent)
         else:
-            raise ParseError(
-                "Internal error: expecting either "
-                "Block_Nonlabel_Do_Construct or Assignment_Stmt but got "
-                "{0}".format(str(type(loop))))
+            raise InternalError(
+                "Expecting either Block_Nonlabel_Do_Construct or "
+                "Assignment_Stmt but got {0}".format(str(type(loop))))
 
     def _load_from_loop(self, loop, parent=None):
         ''' Populate the state of this NemoKern object from an fparser2
@@ -505,9 +431,9 @@ class NemoKern(Kern):
         self._loop = loop
 
         if not isinstance(loop.content[0], Nonlabel_Do_Stmt):
-            raise ParseError("Internal error, expecting Nonlabel_Do_Stmt as "
-                             "first child of Block_Nonlabel_Do_Construct but "
-                             "got {0}".format(type(loop.content[0])))
+            raise InternalError("Expecting Nonlabel_Do_Stmt as first child "
+                                "of Block_Nonlabel_Do_Construct but "
+                                "got {0}".format(type(loop.content[0])))
         self._body = []
         for content in loop.content[1:]:
             if isinstance(content, End_Do_Stmt):
@@ -561,29 +487,6 @@ class NemoKern(Kern):
         self._kernel_type = "Implicit"
         return
 
-    @property
-    def loop(self):
-        ''' Returns the Fortran2003 loop object associated with this kernel '''
-        return self._loop
-
-    def tofortran(self, tab='', isfix=False):
-        ''' Returns a string containing the Fortran representation of this
-        kernel '''
-        fort_lines = []
-        tablen = len(tab)
-        for idx, loop_var in enumerate(self._loop_vars):
-            fort_lines.append(tablen*" "+"DO {0} = {1}, {2}".
-                              format(loop_var,
-                                     self._loop_ranges[idx][0],
-                                     self._loop_ranges[idx][1]))
-            tablen += 2
-        for item in self._body:
-            fort_lines.append(item.tofortran(tab=tablen*" ", isfix=isfix))
-        for loop_var in self._loop_vars:
-            tablen -= 2
-            fort_lines.append(tablen*" "+"END DO")
-        return "\n".join(fort_lines)
-
     def local_vars(self):
         '''Return a list of the variable (names) that are local to this loop
         (and must therefore be e.g. threadprivate if doing OpenMP)
@@ -592,11 +495,9 @@ class NemoKern(Kern):
         return []
 
     def view(self, indent=0):
-        ''' Print representation of this node to stdout '''
+        ''' Print representation of this node to stdout. '''
         print(self.indent(indent) + self.coloured_text + "[" +
-              self._kernel_type + "]")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
+              self.ktype + "]")
 
 
 class NemoLoop(Loop, ASTProcessor):
