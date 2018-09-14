@@ -43,10 +43,10 @@ import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, TransInfo, InternalError, \
     GenerationError
-from psyclone import nemo0p1
+from psyclone import nemo
 
 # Constants
-API = "nemo0.1"
+API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")

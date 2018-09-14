@@ -46,11 +46,11 @@ from fparser.two.parser import ParserFactory
 import psyclone
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, InternalError, GenerationError
-from psyclone import nemo0p1
+from psyclone import nemo
 
 
 # Constants
-API = "nemo0.1"
+API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
@@ -63,14 +63,14 @@ def test_explicit_do_sched():
     ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    assert isinstance(psy, nemo0p1.NemoPSy)
+    assert isinstance(psy, nemo.NemoPSy)
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     # The schedule should contain 3 loop objects
-    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
+    loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 3
     # The schedule should contain just 1 kernel
-    assert isinstance(loops[2].children[0], nemo0p1.NemoKern)
+    assert isinstance(loops[2].children[0], nemo.NemoKern)
 
 
 def test_implicit_loop_sched1():
@@ -78,13 +78,13 @@ def test_implicit_loop_sched1():
     ast, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    assert isinstance(psy, nemo0p1.NemoPSy)
+    assert isinstance(psy, nemo.NemoPSy)
     print(len(psy.invokes.invoke_list))
     sched = psy.invokes.invoke_list[0].schedule
     sched.view()
-    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
+    loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 3
-    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
+    kerns = sched.walk(sched.children, nemo.NemoKern)
     assert len(kerns) == 1
 
 
@@ -99,9 +99,9 @@ def test_implicit_loop_sched2():
     sched.view()
     # We should have 3 loops (one from the explicit loop over levels and
     # the other two from the implicit loops over ji and jj).
-    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
+    loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 3
-    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
+    kerns = sched.walk(sched.children, nemo.NemoKern)
     assert len(kerns) == 1
 
 
@@ -114,16 +114,16 @@ def test_implicit_loop_assign():
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
+    loops = sched.walk(sched.children, nemo.NemoLoop)
     sched.view()
     gen = str(ast).lower()
     print(gen)
     # Our implicit loops gives us 5 explicit loops
     assert len(loops) == 5
-    assert isinstance(sched.children[0], nemo0p1.NemoLoop)
+    assert isinstance(sched.children[0], nemo.NemoLoop)
     # The other statements (that use array syntax) are not assignments
     # and therefore are not implicit loops
-    assert isinstance(sched.children[1], nemo0p1.NemoCodeBlock)
+    assert isinstance(sched.children[1], nemo.NemoCodeBlock)
     # Check that the loop variables have been declared just once
     for var in ["psy_ji", "psy_jj", "psy_jk"]:
         assert gen.count("integer :: {0}".format(var)) == 1
@@ -132,7 +132,7 @@ def test_implicit_loop_assign():
 def test_unrecognised_implicit():
     ''' Check that we raise the expected error if we encounter an
     unrecognised form of implicit loop. '''
-    from psyclone.nemo0p1 import NemoImplicitLoop, NemoInvoke
+    from psyclone.nemo import NemoImplicitLoop, NemoInvoke
     from fparser.two.utils import walk_ast
     reader = FortranStringReader("umask(:, :, :, :) = 0.0D0")
     assign = Fortran2003.Assignment_Stmt(reader)
@@ -169,11 +169,11 @@ def test_codeblock():
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    loops = sched.walk(sched.children, nemo0p1.NemoLoop)
+    loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 5
-    cblocks = sched.walk(sched.children, nemo0p1.NemoCodeBlock)
+    cblocks = sched.walk(sched.children, nemo.NemoCodeBlock)
     assert len(cblocks) == 4
-    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
+    kerns = sched.walk(sched.children, nemo.NemoKern)
     assert len(kerns) == 2
     # The last loop does not contain a kernel
     assert loops[-1].kernel is None
@@ -187,16 +187,16 @@ def test_io_not_kernel():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     # We should have only 1 actual kernel and 2 code blocks
-    cblocks = sched.walk(sched.children, nemo0p1.NemoCodeBlock)
+    cblocks = sched.walk(sched.children, nemo.NemoCodeBlock)
     assert len(cblocks) == 2
-    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
+    kerns = sched.walk(sched.children, nemo.NemoKern)
     assert len(kerns) == 1
 
 
 def test_schedule_view(capsys):
     ''' Check the schedule view/str methods work as expected '''
     from psyclone.psyGen import colored
-    from psyclone.nemo0p1 import NEMO_SCHEDULE_COLOUR_MAP
+    from psyclone.nemo import NEMO_SCHEDULE_COLOUR_MAP
     ast, invoke_info = parse(os.path.join(BASE_PATH, "io_in_loop.f90"),
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -250,19 +250,19 @@ def test_kern_inside_if():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     sched.view()
-    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
+    kerns = sched.walk(sched.children, nemo.NemoKern)
     assert len(kerns) == 6
-    assert isinstance(sched.children[0].children[1], nemo0p1.NemoIfBlock)
+    assert isinstance(sched.children[0].children[1], nemo.NemoIfBlock)
     assert isinstance(sched.children[0].children[1].children[1],
-                      nemo0p1.NemoIfClause)
+                      nemo.NemoIfClause)
     assert isinstance(sched.children[0].children[1].children[2],
-                      nemo0p1.NemoIfClause)
+                      nemo.NemoIfClause)
 
 
 def test_invalid_if_clause():
     ''' Check that we raise the expected error if the NemoIfClause
     is passed something that isn't an if-clause. '''
-    from psyclone.nemo0p1 import NemoIfClause
+    from psyclone.nemo import NemoIfClause
     reader = FortranStringReader("umask(:, :, :, :) = 0")
     assign = Fortran2003.Assignment_Stmt(reader)
     with pytest.raises(InternalError) as err:
@@ -279,7 +279,7 @@ def test_kern_load_errors(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     # The schedule should contain 3 loop objects
-    kerns = sched.walk(sched.children, nemo0p1.NemoKern)
+    kerns = sched.walk(sched.children, nemo.NemoKern)
     with pytest.raises(InternalError) as err:
         kerns[0].load("Not an fparser2 AST node")
     assert ("internal error: Expecting either Block_Nonlabel_Do_Construct "
@@ -326,4 +326,4 @@ def test_invoke_function():
     assert len(psy.invokes.invoke_list) == 1
     invoke = psy.invokes.invoke_list[0]
     assert invoke.name == "afunction"
-    assert isinstance(invoke.schedule.children[0], nemo0p1.NemoCodeBlock)
+    assert isinstance(invoke.schedule.children[0], nemo.NemoCodeBlock)

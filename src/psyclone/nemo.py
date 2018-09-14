@@ -80,7 +80,7 @@ class ASTProcessor(object):
         :type parent: :py:class:`psyclone.psyGen.Node`
         :param list statements: List of fparser2 AST nodes consituting the \
                                 code block.
-        :rtype: :py:class:`psyclone.nemo0p1.NemoCodeBlock`
+        :rtype: :py:class:`psyclone.nemo.NemoCodeBlock`
         '''
         if not statements:
             return None
@@ -158,7 +158,7 @@ class NemoInvoke(Invoke):
         self._spec_part = get_child(ast, Specification_Part)
 
         # We now walk through the AST produced by fparser2 and construct a
-        # new AST using objects from the nemo0p1 module.
+        # new AST using objects from the nemo module.
         self._schedule = NemoSchedule(self, exe_part)
 
 
@@ -264,7 +264,7 @@ class NemoSchedule(Schedule, ASTProcessor):
     subroutine etc).
 
     :param invoke: The Invoke to which this Schedule belongs.
-    :type invoke: :py:class:`psyclone.nemo0p1.NemoInvoke`
+    :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
     :param ast: the fparser2 AST of the NEMO code for which to generate \
                 a Schedule.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
@@ -334,7 +334,7 @@ class NemoKern(Kern):
                  this kernel
     :type loop: :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
     :param parent: the parent of this Kernel node in the PSyclone AST
-    type parent: :py:class:`psyclone.nemo0p1.NemoLoop`
+    type parent: :py:class:`psyclone.nemo.NemoLoop`
     '''
     def __init__(self, loop=None, parent=None):
         ''' Create an empty NemoKern object. The object is given state via
@@ -783,7 +783,7 @@ class NemoIfClause(IfClause, ASTProcessor):
     :param list ast_nodes: List of nodes making up the clause. First node \
                            is the else/else-if statement itself.
     :param parent: Parent of this clause in the AST (must be an IfBlock).
-    :type parent: :py:class:`psyclone.nemo0p1.NemoIfBlock`
+    :type parent: :py:class:`psyclone.nemo.NemoIfBlock`
     '''
     def __init__(self, ast_nodes, parent=None):
         super(NemoIfClause, self).__init__(parent=parent)

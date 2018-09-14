@@ -906,7 +906,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     else:
         check_api(api)
 
-    if api == "nemo0.1":
+    if api == "nemo":
         # For this API we just parse the NEMO code and return the resulting
         # fparser2 AST
         ast = parse_nemo(alg_filename)

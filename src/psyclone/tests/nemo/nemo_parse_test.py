@@ -39,10 +39,10 @@ from __future__ import print_function, absolute_import
 import os
 import fparser
 from psyclone.parse import parse, ParseError
-from psyclone import nemo0p1
+from psyclone import nemo
 
 # Constants
-API = "nemo0.1"
+API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
@@ -54,8 +54,8 @@ def test_identify_implicit_loop():
     from habakkuk.parse2003 import walk_ast
     ast, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
                              api=API, line_length=False)
-    assert not nemo0p1.NemoImplicitLoop.match(ast)
+    assert not nemo.NemoImplicitLoop.match(ast)
     stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
-    assert not nemo0p1.NemoImplicitLoop.match(stmts[1])
-    assert nemo0p1.NemoImplicitLoop.match(stmts[0])
+    assert not nemo.NemoImplicitLoop.match(stmts[1])
+    assert nemo.NemoImplicitLoop.match(stmts[0])
 

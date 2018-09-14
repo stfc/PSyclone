@@ -61,7 +61,7 @@ from psyclone.configuration import ConfigFactory
 # Get (a reference to) our one-and-only Config object
 _CONFIG = ConfigFactory().create()
 # Those APIs that do not have a separate Algorithm layer
-API_WITHOUT_ALGORITHM = ["nemo0.1"]
+API_WITHOUT_ALGORITHM = ["nemo"]
 
 def handle_script(script_name, psy):
     '''Loads and applies the specified script to the given psy layer.

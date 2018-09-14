@@ -258,8 +258,8 @@ class PSyFactory(object):
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOPSy
             return GOPSy(invoke_info)
-        elif self._type == "nemo0.1":
-            from psyclone.nemo0p1 import NemoPSy
+        elif self._type == "nemo":
+            from psyclone.nemo import NemoPSy
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed
             return NemoPSy(invoke_info)
