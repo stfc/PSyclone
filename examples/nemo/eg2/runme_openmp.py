@@ -52,7 +52,7 @@ from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
 if __name__ == "__main__":
-    api = "nemo0.1"
+    api = "nemo"
     _, invokeinfo = parse("traldf_iso.F90", api=api)
     psy = PSyFactory(api).create(invokeinfo)
     print(psy.gen)

@@ -119,12 +119,13 @@ cd -
 
 echo "Running example nemo/eg1"
 cd nemo/eg1
-${PSYCLONE} -api "nemo0.1" tra_adv.F90
+${PSYCLONE} -api "nemo" tra_adv.F90
 ./runme_openmp.py
 cd -
 echo "Running example nemo/eg2"
 cd nemo/eg2
 ./runme_openmp.py
+${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
 cd -
 
 echo "Running transformation examples"
