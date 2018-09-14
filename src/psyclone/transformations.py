@@ -2207,10 +2207,21 @@ class ProfileRegionTrans(RegionTrans):
 
 
 class DynAsyncHaloExchangeTrans(Transformation):
-    '''Splits a sychronous halo exchange into a halo exchange start and
+    '''Splits a synchronous halo exchange into a halo exchange start and
     halo exchange end. For example:
 
-    >>> xxx
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "dynamo0.3"
+    >>> ast, invokeInfo = parse("file.f90", api=api)
+    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> from psyclone.transformations import DynAsyncHaloExchangeTrans
+    >>> trans = DynAsyncHaloExchangeTrans()
+    >>> new_schedule, memento = trans.apply(schedule.children[0])
+    >>> new_schedule.view()
 
     '''
 
@@ -2220,17 +2231,17 @@ class DynAsyncHaloExchangeTrans(Transformation):
     @property
     def name(self):
         '''
-        :returns: the name of this transformation.
+        :returns: the name of this transformation as a string.
         :rtype: str
         '''
         return "DynAsyncHaloExchangeTrans"
 
     def apply(self, node):
-        '''Transforms a synchronous halo exchange, represented by the
+        '''Transforms a synchronous halo exchange, represented by a
         HaloExchange node, into an asynchronous halo exchange,
         represented by HaloExchangeStart and HaloExchangeEnd nodes.
 
-        :param node: A synchronous Halo Exchange node
+        :param node: A synchronous haloexchange node
         :type node: :py:obj:`psyclone.psygen.HaloExchange`
         :returns: Tuple of the modified schedule and a record of the \
                   transformation.
@@ -2239,7 +2250,7 @@ class DynAsyncHaloExchangeTrans(Transformation):
 
         '''
         self._validate(node)
-        
+
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
@@ -2247,7 +2258,9 @@ class DynAsyncHaloExchangeTrans(Transformation):
         keep = Memento(schedule, self, [node])
 
         from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
-        # add asynchronous start and end halo exchanges
+        # add asynchronous start and end halo exchanges and initialise
+        # them using information from the existing synchronous halo
+        # exchange
         node.parent.addchild(
             DynHaloExchangeStart(
                 node.field, check_dirty=node._check_dirty,
@@ -2263,8 +2276,6 @@ class DynAsyncHaloExchangeTrans(Transformation):
         node.parent.children.remove(node)
 
         return schedule, keep
-
-
 
     def _validate(self, node):
         '''Internal method to check whether the node is valid for this

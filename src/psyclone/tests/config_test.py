@@ -69,6 +69,7 @@ COMPUTE_ANNEXED_DOFS = false
 # use of these fixtures in the test code.
 # pylint:disable=redefined-outer-name
 
+
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",

@@ -2180,6 +2180,9 @@ class HaloExchange(Node):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
+        self._text_name = "HaloExchange"
+        self._colour_map_name = "HaloExchange"
+        self._dag_name = "haloexchange"
 
     @property
     def vector_index(self):
@@ -2205,7 +2208,7 @@ class HaloExchange(Node):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        name = ("haloexchange({0})_".format(self._field.name) +
+        name = ("{0}({1})_".format(self._dag_name, self._field.name) +
                 str(self.position))
         if self._check_dirty:
             name = "check" + name
@@ -2301,7 +2304,8 @@ class HaloExchange(Node):
         :return: Name of this node type, possibly with colour control codes
         :rtype: string
         '''
-        return colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+        return colored(
+            self._text_name, SCHEDULE_COLOUR_MAP[self._colour_map_name])
 
 
 class Loop(Node):

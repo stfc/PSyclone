@@ -3875,7 +3875,7 @@ def test_reductions_reprod():
             schedule, _ = rtrans.apply(schedule.children[0])
             invoke.schedule = schedule
             assert len(schedule.reductions(reprod=reprod)) == 1
-            assert len(schedule.reductions(reprod=not reprod)) == 0
+            assert not schedule.reductions(reprod=not reprod)
             assert len(schedule.reductions()) == 1
             from psyclone.dynamo0p3_builtins import DynXInnerproductYKern
             assert (isinstance(schedule.reductions(reprod=reprod)[0],
@@ -6483,13 +6483,12 @@ def test_async_hex_wrong_node():
 
     '''
     from psyclone.psyGen import Loop
-    from psyclone.transformations import DynAsyncHaloExchangeTrans, \
-        TransformationError
+    from psyclone.transformations import DynAsyncHaloExchangeTrans
     node = Loop()
     ahex = DynAsyncHaloExchangeTrans()
     with pytest.raises(TransformationError) as err:
         _, _ = ahex.apply(node)
-    assert("node must be a synchronous halo exchange" in str(err.value))
+    assert "node must be a synchronous halo exchange" in str(err.value)
 
 
 def test_async_hex_name():
@@ -6512,9 +6511,10 @@ def test_async_hex():
     asynchronous one using the DynAsyncHaloExchangeTrans transformation
 
     '''
-    _, invoke_info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                        "test_files", "dynamo0p3",
-                                        "1_single_invoke.f90"),
+    _, invoke_info = parse(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_files", "dynamo0p3",
+        "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule

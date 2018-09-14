@@ -35,8 +35,9 @@
 
 ''' Tests for the kernel-stub generator. '''
 
-import pytest
+from __future__ import absolute_import
 import os
+import pytest
 
 
 def test_run(monkeypatch, capsys):

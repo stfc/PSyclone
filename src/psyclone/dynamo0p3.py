@@ -3248,7 +3248,27 @@ class DynHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
     manipulated in, a schedule
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument default True indicating
+    whether this halo exchange should be subject to a run-time check
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to
+    identify which index of a vector field this halo exchange is
+    responsible for
+    :type vector_index: int
+    :param parent: optional parent (default None) of this object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
     '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        HaloExchange.__init__(self, field, check_dirty=check_dirty,
+                              vector_index=vector_index, parent=parent)
+        # set up some defaults for this class
+        self._halo_exchange_name = "halo_exchange"
 
     def _compute_stencil_type(self):
         '''Dynamically work out the type of stencil required for this halo
@@ -3541,18 +3561,12 @@ class DynHaloExchange(HaloExchange):
                                       self._compute_halo_depth(),
                                       runtime_check)))
 
-    def gen_code(self, parent, halo_exchange_name=None):
-        '''Dynamo specific code generation for this class. An optional
-        halo_exchange_name is provided so that different types of halo
-        exchange call (i.e asynchronous start, asynchronous end, or
-        synchronous) can be specified.
+    def gen_code(self, parent):
+        '''Dynamo specific code generation for this class.
 
         :param parent: an f2pygen object that will be the parent of \
         f2pygen objects created in this method
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :param str halo_exchange_name: specifies the name of the
-        Fortran halo exchange method to generate. This is optional
-        with the default being "halo_exchange".
 
         '''
         from psyclone.f2pygen import IfThenGen, CallGen, CommentGen
@@ -3569,13 +3583,11 @@ class DynHaloExchange(HaloExchange):
             halo_parent = if_then
         else:
             halo_parent = parent
-        if not halo_exchange_name:
-            # default name is for a standard halo exchange"
-            halo_exchange_name = "halo_exchange"
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +
-                "%" + halo_exchange_name + "(depth=" + self._compute_halo_depth() + ")"))
+                "%" + self._halo_exchange_name +
+                "(depth=" + self._compute_halo_depth() + ")"))
         parent.add(CommentGen(parent, ""))
 
 
@@ -3613,35 +3625,11 @@ class DynHaloExchangeStart(DynHaloExchange):
             # specifies that the start of a halo exchange only reads
             # the field's data.
             self._field.access = "gh_read"
-
-    def gen_code(self, parent):
-        '''Generate the Fortran halo exchange start call. Makes heavy use of
-        the parent class, just providing the appropriate name to call.
-
-        :param parent: an f2pygen object that will be the parent of \
-        f2pygen objects created in this method
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        DynHaloExchange.gen_code(self, parent,
-                                 halo_exchange_name="halo_exchange_start")
-
-    @property
-    def coloured_text(self):
-        '''Return an appropriate name for this object (which is used in the
-        view() method, coloured in a way specified by the
-        SCHEDULE_COLOUR_MAP dictionary. Colors are only used if the
-        appropriate package (termcolor) is installed.
-
-        :return: Returns HaloExchangeStart as a string. This string is
-        coloured in the way specified in the SCHEDULE_COLOUR_MAP
-        dictionary if the package (termcolor) is installed.
-        :rtype: str
-
-        '''
-        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-        return colored("HaloExchangeStart",
-                       SCHEDULE_COLOUR_MAP["HaloExchangeStart"])
+        # override appropriate parent class names
+        self._halo_exchange_name = "halo_exchange_start"
+        self._text_name = "HaloExchangeStart"
+        self._colour_map_name = "HaloExchangeStart"
+        self._dag_name = "haloexchangestart"
 
     def _compute_stencil_type(self):
         '''Call the required method in the corresponding halo exchange end
@@ -3687,16 +3675,6 @@ class DynHaloExchangeStart(DynHaloExchange):
         remote_node = self._get_hex_end()
         return remote_node.required()
 
-    @property
-    def dag_name(self):
-        '''Specify the name to use for this node if outputting a dag
-
-        :return: Returns the dag name as a string
-        :rtype: str
-
-        '''
-        HaloExchange.dag_name(self, name="haloexchangestart")
-
     def _get_hex_end(self):
         '''An internal helper routine for this class which finds the halo
         exchange end object corresponding to this halo exchange start
@@ -3709,7 +3687,6 @@ class DynHaloExchangeStart(DynHaloExchange):
         not a HaloExchangeEnd
 
         '''
-        
         for node in self.following():
             if self.sameParent(node):
                 if isinstance(node, DynHaloExchange):
@@ -3756,44 +3733,11 @@ class DynHaloExchangeEnd(DynHaloExchange):
             # specifies that the end of a halo exchange only writes to
             # the data
             self._field.access = "gh_write"
-
-    def gen_code(self, parent):
-        '''Generate the Fortran halo exchange end call. Makes heavy use of
-        the parent class, just providing the appropriate name to call.
-
-        :param parent: an f2pygen object that will be the parent of \
-        f2pygen objects created in this method
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        '''
-        DynHaloExchange.gen_code(self, parent,
-                                 halo_exchange_name="halo_exchange_finish")
-
-    @property
-    def coloured_text(self):
-        '''Return an appropriate name for this object (which is used in the
-        view() method, coloured in a way specified by the
-        SCHEDULE_COLOUR_MAP dictionary. Colors are only used if the
-        appropriate package (termcolor) is installed.
-
-        :return: Returns HaloExchangeEnd as a string. This string is
-        coloured in the way specified in the SCHEDULE_COLOUR_MAP
-        dictionary if the package (termcolor) is installed.
-        :rtype: str
-
-        '''
-        from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-        return colored("HaloExchangeEnd", SCHEDULE_COLOUR_MAP["HaloExchangeEnd"])
-        
-    @property
-    def dag_name(self):
-        '''Specify the name to use for this node if outputting a dag
-
-        :return: Returns the dag name as a string
-        :rtype: str
-
-        '''
-        HaloExchange.dag_name(self, name="haloexchangeend")
+        # override appropriate parent class names
+        self._halo_exchange_name = "halo_exchange_finish"
+        self._text_name = "HaloExchangeEnd"
+        self._colour_map_name = "HaloExchangeEnd"
+        self._dag_name = "haloexchangeend"
 
 
 class HaloDepth(object):
