@@ -49,7 +49,8 @@ from psyclone.transformations import TransformationError, \
     DynamoLoopFuseTrans, \
     KernelModuleInlineTrans, \
     MoveTrans, \
-    Dynamo0p3RedundantComputationTrans
+    Dynamo0p3RedundantComputationTrans, \
+    DynAsyncHaloExchangeTrans
 from psyclone.configuration import ConfigFactory
 from psyclone_test_utils import TEST_COMPILE, code_compiles
 
@@ -6483,7 +6484,6 @@ def test_async_hex_wrong_node():
 
     '''
     from psyclone.psyGen import Loop
-    from psyclone.transformations import DynAsyncHaloExchangeTrans
     node = Loop()
     ahex = DynAsyncHaloExchangeTrans()
     with pytest.raises(TransformationError) as err:
@@ -6493,14 +6493,12 @@ def test_async_hex_wrong_node():
 
 def test_async_hex_name():
     ''' Name test for the DynAsyncHaloExchangeTrans class '''
-    from psyclone.transformations import DynAsyncHaloExchangeTrans
     ahex = DynAsyncHaloExchangeTrans()
     assert ahex.name == "DynAsyncHaloExchangeTrans"
 
 
 def test_async_hex_str():
     ''' String test for the DynAsyncHaloExchangeTrans class '''
-    from psyclone.transformations import DynAsyncHaloExchangeTrans
     ahex = DynAsyncHaloExchangeTrans()
     assert (str(ahex) == "Changes a synchronous halo exchange into an "
             "asynchronous one.")
@@ -6519,7 +6517,6 @@ def test_async_hex():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     f2_hex = schedule.children[0]
-    from psyclone.transformations import DynAsyncHaloExchangeTrans
     ahex_trans = DynAsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
     result = str(psy.gen)
@@ -6534,4 +6531,266 @@ def test_async_hex():
         "        CALL f2_proxy%halo_exchange_finish(depth=1)\n"
         "      END IF \n"
         "      !\n") in result
-    print (result)
+
+
+def test_async_hex_move_1():
+    '''Test that we can convert a synchronous halo exchange to an
+    asynchronous one using the DynAsyncHaloExchangeTrans
+    transformation and then move them to new valid locations. In this
+    case we move them before and after other halo exchanges
+    respectively.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_files", "dynamo0p3",
+        "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    m1_hex = schedule.children[1]
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    schedule, _ = ahex_trans.apply(m1_hex)
+
+    mtrans = MoveTrans()
+    schedule, _ = mtrans.apply(schedule.children[1],
+                               schedule.children[0])
+    schedule, _ = mtrans.apply(schedule.children[3],
+                               schedule.children[2])
+    result = str(psy.gen)
+    assert (
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange_start(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (f2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m2_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL m1_proxy%halo_exchange_finish(depth=1)\n"
+        "      END IF \n") in result
+
+def test_async_hex_preserve_properties():
+    '''Test that an asynchronous halo exchange created by the
+    DynAsyncHaloExchangeTrans transformation maintains the properties
+    of the original halo exchange.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_files", "dynamo0p3",
+        "4.3_multikernel_invokes.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    
+    # We don't need this halo exchange
+    f2_hex = schedule.children[0]
+    _, known = f2_hex.required()
+    field_name = f2_hex.field.name
+    stencil_type = f2_hex._compute_stencil_type()
+    halo_depth = f2_hex._compute_halo_depth()
+    
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    schedule, _ = ahex_trans.apply(f2_hex)
+    f2_async_hex_start = schedule.children[0]
+
+    _, f2_async_start_known = f2_async_hex_start.required()
+    assert f2_async_start_known == known
+    assert f2_async_hex_start.field.name == field_name
+    assert f2_async_hex_start._compute_stencil_type() == stencil_type
+    assert f2_async_hex_start._compute_halo_depth() == halo_depth
+    
+    f2_async_hex_end = schedule.children[1]
+    _, f2_async_end_known = f2_async_hex_end.required()
+    assert f2_async_end_known == known
+    assert f2_async_hex_end.field.name == field_name
+    assert f2_async_hex_end._compute_stencil_type() == stencil_type
+    assert f2_async_hex_end._compute_halo_depth() == halo_depth
+
+    # we do need this halo exchange
+    f1_hex = schedule.children[6]
+    _, known = f1_hex.required()
+    field_name = f1_hex.field.name
+    stencil_type = f1_hex._compute_stencil_type()
+    halo_depth = f1_hex._compute_halo_depth()
+
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    schedule, _ = ahex_trans.apply(f1_hex)
+
+    f1_async_hex_start = schedule.children[6]
+    _, f1_async_start_known = f1_async_hex_start.required()
+    assert f1_async_start_known == known
+    assert f1_async_hex_start.field.name == field_name
+    assert f1_async_hex_start._compute_stencil_type() == stencil_type
+    assert f1_async_hex_start._compute_halo_depth() == halo_depth
+
+    f1_async_hex_end = schedule.children[7]
+    _, f1_async_end_known = f1_async_hex_end.required()
+    assert f1_async_end_known == known
+    assert f1_async_hex_end.field.name == field_name
+    assert f1_async_hex_end._compute_stencil_type() == stencil_type
+    assert f1_async_hex_end._compute_halo_depth() == halo_depth
+
+
+def test_async_hex_move_2():
+    '''Test that we can convert a synchronous halo exchange to an
+    asynchronous one using the DynAsyncHaloExchangeTrans
+    transformation and then move them to new valid locations. In this
+    case we move a haloexchangestart before a loop.
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_files", "dynamo0p3",
+        "4.5.2_multikernel_invokes.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    f2_hex = schedule.children[11]
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    schedule, _ = ahex_trans.apply(f2_hex)
+
+    mtrans = MoveTrans()
+    schedule, _ = mtrans.apply(schedule.children[11],
+                               schedule.children[10])
+    result = str(psy.gen)
+    assert (
+        "      CALL f2_proxy%halo_exchange_start(depth=1)\n"
+        "      !\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "        !\n"
+        "        CALL testkern_any_space_3_code(cell, nlayers, "
+        "op_proxy%ncell_3d, op_proxy%local_stencil, ndf_any_space_1_op, "
+        "ndf_any_space_2_op)\n"
+        "      END DO \n"
+        "      CALL f2_proxy%halo_exchange_finish(depth=1)\n") in result
+
+
+def test_async_hex_move_error_1():
+    '''Test that an asynchronous halo exchange start can not be moved
+    after its end and its end cannot be moved before its start
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_files", "dynamo0p3",
+        "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    m1_hex = schedule.children[1]
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    schedule, _ = ahex_trans.apply(m1_hex)
+
+    mtrans = MoveTrans()
+
+    # end before start
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = mtrans.apply(schedule.children[2],
+                                   schedule.children[1])
+    assert "dependencies forbid" in str(excinfo.value)
+
+    # start after end
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = mtrans.apply(schedule.children[1],
+                                   schedule.children[3])
+    assert "dependencies forbid" in str(excinfo.value)
+
+
+def test_async_hex_move_error_2():
+    '''Test that an asynchronous halo exchange start can not be moved
+    before a kernel that modifies the field and its end cannot be
+    moved after a kernel that reads the field
+
+    '''
+    _, invoke_info = parse(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_files", "dynamo0p3",
+        "4.3_multikernel_invokes.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    f1_hex = schedule.children[5]
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    schedule, _ = ahex_trans.apply(f1_hex)
+
+    mtrans = MoveTrans()
+
+    # start before prev modifier
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = mtrans.apply(schedule.children[5],
+                                   schedule.children[4])
+    assert "dependencies forbid" in str(excinfo.value)
+
+    # end after following reader
+    with pytest.raises(TransformationError) as excinfo:
+        schedule, _ = mtrans.apply(schedule.children[6],
+                                   schedule.children[7],
+                                   position="after")
+    assert "dependencies forbid" in str(excinfo.value)
+
+
+def test_rc_remove_async_halo_exchange(monkeypatch):
+    '''Test that a halo exchange is removed if redundant computation means
+    that it is no longer required. Halo exchanges are not required in
+    this example when we compute annexed dofs. Therefore we ensure we
+    compute over owned dofs (via monkeypatch) to perform the test.
+
+    '''
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", False)
+    _, info = parse(os.path.join(
+        BASE_PATH, "14.7_halo_annexed.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    ahex_trans = DynAsyncHaloExchangeTrans()
+
+    f2_hex = schedule.children[3]
+    schedule, _ = ahex_trans.apply(f2_hex)
+    f1_hex = schedule.children[2]
+    schedule, _ = ahex_trans.apply(f1_hex)
+
+    result = str(psy.gen)
+    assert "CALL f1_proxy%halo_exchange_start(depth=1)" in result
+    assert "CALL f1_proxy%halo_exchange_finish(depth=1)" in result
+    assert "CALL f2_proxy%halo_exchange_start(depth=1)" in result
+    assert "CALL f2_proxy%halo_exchange_finish(depth=1)" in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    #
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    #
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[0]
+    rc_trans.apply(loop, depth=1)
+    result = str(psy.gen)
+    assert "CALL f1_proxy%halo_exchange_start(depth=1)" not in result
+    assert "CALL f1_proxy%halo_exchange_finish(depth=1)" not in result
+    assert "CALL f2_proxy%halo_exchange_start(depth=1)" in result
+    assert "CALL f2_proxy%halo_exchange_finish(depth=1)" in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+    #
+    loop = schedule.children[1]
+    rc_trans.apply(loop, depth=1)
+    result = str(psy.gen)
+    assert "CALL f1_proxy%halo_exchange_start(depth=1)" not in result
+    assert "CALL f1_proxy%halo_exchange_finish(depth=1)" not in result
+    assert "CALL f2_proxy%halo_exchange_start(depth=1)" not in result
+    assert "CALL f2_proxy%halo_exchange_finish(depth=1)" not in result
+    assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
+    assert "CALL m1_proxy%halo_exchange(depth=1)" in result
+
+# TODO redundant computation (depth>1) check this works and updated depths. Also check set_clean etc in correct place
+# TODO check vector fields work
+# check a non-region example

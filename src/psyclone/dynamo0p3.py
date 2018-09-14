@@ -3171,7 +3171,6 @@ class DynGlobalSum(GlobalSum):
         parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
-
 def _create_depth_list(halo_info_list):
     '''Halo's may have more than one dependency. This method simplifies
     multiple dependencies to remove duplicates and any obvious
@@ -3729,10 +3728,12 @@ class DynHaloExchangeEnd(DynHaloExchange):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
                                  vector_index=vector_index, parent=parent)
         if field:
-            # Update fields values appropriately. Here "gh_write"
-            # specifies that the end of a halo exchange only writes to
-            # the data
-            self._field.access = "gh_write"
+            # Update fields values appropriately. Here "gh_readwrite"
+            # specifies that the end of a halo exchange writes to the
+            # data but also preserves any existing data. This is
+            # probably officially a write but readwrite is needed for
+            # the halo exchange logic to work correctly in any case.
+            self._field.access = "gh_readwrite"
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_finish"
         self._text_name = "HaloExchangeEnd"
