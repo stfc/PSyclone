@@ -36,14 +36,12 @@
 ''' Module containing py.test tests for the transformation of
     the PSy representation of NEMO code '''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import os
-import fparser
 import pytest
-from psyclone.parse import parse, ParseError
+from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo, InternalError, \
     GenerationError
-from psyclone import nemo
 
 # Constants
 API = "nemo"
@@ -55,8 +53,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_explicit_gen():
     ''' Check code generation for a single explicit loop containing
     a kernel. '''
-    ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
-                             api=API, line_length=False)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
+                           api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('explicit_do').schedule
     tinfo = TransInfo()
@@ -67,7 +65,6 @@ def test_explicit_gen():
         if kernel and loop.loop_type == "levels":
             schedule, _ = omp_trans.apply(loop)
     gen_code = str(psy.gen).lower()
-    print(gen_code)
     expected = (
         "program explicit_do\n"
         "  implicit none\n"
@@ -96,11 +93,11 @@ def test_omp_parallel():
     explicit loop. '''
     from psyclone.transformations import OMPParallelTrans
     otrans = OMPParallelTrans()
-    ast, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
-                             api=API, line_length=False)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
+                           api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('explicit_do').schedule
-    new_sched, _ = otrans.apply([schedule.children[0]])
+    schedule, _ = otrans.apply([schedule.children[0]])
     gen_code = str(psy.gen).lower()
     assert ("  !$omp parallel default(shared), private(jk,jj,ji)\n"
             "  do jk = 1, jpk\n"
@@ -119,8 +116,8 @@ def test_omp_parallel_multi():
     from psyclone.transformations import OMPParallelTrans
     from psyclone.psyGen import OMPParallelDirective
     otrans = OMPParallelTrans()
-    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
-                             api=API, line_length=False)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
     schedule.view()
@@ -157,10 +154,9 @@ def test_omp_parallel_errs():
     ''' Check insertion of an OpenMP parallel region containing more than
     one node. '''
     from psyclone.transformations import OMPParallelTrans
-    from psyclone.psyGen import OMPParallelDirective
     otrans = OMPParallelTrans()
-    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
-                             api=API, line_length=False)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
     schedule.view()
@@ -183,8 +179,8 @@ def test_omp_do_children_err():
     from psyclone.transformations import OMPParallelLoopTrans
     from psyclone.psyGen import OMPParallelDoDirective
     otrans = OMPParallelLoopTrans()
-    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
-                             api=API, line_length=False)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
     new_sched, _ = otrans.apply(schedule.children[0].children[2])
@@ -203,13 +199,12 @@ def test_omp_do_missing_parent(monkeypatch):
     ''' Check that we raise the expected error when we cannot find the
     parent node in the fparser2 AST. '''
     from psyclone.transformations import OMPParallelLoopTrans
-    from psyclone.psyGen import OMPParallelDoDirective
     otrans = OMPParallelLoopTrans()
-    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
-                             api=API, line_length=False)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
-    new_sched, _ = otrans.apply(schedule.children[0])
+    schedule, _ = otrans.apply(schedule.children[0])
     # Remove the reference to the fparser2 AST from the Schedule node
     monkeypatch.setattr(schedule, "_ast", None)
     with pytest.raises(InternalError) as err:
@@ -221,17 +216,15 @@ def test_omp_do_missing_parent(monkeypatch):
 def test_omp_do_within_if():
     ''' Check that we can insert an OpenMP parallel do within an if block. '''
     from psyclone.transformations import OMPParallelLoopTrans
-    from psyclone.psyGen import OMPParallelDoDirective
     otrans = OMPParallelLoopTrans()
-    ast, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
-                             api=API, line_length=False)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
     # Apply the transformation to a loop within an else clause
-    new_sched, _ = otrans.apply(schedule.children[0].children[1].
-                                children[2].children[0])
+    schedule, _ = otrans.apply(schedule.children[0].children[1].
+                               children[2].children[0])
     gen = str(psy.gen)
-    print(gen)
     expected = (
         "    ELSE\n"
         "      !$omp parallel do default(shared), private(psy_jj,psy_ji), "

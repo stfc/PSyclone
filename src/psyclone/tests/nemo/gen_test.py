@@ -39,10 +39,6 @@
 from __future__ import print_function, absolute_import
 import os
 import fparser
-import pytest
-from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory
-from psyclone import nemo
 
 # Constants
 API = "nemo"
@@ -59,4 +55,3 @@ def test_api_no_alg():
                         api="nemo")
     assert alg is None
     assert isinstance(psy, fparser.two.Fortran2003.Program)
-    

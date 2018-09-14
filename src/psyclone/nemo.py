@@ -332,6 +332,9 @@ class NemoCodeBlock(Node):
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
 
+    def gen_code(self):
+        ''' Override abstract method from base class. '''
+
 
 class NemoKern(Kern):
     ''' Stores information about NEMO kernels as extracted from the
@@ -763,6 +766,10 @@ class NemoIfBlock(IfBlock, ASTProcessor):
             ast.content[start_idx]._parent = ast  # Retrofit parent info
             self.addchild(NemoIfClause(ast.content[start_idx:end_idx],
                                        parent=self))
+
+    def gen_code(self):
+        ''' Override abstract method of base class. '''
+
 
     @staticmethod
     def match(node):
