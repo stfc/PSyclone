@@ -42,7 +42,6 @@
 
 from __future__ import print_function, absolute_import
 import copy
-from psyclone.parse import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
     NameSpaceFactory, SCHEDULE_COLOUR_MAP as _BASE_CMAP
@@ -100,6 +99,8 @@ class ASTProcessor(object):
         '''
         code_block_nodes = []
         for child in nodes:
+            # TODO remove this line once fparser2 contains parent
+            # information (fparser/#102)
             child._parent = nodes_parent  # Retro-fit parent info
             if isinstance(child,
                           Fortran2003.Block_Nonlabel_Do_Construct):
@@ -175,7 +176,13 @@ class NemoInvoke(Invoke):
 
 
 class NemoInvokes(Invokes):
+    '''
+    Class capturing information on all 'Invokes' (program units) within
+    a single NEMO source file.
 
+    :param ast: The fparser2 AST for the whole Fortran source file
+    :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
+    '''
     def __init__(self, ast):
         from habakkuk.parse2003 import get_child, ParseError as perror
         from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
@@ -803,3 +810,6 @@ class NemoIfClause(IfClause, ASTProcessor):
         self.process_nodes(parent=self,
                            nodes=ast_nodes[1:],
                            nodes_parent=self._ast._parent)
+
+    def gen_code(self):
+        ''' Override abstract method of base class. '''

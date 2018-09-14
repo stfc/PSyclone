@@ -3684,6 +3684,9 @@ class IfBlock(Node):
         super(IfBlock, self).__init__(parent=parent)
         self._condition = ""
 
+    def __str__(self):
+        return "If-block: "+self._condition
+
     @property
     def coloured_text(self):
         '''

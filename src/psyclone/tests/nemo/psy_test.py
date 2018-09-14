@@ -249,14 +249,13 @@ def test_kern_inside_if():
                              api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
     kerns = sched.walk(sched.children, nemo.NemoKern)
     assert len(kerns) == 6
-    assert isinstance(sched.children[0].children[1], nemo.NemoIfBlock)
-    assert isinstance(sched.children[0].children[1].children[1],
-                      nemo.NemoIfClause)
-    assert isinstance(sched.children[0].children[1].children[2],
-                      nemo.NemoIfClause)
+    ifblock = sched.children[0].children[1]
+    assert isinstance(ifblock, nemo.NemoIfBlock)
+    assert str(ifblock) == "If-block: jk == 1"
+    assert isinstance(ifblock.children[1], nemo.NemoIfClause)
+    assert isinstance(ifblock.children[2], nemo.NemoIfClause)
 
 
 def test_invalid_if_clause():
