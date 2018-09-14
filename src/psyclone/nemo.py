@@ -33,7 +33,7 @@
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''This module implements the PSyclone NEMO 0.1 API by specialising
+'''This module implements the PSyclone NEMO API by specialising
     the required base classes for both code generation (PSy, Invokes,
     Invoke, Schedule, Loop, Kern, Arguments and KernelArgument)
     and parsing (Descriptor and KernelType).
@@ -141,7 +141,8 @@ class NemoInvoke(Invoke):
         # Store the whole fparser2 AST
         self._ast = ast
         self._name_space_manager = NameSpaceFactory().create()
-
+        # TODO move the get_child functionality out of habakkuk and into
+        # fparser
         from habakkuk.parse2003 import get_child, ParseError as perror
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
