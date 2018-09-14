@@ -33,20 +33,21 @@
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
       
-.. _nemo0.1-api:
+.. _nemo-api:
 
-NEMO 0.1 API
-============
+NEMO API
+========
 
 In contrast to the other APIs supported by PSyclone, the NEMO API is
 designed to work with source code that does *not* follow the PSyKAl
 separation of concerns. Instead, the NEMO source code is treated as if
 it were a manually written PSy layer with all kernels in-lined. This
-approach relies upon the NEMO coding standards in order to reason
-about the code being processed. Rather than construct a Schedule for
-the PSy layer from scratch (as is done for other APIs), the Schedule
-is constructed by parsing the supplied Fortran code and generating a
-higher-level representation.
+approach relies upon the NEMO Coding Conventions
+:cite:`nemo_code_conv` in order to reason about the code being
+processed. Rather than construct a Schedule for the PSy layer from
+scratch (as is done for other APIs), the Schedule is constructed by
+parsing the supplied Fortran code and generating a higher-level
+representation.
 
 Algorithm
 ---------
@@ -73,7 +74,8 @@ routine) is shown below::
             END DO
          END DO
 
-PSyclone uses fparser to parse such source code and then generates an internal representation of it::
+PSyclone uses fparser2 to parse such source code and then generates an
+internal representation of it::
   
     Loop[type='tracers',field_space='None',it_space='None']
          Loop[type='levels',field_space='None',it_space='None']
