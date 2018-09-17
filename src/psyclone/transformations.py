@@ -1285,9 +1285,6 @@ class Dynamo0p3ColourTrans(ColourTrans):
                 "Error in DynamoColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
 
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node)
-
         # Colouring is only necessary (and permitted) if the loop is
         # over cells. Since this is the default it is represented by
         # an empty string.

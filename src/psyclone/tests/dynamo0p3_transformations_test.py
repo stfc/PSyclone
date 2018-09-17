@@ -6392,32 +6392,37 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
         print("OK for iteration ", idx)
 
 
-def test_intergrid_rejected():
-    ''' Check that any attempt to apply a transformation that affects
-    an inter-grid kernel is rejected. (Obviously this can be removed
-    once transformations with inter-grid kernels are supported.) '''
+def test_intergrid_colour(dist_mem):
+    ''' Check that we can apply colouring to a loop containing
+    an inter-grid kernel. '''
+    from psyclone import psyGen
+    # Use an example that contains both prolongation and restriction
+    # kernels
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # First two kernels are prolongation, last two are restriction
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    ctrans = Dynamo0p3ColourTrans()
+    # To a prolong kernel
+    new_sched, _ = ctrans.apply(loops[1])
+    # To a restrict kernel
+    new_sched, _ = ctrans.apply(loops[3])
+    gen = str(psy.gen)
+    print(gen)
+    expected = '''\
+      CALL fld_c_proxy%vspace%get_colours(ncolour_fld_m, ncp_colour_fld_m, cmap_fld_m)
+      !
+      DO colour=1,ncolour_fld_m
+        DO cell=1,ncp_colour_fld_m(colour)
+          !
+          CALL restrict_kernel_code(nlayers, cell_map_fld_c(:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, fld_c_proxy%data, fld_m_proxy%data, undf_any_space_1_fld_c, map_any_space_1_fld_c(:,cmap_fld_m(colour, cell))'''
+    assert expected in gen
 
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
         "kernels as children and ")
-
-    # Use an example that contains both prolongation and restriction
-    # kernels
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "22.2_intergrid_3levels.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    # To a prolong kernel
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[1], depth=2)
-    assert expected_err in str(excinfo)
-
-    ctrans = Dynamo0p3ColourTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ctrans.apply(schedule.children[4])
-    assert expected_err in str(excinfo)
 
     # To a restrict kernel
     rc_trans = Dynamo0p3RedundantComputationTrans()
