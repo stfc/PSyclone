@@ -15,7 +15,7 @@ module kernel_invalid_fortran
           (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),        & ! cu
              go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
              go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
-             go_arg(GO_READ,  GRID_AREA_T)       &
+             go_arg(GO_READ,  GO_GRID_AREA_T)       &
            /)
      integer :: ITERATES_OVER = GO_INTERNAL_PTS
 

@@ -16,12 +16,12 @@ module kernel_unsupported_offset_mod
 
   type, extends(kernel_type) :: compute_z
      type(go_arg), dimension(6) :: meta_args =    &
-          (/ go_arg(GO_WRITE, GO_CF, GO_POINTWISE),        & ! z
-             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
-             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
-             go_arg(GO_READ,  GO_CV, GO_POINTWISE),        & ! v
-             go_arg(GO_READ,  GRID_DX_CONST),        & ! dx
-             go_arg(GO_READ,  GRID_DY_CONST)         & ! dy
+          (/ go_arg(GO_WRITE, GO_CF, GO_POINTWISE),     & ! z
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),     & ! p
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE),     & ! u
+             go_arg(GO_READ,  GO_CV, GO_POINTWISE),     & ! v
+             go_arg(GO_READ,  GO_GRID_DX_CONST),        & ! dx
+             go_arg(GO_READ,  GO_GRID_DY_CONST)         & ! dy
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.

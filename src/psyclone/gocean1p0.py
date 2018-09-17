@@ -1199,7 +1199,7 @@ class GOStencil(object):
                     "(stencil) of field argument with format "
                     "'stencil(...)'. A zero sized stencil has been "
                     "specified. This should be specified with the "
-                    "'pointwise' keyword.".format(kernel_name))
+                    "'go_pointwise' keyword.".format(kernel_name))
             # store the values in an internal array as integers in i,j
             # order
             for idx0 in range(3):

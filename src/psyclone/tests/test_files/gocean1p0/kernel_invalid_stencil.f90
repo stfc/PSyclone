@@ -18,7 +18,7 @@ module kernel_invalid_stencil
           (/ go_arg(GO_WRITE, GO_CU, POINTS),        & ! cu
              go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
              go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
-             go_arg(GO_READ,  GRID_AREA_T)       &
+             go_arg(GO_READ,  GO_GRID_AREA_T)       &
            /)
      integer :: ITERATES_OVER = GO_INTERNAL_PTS
 

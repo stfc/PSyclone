@@ -16,9 +16,9 @@ module kernel_missing_stencil
           ! for the first kernel argument in order to test the 
           ! parser...
           (/ go_arg(GO_WRITE, GO_CU),        & ! cu
-             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
-             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
-             go_arg(GO_READ,  GRID_AREA_T)       &
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),    & ! p
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE),    & ! u
+             go_arg(GO_READ,  GO_GRID_AREA_T)          &
            /)
      integer :: ITERATES_OVER = GO_INTERNAL_PTS
 

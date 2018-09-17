@@ -115,7 +115,7 @@ def test_stencil_invalid_format_1():
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
-    assert ("argument is 'random_name' but must be one of ['pointwise'] or "
+    assert ("argument is 'random_name' but must be one of ['go_pointwise'] or "
             "stencil(...)") in str(excinfo.value)
 
     # this should cause an unsupported name error
@@ -180,7 +180,7 @@ def test_stencil_invalid_format_2():
     with pytest.raises(ParseError) as excinfo:
         stencil.load(parsed_stencil, "kernel_stencil")
     assert ("A zero sized stencil has been specified. This should be "
-            "specified with the 'pointwise' keyword") in str(excinfo.value)
+            "specified with the 'go_pointwise' keyword") in str(excinfo.value)
 
     # lastly, this should work as it is valid
     stencil_string = "stencil(000,011,000)"
@@ -232,17 +232,17 @@ def test_stencil_case_1():
 
 
 def test_stencil_case_2():
-    '''test that the metadata name 'pointwise' can be provided in lower,
+    '''test that the metadata name 'go_pointwise' can be provided in lower,
     or upper case
 
     '''
 
     stencil = GOStencil()
-    stencil_string = "pOiNtWiSe"
+    stencil_string = "go_pOiNtWiSe"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     stencil.load(parsed_stencil, "kernel_stencil")
     assert not stencil.has_stencil
-    assert stencil.name == "pointwise"
+    assert stencil.name == "go_pointwise"
 
 
 def test_stencil_information():
@@ -264,7 +264,7 @@ def test_stencil_information():
         pointwise_arg = kernel.args[idx]
         assert pointwise_arg.stencil
         assert not pointwise_arg.stencil.has_stencil
-        assert pointwise_arg.stencil.name == "pointwise"
+        assert pointwise_arg.stencil.name == "go_pointwise"
 
     # arg 4 provides grid information so knows nothing about stencils
     grid_arg = kernel.args[3]
