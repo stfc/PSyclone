@@ -539,10 +539,18 @@ dimensions:
 	   :width: 600
 	   :align: center
 
-There are two types of inter-grid operation; the first is "prolongation"
-where a field on a coarse mesh is mapped onto a fine mesh. The second
-is "restriction" where a field on a fine mesh is mapped onto a coarse
-mesh. 
+Inter-grid kernels are only permitted to deal with fields on two,
+neighbouring levels of the mesh hierarchy. In the context of a single
+inter-grid kernel we term the coarser of these meshes the "coarse"
+mesh and the other the "fine" mesh.
+
+There are two types of inter-grid operation; the first is
+"prolongation" where a field on a coarse mesh is mapped onto a fine
+mesh. The second is "restriction" where a field on a fine mesh is
+mapped onto a coarse mesh.  Given the factor of two difference in
+resolution between the fine and coarse meshes, the depth of any halo
+accesses for the field on the fine mesh must automatically be double
+that of those on the coarse mesh.
 
 Loop iterators
 --------------
@@ -566,7 +574,8 @@ Cell iterators: Continuous
 
 When a kernel is written to iterate over cells and modify a continuous
 field, PSyclone always computes dofs on owned cells and redundantly
-computes dofs in the level-1 halo. Users can apply a redundant
+computes dofs in the level-1 halo (or level-2 if the field is on the
+fine mesh of an inter-grid kernel). Users can apply a redundant
 computation transformation to increase the halo depth for additional
 redundant computation but it must always at least compute the level-1
 halo. The reason for this is to ensure that the shared dofs on cells
