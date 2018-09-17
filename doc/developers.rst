@@ -530,14 +530,18 @@ Multi-grid
 
 The Dynamo 0.3 API supports kernels that map fields between meshes of
 different horizontal resolutions; these are termed "inter-grid"
-kernels. As indicated in the image below, the change in resolution
-between each level is always a factor of two in both the ``x`` and ``y``
-dimensions:
+kernels. As indicated in :numref:`fig-multigrid` below, the change in
+resolution between each level is always a factor of two in both the
+``x`` and ``y`` dimensions.
 
+.. _fig-multigrid:
 
-.. image:: multigrid.png
+.. figure:: multigrid.png
 	   :width: 600
 	   :align: center
+
+	   The arrangement of cells in the multi-grid hierarchy used
+	   by LFRic. (Courtesy of R. Wong, Met Office.)
 
 Inter-grid kernels are only permitted to deal with fields on two,
 neighbouring levels of the mesh hierarchy. In the context of a single
@@ -890,13 +894,20 @@ If a loop contains one or more kernels that write to a field on a
 continuous function space then it cannot be safely executed in
 parallel on a shared-memory device. This is because fields on a
 continuous function space share dofs between neighbouring cells. One
-solution to this is to 'colour' the cells in a mesh so that all
-cells of a given colour may be safely updated in parallel:
+solution to this is to 'colour' the cells in a mesh so that all cells
+of a given colour may be safely updated in parallel
+(:numref:`fig-colouring`).
 
-.. image:: lfric_colouring.png
+.. _fig-colouring:
+
+.. figure:: lfric_colouring.png
 	   :width: 300
 	   :align: center
 
+	   Example of the colouring of the horizontal cells used to
+	   ensure the thread-safe update of shared dofs (black
+	   circles).  (Courtesy of S. Mullerworth, Met Office.)
+	   
 The loop over colours must then be performed sequentially but the loop
 over cells of a given colour may be done in parallel. A loop that
 requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
@@ -910,9 +921,9 @@ maps of meshes of differing resolution.
 However, the iteration space for inter-grid kernels (that map a field
 from one mesh to another) is always determined by the coarser of the
 two meshes.  Consequently, it is always the colouring of this mesh
-that must be used.  Due to the set-up of the mesh hierarchy
-(see :ref:`multigrid`), this guarantees that there will not be any race
-conditions when updating shared quantities on either the fine or
+that must be used.  Due to the set-up of the mesh hierarchy (see
+:numref:`fig-multigrid`), this guarantees that there will not be any
+race conditions when updating shared quantities on either the fine or
 coarse mesh.
 
 GOcean1.0
