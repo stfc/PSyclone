@@ -13,7 +13,7 @@ implicit none
 private
 
 enum, bind(c) 
-   ! The following value is valid for any arg.
+   ! The following value is valid for any go_arg.
    enumerator :: GO_READ
    ! The following values are only valid for fields.
    enumerator :: GO_WRITE, GO_READWRITE, GO_INC

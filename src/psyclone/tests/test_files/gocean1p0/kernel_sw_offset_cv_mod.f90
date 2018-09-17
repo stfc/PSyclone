@@ -40,14 +40,14 @@ module kernel_sw_offset_cv_mod
   public apply_bcs_v, apply_bcs_v_code
 
   type, extends(kernel_type) :: compute_v
-     type(arg), dimension(3) :: meta_args =    &
-          (/ arg(WRITE, CV, POINTWISE),        &
-             arg(READ,  CU, POINTWISE),        &
-             arg(READ,  CT, POINTWISE)         &
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CV, GO_POINTWISE),        &
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        &
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE)         &
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.
-     integer :: ITERATES_OVER = INTERNAL_PTS
+     integer :: ITERATES_OVER = GO_INTERNAL_PTS
 
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -56,20 +56,20 @@ module kernel_sw_offset_cv_mod
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_v_code
   end type compute_v
 
   type, extends(kernel_type) :: apply_bcs_v
-     type(arg), dimension(2) :: meta_args =    &
-          (/ arg(WRITE, CV, POINTWISE),        &
-             arg(READ,  CU, POINTWISE)         &
+     type(go_arg), dimension(2) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CV, GO_POINTWISE),        &
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE)         &
            /)
      !> This kernel writes to all points of the
      !! simulation domain.
-     integer :: ITERATES_OVER = ALL_PTS
+     integer :: ITERATES_OVER = GO_ALL_PTS
 
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -78,7 +78,7 @@ module kernel_sw_offset_cv_mod
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => apply_bcs_v_code

@@ -11,15 +11,15 @@ module kernel_invalid_fortran
   public compute_cu, compute_cu_code
 
   type, extends(kernel_type) :: compute_cu
-     type(arg), dimension(4) :: meta_args =    &
-          (/ arg(WRITE, CU, POINTWISE),        & ! cu
-             arg(READ,  CT, POINTWISE),        & ! p
-             arg(READ,  CU, POINTWISE),        & ! u
-             arg(READ,  GRID_AREA_T)       &
+     type(go_arg), dimension(4) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),        & ! cu
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
+             go_arg(GO_READ,  GRID_AREA_T)       &
            /)
-     integer :: ITERATES_OVER = INTERNAL_PTS
+     integer :: ITERATES_OVER = GO_INTERNAL_PTS
 
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_cu_code
@@ -38,7 +38,7 @@ contains
     real(wp), intent(out), dimension(:,:) :: cu
     real(wp), intent(in),  dimension(:,:) :: p, u
 
-    CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
+    GO_CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 
   end subroutine compute_cu_code
 

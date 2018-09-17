@@ -12,17 +12,17 @@ module compute_cu_mod
   public compute_cu, compute_cu_code
 
   type, extends(kernel_type) :: compute_cu
-     type(arg), dimension(3) :: meta_args =    &
-          (/ arg(WRITE, CU, POINTWISE),        & ! cu
-             arg(READ,  CT, POINTWISE),        & ! p
-             arg(READ,  CU, POINTWISE)         & ! u
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),        & ! cu
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE)         & ! u
            /)
-     integer :: ITERATES_OVER = INTERNAL_PTS
+     integer :: ITERATES_OVER = GO_INTERNAL_PTS
 
      ! A GOcean1.0 kernel must specify the index_offset that
      ! it is expecting. We comment this out here to test
      ! that the parser catches this.
-     !integer :: index_offset = OFFSET_SW
+     !integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_cu_code
@@ -44,7 +44,7 @@ contains
     ! Note that we do not loop over the full extent of the field.
     ! Fields are allocated with extents (M+1,N+1).
     ! Presumably the extra row and column are needed for periodic BCs.
-    ! We are updating a quantity on CU.
+    ! We are updating a quantity on GO_CU.
     ! This loop writes to cu(2:M+1,1:N) so this looks like
     ! (using x to indicate a location that is written):
     !
@@ -54,21 +54,21 @@ contains
     !  o  x  x  x
     !  o  x  x  x   j=1
 
-    ! Quantity CU is mass flux in x direction.
+    ! Quantity GO_CU is mass flux in x direction.
 
     ! Original code looked like:
     !
     !    DO J=1,N
     !      DO I=1,M
-    !           CU(I+1,J) = .5*(P(I+1,J)+P(I,J))*U(I+1,J)
+    !           GO_CU(I+1,J) = .5*(P(I+1,J)+P(I,J))*U(I+1,J)
     !      END DO
     !    END DO
 
     ! cu(i,j) depends upon:
-    !   p(i-1,j), p(i,j) : CT
-    !    => lateral CT neighbours of the CU pt being updated
-    !   u(i,j)           : CU
-    !    => the horiz. vel. component at the CU pt being updated
+    !   p(i-1,j), p(i,j) : GO_CT
+    !    => lateral GO_CT neighbours of the GO_CU pt being updated
+    !   u(i,j)           : GO_CU
+    !    => the horiz. vel. component at the GO_CU pt being updated
 
     !   vi-1j+1--fij+1---vij+1---fi+1j+1
     !   |        |       |       |
@@ -100,7 +100,7 @@ contains
     real(wp), intent(out), dimension(:,:) :: cu
     real(wp), intent(in),  dimension(:,:) :: p, u
 
-    CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
+    GO_CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 
   end subroutine compute_cu_code
 

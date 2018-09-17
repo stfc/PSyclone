@@ -47,29 +47,29 @@ module momentum_mod
   !=======================================
 
   type, extends(kernel_type) :: momentum_u
-     type(arg), dimension(18) :: meta_args =  &
-          (/ arg(READWRITE, CU, POINTWISE),  & ! ua
-             arg(READ,      CU, POINTWISE),  & ! un
-             arg(READ,      CV, POINTWISE),  & ! vn
-             arg(READ,      CU, POINTWISE),  & ! hu
-             arg(READ,      CV, POINTWISE),  & ! hv
-             arg(READ,      CT, POINTWISE),  & ! ht
-             arg(READ,      CU, POINTWISE),  & ! ssha_u
-             arg(READ,      CT, POINTWISE),  & ! sshn_t
-             arg(READ,      CU, POINTWISE),  & ! sshn_u
-             arg(READ,      CV, POINTWISE),  & ! sshn_v
-             arg(READ,      GRID_MASK_T),    &
-             arg(READ,      GRID_DX_U),      &
-             arg(READ,      GRID_DX_V),      &
-             arg(READ,      GRID_DX_T),      &
-             arg(READ,      GRID_DY_U),      &
-             arg(READ,      GRID_DY_T),      &
-             arg(READ,      GRID_AREA_U),    &
-             arg(READ,      GRID_LAT_U)      &
+     type(go_arg), dimension(18) :: meta_args =  &
+          (/ go_arg(GO_READWRITE, GO_CU, GO_POINTWISE),  & ! ua
+             go_arg(GO_READ,      GO_CU, GO_POINTWISE),  & ! un
+             go_arg(GO_READ,      GO_CV, GO_POINTWISE),  & ! vn
+             go_arg(GO_READ,      GO_CU, GO_POINTWISE),  & ! hu
+             go_arg(GO_READ,      GO_CV, GO_POINTWISE),  & ! hv
+             go_arg(GO_READ,      GO_CT, GO_POINTWISE),  & ! ht
+             go_arg(GO_READ,      GO_CU, GO_POINTWISE),  & ! ssha_u
+             go_arg(GO_READ,      GO_CT, GO_POINTWISE),  & ! sshn_t
+             go_arg(GO_READ,      GO_CU, GO_POINTWISE),  & ! sshn_u
+             go_arg(GO_READ,      GO_CV, GO_POINTWISE),  & ! sshn_v
+             go_arg(GO_READ,      GO_GRID_MASK_T),    &
+             go_arg(GO_READ,      GO_GRID_DX_U),      &
+             go_arg(GO_READ,      GO_GRID_DX_V),      &
+             go_arg(GO_READ,      GO_GRID_DX_T),      &
+             go_arg(GO_READ,      GO_GRID_DY_U),      &
+             go_arg(GO_READ,      GO_GRID_DY_T),      &
+             go_arg(GO_READ,      GO_GRID_AREA_U),    &
+             go_arg(GO_READ,      GO_GRID_LAT_U)      &
            /)
 
-     integer :: ITERATES_OVER = INTERNAL_PTS
-     integer :: index_offset = OFFSET_NE
+     integer :: ITERATES_OVER = GO_INTERNAL_PTS
+     integer :: index_offset = GO_OFFSET_NE
 
   contains
     procedure, nopass :: code => momentum_u_code
@@ -82,18 +82,17 @@ contains
                              hu, hv, ht, ssha_u, &
                              sshn, sshn_u, sshn_v, &
                              tmask, e1u, e1v, e1t, e2u, e2t, e12u, gphiu)
-    use model_mod, only: rdt, cbfr, visc
     implicit none
     integer, intent(in) :: ji, jj
     integer,  dimension(:,:), intent(in) :: tmask
-    real(wp), dimension(:,:), intent(in) :: e1u, e1v, e1t, e12u, e2u, e2t, gphiu
-    real(wp), dimension(:,:), intent(in) :: hu, hv, ht
-    real(wp), dimension(:,:), intent(in) :: ssha_u, sshn, sshn_u, sshn_v
-    real(wp), dimension(:,:), intent(in) :: un, vn
-    real(wp), dimension(:,:), intent(out) :: ua
+    real(go_wp), dimension(:,:), intent(in) :: e1u, e1v, e1t, e12u, e2u, e2t, gphiu
+    real(go_wp), dimension(:,:), intent(in) :: hu, hv, ht
+    real(go_wp), dimension(:,:), intent(in) :: ssha_u, sshn, sshn_u, sshn_v
+    real(go_wp), dimension(:,:), intent(in) :: un, vn
+    real(go_wp), dimension(:,:), intent(out) :: ua
 
     !kernel ua calculation 
-    ua(ji,jj) = 0.0_wp
+    ua(ji,jj) = 0.0_go_wp
 
   end subroutine momentum_u_code 
 

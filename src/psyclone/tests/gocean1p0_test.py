@@ -841,16 +841,16 @@ def test_goschedule_view(capsys):
 
     expected_output = (
         sched + "[invoke='invoke_0',Constant loop bounds=True]\n"
-        "    " + loop + "[type='outer',field_space='cu',"
-        "it_space='internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='cu',"
-        "it_space='internal_pts']\n"
+        "    " + loop + "[type='outer',field_space='go_cu',"
+        "it_space='go_internal_pts']\n"
+        "        " + loop + "[type='inner',field_space='go_cu',"
+        "it_space='go_internal_pts']\n"
         "            " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
         "[module_inline=False]\n"
-        "    " + loop + "[type='outer',field_space='every',"
-        "it_space='internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='every',"
-        "it_space='internal_pts']\n"
+        "    " + loop + "[type='outer',field_space='go_every',"
+        "it_space='go_internal_pts']\n"
+        "        " + loop + "[type='inner',field_space='go_every',"
+        "it_space='go_internal_pts']\n"
         "            " + call + " time_smooth_code(u_fld,unew_fld,uold_fld) "
         "[module_inline=False]")
 
@@ -901,6 +901,8 @@ def test_goschedule_str():
         "EndLoop\n"
         "EndLoop\n"
         "End Schedule\n")
+    print(sched_str)
+    print(expected_sched)
     assert sched_str in expected_sched
 
 
@@ -1181,7 +1183,7 @@ def test05p1_kernel_add_iteration_spaces():
     '''
 
     # Add new iteration space 'dofs'
-    GOLoop.add_bounds("offset_sw:cu:dofs:1:2:3:{stop}")
+    GOLoop.add_bounds("go_offset_sw:go_cu:dofs:1:2:3:{stop}")
 
     _, invoke_info = \
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
