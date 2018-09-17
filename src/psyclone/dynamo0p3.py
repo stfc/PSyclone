@@ -1842,7 +1842,8 @@ class DynInvokeCMAOperators(object):
 
 class DynMeshes(object):
     '''
-    Holds all mesh-related information. If there are no inter-grid
+    Holds all mesh-related information (including colour maps if required).
+    If there are no inter-grid
     kernels then there is only one mesh object required (when doing
     distributed memory). However, kernels performing inter-grid
     operations require multiple mesh objects as well as mesh maps and
@@ -1866,8 +1867,12 @@ class DynMeshes(object):
         '''
         self._name_space_manager = NameSpaceFactory().create()
 
+        # List of dictionary objects holding information on the mesh-related
+        # variables required by each kernel.
         self._kern_calls = []
+        # List of names of unique mesh variables referenced in the Invoke
         self._mesh_names = []
+
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -1922,13 +1927,36 @@ class DynMeshes(object):
             cell_map = self._name_space_manager.create_name(
                 root_name=base_name, context="PSyVars", label=base_name)
 
+            if call.is_coloured:
+                # Colour map
+                base_name = "cmap_" + coarse_arg.name
+                colour_map = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # No. of colours
+                base_name = "ncolour_" + coarse_arg.name
+                ncolours = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # No. of cells per colour
+                base_name = "ncp_colour_" + coarse_arg.name
+                cellspercol = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+            else:
+                # No colour map required for this kernel
+                colour_map = ""
+                ncolours = ""
+                cellspercol= ""
+
             # Store this information in our list of dicts
+            # TODO make this dictionary a class as we can then document it!
             self._kern_calls.append({"fine": fine_arg,
                                      "ncell_fine": ncell_fine,
                                      "coarse": coarse_arg,
                                      "mmap": mmap,
                                      "ncperc": ncellpercell,
-                                     "cellmap": cell_map})
+                                     "cellmap": cell_map,
+                                     "colourmap": colour_map,
+                                     "ncolours": ncolours,
+                                     "ncellspercolour": cellspercol})
 
             # Create and store the names of the associated mesh objects
             _name_set.add(
@@ -1962,10 +1990,10 @@ class DynMeshes(object):
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
-
+            
     def declarations(self, parent):
         '''
-        Declare variables specific to inter-grid kernels
+        Declare variables specific to mesh objects.
 
         :param parent: the parent node to which to add the declarations
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
@@ -1996,6 +2024,9 @@ class DynMeshes(object):
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[kern["ncell_fine"],
                                              kern["ncperc"]]))
+            # Declare variables to hold the colourmap information if required
+            if kern["colourmap"]:
+                pass  # ARPDBG: WORKING HERE
 
     def initialise(self, parent):
         '''
@@ -4973,7 +5004,12 @@ class DynKern(Kern):
 
             # Find which argument object the kernel writes to (either GH_INC
             # or GH_WRITE) in order to look-up the colour map
-            arg = self.updated_arg
+            if self.is_intergrid:
+                cargs = psyGen.args_filter(self.arguments.args,
+                                           arg_meshes=["gh_coarse"])
+                arg = cargs[0]
+            else:
+                arg = self.updated_arg
             # TODO Check whether this arg is gh_inc and if not, Warn that
             # we're colouring a kernel that has no field object with INC access
 
