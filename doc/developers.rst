@@ -523,21 +523,26 @@ returns the index of the last owned dof, the index of the last annexed
 dof, the index of the last halo dof at a particular depth and the
 index of the last halo dof, to support PSyclone code generation.
 
+.. _multigrid:
+
 Multi-grid
 ----------
 
 The Dynamo 0.3 API supports kernels that map fields between meshes of
-different horizontal resolutions. As indicated in the image below, the
-change in resolution between each level is always a factor of two in
-both the x and y dimensions:
+different horizontal resolutions; these are termed "inter-grid"
+kernels. As indicated in the image below, the change in resolution
+between each level is always a factor of two in both the ``x`` and ``y``
+dimensions:
+
 
 .. image:: multigrid.png
 	   :width: 600
+	   :align: center
 
-Each mesh in the multi-grid hierarchy is coloured separately
-(https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicInfrastructure/MeshColouring)
-and therefore we cannot assume any relationship between the colour
-maps of meshes of differing resolution.
+There are two types of inter-grid operation; the first is "prolongation"
+where a field on a coarse mesh is mapped onto a fine mesh. The second
+is "restriction" where a field on a fine mesh is mapped onto a coarse
+mesh. 
 
 Loop iterators
 --------------
@@ -872,8 +877,34 @@ exchange is no longer required after the loop).
 Colouring
 +++++++++
 
-A loop must be coloured when one or more of the kernels it contains
-writes to a field on a continuous function space.
+If a loop contains one or more kernels that write to a field on a
+continuous function space then it cannot be safely executed in
+parallel on a shared-memory device. This is because fields on a
+continuous function space share dofs between neighbouring cells. One
+solution to this is to 'colour' the cells in a mesh so that all
+cells of a given colour may be safely updated in parallel:
+
+.. image:: lfric_colouring.png
+	   :width: 300
+	   :align: center
+
+The loop over colours must then be performed sequentially but the loop
+over cells of a given colour may be done in parallel. A loop that
+requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
+transformation.
+
+Each mesh in the multi-grid hierarchy is coloured separately
+(https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicInfrastructure/MeshColouring)
+and therefore we cannot assume any relationship between the colour
+maps of meshes of differing resolution.
+
+However, the iteration space for inter-grid kernels (that map a field
+from one mesh to another) is always determined by the coarser of the
+two meshes.  Consequently, it is always the colouring of this mesh
+that must be used.  Due to the set-up of the mesh hierarchy
+(see :ref:`multigrid`), this guarantees that there will not be any race
+conditions when updating shared quantities on either the fine or
+coarse mesh.
 
 GOcean1.0
 =========
