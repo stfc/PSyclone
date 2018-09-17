@@ -523,6 +523,21 @@ returns the index of the last owned dof, the index of the last annexed
 dof, the index of the last halo dof at a particular depth and the
 index of the last halo dof, to support PSyclone code generation.
 
+Multi-grid
+----------
+
+The Dynamo 0.3 API supports kernels that map fields between meshes of
+different horizontal resolutions. As indicated in the image below, the
+change in resolution between each level is always a factor of two in
+both the x and y dimensions:
+
+.. image:: multigrid.png
+	   :width: 600
+
+Each mesh in the multi-grid hierarchy is coloured separately
+(https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicInfrastructure/MeshColouring)
+and therefore we cannot assume any relationship between the colour
+maps of meshes of differing resolution.
 
 Loop iterators
 --------------
@@ -536,6 +551,10 @@ The loop iteration information is specified in the kernel metadata. In
 the case of builtin's there is kernel metadata but it is part of
 PSyclone and is specified in
 `src/psyclone/dynamo0p3_builtins_mod.f90`.
+
+For inter-grid kernels, it is the coarse mesh that provides the iteration
+space. (The kernel is passed a list of the cells in the fine mesh that are
+associated with the current coarse cell.)
 
 Cell iterators: Continuous
 --------------------------
@@ -849,6 +868,12 @@ an increase in depth will only increase the depth of an existing halo
 exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
+
+Colouring
++++++++++
+
+A loop must be coloured when one or more of the kernels it contains
+writes to a field on a continuous function space.
 
 GOcean1.0
 =========
