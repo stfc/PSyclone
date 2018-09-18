@@ -1872,6 +1872,8 @@ class DynMeshes(object):
         self._kern_calls = []
         # List of names of unique mesh variables referenced in the Invoke
         self._mesh_names = []
+        # Whether or not the associated Invoke requires colourmap information
+        self._needs_colourmap = False
 
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
@@ -1890,6 +1892,11 @@ class DynMeshes(object):
         # message if necessary.
         non_intergrid_kernels = []
         for call in schedule.kern_calls():
+
+            # Keep a record of whether or not any kernels (loops) in this
+            # invoke have been coloured
+            if call.is_coloured:
+                self._needs_colourmap = True
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -2026,7 +2033,13 @@ class DynMeshes(object):
                                              kern["ncperc"]]))
             # Declare variables to hold the colourmap information if required
             if kern["colourmap"]:
-                pass  # ARPDBG: WORKING HERE
+                declns = [kern["colourmap"]+"(:,:)",
+                          kern["ncellspercolour"]+"(:)"]
+                parent.add(DeclGen(parent, datatype="integer",
+                                   pointer=True,
+                                   entity_decls=declns))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=[kern["ncolours"]]))
 
     def initialise(self, parent):
         '''
@@ -2052,6 +2065,30 @@ class DynMeshes(object):
             rhs = self._first_var.name_indexed + "%get_mesh()"
             parent.add(AssignGen(parent, pointer=True,
                                  lhs=self._mesh_names[0], rhs=rhs))
+            if self._needs_colourmap:
+                parent.add(CommentGen(parent, " Get the colourmap"))
+                parent.add(CommentGen(parent, ""))
+                mesh_obj_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
+                parent.add(AssignGen(
+                    parent, lhs="ncolour",
+                    rhs="{0}%get_ncolours()".format(mesh_obj_name)))
+                if _CONFIG.distributed_memory:
+                    # the LFRic colouring API for distributed memory
+                    # differs from the API without distributed
+                    # memory. This is to support and control redundant
+                    # computation with coloured loops.
+                    parent.add(AssignGen(parent, pointer=True, lhs="cmap",
+                                         rhs=mesh_obj_name +
+                                         "%get_colour_map()"))
+                else:
+                    # TODO check with Steve whether we can't just use one
+                    # API to get colouring?
+                    name = arg.proxy_name_indexed + \
+                       "%" + arg.ref_name() + "%get_colours"
+                    parent.add(CallGen(parent, name=name,
+                                       args=["ncolour", "ncp_colour", "cmap"]))
+
             return
 
         parent.add(CommentGen(
