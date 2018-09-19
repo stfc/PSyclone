@@ -1943,15 +1943,10 @@ class DynMeshes(object):
                 base_name = "ncolour_" + coarse_arg.name
                 ncolours = self._name_space_manager.create_name(
                     root_name=base_name, context="PSyVars", label=base_name)
-                # No. of cells per colour
-                base_name = "ncp_colour_" + coarse_arg.name
-                cellspercol = self._name_space_manager.create_name(
-                    root_name=base_name, context="PSyVars", label=base_name)
             else:
                 # No colour map required for this kernel
                 colour_map = ""
                 ncolours = ""
-                cellspercol= ""
 
             # Store this information in our list of dicts
             # TODO make this dictionary a class as we can then document it!
@@ -1962,8 +1957,7 @@ class DynMeshes(object):
                                      "ncperc": ncellpercell,
                                      "cellmap": cell_map,
                                      "colourmap": colour_map,
-                                     "ncolours": ncolours,
-                                     "ncellspercolour": cellspercol})
+                                     "ncolours": ncolours})
 
             # Create and store the names of the associated mesh objects
             _name_set.add(
@@ -2000,6 +1994,8 @@ class DynMeshes(object):
                 # colourmap information. Set-up the names of the various
                 # variables here. We'll use the name-space manager to
                 # access them later.
+                # TODO could remove this as the same code is needed to
+                # access them later anyway
                 base_name = "cmap"
                 colour_map = self._name_space_manager.create_name(
                     root_name=base_name, context="PSyVars", label=base_name)
@@ -2007,11 +2003,6 @@ class DynMeshes(object):
                 base_name = "ncolour"
                 ncolours = self._name_space_manager.create_name(
                     root_name=base_name, context="PSyVars", label=base_name)
-                # No. of cells per colour
-                base_name = "ncp_colour"
-                cellspercol = self._name_space_manager.create_name(
-                    root_name=base_name, context="PSyVars", label=base_name)
-
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
             
@@ -2050,11 +2041,9 @@ class DynMeshes(object):
                                              kern["ncperc"]]))
             # Declare variables to hold the colourmap information if required
             if kern["colourmap"]:
-                declns = [kern["colourmap"]+"(:,:)",
-                          kern["ncellspercolour"]+"(:)"]
                 parent.add(DeclGen(parent, datatype="integer",
                                    pointer=True,
-                                   entity_decls=declns))
+                                   entity_decls=[kern["colourmap"]+"(:,:)"]))
                 parent.add(DeclGen(parent, datatype="integer",
                                    entity_decls=[kern["ncolours"]]))
 
@@ -2068,15 +2057,10 @@ class DynMeshes(object):
             base_name = "ncolour"
             ncolours = self._name_space_manager.create_name(
                 root_name=base_name, context="PSyVars", label=base_name)
-            # No. of cells per colour
-            base_name = "ncp_colour"
-            cellspercol = self._name_space_manager.create_name(
-                    root_name=base_name, context="PSyVars", label=base_name)
             # Add declarations for these variables
             parent.add(DeclGen(parent, datatype="integer",
                                pointer=True,
-                               entity_decls=[colour_map+"(:,:)",
-                                             cellspercol+"(:)"]))
+                               entity_decls=[colour_map+"(:,:)"]))
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[ncolours]))
 
@@ -2115,30 +2099,14 @@ class DynMeshes(object):
                 ncolour = self._name_space_manager.create_name(
                     root_name="ncolour", context="PSyVars",
                     label="ncolour")
-                if _CONFIG.distributed_memory:
-                    # the LFRic colouring API for distributed memory
-                    # differs from the API without distributed
-                    # memory. This is to support and control redundant
-                    # computation with coloured loops.
-                    parent.add(AssignGen(
-                        parent, lhs=ncolour,
-                        rhs="{0}%get_ncolours()".format(self._mesh_names[0])))
-                    parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
-                                         rhs=self._mesh_names[0] +
-                                         "%get_colour_map()"))
-                else:
-                    # TODO check with Steve whether we can't just use one
-                    # API to get colouring?
-                    # We only need the number of cells per colour if we're
-                    # using the non-DM colouring API
-                    cellspercol = self._name_space_manager.create_name(
-                        root_name="ncp_colour", context="PSyVars",
-                        label="ncp_colour")
-                    name = arg.proxy_name_indexed + \
-                       "%" + arg.ref_name() + "%get_colours"
-                    parent.add(
-                        CallGen(parent, name=name,
-                                args=[ncolour, cellspercol, colour_map]))
+                # Get the number of colours
+                parent.add(AssignGen(
+                    parent, lhs=ncolour,
+                    rhs="{0}%get_ncolours()".format(self._mesh_names[0])))
+                # Get the colour map
+                parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
+                                     rhs=self._mesh_names[0] +
+                                     "%get_colour_map()"))
             return
 
         parent.add(CommentGen(
@@ -2213,6 +2181,16 @@ class DynMeshes(object):
                     AssignGen(parent, lhs=kern["ncperc"],
                               rhs=kern["mmap"] +
                               "%get_ntarget_cells_per_source_cell()"))
+
+            # Colour map for the coarse mesh (if required)
+            if kern["colourmap"]:
+                # Number of colours
+                parent.add(AssignGen(parent, lhs=kern["ncolours"],
+                                     rhs=coarse_mesh + "%get_ncolours()"))
+                # Colour map itself
+                parent.add(AssignGen(parent, lhs=kern["colourmap"],
+                                     pointer=True,
+                                     rhs=coarse_mesh + "get_colour_map()"))
 
 
 class DynInvokeBasisFns(object):
