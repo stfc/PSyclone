@@ -1868,7 +1868,7 @@ class DynMeshes(object):
         self._name_space_manager = NameSpaceFactory().create()
 
         # List of dictionary objects holding information on the mesh-related
-        # variables required by each kernel.
+        # variables required by each inter-grid kernel.
         self._kern_calls = []
         # List of names of unique mesh variables referenced in the Invoke
         self._mesh_names = []
@@ -1895,7 +1895,7 @@ class DynMeshes(object):
 
             # Keep a record of whether or not any kernels (loops) in this
             # invoke have been coloured
-            if call.is_coloured:
+            if call.is_coloured():
                 self._needs_colourmap = True
 
             if not call.is_intergrid:
@@ -1934,7 +1934,7 @@ class DynMeshes(object):
             cell_map = self._name_space_manager.create_name(
                 root_name=base_name, context="PSyVars", label=base_name)
 
-            if call.is_coloured:
+            if call.is_coloured():
                 # Colour map
                 base_name = "cmap_" + coarse_arg.name
                 colour_map = self._name_space_manager.create_name(
@@ -1988,12 +1988,29 @@ class DynMeshes(object):
                     schedule.invoke.name))
 
         # If we didn't have any inter-grid kernels but distributed memory
-        # is enabled then we will still need a mesh object
-        if not _name_set and _CONFIG.distributed_memory:
-            mesh_name = "mesh"
-            _name_set.add(
-                self._name_space_manager.create_name(
-                    root_name=mesh_name, context="PSyVars", label=mesh_name))
+        # is enabled and/or we need colourmaps then we will still need a
+        # mesh object
+        if not _name_set:
+            if _CONFIG.distributed_memory or self._needs_colourmap:
+                mesh_name = self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh")
+                _name_set.add(mesh_name)
+            if self._needs_colourmap:
+                # There aren't any inter-grid kernels but we do need
+                # colourmap information. Set-up the names of the various
+                # variables here. We'll use the name-space manager to
+                # access them later.
+                base_name = "cmap"
+                colour_map = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # No. of colours
+                base_name = "ncolour"
+                ncolours = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # No. of cells per colour
+                base_name = "ncp_colour"
+                cellspercol = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
@@ -2041,6 +2058,29 @@ class DynMeshes(object):
                 parent.add(DeclGen(parent, datatype="integer",
                                    entity_decls=[kern["ncolours"]]))
 
+        if not self._kern_calls and self._needs_colourmap:
+            # There aren't any inter-grid kernels but we do need
+            # colourmap information
+            base_name = "cmap"
+            colour_map = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            # No. of colours
+            base_name = "ncolour"
+            ncolours = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            # No. of cells per colour
+            base_name = "ncp_colour"
+            cellspercol = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+            # Add declarations for these variables
+            parent.add(DeclGen(parent, datatype="integer",
+                               pointer=True,
+                               entity_decls=[colour_map+"(:,:)",
+                                             cellspercol+"(:)"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[ncolours]))
+
+
     def initialise(self, parent):
         '''
         Initialise parameters specific to inter-grid kernels
@@ -2068,27 +2108,37 @@ class DynMeshes(object):
             if self._needs_colourmap:
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
-                parent.add(AssignGen(
-                    parent, lhs="ncolour",
-                    rhs="{0}%get_ncolours()".format(mesh_obj_name)))
+                # Look-up names of quantities required independent of
+                # whether or not we are doing DM
+                colour_map = self._name_space_manager.create_name(
+                    root_name="cmap", context="PSyVars", label="cmap")
+                ncolour = self._name_space_manager.create_name(
+                    root_name="ncolour", context="PSyVars",
+                    label="ncolour")
                 if _CONFIG.distributed_memory:
                     # the LFRic colouring API for distributed memory
                     # differs from the API without distributed
                     # memory. This is to support and control redundant
                     # computation with coloured loops.
-                    parent.add(AssignGen(parent, pointer=True, lhs="cmap",
-                                         rhs=mesh_obj_name +
+                    parent.add(AssignGen(
+                        parent, lhs=ncolour,
+                        rhs="{0}%get_ncolours()".format(self._mesh_names[0])))
+                    parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
+                                         rhs=self._mesh_names[0] +
                                          "%get_colour_map()"))
                 else:
                     # TODO check with Steve whether we can't just use one
                     # API to get colouring?
+                    # We only need the number of cells per colour if we're
+                    # using the non-DM colouring API
+                    cellspercol = self._name_space_manager.create_name(
+                        root_name="ncp_colour", context="PSyVars",
+                        label="ncp_colour")
                     name = arg.proxy_name_indexed + \
                        "%" + arg.ref_name() + "%get_colours"
-                    parent.add(CallGen(parent, name=name,
-                                       args=["ncolour", "ncp_colour", "cmap"]))
-
+                    parent.add(
+                        CallGen(parent, name=name,
+                                args=[ncolour, cellspercol, colour_map]))
             return
 
         parent.add(CommentGen(
