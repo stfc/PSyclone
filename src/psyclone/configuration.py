@@ -91,23 +91,16 @@ class Config(object):
         return Config._instance
 
     # -------------------------------------------------------------------------
-    def __init__(self, allow_multi_instances_for_testing=False,):
+    def __init__(self):
         '''This is the basic constructor that only sets the supported APIs
         and stub APIs, it does not load a config file. The Config instance
         is a singleton, and as such will test that no instance already exists
-        and raise an exception otherwise. But for testing it is convenient
-        if several config instances can be created, so the parameter
-        allow_multi_instances_for_testing can be set to true to disable this
-        test (which should only be done for testing).
-        :param bool allow_multi_instances_for_testing: Can be set to true to \
-               disable the test if a Config instance already exists. Used in \
-               some of the unit tests.
+        and raise an exception otherwise.
         :raises GenerationError: If a singleton instance of Config already \
                 exists (and the testing flag is not specified).
         '''
 
-        if not allow_multi_instances_for_testing and \
-           Config._instance is not None:
+        if Config._instance is not None:
             raise ConfigurationError("Only one instance of "
                                      "Config can be created")
 

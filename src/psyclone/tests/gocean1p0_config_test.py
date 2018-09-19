@@ -107,7 +107,8 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config(allow_multi_instances_for_testing=True)
+        Config._instance = None
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "An iteration space must be in the form" in str(err)
@@ -120,7 +121,8 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config(allow_multi_instances_for_testing=True)
+        Config._instance = None
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "An iteration space must be in the form" in str(err)
@@ -133,7 +135,8 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config(allow_multi_instances_for_testing=True)
+        Config._instance = None
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "Invalid key \"invalid-key\" found in \"{0}\".".\
