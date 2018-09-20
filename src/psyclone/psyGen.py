@@ -1392,6 +1392,7 @@ class Schedule(Node):
         Node.__init__(self, children=sequence)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
+        self._name_space_manager = NameSpaceFactory().create()
 
     def view(self, indent=0):
         '''
@@ -1467,7 +1468,9 @@ class Schedule(Node):
             # Kernel pointers
             kernels = self.walk(self._children, Call)
             for kern in kernels:
-                kernel = "kernel_" + kern.name  # TODO use namespace manager
+                base = "kernel_" + kern.name
+                kernel = self._name_space_manager.create_name(
+                    root_name=base, context="PSyVars", label=base)
                 parent.add(
                     DeclGen(parent, datatype="integer", kind="c_intptr_t",
                             save=True, target=True, entity_decls=[kernel]))

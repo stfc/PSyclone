@@ -50,7 +50,7 @@ from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
-    GenerationError, args_filter
+    GenerationError, args_filter, NameSpaceFactory
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -135,9 +135,9 @@ class GOInvokes(Invokes):
     '''
     The GOcean specific invokes class. This passes the GOcean specific
     invoke class to the base class so it creates the one we require.
-    :param alg_calls: list of the Invoke calls discovered in the Algorithm
-                      layer
-    :type alg_calls: list of :py:class:`psyclone.TBD`
+    :param alg_calls: The Invoke calls discovered in the Algorithm layer.
+    :type alg_calls: OrderedDict of :py:class:`psyclone.parse.InvokeCall` \
+                     objects.
     '''
     def __init__(self, alg_calls):
         if False:  # pylint: disable=using-constant-test
@@ -251,6 +251,9 @@ class GOInvoke(Invoke):
         # Generate the code body of this subroutine
         self.schedule.gen_code(invoke_sub)
 
+        # If we're generating an OpenCL routine then the arguments must
+        # have the target attribute as we pass pointers to them in to
+        # the OpenCL run-time.
         if self.schedule.opencl:
             target = True
         else:
@@ -725,6 +728,8 @@ class GOKern(Kern):
         self._children = []
         self._name = ""
         self._index_offset = ""
+        # Get a reference to the namespace manager
+        self._name_space_manager = NameSpaceFactory().create()
 
     def load(self, call, parent=None):
         ''' Populate the state of this GOKern object '''
@@ -818,21 +823,28 @@ class GOKern(Kern):
 
     def gen_ocl(self, parent):
         '''
+        Generates code for the OpenCL invocation of this kernel.
+
         :param parent: Parent node in the f2pygen AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, UseGen
-
+        # Create the array used to specify the iteration space of the kernel
         garg = self.find_grid_access()
+        glob_size = self._name_space_manager.create_name(
+            root_name="globalsize", context="PSyVars",
+            label="globalsize")
         parent.add(DeclGen(parent, datatype="integer", target=True,
-                           kind="c_size_t", entity_decls=["globalsize(2)"]))
+                           kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         parent.add(AssignGen(
-            parent, lhs="globalsize",
+            parent, lhs=glob_size,
             rhs="(/{0}%grid%nx, {0}%grid%ny/)".format(garg.name)))
 
-        kernel = "kernel_" + self._name  # TODO use namespace manager
-
+        base = "kernel_" + self._name
+        kernel = self._name_space_manager.create_name(root_name=base,
+                                                      context="PSyVars",
+                                                      label=base)
         parent.add(UseGen(parent, name="fortcl", only=True,
                           funcnames=["create_rw_buffer"]))
         # Ensure fields are on device TODO this belongs somewhere else!
@@ -908,9 +920,8 @@ class GOKern(Kern):
         cnull = "C_NULL_PTR"
         cmd_queue = "cmd_queues(1)"  # TODO use namespace manager
 
-        gsize = "globalsize" # TODO use namespace manager
         args = ", ".join([cmd_queue, kernel, "2", cnull,
-                          "C_LOC({0})".format(gsize),
+                          "C_LOC({0})".format(glob_size),
                           cnull, "0", cnull, cnull])
         parent.add(
             AssignGen(parent, lhs="ierr",
