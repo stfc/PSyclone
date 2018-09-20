@@ -80,6 +80,7 @@ class Config(object):
     def get(do_not_load_file=False):
         '''Static function that if necessary creates and returns the singleton
         config instance.
+
         :param bool do_not_load_file: If set it will not load the default \
                config file. This is used when handling the command line so \
                that the user can specify the file to load.
@@ -121,6 +122,7 @@ class Config(object):
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
+
         :param str config_file: Override default configuration file to read.
         :raises ConfigurationError: if there are errors or inconsistencies in \
                                 the specified config file.
@@ -181,7 +183,9 @@ class Config(object):
                     if self._default_api != "default":
                         break
             else:
-                raise ConfigurationError("No DEFAULTAPI specified.",
+                raise ConfigurationError("No DEFAULTAPI specified and config "
+                                         "file contains more than one API "
+                                         "section.",
                                          config=self)
 
         # Sanity check
@@ -270,11 +274,12 @@ class Config(object):
         file. If the full path to an existing file has been provided in
         the PSYCLONE_CONFIG environment variable then that is returned.
         Otherwise, we search the following locations, in order:
-        ${PWD}/.psyclone/
-        if inside-a-virtual-environment:
-            <base-dir-of-virtual-env>/share/psyclone/
-        ${HOME}/.local/share/psyclone/
-        <system-install-prefix>/share/psyclone/
+
+        - ${PWD}/.psyclone/
+        -  if inside-a-virtual-environment:
+              <base-dir-of-virtual-env>/share/psyclone/
+        - ${HOME}/.local/share/psyclone/
+        - <system-install-prefix>/share/psyclone/
 
         :returns: the fully-qualified path to the configuration file
         :rtype: str
@@ -317,6 +322,7 @@ class Config(object):
     def distributed_memory(self):
         '''
         Getter for whether or not distributed memory is enabled
+
         :returns: True if DM is enabled, False otherwise
         :rtype: bool
         '''
@@ -327,6 +333,7 @@ class Config(object):
         '''
         Setter for whether or not distributed memory support is enabled
         in this configuration.
+
         :param bool dist_mem: Whether or not dm is enabled
         '''
         if not isinstance(dist_mem, bool):
@@ -339,6 +346,7 @@ class Config(object):
     def default_api(self):
         '''
         Getter for the default API used by PSyclone.
+
         :returns: default PSyclone API
         :rtype: str
         '''
@@ -348,6 +356,7 @@ class Config(object):
     def supported_apis(self):
         '''
         Getter for the list of APIs supported by PSyclone.
+
         :returns: list of supported APIs
         :rtype: list of str
         '''
@@ -357,6 +366,7 @@ class Config(object):
     def default_stub_api(self):
         '''
         Getter for the default API used by the stub generator.
+
         :returns: default API for the stub generator
         :rtype: str
         '''
@@ -366,6 +376,7 @@ class Config(object):
     def supported_stub_apis(self):
         '''
         Getter for the list of APIs supported by the stub generator.
+
         :returns: list of supported APIs.
         :rtype: list of str
         '''
@@ -375,6 +386,7 @@ class Config(object):
     def reproducible_reductions(self):
         '''
         Getter for whether reproducible reductions are enabled.
+
         :returns: True if reproducible reductions are enabled, False otherwise.
         :rtype: bool
         '''
@@ -385,6 +397,7 @@ class Config(object):
         '''
         Getter for the amount of padding to use for the array required
         for reproducible OpenMP reductions
+
         :returns: padding size (no. of array elements)
         :rtype: int
         '''
@@ -395,6 +408,7 @@ class Config(object):
         '''
         Getter for the full path and name of the configuration file used
         to initialise this configuration object.
+
         :returns: full path and name of configuration file
         :rtype: str
         '''
