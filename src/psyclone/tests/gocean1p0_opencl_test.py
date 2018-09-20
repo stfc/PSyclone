@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 
 '''Tests for OpenCL PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -42,6 +42,7 @@ import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
+from psyclone_test_utils import get_invoke
 
 API = "gocean1.0"
 
@@ -49,13 +50,7 @@ API = "gocean1.0"
 def test_use_stmts():
     ''' Test that generating code for OpenCL results in the correct
     module use statements '''
-    _, invoke_info = parse(os.path.join(os.path.
-                                        dirname(os.path.
-                                                abspath(__file__)),
-                                        "test_files", "gocean1p0",
-                                        "single_invoke.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     from psyclone.transformations import OCLTrans
     otrans = OCLTrans()
@@ -76,13 +71,7 @@ def test_use_stmts():
 def test_psy_init():
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment '''
-    _, invoke_info = parse(os.path.join(os.path.
-                                        dirname(os.path.
-                                                abspath(__file__)),
-                                        "test_files", "gocean1p0",
-                                        "single_invoke.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     from psyclone.transformations import OCLTrans
     otrans = OCLTrans()
@@ -107,19 +96,12 @@ def test_psy_init():
 
 def test_set_kern_args():
     ''' Check that we generate the necessary code to set kernel arguments '''
-    _, invoke_info = parse(os.path.join(os.path.
-                                        dirname(os.path.
-                                                abspath(__file__)),
-                                        "test_files", "gocean1p0",
-                                        "single_invoke_two_kernels.f90"),
-                           api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     from psyclone.transformations import OCLTrans
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
-    print(generated_code)
     # Check we've only generated one set-args routine
     assert generated_code.count("SUBROUTINE compute_cu_code_set_args("
                                 "kernel_obj, nx, cu_fld, p_fld, u_fld)") == 1
@@ -150,3 +132,38 @@ def test_set_kern_args():
     assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
             "p_fld%grid%nx, cu_fld%device_ptr, p_fld%device_ptr, "
             "u_fld%device_ptr)" in generated_code)
+
+
+def test_set_kern_float_arg():
+    ''' Check that we generate correct code to set a real, scalar kernel
+    argument. '''
+    psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    from psyclone.transformations import OCLTrans
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated_code = str(psy.gen)
+    print(generated_code)
+    expected = '''\
+    SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, tmask)
+      USE clfortran, ONLY: clSetKernelArg
+      USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
+      USE ocl_utils_mod, ONLY: check_status
+      REAL(KIND=wp), intent(in), target :: a_scalar
+      INTEGER ierr
+      INTEGER(KIND=c_intptr_t), target :: ssh_fld, tmask
+      INTEGER(KIND=c_intptr_t), target :: kernel_obj
+      INTEGER, target :: nx
+'''
+    assert expected in generated_code
+    expected = '''\
+      ! Set the arguments for the bc_ssh_code OpenCL Kernel
+      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(nx), C_LOC(nx))
+      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(a_scalar), C_LOC(a_scalar))
+      CALL check_status('clSetKernelArg: arg 1 of bc_ssh_code', ierr)
+      ierr = clSetKernelArg(kernel_obj, 2, C_SIZEOF(ssh_fld), C_LOC(ssh_fld))
+      CALL check_status('clSetKernelArg: arg 2 of bc_ssh_code', ierr)
+      ierr = clSetKernelArg(kernel_obj, 3, C_SIZEOF(tmask), C_LOC(tmask))
+      CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
+    END SUBROUTINE bc_ssh_code_set_args'''
+    assert expected in generated_code
