@@ -42,6 +42,7 @@ import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
+from psyclone.transformations import OCLTrans
 from psyclone_test_utils import get_invoke
 
 API = "gocean1.0"
@@ -52,7 +53,6 @@ def test_use_stmts():
     module use statements '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-    from psyclone.transformations import OCLTrans
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
@@ -73,7 +73,6 @@ def test_psy_init():
     OpenCL environment '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-    from psyclone.transformations import OCLTrans
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
@@ -139,7 +138,6 @@ def test_set_kern_float_arg():
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-    from psyclone.transformations import OCLTrans
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
@@ -167,3 +165,18 @@ def test_set_kern_float_arg():
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
+
+
+@pytest.mark.xfail(reason="Fail to handle kernel arguments passed by value")
+def test_set_arg_const_scalar():  # pylint:disable=invalid-name
+    ''' Check that using a const scalar as parameter works when setting
+    kernel arguments. '''
+    psy, _ = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
+                        API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    otrans = OCLTrans()
+    otrans.apply(sched)
+    generated = str(psy.gen)
+    print(generated)
+    assert "clSetKernelArg(kernel_obj, 1, C_SIZEOF(0), C_LOC(0))" not in \
+        generated
