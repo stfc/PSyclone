@@ -1371,7 +1371,7 @@ def test_ocl_apply():
     ''' Check that OCLTrans generates correct code '''
     from psyclone.transformations import OCLTrans
     psy, invoke = get_invoke("test11_different_iterates_over_"
-                             "one_invoke.f90", 0)
+                             "one_invoke.f90", API, idx=0)
     schedule = invoke.schedule
     ocl = OCLTrans()
 

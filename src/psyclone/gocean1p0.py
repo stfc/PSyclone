@@ -824,7 +824,7 @@ class GOKern(Kern):
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
             IfThenGen, UseGen
 
-        garg = self._find_grid_access()
+        garg = self.find_grid_access()
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=["globalsize(2)"]))
         parent.add(AssignGen(
