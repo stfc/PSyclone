@@ -114,6 +114,7 @@ python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
 python runme_dag.py
+python runme_openacc.py
 cd -
 
 echo "Running transformation examples"
@@ -129,4 +130,15 @@ cd -
 echo "Running stub generation examples"
 cd stub_generation
 ${KSTUBGEN} testkern_stencil_multi_mod.f90
+cd -
+
+echo "Testing dynamo scripts"
+cd dynamo/scripts
+for script in "colouring_and_omp.py" \
+		  "loop_fuse.py" \
+		  "redundant_dofs.py" \
+		  "redundant_setval_c.py"; do
+    echo "script" ${script} "..."
+    ${PSYCLONE} -s ./${script} ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
+done
 cd -

@@ -42,7 +42,9 @@
     checks before calling the base class for the actual
     transformation. '''
 
-from psyclone.psyGen import OMPDoDirective, Transformation
+import abc
+import six
+from psyclone.psyGen import Transformation
 import psyclone.configuration
 
 # Our one-and-only configuration object, populated by reading the
@@ -64,6 +66,45 @@ class TransformationError(Exception):
         return repr(self.value)
 
 
+# =============================================================================
+class RegionTrans(Transformation):
+    '''This class is a base class for all transforms that act on list of
+    nodes. It gives access to a _validate function that makes sure that
+    the nodes in the list are in the same order as in the original AST,
+    no node is duplicated, and that all nodes have the same parent.
+    '''
+
+    # Avoid pylint warning about abstract functions (apply, name) not
+    # overwritten:
+    # pylint: disable=abstract-method,arguments-differ
+
+    def _validate(self, node_list):
+        '''Test if the nodes in node_list are in the original order.
+
+        :param list node_list: List of nodes.
+        :raises TransformationError: If the nodes in the list are not\
+                in the original order in which they are in the AST,\
+                a node is duplicated or the nodes have different parents.
+        '''
+
+        node_parent = node_list[0].parent
+        prev_position = -1
+        for child in node_list:
+            if child.parent is not node_parent:
+                raise TransformationError(
+                    "Error in {0} transformation: supplied nodes "
+                    "are not children of the same Schedule/parent."
+                    .format(self.name))
+            if prev_position >= 0 and prev_position+1 != child.position:
+                raise TransformationError(
+                    "Children are not consecutive children of one parent: "
+                    "child '{0}' has position {1}, but previous child had "
+                    "position {2}."
+                    .format(str(child), child.position, prev_position))
+            prev_position = child.position
+
+
+# =============================================================================
 def check_intergrid(node):
     '''
     Utility function to check that the supplied node does not have
@@ -135,7 +176,6 @@ class LoopFuseTrans(Transformation):
         :raises TransformationError: if the
         :py:class:`psyclone.psyGen.Loop`s do not have the same
         iteration space
-
         '''
 
         # Check that the supplied Node is a Loop
@@ -328,49 +368,210 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                                       format(err))
 
 
-class OMPLoopTrans(Transformation):
-
-    '''Adds an orphaned OpenMP directive to a loop. i.e. the directive
-        must be inside the scope of some other OMP Parallel
-        REGION. This condition is tested at code-generation time. The
-        optional 'reprod' argument in the apply method decides whether
-        standard OpenMP reduction support is to be used (which is not
-        reproducible) or whether a manual reproducible reproduction is
-        to be used.
-
-        For example:
-
-        >>> from psyclone.parse import parse,ParseError
-        >>> from psyclone.psyGen import PSyFactory,GenerationError
-        >>> api="gocean1.0"
-        >>> filename="nemolite2d_alg.f90"
-        >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-        >>> psy=PSyFactory(api).create(invokeInfo)
-        >>> print psy.invokes.names
-        >>>
-        >>> from psyclone.psyGen import TransInfo
-        >>> t=TransInfo()
-        >>> ltrans = t.get_trans_name('OMPLoopTrans')
-        >>> rtrans = t.get_trans_name('OMPParallelTrans')
-        >>>
-        >>> schedule=psy.invokes.get('invoke_0').schedule
-        >>> schedule.view()
-        >>> new_schedule=schedule
-        >>>
-        # Apply the OpenMP Loop transformation to *every* loop
-        # in the schedule
-        >>> for child in schedule.children:
-        >>>     newschedule,memento=ltrans.apply(child, reprod=True)
-        >>>     schedule = newschedule
-        >>>
-        # Enclose all of these loops within a single OpenMP
-        # PARALLEL region
-        >>> rtrans.omp_schedule("dynamic,1")
-        >>> newschedule,memento = rtrans.apply(schedule.children)
-        >>>
-        >>>
+@six.add_metaclass(abc.ABCMeta)
+class ParallelLoopTrans(Transformation):
 
     '''
+    Adds an orphaned directive to a loop indicating that it should be
+    parallelised. i.e. the directive must be inside the scope of some
+    other Parallel REGION. This condition is tested at
+    code-generation time.
+
+    '''
+    @abc.abstractmethod
+    def __str__(self):
+        return  # pragma: no cover
+
+    @abc.abstractproperty
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+
+    @abc.abstractmethod
+    def _directive(self, parent, children, collapse=None):
+        '''
+        Returns the directive object to insert into the Schedule.
+        Must be implemented by sub-class.
+
+        :param parent: the parent of this Directive in the Schedule.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :param children: list of nodes that will be children of this Directive.
+        :type children: list of :py:class:`psyclone.psyGen.Node`.
+        :param int collapse: the number of tightly-nested loops to which \
+                             this directive applies or None.
+        :returns: the new Directive node.
+        :rtype: sub-class of :py:class:`psyclone.psyGen.Directive`.
+        '''
+
+    def _validate(self, node, collapse=None):
+        '''
+        Perform validation checks before applying the transformation
+
+        :param node: the node we are checking.
+        :type node: :py:class:`psyclone.psyGen.Node`.
+        :param int collapse: number of nested loops to collapse or None.
+        :raises TransformationError: if the node is not a \
+        :py:class:`psyclone.psyGen.Loop`
+        :raises TransformationError: if the \
+        :py:class:`psyclone.psyGen.Loop` loop iterates over colours
+
+        '''
+        # Check that the supplied node is a Loop
+        from psyclone.psyGen import Loop
+        if not isinstance(node, Loop):
+            raise TransformationError(
+                "Cannot apply a parallel-loop directive to something that is "
+                "not a loop")
+        # Check we are not a sequential loop
+        # TODO add a list of loop types that are sequential
+        if node.loop_type == 'colours':
+            raise TransformationError("Error in "+self.name+" transformation. "
+                                      "The target loop is over colours and "
+                                      "must be computed serially.")
+        # If 'collapse' is specified, check that it is an int and that the
+        # loop nest has at least that number of loops in it
+        if collapse:
+            if not isinstance(collapse, int):
+                raise TransformationError(
+                    "The 'collapse' argument must be an integer but got an "
+                    "object of type {0}".format(type(collapse)))
+            if collapse < 2:
+                raise TransformationError(
+                    "It only makes sense to collapse 2 or more loops "
+                    "but got a value of {0}".format(collapse))
+            # Count the number of loops in the loop nest
+            loop_count = 0
+            cnode = node
+            while isinstance(cnode, Loop):
+                loop_count += 1
+                # Loops must be tightly nested (no intervening statements)
+                cnode = cnode.children[0]
+            if collapse > loop_count:
+                raise TransformationError(
+                    "Cannot apply COLLAPSE({0}) clause to a loop nest "
+                    "containing only {1} loops".format(collapse, loop_count))
+
+    def apply(self, node, collapse=None):
+        '''
+        Apply the Loop transformation to the specified node in a
+        Schedule. This node must be a Loop since this transformation
+        corresponds to wrapping the generated code with directives,
+        e.g. for OpenMP:
+
+        .. code-block:: fortran
+
+          !$OMP DO
+          do ...
+             ...
+          end do
+          !$OMP END DO
+
+        At code-generation time (when gen_code()` is called), this node must be
+        within (i.e. a child of) a PARALLEL region.
+
+        :param node: the supplied node to which we will apply the \
+                     Loop transformation.
+        :type node: :py:class:`psyclone.psyGen.Node`.
+        :param int collapse: number of loops to collapse into single \
+                             iteration space or None.
+        :return: (:py:class:`psyclone.psyGen.Schedule`, \
+                  :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        self._validate(node, collapse)
+
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed
+        # transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(schedule, self, [node, collapse])
+
+        # keep a reference to the node's original parent and its index as these
+        # are required and will change when we change the node's location
+        node_parent = node.parent
+        node_position = node.position
+
+        # Add our orphan loop directive setting its parent to the node's
+        # parent and its children to the node. This calls down to the sub-class
+        # to get the type of directive we require.
+        directive = self._directive(node_parent, [node], collapse)
+
+        # Add the loop directive as a child of the node's parent
+        node_parent.addchild(directive, index=node_position)
+
+        # Change the node's parent to be the loop directive.
+        node.parent = directive
+
+        # Remove the reference to the loop from the original parent.
+        node_parent.children.remove(node)
+
+        return schedule, keep
+
+
+class OMPLoopTrans(ParallelLoopTrans):
+
+    '''
+    Adds an orphaned OpenMP directive to a loop. i.e. the directive
+    must be inside the scope of some other OMP Parallel
+    REGION. This condition is tested at code-generation time. The
+    optional 'reprod' argument in the apply method decides whether
+    standard OpenMP reduction support is to be used (which is not
+    reproducible) or whether a manual reproducible reproduction is
+    to be used.
+
+    :param str omp_schedule: The OpenMP schedule to use.
+
+    For example:
+
+    >>> from psyclone.parse import parse, ParseError
+    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>> print psy.invokes.names
+    >>>
+    >>> from psyclone.psyGen import TransInfo
+    >>> t = TransInfo()
+    >>> ltrans = t.get_trans_name('OMPLoopTrans')
+    >>> rtrans = t.get_trans_name('OMPParallelTrans')
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> new_schedule = schedule
+    >>>
+    # Apply the OpenMP Loop transformation to *every* loop
+    # in the schedule
+    >>> for child in schedule.children:
+    >>>     newschedule, memento = ltrans.apply(child, reprod=True)
+    >>>     schedule = newschedule
+    >>>
+    # Enclose all of these loops within a single OpenMP
+    # PARALLEL region
+    >>> rtrans.omp_schedule("dynamic,1")
+    >>> newschedule, memento = rtrans.apply(schedule.children)
+    >>>
+    >>>
+
+    '''
+    def __init__(self, omp_schedule="static"):
+        # Whether or not to generate code for (run-to-run on n threads)
+        # reproducible OpenMP reductions. This setting can be overridden
+        # via the `reprod` argument to the apply() method.
+        self._reprod = _CONFIG.reproducible_reductions
+
+        self._omp_schedule = ""
+        # Although we create the _omp_schedule attribute above (so that
+        # pylint doesn't complain), we actually set its value using
+        # the setter method in order to make use of the latter's error
+        # checking.
+        self.omp_schedule = omp_schedule
+
+        super(OMPLoopTrans, self).__init__()
+
     def __str__(self):
         return "Adds an 'OpenMP DO' directive to a loop"
 
@@ -410,37 +611,33 @@ class OMPLoopTrans(Transformation):
 
         self._omp_schedule = value
 
-    def __init__(self, omp_schedule="static"):
-        self._omp_schedule = ""
-        # Although we create the _omp_schedule attribute above (so that
-        # pylint doesn't complain), we actually set its value using
-        # the setter method in order to make use of the latter's error
-        # checking.
-        self.omp_schedule = omp_schedule
-        Transformation.__init__(self)
-
-    def _validate(self, node):
-        '''Perform validation checks before applying the transformation
-
-        :param node: the node we are checking
-        :type node1: :py:class:`psyclone.psyGen.Node`
-        :raises TransformationError: if the node is not a
-        :py:class:`psyclone.psyGen.Loop`
-        :raises TransformationError: if the
-        :py:class:`psyclone.psyGen.Loop` loop iterates over colours
-
+    def _directive(self, parent, children, collapse=None):
         '''
-        # Check that the supplied node is a Loop
-        from psyclone.psyGen import Loop
-        if not isinstance(node, Loop):
-            raise TransformationError("Cannot apply an OpenMP Loop "
-                                      "directive to something that is "
-                                      "not a loop")
-        # Check we are not a sequential loop
-        if node.loop_type == 'colours':
-            raise TransformationError("Error in "+self.name+" transformation. "
-                                      "The target loop is over colours and "
-                                      "must be computed serially.")
+        Creates the type of directive needed for this sub-class of
+        transformation.
+
+        :param parent: The Node that will be the parent of the created \
+                       directive Node.
+        :param children: List of Nodes that will be the children of \
+                         the created directive.
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :param int collapse: currently un-used but required to keep \
+                             interface the same as in base class.
+        :returns: the new node representing the directive in the AST
+        :rtype: :py:class:`psyclone.psyGen.OMPDoDirective`
+        :raises NotImplementedError: if a collapse argument is supplied
+        '''
+        if collapse:
+            raise NotImplementedError(
+                "The COLLAPSE clause is not yet supported for '!$omp do' "
+                "directives.")
+
+        from psyclone.psyGen import OMPDoDirective
+        _directive = OMPDoDirective(parent=parent,
+                                    children=children,
+                                    omp_schedule=self.omp_schedule,
+                                    reprod=self._reprod)
+        return _directive
 
     def apply(self, node, reprod=None):
         '''Apply the OMPLoopTrans transformation to the specified node in a
@@ -456,63 +653,156 @@ class OMPLoopTrans(Transformation):
           !$OMP END DO
 
         At code-generation time (when
-        :py:meth:`OMPLoopTrans.gen_code` is called), this node must be
+        :py:meth:`OMPLoopDirective.gen_code` is called), this node must be
         within (i.e. a child of) an OpenMP PARALLEL region.
 
         The optional reprod argument will cause a reproducible
-        reduction to be generated if it is set to True, otherwise the
-        default, non-reproducible OpenMP reduction will used. Note,
+        reduction to be generated if it is set to True, otherwise the default
+        value (as read from the psyclone.cfg file) will be used. Note,
         reproducible in this case means obtaining the same results
         with the same number of OpenMP threads, not for different
         numbers of OpenMP threads.
 
-        :param node: the supplied node to which we will apply the\
+        :param node: the supplied node to which we will apply the \
         OMPLoopTrans transformation
         :type node: :py:class:`psyclone.psyGen.Node`
-        :param reprod: optional argument to determine whether to\
-        generate reproducible OpenMP reductions (True) or not\
-        (False). The default value is None which will cause PSyclone\
+        :param reprod: optional argument to determine whether to \
+        generate reproducible OpenMP reductions (True) or not \
+        (False). The default value is None which will cause PSyclone \
         to look up a default value
-        :type reprod: Boolean, or None
-        :return: (:py:class:`psyclone.psyGen.Schedule`,\
+        :type reprod: Boolean or None
+        :return: (:py:class:`psyclone.psyGen.Schedule`, \
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
+        if reprod:
+            self._reprod = reprod
 
-        self._validate(node)
+        return super(OMPLoopTrans, self).apply(node)
 
-        if reprod is None:
-            reprod = _CONFIG.reproducible_reductions
 
-        schedule = node.root
+class ACCLoopTrans(ParallelLoopTrans):
+    '''
+    Adds an OpenACC loop directive to a loop. This directive must be within
+    the scope of some OpenACC Parallel region (at code-generation time).
 
-        # create a memento of the schedule and the proposed
-        # transformation
-        from psyclone.undoredo import Memento
-        keep = Memento(schedule, self, [node])
+    For example:
 
-        # keep a reference to the node's original parent and its index as these
-        # are required and will change when we change the node's location
-        node_parent = node.parent
-        node_position = node.position
+    >>> from psyclone.parse import parse, ParseError
+    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.psyGen import TransInfo
+    >>> t = TransInfo()
+    >>> ltrans = t.get_trans_name('ACCLoopTrans')
+    >>> rtrans = t.get_trans_name('ACCParallelTrans')
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> new_schedule = schedule
+    >>>
+    # Apply the OpenACC Loop transformation to *every* loop
+    # in the schedule
+    >>> for child in schedule.children:
+    >>>     newschedule, memento = ltrans.apply(child, reprod=True)
+    >>>     schedule = newschedule
+    >>>
+    # Enclose all of these loops within a single OpenACC
+    # PARALLEL region
+    >>> rtrans.omp_schedule("dynamic,1")
+    >>> newschedule, memento = rtrans.apply(schedule.children)
+    >>>
 
-        # add our orphan OpenMP loop directive setting its parent to
-        # the node's parent and its children to the node
-        directive = OMPDoDirective(parent=node_parent,
-                                   children=[node],
-                                   omp_schedule=self.omp_schedule,
-                                   reprod=reprod)
+    '''
+    def __init__(self):
+        # Whether to add the "independent" clause
+        # to the loop directive.
+        self._independent = True
+        super(ACCLoopTrans, self).__init__()
 
-        # add the OpenMP loop directive as a child of the node's parent
-        node_parent.addchild(directive, index=node_position)
+    def __str__(self):
+        return "Adds an 'OpenACC loop' directive to a loop"
 
-        # change the node's parent to be the loop directive
-        node.parent = directive
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string.'''
+        return "ACCLoopTrans"
 
-        # remove the original loop
-        node_parent.children.remove(node)
+    def _directive(self, parent, children, collapse=None):
+        '''
+        Creates the ACCLoopDirective needed by this sub-class of
+        transformation.
 
-        return schedule, keep
+        :param parent: the parent Node of the new directive Node.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        :param children: list of child nodes of the new directive Node.
+        :type children: list of :py:class:`psyclone.psyGen.Node`.
+        :param int collapse: number of nested loops to collapse or None if \
+                             no collapse attribute is required.
+        '''
+        from psyclone.psyGen import ACCLoopDirective
+        directive = ACCLoopDirective(parent=parent,
+                                     children=children,
+                                     collapse=collapse,
+                                     independent=self._independent)
+        return directive
+
+    def _validate(self, node, collapse=None):
+        '''
+        Does OpenACC-specific validation checks before calling the
+        _validate method of the base class.
+
+        :param node: the proposed target of the !$acc loop directive.
+        :type node: :py:class:`psyclone.psyGen.Node`.
+        :param int collapse: number of loops to collapse or None.
+        :raises NotImplementedError: if an API other than GOcean 1.0 is \
+                                     being used.
+        '''
+        from psyclone.gocean1p0 import GOSchedule
+        sched = node.root
+        if not isinstance(sched, GOSchedule):
+            raise NotImplementedError(
+                "OpenACC loop transformations are currently only supported "
+                "for the gocean 1.0 API")
+        super(ACCLoopTrans, self)._validate(node, collapse)
+
+    def apply(self, node, collapse=None, independent=True):
+        '''
+        Apply the ACCLoop transformation to the specified node in a
+        Schedule. This node must be a Loop since this transformation
+        corresponds to inserting a directive immediately before a loop, e.g.:
+
+        .. code-block:: fortran
+
+          !$ACC LOOP
+          do ...
+             ...
+          end do
+
+        At code-generation time (when
+        :py:meth:`psyclone.psyGen.ACCLoopDirective.gen_code` is called), this
+        node must be within (i.e. a child of) a PARALLEL region.
+
+        :param node: the supplied node to which we will apply the \
+                     Loop transformation.
+        :type node: :py:class:`psyclone.psyGen.Loop`.
+        :param int collapse: number of loops to collapse into single \
+                             iteration space or None.
+        :param bool independent: whether to add the "independent" clause to \
+                                 the directive (not strictly necessary within \
+                                 PARALLEL regions).
+        :return: (:py:class:`psyclone.psyGen.Schedule`, \
+                  :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        # Store sub-class specific options. These are used when
+        # creating the directive (in the _directive() method).
+        self._independent = independent
+        # Call the apply() method of the base class
+        return super(ACCLoopTrans, self).apply(node, collapse)
 
 
 class OMPParallelLoopTrans(OMPLoopTrans):
@@ -523,14 +813,14 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         >>> from psyclone.parse import parse
         >>> from psyclone.psyGen import PSyFactory
-        >>> ast,invokeInfo=parse("dynamo.F90")
-        >>> psy=PSyFactory("dynamo0.1").create(invokeInfo)
-        >>> schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+        >>> ast, invokeInfo = parse("dynamo.F90")
+        >>> psy = PSyFactory("dynamo0.1").create(invokeInfo)
+        >>> schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
         >>> schedule.view()
         >>>
         >>> from psyclone.transformations import OMPParallelLoopTrans
-        >>> trans=OMPParallelLoopTrans()
-        >>> new_schedule,memento=trans.apply(schedule.children[0])
+        >>> trans = OMPParallelLoopTrans()
+        >>> new_schedule, memento = trans.apply(schedule.children[0])
         >>> new_schedule.view()
 
     '''
@@ -570,8 +860,13 @@ class OMPParallelLoopTrans(OMPLoopTrans):
           end do
           !$OMP END PARALLEL DO
 
+        :param node: the node (loop) to which to apply the transformation.
+        :type node: :py:class:`psyclone.f2pygen.DoGen`
+        :returns: Two-tuple of transformed schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule, \
+                 :py:class:`psyclone.undoredo.Memento`)
         '''
-
         self._validate(node)
 
         schedule = node.root
@@ -770,9 +1065,9 @@ class GOceanOMPLoopTrans(OMPLoopTrans):
 
 
 class ColourTrans(Transformation):
-
-    ''' Apply a colouring transformation to a loop (in order to permit a
-        subsequent OpenMP parallelisation over colours). For example:
+    '''
+    Apply a colouring transformation to a loop (in order to permit a
+    subsequent parallelisation over colours). For example:
 
     >>> invoke = ...
     >>> schedule = invoke.schedule
@@ -1021,56 +1316,73 @@ class Dynamo0p3ColourTrans(ColourTrans):
         return schedule, keep
 
 
-class OMPParallelTrans(Transformation):
-
-    ''' Create an OpenMP PARALLEL region by inserting directives. For
-    example:
-
-    >>> from psyclone.parse import parse, ParseError
-    >>> from psyclone.psyGen import PSyFactory, GenerationError
-    >>> api="gocean1.0"
-    >>> filename="nemolite2d_alg.f90"
-    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-    >>> psy=PSyFactory(api).create(invokeInfo)
-    >>>
-    >>> from psyclone.psyGen import TransInfo
-    >>> t=TransInfo()
-    >>> ltrans = t.get_trans_name('GOceanOMPLoopTrans')
-    >>> rtrans = t.get_trans_name('OMPParallelTrans')
-    >>>
-    >>> schedule=psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
-    >>> new_schedule=schedule
-    >>>
-    >>> # Apply the OpenMP Loop transformation to *every* loop
-    >>> # in the schedule
-    >>> for child in schedule.children:
-    >>>     newschedule,memento=ltrans.apply(child)
-    >>>     schedule = newschedule
-    >>>
-    >>> # Enclose all of these loops within a single OpenMP
-    >>> # PARALLEL region
-    >>> newschedule, _ = rtrans.apply(schedule.children)
-    >>> newschedule.view()
+@six.add_metaclass(abc.ABCMeta)
+class ParallelRegionTrans(RegionTrans):
+    '''
+    Base class for transformations that create a parallel region.
 
     '''
+    def __init__(self):
+        # Holds the class instance for the type of parallel region
+        # to generate
+        self._pdirective = None
+        super(ParallelRegionTrans, self).__init__()
 
+    @abc.abstractmethod
     def __str__(self):
-        return "Insert an OpenMP Parallel region"
+        pass  # pragma: no cover
 
-    @property
+    @abc.abstractproperty
     def name(self):
         ''' Returns the name of this transformation as a string.'''
-        return "OMPParallelTrans"
+
+    def _validate(self, node_list):
+        '''
+        Check that the supplied list of Nodes are eligible to be
+        put inside a parallel region.
+
+        :param list node_list: List of nodes to put into a parallel region
+        :raises TransformationError: if the nodes cannot be put into a \
+                                     parallel region.
+        '''
+
+        # temporary dynamo0.3-specific test for haloexchange calls
+        # existing within a parallel region. As we are going to
+        # support this in the future, see #526, it does not warrant
+        # making a separate dynamo-specific class.
+        from psyclone.psyGen import HaloExchange, Schedule
+        for node in node_list:
+            if isinstance(node, HaloExchange):
+                raise TransformationError(
+                    "A halo exchange within a parallel region is not "
+                    "supported")
+
+        if isinstance(node_list[0], Schedule):
+            raise TransformationError(
+                "A {0} transformation cannot be applied to a Schedule but "
+                "only to one or more nodes from within a Schedule.".
+                format(self.name))
+
+        node_parent = node_list[0].parent
+
+        for child in node_list:
+            if child.parent is not node_parent:
+                raise TransformationError(
+                    "Error in {0} transformation: supplied nodes are not "
+                    "children of the same Schedule/parent.".format(self.name))
+        super(ParallelRegionTrans, self)._validate(node_list)
 
     def apply(self, nodes):
-        '''Apply this transformation to a subset of the nodes within a
-            schedule - i.e. enclose the specified Loops in the
-            schedule within a single OpenMP region. :py:obj:`nodes`
-            can be a single Node or a list of Nodes.
-
         '''
-        from psyclone.psyGen import OMPDirective, OMPParallelDirective
+        Apply this transformation to a subset of the nodes within a
+        schedule - i.e. enclose the specified Loops in the
+        schedule within a single parallel region.
+
+        :param nodes: a single Node or a list of Nodes.
+        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
+        :raises TransformationError: if the nodes argument is not of the \
+                                     correct type.
+        '''
 
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
@@ -1082,23 +1394,13 @@ class OMPParallelTrans(Transformation):
             node_list = [nodes]
         else:
             arg_type = str(type(nodes))
-            raise TransformationError("Error in OMPParallel transformation. "
+            raise TransformationError("Error in {0} transformation. "
                                       "Argument must be a single Node in a "
                                       "schedule or a list of Nodes in a "
                                       "schedule but have been passed an "
-                                      "object of type: {0}".
-                                      format(arg_type))
-
-        # temporary dynamo0.3-specific test for haloexchange calls
-        # existing within a parallel region. As we are going to
-        # support this in the future, see #526, it does not warrant
-        # making a separate dynamo-specific class.
-        from psyclone.psyGen import HaloExchange
-        for node in node_list:
-            if isinstance(node, HaloExchange):
-                raise TransformationError(
-                    "A halo exchange within a parallel region is not "
-                    "supported")
+                                      "object of type: {1}".
+                                      format(self.name, arg_type))
+        self._validate(node_list)
 
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within a parallel region. Also keep the index of
@@ -1107,16 +1409,6 @@ class OMPParallelTrans(Transformation):
         node_parent = node_list[0].parent
         node_position = node_list[0].position
 
-        if node_list[0].ancestor(OMPDirective):
-            raise TransformationError("Error in OMPParallel transformation:" +
-                                      " cannot create an OpenMP PARALLEL " +
-                                      "region within another OpenMP region.")
-        for child in node_list:
-            if child.parent is not node_parent:
-                raise TransformationError(
-                    "Error in OMPParallel transformation: supplied nodes "
-                    "are not children of the same Schedule/parent.")
-
         # create a memento of the schedule and the proposed
         # transformation
         schedule = node_list[0].root
@@ -1124,18 +1416,18 @@ class OMPParallelTrans(Transformation):
         from psyclone.undoredo import Memento
         keep = Memento(schedule, self)
 
-        # Create the OpenMP parallel directive as a child of the
+        # Create the parallel directive as a child of the
         # parent of the nodes being enclosed and with those nodes
         # as its children.
         # We slice the nodes list in order to get a new list object
         # (although the actual items in the list are still those in the
         # original). If we don't do this then we get an infinite
         # recursion in the new schedule.
-        directive = OMPParallelDirective(parent=node_parent,
-                                         children=node_list[:])
+        directive = self._pdirective(parent=node_parent,
+                                     children=node_list[:])
 
         # Change all of the affected children so that they have
-        # the OpenMP directive as their parent. Use a slice
+        # the region directive as their parent. Use a slice
         # of the list of nodes so that we're looping over a local
         # copy of the list. Otherwise things get confused when
         # we remove children from the list.
@@ -1144,13 +1436,146 @@ class OMPParallelTrans(Transformation):
             node_parent.children.remove(child)
             child.parent = directive
 
-        # Add the OpenMP region directive as a child of the parent
+        # Add the region directive as a child of the parent
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
         node_parent.addchild(directive,
                              index=node_position)
 
         return schedule, keep
+
+
+class OMPParallelTrans(ParallelRegionTrans):
+    '''
+    Create an OpenMP PARALLEL region by inserting directives. For
+    example:
+
+    >>> from psyclone.parse import parse, ParseError
+    >>> from psyclone.psyGen import PSyFactory, GenerationError
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.psyGen import TransInfo
+    >>> t = TransInfo()
+    >>> ltrans = t.get_trans_name('GOceanOMPLoopTrans')
+    >>> rtrans = t.get_trans_name('OMPParallelTrans')
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> new_schedule = schedule
+    >>>
+    >>> # Apply the OpenMP Loop transformation to *every* loop
+    >>> # in the schedule
+    >>> for child in schedule.children:
+    >>>     newschedule, memento = ltrans.apply(child)
+    >>>     schedule = newschedule
+    >>>
+    >>> # Enclose all of these loops within a single OpenMP
+    >>> # PARALLEL region
+    >>> newschedule, _ = rtrans.apply(schedule.children)
+    >>> newschedule.view()
+
+    '''
+    def __init__(self):
+        super(OMPParallelTrans, self).__init__()
+        from psyclone.psyGen import OMPParallelDirective
+        # Set the type of directive that the base class will use
+        self._pdirective = OMPParallelDirective
+
+    def __str__(self):
+        return "Insert an OpenMP Parallel region"
+
+    @property
+    def name(self):
+        '''
+        :returns: The name of this transformation as a string.
+        :rtype: str
+        '''
+        return "OMPParallelTrans"
+
+    def _validate(self, node_list):
+        '''
+        Perform OpenMP-specific validation checks.
+
+        :param node_list: List of Nodes to put within parallel region.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+        :raises TransformationError: if the target Nodes are already within \
+                                     some OMP parallel region.
+        '''
+        from psyclone.psyGen import OMPDirective
+
+        if node_list[0].ancestor(OMPDirective):
+            raise TransformationError("Error in OMPParallel transformation:" +
+                                      " cannot create an OpenMP PARALLEL " +
+                                      "region within another OpenMP region.")
+
+        # Now call the general validation checks
+        super(OMPParallelTrans, self)._validate(node_list)
+
+
+class ACCParallelTrans(ParallelRegionTrans):
+    '''
+    Create an OpenACC parallel region by inserting directives. This parallel
+    region *must* come after an enter-data directive (see `ACCDataTrans`). For
+    example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.psyGen import TransInfo
+    >>> t = TransInfo()
+    >>> ptrans = t.get_trans_name('ACCParallelTrans')
+    >>> dtrans = t.get_trans_name('ACCDataTrans')
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Enclose everything within a single OpenACC PARALLEL region
+    >>> newschedule, _ = ptrans.apply(schedule.children)
+    >>> # Add an enter-data directive
+    >>> newschedule, _ = dtrans.apply(newschedule)
+    >>> newschedule.view()
+    '''
+    def __init__(self):
+        super(ACCParallelTrans, self).__init__()
+        from psyclone.psyGen import ACCParallelDirective
+        # Set the type of directive that the base class will use
+        self._pdirective = ACCParallelDirective
+
+    def __str__(self):
+        return "Insert an OpenACC Parallel region"
+
+    @property
+    def name(self):
+        '''
+        :returns: The name of this transformation as a string.
+        :rtype: str
+        '''
+        return "ACCParallelTrans"
+
+    def _validate(self, node_list):
+        '''
+        OpenACC-specific validation checks that the supplied list
+        of nodes can be enclosed in a parallel region.
+
+        :param node_list: proposed list of nodes to put inside region.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+        :raises NotImplementedError: if an API other than GOcean 1.0 is \
+                                     being used.
+        '''
+        from psyclone.gocean1p0 import GOSchedule
+        sched = node_list[0].root
+        if not isinstance(sched, GOSchedule):
+            raise NotImplementedError(
+                "OpenACC parallel regions are currently only "
+                "supported for the gocean 1.0 API")
+        super(ACCParallelTrans, self)._validate(node_list)
 
 
 class GOConstLoopBoundsTrans(Transformation):
@@ -1179,9 +1604,9 @@ class GOConstLoopBoundsTrans(Transformation):
     >>> from psyclone.psyGen import PSyFactory
     >>> import os
     >>> TEST_API = "gocean1.0"
-    >>> _,info = parse(os.path.join("tests", "test_files", "gocean1p0",
-    >>>                             "single_invoke.f90"),
-    >>>                api=TEST_API)
+    >>> _, info = parse(os.path.join("tests", "test_files", "gocean1p0",
+    >>>                              "single_invoke.f90"),
+    >>>                 api=TEST_API)
     >>> psy = PSyFactory(TEST_API).create(info)
     >>> invoke = psy.invokes.get('invoke_0_compute_cu')
     >>> schedule = invoke.schedule
@@ -1652,7 +2077,7 @@ class GOLoopSwapTrans(Transformation):
         parent = outer.parent
 
         # create a memento of the schedule and the proposed transformation
-        from .undoredo import Memento
+        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [inner, outer])
 
         # Remove outer from parent:
@@ -1710,23 +2135,22 @@ class OCLTrans(Transformation):
         return sched, keep
 
 
-class ProfileRegionTrans(Transformation):
-
+class ProfileRegionTrans(RegionTrans):
     ''' Create a profile region around a list of statements. For
     example:
 
     >>> from psyclone.parse import parse, ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
-    >>> api="gocean1.0"
-    >>> filename="nemolite2d_alg.f90"
-    >>> ast,invokeInfo=parse(filename,api=api,invoke_name="invoke")
-    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t=TransInfo()
-    >>> p_trans= t.get_trans_name('ProfileRegionTrans')
+    >>> t = TransInfo()
+    >>> p_trans = t.get_trans_name('ProfileRegionTrans')
     >>>
-    >>> schedule=psy.invokes.get('invoke_0').schedule
+    >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
     >>> # Enclose all children within a single profile region
@@ -1757,7 +2181,7 @@ class ProfileRegionTrans(Transformation):
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
         # list containing just that node.
-        from psyclone.psyGen import Node
+        from psyclone.psyGen import Node, OMPDoDirective, ACCLoopDirective
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
         elif isinstance(nodes, Node):
@@ -1776,28 +2200,13 @@ class ProfileRegionTrans(Transformation):
         # the first child to be enclosed as that will become the
         # position of the new Profile node
         node_parent = node_list[0].parent
-        if isinstance(node_parent, OMPDoDirective):
-            raise TransformationError("A ProfileNode can not be inserted "
-                                      "between an omp do region and the "
-                                      "loop(s) to which it applies!")
+        if isinstance(node_parent, (OMPDoDirective, ACCLoopDirective)):
+            raise TransformationError("A ProfileNode cannot be inserted "
+                                      "between an OpenMP/ACC directive and "
+                                      "the loop(s) to which it applies!")
         node_position = node_list[0].position
 
-        # We need to make sure that the nodes are consecutive children,
-        # otherwise code might get moved in an incorrect order
-        prev_position = -1
-        for child in node_list:
-            if child.parent is not node_parent:
-                raise TransformationError(
-                    "Error in {0} transformation: supplied nodes "
-                    "are not children of the same Schedule/parent."
-                    .format(str(self)))
-            if prev_position >= 0 and prev_position+1 != child.position:
-                raise TransformationError(
-                    "Children are not consecutive children of one parent: "
-                    "child '{0}' has position {1}, but previous child had "
-                    "position {2}."
-                    .format(str(child), child.position, prev_position))
-            prev_position = child.position
+        super(ProfileRegionTrans, self)._validate(node_list)
 
         # create a memento of the schedule and the proposed
         # transformation
@@ -1826,3 +2235,167 @@ class ProfileRegionTrans(Transformation):
                              index=node_position)
 
         return schedule, keep
+
+
+class ACCDataTrans(Transformation):
+    '''
+    Adds an OpenACC "enter data" directive to a Schedule.
+    For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api, invoke_name="invoke")
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.psyGen import TransInfo
+    >>> t = TransInfo()
+    >>> dtrans = t.get_trans_name('ACCDataTrans')
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> # Add an enter-data directive
+    >>> newschedule, _ = dtrans.apply(schedule)
+    >>> newschedule.view()
+    '''
+    def __str__(self):
+        return "Adds an OpenACC 'enter data' directive"
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+        '''
+        return "ACCDataTrans"
+
+    def apply(self, sched):
+        '''Adds an OpenACC "enter data" directive to the invoke associated
+        with the supplied Schedule. Any fields accessed by OpenACC kernels
+        within this schedule will be added to this data region in
+        order to ensure they remain on the target device.
+
+        :param sched: Schedule to which to add an "enter data" directive.
+        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`.
+        :returns: Tuple of the modified schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`)
+        :raises NotImplementedError: for any API other than GOcean 1.0.
+        :raises TransformationError: if passed something that is not a \
+                         (subclass of) :py:class:`psyclone.psyGen.Schedule`.
+        '''
+        # Check that the supplied node is a Schedule
+        from psyclone.psyGen import Schedule
+        from psyclone.gocean1p0 import GOSchedule
+
+        if isinstance(sched, GOSchedule):
+            from psyclone.gocean1p0 import GOACCDataDirective as AccDataDir
+        elif isinstance(sched, Schedule):
+            raise NotImplementedError(
+                "ACCDataTrans: ACCDataDirective not implemented for a "
+                "schedule of type {0}".format(type(sched)))
+        else:
+            raise TransformationError("Cannot apply an OpenACC data "
+                                      "directive to something that is "
+                                      "not a Schedule")
+        schedule = sched
+        # Check that we don't already have a data region
+        data_dir = schedule.walk(schedule.children, AccDataDir)
+        if len(data_dir) != 0:
+            raise TransformationError("Schedule already has an OpenACC "
+                                      "data region - cannot add another.")
+        # create a memento of the schedule and the proposed
+        # transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(schedule, self, [schedule])
+
+        # Add the directive
+        data_dir = AccDataDir(parent=schedule, children=[])
+        schedule.addchild(data_dir, index=0)
+
+        return schedule, keep
+
+
+class ACCRoutineTrans(Transformation):
+    '''
+    Transform a kernel subroutine by adding a "!$acc routine" directive
+    (causing it to be compiled for the OpenACC accelerator device).
+    For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import ACCRoutineTrans
+    >>> rtrans = ACCRoutineTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> kern = schedule.children[0].children[0].children[0]
+    >>> # Transform the kernel
+    >>> newkern, _ = rtrans.apply(kern)
+    '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation class.
+        :rtype: str
+        '''
+        return "ACCRoutineTrans"
+
+    def apply(self, kern):
+        '''
+        Modifies the AST of the supplied kernel so that it contains an
+        '!$acc routine' OpenACC directive.
+
+        :param kern: The kernel object to transform.
+        :type kern: :py:class:`psyclone.psyGen.Call`
+        :returns: (transformed kernel, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
+                :py:class:`psyclone.undoredo.Memento`).
+        :raises TransformationError: if we fail to find the subroutine \
+                                     corresponding to the kernel object.
+        '''
+        from fparser.two.Fortran2003 import walk_ast, Subroutine_Subprogram, \
+            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
+            Implicit_Part, Comment
+        from fparser.common.readfortran import FortranStringReader
+        # Get the fparser2 AST of the kernel
+        ast = kern.ast
+        # Keep a record of this transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(kern, self)
+        # Find the kernel subroutine
+        kern_sub = None
+        subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
+        for sub in subroutines:
+            for child in sub.content:
+                if isinstance(child, Subroutine_Stmt) and \
+                   str(child.items[1]) == kern.name:
+                    kern_sub = sub
+                    break
+            if kern_sub:
+                break
+        if not kern_sub:
+            raise TransformationError(
+                "Failed to find subroutine source for kernel {0}".
+                format(kern.name))
+        # Find the last declaration statement in the subroutine
+        spec = walk_ast(kern_sub.content, [Specification_Part])[0]
+        idx = 0
+        for idx, node in enumerate(spec.content):
+            if not (isinstance(node, (Implicit_Part, Type_Declaration_Stmt))):
+                break
+        # Create the directive and insert it
+        cmt = Comment(FortranStringReader("!$acc routine",
+                                          ignore_comments=False))
+        spec.content.insert(idx, cmt)
+
+        # Return the now modified kernel
+        return kern, keep

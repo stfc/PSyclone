@@ -310,7 +310,7 @@ provided then an exception is raised.
 For example, running test 19.2 from the Dynamo0.3 API test suite gives::
 
   cd <PSYCLONEHOME>/src/psyclone/tests
-  python ../generator.py test_files/dynamo0p3/19.2_single_stencil_broken.f90
+  psyclone test_files/dynamo0p3/19.2_single_stencil_broken.f90
   "Generation Error: error: expected '5' arguments in the algorithm layer but found '4'.
   Expected '4' standard arguments, '1' stencil arguments and '0' qr_arguments'"
 

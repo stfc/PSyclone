@@ -33,7 +33,7 @@
 #------------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''A simple test script showing the introduction of OpenMP with PSyclone.
+'''A simple test script showing the introduction of OpenACC with PSyclone.
 In order to use it you must first install PSyclone like so:
 
  >>> pip install --user psyclone
@@ -41,7 +41,7 @@ In order to use it you must first install PSyclone like so:
 (or see the Getting Going section in ../../psyclone.pdf.) Once PSyclone is
 installed, this script may be run by doing:
 
- >>> python runme_openmp.py
+ >>> python runme_openacc.py
 
 This should generate a lot of output, ending with generated
 Fortran. In subroutine invoke_0 you will see the code that has
@@ -49,8 +49,13 @@ been loop-fused and then parallelised:
 
  >>>    SUBROUTINE invoke_0(cu_fld, p_fld, u_fld, cv_fld, v_fld, z_fld, h_fld)
  >>>      ...
+ >>>      IF (first_time) THEN
+ >>>        !$acc enter data copyin(...)
+ >>>        ...
+ >>>      END IF
  >>>      !
- >>>      !$omp parallel do default(shared), private(j,i), schedule(static)
+ >>>      !$acc parallel default(present)
+ >>>      !$acc loop collapse(2)
  >>>      DO j=2,jstop
  >>>        DO i=2,istop+1
  >>>          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
@@ -61,50 +66,59 @@ been loop-fused and then parallelised:
  >>>                              v_fld%data)
  >>>        END DO
  >>>      END DO
- >>>      !$omp end parallel do
+ >>>      !$acc end parallel
  >>>    END SUBROUTINE invoke_0
 
 '''
-
 from __future__ import print_function
-from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, TransInfo
 
-API = "gocean1.0"
-_, INVOKEINFO = parse("shallow_alg.f90", api=API)
-PSY = PSyFactory(API).create(INVOKEINFO)
-print(PSY.gen)
+if __name__ == "__main__":
+    from psyclone.parse import parse
+    from psyclone.psyGen import PSyFactory, TransInfo
 
-print(PSY.invokes.names)
-SCHEDULE = PSY.invokes.get('invoke_0').schedule
-SCHEDULE.view()
+    api = "gocean1.0"
+    _, invokeinfo = parse("shallow_alg.f90", api=api)
+    psy = PSyFactory(api).create(invokeinfo)
+    print(psy.gen)
 
-TRANS_INFO = TransInfo()
-print(TRANS_INFO.list)
-FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
-OMP_TRANS = TRANS_INFO.get_trans_name('GOceanOMPParallelLoopTrans')
+    print(psy.invokes.names)
+    schedule = psy.invokes.get('invoke_0').schedule
+    schedule.view()
 
-# invoke0
-# fuse all outer loops
-LF1_SCHEDULE, _ = FUSE_TRANS.apply(SCHEDULE.children[0],
-                                   SCHEDULE.children[1])
-LF2_SCHEDULE, _ = FUSE_TRANS.apply(LF1_SCHEDULE.children[0],
-                                   LF1_SCHEDULE.children[1])
-LF3_SCHEDULE, _ = FUSE_TRANS.apply(LF2_SCHEDULE.children[0],
-                                   LF2_SCHEDULE.children[1])
-LF3_SCHEDULE.view()
+    trans_info = TransInfo()
+    print(trans_info.list)
+    fuse_trans = trans_info.get_trans_name('LoopFuse')
+    ptrans = trans_info.get_trans_name('ACCParallelTrans')
+    dtrans = trans_info.get_trans_name('ACCDataTrans')
+    ltrans = trans_info.get_trans_name('ACCLoopTrans')
 
-# fuse all inner loops
-LF4_SCHEDULE, _ = FUSE_TRANS.apply(LF3_SCHEDULE.children[0].children[0],
-                                   LF3_SCHEDULE.children[0].children[1])
-LF5_SCHEDULE, _ = FUSE_TRANS.apply(LF4_SCHEDULE.children[0].children[0],
-                                   LF4_SCHEDULE.children[0].children[1])
-LF6_SCHEDULE, _ = FUSE_TRANS.apply(LF5_SCHEDULE.children[0].children[0],
-                                   LF5_SCHEDULE.children[0].children[1])
-LF6_SCHEDULE.view()
+    # invoke0
+    # fuse all outer loops
+    lf1_schedule, _ = fuse_trans.apply(schedule.children[0],
+                                       schedule.children[1])
+    lf2_schedule, _ = fuse_trans.apply(lf1_schedule.children[0],
+                                       lf1_schedule.children[1])
+    lf3_schedule, _ = fuse_trans.apply(lf2_schedule.children[0],
+                                       lf2_schedule.children[1])
+    lf3_schedule.view()
 
-OL_SCHEDULE, _ = OMP_TRANS.apply(LF6_SCHEDULE.children[0])
-OL_SCHEDULE.view()
+    # fuse all inner loops
+    lf4_schedule, _ = fuse_trans.apply(lf3_schedule.children[0].children[0],
+                                       lf3_schedule.children[0].children[1])
+    lf5_schedule, _ = fuse_trans.apply(lf4_schedule.children[0].children[0],
+                                       lf4_schedule.children[0].children[1])
+    lf6_schedule, _ = fuse_trans.apply(lf5_schedule.children[0].children[0],
+                                       lf5_schedule.children[0].children[1])
+    lf6_schedule.view()
 
-PSY.invokes.get('invoke_0').schedule = OL_SCHEDULE
-print(PSY.gen)
+    # Apply an OpenACC loop directive to the loop
+    sched, _ = ltrans.apply(lf6_schedule.children[0], collapse=2)
+    
+    # Create an OpenACC parallel region around the loop
+    ol_schedule, _ = ptrans.apply(sched.children[0])
+    ol_schedule.view()
+
+    # Add an OpenACC enter-data directive
+    sched, _ = dtrans.apply(ol_schedule)
+    psy.invokes.get('invoke_0').schedule = sched
+    print(psy.gen)

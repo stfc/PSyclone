@@ -1,8 +1,7 @@
-#!/bin/bash
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,28 +31,45 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-# Simple bash script to allow test environment to be configured within
-# Travis. This enables the test suite to be run both with and without
-# any optional dependencies.
+'''File containing a PSyclone transformation script for the Dynamo0.3
+API to apply redundant computation to halo depth 1 for all loops that
+iterate over dofs and do not contain a reduction.
 
-# Which packages are installed is controlled by environment variables that
-# can be set using the Travis 'env' section in .travis.yml. This script also
-# takes one, optional command-line flag: "fparser_submodule". If present then
-# the version of fparser pointed to by the git submodule is installed rather
-# than relying upon pip to install a released version (from pypi).
+'''
+from __future__ import absolute_import
+from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 
-if [ "$WITH_TERMCOLOR" = "1" ]; then
-    echo "Installing termcolor package..."
-    pip install termcolor
-fi
+ITERATION_SPACES = ["dofs"]
+DEPTH = 1
 
-if [ "$1" = "fparser_submodule" ]; then
-    echo "Installing fparser from git submodule..."
-    git submodule init
-    git submodule update
-    cd external/fparser
-    pip install .
-    cd -
-fi
+
+def trans(psy):
+    '''PSyclone transformation script for the dynamo0.3 API to apply
+    redundant computation generically to all loops that iterate over
+    dofs, with the exception of loops containing kernels with
+    reductions.
+
+    '''
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+
+    transformed = 0
+
+    for invoke in psy.invokes.invoke_list:
+        schedule = invoke.schedule
+        for loop in schedule.loops():
+            if loop.iteration_space in ITERATION_SPACES:
+                # we may have more than one kernel in the loop so
+                # check that none of them are reductions
+                reduction = False
+                for call in loop.calls():
+                    if call.is_reduction:
+                        reduction = True
+                        break
+                if not reduction:
+                    transformed += 1
+                    schedule, _ = rc_trans.apply(loop, depth=DEPTH)
+
+    print("Transformed {0} loops".format(transformed))
+    return psy

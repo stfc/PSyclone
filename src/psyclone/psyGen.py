@@ -1220,14 +1220,30 @@ class Node(object):
             local_list += self.walk(child.children, my_type)
         return local_list
 
-    def ancestor(self, my_type):
-        ''' Search back up tree and check whether we have an
-        ancestor of the supplied type. If we do then we return
-        it otherwise we return None '''
+    def ancestor(self, my_type, excluding=None):
+        '''
+        Search back up tree and check whether we have an ancestor that is
+        an instance of the supplied type. If we do then we return
+        it otherwise we return None. A list of (sub-) classes to ignore
+        may be provided via the `excluding` argument.
+
+        :param type my_type: Class to search for.
+        :param list excluding: list of (sub-)classes to ignore or None.
+        :returns: First ancestor Node that is an instance of the requested \
+                  class or None if not found.
+        '''
         myparent = self.parent
         while myparent is not None:
             if isinstance(myparent, my_type):
-                return myparent
+                matched = True
+                if excluding:
+                    # We have one or more sub-classes we must exclude
+                    for etype in excluding:
+                        if isinstance(myparent, etype):
+                            matched = False
+                            break
+                if matched:
+                    return myparent
             myparent = myparent.parent
         return None
 
@@ -1495,6 +1511,13 @@ class Schedule(Node):
 
 
 class Directive(Node):
+    '''
+    Base class for all Directive statments.
+
+    All classes that generate Directive statments (e.g. OpenMP,
+    OpenACC, compiler-specific) inherit from this class.
+
+    '''
 
     def view(self, indent=0):
         '''
@@ -1525,11 +1548,354 @@ class Directive(Node):
         return "directive_" + str(self.abs_position)
 
 
-class OMPDirective(Directive):
+class ACCDirective(Directive):
+    ''' Base class for all OpenACC directive statments. '''
+
+    @abc.abstractmethod
+    def view(self, indent=0):
+        '''
+        Print text representation of this node to stdout.
+
+        :param int indent: size of indent to use for output
+        '''
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        ''' Return the name to use in a dag for this node.
+
+        :returns: Name of corresponding node in DAG
+        :rtype: str
+        '''
+        return "ACC_directive_" + str(self.abs_position)
+
+
+@six.add_metaclass(abc.ABCMeta)
+class ACCDataDirective(ACCDirective):
+    '''
+    Abstract class representing a "!$ACC enter data" OpenACC directive in
+    a Schedule. Must be sub-classed for a particular API because the way
+    in which fields are marked as being on the remote device is API-
+    -dependent.
+
+    :param children: list of nodes which this directive should \
+                     have as children.
+    :type children: list of :py:class:`psyclone.psyGen.Node`.
+    :param parent: the node in the Schedule to which to add this \
+                   directive as a child.
+    :type parent: :py:class:`psyclone.psyGen.Node`.
+    '''
+    def __init__(self, children=None, parent=None):
+        super(ACCDataDirective, self).__init__(children, parent)
+        self._acc_dirs = None  # List of parallel directives
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this Node to stdout.
+
+        :param int indent: the amount by which to indent the output.
+        '''
+        print(self.indent(indent)+self.coloured_text+"[ACC enter data]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this Node in a DAG
+        :rtype: str
+        '''
+        return "ACC_data_" + str(self.abs_position)
+
+    def gen_code(self, parent):
+        '''
+        Generate the elements of the f2pygen AST for this Node in the Schedule.
+
+        :param parent: node in the f2pygen AST to which to add node(s).
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen, \
+            IfThenGen, AssignGen, CallGen, UseGen
+
+        # We must generate a list of all of the fields accessed by
+        # OpenACC kernels (calls within an OpenACC parallel directive)
+        # 1. Find all parallel directives. We store this list for later
+        #    use in any sub-class.
+        self._acc_dirs = self.walk(self.root.children, ACCParallelDirective)
+        # 2. For each directive, loop over each of the fields used by
+        #    the kernels it contains (this list is given by var_list)
+        #    and add it to our list if we don't already have it
+        var_list = []
+        # TODO grid properties are effectively duplicated in this list (but
+        # the OpenACC deep-copy support should spot this).
+        for pdir in self._acc_dirs:
+            for var in pdir.ref_list:
+                if var not in var_list:
+                    var_list.append(var)
+        # 3. Convert this list of objects into a comma-delimited string
+        var_str = self.list_to_string(var_list)
+
+        # 4. Declare and initialise a logical variable to keep track of
+        #    whether this is the first time we've entered this Invoke
+        name_space_manager = NameSpaceFactory().create()
+        first_time = name_space_manager.create_name(
+            root_name="first_time", context="PSyVars", label="first_time")
+        parent.add(DeclGen(parent, datatype="logical",
+                           entity_decls=[first_time],
+                           initial_values=[".True."],
+                           save=True))
+        parent.add(CommentGen(parent,
+                              " Ensure all fields are on the device and"))
+        parent.add(CommentGen(parent, " copy them over if not."))
+        # 5. Put the enter data directive inside an if-block so that we
+        #    only ever do it once
+        ifthen = IfThenGen(parent, first_time)
+        parent.add(ifthen)
+        ifthen.add(DirectiveGen(ifthen, "acc", "begin", "enter data",
+                                "copyin("+var_str+")"))
+        # 6. Flag that we have now entered this routine at least once
+        ifthen.add(AssignGen(ifthen, lhs=first_time, rhs=".false."))
+        # 7. Flag that the data is now on the device. This calls down
+        #    into the API-specific subclass of this class.
+        self.data_on_device(ifthen)
+        parent.add(CommentGen(parent, ""))
+
+        # 8. Ensure that any scalars are up-to-date
+        var_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.scalars:
+                if var not in var_list:
+                    var_list.append(var)
+        if var_list:
+            # We need to 'use' the openacc module in order to access
+            # the OpenACC run-time library
+            parent.add(UseGen(parent, name="openacc", only=True,
+                              funcnames=["acc_update_device"]))
+            parent.add(
+                CommentGen(parent,
+                           " Ensure all scalars on the device are up-to-date"))
+            for var in var_list:
+                parent.add(CallGen(parent, "acc_update_device", [var, "1"]))
+            parent.add(CommentGen(parent, ""))
+
+    @abc.abstractmethod
+    def data_on_device(self, parent):
+        '''
+        Adds nodes into a Schedule to flag that the data required by the
+        kernels in the data region is now on the device.
+
+        :param parent: the node in the Schedule to which to add nodes
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+
+
+class ACCParallelDirective(ACCDirective):
+    ''' Class for the !$ACC PARALLEL directive of OpenACC. '''
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this Node to stdout.
+
+        :param int indent: the amount by which to indent the output.
+        '''
+        print(self.indent(indent)+self.coloured_text+"[ACC Parallel]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this Node in a DAG
+        :rtype: str
+        '''
+        return "ACC_parallel_" + str(self.abs_position)
+
+    def gen_code(self, parent):
+        '''
+        Generate the elements of the f2pygen AST for this Node in the Schedule.
+
+        :param parent: node in the f2pygen AST to which to add node(s).
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import DirectiveGen
+
+        # Since we use "default(present)" the Schedule must contain an
+        # 'enter data' directive. We don't mandate the order in which
+        # transformations are applied so we have to check for that here.
+        # We can't use Node.ancestor() because the data directive does
+        # not have children. Instead, we go back up to the Schedule and
+        # walk down from there.
+        nodes = self.root.walk(self.root.children, ACCDataDirective)
+        if len(nodes) != 1:
+            raise GenerationError(
+                "A Schedule containing an ACC parallel region must also "
+                "contain an ACC enter data directive but none was found for "
+                "{0}".format(self.root.invoke.name))
+        # Check that the enter-data directive comes before this parallel
+        # directive
+        if nodes[0].abs_position > self.abs_position:
+            raise GenerationError(
+                "An ACC parallel region must be preceeded by an ACC enter-"
+                "data directive but in {0} this is not the case.".
+                format(self.root.invoke.name))
+
+        # "default(present)" means that the compiler is to assume that
+        # all data required by the parallel region is already present
+        # on the device. If we've made a mistake and it isn't present
+        # then we'll get a run-time error.
+        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
+                                "default(present)"))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "acc", "end", "parallel", ""))
+
+    @property
+    def ref_list(self):
+        '''
+        Returns a list of the references (whether to arrays or objects)
+        required by the Kernel call(s) that are children of this
+        directive. This is the list of quantities that must be
+        available on the remote device (probably a GPU) before
+        the parallel region can be begun.
+
+        :returns: list of variable names
+        :rtype: list of str
+        '''
+        variables = []
+
+        # Look-up the calls that are children of this node
+        for call in self.calls():
+            for arg in call.arguments.acc_args:
+                if arg not in variables:
+                    variables.append(arg)
+        return variables
+
+    @property
+    def fields(self):
+        '''
+        Returns a list of the names of field objects required by the Kernel
+        call(s) that are children of this directive.
+
+        :returns: list of names of field arguments.
+        :rtype: list of str
+        '''
+        # Look-up the calls that are children of this node
+        fld_list = []
+        for call in self.calls():
+            for arg in call.arguments.fields:
+                if arg not in fld_list:
+                    fld_list.append(arg)
+        return fld_list
+
+    @property
+    def scalars(self):
+        '''
+        Returns a list of the scalar quantities required by the Calls in
+        this region.
+
+        :returns: list of names of scalar arguments.
+        :rtype: list of str
+        '''
+        scalars = []
+        for call in self.calls():
+            for arg in call.arguments.scalars:
+                if arg not in scalars:
+                    scalars.append(arg)
+        return scalars
+
+
+class ACCLoopDirective(ACCDirective):
+    '''
+    Class managing the creation of a '!$acc loop' OpenACC directive.
+
+    :param children: list of nodes that will be children of this directive.
+    :type children: list of :py:class:`psyclone.psyGen.Node`.
+    :param parent: the node in the Schedule to which to add this directive.
+    :type parent: :py:class:`psyclone.psyGen.Node`.
+    :param int collapse: Number of nested loops to collapse into a single \
+                         iteration space or None.
+    :param bool independent: Whether or not to add the `independent` clause \
+                             to the loop directive.
+    '''
+    def __init__(self, children=None, parent=None, collapse=None,
+                 independent=True):
+        self._collapse = collapse
+        self._independent = independent
+        super(ACCLoopDirective, self).__init__(children, parent)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this Node in a DAG
+        :rtype: str
+        '''
+        return "ACC_loop_" + str(self.abs_position)
+
+    def view(self, indent=0):
+        '''
+        Print a textual representation of this Node to stdout.
+
+        :param int indent: amount to indent output by
+        '''
+        text = self.indent(indent)+self.coloured_text+"[ACC Loop"
+        if self._collapse:
+            text += ", collapse={0}".format(self._collapse)
+        if self._independent:
+            text += ", independent"
+        text += "]"
+        print(text)
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenACC
+        loop directive.
+
+        :param parent: the parent Node in the Schedule to which to add our
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if this "!$acc loop" is not enclosed within \
+                                 an ACC Parallel region.
+        '''
+        from psyclone.f2pygen import DirectiveGen
+
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user can
+        # apply transformations to the code). As an orphaned loop directive,
+        # we must have an ACCParallelDirective as an ancestor somewhere
+        # back up the tree.
+        if not self.ancestor(ACCParallelDirective):
+            raise GenerationError(
+                "ACCLoopDirective must have an ACCParallelDirective as an "
+                "ancestor in the Schedule")
+
+        # Add any clauses to the directive
+        options = []
+        if self._collapse:
+            options.append("collapse({0})".format(self._collapse))
+        if self._independent:
+            options.append("independent")
+        options_str = " ".join(options)
+
+        parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+
+class OMPDirective(Directive):
+    '''
+    Base class for all OpenMP-related directives
+
+    '''
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in a dag for this node
+        :rtype: str
+        '''
         return "OMP_directive_" + str(self.abs_position)
 
     def view(self, indent=0):
@@ -1719,17 +2085,18 @@ class OMPDoDirective(OMPDirective):
 
         if children is None:
             children = []
+
         if reprod is None:
-            # Look-up the value read from the config file
-            reprod = _CONFIG.reproducible_reductions
+            self._reprod = _CONFIG.reproducible_reductions
+        else:
+            self._reprod = reprod
 
         self._omp_schedule = omp_schedule
-        self._reprod = reprod
+
         # Call the init method of the base class once we've stored
         # the OpenMP schedule
-        OMPDirective.__init__(self,
-                              children=children,
-                              parent=parent)
+        super(OMPDoDirective, self).__init__(children=children,
+                                             parent=parent)
 
     @property
     def dag_name(self):
@@ -1770,15 +2137,27 @@ class OMPDoDirective(OMPDirective):
         return self._reprod
 
     def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenMP do
+        directive.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if this "!$omp do" is not enclosed within \
+                                 an OMP Parallel region.
+        '''
         from psyclone.f2pygen import DirectiveGen
 
-        # It is only at the point of code generation that
-        # we can check for correctness (given that we don't
-        # mandate the order that a user can apply transformations
-        # to the code). As an orphaned loop directive, we must
-        # have an OMPRegionDirective as a parent somewhere
-        # back up the tree.
-        self._within_omp_region()
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As an orphaned loop
+        # directive, we must have an OMPRegionDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=[OMPParallelDoDirective]):
+            raise GenerationError("OMPOrphanLoopDirective must have an "
+                                  "OMPRegionDirective as ancestor")
 
         if self._reprod:
             local_reduction_string = ""
@@ -1788,11 +2167,9 @@ class OMPDoDirective(OMPDirective):
         # As we're an orphaned loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
-        parent.add(DirectiveGen(parent,
-                                "omp", "begin", "do",
-                                "schedule({0})".
-                                format(self._omp_schedule) +
-                                local_reduction_string))
+        options = "schedule({0})".format(self._omp_schedule) + \
+                  local_reduction_string
+        parent.add(DirectiveGen(parent, "omp", "begin", "do", options))
 
         for child in self.children:
             child.gen_code(parent)
@@ -1801,18 +2178,6 @@ class OMPDoDirective(OMPDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
                    position=["after", position])
-
-    def _within_omp_region(self):
-        ''' Check that this orphaned OMP Loop Directive is actually
-            within an OpenMP Parallel Region '''
-        myparent = self.parent
-        while myparent is not None:
-            if isinstance(myparent, OMPParallelDirective) and\
-               not isinstance(myparent, OMPParallelDoDirective):
-                return
-            myparent = myparent.parent
-        raise GenerationError("OMPOrphanLoopDirective must have an "
-                              "OMPRegionDirective as ancestor")
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
@@ -2592,12 +2957,29 @@ class Call(Node):
 
 
 class Kern(Call):
+    '''
+    Class representing a Kernel call within the Schedule (AST) of an Invoke.
+
+    :param type KernelArguments: the API-specific sub-class of \
+                                 :py:class:`psyclone.psyGen.Arguments` to \
+                                 create.
+    :param call: Details of the call to this kernel in the Algorithm layer.
+    :type call: :py:class:`psyclone.parse.KernelCall`.
+    :param parent: the parent of this Node (kernel call) in the Schedule.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`.
+    :param bool check: Whether or not to check that the number of arguments \
+                       specified in the kernel meta-data matches the number \
+                       provided by the call in the Algorithm layer.
+    :raises GenerationError: if(check) and the number of arguments in the \
+                             call does not match that in the meta-data.
+    '''
     def __init__(self, KernelArguments, call, parent=None, check=True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
         self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
+        self._fp2_ast = None  # The fparser2 AST for the kernel
         self._module_inline = False
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
@@ -2734,6 +3116,28 @@ class Kern(Call):
         coloured loop '''
         return self.parent.loop_type == "colour"
 
+    @property
+    def ast(self):
+        '''
+        Generate and return the fparser2 AST of the kernel source.
+
+        :returns: fparser2 AST of the Fortran file containing this kernel.
+        :rtype: :py:class:`fparser.two.Fortran2003.Program`
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two import parser
+        # If we've already got the AST then just return it
+        if self._fp2_ast:
+            return self._fp2_ast
+        # Use the fparser1 AST to generate Fortran source
+        fortran = self._module_code.tofortran()
+        # Create an fparser2 Fortran2003 parser
+        my_parser = parser.ParserFactory().create()
+        # Parse that Fortran using our parser
+        reader = FortranStringReader(fortran)
+        self._fp2_ast = my_parser(reader)
+        return self._fp2_ast
+
 
 class BuiltIn(Call):
     ''' Parent class for all built-ins (field operations for which the user
@@ -2808,6 +3212,25 @@ class Arguments(object):
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
                               "reader/writer, or increment as an argument")
+
+    @property
+    def acc_args(self):
+        '''
+        :returns: the list of quantities that must be available on an \
+                  OpenACC device before the associated kernel can be launched
+        :rtype: list of str
+        '''
+        raise NotImplementedError(
+            "Arguments.acc_args must be implemented in sub-class")
+
+    @property
+    def scalars(self):
+        '''
+        :returns: the list of scalar quantities belonging to this object
+        :rtype: list of str
+        '''
+        raise NotImplementedError(
+            "Arguments.scalars must be implemented in sub-class")
 
 
 class Argument(object):
@@ -3266,27 +3689,51 @@ class TransInfo(object):
             are a subclass of the specified baseclass. '''
         import inspect
         return [cls for name, cls in inspect.getmembers(module)
-                if inspect.isclass(cls) and
+                if inspect.isclass(cls) and not inspect.isabstract(cls) and
                 issubclass(cls, base_class) and cls is not base_class]
 
 
 @six.add_metaclass(abc.ABCMeta)
 class Transformation(object):
-    ''' abstract baseclass for a transformation. Uses the abc module so it
+    '''Abstract baseclass for a transformation. Uses the abc module so it
         can not be instantiated. '''
 
     @abc.abstractproperty
     def name(self):
+        '''Returns the name of the transformation.'''
         return
 
     @abc.abstractmethod
-    def apply(self):
+    def apply(self, *args):
+        '''Abstract method that applies the transformation. This function
+        must be implemented by each transform.
+
+        :param args: Arguments for the transformation - specific to\
+                    the actual transform used.
+        :type args: Type depends on actual transformation.
+        :returns: A tuple of the new schedule, and a momento.
+        :rtype: Tuple.
+        '''
+        # pylint: disable=no-self-use
         schedule = None
         momento = None
         return schedule, momento
 
+    def _validate(self, *args):
+        '''Method that alidates that the input data is correct.
+        It will raise exceptions if the input data is incorrect. This function
+        needs to be implemented by each transformation.
+
+        :param args: Arguments for the applying the transformation - specific\
+                    to the actual transform used.
+        :type args: Type depends on actual transformation.
+        '''
+        # pylint: disable=no-self-use, unused-argument
+        return
+
 
 class DummyTransformation(Transformation):
+    '''Dummy transformation use elsewhere to keep pyreverse happy.'''
     def name(self):
         return
 

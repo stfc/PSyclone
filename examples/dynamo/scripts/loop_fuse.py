@@ -1,8 +1,7 @@
-#!/bin/bash
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,28 +31,49 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: R. W. Ford, STFC Daresbury Laboratory
 
-# Simple bash script to allow test environment to be configured within
-# Travis. This enables the test suite to be run both with and without
-# any optional dependencies.
+'''File containing a PSyclone transformation script for the Dynamo0.3
+API to apply loop fusion generically. Fusion is attempted for all
+adjacent loops at the top level of a schedule. It will not fuse loops
+that are lower in the schedule e.g. coloured loops. This can be
+applied via the -s option in the psyclone script.
 
-# Which packages are installed is controlled by environment variables that
-# can be set using the Travis 'env' section in .travis.yml. This script also
-# takes one, optional command-line flag: "fparser_submodule". If present then
-# the version of fparser pointed to by the git submodule is installed rather
-# than relying upon pip to install a released version (from pypi).
+'''
+from __future__ import absolute_import
+from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
 
-if [ "$WITH_TERMCOLOR" = "1" ]; then
-    echo "Installing termcolor package..."
-    pip install termcolor
-fi
 
-if [ "$1" = "fparser_submodule" ]; then
-    echo "Installing fparser from git submodule..."
-    git submodule init
-    git submodule update
-    cd external/fparser
-    pip install .
-    cd -
-fi
+def trans(psy):
+    '''PSyclone transformation script for the dynamo0.3 API to apply loop
+    fusion generically to all top level loops.
+
+    '''
+    total_fused = 0
+    lf_trans = DynamoLoopFuseTrans()
+
+    # Loop over all of the Invokes in the PSy object
+    for invoke in psy.invokes.invoke_list:
+
+        local_fused = 0
+        schedule = invoke.schedule
+
+        # loop over all nodes in reverse order
+        idx = len(schedule.children) - 1
+        while idx > 0:
+            node = schedule.children[idx]
+            prev_node = schedule.children[idx-1]
+            try:
+                schedule, _ = lf_trans.apply(prev_node, node, same_space=False)
+                local_fused += 1
+            except TransformationError:
+                pass
+            idx -= 1
+        total_fused += local_fused
+        if local_fused > 0:
+            print("After fusing ...")
+            schedule.view()
+            invoke.schedule = schedule
+
+    print("Fused {0} loops".format(total_fused))
+    return psy
