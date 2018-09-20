@@ -1444,26 +1444,35 @@ class Schedule(Node):
                                          "get_cmd_queues",
                                          "get_kernel_by_name"]))
             # Command queues
+            nqueues = self._name_space_manager.create_name(
+                root_name="num_cmd_queues", context="PSyVars",
+                label="num_cmd_queues")
+            qlist = self._name_space_manager.create_name(
+                root_name="cmd_queues", context="PSyVars", label="cmd_queues")
+            first = self._name_space_manager.create_name(
+                root_name="first_time", context="PSyVars", label="first_time")
+            flag = self._name_space_manager.create_name(
+                root_name="ierr", context="PSyVars", label="ierr")
             parent.add(DeclGen(parent, datatype="integer", save=True,
-                               entity_decls=["num_cmd_queues"]))
+                               entity_decls=[nqueues]))
             parent.add(DeclGen(parent, datatype="integer", save=True,
                                pointer=True, kind="c_intptr_t",
-                               entity_decls=["cmd_queues(:)"]))
+                               entity_decls=[qlist + "(:)"]))
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=["ierr"]))
+                               entity_decls=[flag]))
             parent.add(DeclGen(parent, datatype="logical", save=True,
-                               entity_decls=["first_time"],
+                               entity_decls=[first],
                                initial_values=[".true."]))
-            if_first = IfThenGen(parent, "first_time")
+            if_first = IfThenGen(parent, first)
             parent.add(if_first)
-            if_first.add(AssignGen(if_first, lhs="first_time", rhs=".false."))
+            if_first.add(AssignGen(if_first, lhs=first, rhs=".false."))
             if_first.add(CommentGen(if_first,
                                     " Ensure OpenCL run-time is initialised "
                                     "for this PSy-layer module"))
             if_first.add(CallGen(if_first, "psy_init"))
-            if_first.add(AssignGen(if_first, lhs="num_cmd_queues",
+            if_first.add(AssignGen(if_first, lhs=nqueues,
                                    rhs="get_num_cmd_queues()"))
-            if_first.add(AssignGen(if_first, lhs="cmd_queues", pointer=True,
+            if_first.add(AssignGen(if_first, lhs=qlist, pointer=True,
                                    rhs="get_cmd_queues()"))
             # Kernel pointers
             kernels = self.walk(self._children, Call)
@@ -1489,8 +1498,8 @@ class Schedule(Node):
             # BUG this assumes only the first command queue is used
             parent.add(CommentGen(parent,
                                   " Block until all kernels have finished"))
-            parent.add(AssignGen(parent, lhs="ierr",
-                                 rhs="clFinish(cmd_queues(1))"))
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + qlist + "(1))"))
 
     @property
     def opencl(self):

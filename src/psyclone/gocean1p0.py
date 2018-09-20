@@ -863,41 +863,53 @@ class GOKern(Kern):
                     condition = device_buff + " == 0"
                     host_buff = "{0}%grid%{1}".format(garg.name, arg.name)
 
+                nbytes = self._name_space_manager.create_name(
+                    root_name="size_in_bytes", context="PSyVars",
+                    label="size_in_bytes")
+                wevent = self._name_space_manager.create_name(
+                    root_name="write_event", context="PSyVars",
+                    label="write_event")
                 ifthen = IfThenGen(parent, condition)
                 parent.add(ifthen)
                 parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
-                                   entity_decls=["size_in_bytes"]))
+                                   entity_decls=[nbytes]))
                 parent.add(DeclGen(parent, datatype="integer",
                                    kind="c_intptr_t", target=True,
-                                   entity_decls=["write_event"]))
+                                   entity_decls=[wevent]))
                 # Use c_sizeof() on first element of array to be copied over in
                 # order to cope with the fact that some grid properties are
                 # integer.
                 size_expr = ("int({0}%grid%nx*{0}%grid%ny, 8)*"
                              "c_sizeof({1}(1,1))".format(garg.name, host_buff))
-                ifthen.add(AssignGen(ifthen, lhs="size_in_bytes",
-                                     rhs=size_expr))
+                ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
+                # Get the name of the list of command queues (set in
+                # psyGen.Schedule)
+                qlist = self._name_space_manager.create_name(
+                    root_name="cmd_queues", context="PSyVars",
+                    label="cmd_queues")
+                flag = self._name_space_manager.create_name(
+                    root_name="ierr", context="PSyVars", label="ierr")
 
                 ifthen.add(AssignGen(
                     ifthen, lhs=device_buff,
-                    rhs="create_rw_buffer(size_in_bytes)"))
+                    rhs="create_rw_buffer(" + nbytes + ")"))
                 ifthen.add(AssignGen(
-                    ifthen, lhs="ierr",
-                    rhs="clEnqueueWriteBuffer(cmd_queues(1), {0}, "
-                    "CL_TRUE, 0_8, size_in_bytes, C_LOC({1}), "
-                    "0, C_NULL_PTR, C_LOC(write_event))".format(device_buff,
-                                                                host_buff)))
+                    ifthen, lhs=flag,
+                    rhs="clEnqueueWriteBuffer({0}(1), {1}, CL_TRUE, "
+                    "0_8, {2}, C_LOC({3}), 0, C_NULL_PTR, "
+                    "C_LOC({4}))".format(qlist, device_buff,
+                                         nbytes, host_buff, wevent)))
                 if arg.type == "field":
-                    ifthen.add(AssignGen(ifthen,
-                                         lhs="{0}%data_on_device".format(arg.name),
-                                         rhs=".true."))
+                    ifthen.add(AssignGen(
+                        ifthen, lhs="{0}%data_on_device".format(arg.name),
+                        rhs=".true."))
 
         # Ensure data copies have finished
         parent.add(CommentGen(parent,
                               " Block until data copies have finished"))
-        parent.add(AssignGen(parent, lhs="ierr",
-                             rhs="clFinish(cmd_queues(1))"))
+        parent.add(AssignGen(parent, lhs=flag,
+                             rhs="clFinish(" + qlist + "(1))"))
         # Then we set the kernel arguments
         arguments = [kernel, garg.name+"%grid%nx"]
         # TODO this argument-list generation duplicates that in
@@ -918,13 +930,13 @@ class GOKern(Kern):
         # Then we call clEnqueueNDRangeKernel
         parent.add(CommentGen(parent, " Launch the kernel"))
         cnull = "C_NULL_PTR"
-        cmd_queue = "cmd_queues(1)"  # TODO use namespace manager
+        cmd_queue = qlist + "(1)"
 
         args = ", ".join([cmd_queue, kernel, "2", cnull,
                           "C_LOC({0})".format(glob_size),
                           cnull, "0", cnull, cnull])
         parent.add(
-            AssignGen(parent, lhs="ierr",
+            AssignGen(parent, lhs=flag,
                       rhs="clEnqueueNDRangeKernel({0})".format(args)))
         parent.add(CommentGen(parent, ""))
 
@@ -944,9 +956,10 @@ class GOKern(Kern):
         from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
             AssignGen, CommentGen
         # TODO take care with literal arguments
-        # TODO use name-space manager for name of kernel-object arg
-        arguments = ["kernel_obj", "nx"] + \
-                    [arg.name for arg in self._arguments.args]
+        kobj = self._name_space_manager.create_name(
+            root_name="kernel_obj", context="ArgSetter",
+            label="kernel_obj")
+        arguments = [kobj, "nx"] + [arg.name for arg in self._arguments.args]
         sub = SubroutineGen(parent, name=self.name+"_set_args",
                             args=arguments)
         parent.add(sub)
@@ -960,7 +973,7 @@ class GOKern(Kern):
         sub.add(DeclGen(sub, datatype="integer", target=True,
                         entity_decls=["nx"]))
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
-                        target=True, entity_decls=["kernel_obj"]))
+                        target=True, entity_decls=[kobj]))
 
         # Arrays (grid properties and fields)
         args = args_filter(self._arguments.args,
@@ -993,7 +1006,7 @@ class GOKern(Kern):
         sub.add(AssignGen(
             sub, lhs="ierr",
             rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-            format("kernel_obj", index, "nx")))
+            format(kobj, index, "nx")))
         # Now all of the 'standard' kernel arguments
         for arg in self.arguments.args:
             index += 1
