@@ -371,7 +371,7 @@ class Invokes(object):
             # create routine(s) to set the arguments of the Kernel(s) it
             # calls. We do it here as this enables us to prevent
             # duplication.
-            if invoke.schedule._opencl:
+            if invoke.schedule.opencl:
                 for kern in invoke.schedule.kern_calls():
                     if kern.name not in opencl_kernels:
                         opencl_kernels.append(kern.name)
@@ -1133,7 +1133,6 @@ class Node(object):
         else:
             self._children = children
         self._parent = parent
-        self._opencl = False
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
