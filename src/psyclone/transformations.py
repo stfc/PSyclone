@@ -2120,19 +2120,54 @@ class OCLTrans(Transformation):
         return "OCLTrans"
 
     def apply(self, sched, opencl=True):
-        from psyclone.psyGen import Schedule
-        if not isinstance(sched, Schedule):
-            raise TransformationError(
-                "Error in OCLTrans: the supplied node must be a (sub-class "
-                "of) Schedule but got {0}".format(type(sched)))
-
+        '''
+        Apply the OpenCL transformation to the supplied Schedule. This
+        causes PSyclone to generate an OpenCL version of the corresponding
+        PSy-layer routine.
+        :param sched: Schedule to transform.
+        :type sched: :py:class:`psyclone.psyGen.Schedule`
+        :param bool opencl: whether or not to enable OpenCL generation.
+        '''
+        if opencl:
+            self._validate(sched)
         # create a memento of the schedule and the proposed transformation
         from psyclone.undoredo import Memento
         keep = Memento(sched, self, [sched])
 
         sched.opencl = opencl
-
         return sched, keep
+
+    def _validate(self, sched):
+        '''
+        Checks that the supplied Schedule is valid and that an OpenCL
+        version of it can be generated.
+
+        :param sched: Schedule to check.
+        :type sched: :py:class:`psyclone.psyGen.Schedule`
+        :raises TransformationError: if the Schedule is not for the GOcean1.0 \
+                                     API.
+        :raises NotImplementedError: if any of the kernels have arguments \
+                                     passed by value.
+        '''
+        from psyclone.psyGen import Schedule, args_filter
+        from psyclone.gocean1p0 import GOSchedule
+        if isinstance(sched, Schedule):
+            if not isinstance(sched, GOSchedule):
+                raise TransformationError(
+                    "OpenCL generation is currently only supported for the "
+                    "GOcean API but got a Schedule of type: '{0}'".
+                    format(type(sched)))
+        else:
+            raise TransformationError(
+                "Error in OCLTrans: the supplied node must be a (sub-class "
+                "of) Schedule but got {0}".format(type(sched)))
+        # Now we need to check the arguments of all the kernels
+        args = args_filter(sched.args, arg_types=["scalar"], is_literal=True)
+        for arg in args:
+            if arg.is_literal:
+                raise NotImplementedError(
+                    "Cannot generate OpenCL for Invokes that contain "
+                    "kernels with arguments passed by value")
 
 
 class ProfileRegionTrans(RegionTrans):

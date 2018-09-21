@@ -50,7 +50,7 @@ API = "gocean1.0"
 
 def test_use_stmts():
     ''' Test that generating code for OpenCL results in the correct
-    module use statements '''
+    module use statements. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
@@ -67,10 +67,9 @@ def test_use_stmts():
     assert "if (first_time) then" in generated_code
 
 
-@pytest.mark.xfail(reason="DeclGen does not support character")
 def test_psy_init():
     ''' Check that we create a psy_init() routine that sets-up the
-    OpenCL environment '''
+    OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
@@ -79,22 +78,27 @@ def test_psy_init():
     print(generated_code)
     expected = '''\
     SUBROUTINE psy_init()
-      USE ocl_env_mod, ONLY: ocl_env_init, add_kernels
-      CHARACTER, LEN(40) :: kernel_names(1)
-      ! Initialise the OpenCL environment/device
-      CALL ocl_env_init
-      ! The kernels this PSy layer module requires
-      kernel_names(1) = "compute_cu_code"
-      ! Create the OpenCL kernel objects. Expects to find all of the compiled 
-      ! kernels in PSYCLONE_KERNELS_FILE.
-      CALL add_kernels(1, kernel_names)
+      USE fortcl, ONLY: ocl_env_init, add_kernels
+      CHARACTER(LEN=30) kernel_names(1)
+      LOGICAL, save :: initialised=.False.
+      ! Check to make sure we only execute this routine once
+      IF (.not. initialised) THEN
+        initialised = .True.
+        ! Initialise the OpenCL environment/device
+        CALL ocl_env_init
+        ! The kernels this PSy layer module requires
+        kernel_names(1) = "compute_cu_code"
+        ! Create the OpenCL kernel objects. Expects to find all of the compiled 
+        ! kernels in PSYCLONE_KERNELS_FILE.
+        CALL add_kernels(1, kernel_names)
+      END IF 
     END SUBROUTINE psy_init
 '''
     assert expected in generated_code
 
 
 def test_set_kern_args():
-    ''' Check that we generate the necessary code to set kernel arguments '''
+    ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     from psyclone.transformations import OCLTrans
@@ -167,16 +171,15 @@ def test_set_kern_float_arg():
     assert expected in generated_code
 
 
-@pytest.mark.xfail(reason="Fail to handle kernel arguments passed by value")
 def test_set_arg_const_scalar():  # pylint:disable=invalid-name
-    ''' Check that using a const scalar as parameter works when setting
-    kernel arguments. '''
+    ''' Check that an invoke that passes a scalar kernel argument by
+    value is rejected. (We haven't yet implemented the necessary code for
+    setting the value of such an argument in OpenCL.) '''
     psy, _ = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
                         API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
     otrans = OCLTrans()
-    otrans.apply(sched)
-    generated = str(psy.gen)
-    print(generated)
-    assert "clSetKernelArg(kernel_obj, 1, C_SIZEOF(0), C_LOC(0))" not in \
-        generated
+    with pytest.raises(NotImplementedError) as err:
+        otrans.apply(sched)
+    assert ("Cannot generate OpenCL for Invokes that contain kernels with "
+            "arguments passed by value" in str(err))
