@@ -501,4 +501,5 @@ COMPUTE_ANNEXED_DOFS = false
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
-        assert "No DEFAULTAPI specified" in str(err)
+        assert "No DEFAULTAPI specified and config file contains more than " \
+               "one API section" in str(err)
