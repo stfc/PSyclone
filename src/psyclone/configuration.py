@@ -472,17 +472,22 @@ class GOceanConfig(object):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
-        for i in section.keys():
+        for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
-            if i in config.get_default_keys():
+            if key in config.get_default_keys():
                 continue
-            if i == "iteration-spaces":
-                value_as_str = str(section[i])
+            if key == "iteration-spaces":
+                # The value of for the key iteration-spaces is a set of
+                # lines, each line defining one new iteration space.
+                # Each individual iteration space added is checked
+                # in add_bounds for correctness.
+                value_as_str = str(section[key])
                 new_iteration_spaces = value_as_str.split("\n")
                 from psyclone.gocean1p0 import GOLoop
                 for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
-                                         "\"{1}\".".format(i, config.filename))
+                                         "\"{1}\".".format(key,
+                                                           config.filename))

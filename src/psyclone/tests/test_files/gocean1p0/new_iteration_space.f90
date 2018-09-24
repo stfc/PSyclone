@@ -15,7 +15,8 @@ PROGRAM single_new_iteration_space
   use kind_params_mod
   use grid_mod
   use field_mod
-  use new_iteration_space_kernel, only: compute_kern1, compute_kern2
+  use new_iteration_space_kernel, only: compute_kern1, compute_kern2, &
+                                        compute_kern3
   implicit none
 
   type(grid_type), target :: model_grid
@@ -44,7 +45,8 @@ PROGRAM single_new_iteration_space
   DO ncycle=1,100
     
     call invoke( compute_kern1(cu_fld, p_fld, u_fld), &
-                 compute_kern2(cu_fld, p_fld, u_fld) )
+                 compute_kern2(cu_fld, p_fld, u_fld), &
+                 compute_kern3(cu_fld, p_fld, u_fld) )
 
   END DO
 

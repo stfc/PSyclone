@@ -11,8 +11,8 @@ module new_iteration_space_kernel
 
   private
 
-  public compute_kern1, compute_kern2, &
-         compute_kern1_code, compute_kern2_code
+  public compute_kern1, compute_kern2, compute_kern3, &
+         compute_kern1_code, compute_kern2_code, compute_kern3_code
 
   type, extends(kernel_type) :: compute_kern1
      type(arg), dimension(3) :: meta_args =    &
@@ -57,6 +57,19 @@ module new_iteration_space_kernel
     procedure, nopass :: code => compute_kern2_code
   end type compute_kern2
 
+  type, extends(kernel_type) :: compute_kern3
+     type(arg), dimension(3) :: meta_args =    &
+          (/ arg(WRITE, CT, POINTWISE),        & ! cu
+             arg(READ,  CT, POINTWISE),        & ! p
+             arg(READ,  CT, POINTWISE)         & ! u
+           /)
+     integer :: ITERATES_OVER = north_east_corner
+     integer :: index_offset = OFFSET_SW
+
+  contains
+    procedure, nopass :: code => compute_kern3_code
+  end type compute_kern3
+
 contains
 
   !===================================================
@@ -83,5 +96,17 @@ contains
     CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 
   end subroutine compute_kern2_code
+
+  !===================================================
+  !> Compute the mass flux in the x direction at point (i,j)
+  subroutine compute_kern3_code(i, j, cu, p, u)
+    implicit none
+    integer,  intent(in) :: I, J
+    real(wp), intent(out), dimension(:,:) :: cu
+    real(wp), intent(in),  dimension(:,:) :: p, u
+
+    CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
+
+  end subroutine compute_kern3_code
 
 end module new_iteration_space_kernel

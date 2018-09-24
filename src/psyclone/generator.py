@@ -255,7 +255,7 @@ def main(args):
              "transformation script is used. Use at your own risk.")
     parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
-    parser.add_argument("--config", help="Additional config file with "
+    parser.add_argument("--config", help="Config file with "
                         "PSyclone specific options.")
     parser.add_argument(
         '-v', '--version', dest='version', action="store_true",

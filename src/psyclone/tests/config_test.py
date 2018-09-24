@@ -125,7 +125,7 @@ def test_singleton_create():
     _config2 = Config.get()
     assert _config is _config2
 
-    # Test that we an not create more than one instance
+    # Test that we can not create more than one instance
     with pytest.raises(ConfigurationError) as err:
         Config()
     assert "Only one instance of Config can be created" in str(err)

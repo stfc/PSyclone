@@ -112,7 +112,7 @@ def test_invalid_config_files():
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "An iteration space must be in the form" in str(err)
-        assert "It was \"a:b\"" in str(err)
+        assert "But got \"a:b\"" in str(err)
 
     # Try a multi-line specification to make sure all lines are tested
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:4\n        d:e"
@@ -126,7 +126,22 @@ def test_invalid_config_files():
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "An iteration space must be in the form" in str(err)
-        assert "It was \"d:e\"" in str(err)
+        assert "But got \"d:e\"" in str(err)
+
+    # Invalid {} expression
+    content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:{X}:2:{Y}:4"
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        Config._instance = None
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(new_name)
+        assert "Only '{start}' and '{stop}' are allowed as bracketed "\
+               "expression in an iteration space." in str(err)
+        assert "But got {X}" in str(err)
 
     # Add an invalid key:""
     content = _CONFIG_CONTENT + "invalid-key=value"
@@ -182,9 +197,17 @@ def test_valid_config_files():
       END DO '''   # nopep8
     assert new_loop1 in gen
 
-    new_loop2 = '''      DO j=1,jstop
+    new_loop2 = '''      DO j=2,jstop
         DO i=1,istop+1
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO 
       END DO '''   # nopep8
     assert new_loop2 in gen
+
+    # The third kernel tests {start} and {stop}
+    new_loop3 = '''      DO j=2-2,1
+        DO i=istop,istop+1
+          CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO '''   # nopep8
+    assert new_loop3 in gen
