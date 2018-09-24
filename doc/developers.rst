@@ -953,11 +953,11 @@ Configuration
 PSyclone uses the Python ``ConfigParser`` class
 (https://docs.python.org/3/library/configparser.html) for reading the
 configuration file. This is managed by the ``psyclone.configuration``
-module which provides the ``ConfigFactory`` and ``Config``
-classes. The former's constructor creates a singleton ``Config`` instance
-and stores it for return by any future calls to ``create``:
+module which provides a ``Config``
+class. This class is a singleton, which can be (created and) accessed
+using  ``Config.get()``. Only one such instance will ever exist:
 
-.. autoclass:: psyclone.configuration.ConfigFactory
+.. autoclass:: psyclone.configuration.Config
     :members:
 
 The ``Config`` class is responsible for finding the configuration file
