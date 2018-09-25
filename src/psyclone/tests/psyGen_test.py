@@ -2262,3 +2262,15 @@ def test_find_w_args_multiple_deps():
     # each of the indices are unique (otherwise the set would be
     # smaller)
     assert len(indices) == vector_size
+
+
+def test_kern_ast():
+    ''' Test that we can obtain the fparser2 AST of a kernel. '''
+    from psyclone.gocean1p0 import GOKern
+    from fparser.two import Fortran2003
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.children[0].children[0].children[0]
+    assert isinstance(kern, GOKern)
+    assert kern.ast
+    assert isinstance(kern.ast, Fortran2003.Program)

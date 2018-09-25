@@ -947,7 +947,7 @@ The full interface to each of these classes is detailed below:
     :members:
     :noindex:
 
-Configuration
+configuration
 =============
 
 PSyclone uses the Python ``ConfigParser`` class
@@ -991,9 +991,12 @@ encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
 
-
-Transformations
+transformations
 ===============
+
+As one might expect, the transformations module holds the various
+transformation classes that may be used to modify the Schedule of an
+Invoke and/or the kernels called from within it.
 
 The base class for any transformation must be the class ``Transformation``:
 
@@ -1001,15 +1004,32 @@ The base class for any transformation must be the class ``Transformation``:
     :members:
     :private-members:
 
-----
+Those transformations that work on a region of code (e.g. enclosing
+multiple kernel calls within an OpenMP region) must sub-class the
+``RegionTrans`` class:
 
 .. autoclass:: psyclone.transformations.RegionTrans
     :members:
     :private-members:
     :noindex:
 
+Kernel Transformations
+----------------------
+
+Kernel transformations work on the fparser2 AST of the target kernel
+code.  This AST is obtained by converting the fparser1 AST (stored
+when the kernel code was originally parsed to process the meta-data)
+back into a Fortran string and then parsing that with fparser2. (Note
+that in future we intend to adopt fparser2 throughout PSyclone so that
+this translation between ASTs will be unnecessary.) The `ast` property
+of the `psyclone.psyGen.Kern` class is responsible for performing this
+translation the first time it is called. It also stores the resulting
+AST in `Kern._fp2_ast` for return by future calls.
+Transforming a kernel is then a matter of manipulating this AST.
+(See `psyclone.transformations.ACCRoutineTrans` for an example.)
+
 OpenACC Support
-###############
+---------------
 
 PSyclone is able to generate code for execution on a GPU through the
 use of OpenACC. Support for generating OpenACC code is implemented via
