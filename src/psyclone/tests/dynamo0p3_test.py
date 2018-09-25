@@ -4079,7 +4079,8 @@ def test_dynkern_arg_for_fs():
 
 def test_dist_memory_true():
     ''' Test that the distributed memory flag is on by default. '''
-    config = Config(allow_multi_instances_for_testing=True)
+    Config._instance = None
+    config = Config()
     config.load(config_file=DEFAULT_CFG_FILE)
     assert config.distributed_memory
 
@@ -7203,7 +7204,8 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
 def test_annexed_default():
     ''' Test that we do not compute annexed dofs by default (i.e. when
     using the default configuration file). '''
-    config = Config(allow_multi_instances_for_testing=True)
+    Config._instance = None
+    config = Config()
     config.load(config_file=DEFAULT_CFG_FILE)
     assert not config.api(TEST_API).compute_annexed_dofs
 

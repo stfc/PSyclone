@@ -80,6 +80,7 @@ class Config(object):
     def get(do_not_load_file=False):
         '''Static function that if necessary creates and returns the singleton
         config instance.
+
         :param bool do_not_load_file: If set it will not load the default \
                config file. This is used when handling the command line so \
                that the user can specify the file to load.
@@ -91,23 +92,16 @@ class Config(object):
         return Config._instance
 
     # -------------------------------------------------------------------------
-    def __init__(self, allow_multi_instances_for_testing=False,):
+    def __init__(self):
         '''This is the basic constructor that only sets the supported APIs
         and stub APIs, it does not load a config file. The Config instance
         is a singleton, and as such will test that no instance already exists
-        and raise an exception otherwise. But for testing it is convenient
-        if several config instances can be created, so the parameter
-        allow_multi_instances_for_testing can be set to true to disable this
-        test (which should only be done for testing).
-        :param bool allow_multi_instances_for_testing: Can be set to true to \
-               disable the test if a Config instance already exists. Used in \
-               some of the unit tests.
+        and raise an exception otherwise.
         :raises GenerationError: If a singleton instance of Config already \
                 exists (and the testing flag is not specified).
         '''
 
-        if not allow_multi_instances_for_testing and \
-           Config._instance is not None:
+        if Config._instance is not None:
             raise ConfigurationError("Only one instance of "
                                      "Config can be created")
 
@@ -128,6 +122,7 @@ class Config(object):
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
+
         :param str config_file: Override default configuration file to read.
         :raises ConfigurationError: if there are errors or inconsistencies in \
                                 the specified config file.
@@ -188,7 +183,9 @@ class Config(object):
                     if self._default_api != "default":
                         break
             else:
-                raise ConfigurationError("No DEFAULTAPI specified.",
+                raise ConfigurationError("No DEFAULTAPI specified and config "
+                                         "file contains more than one API "
+                                         "section.",
                                          config=self)
 
         # Sanity check
@@ -277,11 +274,12 @@ class Config(object):
         file. If the full path to an existing file has been provided in
         the PSYCLONE_CONFIG environment variable then that is returned.
         Otherwise, we search the following locations, in order:
-        ${PWD}/.psyclone/
-        if inside-a-virtual-environment:
-            <base-dir-of-virtual-env>/share/psyclone/
-        ${HOME}/.local/share/psyclone/
-        <system-install-prefix>/share/psyclone/
+
+        - ${PWD}/.psyclone/
+        -  if inside-a-virtual-environment:
+              <base-dir-of-virtual-env>/share/psyclone/
+        - ${HOME}/.local/share/psyclone/
+        - <system-install-prefix>/share/psyclone/
 
         :returns: the fully-qualified path to the configuration file
         :rtype: str
@@ -324,6 +322,7 @@ class Config(object):
     def distributed_memory(self):
         '''
         Getter for whether or not distributed memory is enabled
+
         :returns: True if DM is enabled, False otherwise
         :rtype: bool
         '''
@@ -334,6 +333,7 @@ class Config(object):
         '''
         Setter for whether or not distributed memory support is enabled
         in this configuration.
+
         :param bool dist_mem: Whether or not dm is enabled
         '''
         if not isinstance(dist_mem, bool):
@@ -346,6 +346,7 @@ class Config(object):
     def default_api(self):
         '''
         Getter for the default API used by PSyclone.
+
         :returns: default PSyclone API
         :rtype: str
         '''
@@ -355,6 +356,7 @@ class Config(object):
     def supported_apis(self):
         '''
         Getter for the list of APIs supported by PSyclone.
+
         :returns: list of supported APIs
         :rtype: list of str
         '''
@@ -364,6 +366,7 @@ class Config(object):
     def default_stub_api(self):
         '''
         Getter for the default API used by the stub generator.
+
         :returns: default API for the stub generator
         :rtype: str
         '''
@@ -373,6 +376,7 @@ class Config(object):
     def supported_stub_apis(self):
         '''
         Getter for the list of APIs supported by the stub generator.
+
         :returns: list of supported APIs.
         :rtype: list of str
         '''
@@ -382,6 +386,7 @@ class Config(object):
     def reproducible_reductions(self):
         '''
         Getter for whether reproducible reductions are enabled.
+
         :returns: True if reproducible reductions are enabled, False otherwise.
         :rtype: bool
         '''
@@ -392,6 +397,7 @@ class Config(object):
         '''
         Getter for the amount of padding to use for the array required
         for reproducible OpenMP reductions
+
         :returns: padding size (no. of array elements)
         :rtype: int
         '''
@@ -402,6 +408,7 @@ class Config(object):
         '''
         Getter for the full path and name of the configuration file used
         to initialise this configuration object.
+
         :returns: full path and name of configuration file
         :rtype: str
         '''
@@ -465,17 +472,22 @@ class GOceanConfig(object):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
-        for i in section.keys():
+        for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
-            if i in config.get_default_keys():
+            if key in config.get_default_keys():
                 continue
-            if i == "iteration-spaces":
-                value_as_str = str(section[i])
+            if key == "iteration-spaces":
+                # The value of for the key iteration-spaces is a set of
+                # lines, each line defining one new iteration space.
+                # Each individual iteration space added is checked
+                # in add_bounds for correctness.
+                value_as_str = str(section[key])
                 new_iteration_spaces = value_as_str.split("\n")
                 from psyclone.gocean1p0 import GOLoop
                 for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
-                                         "\"{1}\".".format(i, config.filename))
+                                         "\"{1}\".".format(key,
+                                                           config.filename))

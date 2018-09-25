@@ -42,8 +42,9 @@ import tempfile
 import pytest
 
 from psyclone.configuration import Config, ConfigurationError
-
 from psyclone.generator import main
+from psyclone.gocean1p0 import GOLoop
+from psyclone.psyGen import InternalError
 
 
 def teardown_function():
@@ -63,7 +64,8 @@ def test_command_line(capsys):
                             "test_files", "gocean1p0",
                             "test27_loop_swap.f90")
 
-    # Using "" adds the directory separator to the end:
+    # Get the full path to the gocean1.0 config file that adds
+    # new iteration spaces for tests.
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
@@ -107,11 +109,12 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config(allow_multi_instances_for_testing=True)
+        Config._instance = None
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "An iteration space must be in the form" in str(err)
-        assert "It was \"a:b\"" in str(err)
+        assert "But got \"a:b\"" in str(err)
 
     # Try a multi-line specification to make sure all lines are tested
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:4\n        d:e"
@@ -120,11 +123,27 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config(allow_multi_instances_for_testing=True)
+        Config._instance = None
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "An iteration space must be in the form" in str(err)
-        assert "It was \"d:e\"" in str(err)
+        assert "But got \"d:e\"" in str(err)
+
+    # Invalid {} expression
+    content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:{X}:2:{Y}:4"
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        Config._instance = None
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(new_name)
+        assert "Only '{start}' and '{stop}' are allowed as bracketed "\
+               "expression in an iteration space." in str(err)
+        assert "But got {X}" in str(err)
 
     # Add an invalid key:""
     content = _CONFIG_CONTENT + "invalid-key=value"
@@ -133,7 +152,8 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        config = Config(allow_multi_instances_for_testing=True)
+        Config._instance = None
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "Invalid key \"invalid-key\" found in \"{0}\".".\
@@ -144,8 +164,7 @@ def test_invalid_config_files():
             # They keys are returned in lower case
             assert i.lower() in config.get_default_keys()
 
-    from psyclone.gocean1p0 import GOLoop
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(InternalError) as err:
         GOLoop.add_bounds(1)
     # Different error message (for type) in python2 vs python3:
     assert "The parameter 'bound_info' must be a string, got '1' "\
@@ -179,9 +198,17 @@ def test_valid_config_files():
       END DO '''   # nopep8
     assert new_loop1 in gen
 
-    new_loop2 = '''      DO j=1,jstop
+    new_loop2 = '''      DO j=2,jstop
         DO i=1,istop+1
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO 
       END DO '''   # nopep8
     assert new_loop2 in gen
+
+    # The third kernel tests {start} and {stop}
+    new_loop3 = '''      DO j=2-2,1
+        DO i=istop,istop+1
+          CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
+        END DO 
+      END DO '''   # nopep8
+    assert new_loop3 in gen
