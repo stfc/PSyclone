@@ -50,7 +50,7 @@ from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
-    GenerationError, args_filter
+    GenerationError, InternalError, args_filter
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -517,9 +517,9 @@ class GOLoop(Loop):
         '''
 
         if not isinstance(bound_info, str):
-            raise ValueError("The parameter 'bound_info' must be a string, "
-                             "got '{0}' (type {1}".format(bound_info,
-                                                          type(bound_info)))
+            raise InternalError("The parameter 'bound_info' must be a string, "
+                                "got '{0}' (type {1}".format(bound_info,
+                                                             type(bound_info)))
 
         data = bound_info.split(":")
         if len(data) != 7:

@@ -470,7 +470,7 @@ def test_default_api():
 
 def test_no_default_api():
     '''If a config file has no default-api specified and contains 0
-    or more than noe non-default sections, ane exception must be raised.
+    or more than one non-default sections, ane exception must be raised.
     '''
 
     # First test no API specific section at all:

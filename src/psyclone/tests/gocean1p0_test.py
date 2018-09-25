@@ -43,7 +43,7 @@ import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
-from psyclone.gocean1p0 import GOLoop
+from psyclone.gocean1p0 import GOKern, GOLoop, GOSchedule
 
 
 API = "gocean1.0"
@@ -939,7 +939,6 @@ def test_goloop_no_parent():
 def test_goloop_no_children():
     ''' Attempt to generate code for a loop that has no child
     kernel calls '''
-    from psyclone.gocean1p0 import GOSchedule
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
@@ -954,7 +953,6 @@ def test_goloop_no_children():
 def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
-    from psyclone.gocean1p0 import GOSchedule, GOKern
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
@@ -972,7 +970,6 @@ def test_goloop_unsupp_offset():
 def test_goloop_unmatched_offsets():
     ''' Attempt to generate code for a loop with constant bounds with
     two different index offsets '''
-    from psyclone.gocean1p0 import GOSchedule, GOKern
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")

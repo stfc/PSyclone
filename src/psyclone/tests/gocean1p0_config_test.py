@@ -42,8 +42,9 @@ import tempfile
 import pytest
 
 from psyclone.configuration import Config, ConfigurationError
-
 from psyclone.generator import main
+from psyclone.gocean1p0 import GOLoop
+from psyclone.psyGen import InternalError
 
 
 def teardown_function():
@@ -63,7 +64,8 @@ def test_command_line(capsys):
                             "test_files", "gocean1p0",
                             "test27_loop_swap.f90")
 
-    # Using "" adds the directory separator to the end:
+    # Get the full path to the gocean1.0 config file that adds
+    # new iteration spaces for tests.
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
@@ -162,8 +164,7 @@ def test_invalid_config_files():
             # They keys are returned in lower case
             assert i.lower() in config.get_default_keys()
 
-    from psyclone.gocean1p0 import GOLoop
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(InternalError) as err:
         GOLoop.add_bounds(1)
     # Different error message (for type) in python2 vs python3:
     assert "The parameter 'bound_info' must be a string, got '1' "\
