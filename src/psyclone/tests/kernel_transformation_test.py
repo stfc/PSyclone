@@ -97,7 +97,7 @@ def test_accroutine():
     assert str(comments[0]) == "!$acc routine"
     # Check that directive is in correct place (end of declarations)
     gen = str(new_kern._fp2_ast)
-    assert ("REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
+    assert ("REAL(KIND = go_wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
             "sshn_v, hu, hv, un, vn\n"
             "    !$acc routine\n"
-            "    ssha (ji, jj) = 0.0_wp\n" in gen)
+            "    ssha (ji, jj) = 0.0_go_wp\n" in gen)
