@@ -58,13 +58,13 @@ module new_iteration_space_kernel
   end type compute_kern2
 
   type, extends(kernel_type) :: compute_kern3
-     type(arg), dimension(3) :: meta_args =    &
-          (/ arg(WRITE, CT, POINTWISE),        & ! cu
-             arg(READ,  CT, POINTWISE),        & ! p
-             arg(READ,  CT, POINTWISE)         & ! u
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),   & ! cu
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),   & ! p
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE)    & ! u
            /)
      integer :: ITERATES_OVER = north_east_corner
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_kern3_code
