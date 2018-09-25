@@ -2327,9 +2327,11 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if we fail to find the subroutine \
                                      corresponding to the kernel object.
         '''
-        from fparser.two.Fortran2003 import walk_ast, Subroutine_Subprogram, \
+        # pylint: disable=too-many-locals
+        from fparser.two.Fortran2003 import Subroutine_Subprogram, \
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
+        from fparser.two.utils import walk_ast
         from fparser.common.readfortran import FortranStringReader
         # Get the fparser2 AST of the kernel
         ast = kern.ast
@@ -2355,7 +2357,7 @@ class ACCRoutineTrans(Transformation):
         spec = walk_ast(kern_sub.content, [Specification_Part])[0]
         idx = 0
         for idx, node in enumerate(spec.content):
-            if not (isinstance(node, (Implicit_Part, Type_Declaration_Stmt))):
+            if not isinstance(node, (Implicit_Part, Type_Declaration_Stmt)):
                 break
         # Create the directive and insert it
         cmt = Comment(FortranStringReader("!$acc routine",

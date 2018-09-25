@@ -36,7 +36,6 @@
 ''' Module containing tests for kernel transformations. '''
 
 from __future__ import absolute_import
-import os
 import pytest
 from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError
@@ -79,7 +78,7 @@ def test_accroutine():
     directive to it. '''
     from psyclone.gocean1p0 import GOKern
     from psyclone.transformations import ACCRoutineTrans
-    from fparser.two import Fortran2003
+    from fparser.two import Fortran2003, utils
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
@@ -92,8 +91,8 @@ def test_accroutine():
     assert new_kern._fp2_ast
     assert isinstance(new_kern._fp2_ast, Fortran2003.Program)
     # Check AST contains directive
-    comments = Fortran2003.walk_ast(new_kern._fp2_ast.content,
-                                    [Fortran2003.Comment])
+    comments = utils.walk_ast(new_kern._fp2_ast.content,
+                              [Fortran2003.Comment])
     assert len(comments) == 1
     assert str(comments[0]) == "!$acc routine"
     # Check that directive is in correct place (end of declarations)
