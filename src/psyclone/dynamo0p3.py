@@ -2214,7 +2214,7 @@ class DynMeshes(object):
                 # Colour map itself
                 parent.add(AssignGen(parent, lhs=kern["colourmap"],
                                      pointer=True,
-                                     rhs=coarse_mesh + "get_colour_map()"))
+                                     rhs=coarse_mesh + "%get_colour_map()"))
 
 
 class DynInvokeBasisFns(object):
@@ -5562,7 +5562,8 @@ class KernCallArgList(ArgOrdering):
         map_name = self._name_space_manager.create_name(
             root_name=base_name, context="PSyVars", label=base_name)
         # Add the cell map to our argument list
-        self._arglist.append(map_name+"(:,cell)")
+        self._arglist.append("{0}(:,{1})".format(map_name,
+                                                 self._cell_ref_name))
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = self._name_space_manager.create_name(

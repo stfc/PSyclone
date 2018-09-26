@@ -1124,8 +1124,11 @@ class ColourTrans(Transformation):
         # can be run in parallel
         colour_loop = node.__class__(parent=colours_loop, loop_type="colour")
         colour_loop.field_space = node.field_space
+        colour_loop._field_name = node._field_name
         colour_loop.iteration_space = node.iteration_space
         colour_loop.set_lower_bound("start")
+        colour_loop._kern = node._kern
+
 
         if _CONFIG.distributed_memory:
             index = node.upper_bound_halo_depth
