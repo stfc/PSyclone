@@ -213,7 +213,7 @@ def test_colour_trans_operator(tmpdir, f90, f90flags):
             assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_colour_trans_cma_operator(tmpdir, f90, f90flags):
+def test_colour_trans_cma_operator(tmpdir, f90, f90flags, dist_mem):
     '''test of the colouring transformation of a single loop with a CMA
     operator. We check that the first argument is a colourmap lookup,
     not a direct cell index. We test when distributed memory is both
@@ -222,59 +222,53 @@ def test_colour_trans_cma_operator(tmpdir, f90, f90flags):
                                  "test_files", "dynamo0p3",
                                  "20.3_cma_assembly_field.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get(
-            'invoke_0_columnwise_op_asm_field_kernel_type')
-        schedule = invoke.schedule
-        ctrans = Dynamo0p3ColourTrans()
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get(
+        'invoke_0_columnwise_op_asm_field_kernel_type')
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
 
-        if dist_mem:
-            index = 1
-        else:
-            index = 0
+    if dist_mem:
+        index = 1
+    else:
+        index = 0
 
-        # Colour the loop
-        schedule, _ = ctrans.apply(schedule.children[index])
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[index])
 
-        # Store the results of applying this code transformation as a
-        # string
-        gen = str(psy.gen)
-        print(gen)
+    # Store the results of applying this code transformation as a
+    # string
+    gen = str(psy.gen)
 
-        if dist_mem:
-            assert (
-                "      DO colour=1,mesh%get_ncolours()\n"
-                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
-                "colour,1)\n"
-                "          !\n"
-                "          CALL columnwise_op_asm_field_kernel_code("
-                "cmap(colour, ") in gen
-        else:
-            assert (
-                "      DO colour=1,ncolour\n"
-                "        DO cell=1,ncp_colour(colour)\n"
-                "          !\n"
-                "          CALL columnwise_op_asm_field_kernel_code(cmap"
-                "(colour, ") in gen
+    if dist_mem:
+        lookup = "get_last_halo_cell_per_colour(colour,1)"
+    else:
+        lookup = "get_last_edge_cell_per_colour(colour)"
+        
+    assert (
+        "      DO colour=1,ncolour\n"
+        "        DO cell=1,mesh%{0}\n"
+        "          !\n"
+        "          CALL columnwise_op_asm_field_kernel_code("
+        "cmap(colour, ".format(lookup)) in gen
 
-        assert (
-            "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
-            "cell), nlayers, ncell_2d, afield_proxy%data, "
-            "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
-            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
-            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_any_space_1_afield, undf_any_space_1_afield, "
-            "map_any_space_1_afield(:,cmap(colour, cell)), "
-            "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
-            "cbanded_map_any_space_2_lma_op1)\n"
-            "        END DO \n"
-            "      END DO \n") in gen
+    assert (
+        "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
+        "cell), nlayers, ncell_2d, afield_proxy%data, "
+        "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
+        "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+        "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+        "ndf_any_space_1_afield, undf_any_space_1_afield, "
+        "map_any_space_1_afield(:,cmap(colour, cell)), "
+        "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
+        "cbanded_map_any_space_2_lma_op1)\n"
+        "        END DO \n"
+        "      END DO \n") in gen
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag
-            # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_trans_stencil():
@@ -6397,40 +6391,78 @@ def test_intergrid_colour(dist_mem):
     new_sched, _ = ctrans.apply(loops[1])
     # To a restrict kernel
     new_sched, _ = ctrans.apply(loops[3])
-    gen = str(psy.gen)
+    gen = str(psy.gen).lower()
     print(gen)
     expected = '''\
-      CALL fld_c_proxy%vspace%get_colours(ncolour_fld_m, ncp_colour_fld_m, cmap_fld_m)
-      !
-      DO colour=1,ncolour_fld_m
-        DO cell=1,ncp_colour_fld_m(colour)
-          !
-          CALL restrict_kernel_code(nlayers, cell_map_fld_c(:,cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, fld_c_proxy%data, fld_m_proxy%data, undf_any_space_1_fld_c, map_any_space_1_fld_c(:,cmap_fld_m(colour, cell))'''
+      ncolour_fld_m = mesh_fld_m%get_ncolours()
+      cmap_fld_m => mesh_fld_m%get_colour_map()'''
     assert expected in gen
+    expected = '''\
+      ncolour_fld_c = mesh_fld_c%get_ncolours()
+      cmap_fld_c => mesh_fld_c%get_colour_map()'''
+    assert expected in gen
+    if dist_mem:
+        expected = (
+            "      do colour=1,ncolour_fld_m\n"
+            "        do cell=1,mesh_fld_m%get_last_halo_cell_per_colour("
+            "colour,1)\n")
+    else:
+        expected = (
+            "      do colour=1,ncolour_fld_m\n"
+            "        do cell=1,mesh_fld_m%get_last_edge_cell_per_colour("
+            "colour)\n")
+    assert expected in gen
+    expected = (
+        "          call prolong_kernel_code(nlayers, cell_map_fld_m(:,"
+        "cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m, ncell_fld_f, "
+        "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
+        "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n")
+    assert expected in gen
+
+
+def test_intergrid_err(dist_mem):
+    ''' Check that we cannot apply redundant computation, OpenMP or loop
+    fusion to loops containing inter-grid kernels. '''
+    from psyclone import psyGen
+    # Use an example that contains both prolongation and restriction
+    # kernels
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # First two kernels are prolongation, last two are restriction
+    loops = schedule.walk(schedule.children, psyGen.Loop)
 
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
         "kernels as children and ")
 
-    # To a restrict kernel
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[4], depth=2)
-    assert expected_err in str(excinfo)
+    if not dist_mem:
+        # Cannot apply redundant computation unless DM is enabled
+        rc_trans = Dynamo0p3RedundantComputationTrans()
+        with pytest.raises(TransformationError) as excinfo:
+            rc_trans.apply(loops[2], depth=2)
+            assert expected_err in str(excinfo)
 
+    ctrans = Dynamo0p3ColourTrans()
     omplooptrans = Dynamo0p3OMPLoopTrans()
+    # We have to colour before we can apply OMP to this loop...
+    # Keep a ref to the kernel as that makes it easy to find the correct
+    # loop to which to apply OMP
+    kern = loops[2]._kern
+    sched, _ = ctrans.apply(loops[2])
     with pytest.raises(TransformationError) as excinfo:
-        omplooptrans.apply(schedule.children[1])
+        omplooptrans.apply(kern.parent)
     assert expected_err in str(excinfo)
 
     ompparatrans = DynamoOMPParallelLoopTrans()
     with pytest.raises(TransformationError) as excinfo:
-        ompparatrans.apply(schedule.children[1])
+        ompparatrans.apply(loops[2])
     assert expected_err in str(excinfo)
 
     lftrans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        lftrans.apply(schedule.children[1], schedule.children[2])
+        lftrans.apply(loops[0], loops[1])
     assert expected_err in str(excinfo)
 
 
