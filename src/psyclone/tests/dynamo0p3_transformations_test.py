@@ -426,61 +426,52 @@ def test_colour_str():
     assert cstr == "Split a Dynamo 0.3 loop over cells into colours"
 
 
-def test_omp_colour_trans(tmpdir, f90, f90flags):
+def test_omp_colour_trans(tmpdir, f90, f90flags, dist_mem):
     '''Test the OpenMP transformation applied to a coloured loop. We test
     when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_type')
-        schedule = invoke.schedule
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
 
-        ctrans = Dynamo0p3ColourTrans()
-        otrans = DynamoOMPParallelLoopTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
 
-        if dist_mem:
-            index = 3
-        else:
-            index = 0
+    if dist_mem:
+        index = 3
+    else:
+        index = 0
 
-        # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[index])
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[index])
 
-        # Then apply OpenMP to the inner loop
-        schedule, _ = otrans.apply(cschedule.children[index].children[0])
+    # Then apply OpenMP to the inner loop
+    schedule, _ = otrans.apply(cschedule.children[index].children[0])
 
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
+    invoke.schedule = schedule
+    code = str(psy.gen)
+    print(code)
 
-        if dist_mem:
-            output = (
-                "      cmap => mesh%get_colour_map()\n"
-                "      !\n"
-                "      DO colour=1,mesh%get_ncolours()\n"
-                "        !$omp parallel do default(shared), private(cell), "
-                "schedule(static)\n"
-                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
-                "colour,1)\n")
-        else:
-            output = (
-                "      CALL f1_proxy%vspace%get_colours(ncolour, "
-                "ncp_colour, cmap)\n"
-                "      !\n"
-                "      DO colour=1,ncolour\n"
-                "        !$omp parallel do default(shared), private(cell), "
-                "schedule(static)\n"
-                "        DO cell=1,ncp_colour(colour)\n")
+    assert ("      ncolour = mesh%get_ncolours()\n"
+            "      cmap => mesh%get_colour_map()\n" in code)
+    if dist_mem:
+        lookup = "get_last_halo_cell_per_colour(colour,1)"
+    else:
+        lookup = "get_last_edge_cell_per_colour(colour)"
+    output = (
+            "      DO colour=1,ncolour\n"
+            "        !$omp parallel do default(shared), private(cell), "
+            "schedule(static)\n"
+            "        DO cell=1,mesh%{0}\n".format(lookup))
+    assert output in code
 
-        assert output in code
-
-        if TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag
-            # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_omp_colour_orient_trans():
