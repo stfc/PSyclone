@@ -51,7 +51,8 @@ from psyclone import psyGen
 from psyclone.configuration import ConfigFactory
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
+    InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
+    FORTRAN_INTENT_NAMES
 from collections import OrderedDict
 
 # Get our one-and-only Config object - this holds the global configuration
@@ -3188,26 +3189,6 @@ class DynInvoke(Invoke):
         # Initialise basis and/or differential-basis functions
         self.evaluators.initialise_basis_fns(invoke_sub)
 
-        if self.is_coloured():
-            # Declare the colour map
-            declns = ["cmap(:,:)"]
-            if not _CONFIG.distributed_memory:
-                # Declare the array holding the no. of cells of each
-                # colour. For distributed memory this variable is not
-                # used, as a function is called to determine the upper
-                # bound in a loop
-                declns.append("ncp_colour(:)")
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   pointer=True,
-                                   entity_decls=declns))
-            if not _CONFIG.distributed_memory:
-                # Declaration of variable to hold the number of
-                # colours. For distributed memory this variable is not
-                # used, as a function is called to determine loop
-                # colour information
-                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                       entity_decls=["ncolour"]))
-
         # add calls to compute the values of any basis arrays
         self.evaluators.compute_basis_fns(invoke_sub)
 
@@ -4282,46 +4263,39 @@ class DynLoop(Loop):
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
 
-        # We only require a mesh object to get upper loop bounds if
-        # distributed memory is enabled and the loop is over cells
-        if _CONFIG.distributed_memory and \
-           self._upper_bound_name in ["ncells", "cell_halo"]:
-            # We must allow for self._kern being None (as it will be for
-            # a built-in).
-            if self._kern and self._kern.is_intergrid:
-                # We have more than one mesh object to choose from and we
-                # want the coarse one because that determines the iteration
-                # space. _field_name holds the name of the argument that
-                # determines the iteration space of this kernel and that
-                # is set-up to be the one on the coarse mesh (in
-                # DynKerelArguments.iteration_space_arg()).
-                mesh_name = "mesh_" + self._field_name
-            else:
-                # It's not an inter-grid kernel so there's only one mesh
-                mesh_name = "mesh"
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name=mesh_name, context="PSyVars", label=mesh_name)
+        # We must allow for self._kern being None (as it will be for
+        # a built-in).
+        if self._kern and self._kern.is_intergrid:
+            # We have more than one mesh object to choose from and we
+            # want the coarse one because that determines the iteration
+            # space. _field_name holds the name of the argument that
+            # determines the iteration space of this kernel and that
+            # is set-up to be the one on the coarse mesh (in
+            # DynKerelArguments.iteration_space_arg()).
+            mesh_name = "mesh_" + self._field_name
+        else:
+            # It's not an inter-grid kernel so there's only one mesh
+            mesh_name = "mesh"
+        mesh = self._name_space_manager.create_name(
+            root_name=mesh_name, context="PSyVars", label=mesh_name)
 
         if self._upper_bound_name == "ncolours":
-            if _CONFIG.distributed_memory:
-                # Extract the value in-place rather than extracting to
-                # a variable first. This is the way the manual
-                # reference examples were implemented so I copied these
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
-                return "{0}%get_ncolours()".format(mesh_obj_name)
+            # Loop over colours
+            kernels = self.walk(self.children, DynKern)
+            if not kernels:
+                raise InternalError(
+                    "Failed to find a kernel within a loop over colours.")
             else:
-                return "ncolour"
+                return kernels[0].ncolours
         elif self._upper_bound_name == "ncolour":
-            return "ncp_colour(colour)"
+            # Loop over cells of a particular colour when DM is disabled.
+            # We use the same, DM API as that returns sensible values even
+            # when running without MPI.
+            return "{0}%get_last_edge_cell_per_colour(colour)".format(mesh)
         elif self._upper_bound_name == "colour_halo":
-            # the LFRic API used here allows for colouring with
-            # redundant computation. This API is now used when
-            # ditributed memory is switched on (the default for
-            # LFRic). THe original API (see previous elif) is now only
-            # used when distributed memory is switched off.
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
+            # Loop over cells of a particular colour when DM is enabled. The
+            # LFRic API used here allows for colouring with redundant
+            # computation.
             append = ""
             if halo_index:
                 # The colouring API support an additional optional
@@ -4332,7 +4306,7 @@ class DynLoop(Loop):
                 # may be).
                 append = ","+halo_index
             return ("{0}%get_last_halo_cell_per_colour(colour"
-                    "{1})".format(mesh_obj_name, append))
+                    "{1})".format(mesh, append))
         elif self._upper_bound_name in ["ndofs", "nannexed"]:
             if _CONFIG.distributed_memory:
                 if self._upper_bound_name == "ndofs":
@@ -4346,14 +4320,14 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "ncells":
             if _CONFIG.distributed_memory:
-                result = mesh_obj_name + "%get_last_edge_cell()"
+                result = mesh + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             return result
         elif self._upper_bound_name == "cell_halo":
             if _CONFIG.distributed_memory:
-                return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
+                return "{0}%get_last_halo_cell({1})".format(mesh,
                                                             halo_index)
             else:
                 raise GenerationError(
@@ -4370,7 +4344,7 @@ class DynLoop(Loop):
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
             if _CONFIG.distributed_memory:
-                return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
+                return "{0}%get_last_inner_cell({1})".format(mesh,
                                                              halo_index)
             else:
                 raise GenerationError(
@@ -4954,6 +4928,32 @@ class DynKern(Kern):
             cmap = self._name_space_manager.create_name(
                 root_name="cmap", context="PSyVars", label="cmap")
         return cmap
+
+    @property
+    def ncolours(self):
+        '''
+        Getter for the name of the variable holding the number of colours
+        associated with this kernel call.
+
+        :return: name of the variable holding the number of colours
+        :rtype: str
+        :raises InternalError: if this kernel is not coloured or the \
+                               colour-map information has not been initialised.
+        '''
+        if not self.is_coloured():
+            raise InternalError("Kernel '{0} is not inside a coloured "
+                                "loop.".format(self.name))
+        if self._is_intergrid:
+            invoke = self.root.invoke
+            if self.name not in invoke.meshes._kern_calls:
+                raise InternalError(
+                    "Colourmap information for kernel '{0}' has not yet "
+                    "been initialised".format(self.name))
+            ncols = invoke.meshes._kern_calls[self.name]["ncolours"]
+        else:
+            ncols = self._name_space_manager.create_name(
+                root_name="ncolour", context="PSyVars", label="ncolour")
+        return ncols
 
     @property
     def fs_descriptors(self):
