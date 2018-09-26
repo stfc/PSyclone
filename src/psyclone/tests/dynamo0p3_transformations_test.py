@@ -65,7 +65,7 @@ _CONFIG = ConfigFactory().create()
 _API_CONFIG = _CONFIG.api(TEST_API)
 
 
-def test_colour_trans_declarations(tmpdir, f90, f90flags):
+def test_colour_trans_declarations(tmpdir, f90, f90flags, dist_mem):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
     is both off and on '''
@@ -74,115 +74,106 @@ def test_colour_trans_declarations(tmpdir, f90, f90flags):
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_type')
-        schedule = invoke.schedule
-        ctrans = Dynamo0p3ColourTrans()
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
 
-        if dist_mem:
-            index = 3
-        else:
-            index = 0
+    if dist_mem:
+        index = 3
+    else:
+        index = 0
 
-        # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[index])
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[index])
 
-        # Replace the original loop schedule with the transformed one
-        invoke.schedule = cschedule
+    # Replace the original loop schedule with the transformed one
+    invoke.schedule = cschedule
 
-        # Store the results of applying this code transformation as
-        # a string
-        gen = str(psy.gen)
-        # Fortran is not case sensitive
-        gen = gen.lower()
-        print(gen)
+    # Store the results of applying this code transformation as
+    # a string (Fortran is not case sensitive)
+    gen = str(psy.gen).lower()
 
-        # Check that we've declared the loop-related variables
-        # and colour-map pointers
-        assert "integer, pointer :: cmap(:,:)" in gen
-        assert "integer ncolour" in gen
-        assert "integer colour" in gen
+    # Check that we've declared the loop-related variables
+    # and colour-map pointers
+    assert "integer, pointer :: cmap(:,:)" in gen
+    assert "integer ncolour" in gen
+    assert "integer colour" in gen
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag
-            # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_colour_trans(tmpdir, f90, f90flags):
+def test_colour_trans(tmpdir, f90, f90flags, dist_mem):
     '''test of the colouring transformation of a single loop. We test
     when distributed memory is both off and on'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_type')
-        schedule = invoke.schedule
-        ctrans = Dynamo0p3ColourTrans()
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
 
-        if dist_mem:
-            index = 3
-        else:
-            index = 0
+    if dist_mem:
+        index = 3
+    else:
+        index = 0
 
-        # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[index])
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[index])
+    # Replace the original loop schedule with the transformed one
+    invoke.schedule = cschedule
 
-        # Replace the original loop schedule with the transformed one
-        invoke.schedule = cschedule
+    # Store the results of applying this code transformation as
+    # a string (Fortran is not case sensitive)
+    gen = str(psy.gen).lower()
+    print(gen)
+    # Check that we're calling the API to get the no. of colours
+    # and the generated loop bounds are correct
+    output = ("      ncolour = mesh%get_ncolours()\n"
+              "      cmap => mesh%get_colour_map()\n")
+    assert output in gen
+    if dist_mem:
+        output = (
+            "      do colour=1,ncolour\n"
+            "        do cell=1,mesh%get_last_halo_cell_per_colour("
+            "colour,1)\n")
+    else:  # not dist_mem
+        output = (
+            "      do colour=1,ncolour\n"
+            "        do cell=1,mesh%get_last_edge_cell_per_colour("
+            "colour)\n")
+    assert output in gen
 
-        # Store the results of applying this code transformation as
-        # a string
-        gen = str(psy.gen)
-        # Fortran is not case sensitive
-        gen = gen.lower()
-        print(gen)
-        # Check that we're calling the API to get the no. of colours
-        # and the generated loop bounds are correct
-        if dist_mem:
-            output = (
-                "      cmap => mesh%get_colour_map()\n"
-                "      !\n"
-                "      do colour=1,mesh%get_ncolours()\n"
-                "        do cell=1,mesh%get_last_halo_cell_per_colour("
-                "colour,1)\n")
-        else:  # not dist_mem
-            output = (
-                "      call f1_proxy%vspace%get_colours(ncolour, ncp_colour, "
-                "cmap)\n"
-                "      !\n"
-                "      do colour=1,ncolour\n"
-                "        do cell=1,ncp_colour(colour)\n")
-        assert output in gen
+    # Check that we're using the colour map when getting the cell dof maps
+    assert (
+        "call testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
+        "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
+        "map_w3(:,cmap(colour, cell)))" in gen)
 
-        # Check that we're using the colour map when getting the cell dof maps
-        assert (
-            "call testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
-            "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-            "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
-            "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
-            "map_w3(:,cmap(colour, cell)))" in gen)
+    if dist_mem:
+        # Check that we get the right number of set_dirty halo calls in
+        # the correct location
+        dirty_str = (
+            "      end do \n"
+            "      !\n"
+            "      ! set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      call f1_proxy%set_dirty()\n")
+        assert dirty_str in gen
+        assert gen.count("set_dirty()") == 1
 
-        if dist_mem:
-            # Check that we get the right number of set_dirty halo calls in
-            # the correct location
-            dirty_str = (
-                "      end do \n"
-                "      !\n"
-                "      ! set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      call f1_proxy%set_dirty()\n")
-            assert dirty_str in gen
-            assert gen.count("set_dirty()") == 1
-
-        if TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag
-            # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_trans_operator(tmpdir, f90, f90flags):

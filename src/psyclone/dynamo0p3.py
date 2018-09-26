@@ -1990,12 +1990,13 @@ class DynMeshes(object):
                 self._needs_colourmap = True
 
                 if call.is_intergrid:
+                    carg_name = self._kern_calls[call.name]["coarse"].name
                     # Colour map
-                    base_name = "cmap_" + coarse_arg.name
+                    base_name = "cmap_" + carg_name
                     colour_map = self._name_space_manager.create_name(
                         root_name=base_name, context="PSyVars", label=base_name)
                     # No. of colours
-                    base_name = "ncolour_" + coarse_arg.name
+                    base_name = "ncolour_" + carg_name
                     ncolours = self._name_space_manager.create_name(
                         root_name=base_name, context="PSyVars", label=base_name)
                     # Add these names into the dictionary entry for this
