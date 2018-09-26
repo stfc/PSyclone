@@ -46,19 +46,15 @@ Fortran.
 '''
 
 def trans(psy):
-    ''' Transform a specific Schedule by making all loops over
-    levels OpenMP parallel. '''
+    ''' Transform a specific Schedule by making all loops
+    over levels OpenMP parallel. '''
     from psyclone.psyGen import PSyFactory, TransInfo
     # Get the Schedule of the target routine
     sched = psy.invokes.get('tra_ldf_iso').schedule
     # Get the transformation we will apply
-    trans_info = TransInfo()
-    omp_trans = trans_info.get_trans_name('OMPParallelLoopTrans')
-    # Apply the transformation to each loop over levels that
-    # contains a computational kernel
+    ompt = TransInfo().get_trans_name('OMPParallelLoopTrans')
+    # Apply it to each loop over levels containing a kernel
     for loop in sched.loops():
-        if loop.kernel:
-            if loop.loop_type == "levels":
-                sched, _ = omp_trans.apply(loop)
-    # Save the modified Schedule
+        if loop.kernel and loop.loop_type == "levels":
+            sched, _ = ompt.apply(loop)
     psy.invokes.get('tra_ldf_iso').schedule = sched
