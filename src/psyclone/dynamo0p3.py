@@ -1869,7 +1869,7 @@ class DynMeshes(object):
         # Dict of dictionary objects holding information on the mesh-related
         # variables required by each inter-grid kernel. Keys are the kernel
         # names.
-        self._kern_calls = {}
+        self._kern_calls = OrderedDict()
         # List of names of unique mesh variables referenced in the Invoke
         self._mesh_names = []
         # Whether or not the associated Invoke requires colourmap information
