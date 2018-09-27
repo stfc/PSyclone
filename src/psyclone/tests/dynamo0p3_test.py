@@ -44,7 +44,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
@@ -2687,6 +2687,37 @@ def test_loopfuse():
         assert kern_id > do_idx and kern_id < enddo_idx
 
 
+def test_kern_colourmap(monkeypatch):
+    ''' Test for the colourmap getter of DynKern. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    kern = psy.invokes.invoke_list[0].schedule.children[3].children[0]
+    monkeypatch.setattr(kern, "is_coloured", lambda: True)
+    monkeypatch.setattr(kern, "_is_intergrid", True)
+    with pytest.raises(InternalError) as err:
+        _ = kern.colourmap
+    assert ("Colourmap information for kernel 'testkern_code' has not yet "
+            "been initialised" in str(err))
+
+
+def test_kern_ncolours(monkeypatch):
+    ''' Test for the ncolours getter of DynKern. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    kern = psy.invokes.invoke_list[0].schedule.children[3].children[0]
+    with pytest.raises(InternalError) as err:
+        _ = kern.ncolours
+    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err)
+    monkeypatch.setattr(kern, "is_coloured", lambda: True)
+    monkeypatch.setattr(kern, "_is_intergrid", True)
+    with pytest.raises(InternalError) as err:
+        _ = kern.ncolours
+    assert ("Colourmap information for kernel 'testkern_code' has not yet "
+            "been initialised" in str(err))
+
+
 def test_named_psy_routine():
     ''' Check that we generate a subroutine with the expected name
     if an invoke is named '''
@@ -4599,6 +4630,24 @@ def test_upper_bound_fortran_2(monkeypatch):
         _ = my_loop._upper_bound_fortran()
     assert (
         "Unsupported upper bound name 'invalid' found" in str(excinfo.value))
+    # Pretend the loop is over colours and does not contain a kernel
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="ncolours")
+    monkeypatch.setattr(my_loop, "walk", lambda x, y: [])
+    with pytest.raises(InternalError) as excinfo:
+        _ = my_loop._upper_bound_fortran()
+    assert "Failed to find a kernel within a loop over colours" in str(excinfo)
+
+
+def test_upper_bound_inner(monkeypatch):
+    ''' Check that we get the correct Fortran generated if a loop's upper
+    bound is "inner" '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[3]
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="inner")
+    ubound = my_loop._upper_bound_fortran()
+    assert ubound == "mesh%get_last_inner_cell(1)"
 
 
 def test_intent_multi_kern():

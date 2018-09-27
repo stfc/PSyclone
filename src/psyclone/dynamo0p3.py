@@ -4946,7 +4946,7 @@ class DynKern(Kern):
                                colour-map information has not been initialised.
         '''
         if not self.is_coloured():
-            raise InternalError("Kernel '{0} is not inside a coloured "
+            raise InternalError("Kernel '{0}' is not inside a coloured "
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.root.invoke
