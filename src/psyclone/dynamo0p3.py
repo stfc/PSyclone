@@ -1863,7 +1863,7 @@ class DynMeshes(object):
 
     def __init__(self, schedule, unique_psy_vars):
         self._name_space_manager = NameSpaceFactory().create()
-        # Dict of dictionary objects holding information on the mesh-related
+        # Dict of DynInterGrid objects holding information on the mesh-related
         # variables required by each inter-grid kernel. Keys are the kernel
         # names.
         self._ig_kernels = OrderedDict()
@@ -2067,8 +2067,7 @@ class DynMeshes(object):
                 parent.add(CommentGen(parent, ""))
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
-                # Look-up names of quantities required independent of
-                # whether or not we are doing DM
+                # Look-up variable names for colourmap and number of colours
                 colour_map = self._name_space_manager.create_name(
                     root_name="cmap", context="PSyVars", label="cmap")
                 ncolour = self._name_space_manager.create_name(
