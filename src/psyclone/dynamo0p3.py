@@ -42,8 +42,9 @@
     Loop, Kern, Inf, Arguments and Argument). '''
 
 # Imports
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import os
+from collections import OrderedDict
 import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
@@ -53,7 +54,6 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES
-from collections import OrderedDict
 
 # Get our one-and-only Config object - this holds the global configuration
 # options read from the psyclone.cfg file.
@@ -1844,8 +1844,8 @@ class DynInvokeCMAOperators(object):
 class DynMeshes(object):
     '''Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
-    one mesh object required (when doing distributed memory). However,
-    kernels performing inter-grid operations require multiple mesh
+    one mesh object required (when colouring or doing distributed memory).
+    However, kernels performing inter-grid operations require multiple mesh
     objects as well as mesh maps and other quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
@@ -1853,23 +1853,20 @@ class DynMeshes(object):
     is "restriction" where a field on a fine mesh is mapped onto a coarse
     mesh.
 
+    :param schedule: the schedule of the Invoke for which to extract \
+                     information on all required inter-grid operations.
+    :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+    :param unique_psy_vars: list of arguments to the PSy-layer routine.
+    :type unique_psy_vars: list of \
+                      :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects.
     '''
 
     def __init__(self, schedule, unique_psy_vars):
-        '''
-        :param schedule: the schedule of the Invoke for which to extract \
-                         information on all required inter-grid operations
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
-        :param unique_psy_vars: list of arguments to the PSy-layer routine
-        :type unique_psy_vars: list of \
-                   :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects
-        '''
         self._name_space_manager = NameSpaceFactory().create()
-
         # Dict of dictionary objects holding information on the mesh-related
         # variables required by each inter-grid kernel. Keys are the kernel
         # names.
-        self._kern_calls = OrderedDict()
+        self._ig_kernels = OrderedDict()
         # List of names of unique mesh variables referenced in the Invoke
         self._mesh_names = []
         # Whether or not the associated Invoke requires colourmap information
@@ -1933,16 +1930,16 @@ class DynMeshes(object):
                 root_name=base_name, context="PSyVars", label=base_name)
 
             # Store this information in our dict of dicts
-            # TODO make this dictionary a class as we can then document it!
-            self._kern_calls[call.name] = {"fine": fine_arg,
+            self._ig_kernels[call.name] = {"fine": fine_arg,
                                            "ncell_fine": ncell_fine,
                                            "coarse": coarse_arg,
                                            "mmap": mmap,
                                            "ncperc": ncellpercell,
                                            "cellmap": cell_map,
+                                           # We don't yet have know whether
+                                           # a colourmap is required
                                            "colourmap": "",
                                            "ncolours": 0}
-
             # Create and store the names of the associated mesh objects
             _name_set.add(
                 self._name_space_manager.create_name(
@@ -1957,7 +1954,7 @@ class DynMeshes(object):
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
-        if non_intergrid_kernels and self._kern_calls:
+        if non_intergrid_kernels and self._ig_kernels:
             raise GenerationError(
                 "An invoke containing inter-grid kernels must contain no "
                 "other kernel types but kernels '{0}' in invoke '{1}' are "
@@ -1966,8 +1963,8 @@ class DynMeshes(object):
                     schedule.invoke.name))
 
         # If we didn't have any inter-grid kernels but distributed memory
-        # is enabled and/or we need colourmaps then we will still need a
-        # mesh object
+        # is enabled then we will still need a mesh object. (Colourmaps also
+        # require a mesh object but that is handled in _colourmap_init().)
         if not _name_set:
             if _CONFIG.distributed_memory:
                 mesh_name = self._name_space_manager.create_name(
@@ -1982,48 +1979,33 @@ class DynMeshes(object):
         in the constructor since colouring is applied by Transformations
         and happens after the Schedule has already been constructed.
         '''
-        for call in self._schedule.kern_calls():
-
+        for call in [call for call in self._schedule.kern_calls() if
+                     call.is_coloured()]:
             # Keep a record of whether or not any kernels (loops) in this
             # invoke have been coloured
-            if call.is_coloured():
-                self._needs_colourmap = True
+            self._needs_colourmap = True
 
-                if call.is_intergrid:
-                    carg_name = self._kern_calls[call.name]["coarse"].name
-                    # Colour map
-                    base_name = "cmap_" + carg_name
-                    colour_map = self._name_space_manager.create_name(
-                        root_name=base_name, context="PSyVars", label=base_name)
-                    # No. of colours
-                    base_name = "ncolour_" + carg_name
-                    ncolours = self._name_space_manager.create_name(
-                        root_name=base_name, context="PSyVars", label=base_name)
-                    # Add these names into the dictionary entry for this
-                    # inter-grid kernel
-                    self._kern_calls[call.name]["colourmap"] = colour_map
-                    self._kern_calls[call.name]["ncolours"] = ncolours
+            if call.is_intergrid:
+                carg_name = self._ig_kernels[call.name]["coarse"].name
+                # Colour map
+                base_name = "cmap_" + carg_name
+                colour_map = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # No. of colours
+                base_name = "ncolour_" + carg_name
+                ncolours = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # Add these names into the dictionary entry for this
+                # inter-grid kernel
+                self._ig_kernels[call.name]["colourmap"] = colour_map
+                self._ig_kernels[call.name]["ncolours"] = ncolours
 
-        if self._needs_colourmap:
-            # There aren't any inter-grid kernels but we do need
-            # colourmap information. Set-up the names of the various
-            # variables here. We'll use the name-space manager to
-            # access them later.
-            # TODO could remove this as the same code is needed to
-            # access them later anyway
-            base_name = "cmap"
-            colour_map = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
-            # No. of colours
-            base_name = "ncolour"
-            ncolours = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
-            # We'll need a mesh object if we've not already got one
-            if not self._mesh_names:
-                mesh_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
-                self._mesh_names.append(mesh_name)
-
+        if not self._mesh_names and self._needs_colourmap:
+            # There aren't any inter-grid kernels but we do need colourmap
+            # information and that means we'll need a mesh object
+            mesh_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            self._mesh_names.append(mesh_name)
 
     def declarations(self, parent):
         '''
@@ -2041,7 +2023,7 @@ class DynMeshes(object):
         if self._mesh_names:
             parent.add(UseGen(parent, name="mesh_mod", only=True,
                               funcnames=["mesh_type"]))
-        if self._kern_calls:
+        if self._ig_kernels:
             parent.add(UseGen(parent, name="mesh_map_mod", only=True,
                               funcnames=["mesh_map_type"]))
         # Declare the mesh object(s)
@@ -2049,7 +2031,7 @@ class DynMeshes(object):
             parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
                                    entity_decls=[name + " => null()"]))
         # Declare the inter-mesh map(s) and cell map(s)
-        for kern in self._kern_calls.values():
+        for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype="mesh_map_type",
                                    entity_decls=[kern["mmap"] + " => null()"]))
@@ -2070,7 +2052,7 @@ class DynMeshes(object):
                 parent.add(DeclGen(parent, datatype="integer",
                                    entity_decls=[kern["ncolours"]]))
 
-        if not self._kern_calls and self._needs_colourmap:
+        if not self._ig_kernels and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
@@ -2142,7 +2124,7 @@ class DynMeshes(object):
         # that we don't generate duplicate assignments
         initialised = []
 
-        for kern in self._kern_calls.values():
+        for kern in self._ig_kernels.values():
             # We need pointers to both the coarse and the fine mesh
             fine_mesh = self._name_space_manager.create_name(
                 root_name="mesh_{0}".format(kern["fine"].name),
@@ -4920,11 +4902,11 @@ class DynKern(Kern):
             return ""
         if self._is_intergrid:
             invoke = self.root.invoke
-            if self.name not in invoke.meshes._kern_calls:
+            if self.name not in invoke.meshes._ig_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            cmap = invoke.meshes._kern_calls[self.name]["colourmap"]
+            cmap = invoke.meshes._ig_kernels[self.name]["colourmap"]
         else:
             cmap = self._name_space_manager.create_name(
                 root_name="cmap", context="PSyVars", label="cmap")
@@ -4946,11 +4928,11 @@ class DynKern(Kern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.root.invoke
-            if self.name not in invoke.meshes._kern_calls:
+            if self.name not in invoke.meshes._ig_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            ncols = invoke.meshes._kern_calls[self.name]["ncolours"]
+            ncols = invoke.meshes._ig_kernels[self.name]["ncolours"]
         else:
             ncols = self._name_space_manager.create_name(
                 root_name="ncolour", context="PSyVars", label="ncolour")
