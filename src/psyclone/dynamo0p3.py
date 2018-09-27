@@ -1905,41 +1905,10 @@ class DynMeshes(object):
             fine_arg = fine_args[0]
             coarse_arg = coarse_args[0]
 
-            # Generate name for inter-mesh map
-            base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
-                                                   coarse_arg.name)
-            mmap = self._name_space_manager.create_name(
-                root_name=base_mmap_name,
-                context="PSyVars",
-                label=base_mmap_name)
+            # Create an object to capture info. on this inter-grid kernel
+            # and store in our dictionary
+            self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
 
-            # Generate name for ncell variables
-            ncell_fine = self._name_space_manager.create_name(
-                root_name="ncell_{0}".format(fine_arg.name),
-                context="PSyVars",
-                label="ncell_{0}".format(fine_arg.name))
-            ncellpercell = self._name_space_manager.create_name(
-                root_name="ncpc_{0}_{1}".format(fine_arg.name,
-                                                coarse_arg.name),
-                context="PSyVars",
-                label="ncpc_{0}_{1}".format(fine_arg.name,
-                                            coarse_arg.name))
-            # Name for cell map
-            base_name = "cell_map_" + coarse_arg.name
-            cell_map = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
-
-            # Store this information in our dict of dicts
-            self._ig_kernels[call.name] = {"fine": fine_arg,
-                                           "ncell_fine": ncell_fine,
-                                           "coarse": coarse_arg,
-                                           "mmap": mmap,
-                                           "ncperc": ncellpercell,
-                                           "cellmap": cell_map,
-                                           # We don't yet have know whether
-                                           # a colourmap is required
-                                           "colourmap": "",
-                                           "ncolours": 0}
             # Create and store the names of the associated mesh objects
             _name_set.add(
                 self._name_space_manager.create_name(
@@ -1986,7 +1955,7 @@ class DynMeshes(object):
             self._needs_colourmap = True
 
             if call.is_intergrid:
-                carg_name = self._ig_kernels[call.name]["coarse"].name
+                carg_name = self._ig_kernels[call.name].coarse.name
                 # Colour map
                 base_name = "cmap_" + carg_name
                 colour_map = self._name_space_manager.create_name(
@@ -1997,8 +1966,8 @@ class DynMeshes(object):
                     root_name=base_name, context="PSyVars", label=base_name)
                 # Add these names into the dictionary entry for this
                 # inter-grid kernel
-                self._ig_kernels[call.name]["colourmap"] = colour_map
-                self._ig_kernels[call.name]["ncolours"] = ncolours
+                self._ig_kernels[call.name].colourmap = colour_map
+                self._ig_kernels[call.name].ncolours = ncolours
 
         if not self._mesh_names and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
@@ -2034,23 +2003,23 @@ class DynMeshes(object):
         for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype="mesh_map_type",
-                                   entity_decls=[kern["mmap"] + " => null()"]))
+                                   entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
-                        entity_decls=[kern["cellmap"] + "(:,:) => null()"]))
+                        entity_decls=[kern.cell_map + "(:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[kern["ncell_fine"],
-                                             kern["ncperc"]]))
+                               entity_decls=[kern.ncell_fine,
+                                             kern.ncellpercell]))
             # Declare variables to hold the colourmap information if required
-            if kern["colourmap"]:
+            if kern.colourmap:
                 parent.add(DeclGen(parent, datatype="integer",
                                    pointer=True,
-                                   entity_decls=[kern["colourmap"]+"(:,:)"]))
+                                   entity_decls=[kern.colourmap+"(:,:)"]))
                 parent.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=[kern["ncolours"]]))
+                                   entity_decls=[kern.ncolours]))
 
         if not self._ig_kernels and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need
@@ -2127,76 +2096,130 @@ class DynMeshes(object):
         for kern in self._ig_kernels.values():
             # We need pointers to both the coarse and the fine mesh
             fine_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern["fine"].name),
+                root_name="mesh_{0}".format(kern.fine.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern["fine"].name))
+                label="mesh_{0}".format(kern.fine.name))
             coarse_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern["coarse"].name),
+                root_name="mesh_{0}".format(kern.coarse.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern["coarse"].name))
+                label="mesh_{0}".format(kern.coarse.name))
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=fine_mesh,
-                              rhs=kern["fine"].name_indexed + "%get_mesh()"))
+                              rhs=kern.fine.name_indexed + "%get_mesh()"))
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=coarse_mesh,
-                              rhs=kern["coarse"].name_indexed + "%get_mesh()"))
+                              rhs=kern.coarse.name_indexed + "%get_mesh()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
-            if kern["mmap"] not in initialised:
-                initialised.append(kern["mmap"])
+            if kern.mmap not in initialised:
+                initialised.append(kern.mmap)
                 parent.add(
                     AssignGen(parent, pointer=True,
-                              lhs=kern["mmap"],
+                              lhs=kern.mmap,
                               rhs="{0}%get_mesh_map({1})".format(coarse_mesh,
                                                                  fine_mesh)))
 
             # Cell map. This is obtained from the mesh map.
-            if kern["cellmap"] not in initialised:
-                initialised.append(kern["cellmap"])
+            if kern.cell_map not in initialised:
+                initialised.append(kern.cell_map)
                 parent.add(
-                    AssignGen(parent, pointer=True, lhs=kern["cellmap"],
-                              rhs=kern["mmap"]+"%get_whole_cell_map()"))
+                    AssignGen(parent, pointer=True, lhs=kern.cell_map,
+                              rhs=kern.mmap+"%get_whole_cell_map()"))
 
             # Number of cells in the fine mesh
-            if kern["ncell_fine"] not in initialised:
-                initialised.append(kern["ncell_fine"])
+            if kern.ncell_fine not in initialised:
+                initialised.append(kern.ncell_fine)
                 if _CONFIG.distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
                     parent.add(
-                        AssignGen(parent, lhs=kern["ncell_fine"],
+                        AssignGen(parent, lhs=kern.ncell_fine,
                                   rhs=(fine_mesh+"%get_last_halo_cell"
                                        "(depth=2)")))
                 else:
                     parent.add(
-                        AssignGen(parent, lhs=kern["ncell_fine"],
-                                  rhs="%".join([kern["fine"].proxy_name,
-                                                kern["fine"].ref_name(),
+                        AssignGen(parent, lhs=kern.ncell_fine,
+                                  rhs="%".join([kern.fine.proxy_name,
+                                                kern.fine.ref_name(),
                                                 "get_ncell()"])))
 
             # Number of fine cells per coarse cell.
-            if kern["ncperc"] not in initialised:
-                initialised.append(kern["ncperc"])
+            if kern.ncellpercell not in initialised:
+                initialised.append(kern.ncellpercell)
                 parent.add(
-                    AssignGen(parent, lhs=kern["ncperc"],
-                              rhs=kern["mmap"] +
+                    AssignGen(parent, lhs=kern.ncellpercell,
+                              rhs=kern.mmap +
                               "%get_ntarget_cells_per_source_cell()"))
 
             # Colour map for the coarse mesh (if required)
-            if kern["colourmap"]:
+            if kern.colourmap:
                 # Number of colours
-                parent.add(AssignGen(parent, lhs=kern["ncolours"],
+                parent.add(AssignGen(parent, lhs=kern.ncolours,
                                      rhs=coarse_mesh + "%get_ncolours()"))
                 # Colour map itself
-                parent.add(AssignGen(parent, lhs=kern["colourmap"],
+                parent.add(AssignGen(parent, lhs=kern.colourmap,
                                      pointer=True,
                                      rhs=coarse_mesh + "%get_colour_map()"))
+
+    @property
+    def intergrid_kernels(self):
+        ''' Getter for the dictionary of intergrid kernels.
+
+        :returns: Dictionary of intergrid kernels, indexed by name.
+        :rtype: :py:class:`collections.OrderedDict`
+        '''
+        return self._ig_kernels
+
+
+class DynInterGrid(object):
+    '''
+    Holds information on quantities required by an inter-grid kernel.
+
+    :param fine_arg: Kernel argument on the fine mesh.
+    :type fine_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param coarse_arg: Kernel argument on the coarse mesh.
+    :type coarse_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    '''
+    def __init__(self, fine_arg, coarse_arg):
+        self._name_space_manager = NameSpaceFactory().create()
+
+        # Arguments on the coarse and fine grids
+        self.coarse = coarse_arg
+        self.fine = fine_arg
+
+        # Generate name for inter-mesh map
+        base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
+                                               coarse_arg.name)
+        self.mmap = self._name_space_manager.create_name(
+            root_name=base_mmap_name,
+            context="PSyVars",
+            label=base_mmap_name)
+
+        # Generate name for ncell variables
+        self.ncell_fine = self._name_space_manager.create_name(
+            root_name="ncell_{0}".format(fine_arg.name),
+            context="PSyVars",
+            label="ncell_{0}".format(fine_arg.name))
+        # No. of fine cells per coarse cell
+        self.ncellpercell = self._name_space_manager.create_name(
+            root_name="ncpc_{0}_{1}".format(fine_arg.name,
+                                            coarse_arg.name),
+            context="PSyVars",
+            label="ncpc_{0}_{1}".format(fine_arg.name,
+                                        coarse_arg.name))
+        # Name for cell map
+        base_name = "cell_map_" + coarse_arg.name
+        self.cell_map = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
+        # We have no colourmap information when first created
+        self.colourmap = ""
+        self.ncolours = 0
 
 
 class DynInvokeBasisFns(object):
@@ -4902,11 +4925,11 @@ class DynKern(Kern):
             return ""
         if self._is_intergrid:
             invoke = self.root.invoke
-            if self.name not in invoke.meshes._ig_kernels:
+            if self.name not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            cmap = invoke.meshes._ig_kernels[self.name]["colourmap"]
+            cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
         else:
             cmap = self._name_space_manager.create_name(
                 root_name="cmap", context="PSyVars", label="cmap")
@@ -4928,11 +4951,11 @@ class DynKern(Kern):
                                 "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.root.invoke
-            if self.name not in invoke.meshes._ig_kernels:
+            if self.name not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            ncols = invoke.meshes._ig_kernels[self.name]["ncolours"]
+            ncols = invoke.meshes.intergrid_kernels[self.name].ncolours
         else:
             ncols = self._name_space_manager.create_name(
                 root_name="ncolour", context="PSyVars", label="ncolour")
