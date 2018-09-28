@@ -1934,11 +1934,10 @@ class DynMeshes(object):
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object. (Colourmaps also
         # require a mesh object but that is handled in _colourmap_init().)
-        if not _name_set:
-            if _CONFIG.distributed_memory:
-                mesh_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
-                _name_set.add(mesh_name)
+        if not _name_set and _CONFIG.distributed_memory:
+            _name_set.add(self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh"))
+
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
 
@@ -1985,7 +1984,8 @@ class DynMeshes(object):
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
 
-        # Set-up colourmap information
+        # Since we're now generating code, any transformations must
+        # have been applied so we can set-up colourmap information
         self._colourmap_init()
 
         # We'll need various typedefs from the mesh module
