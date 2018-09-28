@@ -1155,4 +1155,3 @@ Of course, a given field may already be on the device (and have been
 updated) due to a previous Invoke. In this case, the fact that the
 OpenACC run-time does not copy over the now out-dated host version of
 the field is essential for correctness.
-

@@ -2042,6 +2042,10 @@ that the transformation is only valid for this particular API. If the
 name of the transformation includes "Dynamo" then it should work with
 all versions of the Dynamo API.
 
+.. note:: Only the loop-colouring transformation is currently supported
+	  for loops that contain inter-grid kernels. Support for other
+	  transformations is not yet implemented.
+
 .. autoclass:: psyclone.transformations.DynamoLoopFuseTrans
     :members:
     :noindex:
