@@ -2092,77 +2092,78 @@ class DynMeshes(object):
         # that we don't generate duplicate assignments
         initialised = []
 
-        for kern in self._ig_kernels.values():
+        # Loop over the DynInterGrid objects in our dictionary
+        for dig in self._ig_kernels.values():
             # We need pointers to both the coarse and the fine mesh
             fine_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern.fine.name),
+                root_name="mesh_{0}".format(dig.fine.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern.fine.name))
+                label="mesh_{0}".format(dig.fine.name))
             coarse_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern.coarse.name),
+                root_name="mesh_{0}".format(dig.coarse.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern.coarse.name))
+                label="mesh_{0}".format(dig.coarse.name))
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=fine_mesh,
-                              rhs=kern.fine.name_indexed + "%get_mesh()"))
+                              rhs=dig.fine.name_indexed + "%get_mesh()"))
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=coarse_mesh,
-                              rhs=kern.coarse.name_indexed + "%get_mesh()"))
+                              rhs=dig.coarse.name_indexed + "%get_mesh()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
-            if kern.mmap not in initialised:
-                initialised.append(kern.mmap)
+            if dig.mmap not in initialised:
+                initialised.append(dig.mmap)
                 parent.add(
                     AssignGen(parent, pointer=True,
-                              lhs=kern.mmap,
+                              lhs=dig.mmap,
                               rhs="{0}%get_mesh_map({1})".format(coarse_mesh,
                                                                  fine_mesh)))
 
             # Cell map. This is obtained from the mesh map.
-            if kern.cell_map not in initialised:
-                initialised.append(kern.cell_map)
+            if dig.cell_map not in initialised:
+                initialised.append(dig.cell_map)
                 parent.add(
-                    AssignGen(parent, pointer=True, lhs=kern.cell_map,
-                              rhs=kern.mmap+"%get_whole_cell_map()"))
+                    AssignGen(parent, pointer=True, lhs=dig.cell_map,
+                              rhs=dig.mmap+"%get_whole_cell_map()"))
 
             # Number of cells in the fine mesh
-            if kern.ncell_fine not in initialised:
-                initialised.append(kern.ncell_fine)
+            if dig.ncell_fine not in initialised:
+                initialised.append(dig.ncell_fine)
                 if _CONFIG.distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
                     parent.add(
-                        AssignGen(parent, lhs=kern.ncell_fine,
+                        AssignGen(parent, lhs=dig.ncell_fine,
                                   rhs=(fine_mesh+"%get_last_halo_cell"
                                        "(depth=2)")))
                 else:
                     parent.add(
-                        AssignGen(parent, lhs=kern.ncell_fine,
-                                  rhs="%".join([kern.fine.proxy_name,
-                                                kern.fine.ref_name(),
+                        AssignGen(parent, lhs=dig.ncell_fine,
+                                  rhs="%".join([dig.fine.proxy_name,
+                                                dig.fine.ref_name(),
                                                 "get_ncell()"])))
 
             # Number of fine cells per coarse cell.
-            if kern.ncellpercell not in initialised:
-                initialised.append(kern.ncellpercell)
+            if dig.ncellpercell not in initialised:
+                initialised.append(dig.ncellpercell)
                 parent.add(
-                    AssignGen(parent, lhs=kern.ncellpercell,
-                              rhs=kern.mmap +
+                    AssignGen(parent, lhs=dig.ncellpercell,
+                              rhs=dig.mmap +
                               "%get_ntarget_cells_per_source_cell()"))
 
             # Colour map for the coarse mesh (if required)
-            if kern.colourmap:
+            if dig.colourmap:
                 # Number of colours
-                parent.add(AssignGen(parent, lhs=kern.ncolours,
+                parent.add(AssignGen(parent, lhs=dig.ncolours,
                                      rhs=coarse_mesh + "%get_ncolours()"))
                 # Colour map itself
-                parent.add(AssignGen(parent, lhs=kern.colourmap,
+                parent.add(AssignGen(parent, lhs=dig.colourmap,
                                      pointer=True,
                                      rhs=coarse_mesh + "%get_colour_map()"))
 
