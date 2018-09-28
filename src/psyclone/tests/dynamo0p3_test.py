@@ -2688,11 +2688,14 @@ def test_loopfuse():
 
 
 def test_kern_colourmap(monkeypatch):
-    ''' Test for the colourmap getter of DynKern. '''
+    ''' Tests for the colourmap getter of DynKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     kern = psy.invokes.invoke_list[0].schedule.children[3].children[0]
+    with pytest.raises(InternalError) as err:
+        _ = kern.colourmap
+    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err)
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     monkeypatch.setattr(kern, "_is_intergrid", True)
     with pytest.raises(InternalError) as err:
@@ -2702,7 +2705,7 @@ def test_kern_colourmap(monkeypatch):
 
 
 def test_kern_ncolours(monkeypatch):
-    ''' Test for the ncolours getter of DynKern. '''
+    ''' Tests for the ncolours getter of DynKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)

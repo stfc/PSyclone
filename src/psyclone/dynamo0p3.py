@@ -4917,11 +4917,13 @@ class DynKern(Kern):
 
         :return: name of the colourmap (Fortran array)
         :rtype: str
-        :raises InternalError: if the dictionary of inter-grid kernels and
+        :raises InternalError: if this kernel is not coloured or the \
+                               dictionary of inter-grid kernels and \
                                colourmaps has not been constructed.
         '''
         if not self.is_coloured():
-            return ""
+            raise InternalError("Kernel '{0}' is not inside a coloured "
+                                "loop.".format(self.name))
         if self._is_intergrid:
             invoke = self.root.invoke
             if self.name not in invoke.meshes.intergrid_kernels:
@@ -5813,9 +5815,8 @@ class KernCallArgList(ArgOrdering):
     def _cell_ref_name(self):
         '''utility routine which determines whether to return the cell value
         or the colourmap lookup value '''
-        cmap = self._kern.colourmap
-        if cmap:
-            return cmap + "(colour, cell)"
+        if self._kern.is_coloured():
+            return self._kern.colourmap + "(colour, cell)"
         else:
             return "cell"
 

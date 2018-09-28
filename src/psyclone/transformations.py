@@ -287,11 +287,22 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         return "DynamoLoopFuse"
 
     def apply(self, node1, node2, same_space=False):
-        '''Fuse the two Dynamo loops represented by :py:obj:`node1` and
+        '''
+        Fuse the two Dynamo loops represented by :py:obj:`node1` and
         :py:obj:`node2`. The optional same_space flag asserts that an
         unknown iteration space (i.e. any_space) matches the other
-        iteration space. This is set at the users own risk. '''
+        iteration space. This is set at the users own risk.
 
+        :param node1: First Loop to fuse.
+        :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :param node2: Second Loop to fuse.
+        :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :returns: two-tuple of modified schedule and Memento
+        :rtype: :py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`
+        :raises TransformationError: if either of the supplied loops contains \
+                                     an inter-grid kernel.
+        '''
         LoopFuseTrans._validate(self, node1, node2)
 
         # Check that we don't have an inter-grid kernel
