@@ -410,7 +410,6 @@ def test_restrict_prolong_chain(tmpdir, f90, f90flags, dist_mem):
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     output = str(psy.gen)
-    print(output)
     if TEST_COMPILE:
         assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
@@ -579,7 +578,6 @@ def test_prolong_vector(tmpdir, f90, f90flags):
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     output = str(psy.gen)
-    print(output)
 
     if TEST_COMPILE:
         assert code_compiles(API, psy, tmpdir, f90, f90flags)

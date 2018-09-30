@@ -2038,7 +2038,6 @@ class DynMeshes(object):
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[ncolours]))
 
-
     def initialise(self, parent):
         '''
         Initialise parameters specific to inter-grid kernels
@@ -2057,7 +2056,7 @@ class DynMeshes(object):
 
         if len(self._mesh_names) == 1:
             # We only require one mesh object which means that this invoke
-            # contains no inter-grid kernels
+            # contains no inter-grid kernels (which would require at least 2)
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
             rhs = self._first_var.name_indexed + "%get_mesh()"

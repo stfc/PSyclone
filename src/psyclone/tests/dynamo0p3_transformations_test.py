@@ -131,7 +131,7 @@ def test_colour_trans(tmpdir, f90, f90flags, dist_mem):
     # Store the results of applying this code transformation as
     # a string (Fortran is not case sensitive)
     gen = str(psy.gen).lower()
-    print(gen)
+
     # Check that we're calling the API to get the no. of colours
     # and the generated loop bounds are correct
     output = ("      ncolour = mesh%get_ncolours()\n"
@@ -453,7 +453,6 @@ def test_omp_colour_trans(tmpdir, f90, f90flags, dist_mem):
 
     invoke.schedule = schedule
     code = str(psy.gen)
-    print(code)
 
     assert ("      ncolour = mesh%get_ncolours()\n"
             "      cmap => mesh%get_colour_map()\n" in code)
@@ -5697,7 +5696,6 @@ def test_rc_max_colour(tmpdir, f90, f90flags):
     rc_trans.apply(cschedule.children[3].children[0])
 
     result = str(psy.gen)
-    print(result)
     assert (
         "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
@@ -6339,7 +6337,6 @@ def test_intergrid_colour(dist_mem):
     # To a restrict kernel
     new_sched, _ = ctrans.apply(loops[3])
     gen = str(psy.gen).lower()
-    print(gen)
     expected = '''\
       ncolour_fld_m = mesh_fld_m%get_ncolours()
       cmap_fld_m => mesh_fld_m%get_colour_map()'''

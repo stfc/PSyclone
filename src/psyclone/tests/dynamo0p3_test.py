@@ -2667,7 +2667,7 @@ def test_loopfuse():
     generated_code = psy.gen
     # only one loop
     assert str(generated_code).count("DO cell") == 1
-# only one map for each space
+    # only one map for each space
     assert str(generated_code).count("map_w1 =>") == 1
     assert str(generated_code).count("map_w2 =>") == 1
     assert str(generated_code).count("map_w3 =>") == 1
@@ -2688,7 +2688,7 @@ def test_loopfuse():
 
 
 def test_kern_colourmap(monkeypatch):
-    ''' Tests for the colourmap getter of DynKern. '''
+    ''' Tests for error conditions in the colourmap getter of DynKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -2705,7 +2705,7 @@ def test_kern_colourmap(monkeypatch):
 
 
 def test_kern_ncolours(monkeypatch):
-    ''' Tests for the ncolours getter of DynKern. '''
+    ''' Tests for error conditions in the ncolours getter of DynKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
