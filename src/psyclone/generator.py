@@ -225,6 +225,8 @@ def main(args):
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
     parser.add_argument(
         '-opsy', help='filename of generated PSy code')
+    parser.add_argument('-okern',
+                        help='directory in which to put transformed kernels')
     parser.add_argument(
         '-api', default=_CONFIG.default_api,
         help='choose a particular api from {0}, '
@@ -244,6 +246,10 @@ def main(args):
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
+    parser.add_argument(
+        '-nkc', '--no_kernel_clobber', dest='no_kernel_clobber',
+        action='store_true', default=False,
+        help="Ensure that any transformed kernels are given unique names")
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes'")
@@ -285,6 +291,18 @@ def main(args):
         Profiler.set_options(args.profile)
     elif args.force_profile:
         Profiler.set_options(args.force_profile)
+
+    # If an output directory has been specified for transformed kernels
+    # then check that it is valid
+    if args.okern:
+        if not os.path.exists(args.okern):
+            print("Specified kernel output directory ({0}) does not exist.".
+                  format(args.okern))
+            exit(1)
+        if not os.access(args.okern, os.W_OK):
+            print("Cannot write to specified kernel output directory ({0}).".
+                  format(args.okern))
+            exit(1)
 
     try:
         alg, psy = generate(args.filename, api=args.api,

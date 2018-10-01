@@ -27,7 +27,8 @@ by the script:
 		
   > psyclone -h
 
-  usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
+  usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
+                  [-s SCRIPT]
                   [-d DIRECTORY] [-l] [-dm] [-nodm]
 		  [--profile {invokes,kernels}]
 		  [--force-profile {invokes,kernels}] [-v] filename
@@ -41,6 +42,7 @@ by the script:
     -h, --help            show this help message and exit
     -oalg OALG            filename of transformed algorithm code
     -opsy OPSY            filename of generated PSy code
+    -okern OKERN          directory in which to put transformed kernels
     -api API              choose a particular api from ['gunghoproto',
                           'dynamo0.1', 'dynamo0.3', 'gocean0.1', 'gocean1.0'],
                           default dynamo0.3
@@ -52,6 +54,8 @@ by the script:
     -l, --limit           limit the fortran line length to 132 characters
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
+    --ktrans {clobber,noclobber} whether or not to overwrite kernels in the
+                          output directory
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
     --force-profile {invokes,kernels}
@@ -111,6 +115,17 @@ the algorithm code will be output to the terminal:
 
     > psyclone -opsy psy.f90 alg.f90
 
+If PSyclone is being used to transform Kernels then the location to
+write these to is specified using the ``-okern <directory>``
+option. If this is not supplied then they are written to the current
+working directory. In addition, the user can use the ``--ktrans``
+option to specify the action to take when a kernel of the same name is
+already present in the selected output directory. If ``clobber`` is
+specified then PSyclone will overwrite any kernel of the same name. If
+``noclobber`` is specified then PSyclone will re-name any transformed
+kernel that would clash with any of those already present in the
+output directory.
+
 Algorithm files with no invokes
 -------------------------------
 
@@ -127,8 +142,8 @@ will not be created.
     Warning: 'Algorithm Error: Algorithm file contains no invoke() calls: refusing to
     generate empty PSy code'
 
-Kernel directory
-----------------
+Kernel search directory
+-----------------------
 
 When an algorithm file is parsed, the parser looks for the associated
 kernel files. The way in which this is done requires that any
