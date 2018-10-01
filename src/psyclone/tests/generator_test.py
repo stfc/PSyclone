@@ -666,3 +666,37 @@ def test_main_no_invoke_alg_file(capsys):
 
     # check psy file is not created
     assert not os.path.isfile(psy_filename)
+
+
+def test_main_kern_output_no_dir(capsys):
+    ''' Test for when the specified output directory (for transformed
+    kernels) does not exist. '''
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    with pytest.raises(SystemExit) as err:
+        main([alg_filename, '-okern', "/does/not/exist"])
+    assert str(err.value) == "1"
+    output, _ = capsys.readouterr()
+    assert ("Specified kernel output directory (/does/not/exist) does not "
+            "exist" in output)
+
+
+def test_main_kern_output_no_write(tmpdir, capsys):
+    ''' Test for when the specified output directory (for transformed
+    kernels) cannot be written to. '''
+    import stat
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    # Create a new directory and make it readonly
+    new_dir = os.path.join(str(tmpdir), "no_write_access")
+    os.mkdir(new_dir)
+    os.chmod(new_dir, stat.S_IREAD)
+    with pytest.raises(SystemExit) as err:
+        main([alg_filename, '-okern', str(new_dir)])
+    assert str(err.value) == "1"
+    output, _ = capsys.readouterr()
+    print(output)
+    assert ("Cannot write to specified kernel output directory ({0})".
+            format(str(new_dir)) in output)
