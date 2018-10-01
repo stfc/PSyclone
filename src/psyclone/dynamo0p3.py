@@ -1271,9 +1271,16 @@ class DynamoPSy(PSy):
     ''' The Dynamo specific PSy class. This creates a Dynamo specific
     invokes object (which controls all the required invocation calls).
     It also overrides the PSy gen method so that we generate dynamo
-    specific PSy module code. '''
+    specific PSy module code.
 
-    def __init__(self, invoke_info):
+    :param invoke_info: object containing the required invocation information \
+                        for code optimisation and generation.
+    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    :param kern_info: settings for outputting transformed kernels.
+    :type kern_info: 2-tuple of output directory (str) and whether or not to \
+                     overwrite existing kernel files in that directory (bool).
+    '''
+    def __init__(self, invoke_info, kern_info=None):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls)
 
@@ -4935,16 +4942,16 @@ class DynKern(Kern):
 
     def gen_code(self, parent):
         '''Generates dynamo version 0.3 specific psy code for a call to
-            the dynamo kernel instance.
+           the dynamo kernel instance.
 
-        :param parent: an f2pygen object that will be the parent of
-        f2pygen objects created in this method
+        :param parent: an f2pygen object that will be the parent of \
+                       f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if the loop goes beyond the level 1
-        halo and an operator is accessed
-        :raises GenerationError: if a kernel in the loop has an inc
-        access and the loop is not coloured but is within an OpenMP
-        parallel region.
+        :raises GenerationError: if the loop goes beyond the level 1 \
+                                 halo and an operator is accessed.
+        :raises GenerationError: if a kernel in the loop has an inc access \
+                                 and the loop is not coloured but is within \
+                                 an OpenMP parallel region.
 
         '''
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, UseGen, \
@@ -5062,6 +5069,11 @@ class DynKern(Kern):
         create_arg_list = KernCallArgList(self, parent)
         create_arg_list.generate()
         arglist = create_arg_list.arglist
+
+        # If this kernel has been transformed then we need to write it
+        # to file
+        if self._fp2_ast:
+            self.to_fortran()
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))

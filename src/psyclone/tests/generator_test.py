@@ -697,6 +697,5 @@ def test_main_kern_output_no_write(tmpdir, capsys):
         main([alg_filename, '-okern', str(new_dir)])
     assert str(err.value) == "1"
     output, _ = capsys.readouterr()
-    print(output)
     assert ("Cannot write to specified kernel output directory ({0})".
             format(str(new_dir)) in output)

@@ -136,7 +136,9 @@ def handle_script(script_name, psy):
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
-             distributed_memory=None):
+             distributed_memory=None,
+             kern_out_path="",
+             kern_clobber=True):
     # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -163,6 +165,10 @@ def generate(filename, api="", kernel_path="", script_name=None,
     :param bool distributed_memory: A logical flag specifying whether to
                                     generate distributed memory code. The
                                     default is set in the config.py file.
+    :param str kern_out_path: Directory to which to write transformed
+                              kernel code.
+    :param bool kern_clobber: Whether or not to overwrite existing kernels
+                              in the directory specified in kern_out_path.
     :return: The algorithm code and the psy code.
     :rtype: ast
     :raises IOError: if the filename or search path do not exist
@@ -200,8 +206,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
                                  kernel_path=kernel_path,
                                  line_length=line_length)
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
-            .create(invoke_info)
-
+            .create(invoke_info, kern_info=(kern_out_path, kern_clobber))
         if script_name is not None:
             handle_script(script_name, psy)
         alg = Alg(ast, psy)
@@ -247,8 +252,8 @@ def main(args):
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
     parser.add_argument(
-        '-nkc', '--no_kernel_clobber', dest='no_kernel_clobber',
-        action='store_true', default=False,
+        '-nkc', '--no_kernel_clobber', dest='kernel_clobber',
+        action='store_false', default=True,
         help="Ensure that any transformed kernels are given unique names")
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
@@ -303,13 +308,19 @@ def main(args):
             print("Cannot write to specified kernel output directory ({0}).".
                   format(args.okern))
             exit(1)
+        kern_out_path = args.okern
+    else:
+        # We write any transformed kernels to the current working directory
+        kern_out_path = os.getcwd()
 
     try:
         alg, psy = generate(args.filename, api=args.api,
                             kernel_path=args.directory,
                             script_name=args.script,
                             line_length=args.limit,
-                            distributed_memory=args.dist_mem)
+                            distributed_memory=args.dist_mem,
+                            kern_out_path=kern_out_path,
+                            kern_clobber=args.kernel_clobber)
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
         print("Warning: {0}".format(exc_value))

@@ -240,40 +240,48 @@ class PSyFactory(object):
         _CONFIG.distributed_memory = _distributed_memory
         self._type = get_api(api)
 
-    def create(self, invoke_info):
-        ''' Return the API specific PSy instance. '''
+    def create(self, invoke_info, kern_info=None):
+        '''
+        Return the API-specific PSy instance.
+
+        :param invoke_info: An object containing the required invocation \
+                            information for code optimisation and generation.
+        :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+        :param kern_info: settings for output of transformed kernels.
+        :type kern_info: 2-tuple of output directory (str) and whether or not \
+                         to overwrite existing kernel files in that directory \
+                         (bool).
+        '''
         if self._type == "gunghoproto":
-            from psyclone.ghproto import GHProtoPSy
-            return GHProtoPSy(invoke_info)
+            from psyclone.ghproto import GHProtoPSy as PSyClass
         elif self._type == "dynamo0.1":
-            from psyclone.dynamo0p1 import DynamoPSy
-            return DynamoPSy(invoke_info)
+            from psyclone.dynamo0p1 import DynamoPSy as PSyClass
         elif self._type == "dynamo0.3":
-            from psyclone.dynamo0p3 import DynamoPSy
-            return DynamoPSy(invoke_info)
+            from psyclone.dynamo0p3 import DynamoPSy as PSyClass
         elif self._type == "gocean0.1":
-            from psyclone.gocean0p1 import GOPSy
-            return GOPSy(invoke_info)
+            from psyclone.gocean0p1 import GOPSy as PSyClass
         elif self._type == "gocean1.0":
-            from psyclone.gocean1p0 import GOPSy
-            return GOPSy(invoke_info)
+            from psyclone.gocean1p0 import GOPSy as PSyClass
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
                                   "possible.".format(self._type))
+        return PSyClass(invoke_info, kern_info)
 
 
 class PSy(object):
     '''
-        Base class to help manage and generate PSy code for a single
-        algorithm file. Takes the invocation information output from the
-        function :func:`parse.parse` as its input and stores this in a
-        way suitable for optimisation and code generation.
+    Base class to help manage and generate PSy code for a single
+    algorithm file. Takes the invocation information output from the
+    function :func:`parse.parse` as its input and stores this in a
+    way suitable for optimisation and code generation.
 
-        :param FileInfo invoke_info: An object containing the required
-                                     invocation information for code
-                                     optimisation and generation. Produced
-                                     by the function :func:`parse.parse`.
+    :param invoke_info: An object containing the required invocation \
+                        information for code optimisation and generation.
+    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    :param kern_info: settings for output of transformed kernels.
+    :type kern_info: 2-tuple of output directory (str) and whether or not to \
+                     overwrite existing kernel files in that directory (bool).
 
         For example:
 
@@ -286,7 +294,7 @@ class PSy(object):
         >>> print(psy.gen)
 
     '''
-    def __init__(self, invoke_info):
+    def __init__(self, invoke_info, kern_info=None):
         self._name = invoke_info.name
         self._invokes = None
 
@@ -2973,6 +2981,10 @@ class Kern(Call):
         self._fp2_ast = my_parser(reader)
         return self._fp2_ast
 
+    def to_fortran(self):
+        '''
+        Writes the (transformed) AST of this kernel to file.
+        '''
 
 class BuiltIn(Call):
     ''' Parent class for all built-ins (field operations for which the user

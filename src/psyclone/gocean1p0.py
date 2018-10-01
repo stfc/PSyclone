@@ -101,11 +101,21 @@ VALID_LOOP_TYPES = ["inner", "outer"]
 
 
 class GOPSy(PSy):
-    ''' The GOcean 1.0 specific PSy class. This creates a GOcean specific
-        invokes object (which controls all the required invocation calls).
-        Also overrides the PSy gen method so that we generate GOcean-
-        specific PSy module code. '''
-    def __init__(self, invoke_info):
+    '''
+    The GOcean 1.0 specific PSy class. This creates a GOcean specific
+    invokes object (which controls all the required invocation calls).
+    Also overrides the PSy gen method so that we generate GOcean-
+    specific PSy module code.
+
+    :param invoke_info: An object containing the required invocation \
+                        information for code optimisation and generation.
+    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    :param kern_info: settings for output of transformed kernels.
+    :type kern_info: 2-tuple of output directory (str) and whether or not \
+                     to overwrite existing kernel files in that directory \
+                     (bool).
+    '''
+    def __init__(self, invoke_info, kern_info=None):
         PSy.__init__(self, invoke_info)
         self._invokes = GOInvokes(invoke_info.calls)
 
