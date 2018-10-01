@@ -815,7 +815,6 @@ class GOKern(Kern):
                 raise GenerationError("Kernel {0}, argument {1} has "
                                       "unrecognised type: {2}".
                                       format(self._name, arg.name, arg.type))
-
         parent.add(CallGen(parent, self._name, arguments))
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
@@ -833,8 +832,7 @@ class GOKern(Kern):
         # Create the array used to specify the iteration space of the kernel
         garg = self.find_grid_access()
         glob_size = self._name_space_manager.create_name(
-            root_name="globalsize", context="PSyVars",
-            label="globalsize")
+            root_name="globalsize", context="PSyVars", label="globalsize")
         parent.add(DeclGen(parent, datatype="integer", target=True,
                            kind="c_size_t", entity_decls=[glob_size + "(2)"]))
         parent.add(AssignGen(
@@ -845,75 +843,10 @@ class GOKern(Kern):
         kernel = self._name_space_manager.create_name(root_name=base,
                                                       context="PSyVars",
                                                       label=base)
-        parent.add(UseGen(parent, name="fortcl", only=True,
-                          funcnames=["create_rw_buffer"]))
-        # Ensure fields are on device TODO this belongs somewhere else!
-        parent.add(CommentGen(parent,
-                              " Ensure field data is on device"))
-        for arg in self._arguments.args:
-            if arg.type == "field" or arg.type == "grid_property":
-
-                if arg.type == "field":
-                    condition = ".NOT. {0}%data_on_device".format(arg.name)
-                    device_buff = "{0}%device_ptr".format(arg.name)
-                    host_buff = "{0}%data".format(arg.name)
-                else:
-                    device_buff = "{0}%grid%{1}_device".format(garg.name,
-                                                               arg.name)
-                    condition = device_buff + " == 0"
-                    host_buff = "{0}%grid%{1}".format(garg.name, arg.name)
-
-                nbytes = self._name_space_manager.create_name(
-                    root_name="size_in_bytes", context="PSyVars",
-                    label="size_in_bytes")
-                wevent = self._name_space_manager.create_name(
-                    root_name="write_event", context="PSyVars",
-                    label="write_event")
-                ifthen = IfThenGen(parent, condition)
-                parent.add(ifthen)
-                parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
-                                   entity_decls=[nbytes]))
-                parent.add(DeclGen(parent, datatype="integer",
-                                   kind="c_intptr_t", target=True,
-                                   entity_decls=[wevent]))
-                # Use c_sizeof() on first element of array to be copied over in
-                # order to cope with the fact that some grid properties are
-                # integer.
-                size_expr = ("int({0}%grid%nx*{0}%grid%ny, 8)*"
-                             "c_sizeof({1}(1,1))".format(garg.name, host_buff))
-                ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
-                ifthen.add(CommentGen(ifthen, " Create buffer on device"))
-                # Get the name of the list of command queues (set in
-                # psyGen.Schedule)
-                qlist = self._name_space_manager.create_name(
-                    root_name="cmd_queues", context="PSyVars",
-                    label="cmd_queues")
-                flag = self._name_space_manager.create_name(
-                    root_name="ierr", context="PSyVars", label="ierr")
-
-                ifthen.add(AssignGen(
-                    ifthen, lhs=device_buff,
-                    rhs="create_rw_buffer(" + nbytes + ")"))
-                ifthen.add(AssignGen(
-                    ifthen, lhs=flag,
-                    rhs="clEnqueueWriteBuffer({0}(1), {1}, CL_TRUE, "
-                    "0_8, {2}, C_LOC({3}), 0, C_NULL_PTR, "
-                    "C_LOC({4}))".format(qlist, device_buff,
-                                         nbytes, host_buff, wevent)))
-                if arg.type == "field":
-                    ifthen.add(AssignGen(
-                        ifthen, lhs="{0}%data_on_device".format(arg.name),
-                        rhs=".true."))
-
-        # Ensure data copies have finished
-        parent.add(CommentGen(parent,
-                              " Block until data copies have finished"))
-        parent.add(AssignGen(parent, lhs=flag,
-                             rhs="clFinish(" + qlist + "(1))"))
+        # Generate code to ensure data is on device
+        self.gen_data_on_ocl_device()
         # Then we set the kernel arguments
         arguments = [kernel, garg.name+"%grid%nx"]
-        # TODO this argument-list generation duplicates that in
-        # GOKern.gen_code(). We need to re-factor ala dynamo0p3.ArgOrdering.
         for arg in self._arguments.args:
             if arg.type == "scalar":
                 arguments.append(arg.name)
@@ -955,7 +888,8 @@ class GOKern(Kern):
         '''
         from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
             AssignGen, CommentGen
-        # TODO take care with literal arguments
+        # TODO take care with literal arguments. Currently these are
+        # checked for and rejected by the OpenCL transformation.
         kobj = self._name_space_manager.create_name(
             root_name="kernel_obj", context="ArgSetter",
             label="kernel_obj")
@@ -1011,6 +945,78 @@ class GOKern(Kern):
         for arg in self.arguments.args:
             index += 1
             arg.set_kernel_arg(sub, index, self.name)
+
+    def gen_data_on_ocl_device(self):
+        # Ensure the fields required by this kernel are on device. We must
+        # create the buffers for them if they're not.
+        parent.add(UseGen(parent, name="fortcl", only=True,
+                          funcnames=["create_rw_buffer"]))
+        parent.add(CommentGen(parent, " Ensure field data is on device"))
+        for arg in self._arguments.args:
+            if arg.type == "field" or arg.type == "grid_property":
+
+                if arg.type == "field":
+                    # fields have a 'data_on_device' property for keeping
+                    # track of whether they are on the device
+                    condition = ".NOT. {0}%data_on_device".format(arg.name)
+                    device_buff = "{0}%device_ptr".format(arg.name)
+                    host_buff = "{0}%data".format(arg.name)
+                else:
+                    # grid properties do not have such an attribute (because
+                    # they are just arrays) so we check whether the device
+                    # pointer is NULL.
+                    device_buff = "{0}%grid%{1}_device".format(garg.name,
+                                                               arg.name)
+                    condition = device_buff + " == 0"
+                    host_buff = "{0}%grid%{1}".format(garg.name, arg.name)
+                # Name of variable to hold no. of bytes of storage required
+                nbytes = self._name_space_manager.create_name(
+                    root_name="size_in_bytes", context="PSyVars",
+                    label="size_in_bytes")
+                # Variable to hold write event returned by OpenCL runtime
+                wevent = self._name_space_manager.create_name(
+                    root_name="write_event", context="PSyVars",
+                    label="write_event")
+                ifthen = IfThenGen(parent, condition)
+                parent.add(ifthen)
+                parent.add(DeclGen(parent, datatype="integer", kind="c_size_t",
+                                   entity_decls=[nbytes]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   kind="c_intptr_t", target=True,
+                                   entity_decls=[wevent]))
+                # Use c_sizeof() on first element of array to be copied over in
+                # order to cope with the fact that some grid properties are
+                # integer.
+                size_expr = ("int({0}%grid%nx*{0}%grid%ny, 8)*"
+                             "c_sizeof({1}(1,1))".format(garg.name, host_buff))
+                ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
+                ifthen.add(CommentGen(ifthen, " Create buffer on device"))
+                # Get the name of the list of command queues (set in
+                # psyGen.Schedule)
+                qlist = self._name_space_manager.create_name(
+                    root_name="cmd_queues", context="PSyVars",
+                    label="cmd_queues")
+                flag = self._name_space_manager.create_name(
+                    root_name="ierr", context="PSyVars", label="ierr")
+
+                ifthen.add(AssignGen(ifthen, lhs=device_buff,
+                                     rhs="create_rw_buffer(" + nbytes + ")"))
+                ifthen.add(
+                    AssignGen(ifthen, lhs=flag,
+                              rhs="clEnqueueWriteBuffer({0}(1), {1}, CL_TRUE, "
+                              "0_8, {2}, C_LOC({3}), 0, C_NULL_PTR, "
+                              "C_LOC({4}))".format(qlist, device_buff,
+                                                   nbytes, host_buff, wevent)))
+                if arg.type == "field":
+                    ifthen.add(AssignGen(
+                        ifthen, lhs="{0}%data_on_device".format(arg.name),
+                        rhs=".true."))
+
+        # Ensure data copies have finished
+        parent.add(CommentGen(parent,
+                              " Block until data copies have finished"))
+        parent.add(AssignGen(parent, lhs=flag,
+                             rhs="clFinish(" + qlist + "(1))"))
 
 
 class GOKernelArguments(Arguments):
