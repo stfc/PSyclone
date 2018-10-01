@@ -118,13 +118,11 @@ the algorithm code will be output to the terminal:
 If PSyclone is being used to transform Kernels then the location to
 write these to is specified using the ``-okern <directory>``
 option. If this is not supplied then they are written to the current
-working directory. In addition, the user can use the ``--ktrans``
-option to specify the action to take when a kernel of the same name is
-already present in the selected output directory. If ``clobber`` is
-specified then PSyclone will overwrite any kernel of the same name. If
-``noclobber`` is specified then PSyclone will re-name any transformed
-kernel that would clash with any of those already present in the
-output directory.
+working directory. By default, PSyclone will overwrite any kernel of
+the same name in that directory. To change this behaviour, the user
+can use the ``--no_kernel_clobber`` option. This causes PSyclone to
+re-name any transformed kernel that would clash with any of those
+already present in the output directory.
 
 Algorithm files with no invokes
 -------------------------------

@@ -850,6 +850,41 @@ exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
 
+Kernel Transformations
+++++++++++++++++++++++
+
+When a kernel is transformed we need to ensure that the PSy layer is
+updated so as to call the new version of the kernel. PSyclone works on
+individual Algorithm files.  Consider the case where an Algorithm
+contains multiple Invokes that involve multiple calls to a particular
+kernel (plus other Kernel calls).  PSyclone supports two use cases:
+
+  1. HPC expert wishes to optimise the same kernel in different ways,
+     depending on where/how it is called;
+  2. HPC expert wishes to transform the kernel just once and have the new
+     version used throughout the Algorithm file.
+
+When using PSyclone to transform Kernels, the user must choose a
+location to which to write the modified code (``-okern`` flag). This
+can be done on a per-Algorithm basis or the same location can be
+specified to multiple PSyclone invocations.  By default, PSyclone will
+not transform a kernel if it already exists in the specified output
+directory (this supports option 2). Alternatively, if the
+``--no_kernel_clobber`` flag has been supplied, PSyclone will ensure
+that each transformed kernel is given a unique name in the output
+directory.
+
+The Fortran representation of the PSy layer is only (optionally)
+written to file after the transformation script has been applied. This
+is done in ``psyclone.generator.main()``. Obviously, this Fortran must
+include ``use`` statements for the Kernels called by the associated
+Invoke.  If one or more of those Kernels has been transformed then the
+corresponding ``use`` statement must specify the name of the *new*
+Fortran module. This name will depend on the contents of the
+user-specified kernel-output directory *and* whether or not
+``--no_kernel_clobber`` has been specified. Consequently, this
+information must be available in the PSy object.
+
 GOcean1.0
 =========
 
