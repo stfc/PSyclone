@@ -6794,3 +6794,6 @@ def test_rc_remove_async_halo_exchange(monkeypatch):
 # TODO redundant computation (depth>1) check this works and updated depths. Also check set_clean etc in correct place
 # TODO check vector fields work
 # check a non-region example
+# example
+# user guide
+# developers guide
