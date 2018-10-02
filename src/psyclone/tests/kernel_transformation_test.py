@@ -102,3 +102,21 @@ def test_accroutine():
             "sshn_v, hu, hv, un, vn\n"
             "    !$acc routine\n"
             "    ssha (ji, jj) = 0.0_wp\n" in gen)
+
+
+def test_new_kernel_file(tmpdir):
+    ''' Check that we write out the transformed kernel to the CWD. '''
+    from psyclone.gocean1p0 import GOKern
+    from psyclone.transformations import ACCRoutineTrans
+    from fparser.two import Fortran2003
+    # Change to temp dir (so kernel written there)
+    old_pwd = tmpdir.chdir()
+    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.children[0].children[0].children[0]
+    rtrans = ACCRoutineTrans()
+    new_kern, _ = rtrans.apply(kern)
+    _ = psy.gen
+    # The kernel (and module) name should be unchanged and be written
+    # to the CWD
+    assert os.path.isfile(os.path.join(str(tmpdir), kern.module_name+".f90"))

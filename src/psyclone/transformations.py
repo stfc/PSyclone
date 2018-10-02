@@ -2365,6 +2365,7 @@ class ACCRoutineTrans(Transformation):
         cmt = Comment(FortranStringReader("!$acc routine",
                                           ignore_comments=False))
         spec.content.insert(idx, cmt)
-
+        # Flag that the kernel has been modified
+        kern.modified = True
         # Return the now modified kernel
         return kern, keep

@@ -240,17 +240,13 @@ class PSyFactory(object):
         _CONFIG.distributed_memory = _distributed_memory
         self._type = get_api(api)
 
-    def create(self, invoke_info, kern_info=None):
+    def create(self, invoke_info):
         '''
         Return the API-specific PSy instance.
 
         :param invoke_info: An object containing the required invocation \
                             information for code optimisation and generation.
         :type invoke_info: :py:class:`psyclone.parse.FileInfo`
-        :param kern_info: settings for output of transformed kernels.
-        :type kern_info: 2-tuple of output directory (str) and whether or not \
-                         to overwrite existing kernel files in that directory \
-                         (bool).
         '''
         if self._type == "gunghoproto":
             from psyclone.ghproto import GHProtoPSy as PSyClass
@@ -266,7 +262,7 @@ class PSyFactory(object):
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
                                   "possible.".format(self._type))
-        return PSyClass(invoke_info, kern_info)
+        return PSyClass(invoke_info)
 
 
 class PSy(object):
@@ -297,6 +293,9 @@ class PSy(object):
     def __init__(self, invoke_info, kern_info=None):
         self._name = invoke_info.name
         self._invokes = None
+        # Information on how to write out this kernel if it has been
+        # transformed
+        self._kern_info = kern_info
 
     def __str__(self):
         return "PSy"
@@ -325,6 +324,20 @@ class PSy(object):
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
                         module.add_raw_subroutine(kernel._kernel_code)
+
+    def ___arp_write_kernels(self):
+        ''' Write out any transformed kernels. '''
+        for invoke in self.invokes.invoke_list:
+            schedule = invoke.schedule
+            for kernel in schedule.walk(schedule.children, Kern):
+                # Has this kernel been transformed?
+                if kernel.modified:
+                    # Generate a suitable name for the kernel
+
+                    # Update the Schedule AST with this name
+
+                    # Write the kernel to file
+                    kernel.to_fortran()
 
 
 class Invokes(object):
@@ -2796,6 +2809,10 @@ class Call(Node):
     def name(self):
         return self._name
 
+    @name.setter
+    def name(self, value):
+        self._name = value
+
     @property
     def iterates_over(self):
         return self._iterates_over
@@ -2834,6 +2851,10 @@ class Kern(Call):
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  # The fparser2 AST for the kernel
+        # Whether or not this kernel has been transformed
+        self._modified = False
+        # Whether or not to in-line this kernel into the module containing
+        # the PSy layer
         self._module_inline = False
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
@@ -2904,6 +2925,8 @@ class Kern(Call):
 
     def gen_code(self, parent):
         from psyclone.f2pygen import CallGen, UseGen
+        if self.modfied:
+            (kname, mname) = self.to_fortran()
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
         parent.add(UseGen(parent, name=self._module_name, only=True,
                           funcnames=[self._name]))
@@ -2984,7 +3007,157 @@ class Kern(Call):
     def to_fortran(self):
         '''
         Writes the (transformed) AST of this kernel to file.
+
+        :param str fname: 
         '''
+        outdir = _CONFIG.kernel_output_dir
+        if not _CONFIG._kernel_clobber:
+            _ = self._rename()
+
+        return ("hello", "world")
+
+    def _rename(self):
+        '''
+        Re-names this kernel and updates the AST accordingly.
+
+        :return: Tupe of names of transformed module, kernel-type and kernel
+        :rtype: 3-tuple of str
+
+        :raises IOError: if supplied file is not found
+        :raises TransformationError: if renaming the kernel would cause a clash
+                                     with a previously re-named kernel (in the
+                                     CWD) and mode=="abort"
+        '''
+        import os
+        from fparser.two.Fortran2003 import walk_ast
+        from fparser.two import Fortran2003
+        # Get the directory we will write to
+        out_dir = _CONFIG.kernel_output_dir
+        
+        orig_mod_name = self.module_name[:]
+        orig_kern_name = self.name[:]
+        # Get the name of the original Fortran source file
+        orig_file = orig_mod_name + ".f90"
+
+        # Remove any "_mod" if the file follows the PSyclone naming convention
+        if orig_mod_name.endswith("_mod"):
+            old_base_name = orig_mod_name[:-4]
+
+        # Determine the new name to use by looking at what files are already
+        # in our working directory
+        new_name = orig_file
+        current_files = os.listdir(out_dir)
+
+        # Convert all suffixes to .f90 to simplify things below (we don't
+        # want to end up with two files with the same name and only differing
+        # in whether they are .f90 or .F90)
+        current_files_lower = []
+        for afile in current_files:
+            if afile.endswith(".f90"):
+                current_files_lower.append(afile)
+            elif afile.endswith(".F90"):
+                current_files_lower.append(afile[:-3]+"f90")
+
+        new_suffix = ""
+        if orig_file in current_files_lower and not _CONFIG.kernel_clobber:
+            name_idx = -1
+            while True:
+                name_idx += 1
+                new_suffix = "_{0}".format(name_idx)
+                new_name = old_base_name + new_suffix + "_mod.f90"
+                print("new_name = ", new_name)
+                if new_name not in current_files_lower:
+                    # There isn't a src file with this name so we're done
+                    break
+
+        # Use the suffix we have determined to create a new module name
+        if orig_mod_name.endswith("_mod"):
+            new_mod_name = orig_mod_name[:-4] + new_suffix
+        else:
+            new_mod_name = orig_mod_name + new_suffix
+        # Our new module name will conform to the PSyclone convention of
+        # ending in "_mod"
+        new_mod_name += "_mod"
+
+        # Use the suffix we have determined to create a new kernel name
+        if self.name.endswith("_code"):
+            idx = self.name.find("_code")
+            new_kern_name = self.name[:-5] + new_suffix
+        else:
+            new_kern_name = self.name + new_suffix
+        # The new name for the kernel subroutine will conform to the
+        # PSyclone convention of ending in "_code"
+        new_kern_name += "_code"
+
+        # Query the fparser2 AST to determine the name of the type that
+        # contains the kernel subroutine as a type-bound procedure
+        orig_type_name = ""
+        dtypes = walk_ast(self.ast.content, [Fortran2003.Derived_Type_Def], debug=True)
+        for dtype in dtypes:
+            tbound_proc = walk_ast(dtype.content,
+                                   [Fortran2003.Type_Bound_Procedure_Part])
+            names = walk_ast(tbound_proc[0].content, [Fortran2003.Name])
+            if str(names[-1]) == self.name:
+                # This is the derived type for this kernel. Now we need
+                # its name...
+                tnames = walk_ast(dtype.content, [Fortran2003.Type_Name])
+                orig_type_name = str(tnames[0])
+
+        if orig_type_name.endswith("_type"):
+            new_type_name = orig_type_name[:-5] + new_suffix
+        else:
+            new_type_name = orig_type_name + new_suffix
+        # The new name for the type containing kernel metadata will
+        # conform to the PSyclone convention of ending in "_type"
+        new_type_name += "_type"
+
+        # Change the name of this kernel
+        self.name = new_kern_name[:]
+        self._module_name = new_mod_name[:]
+
+        # Construct a dictionary for mapping from old kernel/type/module
+        # names to the corresponding new ones
+        rename_map = {orig_mod_name: new_mod_name,
+                      orig_kern_name: new_kern_name,
+                      orig_type_name: new_type_name}
+
+        for name in names:
+            if str(name) == self.name:
+                name.string = new_kern_name
+
+        # Re-write the necessary text nodes and attributes
+        names = walk_ast(self.ast.content, [Fortran2003.Name])
+        for name in names:
+            try:
+                new_value = rename_map[str(name)]
+                name.string = new_value[:]
+            except KeyError:
+                # This is not one of the names we are looking for
+                pass
+
+        # Write the modified AST out to file
+        with open(os.path.join(out_dir, new_name), "w") as xfile:
+            xfile.write(str(self.ast))
+
+        return (new_mod_name, new_type_name, new_kern_name)
+
+    @property
+    def modified(self):
+        '''
+        :returns: Whether or not this kernel has been modified (transformed).
+        :rtype: bool
+        '''
+        return self._modified
+
+    @modified.setter
+    def modified(self, value):
+        '''
+        Setter for whether or not this kernel has been modified.
+
+        :param bool value: True if kernel modified, False otherwise.
+        '''
+        self._modified = value
+
 
 class BuiltIn(Call):
     ''' Parent class for all built-ins (field operations for which the user

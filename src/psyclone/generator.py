@@ -196,6 +196,10 @@ def generate(filename, api="", kernel_path="", script_name=None,
                 "generate: Unsupported API '{0}' specified. Supported "
                 "types are {1}.".format(api, _CONFIG.supported_apis))
 
+    # Store Kernel-output options in our Configuration object
+    _CONFIG.kernel_output_dir = kern_out_path
+    _CONFIG.kernel_clobber = kern_clobber
+
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
     if (len(kernel_path) > 0) and (not os.access(kernel_path, os.R_OK)):
@@ -206,7 +210,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
                                  kernel_path=kernel_path,
                                  line_length=line_length)
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
-            .create(invoke_info, kern_info=(kern_out_path, kern_clobber))
+            .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy)
         alg = Alg(ast, psy)
