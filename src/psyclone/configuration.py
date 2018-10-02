@@ -222,6 +222,11 @@ class Config(object):
                         "Config sub-class has been implemented for this API".
                         format(api))
 
+        # Where to write any transformed kernels (set at runtime)
+        self._kernel_output_dir = ""
+        # Whether or not to overwrite existing kernels
+        self._kernel_clobber = False
+
     def api(self, api):
         '''
         Getter for the object holding API-specific configuration options.
@@ -382,6 +387,18 @@ class Config(object):
         :rtype: str
         '''
         return self._config_file
+
+    @property
+    def kernel_output_dir(self):
+        '''
+        :returns:
+        :rtype: str
+        '''
+        if not self._kernel_output_dir:
+            # We use the CWD if no directory has been specified
+            import os
+            self._kernel_output_dir = os.getcwd()
+        return self._kernel_output_dir
 
 
 class DynConfig(object):
