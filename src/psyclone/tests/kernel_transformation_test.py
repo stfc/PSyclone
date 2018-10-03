@@ -155,6 +155,7 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     # Ensure kernel-output directory is uninitialised
     config = configuration.ConfigFactory().create()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
+    monkeypatch.setattr(config, "_kernel_clobber", False)
     # Change to temp dir (so kernel written there)
     old_pwd = tmpdir.chdir()
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
@@ -167,7 +168,5 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     # Generate the code (this triggers the generation of a new kernel)
     code = str(psy.gen).lower()
     filename = os.path.join(str(tmpdir), old_mod_name+".f90")
-    print(filename)
-    import pdb; pdb.set_trace()
     assert os.path.isfile(filename)
 

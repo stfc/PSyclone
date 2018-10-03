@@ -39,7 +39,7 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import abc
 import six
 from psyclone import configuration
@@ -3010,23 +3010,24 @@ class Kern(Call):
 
         :param str fname: 
         '''
-        outdir = _CONFIG.kernel_output_dir
-        if not _CONFIG._kernel_clobber:
-            _ = self._rename()
+        import os
+        mod_name, kern_name = self._rename()
 
-        return ("hello", "world")
+        # Write the modified AST out to file
+        out_dir = _CONFIG.kernel_output_dir
+        print("mod name:", mod_name)
+        with open(os.path.join(out_dir, mod_name+".f90"), "w") as ffile:
+            ffile.write(str(self.ast))
+
+        return mod_name, kern_name
 
     def _rename(self):
         '''
-        Re-names this kernel and updates the AST accordingly.
+        Re-names this kernel and updates the fparser2 AST accordingly.
 
-        :return: Tupe of names of transformed module, kernel-type and kernel
-        :rtype: 3-tuple of str
+        :return: Tupe of new names for transformed module and kernel
+        :rtype: 2-tuple of str
 
-        :raises IOError: if supplied file is not found
-        :raises TransformationError: if renaming the kernel would cause a clash
-                                     with a previously re-named kernel (in the
-                                     CWD) and mode=="abort"
         '''
         import os
         from fparser.two.Fortran2003 import walk_ast
@@ -3036,9 +3037,9 @@ class Kern(Call):
         
         orig_mod_name = self.module_name[:]
         orig_kern_name = self.name[:]
-        # Get the name of the original Fortran source file
-        orig_file = orig_mod_name + ".f90"
-        print("Orig. filename = ", orig_file)
+        # The name of the original Fortran file (minus the .[fF]90 suffix) is
+        # actually the module name (as that's how PSyclone finds it).
+        orig_file = orig_mod_name
         
         # Remove any "_mod" if the file follows the PSyclone naming convention
         if orig_mod_name.endswith("_mod"):
@@ -3049,27 +3050,20 @@ class Kern(Call):
         new_name = orig_file
         current_files = os.listdir(out_dir)
 
-        # Convert all suffixes to .f90 to simplify things below (we don't
-        # want to end up with two files with the same name and only differing
-        # in whether they are .f90 or .F90)
-        current_files_lower = []
-        for afile in current_files:
-            if afile.endswith(".f90"):
-                current_files_lower.append(afile)
-            elif afile.endswith(".F90"):
-                current_files_lower.append(afile[:-3]+"f90")
+        # Build a list of all .[fF]90 files with their the suffixes removed
+        current_files_lower = [afile[:-3] for afile in current_files
+                               if afile.endswith(("f90", "F90"))]
+
+        if orig_file not in current_files_lower or _CONFIG.kernel_clobber:
+            # No need to do any re-naming
+            return (orig_mod_name, orig_kern_name)
 
         new_suffix = ""
-        if orig_file in current_files_lower and not _CONFIG.kernel_clobber:
-            name_idx = -1
-            while True:
-                name_idx += 1
-                new_suffix = "_{0}".format(name_idx)
-                new_name = old_base_name + new_suffix + "_mod.f90"
-                print("new_name = ", new_name)
-                if new_name not in current_files_lower:
-                    # There isn't a src file with this name so we're done
-                    break
+        name_idx = -1
+        while new_name in current_files_lower:
+            name_idx += 1
+            new_suffix = "_{0}".format(name_idx)
+            new_name = old_base_name + new_suffix + "_mod"
 
         # Use the suffix we have determined to create a new module name
         if orig_mod_name.endswith("_mod"):
@@ -3104,15 +3098,14 @@ class Kern(Call):
                 tnames = walk_ast(dtype.content, [Fortran2003.Type_Name])
                 orig_type_name = str(tnames[0])
 
-        if orig_type_name.endswith("_type"):
-            new_type_name = orig_type_name[:-5] + new_suffix
-        else:
-            new_type_name = orig_type_name + new_suffix
         # The new name for the type containing kernel metadata will
         # conform to the PSyclone convention of ending in "_type"
-        new_type_name += "_type"
+        if orig_type_name.endswith("_type"):
+            new_type_name = orig_type_name[:-5] + new_suffix + "_type"
+        else:
+            new_type_name = orig_type_name + new_suffix + "_type"
 
-        # Change the name of this kernel
+        # Change the name of this kernel and the associated module
         self.name = new_kern_name[:]
         self._module_name = new_mod_name[:]
 
@@ -3122,7 +3115,7 @@ class Kern(Call):
                       orig_kern_name: new_kern_name,
                       orig_type_name: new_type_name}
 
-        # Re-write the necessary text nodes and attributes
+        # Re-write the values in the AST
         names = walk_ast(self.ast.content, [Fortran2003.Name])
         for name in names:
             try:
@@ -3131,13 +3124,8 @@ class Kern(Call):
             except KeyError:
                 # This is not one of the names we are looking for
                 pass
-
-        # Write the modified AST out to file
-        with open(os.path.join(out_dir, new_name), "w") as xfile:
-            xfile.write(str(self.ast))
-            print("Wrote kernel to file: {0}".format(new_name))
             
-        return (new_mod_name, new_type_name, new_kern_name)
+        return (new_mod_name, new_kern_name)
 
     @property
     def modified(self):
