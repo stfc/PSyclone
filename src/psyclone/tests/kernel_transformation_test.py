@@ -39,14 +39,14 @@ from __future__ import absolute_import
 import os
 import pytest
 from psyclone_test_utils import get_invoke
-from psyclone.transformations import TransformationError
+from psyclone.transformations import TransformationError, ACCRoutineTrans
+from psyclone import configuration
 
 
 def test_accroutine_err(monkeypatch):
     ''' Check that we raise the expected error if we can't find the
     source of the kernel subroutine. '''
     from psyclone.psyGen import Kern
-    from psyclone.transformations import ACCRoutineTrans
     import fparser
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
@@ -78,7 +78,6 @@ def test_accroutine():
     ''' Test that we can transform a kernel by adding a "!$acc routine"
     directive to it. '''
     from psyclone.gocean1p0 import GOKern
-    from psyclone.transformations import ACCRoutineTrans
     from fparser.two import Fortran2003
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
@@ -104,12 +103,14 @@ def test_accroutine():
             "    ssha (ji, jj) = 0.0_wp\n" in gen)
 
 
-def test_new_kernel_file(tmpdir):
+def test_new_kernel_file(tmpdir, monkeypatch):
     ''' Check that we write out the transformed kernel to the CWD. '''
     from psyclone.gocean1p0 import GOKern
-    from psyclone.transformations import ACCRoutineTrans
     from fparser.two import Fortran2003, parser
     from fparser.common.readfortran import FortranFileReader
+    # Ensure kernel-output directory is uninitialised
+    config = configuration.ConfigFactory().create()
+    monkeypatch.setattr(config, "_kernel_output_dir", "")
     # Change to temp dir (so kernel written there)
     old_pwd = tmpdir.chdir()
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
@@ -145,3 +146,28 @@ def test_new_kernel_file(tmpdir):
     assert found
     # TODO check compilation of code (needs Joerg's extension of compilation
     # testing to GOcean)
+
+
+def test_new_kern_no_clobber(tmpdir, monkeypatch):
+    ''' Check that we create a new kernel with a new name if no-clobber
+    is set and we would otherwise get a name clash. '''
+    from psyclone.psyGen import Kern
+    # Ensure kernel-output directory is uninitialised
+    config = configuration.ConfigFactory().create()
+    monkeypatch.setattr(config, "_kernel_output_dir", "")
+    # Change to temp dir (so kernel written there)
+    old_pwd = tmpdir.chdir()
+    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    kern = kernels[0]
+    old_mod_name = kern.module_name[:]
+    rtrans = ACCRoutineTrans()
+    new_kern, _ = rtrans.apply(kern)
+    # Generate the code (this triggers the generation of a new kernel)
+    code = str(psy.gen).lower()
+    filename = os.path.join(str(tmpdir), old_mod_name+".f90")
+    print(filename)
+    import pdb; pdb.set_trace()
+    assert os.path.isfile(filename)
+

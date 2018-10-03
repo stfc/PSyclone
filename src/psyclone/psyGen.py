@@ -3038,7 +3038,8 @@ class Kern(Call):
         orig_kern_name = self.name[:]
         # Get the name of the original Fortran source file
         orig_file = orig_mod_name + ".f90"
-
+        print("Orig. filename = ", orig_file)
+        
         # Remove any "_mod" if the file follows the PSyclone naming convention
         if orig_mod_name.endswith("_mod"):
             old_base_name = orig_mod_name[:-4]
@@ -3092,7 +3093,7 @@ class Kern(Call):
         # Query the fparser2 AST to determine the name of the type that
         # contains the kernel subroutine as a type-bound procedure
         orig_type_name = ""
-        dtypes = walk_ast(self.ast.content, [Fortran2003.Derived_Type_Def], debug=True)
+        dtypes = walk_ast(self.ast.content, [Fortran2003.Derived_Type_Def])
         for dtype in dtypes:
             tbound_proc = walk_ast(dtype.content,
                                    [Fortran2003.Type_Bound_Procedure_Part])
@@ -3121,10 +3122,6 @@ class Kern(Call):
                       orig_kern_name: new_kern_name,
                       orig_type_name: new_type_name}
 
-        for name in names:
-            if str(name) == self.name:
-                name.string = new_kern_name
-
         # Re-write the necessary text nodes and attributes
         names = walk_ast(self.ast.content, [Fortran2003.Name])
         for name in names:
@@ -3138,7 +3135,8 @@ class Kern(Call):
         # Write the modified AST out to file
         with open(os.path.join(out_dir, new_name), "w") as xfile:
             xfile.write(str(self.ast))
-
+            print("Wrote kernel to file: {0}".format(new_name))
+            
         return (new_mod_name, new_type_name, new_kern_name)
 
     @property

@@ -1314,8 +1314,6 @@ class DynamoPSy(PSy):
         self.invokes.gen_code(psy_module)
         # inline kernels where requested
         self.inline(psy_module)
-        # Write out any transformed kernels
-        self.write_kernels()
         # Return the root node of the generated code
         return psy_module.root
 
@@ -5071,8 +5069,8 @@ class DynKern(Kern):
 
         # If this kernel has been transformed then we need to write it
         # to file
-        if self._fp2_ast:
-            self.to_fortran()
+        if self.modified:
+            _, _ = self.to_fortran()
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))
