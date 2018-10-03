@@ -93,6 +93,7 @@ def test_invalid_config_files():
     # Valid configuration file without iteration spaces. We add several
     # iteration spaces to it to test for various error conditions
     # pylint: disable=invalid-name
+    # pylint: disable=too-many-statements
     _CONFIG_CONTENT = '''\
     [DEFAULT]
     DEFAULTAPI = dynamo0.3
@@ -171,6 +172,14 @@ def test_invalid_config_files():
            "(type <type 'int'>" in str(err) or \
            "The parameter 'bound_info' must be a string, got '1' "\
            "(type <class 'int'>" in str(err)
+
+    # Test invalid loop boundaries
+    with pytest.raises(ConfigurationError) as err:
+        GOLoop.add_bounds("offset:field:space:1(:2:3:4")
+    assert "Expression 1( is not a valid do loop boundary" in str(err)
+    with pytest.raises(ConfigurationError) as err:
+        GOLoop.add_bounds("offset:field:space:1:2:3:4+")
+    assert "Expression 4+ is not a valid do loop boundary" in str(err)
 
 
 # =============================================================================

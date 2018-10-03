@@ -533,6 +533,50 @@ class GOLoop(Loop):
         if len(GOLoop._bounds_lookup) == 0:
             GOLoop.setup_bounds()
 
+        # Check that all bound specifications (min and max index) are valid.
+        # ------------------------------------------------------------------
+        import re
+        # Regular expression that finds stings surrounded by {}
+        bracket_regex = re.compile("{[^}]+}")
+        for bound in data[3:7]:
+            all_expr = bracket_regex.findall(bound)
+            for bracket_expr in all_expr:
+                if bracket_expr not in ["{start}", "{stop}"]:
+                    from psyclone.configuration import ConfigurationError
+                    raise ConfigurationError("Only '{{start}}' and '{{stop}}' "
+                                             "are allowed as bracketed "
+                                             "expression in an iteration "
+                                             "space. But got "
+                                             "{0}".format(bracket_expr))
+
+        # Test if a loop with the given boundaries can actually be parsed.
+        from fparser.api import get_reader
+        from fparser.two.Fortran2003 import Block_Nonlabel_Do_Construct
+        from fparser.two.parser import ParserFactory
+        # Necessary to setup the parser
+        ParserFactory().create(std="f2003")
+
+        # Test both the outer loop indices (index 3 and 4) and inner
+        # indices (index 5 and 5):
+        for bound in data[3:7]:
+            do_loop = '''do i=1, {0}
+               a = 1
+            end do'''.format(bound)
+            # Now replace any {start}/{stop} expression in the loop
+            # with some valid integer values
+            do_loop = do_loop.format(start='15', stop='25')
+            # Check if the do loop can be parsed as a nonlabel do loop
+            try:
+                _ = Block_Nonlabel_Do_Construct(get_reader(do_loop))
+            except Exception as err:
+                from psyclone.configuration import ConfigurationError
+                raise ConfigurationError("Expression {0} is not a "
+                                         "valid do loop boundary. Error "
+                                         "message: '{1}'."
+                                         .format(bound, str(err)))
+
+        # All tests successful, so add the new bounds:
+        # --------------------------------------------
         current_bounds = GOLoop._bounds_lookup   # Shortcut
         # Check offset-type exists
         if not data[0] in current_bounds:
@@ -546,21 +590,6 @@ class GOLoop(Loop):
         if not data[2] in current_bounds[data[0]][data[1]]:
             current_bounds[data[0]][data[1]][data[2]] = {}
             VALID_ITERATES_OVER.append(data[2])
-
-        # Now check that all bound specifications (min
-        # and max index) are valid.
-        import re
-        bracket_regex = re.compile("{[^}]+}")
-        for bound in data[3:6]:
-            all_expr = bracket_regex.findall(bound)
-            for bracket_expr in all_expr:
-                if bracket_expr not in ["{start}", "{stop}"]:
-                    from psyclone.configuration import ConfigurationError
-                    raise ConfigurationError("Only '{{start}}' and '{{stop}}' "
-                                             "are allowed as bracketed "
-                                             "expression in an iteration "
-                                             "space. But got "
-                                             "{0}".format(bracket_expr))
 
         current_bounds[data[0]][data[1]][data[2]] = \
             {'outer': {'start': data[3], 'stop': data[4]},
