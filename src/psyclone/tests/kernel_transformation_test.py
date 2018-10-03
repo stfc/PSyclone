@@ -108,15 +108,40 @@ def test_new_kernel_file(tmpdir):
     ''' Check that we write out the transformed kernel to the CWD. '''
     from psyclone.gocean1p0 import GOKern
     from psyclone.transformations import ACCRoutineTrans
-    from fparser.two import Fortran2003
+    from fparser.two import Fortran2003, parser
+    from fparser.common.readfortran import FortranFileReader
     # Change to temp dir (so kernel written there)
     old_pwd = tmpdir.chdir()
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
+    # Keep a record of the original module name for this kernel
+    old_mod_name = kern.module_name[:]
+    old_kern_name = kern.name[:]
     rtrans = ACCRoutineTrans()
     new_kern, _ = rtrans.apply(kern)
-    _ = psy.gen
+    # Generate the code (this triggers the generation of a new kernel)
+    code = str(psy.gen).lower()
+    assert "use continuity_mod, only: continuity_code" in code
+    assert "call continuity_code(" in code
     # The kernel (and module) name should be unchanged and be written
     # to the CWD
-    assert os.path.isfile(os.path.join(str(tmpdir), kern.module_name+".f90"))
+    filename = os.path.join(str(tmpdir), old_mod_name+".f90")
+    assert os.path.isfile(filename)
+    # Parse the new kernel file
+    f2003_parser = parser.ParserFactory().create()
+    reader = FortranFileReader(filename)
+    prog = f2003_parser(reader)
+    # Check that the module has the right name
+    modules = Fortran2003.walk_ast(prog.content, [Fortran2003.Module_Stmt])
+    assert str(modules[0].items[1]) == old_mod_name
+    # Check that the subroutine has the right name
+    subs = Fortran2003.walk_ast(prog.content, [Fortran2003.Subroutine_Stmt])
+    found = False
+    for sub in subs:
+        if str(sub.items[1]) == old_kern_name:
+            found = True
+            break
+    assert found
+    # TODO check compilation of code (needs Joerg's extension of compilation
+    # testing to GOcean)
