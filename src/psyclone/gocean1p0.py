@@ -557,13 +557,13 @@ class GOLoop(Loop):
         ParserFactory().create(std="f2003")
 
         # Test both the outer loop indices (index 3 and 4) and inner
-        # indices (index 5 and 5):
+        # indices (index 5 and 6):
         for bound in data[3:7]:
             do_loop = '''do i=1, {0}
                a = 1
             end do'''.format(bound)
             # Now replace any {start}/{stop} expression in the loop
-            # with some valid integer values
+            # with a valid integer value:
             do_loop = do_loop.format(start='15', stop='25')
             # Check if the do loop can be parsed as a nonlabel do loop
             try:
