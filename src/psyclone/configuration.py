@@ -391,7 +391,7 @@ class Config(object):
     @property
     def kernel_output_dir(self):
         '''
-        :returns:
+        :returns: the directory to which to write transformed kernels.
         :rtype: str
         '''
         if not self._kernel_output_dir:
@@ -399,6 +399,32 @@ class Config(object):
             import os
             self._kernel_output_dir = os.getcwd()
         return self._kernel_output_dir
+
+    @kernel_output_dir.setter
+    def kernel_output_dir(self, value):
+        '''
+        Setter for kernel output directory.
+        :param str value: directory to which to write transformed kernels.
+        '''
+        self._kernel_output_dir = value
+
+    @property
+    def kernel_clobber(self):
+        '''
+        :returns: whether or not to clobber existing kernels when writing \
+                  transformed kernels to file.
+        :rtype: bool
+        '''
+        return self._kernel_clobber
+
+    @kernel_clobber.setter
+    def kernel_clobber(self, value):
+        '''
+        Setter for whether or not to overwrite existing kernels when writing \
+        transformed kernels to file.
+        :param bool value: True to overwrite, False otherwise.
+        '''
+        self._kernel_clobber = value
 
 
 class DynConfig(object):
