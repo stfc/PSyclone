@@ -797,6 +797,16 @@ For example, given the iteration-spaces declaration above, a kernel declared wit
       END DO
     END DO
 
+.. warning::
+
+    With user defined iteration spaces it is possible that PSyclone will create code
+    that does not compile: if you specify syntactically correct, but semantically
+    incorrect boundary definitions, the PSyclone internal tests will accept the new
+    iteration space, but the compiler will not. For example
+    if one of the loop boundaries should be a name of a variable that is not defined,
+    compilation will fail. It is the responsibility of the user to make sure that
+    valid loop boundaries are specified in a new iteration space definition.
+
 Transformations
 ---------------
 
