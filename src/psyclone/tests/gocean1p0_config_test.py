@@ -131,8 +131,8 @@ def test_invalid_config_files():
         assert "An iteration space must be in the form" in str(err)
         assert "But got \"d:e\"" in str(err)
 
-    # Invalid {} expression
-    content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:{X}:2:{Y}:4"
+    # Invalid {} expression in first loop bound
+    content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:{X}:2:3:4"
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
@@ -145,6 +145,21 @@ def test_invalid_config_files():
         assert "Only '{start}' and '{stop}' are allowed as bracketed "\
                "expression in an iteration space." in str(err)
         assert "But got {X}" in str(err)
+
+    # Invalid {} expression in last loop bound:
+    content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:{Y}"
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        Config._instance = None
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(new_name)
+        assert "Only '{start}' and '{stop}' are allowed as bracketed "\
+               "expression in an iteration space." in str(err)
+        assert "But got {Y}" in str(err)
 
     # Add an invalid key:""
     content = _CONFIG_CONTENT + "invalid-key=value"
@@ -173,7 +188,7 @@ def test_invalid_config_files():
            "The parameter 'bound_info' must be a string, got '1' "\
            "(type <class 'int'>" in str(err)
 
-    # Test invalid loop boundaries
+    # Test syntactically invalid loop boundaries
     with pytest.raises(ConfigurationError) as err:
         GOLoop.add_bounds("offset:field:space:1(:2:3:4")
     assert "Expression 1( is not a valid do loop boundary" in str(err)
