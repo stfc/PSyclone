@@ -3044,20 +3044,19 @@ class Kern(Call):
         # Remove any "_mod" if the file follows the PSyclone naming convention
         if orig_mod_name.endswith("_mod"):
             old_base_name = orig_mod_name[:-4]
+        else:
+            old_base_name = orig_mod_name[:]
 
-        # Determine the new name to use by looking at what files are already
-        # in our working directory
-        new_name = orig_file
-        current_files = os.listdir(out_dir)
-
-        # Build a list of all .[fF]90 files with their the suffixes removed
-        current_files_lower = [afile[:-3] for afile in current_files
-                               if afile.endswith(("f90", "F90"))]
-
+        # Build a list of all .[fF]90 files in the output directory with their
+        # suffixes removed
+        current_files_lower = [afile[:-4] for afile in os.listdir(out_dir)
+                               if afile.endswith((".f90", ".F90"))]
         if orig_file not in current_files_lower or _CONFIG.kernel_clobber:
             # No need to do any re-naming
             return (orig_mod_name, orig_kern_name)
 
+        # Determine the new name to use
+        new_name = orig_file
         new_suffix = ""
         name_idx = -1
         while new_name in current_files_lower:

@@ -163,10 +163,13 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     kernels = sched.walk(sched.children, Kern)
     kern = kernels[0]
     old_mod_name = kern.module_name[:]
+    # Create a file with the same name as we would otherwise generate
+    with open(os.path.join(str(tmpdir), old_mod_name+".f90"), "w") as ffile:
+        ffile.write("some code")
     rtrans = ACCRoutineTrans()
     new_kern, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     code = str(psy.gen).lower()
-    filename = os.path.join(str(tmpdir), old_mod_name+".f90")
+    filename = os.path.join(str(tmpdir), old_mod_name+"_0_mod.f90")
     assert os.path.isfile(filename)
 
