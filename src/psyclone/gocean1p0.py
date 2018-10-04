@@ -550,8 +550,7 @@ class GOLoop(Loop):
                                              "{0}".format(bracket_expr))
 
         # Test if a loop with the given boundaries can actually be parsed.
-        from fparser.api import get_reader
-        from fparser.two.Fortran2003 import Block_Nonlabel_Do_Construct
+        from fparser.two.Fortran2003 import Nonlabel_Do_Stmt
         from fparser.two.parser import ParserFactory
         # Necessary to setup the parser
         ParserFactory().create(std="f2003")
@@ -559,15 +558,13 @@ class GOLoop(Loop):
         # Test both the outer loop indices (index 3 and 4) and inner
         # indices (index 5 and 6):
         for bound in data[3:7]:
-            do_loop = '''do i=1, {0}
-               a = 1
-            end do'''.format(bound)
+            do_string = "do i=1, {0}".format(bound)
             # Now replace any {start}/{stop} expression in the loop
             # with a valid integer value:
-            do_loop = do_loop.format(start='15', stop='25')
+            do_string = do_string.format(start='15', stop='25')
             # Check if the do loop can be parsed as a nonlabel do loop
             try:
-                _ = Block_Nonlabel_Do_Construct(get_reader(do_loop))
+                _ = Nonlabel_Do_Stmt(do_string)
             except Exception as err:
                 from psyclone.configuration import ConfigurationError
                 raise ConfigurationError("Expression {0} is not a "
