@@ -1733,7 +1733,7 @@ class MoveTrans(Transformation):
         return schedule, keep
 
 
-class ExtractRegionTrans(Transformation):
+class ExtractRegionTrans(RegionTrans):
     ''' Provides a transformation to extract code contained within one
     or more nodes in the tree.
 
