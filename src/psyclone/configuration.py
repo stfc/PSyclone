@@ -193,21 +193,6 @@ class Config(object):
                     self._supported_stub_api_list),
                 config=self)
 
-        ### Default API and supported APIs for code extractor
-        ##self._default_extract_api = self._config['DEFAULT']['DEFAULTEXTRACTAPI']
-
-        ##self._supported_extract_api_list = _str_to_list(
-            ##self._config['DEFAULT']['SUPPORTEDEXTRACTAPIS'])
-
-        ### Sanity check
-        ##if self._default_extract_api not in self._supported_extract_api_list:
-            ##raise ConfigurationError(
-                ##"The default extract API ({0}) is not in the list of "
-                ##"supported extract APIs ({1}).".format(
-                    ##self._default_extract_api,
-                    ##self._supported_extract_api_list),
-                ##config=self)
-
         try:
             self._reproducible_reductions = self._config['DEFAULT'].getboolean(
                 'REPRODUCIBLE_REDUCTIONS')
@@ -368,15 +353,6 @@ class Config(object):
         :rtype: list of str
         '''
         return self._supported_stub_api_list
-
-    @property
-    def supported_extract_apis(self):
-        '''
-        Getter for the list of APIs supported by the code extractor.
-        :returns: list of supported APIs.
-        :rtype: list of str
-        '''
-        return self._supported_extract_api_list
 
     @property
     def reproducible_reductions(self):
