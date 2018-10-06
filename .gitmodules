@@ -1,0 +1,3 @@
+[submodule "external/fparser"]
+	path = external/fparser
+	url = https://github.com/stfc/fparser.git

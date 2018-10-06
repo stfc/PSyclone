@@ -50,7 +50,7 @@ import os
 import re
 import pytest
 from fparser import api as fpapi
-from utils import get_invoke
+from psyclone_test_utils import get_invoke
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
@@ -152,7 +152,8 @@ def test_new_baseclass():
     should be no transformations available as the default
     transformations module does not use the specified base
     class'''
-    from test_files.dummy_transformations import LocalTransformation
+    from test_files.dummy_transformations import \
+        LocalTransformation
     trans = TransInfo(base_class=LocalTransformation)
     assert trans.num_trans == 0
 
@@ -757,8 +758,7 @@ def test_acc_dir_view(capsys):
     accdt = ACCDataTrans()
     accpt = ACCParallelTrans()
 
-    _, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
-                           "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
     # Enter-data
@@ -1770,8 +1770,7 @@ def test_node_is_valid_location():
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
     from psyclone.psyGen import Node, Loop
-    _, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
-                           "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     sched.view()
     kern = sched.children[0].children[0].children[0]
@@ -1864,8 +1863,7 @@ def test_acc_dag_names():
     from psyclone.psyGen import ACCDataDirective
     from psyclone.transformations import ACCDataTrans, ACCParallelTrans, \
         ACCLoopTrans
-    _, invoke = get_invoke(os.path.join("gocean1p0", "single_invoke.f90"),
-                           "gocean1.0", idx=0)
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     schedule = invoke.schedule
 
     acclt = ACCLoopTrans()
@@ -2264,3 +2262,15 @@ def test_find_w_args_multiple_deps():
     # each of the indices are unique (otherwise the set would be
     # smaller)
     assert len(indices) == vector_size
+
+
+def test_kern_ast():
+    ''' Test that we can obtain the fparser2 AST of a kernel. '''
+    from psyclone.gocean1p0 import GOKern
+    from fparser.two import Fortran2003
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.children[0].children[0].children[0]
+    assert isinstance(kern, GOKern)
+    assert kern.ast
+    assert isinstance(kern.ast, Fortran2003.Program)
