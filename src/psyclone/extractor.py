@@ -84,11 +84,7 @@ class ExtractNode(Node):
     @property
     def dag_name(self):
         ''' Return the base dag name for this Extract node '''
-        return "extract schedule"
-    ##@property
-    ##def dag_name(self):
-        ##''' Return the base dag name for this Extract node '''
-        ##return "extract_" + str(self.abs_position)
+        return "extract_" + str(self.abs_position)
 
     def view(self, indent=0):
         '''
@@ -97,30 +93,32 @@ class ExtractNode(Node):
 
         :param int indent: Depth of indent for output text
         '''
+        extrstr = "[extract=" + str(self.abs_position) + "]"
         print(self.indent(indent) + self.coloured_text +
-              "[extract_0]")
+              extrstr)
         for entity in self._children:
             entity.view(indent=indent + 1)
-    ##def view(self, indent=0):
-        ##'''
-        ##Print a text representation of this Extract node to stdout.
 
-        ##:param int indent: Depth of indent for output text
-        ##'''
-        ##print(self.indent(indent) + self.coloured_text)
-        ##for entity in self._children:
-            ##entity.view(indent=indent + 1)
-
-    def gen(self):
-        from psyclone.f2pygen import ProgramGen
-        program = ProgramGen("kdriver")
-        self.gen_code(program)
-        return program.root
+    # def gen(self):
+        # from psyclone.f2pygen import ProgramGen
+        # program = ProgramGen("kdriver")
+        # self.gen_code(program)
+        # return program.root
 
     def gen_code(self, parent):
+        # Add comment at the position of ExtractNode for now
+        # later this comment will be replaced by calls to write statements
+        from psyclone.f2pygen import CommentGen
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " Placeholder for dump statements"))
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " ExtractStart"))
+        parent.add(CommentGen(parent, ""))
         for child in self.children:
             child.gen_code(parent)
-
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " ExtractEnd"))
+        parent.add(CommentGen(parent, ""))
 
 # class Extractor(object):
     # ''' This class wraps settings for code extraction. '''

@@ -1749,7 +1749,7 @@ class ExtractRegionTrans(RegionTrans):
     @property
     def name(self):
         ''' Returns the name of this transformation as a string.'''
-        return "Extract"
+        return "ExtractRegionTrans"
 
     def _validate(self, node_list):
         '''Perform validation checks before applying the transformation

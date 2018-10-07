@@ -61,7 +61,7 @@ except ImportError:
         :type text: string
         :param _: Fake argument, only required to match interface
                   provided by termcolor.colored
-        :return: The supplied text, unchanged
+        :returns: The supplied text, unchanged
         :rtype: string
         '''
         return text
@@ -878,10 +878,10 @@ class Node(object):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. The default
-        implementation assumes the node has no directly associated
+        '''Return the list of arguments associated with this Node. The default
+        implementation assumes the Node has no directly associated
         arguments (i.e. is not a Call class or subclass). Arguments of
-        any of this nodes descendents are considered to be
+        any of this nodes descendants are considered to be
         associated. '''
         args = []
         for call in self.calls():
@@ -929,7 +929,7 @@ class Node(object):
         '''Returns the closest following Node that this Node has a direct
         dependence with or None if there is not one. Only Nodes with
         the same parent as self are returned. Nodes inherit their
-        descendents dependencies. The reason for this is that for
+        descendants' dependencies. The reason for this is that for
         correctness a node must maintain its parent if it is
         moved. For example a halo exchange and a kernel call may have
         a dependence between them but it is the loop body containing
@@ -1025,13 +1025,28 @@ class Node(object):
 
     @property
     def depth(self):
-        ''' Returns this Node's depth in the tree. '''
-        my_depth = 0
+        '''
+        Returns this Node's depth in the tree: 1 for the main nodes in
+        the Schedule and increasing for their descendants at each level.
+        :returns: depth of the Node in the tree
+        :rtype: int
+        '''
+        my_depth = self.start_depth
         node = self
         while node is not None:
             node = node.parent
             my_depth += 1
         return my_depth
+
+    @property
+    def start_depth(self):
+        '''
+        Returns starting depth (0) to calculate depth of all nodes in
+        the tree (1 for main nodes and increasing for their descendants).
+        :returns: start depth to determine a Node's depth
+        :rtype: int
+        '''
+        return 0
 
     def view(self):
         raise NotImplementedError("BaseClass of a Node must implement the "
@@ -1091,26 +1106,61 @@ class Node(object):
 
     @property
     def position(self):
+        '''
+        Find a Node's position relative to its parent node (starting
+        with 0 if it is does not have a parent).
+        :returns: relative position of a Node to its parent
+        :rtype: int
+        '''
         if self.parent is None:
-            return 0
+            return self.start_position
         return self.parent.children.index(self)
 
     @property
-    def abs_position(self):
-        ''' Find my position in the schedule. Needs to be computed
-            dynamically as my position may change. '''
+    def start_position(self):
+        '''
+        Returns starting position (0) to calculate position of all nodes
+        in the tree (absolute or relative to a parent).
+        :returns: starting position to determine a Node's position
+        :rtype: int
+        '''
+        return 0
 
+    @property
+    def abs_position(self):
+        '''
+        Find a Node's absolute position in the tree (starting with 0 if
+        it is the root). Needs to be computed dynamically from the
+        starting position (0) as its position may change.
+        :returns: absolute position of a Node in the tree
+        :raises Exception: if the absolute position cannot be found
+        :rtype: int
+        '''
         if self.root == self:
-            return 0
-        found, position = self._find_position(self.root.children, 0)
+            return self.start_position
+        found, position = self._find_position(self.root.children,
+                                              self.start_position)
         if not found:
             raise Exception("Error in search for my position in "
                             "the tree")
         return position
 
     def _find_position(self, children, position):
-        ''' Recurse through the tree depth first returning position if
-            found.'''
+        '''
+        Recurse through the tree depth first returning position of
+        a Node if found.
+        :param children: list of nodes which are children of this Node
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :param parent: the parent node of this Node
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :returns: position of the Node in the tree
+        :rtype: int
+        :raises Exception: if the starting position is < 0
+        '''
+        if position < self.start_position:
+            raise Exception(
+                "Search for Node position started from '{0}' "
+                "instead of {1}.".format(position, self.start_position))
         for child in children:
             position += 1
             if child == self:
@@ -1139,6 +1189,27 @@ class Node(object):
         if self.parent == node_2.parent:
             return True
         return False
+
+    def root_at_depth(self, depth):
+        '''
+        Recurse upwards to find the root of this Node at the specified
+        depth level, in the range between the depth of the main nodes
+        in the Schedule (1) and the Node's depth.
+        :param depth: depth level to find the Node's root at
+        :type depth: int
+        :returns: root node at the specified depth level
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        :raises Exception: if the starting depth is < 1 
+                           and >= node.depth
+        '''
+        if not (depth > self.start_depth and depth < self.depth):
+            raise Exception(
+                "Parent depth must be greater than {0} and less than the"
+                "Node's depth ({1})".format(self.start_depth, self.depth))
+        node = self
+        while node.parent.depth > depth:
+            node = node.parent
+        return node
 
     def walk(self, children, my_type):
         ''' recurse through tree and return objects of mytype '''
@@ -3230,7 +3301,7 @@ class Argument(object):
 
         :param: the list of nodes that this method examines
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
-        :return: An argument object or None
+        :returns: An argument object or None
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''

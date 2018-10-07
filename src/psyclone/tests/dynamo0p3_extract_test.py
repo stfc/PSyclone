@@ -42,10 +42,10 @@ import pytest
 
 from psyclone.parse import parse, ParseError
 from psyclone.extractor import ExtractNode
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory, GenerationError, Loop
 from psyclone.configuration import ConfigFactory
 from psyclone.transformations import ExtractRegionTrans, \
-    MoveTrans
+    MoveTrans, Dynamo0p3ColourTrans, DynamoOMPParallelLoopTrans
 from psyclone.dynamo0p3 import DynKern
 from psyclone.dynamo0p3_builtins import DynBuiltIn
 
@@ -78,28 +78,42 @@ def test_move_extract_trans():
 
     for invoke in psy.invokes.invoke_list:
         print(invoke.name)
-        for child in invoke.schedule.children:
-            node = child.children[0]
-            print(node.name)
+        # for child in invoke.schedule.children:
+            # node = child.children[0]
+            # print(node.name)
+            # if isinstance(node, DynKern):
+                # print("The base name of this kernel is: ")
+                # print(node._base_name)
 
     mtrans = MoveTrans()
     etrans = ExtractRegionTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
 
-    schedule, _ = mtrans.apply(schedule.children[1],
-                               schedule.children[0])
+    # schedule, _ = mtrans.apply(schedule.children[1],
+                               # schedule.children[0])
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            schedule, _ = otrans.apply(child)
+
     schedule.view()
 
     schedule, _ = etrans.apply(schedule.children[1:3])
     schedule.view()
+    # for child in schedule.children:
+        # print(child.position)
+        # if isinstance(child, ExtractNode):
+           # print(child.dag_name, child.position)
+           # for gchild in child.children:
+               # print(gchild.dag_name, gchild.position)
+    # print(" ")
 
-    fobj = schedule.children[1]
-    print(type(fobj))
-    fobj.view()
-    generated_code = str(fobj.gen())
-    print(generated_code)
-    generated_code = str(invoke.gen())
-    ##print(generated_code)
-    assert "blah" in generated_code
+    for invoke in psy.invokes.invoke_list:
+        if invoke.name == "invoke_0":
+            generated_code = str(invoke.gen())
+            #print(generated_code)
+
+    #assert "blah" in generated_code
 
 
 def test_extract_trans():
@@ -116,32 +130,34 @@ def test_extract_trans():
         print(invoke.name)
 
     etrans = ExtractRegionTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
 
     for invoke in psy.invokes.invoke_list:
         ischedule = invoke.schedule
-        print(type(ischedule))
-        #ischedule.view()
+        # print(type(ischedule))
+        print("")
+        ischedule.view()
+        oschedule = ischedule
         for child in ischedule.children:
+            if isinstance(child, Loop):
+                oschedule, _ = otrans.apply(child)
             node = child.children[0]
             ##if isinstance(node, DynBuiltIn): # Extract all built-ins
             ##if isinstance(node, DynKern): # Extract all kernels
-            print node.name
-            print(type(node))
-            if isinstance(node, DynKern):
-                print("The base name of this kernel is: ")
-                print(node._base_name)
-            if node.name == "testkern_qr_code": # Extract a specific kernel
+            # print node.name
+            # if isinstance(node, DynKern):
+                # print("The base name of this kernel is: ")
+                # print(node._base_name)
+            if node._base_name == "testkern_qr":#_code": # Extract a specific kernel
+                schedule = oschedule
             #if node.name == "testkern_code_w2_only": # Extract a specific kernel
                 schedule, _ = etrans.apply(child)
                 #schedule, _ = etrans.apply(schedule.children[1:4])
-                schedule.view()
+                #schedule.view()
                 invoke_name = invoke.name
-                fobj = schedule.children[0]
-                fobj.view()
-                generated_code = str(fobj.gen())
-                print(generated_code)    
-    
-    ##print(schedule)
+    print("Final schedule")
+    schedule.view()
     ##print(type(schedule))
     ##for node in schedule.children:
         ##print(node)
@@ -153,7 +169,7 @@ def test_extract_trans():
     for invoke in psy.invokes.invoke_list:
         if invoke.name == invoke_name:
             generated_code = str(invoke.gen())
-            ##print(generated_code)
+            print(generated_code)
 
     arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
     arg_f1_write_2 = schedule.children[3].children[0].arguments.args[1]

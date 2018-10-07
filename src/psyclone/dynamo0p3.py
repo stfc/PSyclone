@@ -4614,7 +4614,7 @@ class DynKern(Kern):
     def __init__(self):
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
-        # self._base_name = ""
+        self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
         # Whether this kernel requires quadrature
@@ -4733,15 +4733,15 @@ class DynKern(Kern):
         Kern.__init__(self, DynKernelArguments,
                       KernelCall(module_name, ktype, args),
                       parent, check=False)
-        # # Remove "_code" from the name if it exists to determine the
-        # # base name which (if dynamo0.3 naming conventions are
-        # # followed) is used as the root for the module and subroutine
-        # # names.
-        # if self.name.lower().endswith("_code"):
-            # self._base_name = self.name[:-5]
-        # else:
-            # # TODO: add a warning here when logging is added
-            # self._base_name = self.name
+        # Remove "_code" from the name if it exists to determine the
+        # base name which (if dynamo0.3 naming conventions are
+        # followed) is used as the root for the module and subroutine
+        # names.
+        if self.name.lower().endswith("_code"):
+            self._base_name = self.name[:-5]
+        else:
+            # TODO: add a warning here when logging is added
+            self._base_name = self.name
         self._func_descriptors = ktype.func_descriptors
         # Keep a record of the type of CMA kernel identified when
         # parsing the kernel meta-data
@@ -4889,34 +4889,22 @@ class DynKern(Kern):
                     lvars.append(get_fs_orientation_name(unique_fs))
         return lvars
 
-    # @property
-    # def base_name(self):
-        # " Returns a base name for this kernel "
-        # return self._base_name
+    @property
+    def base_name(self):
+        " Returns a base name for this kernel "
+        return self._base_name
 
     @property
     def gen_stub(self):
         ''' output a kernel stub '''
         from psyclone.f2pygen import ModuleGen, SubroutineGen
 
-        # Remove "_code" from the name if it exists to determine the
-        # base name which (if dynamo0.3 naming conventions are
-        # followed) is used as the root for the module and subroutine
-        # names.
-        if self.name.lower().endswith("_code"):
-            base_name = self.name[:-5]
-        else:
-            # TODO: add a warning here when logging is added
-            base_name = self.name
-
         # create an empty PSy layer module
-        psy_module = ModuleGen(base_name+"_mod")
-        # base_name = self._base_name
-        # psy_module = ModuleGen(self._base_name+"_mod")
+        base_name = self._base_name
+        psy_module = ModuleGen(self._base_name+"_mod")
 
         # create the subroutine
-        sub_stub = SubroutineGen(psy_module, name=base_name+"_code",
-        # sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
+        sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
         # create the arglist and declarations
         create_arg_list = KernStubArgList(self, sub_stub)
