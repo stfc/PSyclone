@@ -44,65 +44,59 @@ from psyclone.transformations import Dynamo0p3ColourTrans, \
 from psyclone.psyGen import Loop, Kern, Node
 from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
 
-
 invoke_extract_name = "BICG_group1"
 invoke_name = "invoke_" + invoke_extract_name.lower()
+kernel_name = "matrix_vector_mm_code"
+
 def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 api to apply
     colouring and OpenMP generically.'''
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
-    etrans = ExtractRegionTrans()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
 
+        print("Transforming invoke '"+invoke.name+"'...")
+        schedule = invoke.schedule
+
+        # Colour all of the loops over cells unless they are on
+        # discontinuous spaces (W3, WTHETA and W2V)
+        cschedule = schedule
+        for child in schedule.children:
+            if isinstance(child, Loop) \
+               and child.field_space.orig_name \
+               not in DISCONTINUOUS_FUNCTION_SPACES \
+               and child.iteration_space == "cells":
+                cschedule, _ = ctrans.apply(child)
+        # Then apply OpenMP to each of the colour loops
+        schedule = cschedule
+        for child in schedule.children:
+            if isinstance(child, Loop):
+                if child.loop_type == "colours":
+                    schedule, _ = otrans.apply(child.children[0])
+                else:
+                    schedule, _ = otrans.apply(child)
+
         if invoke.name == invoke_name:
-            print("Transforming invoke '"+invoke.name+"'...")
-            schedule = invoke.schedule
+            schedule = extract(schedule, kernel_name, invoke_name)
 
-            # Colour all of the loops over cells unless they are on
-            # discontinuous spaces (W3, WTHETA and W2V)
-            cschedule = schedule
-            for child in schedule.children:
-                if isinstance(child, Loop) \
-                   and child.field_space.orig_name \
-                   not in DISCONTINUOUS_FUNCTION_SPACES \
-                   and child.iteration_space == "cells":
-                    cschedule, _ = ctrans.apply(child)
-            # Then apply OpenMP to each of the colour loops
-            schedule = cschedule
-            for child in schedule.children:
-                if isinstance(child, Loop):
-                    if child.loop_type == "colours":
-                        schedule, _ = otrans.apply(child.children[0])
-                    else:
-                        schedule, _ = otrans.apply(child)
-
-            schedule.view()
-#            invoke.schedule = schedule
-            print("schedule.depth = ", schedule.depth)
-
-            for child in schedule.children:
-                print("child.depth = ", child.depth, "child_position = ", child.position)
-                if isinstance(child, Node):
-                    print("node = ", type(child), child.position, child.abs_position, child.depth)
-                    #child.root.view()
-                for kernel in child.walk(child.children, Kern):
-                    print("kernel = ", kernel.name, kernel.position, kernel.abs_position, kernel.depth)
-                    print("kernel._find_position(0) = ", kernel._find_position(kernel.root.children, 0))
-                    extract_parent = kernel.root_at_depth(1)
-                    extract_parent_position = extract_parent.position
-                    print("extract_parent = ", type(extract_parent), extract_parent_position)
-                    extract_parent.view()
-            schedule, _ = etrans.apply(extract_parent)
-            schedule.view()
-            invoke.schedule = schedule
-            # for kernel in schedule.walk(schedule.children, Kern):
-                # print(type(kernel), kernel.position)
-                # # print("kernel.parent = ",type(kernel.parent))
-                # # print("kernel.root = ",kernel.parent.root)
-            # for obj in schedule.walk(schedule.children, Loop):
-                # print(type(obj), obj.position, type(obj.ancestor(Loop)))
+        schedule.view()
+        invoke.schedule = schedule
 
     return psy
+
+
+def extract(schedule, kernel_name, invoke_name):
+    ''' Extract function for a specific kernel and invoke '''
+    # Find the kernel and invoke to extract
+
+    etrans = ExtractRegionTrans()
+
+    for kernel in schedule.walk(schedule.children, Kern):
+        if kernel.name == kernel_name:
+            extract_parent = kernel.root_at_depth(1)
+
+    modified_schedule, _ = etrans.apply(extract_parent)
+
+    return modified_schedule
