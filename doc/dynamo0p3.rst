@@ -1064,7 +1064,7 @@ functions) at nodal points. For the latter, there are two options: if
 an evaluator is required for multiple function spaces then these can
 be specified using the additional ``gh_evaluator_targets`` meta-data
 entry. This entry is a one-dimensional, integer array containing the
-desired function spaces. e.g. to request basis/differential-basis
+desired function spaces. For example, to request basis/differential-basis
 functions evaluated on both W0 and W1::
 
     integer, parameter :: gh_shape = gh_evaluator
@@ -1072,8 +1072,8 @@ functions evaluated on both W0 and W1::
 
 The kernel must have an argument (field or operator) on each of the
 function spaces listed in ``gh_evaluator_targets``.
-Alternatively, if ``gh_evaluator_targets`` is not specified then
-evaluators are provided for each function-space associated with the
+The default behaviour if ``gh_evaluator_targets`` is not specified is
+to provide evaluators for each function space associated with the
 quantities that the kernel is updating. All necessary data is
 extracted in the PSy layer and passed to the kernel(s) as required -
 nothing is required from the Algorithm layer. If a kernel requires
@@ -1190,17 +1190,75 @@ rules, along with PSyclone's naming conventions, are:
 
 5) If Quadrature or an Evaluator is required (this is the case if any of the function spaces require basis or differential basis functions)
 
-    1) include integer scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
+    1) include integer, scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
 
-       1) If ``gh_shape`` is ``gh_evaluator`` then pass ``n_xyz`` for each
-	  function space on which an evaluator is required, in the order in
-	  which they are encountered in the meta-data.
+       1) If ``gh_shape`` is ``gh_evaluator`` then pass ``n_xyz`` for
+	  each function space on which an evaluator is required, in
+	  the order in which they are encountered in the meta-data;
+	  i.e. if `gh_evaluator_targets` has been specified then the
+	  ordering of function spaces in that list defines this
+	  ordering.  Otherwise, the order in which the updated
+	  (written-to) kernel arguments appear in the argument list is
+	  used.
 
        2) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``n_xy`` and ``n_z``
 
     2) if Quadrature is required (``gh_shape`` is of type ``gh_quadrature_*``) then include weights which are real arrays of kind ``r_def``:
 
        1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(n_xy)`` and ``w_Z(n_z)``
+
+Examples
+^^^^^^^^
+
+.. highlight:: fortran
+	  
+For instance, if a kernel has only one written argument and requires an evaluator then its meta-data might be::
+  
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =    &
+          (/ arg_type(gh_operator,gh_write,w0,w0),  &
+             arg_type(gh_field*3,gh_read,w0) /)
+     type(func_type) :: meta_funcs(1) =             &
+          (/ func_type(w0, gh_basis) /)
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_evaluator
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+then we only pass the basis functions evaluated on W0 (the space of
+the written kernel argument). The subroutine arguments will therefore
+be::
+
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
+       basis_w0, n_xyz_w0)    
+
+where ``local_stencil`` is the operator, ``xdata``, ``ydata`` etc. are the three
+components of the field vector and ``map_w0`` is the dof map for the
+W0 function space.
+
+If instead, ``gh_evaluator_targets`` is specified in the meta-data::
+
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =    &
+          (/ arg_type(gh_operator,gh_write,w0,w0),  &
+             arg_type(gh_field*3,gh_read,w0) /)
+     type(func_type) :: meta_funcs(1) =             &
+          (/ func_type(w0, gh_basis) /)
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_evaluator
+     integer :: gh_evaluator_targets(2) = (/W0, W1/)
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+then we will need to pass two sets of basis functions (evaluated at W0
+and at W1)::
+  
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
+       basis_w0, basis_w1, n_xyz_w0, n_xyz_w1)    
 
 
 Rules for CMA Kernels
