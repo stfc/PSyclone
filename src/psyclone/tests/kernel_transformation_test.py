@@ -47,7 +47,6 @@ def teardown_function():
     ''' This function is called automatically after every test in this
     file. It ensures that any existing configuration object is deleted. '''
     from psyclone.configuration import ConfigFactory
-    import pdb; pdb.set_trace()
     ConfigFactory._instance = None
 
 
@@ -169,6 +168,7 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
     kern = kernels[0]
+    old_kern_name = kern.name[:]
     old_mod_name = kern.module_name[:]
     # Create a file with the same name as we would otherwise generate
     with open(os.path.join(str(tmpdir), old_mod_name+".f90"), "w") as ffile:
@@ -179,4 +179,46 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     code = str(psy.gen).lower()
     filename = os.path.join(str(tmpdir), old_mod_name+"_0_mod.f90")
     assert os.path.isfile(filename)
+    # Check that the correct module and kernel name are now used in the
+    # generated PSy code
+    assert "use testkern_0_mod, only: testkern_0_code" in code
+    assert "call testkern_code(" not in code
+    assert "call testkern_0_code(" in code
 
+
+def test_1kern_trans(tmpdir, monkeypatch):
+    ''' Check that we generate the correct code when an invoke contains
+    the same kernel more than once but only one of them is transformed. '''
+    from psyclone.psyGen import Kern
+    # Ensure kernel-output directory is uninitialised
+    config = configuration.ConfigFactory().create()
+    monkeypatch.setattr(config, "_kernel_clobber", False)
+    # Change to temp dir (so kernel written there)
+    old_pwd = tmpdir.chdir()
+    psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
+                             idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    # We will transform the second kernel but not the first
+    kern = kernels[1]
+    old_kern_name = kern.name[:]
+    old_mod_name = kern.module_name[:]
+    # Create a file with the same name as we would otherwise generate
+    with open(os.path.join(str(tmpdir), old_mod_name+".f90"), "w") as ffile:
+        ffile.write("some code")
+    rtrans = ACCRoutineTrans()
+    new_kern, _ = rtrans.apply(kern)
+    # Generate the code (this triggers the generation of a new kernel)
+    code = str(psy.gen).lower()
+    assert "use testkern_0_mod, only: testkern_0_code" in code
+    assert "use testkern, only: testkern_code" in code
+    assert "call testkern_code(" in code
+    assert "call testkern_0_code(" in code
+    first = code.find("call testkern_code(")
+    second = code.find("call testkern_0_code(")
+    assert first < second
+
+
+def test_builtin_no_trans():
+    ''' Check that we reject attempts to transform built-in kernels. '''
+    assert 0
