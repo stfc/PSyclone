@@ -53,6 +53,7 @@ from psyclone.line_length import FortLineLength
 from psyclone import configuration
 from psyclone.psyGen import InternalError
 
+
 def check_api(api):
     '''
     Check that the supplied API is valid.
