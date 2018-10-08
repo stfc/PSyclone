@@ -45,6 +45,9 @@ import fparser
 from fparser.one import parsefortran
 from fparser import one as fparser1
 from fparser import api as fpapi
+from fparser.two import Fortran2003
+from fparser.two.parser import ParserFactory
+from fparser.two.utils import walk_ast
 import psyclone.expression as expr
 from psyclone.line_length import FortLineLength
 from psyclone import configuration
@@ -647,8 +650,6 @@ class KernelType(object):
         :rtype: str
         :raises ParseError: if the RHS of the assignment is not a Name.
         '''
-        from fparser.two.parser import ParserFactory
-        from fparser.two import Fortran2003
         # Ensure the Fortran2003 parser is initialised
         _ = ParserFactory().create()
 
@@ -679,9 +680,6 @@ class KernelType(object):
         :raises ParseError: if the RHS of the declaration is not an array \
                             constructor.
         '''
-        from fparser.two.parser import ParserFactory
-        from fparser.two import Fortran2003
-        from fparser.two.utils import walk_ast
         # Ensure the classes are setup for the Fortran2003 parser
         _ = ParserFactory().create()
 
@@ -706,7 +704,7 @@ class KernelType(object):
                 # fparser2 AST for Array_Constructor is:
                 # Array_Constructor('[', Ac_Value_List(',', (Name('w0'),
                 #                                      Name('w1'))), ']')
-                # Construct a list of the names in the array constructor...
+                # Construct a list of the names in the array constructor
                 names = walk_ast(assign.items[2].items, [Fortran2003.Name])
                 if not names:
                     raise InternalError("Failed to parse array constructor: "

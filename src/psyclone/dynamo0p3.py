@@ -4809,7 +4809,7 @@ class DynKern(Kern):
             # then that specifies the function spaces for which the evaluator
             # is required. Otherwise, the FS of the updated argument(s) tells
             # us upon which nodal points the evaluator will be required
-            arg = self.updated_arg # TODO allow for multiple, updated args
+            arg = self.updated_arg  # TODO allow for multiple, updated args
             if arg.is_operator:
                 self._nodal_fspace = arg.function_space_to
             else:

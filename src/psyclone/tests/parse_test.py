@@ -296,6 +296,7 @@ def test_get_stencil():
     assert ("expecting either FunctionVar or str from the expression analyser"
             in str(excinfo))
 
+
 MDATA = '''
 module testkern_eval_mod
   type, extends(kernel_type) :: testkern_eval_type
@@ -307,11 +308,11 @@ module testkern_eval_mod
          func_type(W0, GH_BASIS),             &
          func_type(W1, GH_DIFF_BASIS)         &
          /)
-    integer, parameter :: gh_shape = gh_evaluator
-    integer, parameter :: gh_evaluator_targets(2) = [W0, W1]
-    integer, parameter :: iterates_over = cells
+    integer :: gh_shape = gh_evaluator
+    integer :: gh_evaluator_targets(2) = [W0, W1]
+    integer :: iterates_over = cells
   contains
-    procedure() :: code => testkern_eval_code
+    procedure, nopass :: code => testkern_eval_code
   end type testkern_eval_type
 contains
   subroutine testkern_eval_code()
@@ -361,17 +362,17 @@ def test_get_int_array_err1(monkeypatch):
     from psyclone.parse import KernelType
     from fparser.two import Fortran2003
     # This is difficult as we have to break the result returned by fparser2.
-    # We therefore first create a valid KernelType object...
+    # We therefore create a valid KernelType object
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
-    # Next we create a valid fparser2 result...
+    # Next we create a valid fparser2 result
     assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
-    # break it by replacing the Name object with a string (tuples are
-    # immutable so make a new one)...
+    # Break it by replacing the Name object with a string (tuples are
+    # immutable so make a new one)
     new_list = ["invalid"] + list(assign.items[1:])
     assign.items = tuple(new_list)
-    # and use monkeypatch to ensure that that's the result that is returned
-    # when we attempt to use fparser2 from within the routine under test...
+    # Use monkeypatch to ensure that that's the result that is returned
+    # when we attempt to use fparser2 from within the routine under test
     monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
                         lambda arg: assign)
     with pytest.raises(InternalError) as err:
@@ -386,7 +387,7 @@ def test_get_int_array_not_array():
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     # Erroneously call get_integer_array with the name of a scalar meta-data
-    # entry...
+    # entry
     with pytest.raises(ParseError) as err:
         _ = ktype.get_integer_array("iterates_over")
     assert ("RHS of assignment is not an array constructor: 'iterates_over = "
@@ -401,13 +402,13 @@ def test_get_int_array_err2(monkeypatch):
     # First create a valid KernelType object
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
-    # Next we create a valid fparser2 result...
+    # Create a valid fparser2 result
     assign = Fortran2003.Assignment_Stmt("gh_evaluator_targets(2) = [1, 2]")
-    # break the array constructor expression (tuples are immutable so make a
-    # new one)...
+    # Break the array constructor expression (tuples are immutable so make a
+    # new one)
     assign.items[2].items[1].items = tuple(["hello", "goodbye"])
-    # and use monkeypatch to ensure that that's the result that is returned
-    # when we attempt to use fparser2 from within the routine under test...
+    # Use monkeypatch to ensure that that's the result that is returned
+    # when we attempt to use fparser2 from within the routine under test
     monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
                         lambda arg: assign)
     with pytest.raises(InternalError) as err:

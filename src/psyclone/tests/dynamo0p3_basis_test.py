@@ -62,11 +62,11 @@ module testkern_eval
          func_type(W0, GH_BASIS),             &
          func_type(W1, GH_DIFF_BASIS)         &
          /)
-    integer, parameter :: gh_shape = gh_evaluator
-    integer, parameter :: gh_evaluator_targets(2) = [W0, W1]
-    integer, parameter :: iterates_over = cells
+    integer :: gh_shape = gh_evaluator
+    integer :: gh_evaluator_targets(2) = [W0, W1]
+    integer :: iterates_over = cells
   contains
-    procedure() :: code => testkern_eval_code
+    procedure, nopass :: code => testkern_eval_code
   end type testkern_eval_type
 contains
   subroutine testkern_eval_code()
@@ -83,18 +83,16 @@ def test_eval_mdata():
     assert dkm.get_integer_variable('gh_shape') == 'gh_evaluator'
 
 
-@pytest.mark.xfail(reason="Rule on only 1 written arg relaxed in parser "
-                   "but not yet implemented fully.")
 def test_multi_updated_arg():
     ''' Check that we handle any kernel requiring an evaluator
-    if it writes to more than one argument '''
+    if it writes to more than one argument. (This used to be rejected.) '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the access of the read-only argument
     code = CODE.replace("GH_READ", "GH_WRITE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_eval_type")
-    assert ("kernel testkern_eval_type requires gh_evaluator and updates "
-            "2 arguments") in str(excinfo)
+    # Evaluator targets list remains unchanged
+    assert dkm._eval_targets == ['w0', 'w1']
     # Change the gh_shape element to specify quadrature and then test again
     qr_code = code.replace("gh_evaluator", "gh_quadrature_xyoz")
     ast = fpapi.parse(qr_code, ignore_comments=False)
@@ -113,7 +111,7 @@ def test_eval_targets():
 def test_eval_targets_err():
     ''' Check that needlessly specifying gh_evaluator_targets raises the
     expected errors. '''
-    # When the shape is gh_quadrature_* instead of gh_evaluator...
+    # When the shape is gh_quadrature_* instead of gh_evaluator
     code = CODE.replace("gh_evaluator\n", "gh_quadrature_xyoz\n")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
@@ -126,7 +124,7 @@ def test_eval_targets_err():
         "         func_type(W0, GH_BASIS),             &\n"
         "         func_type(W1, GH_DIFF_BASIS)         &\n"
         "         /)\n", "")
-    code = code.replace("    integer, parameter :: gh_shape = gh_evaluator\n",
+    code = code.replace("    integer :: gh_shape = gh_evaluator\n",
                         "")
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as err:
@@ -1228,10 +1226,10 @@ module dummy_mod
              func_type(w2h, gh_basis),    &
              func_type(w2v, gh_basis)     &
            /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_evaluator
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_evaluator
    contains
-     procedure() :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
@@ -1320,10 +1318,10 @@ module dummy_mod
      type(func_type), meta_funcs(1) =    &
           (/ func_type(any_space_1, gh_basis) &
            /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_quadrature_XYoZ
    contains
-     procedure() :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
@@ -1366,10 +1364,10 @@ module dummy_mod
              func_type(w2h, gh_diff_basis),    &
              func_type(w2v, gh_diff_basis)     &
            /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_quadrature_XYoZ
    contains
-     procedure() :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
@@ -1479,10 +1477,10 @@ module dummy_mod
              func_type(w2h, gh_diff_basis),    &
              func_type(w2v, gh_diff_basis)     &
            /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_evaluator
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_evaluator
    contains
-     procedure() :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
@@ -1576,10 +1574,10 @@ module dummy_mod
      type(func_type), meta_funcs(1) =    &
           (/ func_type(any_space_1, gh_diff_basis) &
            /)
-     integer, parameter :: iterates_over = cells
-     integer, parameter :: gh_shape = gh_quadrature_XYoZ
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_quadrature_XYoZ
    contains
-     procedure() :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
