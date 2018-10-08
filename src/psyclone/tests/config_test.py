@@ -100,24 +100,27 @@ def int_entry(request):
     return request.param
 
 
+def teardown_function():
+    ''' This function is called automatically after every test in this
+    file. It ensures that any existing configuration object is deleted. '''
+    from psyclone.configuration import ConfigFactory
+    ConfigFactory._instance = None
+
+
 def test_factory_create():
     '''
     Check that we can create a Config object
     '''
     from psyclone.configuration import ConfigFactory
-    try:
-        _config = ConfigFactory().create()
-        assert isinstance(_config, Config)
-        # Check that we are creating a singleton instance
-        _config2 = ConfigFactory().create()
-        assert _config is _config2
-        # Check that specifying which config file to use results
-        # in a new instance
-        _config2 = ConfigFactory(config_file=TEST_CONFIG).create()
-        assert _config2 is not _config
-    finally:
-        # Reset the factory
-        ConfigFactory._instance = None
+    _config = ConfigFactory().create()
+    assert isinstance(_config, Config)
+    # Check that we are creating a singleton instance
+    _config2 = ConfigFactory().create()
+    assert _config is _config2
+    # Check that specifying which config file to use results
+    # in a new instance
+    _config2 = ConfigFactory(config_file=TEST_CONFIG).create()
+    assert _config2 is not _config
 
 
 def test_missing_file(tmpdir):
@@ -211,41 +214,37 @@ def test_read_values():
     Check that we get the expected values from the test config file
     '''
     from psyclone.configuration import ConfigFactory
-    try:
-        _config = ConfigFactory(config_file=TEST_CONFIG).create()
-        # Whether distributed memory is enabled
-        dist_mem = _config.distributed_memory
-        assert isinstance(dist_mem, bool)
-        assert dist_mem
-        # The default API
-        api = _config.default_api
-        assert isinstance(api, six.text_type)
-        assert api == "dynamo0.3"
-        # The list of supported APIs
-        api_list = _config.supported_apis
-        assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
-                            'gocean0.1', 'gocean1.0']
-        # The default API for kernel stub generation
-        api = _config.default_stub_api
-        assert isinstance(api, six.text_type)
-        assert api == "dynamo0.3"
-        # The list of supported APIs for kernel stub generation
-        api_list = _config.supported_stub_apis
-        assert api_list == ['dynamo0.3']
-        # Whether reproducible reductions are enabled
-        reprod = _config.reproducible_reductions
-        assert isinstance(reprod, bool)
-        assert not reprod
-        # How much to pad arrays by when doing reproducible reductions
-        pad = _config.reprod_pad_size
-        assert isinstance(pad, int)
-        assert pad == 8
-        # The filename of the config file which was parsed to produce
-        # the Config object
-        assert _config.filename == str(TEST_CONFIG)
-    finally:
-        # Reset the configuration object held in the factory
-        ConfigFactory._instance = None
+    _config = ConfigFactory(config_file=TEST_CONFIG).create()
+    # Whether distributed memory is enabled
+    dist_mem = _config.distributed_memory
+    assert isinstance(dist_mem, bool)
+    assert dist_mem
+    # The default API
+    api = _config.default_api
+    assert isinstance(api, six.text_type)
+    assert api == "dynamo0.3"
+    # The list of supported APIs
+    api_list = _config.supported_apis
+    assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
+                        'gocean0.1', 'gocean1.0']
+    # The default API for kernel stub generation
+    api = _config.default_stub_api
+    assert isinstance(api, six.text_type)
+    assert api == "dynamo0.3"
+    # The list of supported APIs for kernel stub generation
+    api_list = _config.supported_stub_apis
+    assert api_list == ['dynamo0.3']
+    # Whether reproducible reductions are enabled
+    reprod = _config.reproducible_reductions
+    assert isinstance(reprod, bool)
+    assert not reprod
+    # How much to pad arrays by when doing reproducible reductions
+    pad = _config.reprod_pad_size
+    assert isinstance(pad, int)
+    assert pad == 8
+    # The filename of the config file which was parsed to produce
+    # the Config object
+    assert _config.filename == str(TEST_CONFIG)
 
 
 def test_dm():

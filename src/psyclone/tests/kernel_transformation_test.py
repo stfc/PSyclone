@@ -43,6 +43,14 @@ from psyclone.transformations import TransformationError, ACCRoutineTrans
 from psyclone import configuration
 
 
+def teardown_function():
+    ''' This function is called automatically after every test in this
+    file. It ensures that any existing configuration object is deleted. '''
+    from psyclone.configuration import ConfigFactory
+    import pdb; pdb.set_trace()
+    ConfigFactory._instance = None
+
+
 def test_accroutine_err(monkeypatch):
     ''' Check that we raise the expected error if we can't find the
     source of the kernel subroutine. '''
@@ -154,7 +162,6 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     from psyclone.psyGen import Kern
     # Ensure kernel-output directory is uninitialised
     config = configuration.ConfigFactory().create()
-    monkeypatch.setattr(config, "_kernel_output_dir", "")
     monkeypatch.setattr(config, "_kernel_clobber", False)
     # Change to temp dir (so kernel written there)
     old_pwd = tmpdir.chdir()
