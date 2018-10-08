@@ -1192,7 +1192,7 @@ rules, along with PSyclone's naming conventions, are:
 
     1) include integer, scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
 
-       1) If ``gh_shape`` is ``gh_evaluator`` then pass ``n_xyz`` for
+       1) If ``gh_shape`` is ``gh_evaluator`` then pass ``np_xyz`` for
 	  each function space on which an evaluator is required, in
 	  the order in which they are encountered in the meta-data;
 	  i.e. if `gh_evaluator_targets` has been specified then the
@@ -1201,11 +1201,11 @@ rules, along with PSyclone's naming conventions, are:
 	  (written-to) kernel arguments appear in the argument list is
 	  used.
 
-       2) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``n_xy`` and ``n_z``
+       2) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``np_xy`` and ``np_z``
 
     2) if Quadrature is required (``gh_shape`` is of type ``gh_quadrature_*``) then include weights which are real arrays of kind ``r_def``:
 
-       1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(n_xy)`` and ``w_Z(n_z)``
+       1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``
 
 Examples
 ^^^^^^^^
@@ -1232,7 +1232,7 @@ be::
 
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       basis_w0, n_xyz_w0)    
+       basis_w0, np_xyz_w0)    
 
 where ``local_stencil`` is the operator, ``xdata``, ``ydata`` etc. are the three
 components of the field vector and ``map_w0`` is the dof map for the
@@ -1258,7 +1258,7 @@ and at W1)::
   
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       basis_w0, basis_w1, n_xyz_w0, n_xyz_w1)    
+       basis_w0, basis_w1, np_xyz_w0, np_xyz_w1)    
 
 
 Rules for CMA Kernels
