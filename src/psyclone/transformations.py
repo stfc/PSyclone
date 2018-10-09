@@ -1763,18 +1763,18 @@ class ExtractRegionTrans(RegionTrans):
 
         '''
 
-        # Check that we do not extract parallel code
-        if _CONFIG.distributed_memory:
-            raise TransformationError("Extract transformation does not "
-                                      "currently support distributed memory")
+        ## Check that we do not extract parallel code
+        #if _CONFIG.distributed_memory:
+            #raise TransformationError("Extract transformation does not "
+                                      #"currently support distributed memory")
 
-        # Check that the supplied node is not a HaloExchange
-        from psyclone.psyGen import HaloExchange, GlobalSum
-        for node in node_list:
-            if isinstance(node, (HaloExchange, GlobalSum)):
-                raise TransformationError(
-                    "Extract transformation does not currently "
-                    "support: {0}".format(type(node)))
+        ## Check that the supplied node is not a HaloExchange
+        #from psyclone.psyGen import HaloExchange, GlobalSum
+        #for node in node_list:
+            #if isinstance(node, (HaloExchange, GlobalSum)):
+                #raise TransformationError(
+                    #"Extract transformation does not currently "
+                    #"support: {0}".format(type(node)))
 
 
     def apply(self, nodes):
