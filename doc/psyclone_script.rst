@@ -268,3 +268,19 @@ that calls the PSyclone-generated code is responsible for initialising
 and finalising the profiling library that is being used.  For full
 details on the use of this profiling functionality please see the
 :ref:`profiling` section.
+
+Naming of Transformed Kernels
+-----------------------------
+
+When transforming kernels there are various use-cases to consider:
+
+ 1. a given kernel will be transformed only once and that version
+    then used from multiple, different Invokes and Algorithms;
+ 2. a given kernel is used from multiple, different Invokes and
+    Algorithms and is transformed differently, depending on the
+    Invoke.
+
+Whenever PSyclone is used to transform a kernel, the new kernel must
+be re-named in order to avoid clashing with other possible calls to
+the original. For maximum flexibility, PSyclone generates a new,
+unique name for each kernel that is transformed.

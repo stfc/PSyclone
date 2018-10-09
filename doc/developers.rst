@@ -864,15 +864,23 @@ kernel (plus other Kernel calls).  PSyclone supports two use cases:
   2. HPC expert wishes to transform the kernel just once and have the new
      version used throughout the Algorithm file.
 
-When using PSyclone to transform Kernels, the user must choose a
-location to which to write the modified code (``-okern`` flag). This
-can be done on a per-Algorithm basis or the same location can be
-specified to multiple PSyclone invocations.  By default, PSyclone will
-not transform a kernel if it already exists in the specified output
-directory (this supports option 2). Alternatively, if the
-``--no_kernel_clobber`` flag has been supplied, PSyclone will ensure
-that each transformed kernel is given a unique name in the output
-directory.
+The second case is really an optimisation of the first for the case
+where the same set of transformations is applied to every instance of
+a given kernel. 
+
+Given that PSyclone is run separately for each Algorithm, we must take
+care to ensure that there are no name clashes for kernels in the
+application as a whole. Since the kernel output directory might vary
+from one invocation of PSyclone to the next, we cannot just rely on
+avoiding name clashes with the contents of that directory. The only
+way therefore to prevent possible name clashes is to ensure that
+each transformed kernel is always given a unique name.
+
+Therefore, whenever a kernel is transformed by PSyclone, a new,
+uniquely-named kernel is generated and written to file. The user must
+choose a location to which to write the modified code (``-okern``
+flag). This can be done on a per-Algorithm basis or the same location
+can be specified to multiple PSyclone invocations.
 
 The Fortran representation of the PSy layer is only (optionally)
 written to file after the transformation script has been applied. This
@@ -880,10 +888,7 @@ is done in ``psyclone.generator.main()``. Obviously, this Fortran must
 include ``use`` statements for the Kernels called by the associated
 Invoke.  If one or more of those Kernels has been transformed then the
 corresponding ``use`` statement must specify the name of the *new*
-Fortran module. This name will depend on the contents of the
-user-specified kernel-output directory *and* whether or not
-``--no_kernel_clobber`` has been specified. Consequently, this
-information must be available in the PSy object.
+Fortran module.
 
 GOcean1.0
 =========
