@@ -43,7 +43,7 @@ from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError, ACCRoutineTrans
 from psyclone.psyGen import Kern
 from psyclone import configuration
-
+from psyclone_test_utils import code_compiles
 
 def teardown_function():
     ''' This function is called automatically after every test in this
@@ -109,6 +109,20 @@ def test_accroutine():
             "sshn_v, hu, hv, un, vn\n"
             "    !$acc routine\n"
             "    ssha (ji, jj) = 0.0_wp\n" in gen)
+
+
+def test_accroutine_empty_kernel():
+    ''' Check that the directive goes at the end of the declarations,
+    even when the rest of the kernel is empty. '''
+    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    rtrans = ACCRoutineTrans()
+    new_kern, _ = rtrans.apply(kernels[0])
+    # Check that directive is in correct place (end of declarations)
+    gen = str(new_kern._fp2_ast).lower()
+    print(gen)
+    assert ("!$acc routine\n  end subroutine testkern_code" in gen)
 
 
 def test_new_kernel_file(tmpdir, monkeypatch):
@@ -203,7 +217,7 @@ def test_1kern_trans(tmpdir, monkeypatch):
     assert first < second
 
 
-def test_2kern_trans(tmpdir, monkeypatch):
+def test_2kern_trans(tmpdir, monkeypatch, f90, f90flags):
     ''' Check that we generate correct code when we transform two kernels
     within a single invoke. '''
     # Ensure kernel-output directory is uninitialised
@@ -227,11 +241,12 @@ def test_2kern_trans(tmpdir, monkeypatch):
         assert ("use testkern_any_space_2{0}_mod, only: "
                 "testkern_any_space_2{0}_code".format(tag) in code)
         assert "call testkern_any_space_2{0}_code(".format(tag) in code
-        assert os.isfile(
+        assert os.path.isfile(
             os.path.join(str(tmpdir),
                          "testkern_any_space_2{0}_mod.f90".format(tag)))
     assert "use testkern_any_space_2_mod, only" not in code
     assert "call testkern_any_space_2_code(" not in code
+    assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_builtin_no_trans():
