@@ -764,8 +764,8 @@ The supported keys are listed in the next section.
 
 Iteration-spaces
 +++++++++++++++++
-This list additional iteration spaces that can be used in a kernel
-metadata declaration to allow PSyclone to create loop with different
+This section list additional iteration spaces that can be used in a kernel
+metadata declaration to allow PSyclone to create a loop with different
 loop boundaries. Each line of the ``iteration-spaces`` declaration
 contains 7 values, separated by ':'. The fields are:
 
@@ -783,8 +783,8 @@ Field            Description                    Details
 
 Two special variables can be used in an iteration space: ``{start}`` and ``{stop}``.
 These values will be replaced by PSyclone with the correct loop boundaries for the
-inner points of a grid (i.e. the non-halo area). This means that the halo region can
-be specified using ``{start}-1`` and ``{stop}+1``.
+inner points of a grid (i.e. the non-halo area). This means that the depth-1 halo
+region can be specified using ``{start}-1`` and ``{stop}+1``.
 
 For example, given the iteration-spaces declaration above, a kernel declared with
 ``iterates_over=internal_ns_halo`` for a field type ``ct`` and index offset
@@ -803,7 +803,7 @@ For example, given the iteration-spaces declaration above, a kernel declared wit
     that does not compile: if you specify syntactically correct, but semantically
     incorrect boundary definitions, the PSyclone internal tests will accept the new
     iteration space, but the compiler will not. For example
-    if one of the loop boundaries should be a name of a variable that is not defined,
+    if one of the loop boundaries contains the name of a variable that is not defined,
     compilation will fail. It is the responsibility of the user to make sure that
     valid loop boundaries are specified in a new iteration space definition.
 
