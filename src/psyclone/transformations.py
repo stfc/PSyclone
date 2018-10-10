@@ -42,6 +42,7 @@
     checks before calling the base class for the actual
     transformation. '''
 
+from __future__ import absolute_import, print_function
 import abc
 import six
 from psyclone.psyGen import Transformation
@@ -2361,14 +2362,18 @@ class ACCRoutineTrans(Transformation):
                 format(kern.name))
         # Find the last declaration statement in the subroutine
         spec = walk_ast(kern_sub.content, [Specification_Part])[0]
-        idx = 0
+        posn = -1
         for idx, node in enumerate(spec.content):
-            if not (isinstance(node, (Implicit_Part, Type_Declaration_Stmt))):
+            if not isinstance(node, (Implicit_Part, Type_Declaration_Stmt)):
+                posn = idx
                 break
         # Create the directive and insert it
         cmt = Comment(FortranStringReader("!$acc routine",
                                           ignore_comments=False))
-        spec.content.insert(idx, cmt)
+        if posn == -1:
+            spec.content.append(cmt)
+        else:
+            spec.content.insert(posn, cmt)
         # Flag that the kernel has been modified
         kern.modified = True
         # Return the now modified kernel
