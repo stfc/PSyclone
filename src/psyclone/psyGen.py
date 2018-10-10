@@ -3020,12 +3020,21 @@ class Kern(Call):
         :param str fname: 
         '''
         import os
+        from psyclone.line_length import FortLineLength
+
+        # Generate a new name for the kernel and update the PSy and
+        # kernel ASTs
         mod_name, kern_name = self._rename()
 
         # Write the modified AST out to file
         out_dir = _CONFIG.kernel_output_dir
+        # Make sure that we limit line lengths
+        fll = FortLineLength()
         with open(os.path.join(out_dir, mod_name+".f90"), "w") as ffile:
-            ffile.write(str(self.ast))
+            ffile.write(fll.process(str(self.ast)))
+
+        # Kernel is now self-consistent so unset the modified flag
+        self.modified = False
 
         return mod_name, kern_name
 

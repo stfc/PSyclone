@@ -107,22 +107,23 @@ def print_diffs(expected, actual):
     pprint(diff_list)
 
 
-def find_fortran_file(path, root_name):
+def find_fortran_file(search_paths, root_name):
     ''' Returns the full path to a Fortran source file. Searches for
     files with suffixes defined in FORTRAN_SUFFIXES. Raises IOError
     if no matching file is found.
 
-    :param path: Location to search for Fortran file
+    :param list search_paths: List of locations to search for Fortran file
     :param root_name: Base name of the Fortran file to look for
     :type path: string
     :type root_name: string
     :return: Full path to a Fortran source file
     :rtype: string '''
-    name = os.path.join(path, root_name)
-    for suffix in FORTRAN_SUFFIXES:
-        if os.path.isfile(str(name)+"."+suffix):
-            name += "." + suffix
-            return name
+    for path in search_paths:
+        name = os.path.join(path, root_name)
+        for suffix in FORTRAN_SUFFIXES:
+            if os.path.isfile(str(name)+"."+suffix):
+                name += "." + suffix
+                return name
     raise IOError("Cannot find a Fortran file '{0}' with suffix in {1}".
                   format(name, FORTRAN_SUFFIXES))
 
@@ -180,7 +181,8 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     :type api: string
     :param psy_ast: The AST of the generated PSy layer
     :type psy_ast: Instance of :py:class:`psyGen.PSy`
-    :param tmpdir: py.test-supplied temporary directory
+    :param tmpdir: py.test-supplied temporary directory. Can contain \
+                   transformed kernel source.
     :type tmpdir: :py:class:`LocalPath`
     :param f90: The command to invoke the Fortran compiler
     :type f90: string
@@ -189,6 +191,9 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     :return: True if generated code compiles, False otherwise
     :rtype: bool
     '''
+    if not TEST_COMPILE:
+        # Compilation testing is not enabled
+        return True
 
     # API-specific set-up - where to find infrastructure source files
     # and which ones to build
@@ -230,14 +235,15 @@ def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
     try:
         # First build the infrastructure modules
         for fort_file in module_files:
-            name = find_fortran_file(module_path, fort_file)
+            name = find_fortran_file([module_path], fort_file)
             # We don't have to copy the source file - just compile it in the
             # current working directory.
             success = compile_file(name, f90, f90flags)
 
-        # Next, build the kernels
+        # Next, build the kernels. We allow kernels to also be located in
+        # the temporary directory that we have been passed.
         for fort_file in kernel_modules:
-            name = find_fortran_file(kernel_path, fort_file)
+            name = find_fortran_file([kernel_path, str(tmpdir)], fort_file)
             success = compile_file(name, f90, f90flags)
 
         # Finally, we can build the psy file we have generated
