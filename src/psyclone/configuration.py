@@ -75,6 +75,9 @@ class Config(object):
     '''
     # Class variable to store the singleton instance
     _instance = None
+    _supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
+                           "gocean0.1", "gocean1.0"]
+    _supported_stub_api_list = ["dynamo0.3"]
 
     @staticmethod
     def get(do_not_load_file=False):
@@ -98,7 +101,7 @@ class Config(object):
         is a singleton, and as such will test that no instance already exists
         and raise an exception otherwise.
         :raises GenerationError: If a singleton instance of Config already \
-                exists (and the testing flag is not specified).
+                exists.
         '''
 
         if Config._instance is not None:
@@ -107,9 +110,6 @@ class Config(object):
 
         # Setup the list of supported APIs and stubs before reading any
         # config file:
-        self._supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
-                                    "gocean0.1", "gocean1.0"]
-        self._supported_stub_api_list = ["dynamo0.3"]
         self._api = None
         self._config = None
         self._config_file = None
@@ -189,11 +189,11 @@ class Config(object):
                                          config=self)
 
         # Sanity check
-        if self._default_api not in self._supported_api_list:
+        if self._default_api not in Config._supported_api_list:
             raise ConfigurationError(
                 "The default API ({0}) is not in the list of supported "
                 "APIs ({1}).".format(self._default_api,
-                                     self._supported_api_list),
+                                     Config._supported_api_list),
                 config=self)
 
         # Default API for stub-generator
@@ -204,12 +204,12 @@ class Config(object):
             self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
 
         # Sanity check for defaultstubapi:
-        if self._default_stub_api not in self._supported_stub_api_list:
+        if self._default_stub_api not in Config._supported_stub_api_list:
             raise ConfigurationError(
                 "The default stub API ({0}) is not in the list of "
                 "supported stub APIs ({1}).".format(
                     self._default_stub_api,
-                    self._supported_stub_api_list),
+                    Config._supported_stub_api_list),
                 config=self)
 
         try:
@@ -231,7 +231,7 @@ class Config(object):
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
         self._api = {}
-        for api in self._supported_api_list:
+        for api in Config._supported_api_list:
             if api in self._config:
                 if api == "dynamo0.3":
                     self._api[api] = DynConfig(self, self._config[api])
@@ -360,7 +360,7 @@ class Config(object):
         :returns: list of supported APIs
         :rtype: list of str
         '''
-        return self._supported_api_list
+        return Config._supported_api_list
 
     @property
     def default_stub_api(self):
@@ -380,7 +380,7 @@ class Config(object):
         :returns: list of supported APIs.
         :rtype: list of str
         '''
-        return self._supported_stub_api_list
+        return Config._supported_stub_api_list
 
     @property
     def reproducible_reductions(self):
@@ -465,7 +465,7 @@ class GOceanConfig(object):
 
     :param config: The 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: The entry for the dynamo0.3 section of \
+    :param section: The entry for the gocean1.0 section of \
                     the configuration file, as produced by ConfigParser.
     :type section:  :py:class:`configparser.SectionProxy`
 
@@ -478,8 +478,8 @@ class GOceanConfig(object):
             if key in config.get_default_keys():
                 continue
             if key == "iteration-spaces":
-                # The value of for the key iteration-spaces is a set of
-                # lines, each line defining one new iteration space.
+                # The value associated with the iteration-spaces key is a
+                # set of lines, each line defining one new iteration space.
                 # Each individual iteration space added is checked
                 # in add_bounds for correctness.
                 value_as_str = str(section[key])

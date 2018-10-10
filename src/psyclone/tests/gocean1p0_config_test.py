@@ -53,7 +53,7 @@ def teardown_function():
     one from a test here).
     '''
     # Enforce loading of the default config file
-    Config.get().load()
+    Config._instance = None
 
 
 # =============================================================================
@@ -110,7 +110,6 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
@@ -124,7 +123,6 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
@@ -138,7 +136,6 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
@@ -153,7 +150,6 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
@@ -168,7 +164,6 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
@@ -184,9 +179,9 @@ def test_invalid_config_files():
         GOLoop.add_bounds(1)
     # Different error message (for type) in python2 vs python3:
     assert "The parameter 'bound_info' must be a string, got '1' "\
-           "(type <type 'int'>" in str(err) or \
+           "(type <type 'int'>)" in str(err) or \
            "The parameter 'bound_info' must be a string, got '1' "\
-           "(type <class 'int'>" in str(err)
+           "(type <class 'int'>)" in str(err)
 
     # Test syntactically invalid loop boundaries
     with pytest.raises(ConfigurationError) as err:

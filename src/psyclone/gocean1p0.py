@@ -417,7 +417,7 @@ class GOLoop(Loop):
     # -------------------------------------------------------------------------
     @staticmethod
     def setup_bounds():
-        '''Populates the GOLoop._bounds_lookup dictionary. This directory is
+        '''Populates the GOLoop._bounds_lookup dictionary. This is
         used by PSyclone to look up the loop boundaries for each loop
         it creates.'''
 
@@ -518,8 +518,8 @@ class GOLoop(Loop):
 
         if not isinstance(bound_info, str):
             raise InternalError("The parameter 'bound_info' must be a string, "
-                                "got '{0}' (type {1}".format(bound_info,
-                                                             type(bound_info)))
+                                "got '{0}' (type {1})"
+                                .format(bound_info, type(bound_info)))
 
         data = bound_info.split(":")
         if len(data) != 7:
@@ -552,6 +552,7 @@ class GOLoop(Loop):
         # Test if a loop with the given boundaries can actually be parsed.
         from fparser.two.Fortran2003 import Nonlabel_Do_Stmt
         from fparser.two.parser import ParserFactory
+        from fparser.two.utils import NoMatchError
         # Necessary to setup the parser
         ParserFactory().create(std="f2003")
 
@@ -565,7 +566,7 @@ class GOLoop(Loop):
             # Check if the do loop can be parsed as a nonlabel do loop
             try:
                 _ = Nonlabel_Do_Stmt(do_string)
-            except Exception as err:
+            except NoMatchError as err:
                 from psyclone.configuration import ConfigurationError
                 raise ConfigurationError("Expression {0} is not a "
                                          "valid do loop boundary. Error "
@@ -627,6 +628,8 @@ class GOLoop(Loop):
                 bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
                     self._iteration_space][self._loop_type]
                 stop = bounds["stop"].format(start='2', stop=stop)
+                # Remove all white spaces
+                stop = "".join(stop.split())
                 # This common cases is a bit of compile-time computation
                 # but it helps fixing all test cases.
                 if stop == "2-1":
@@ -699,6 +702,8 @@ class GOLoop(Loop):
                 bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
                     self._iteration_space][self._loop_type]
                 start = bounds["start"].format(start='2', stop=stop)
+                # Remove all white spaces
+                start = "".join(start.split())
                 # This common cases is a bit of compile-time computation
                 # but it helps fixing all test cases.
                 if start == "2-1":
