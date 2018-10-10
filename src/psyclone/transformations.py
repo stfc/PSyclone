@@ -2327,10 +2327,11 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if we fail to find the subroutine \
                                      corresponding to the kernel object.
         '''
-        from fparser.two.Fortran2003 import walk_ast, Subroutine_Subprogram, \
+        from fparser.two.Fortran2003 import Subroutine_Subprogram, \
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
         from fparser.common.readfortran import FortranStringReader
+        from fparser.two.utils import walk_ast
         # Get the fparser2 AST of the kernel
         ast = kern.ast
         # Keep a record of this transformation
