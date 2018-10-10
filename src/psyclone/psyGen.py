@@ -2924,8 +2924,17 @@ class Kern(Call):
         return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
 
     def gen_code(self, parent):
+        '''
+        Generates the f2pygen AST of the Fortran for this kernel call and
+        writes the kernel itself to file if it has been transformed.
+
+        :param parent: The parent of this kernel call in the f2pygen AST.
+        :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+        '''
         from psyclone.f2pygen import CallGen, UseGen
         if self.modfied:
+            # Kernel body has been modified (transformed) and so must be
+            # written to file
             (kname, mname) = self.to_fortran()
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
         parent.add(UseGen(parent, name=self._module_name, only=True,

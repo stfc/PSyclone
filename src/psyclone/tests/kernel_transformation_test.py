@@ -156,6 +156,23 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     # testing to GOcean)
 
 
+def test_new_kernel_dir(tmpdir, monkeypatch):
+    ''' Check that we write out the transformed kernel to a specified
+    directory. '''
+    config = configuration.ConfigFactory().create()
+    monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
+    psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.children[0].children[0].children[0]
+    rtrans = ACCRoutineTrans()
+    new_kern, _ = rtrans.apply(kern)
+    # Generate the code (this triggers the generation of a new kernel)
+    _ = str(psy.gen)
+    file_list = os.listdir(str(tmpdir))
+    assert len(file_list) == 1
+    assert re.match('continuity_(.+?)_mod.f90', file_list[0])
+
+
 def test_1kern_trans(tmpdir, monkeypatch):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''
