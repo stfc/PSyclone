@@ -3029,59 +3029,37 @@ class Kern(Call):
         :rtype: 2-tuple of str
 
         '''
-        import os
+        import random
         from fparser.two.Fortran2003 import walk_ast
         from fparser.two import Fortran2003
-        # Get the directory we will write to
-        out_dir = _CONFIG.kernel_output_dir
-        
+
         orig_mod_name = self.module_name[:]
         orig_kern_name = self.name[:]
+
+        # We could create a hash of a string built from the name of the
+        # Algorithm (module), the name/position of the Invoke and the
+        # index of this kernel within that Invoke. However, that creates
+        # a very long name so we simply use a random number in the
+        # range [0,1000000) and convert it to hex (minus the leading 0x).
+        new_suffix = str(hex(random.randint(0, 1000000))).lstrip("0x")
+
         # The name of the original Fortran file (minus the .[fF]90 suffix) is
         # actually the module name (as that's how PSyclone finds it).
         orig_file = orig_mod_name
         
-        # Remove any "_mod" if the file follows the PSyclone naming convention
+        # Use the suffix we have determined to create a new module name. This
+        # will conform to the PSyclone convention of ending in "_mod".
         if orig_mod_name.endswith("_mod"):
-            old_base_name = orig_mod_name[:-4]
+            new_mod_name = orig_mod_name[:-4] + new_suffix + "_mod"
         else:
-            old_base_name = orig_mod_name[:]
+            new_mod_name = orig_mod_name + new_suffix + "_mod"
 
-        # Build a list of all .[fF]90 files in the output directory with their
-        # suffixes removed
-        current_files_lower = [afile[:-4] for afile in os.listdir(out_dir)
-                               if afile.endswith((".f90", ".F90"))]
-        if orig_file not in current_files_lower or _CONFIG.kernel_clobber:
-            # No need to do any re-naming
-            return (orig_mod_name, orig_kern_name)
-
-        # Determine the new name to use
-        new_name = orig_file
-        new_suffix = ""
-        name_idx = -1
-        while new_name in current_files_lower:
-            name_idx += 1
-            new_suffix = "_{0}".format(name_idx)
-            new_name = old_base_name + new_suffix + "_mod"
-
-        # Use the suffix we have determined to create a new module name
-        if orig_mod_name.endswith("_mod"):
-            new_mod_name = orig_mod_name[:-4] + new_suffix
-        else:
-            new_mod_name = orig_mod_name + new_suffix
-        # Our new module name will conform to the PSyclone convention of
-        # ending in "_mod"
-        new_mod_name += "_mod"
-
-        # Use the suffix we have determined to create a new kernel name
+        # Use the suffix we have determined to create a new kernel name.
+        # This will conform to the PSyclone convention of ending in "_code"
         if self.name.endswith("_code"):
-            idx = self.name.find("_code")
-            new_kern_name = self.name[:-5] + new_suffix
+            new_kern_name = self.name[:-5] + new_suffix + "_code"
         else:
-            new_kern_name = self.name + new_suffix
-        # The new name for the kernel subroutine will conform to the
-        # PSyclone convention of ending in "_code"
-        new_kern_name += "_code"
+            new_kern_name = self.name + new_suffix + "_code"
 
         # Query the fparser2 AST to determine the name of the type that
         # contains the kernel subroutine as a type-bound procedure

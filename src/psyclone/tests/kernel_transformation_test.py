@@ -35,8 +35,9 @@
 
 ''' Module containing tests for kernel transformations. '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
+import re
 import pytest
 from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError, ACCRoutineTrans
@@ -130,11 +131,16 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     new_kern, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     code = str(psy.gen).lower()
-    assert "use continuity_mod, only: continuity_code" in code
-    assert "call continuity_code(" in code
-    # The kernel (and module) name should be unchanged and be written
-    # to the CWD
-    filename = os.path.join(str(tmpdir), old_mod_name+".f90")
+    # Work out the value of the random tag used to re-name the kernel
+    tag = re.search('use continuity(.+?)_mod', code).group(1)
+    assert ("use continuity{0}_mod, only: continuity{0}_code".format(tag)
+            in code)
+    assert "call continuity{0}_code(".format(tag) in code
+    # The kernel and module name should have gained some random chars and be
+    # written to the CWD
+    out_files = os.listdir(str(tmpdir))
+    print(out_files)
+    filename = os.path.join(str(tmpdir), "continuity{0}_mod.f90".format(tag))
     assert os.path.isfile(filename)
     # Parse the new kernel file
     f2003_parser = parser.ParserFactory().create()
@@ -142,48 +148,17 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     prog = f2003_parser(reader)
     # Check that the module has the right name
     modules = Fortran2003.walk_ast(prog.content, [Fortran2003.Module_Stmt])
-    assert str(modules[0].items[1]) == old_mod_name
+    assert str(modules[0].items[1]) == "continuity{0}_mod".format(tag)
     # Check that the subroutine has the right name
     subs = Fortran2003.walk_ast(prog.content, [Fortran2003.Subroutine_Stmt])
     found = False
     for sub in subs:
-        if str(sub.items[1]) == old_kern_name:
+        if str(sub.items[1]) == "continuity{0}_code".format(tag):
             found = True
             break
     assert found
     # TODO check compilation of code (needs Joerg's extension of compilation
     # testing to GOcean)
-
-
-def test_new_kern_no_clobber(tmpdir, monkeypatch):
-    ''' Check that we create a new kernel with a new name if no-clobber
-    is set and we would otherwise get a name clash. '''
-    from psyclone.psyGen import Kern
-    # Ensure kernel-output directory is uninitialised
-    config = configuration.ConfigFactory().create()
-    monkeypatch.setattr(config, "_kernel_clobber", False)
-    # Change to temp dir (so kernel written there)
-    old_pwd = tmpdir.chdir()
-    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
-    sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
-    kern = kernels[0]
-    old_kern_name = kern.name[:]
-    old_mod_name = kern.module_name[:]
-    # Create a file with the same name as we would otherwise generate
-    with open(os.path.join(str(tmpdir), old_mod_name+".f90"), "w") as ffile:
-        ffile.write("some code")
-    rtrans = ACCRoutineTrans()
-    new_kern, _ = rtrans.apply(kern)
-    # Generate the code (this triggers the generation of a new kernel)
-    code = str(psy.gen).lower()
-    filename = os.path.join(str(tmpdir), old_mod_name+"_0_mod.f90")
-    assert os.path.isfile(filename)
-    # Check that the correct module and kernel name are now used in the
-    # generated PSy code
-    assert "use testkern_0_mod, only: testkern_0_code" in code
-    assert "call testkern_code(" not in code
-    assert "call testkern_0_code(" in code
 
 
 def test_1kern_trans(tmpdir, monkeypatch):
@@ -210,12 +185,13 @@ def test_1kern_trans(tmpdir, monkeypatch):
     new_kern, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     code = str(psy.gen).lower()
-    assert "use testkern_0_mod, only: testkern_0_code" in code
+    tag = re.search('use testkern(.+?)_mod', code).group(1)
+    assert "use testkern{0}_mod, only: testkern{0}_code".format(tag) in code
     assert "use testkern, only: testkern_code" in code
     assert "call testkern_code(" in code
-    assert "call testkern_0_code(" in code
+    assert "call testkern{0}_code(".format(tag) in code
     first = code.find("call testkern_code(")
-    second = code.find("call testkern_0_code(")
+    second = code.find("call testkern{0}_code(".format(tag))
     assert first < second
 
 
