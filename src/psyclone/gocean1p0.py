@@ -550,9 +550,8 @@ class GOLoop(Loop):
                                              "{0}".format(bracket_expr))
 
         # Test if a loop with the given boundaries can actually be parsed.
-        from fparser.two.Fortran2003 import Nonlabel_Do_Stmt
+        from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
         from fparser.two.parser import ParserFactory
-        from fparser.two.utils import NoMatchError
         # Necessary to setup the parser
         ParserFactory().create(std="f2003")
 
