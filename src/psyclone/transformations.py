@@ -2335,6 +2335,10 @@ class ACCRoutineTrans(Transformation):
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
         from fparser.common.readfortran import FortranStringReader
+
+        # Check that we can safely apply this transformation
+        self.validate(kern)
+
         # Get the fparser2 AST of the kernel
         ast = kern.ast
         # Keep a record of this transformation
@@ -2369,3 +2373,20 @@ class ACCRoutineTrans(Transformation):
         kern.modified = True
         # Return the now modified kernel
         return kern, keep
+
+    def validate(self, kern):
+        '''
+        Perform checks that the supplied kernel can be transformed.
+
+        :param kern: the kernel which is the target of the transformation.
+        :type kern: :py:class:`psyclone.psyGen.Call`
+
+        :raises TransformationError: if the target kernel is a built-in.
+
+        '''
+        from psyclone.psyGen import BuiltIn
+        if isinstance(kern, BuiltIn):
+            raise TransformationError(
+                "Applying ACCRoutineTrans to a built-in kernel is not yet "
+                "supported and kernel '{0}' is of type '{1}'".
+                format(kern.name, type(kern)))

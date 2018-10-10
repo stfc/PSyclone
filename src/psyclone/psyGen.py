@@ -3015,7 +3015,6 @@ class Kern(Call):
 
         # Write the modified AST out to file
         out_dir = _CONFIG.kernel_output_dir
-        print("mod name:", mod_name)
         with open(os.path.join(out_dir, mod_name+".f90"), "w") as ffile:
             ffile.write(str(self.ast))
 
@@ -3023,7 +3022,9 @@ class Kern(Call):
 
     def _rename(self):
         '''
-        Re-names this kernel and updates the fparser2 AST accordingly.
+        Re-names this kernel (by inserting a tag containing a hex
+        representation of a random number) and updates the fparser2 AST
+        accordingly.
 
         :return: Tupe of new names for transformed module and kernel
         :rtype: 2-tuple of str
@@ -3041,7 +3042,7 @@ class Kern(Call):
         # index of this kernel within that Invoke. However, that creates
         # a very long name so we simply use a random number in the
         # range [0,1000000) and convert it to hex (minus the leading 0x).
-        new_suffix = str(hex(random.randint(0, 1000000))).lstrip("0x")
+        new_suffix = "_" + str(hex(random.randint(0, 1000000))).lstrip("0x")
 
         # The name of the original Fortran file (minus the .[fF]90 suffix) is
         # actually the module name (as that's how PSyclone finds it).
