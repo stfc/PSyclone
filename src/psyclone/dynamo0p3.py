@@ -3405,7 +3405,7 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-        if Config.get().api("dynamo0.3").compute_annexed_dofs and \
+        if Config.get().api_conf("dynamo0.3").compute_annexed_dofs and \
            len(required_clean_info) == 1 and \
            required_clean_info[0].annexed_only:
             # We definitely don't need the halo exchange as we
@@ -4016,7 +4016,7 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if Config.get().api("dynamo0.3").compute_annexed_dofs \
+            if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
                and Config.get().distributed_memory \
                and not kern.is_reduction:
                 self.set_upper_bound("nannexed")
@@ -4325,7 +4325,8 @@ class DynLoop(Loop):
                 # we read annexed dofs. Return False if we always
                 # compute annexed dofs and True if we don't (as
                 # annexed dofs are part of the level 1 halo).
-                return not Config.get().api("dynamo0.3").compute_annexed_dofs
+                return not Config.get()\
+                                 .api_conf("dynamo0.3").compute_annexed_dofs
             elif self._upper_bound_name in ["ndofs"]:
                 # argument does not read from the halo
                 return False

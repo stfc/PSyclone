@@ -110,7 +110,7 @@ class Config(object):
 
         # Setup the list of supported APIs and stubs before reading any
         # config file:
-        self._api = None
+        self._api_conf = None
         self._config = None
         self._config_file = None
         self._default_api = None
@@ -230,20 +230,20 @@ class Config(object):
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
-        self._api = {}
+        self._api_conf = {}
         for api in Config._supported_api_list:
             if api in self._config:
                 if api == "dynamo0.3":
-                    self._api[api] = DynConfig(self, self._config[api])
+                    self._api_conf[api] = DynConfig(self, self._config[api])
                 elif api == "gocean1.0":
-                    self._api[api] = GOceanConfig(self, self._config[api])
+                    self._api_conf[api] = GOceanConfig(self, self._config[api])
                 else:
                     raise NotImplementedError(
                         "Configuration file contains a {0} section but no "
                         "Config sub-class has been implemented for this API".
                         format(api))
 
-    def api(self, api):
+    def api_conf(self, api):
         '''
         Getter for the object holding API-specific configuration options.
 
@@ -261,11 +261,11 @@ class Config(object):
                 "API '{0}' is not one of the supported APIs listed in the "
                 "configuration file ({1}).".format(api, self.supported_apis),
                 config=self)
-        if api not in self._api:
+        if api not in self._api_conf:
             raise ConfigurationError(
                 "Configuration file did not contain a section for the '{0}' "
                 "API".format(api), config=self)
-        return self._api[api]
+        return self._api_conf[api]
 
     @staticmethod
     def find_file():

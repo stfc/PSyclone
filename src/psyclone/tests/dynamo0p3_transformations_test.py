@@ -806,7 +806,7 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -1178,7 +1178,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
 
     '''
     # pylint: disable=too-many-branches
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -1502,7 +1502,7 @@ def test_builtin_single_OpenMP_pdo(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1549,7 +1549,7 @@ def test_builtin_multiple_OpenMP_pdo(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1632,7 +1632,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed):
     applied to multiple loop fused builtins. We have to assert that it
     is safe to loop fuse. Also test with and without annexed
     dofs being computed as this affects the generated code. '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1691,7 +1691,7 @@ def test_builtin_single_OpenMP_do(monkeypatch, annexed):
     generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1748,7 +1748,7 @@ def test_builtin_multiple_OpenMP_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1843,7 +1843,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -2070,7 +2070,7 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
 
     '''
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2155,7 +2155,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
 
     '''
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2599,7 +2599,7 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
     generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2675,7 +2675,7 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
     code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2762,7 +2762,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
     this affects the validity of the transform.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2846,7 +2846,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2930,7 +2930,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
     as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3010,7 +3010,7 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3084,7 +3084,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3349,7 +3349,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
     being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3468,7 +3468,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3589,7 +3589,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3782,7 +3782,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
     as this affects the output.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     from psyclone.dynamo0p3 import DynLoop
     from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
@@ -4249,7 +4249,7 @@ def test_rc_discontinuous_depth(tmpdir, f90, f90flags, monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
@@ -4292,7 +4292,7 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
@@ -4693,7 +4693,7 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed):
     with and without annexed dofs.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(
         BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
@@ -4812,7 +4812,7 @@ def test_dofs_no_set_clean(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.7.1_setval_c_builtin.f90"),
@@ -5014,7 +5014,7 @@ def test_rc_remove_halo_exchange(tmpdir, f90, f90flags, monkeypatch):
     compute over owned dofs (via monkeypatch) to perform the test.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(
         BASE_PATH, "14.7_halo_annexed.f90"),

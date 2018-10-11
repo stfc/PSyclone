@@ -6687,7 +6687,7 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
     api_config.compute_annexed_dofs is True.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
@@ -6725,7 +6725,7 @@ def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
     case when api_config.compute_annexed_dofs is True
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.7_halo_annexed.f90"),
@@ -6759,7 +6759,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
 
     # 1 discontinuous field returns true
     # Check w3, wtheta and w2v in turn
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     if annexed:
         # no halo exchanges produced for the w3 example
@@ -7029,7 +7029,7 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
     halo exchanges produced.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api=TEST_API)
@@ -7181,7 +7181,7 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
     fewer halo exchange call generated.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.7.1_halo_annexed.f90"),
@@ -7207,7 +7207,7 @@ def test_annexed_default():
     Config._instance = None
     config = Config()
     config.load(config_file=DEFAULT_CFG_FILE)
-    assert not config.api(TEST_API).compute_annexed_dofs
+    assert not config.api_conf(TEST_API).compute_annexed_dofs
 
 
 def test_haloex_not_required(monkeypatch):
@@ -7223,7 +7223,7 @@ def test_haloex_not_required(monkeypatch):
     former case should currently never happen in real code as a halo
     exchange would not be added in the first place.
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w3.f90"),

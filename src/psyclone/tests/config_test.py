@@ -409,10 +409,10 @@ def test_wrong_api():
     _config = Config()
     _config.load(config_file=TEST_CONFIG)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api("blah")
+        _ = _config.api_conf("blah")
     assert "API 'blah' is not one of the supported APIs listed" in str(err)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api("dynamo0.1")
+        _ = _config.api_conf("dynamo0.1")
     assert ("Configuration file did not contain a section for the "
             "'dynamo0.1' API" in str(err))
 
