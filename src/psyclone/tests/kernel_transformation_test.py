@@ -58,7 +58,7 @@ def test_accroutine_err(monkeypatch):
     import fparser
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.kern_calls()
     kern = kernels[0]
     assert isinstance(kern, Kern)
     # Edit the fparser1 AST of the kernel so that it does not have a
@@ -116,7 +116,7 @@ def test_accroutine_empty_kernel():
     even when the rest of the kernel is empty. '''
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.kern_calls()
     rtrans = ACCRoutineTrans()
     new_kern, _ = rtrans.apply(kernels[0])
     # Check that directive is in correct place (end of declarations)
@@ -166,6 +166,11 @@ def test_new_kernel_file(tmpdir, monkeypatch):
             found = True
             break
     assert found
+    # Check that the kernel type has been re-named
+    dtypes = Fortran2003.walk_ast(prog.content,
+                                  [Fortran2003.Derived_Type_Def])
+    names = Fortran2003.walk_ast(dtypes[0].content, [Fortran2003.Type_Name])
+    assert str(names[0]) == "continuity{0}_type".format(tag)
     # TODO check compilation of code (needs Joerg's extension of compilation
     # testing to GOcean)
 

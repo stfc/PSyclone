@@ -3065,7 +3065,7 @@ class Kern(Call):
         # The name of the original Fortran file (minus the .[fF]90 suffix) is
         # actually the module name (as that's how PSyclone finds it).
         orig_file = orig_mod_name
-        
+
         # Use the suffix we have determined to create a new module name. This
         # will conform to the PSyclone convention of ending in "_mod".
         if orig_mod_name.endswith("_mod"):
@@ -3083,6 +3083,7 @@ class Kern(Call):
         # Query the fparser2 AST to determine the name of the type that
         # contains the kernel subroutine as a type-bound procedure
         orig_type_name = ""
+        new_type_name = ""
         dtypes = walk_ast(self.ast.content, [Fortran2003.Derived_Type_Def])
         for dtype in dtypes:
             tbound_proc = walk_ast(dtype.content,
@@ -3094,12 +3095,19 @@ class Kern(Call):
                 tnames = walk_ast(dtype.content, [Fortran2003.Type_Name])
                 orig_type_name = str(tnames[0])
 
-        # The new name for the type containing kernel metadata will
-        # conform to the PSyclone convention of ending in "_type"
-        if orig_type_name.endswith("_type"):
-            new_type_name = orig_type_name[:-5] + new_suffix + "_type"
-        else:
-            new_type_name = orig_type_name + new_suffix + "_type"
+                # The new name for the type containing kernel metadata will
+                # conform to the PSyclone convention of ending in "_type"
+                if orig_type_name.endswith("_type"):
+                    new_type_name = orig_type_name[:-5] + new_suffix + "_type"
+                else:
+                    new_type_name = orig_type_name + new_suffix + "_type"
+                # Rename the derived type. We do this here rather than
+                # search for Type_Name in the AST again below. We loop over
+                # the list of type names so as to ensure we rename the type
+                # in the end-type statement too.
+                for name in tnames:
+                    if str(name) == orig_type_name:
+                        name.string = new_type_name
 
         # Change the name of this kernel and the associated module
         self.name = new_kern_name[:]
