@@ -72,6 +72,9 @@ def test_command_line(capsys):
 
     options = ["-api", "gocean1.0"]
 
+    # Make sure we always trigger the GOLoop.setup_bounds()
+    # in the constructor so that part is always tested!
+    GOLoop._bounds_lookup = {}
     # Check that --config with a parameter is accepted
     main(options+["--config", config_file, f90_file])
 
