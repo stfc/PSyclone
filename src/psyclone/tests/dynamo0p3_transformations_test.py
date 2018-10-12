@@ -66,6 +66,67 @@ _CONFIG = ConfigFactory().create()
 _API_CONFIG = _CONFIG.api(TEST_API)
 
 
+def test_vector_async_halo_exchange():
+    '''Test that an asynchronous halo exchange works correctly with
+    vector fields.
+    '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # make all f1 vector halo exchanges asynchronous before the first
+    # loop and one of them before the second loop, then check depths
+    # and set clean are still generated correctly
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    for index in [5, 2, 1, 0]:
+        hex = schedule.children[index]
+        schedule, _ = ahex_trans.apply(hex)
+    result = str(psy.gen)
+    schedule.view()
+    for index in [1, 2, 3]:
+        assert (
+            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
+            "        CALL f1_proxy({0})%halo_exchange_start(depth=1)\n"
+            "      END IF \n"
+            "      !\n"
+            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
+            "        CALL f1_proxy({0})%halo_exchange_finish(depth=1)\n"
+            "      END IF \n".format(index)) in result
+    assert (
+        "      CALL f1_proxy(1)%halo_exchange(depth=1)\n"
+        "      !\n"
+        "      CALL f1_proxy(2)%halo_exchange_start(depth=1)\n"
+        "      !\n"
+        "      CALL f1_proxy(2)%halo_exchange_finish(depth=1)\n"
+        "      !\n"
+        "      CALL f1_proxy(3)%halo_exchange(depth=1)\n") in result
+
+    # we are not able to test re-ordering of vector halo exchanges as
+    # the dependence analysis does not currently support it
+    #mtrans = MoveTrans()
+    #schedule, _ = mtrans.apply(schedule.children[2],
+    #                           schedule.children[1])
+    #schedule, _ = mtrans.apply(schedule.children[4],
+    #                           schedule.children[2])
+
+    # remove second set of halo exchanges via redundant
+    # computation. If they are removed correctly then the two loops
+    # will be adjacent to eachother and will follow 6 haloexchange
+    # start and end calls.
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[6], depth=2)
+    from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
+        DynHaloExchangeEnd
+    assert len(schedule.children) == 8
+    for index in [0, 2, 4]:
+        assert isinstance(schedule.children[index], DynHaloExchangeStart)
+        assert isinstance(schedule.children[index+1], DynHaloExchangeEnd)
+    assert isinstance(schedule.children[6], DynLoop)
+    assert isinstance(schedule.children[7], DynLoop)
+
+
 def test_colour_trans_declarations(tmpdir, f90, f90flags):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
@@ -6791,9 +6852,117 @@ def test_rc_remove_async_halo_exchange(monkeypatch):
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-# TODO redundant computation (depth>1) check this works and updated depths. Also check set_clean etc in correct place
-# TODO check vector fields work
-# check a non-region example
+
+def test_rc_redund_async_halo_exchange(monkeypatch):
+    '''Test that an asynchronous halo exchange works correctly with
+    redundant computation being applied.
+    '''
+
+    # ensure we compute over annexed dofs so no halo exchanges are required
+    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", True)
+    _, info = parse(os.path.join(
+        BASE_PATH, "14.7_halo_annexed.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # Make it so that halo exchanges are required to depth 2 for
+    # fields m1, m2, f1 and f2. m2 will have a set clean for depth 1
+    # after the last loop.
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    loop = schedule.children[2]
+    rc_trans.apply(loop, depth=2)
+
+    # make m2 halo exchange asynchronous and check depths and set
+    # clean are generated correctly for m2
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    m2_hex = schedule.children[5]
+    schedule, _ = ahex_trans.apply(m2_hex)
+    result = str(psy.gen)
+    assert (
+        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL m2_proxy%halo_exchange_start(depth=2)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL m2_proxy%halo_exchange_finish(depth=2)\n"
+        "      END IF \n") in result
+    assert (
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL m2_proxy%set_dirty()\n"
+        "      CALL m2_proxy%set_clean(2)\n") in result
+
+    # move m2 async halo exchange start and end then check depths and
+    # set clean are still generated correctly for m2
+    mtrans = MoveTrans()
+    schedule, _ = mtrans.apply(schedule.children[5],
+                               schedule.children[0])
+    schedule, _ = mtrans.apply(schedule.children[6],
+                               schedule.children[2])
+    result = str(psy.gen)
+    assert (
+        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL m2_proxy%halo_exchange_start(depth=2)\n"
+        "      END IF \n") in result
+    assert (
+        "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
+        "        CALL m2_proxy%halo_exchange_finish(depth=2)\n"
+        "      END IF \n") in result
+    assert (
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL m2_proxy%set_dirty()\n"
+        "      CALL m2_proxy%set_clean(2)\n") in result
+
+    # increase depth of redundant computation. We do this to all loops
+    # to remove halo exchanges for f1 and f2 just because we can :-)
+    # Check depths and set clean are still generated correctly for m2
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    for index in [7, 1, 3]:
+        loop = schedule.children[index]
+        rc_trans.apply(loop, depth=3)
+    result = str(psy.gen)
+    assert (
+        "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
+        "        CALL m2_proxy%halo_exchange_start(depth=3)\n"
+        "      END IF \n") in result
+    assert (
+        "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
+        "        CALL m2_proxy%halo_exchange_finish(depth=3)\n"
+        "      END IF \n") in result
+    assert (
+        "      ! Set halos dirty/clean for fields modified in the above loop\n"
+        "      !\n"
+        "      CALL m2_proxy%set_dirty()\n"
+        "      CALL m2_proxy%set_clean(3)\n") in result
+
+
+@pytest.mark.xfail(reason="dependence analysis thinks independent vectors "
+                   "depend on each other")
+def test_move_vector_halo_exhange():
+    '''Test that halo exchanges for different vectors for the same field
+    are independent of each other, i.e. they do not depend on
+    eachother
+
+    '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+
+    # reverse the order of the vector halo exchanges
+    mtrans = MoveTrans()
+    schedule, _ = mtrans.apply(schedule.children[1],
+                               schedule.children[0])
+    schedule, _ = mtrans.apply(schedule.children[2],
+                               schedule.children[1])
+    # When the test is fixed, add a check for re-ordered output here
+
+
+# check a non-region example to make sure it keeps its info
 # example
 # user guide
 # developers guide

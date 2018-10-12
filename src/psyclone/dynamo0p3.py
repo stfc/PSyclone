@@ -3553,9 +3553,12 @@ class DynHaloExchange(HaloExchange):
         ''' Class specific view  '''
         _, known = self.required()
         runtime_check = not known
+        field_id = self._field.name
+        if self.vector_index:
+            field_id += "({0})".format(self.vector_index)
         print(self.indent(indent) + (
             "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.coloured_text, self._field.name,
+            "check_dirty={4}]".format(self.coloured_text, field_id,
                                       self._compute_stencil_type(),
                                       self._compute_halo_depth(),
                                       runtime_check)))
