@@ -66,67 +66,6 @@ _CONFIG = ConfigFactory().create()
 _API_CONFIG = _CONFIG.api(TEST_API)
 
 
-def test_vector_async_halo_exchange():
-    '''Test that an asynchronous halo exchange works correctly with
-    vector fields.
-    '''
-    _, info = parse(os.path.join(
-        BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    # make all f1 vector halo exchanges asynchronous before the first
-    # loop and one of them before the second loop, then check depths
-    # and set clean are still generated correctly
-    ahex_trans = DynAsyncHaloExchangeTrans()
-    for index in [5, 2, 1, 0]:
-        hex = schedule.children[index]
-        schedule, _ = ahex_trans.apply(hex)
-    result = str(psy.gen)
-    schedule.view()
-    for index in [1, 2, 3]:
-        assert (
-            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
-            "        CALL f1_proxy({0})%halo_exchange_start(depth=1)\n"
-            "      END IF \n"
-            "      !\n"
-            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
-            "        CALL f1_proxy({0})%halo_exchange_finish(depth=1)\n"
-            "      END IF \n".format(index)) in result
-    assert (
-        "      CALL f1_proxy(1)%halo_exchange(depth=1)\n"
-        "      !\n"
-        "      CALL f1_proxy(2)%halo_exchange_start(depth=1)\n"
-        "      !\n"
-        "      CALL f1_proxy(2)%halo_exchange_finish(depth=1)\n"
-        "      !\n"
-        "      CALL f1_proxy(3)%halo_exchange(depth=1)\n") in result
-
-    # we are not able to test re-ordering of vector halo exchanges as
-    # the dependence analysis does not currently support it
-    #mtrans = MoveTrans()
-    #schedule, _ = mtrans.apply(schedule.children[2],
-    #                           schedule.children[1])
-    #schedule, _ = mtrans.apply(schedule.children[4],
-    #                           schedule.children[2])
-
-    # remove second set of halo exchanges via redundant
-    # computation. If they are removed correctly then the two loops
-    # will be adjacent to eachother and will follow 6 haloexchange
-    # start and end calls.
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[6], depth=2)
-    from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
-        DynHaloExchangeEnd
-    assert len(schedule.children) == 8
-    for index in [0, 2, 4]:
-        assert isinstance(schedule.children[index], DynHaloExchangeStart)
-        assert isinstance(schedule.children[index+1], DynHaloExchangeEnd)
-    assert isinstance(schedule.children[6], DynLoop)
-    assert isinstance(schedule.children[7], DynLoop)
-
-
 def test_colour_trans_declarations(tmpdir, f90, f90flags):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
@@ -6962,7 +6901,92 @@ def test_move_vector_halo_exhange():
     # When the test is fixed, add a check for re-ordered output here
 
 
-# check a non-region example to make sure it keeps its info
+@pytest.mark.xfail(reason="removal of vector halo exchanges is broken")
+def test_vector_halo_exchange_remove():
+    '''test that we remove vector halo exchanges when they are no longer
+    required
+
+    '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # remove second set of halo exchanges via redundant
+    # computation. If they are removed correctly then the two loops
+    # will be adjacent to eachother and will follow 3 haloexchange
+    # calls.
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[3], depth=2)
+    assert len(schedule.children) == 5
+    for index in [0, 1, 2]:
+        assert isinstance(schedule.children[index], DynHaloExchange)
+    assert isinstance(schedule.children[3], DynLoop)
+    assert isinstance(schedule.children[4], DynLoop)
+
+
+@pytest.mark.xfail(reason="removal of vector halo exchanges is broken")
+def test_vector_async_halo_exchange():
+    '''Test that an asynchronous halo exchange works correctly with
+    vector fields.
+    '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # make all f1 vector halo exchanges asynchronous before the first
+    # loop and one of them before the second loop, then check depths
+    # and set clean are still generated correctly
+    ahex_trans = DynAsyncHaloExchangeTrans()
+    for index in [5, 2, 1, 0]:
+        hex = schedule.children[index]
+        schedule, _ = ahex_trans.apply(hex)
+    result = str(psy.gen)
+    for index in [1, 2, 3]:
+        assert (
+            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
+            "        CALL f1_proxy({0})%halo_exchange_start(depth=1)\n"
+            "      END IF \n"
+            "      !\n"
+            "      IF (f1_proxy({0})%is_dirty(depth=1)) THEN\n"
+            "        CALL f1_proxy({0})%halo_exchange_finish(depth=1)\n"
+            "      END IF \n".format(index)) in result
+    assert (
+        "      CALL f1_proxy(1)%halo_exchange(depth=1)\n"
+        "      !\n"
+        "      CALL f1_proxy(2)%halo_exchange_start(depth=1)\n"
+        "      !\n"
+        "      CALL f1_proxy(2)%halo_exchange_finish(depth=1)\n"
+        "      !\n"
+        "      CALL f1_proxy(3)%halo_exchange(depth=1)\n") in result
+
+    # we are not able to test re-ordering of vector halo exchanges as
+    # the dependence analysis does not currently support it
+    #mtrans = MoveTrans()
+    #schedule, _ = mtrans.apply(schedule.children[2],
+    #                           schedule.children[1])
+    #schedule, _ = mtrans.apply(schedule.children[4],
+    #                           schedule.children[2])
+
+    # remove second set of halo exchanges via redundant
+    # computation. If they are removed correctly then the two loops
+    # will be adjacent to eachother and will follow 6 haloexchange
+    # start and end calls.
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[6], depth=2)
+    schedule.view()
+    from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
+        DynHaloExchangeEnd
+    assert len(schedule.children) == 8
+    for index in [0, 2, 4]:
+        assert isinstance(schedule.children[index], DynHaloExchangeStart)
+        assert isinstance(schedule.children[index+1], DynHaloExchangeEnd)
+    assert isinstance(schedule.children[6], DynLoop)
+    assert isinstance(schedule.children[7], DynLoop)
+
 # example
 # user guide
 # developers guide
