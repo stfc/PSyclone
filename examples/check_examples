@@ -108,6 +108,11 @@ cd dynamo/eg10
 ${PSYCLONE} intergrid_3levels.x90
 cd -
 
+echo "Running example dynamo/eg11"
+cd dynamo/eg11
+${PSYCLONE} -s ./async_script.py helmholtz_solver_alg_mod.x90
+cd -
+
 echo "Running gocean examples"
 cd gocean
 python runme.py
