@@ -6504,7 +6504,7 @@ def test_async_hex_str():
             "asynchronous one.")
 
 
-def test_async_hex():
+def test_async_hex(tmpdir, f90, f90flags):
     '''Test that we can convert a synchronous halo exchange to an
     asynchronous one using the DynAsyncHaloExchangeTrans transformation
 
@@ -6532,8 +6532,13 @@ def test_async_hex():
         "      END IF \n"
         "      !\n") in result
 
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_async_hex_move_1():
+
+def test_async_hex_move_1(tmpdir, f90, f90flags):
     '''Test that we can convert a synchronous halo exchange to an
     asynchronous one using the DynAsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
@@ -6574,6 +6579,12 @@ def test_async_hex_move_1():
         "      IF (m1_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL m1_proxy%halo_exchange_finish(depth=1)\n"
         "      END IF \n") in result
+
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 def test_async_hex_preserve_properties():
     '''Test that an asynchronous halo exchange created by the
@@ -6638,7 +6649,7 @@ def test_async_hex_preserve_properties():
     assert f1_async_hex_end._compute_halo_depth() == halo_depth
 
 
-def test_async_hex_move_2():
+def test_async_hex_move_2(tmpdir, f90, f90flags):
     '''Test that we can convert a synchronous halo exchange to an
     asynchronous one using the DynAsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
@@ -6670,6 +6681,11 @@ def test_async_hex_move_2():
         "ndf_any_space_2_op)\n"
         "      END DO \n"
         "      CALL f2_proxy%halo_exchange_finish(depth=1)\n") in result
+
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_async_hex_move_error_1():
@@ -6738,7 +6754,7 @@ def test_async_hex_move_error_2():
     assert "dependencies forbid" in str(excinfo.value)
 
 
-def test_rc_remove_async_halo_exchange(monkeypatch):
+def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
     '''Test that a halo exchange is removed if redundant computation means
     that it is no longer required. Halo exchanges are not required in
     this example when we compute annexed dofs. Therefore we ensure we
@@ -6767,6 +6783,7 @@ def test_rc_remove_async_halo_exchange(monkeypatch):
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
     #
+
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     #
@@ -6791,8 +6808,13 @@ def test_rc_remove_async_halo_exchange(monkeypatch):
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-def test_rc_redund_async_halo_exchange(monkeypatch):
+
+def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
     '''Test that an asynchronous halo exchange works correctly with
     redundant computation being applied.
     '''
@@ -6876,6 +6898,11 @@ def test_rc_redund_async_halo_exchange(monkeypatch):
         "      CALL m2_proxy%set_dirty()\n"
         "      CALL m2_proxy%set_clean(3)\n") in result
 
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 
 @pytest.mark.xfail(reason="dependence analysis thinks independent vectors "
                    "depend on each other")
@@ -6927,7 +6954,7 @@ def test_vector_halo_exchange_remove():
 
 
 @pytest.mark.xfail(reason="removal of vector halo exchanges is broken")
-def test_vector_async_halo_exchange():
+def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
     '''Test that an asynchronous halo exchange works correctly with
     vector fields.
     '''
@@ -6987,6 +7014,10 @@ def test_vector_async_halo_exchange():
     assert isinstance(schedule.children[6], DynLoop)
     assert isinstance(schedule.children[7], DynLoop)
 
-# example
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
 # user guide
 # developers guide
