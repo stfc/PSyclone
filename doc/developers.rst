@@ -578,17 +578,17 @@ Cell iterators: Continuous
 
 When a kernel is written to iterate over cells and modify a continuous
 field, PSyclone always computes dofs on owned cells and redundantly
-computes dofs in the level-1 halo (or level-2 if the field is on the
-fine mesh of an inter-grid kernel). Users can apply a redundant
-computation transformation to increase the halo depth for additional
-redundant computation but it must always at least compute the level-1
-halo. The reason for this is to ensure that the shared dofs on cells
-on the edge of the partition (both owned and annexed) are always
-correctly computed. Note that the outermost halo dofs are not
-correctly computed and therefore the outermost halo of the modified
-field is dirty after redundant computation. Also note that if we do
-not know whether a modified field is discontinuous or continuous then
-we must assume it is continuous.
+computes dofs in the level-1 halo (or to depth 2 if the field is on
+the fine mesh of an inter-grid kernel - see :ref:`multigrid`). Users
+can apply a redundant computation transformation to increase the halo
+depth for additional redundant computation but it must always at least
+compute the level-1 halo. The reason for this is to ensure that the
+shared dofs on cells on the edge of the partition (both owned and
+annexed) are always correctly computed. Note that the outermost halo
+dofs are not correctly computed and therefore the outermost halo of
+the modified field is dirty after redundant computation. Also note
+that if we do not know whether a modified field is discontinuous or
+continuous then we must assume it is continuous.
 
 An alternative solution could have been adopted in Dynamo0.3 whereby
 no redundant computation is performed and partial-sum results are
