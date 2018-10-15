@@ -1215,10 +1215,10 @@ For instance, if a kernel has only one written argument and requires an
 evaluator then its metadata might be::
   
   type, extends(kernel_type) :: testkern_operator_type
-     type(arg_type), dimension(2) :: meta_args =    &
-          (/ arg_type(gh_operator,gh_write,w0,w0),  &
-             arg_type(gh_field*3,gh_read,w0) /)
-     type(func_type) :: meta_funcs(1) =             &
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w0), &
+             arg_type(gh_field*3, gh_read, w0) /)
+     type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator
@@ -1234,17 +1234,17 @@ be::
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0, np_xyz_w0)    
 
-where ``local_stencil`` is the operator, ``xdata``, ``ydata`` etc. are the three
-components of the field vector and ``map_w0`` is the dof map for the
-W0 function space.
+where ``local_stencil`` is the operator, ``xdata``, ``ydata``
+etc\. are the three components of the field vector and ``map_w0`` is
+the dof map for the W0 function space.
 
 If instead, ``gh_evaluator_targets`` is specified in the metadata::
 
   type, extends(kernel_type) :: testkern_operator_type
-     type(arg_type), dimension(2) :: meta_args =    &
-          (/ arg_type(gh_operator,gh_write,w0,w0),  &
-             arg_type(gh_field*3,gh_read,w0) /)
-     type(func_type) :: meta_funcs(1) =             &
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w0), &
+             arg_type(gh_field*3, gh_read, w0) /)
+     type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
      integer :: iterates_over = cells
      integer :: gh_shape = gh_evaluator
