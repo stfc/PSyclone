@@ -1969,7 +1969,7 @@ class DynMeshes(object):
                 # Add these names into the dictionary entry for this
                 # inter-grid kernel
                 self._ig_kernels[call.name].colourmap = colour_map
-                self._ig_kernels[call.name].ncolours = ncolours
+                self._ig_kernels[call.name].ncolours_var = ncolours
 
         if not self._mesh_names and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need colourmap
@@ -2222,7 +2222,7 @@ class DynInterGrid(object):
         # We have no colourmap information when first created
         self.colourmap = ""
         # Name of the variable holding the number of colours
-        self.ncolours = ""
+        self.ncolours_var = ""
 
 
 class DynInvokeBasisFns(object):
@@ -4967,7 +4967,7 @@ class DynKern(Kern):
                 raise InternalError(
                     "Colourmap information for kernel '{0}' has not yet "
                     "been initialised".format(self.name))
-            ncols = invoke.meshes.intergrid_kernels[self.name].ncolours
+            ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
         else:
             ncols = self._name_space_manager.create_name(
                 root_name="ncolour", context="PSyVars", label="ncolour")

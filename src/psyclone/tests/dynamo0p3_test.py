@@ -2711,12 +2711,12 @@ def test_kern_ncolours(monkeypatch):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     kern = psy.invokes.invoke_list[0].schedule.children[3].children[0]
     with pytest.raises(InternalError) as err:
-        _ = kern.ncolours
+        _ = kern.ncolours_var
     assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err)
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     monkeypatch.setattr(kern, "_is_intergrid", True)
     with pytest.raises(InternalError) as err:
-        _ = kern.ncolours
+        _ = kern.ncolours_var
     assert ("Colourmap information for kernel 'testkern_code' has not yet "
             "been initialised" in str(err))
 
