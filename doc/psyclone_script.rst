@@ -28,8 +28,8 @@ by the script:
   > psyclone -h
 
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
-                  [-s SCRIPT]
-                  [-d DIRECTORY] [-l] [-dm] [-nodm]
+                  [-s SCRIPT] [-d DIRECTORY] [-l] [-dm] [-nodm]
+                  [--kernel-renaming {unique,single}]
 		  [--profile {invokes,kernels}]
 		  [--force-profile {invokes,kernels}] [-v] filename
 
@@ -54,8 +54,9 @@ by the script:
     -l, --limit           limit the fortran line length to 132 characters
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
-    --ktrans {clobber,noclobber} whether or not to overwrite kernels in the
-                          output directory
+    --kernel-renaming {single,unique}
+                          Naming scheme to use when re-naming transformed
+			  kernels.
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
     --force-profile {invokes,kernels}
@@ -282,5 +283,17 @@ When transforming kernels there are various use-cases to consider:
 
 Whenever PSyclone is used to transform a kernel, the new kernel must
 be re-named in order to avoid clashing with other possible calls to
-the original. For maximum flexibility, PSyclone generates a new,
-unique name for each kernel that is transformed.
+the original. By default (``--kernel-renaming unique``), PSyclone
+generates a new, unique name for each kernel that is
+transformed. Since PSyclone is run on one Algorithm file at a time, it
+uses the chosen kernel output directory to ensure that names created
+by different invocations do not clash.  Therefore, when building a
+single application, the same kernel output directory must be used for
+each separate invocation of PSyclone.
+
+Alternatively, in order to support use case 1, a user may specify
+``--kernel-renaming single``: now, before transforming a kernel,
+PSyclone will check the kernel output directory and if a transformed
+version of that kernel is already present then that will be
+used. Note, currently no attempt is made to ascertain whether the
+kernel file on disk is the same as that which would be generated.

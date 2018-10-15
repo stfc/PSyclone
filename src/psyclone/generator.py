@@ -57,6 +57,7 @@ from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
 from psyclone.configuration import ConfigFactory
+from psyclone import configuration
 
 # Get (a reference to) our one-and-only Config object
 _CONFIG = ConfigFactory().create()
@@ -138,7 +139,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
              distributed_memory=None,
              kern_out_path="",
-             kern_clobber=True):
+             kern_naming=""):
     # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -167,8 +168,8 @@ def generate(filename, api="", kernel_path="", script_name=None,
                                     default is set in the config.py file.
     :param str kern_out_path: Directory to which to write transformed
                               kernel code.
-    :param bool kern_clobber: Whether or not to overwrite existing kernels
-                              in the directory specified in kern_out_path.
+    :param bool kern_naming: the scheme to use when re-naming transformed
+                             kernels.
     :return: The algorithm code and the psy code.
     :rtype: ast
     :raises IOError: if the filename or search path do not exist
@@ -198,7 +199,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     # Store Kernel-output options in our Configuration object
     _CONFIG.kernel_output_dir = kern_out_path
-    _CONFIG.kernel_clobber = kern_clobber
+    _CONFIG.kernel_naming = kern_naming
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
@@ -256,9 +257,9 @@ def main(args):
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
     parser.add_argument(
-        '-nkc', '--no_kernel_clobber', dest='kernel_clobber',
-        action='store_false', default=True,
-        help="Ensure that any transformed kernels are given unique names")
+        '--kernel-renaming', default="unique",
+        choices = configuration.VALID_KERNEL_NAMING_SCHEMES,
+        help="Naming scheme to use when re-naming transformed kernels")
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes'")
@@ -324,7 +325,7 @@ def main(args):
                             line_length=args.limit,
                             distributed_memory=args.dist_mem,
                             kern_out_path=kern_out_path,
-                            kern_clobber=args.kernel_clobber)
+                            kern_naming=args.kernel_renaming)
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
         print("Warning: {0}".format(exc_value))

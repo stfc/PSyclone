@@ -46,6 +46,12 @@ import os
 # Name of the config file we search for
 _FILE_NAME = "psyclone.cfg"
 
+# The different naming schemes supported when transforming kernels
+# unique = Every kernel is given a unique name.
+# single = Each kernel encountered is transformed just once and that version
+#          used throughout the application.
+VALID_KERNEL_NAMING_SCHEMES = ["unique", "single"]
+
 
 class ConfigurationError(Exception):
     '''
@@ -224,8 +230,10 @@ class Config(object):
 
         # Where to write any transformed kernels (set at runtime)
         self._kernel_output_dir = ""
-        # Whether or not to overwrite existing kernels
-        self._kernel_clobber = False
+        # Whether or not to overwrite existing, transformed kernels.
+        # By default we ensure that each transformed kernel is given a
+        # unique name (within the specified kernel-output directory).
+        self._kernel_naming = "unique"
 
     def api(self, api):
         '''
@@ -409,22 +417,26 @@ class Config(object):
         self._kernel_output_dir = value
 
     @property
-    def kernel_clobber(self):
+    def kernel_naming(self):
         '''
-        :returns: whether or not to clobber existing kernels when writing \
-                  transformed kernels to file.
-        :rtype: bool
+        :returns: what naming scheme to use when writing transformed kernels
+                  to file.
+        :rtype: str
         '''
-        return self._kernel_clobber
+        return self._kernel_naming
 
-    @kernel_clobber.setter
-    def kernel_clobber(self, value):
+    @kernel_naming.setter
+    def kernel_naming(self, value):
         '''
         Setter for whether or not to overwrite existing kernels when writing \
         transformed kernels to file.
         :param bool value: True to overwrite, False otherwise.
         '''
-        self._kernel_clobber = value
+        if value not in VALID_KERNEL_NAMING_SCHEMES:
+            raise ConfigurationError(
+                "kernel_naming must be one of '{0}' but got '{1}'".
+                format(VALID_KERNEL_NAMING_SCHEMES, value))
+        self._kernel_naming = value
 
 
 class DynConfig(object):
