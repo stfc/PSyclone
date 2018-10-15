@@ -804,6 +804,61 @@ determined by the halo exchange itself at code generation time. The
 reason for deferring this information is that it can change as
 transformations are added.
 
+Aynschronous Halo Exchanges
++++++++++++++++++++++++++++
+
+The Dynamo0p3AsynchronousHaloExchange transformation allows the
+default synchronous halo exchange to be split into a halo exchange
+start and a halo exhange end which are represented separately as nodes
+in the schedule. These can then be moved in the schedule to allow
+overlapping of communication and computation, as long as data
+dependencies are honoured.
+
+A halo exchange both reads and modifies a field so has a readwrite
+access for dependence analysis purposes. An asynchronous halo exchange
+start reads the field and an asynchronous halo exchange end writes to
+the field. Therefore the obvious thing to do would be to have the
+associated field set to read and write access respectively. However,
+the way the halo exchange logic works means that it is simplest to set
+the halo exchange end access to readwrite. The reason for this is that
+the logic to determine whether a halo exchange is required
+(`_required()`) needs information from all fields that read from the
+halo after the halo exchange has been called (and therefore must be
+treated as a write with following reads for dependence analysis) and
+it needs information from all fields that write to the field before
+the halo exchange has been called (and therefore must be treated as a
+read with previous writes for dependence analysis). An alternative
+would be to make the `_required()` method use the halo exchange start
+for previous writes and the halo exchange end for following
+reads. However, it was decided that this would be more complicated
+than the solution chosen.
+
+Both halo exchange start and halo exchange end inherit from halo
+exchange. However, the halo exchange start and end are really two
+parts of the same thing and need to have consistent properties
+including after transformations are performed. This is achieved by
+having the halo exchange start find and use the methods from the halo
+exchange end, rather than implement them independently. The actual
+methods needed are `_compute_stencil_type()`,
+`_compute_halo_depth()` and `_required()`. It is unclear how much
+halo exhange start really benefits from inheriting from halo exchange
+and this could probably be removed at the expense of returning
+appropriate names for the dag, colourmap, declaration etc.
+
+.. note:: Halo exchange vectors are currently broken when an existing
+   set of halo exchanges associated with a vector need to be removed
+   due to redundant computation being applied. At the moment not all
+   of them are removed. This is also the case for asynchronous halo
+   exchanges. See issue #219.
+
+.. note:: The dependence analysis for vector is currently over
+   zealous. It does not allow independent halo exchange vectors to be
+   moved past one another. For example, a halo exchange for vector 2,
+   if placed after a halo exchange for vector 1 could not be moved
+   before the halo exchange for vector 1, even though there accesses
+   are independent of each other. This is also the case for
+   asynchronous halo exchanges. See issue #220.
+
 Modifying the Schedule
 ----------------------
 

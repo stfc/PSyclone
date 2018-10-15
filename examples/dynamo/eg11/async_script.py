@@ -6,7 +6,7 @@ def trans(psy):
     '''
     from psyclone.transformations import \
         Dynamo0p3RedundantComputationTrans, \
-        DynAsyncHaloExchangeTrans, \
+        Dynamo0p3AsyncHaloExchangeTrans, \
         MoveTrans
 
     schedule = psy.invokes.invoke_list[0].schedule
@@ -22,7 +22,7 @@ def trans(psy):
     # This transformation splits the three synchronous halo exchanges
     # (for fields p, hb_inv and u_normalisation) into asynchronous
     # (halo_exchange_start and halo_exchange_end) ones.
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     for index in [3, 2, 1]:
         schedule, _ = ahex_trans.apply(schedule.children[index])
     schedule.view()

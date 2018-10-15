@@ -50,7 +50,7 @@ from psyclone.transformations import TransformationError, \
     KernelModuleInlineTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans, \
-    DynAsyncHaloExchangeTrans
+    Dynamo0p3AsyncHaloExchangeTrans
 from psyclone.configuration import ConfigFactory
 from psyclone_test_utils import TEST_COMPILE, code_compiles
 
@@ -6485,28 +6485,28 @@ def test_async_hex_wrong_node():
     '''
     from psyclone.psyGen import Loop
     node = Loop()
-    ahex = DynAsyncHaloExchangeTrans()
+    ahex = Dynamo0p3AsyncHaloExchangeTrans()
     with pytest.raises(TransformationError) as err:
         _, _ = ahex.apply(node)
     assert "node must be a synchronous halo exchange" in str(err.value)
 
 
 def test_async_hex_name():
-    ''' Name test for the DynAsyncHaloExchangeTrans class '''
-    ahex = DynAsyncHaloExchangeTrans()
-    assert ahex.name == "DynAsyncHaloExchangeTrans"
+    ''' Name test for the Dynamo0p3AsyncHaloExchangeTrans class '''
+    ahex = Dynamo0p3AsyncHaloExchangeTrans()
+    assert ahex.name == "Dynamo0p3AsyncHaloExchangeTrans"
 
 
 def test_async_hex_str():
-    ''' String test for the DynAsyncHaloExchangeTrans class '''
-    ahex = DynAsyncHaloExchangeTrans()
+    ''' String test for the Dynamo0p3AsyncHaloExchangeTrans class '''
+    ahex = Dynamo0p3AsyncHaloExchangeTrans()
     assert (str(ahex) == "Changes a synchronous halo exchange into an "
             "asynchronous one.")
 
 
 def test_async_hex(tmpdir, f90, f90flags):
     '''Test that we can convert a synchronous halo exchange to an
-    asynchronous one using the DynAsyncHaloExchangeTrans transformation
+    asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans transformation
 
     '''
     _, invoke_info = parse(os.path.join(
@@ -6517,7 +6517,7 @@ def test_async_hex(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     f2_hex = schedule.children[0]
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
     result = str(psy.gen)
     assert (
@@ -6540,7 +6540,7 @@ def test_async_hex(tmpdir, f90, f90flags):
 
 def test_async_hex_move_1(tmpdir, f90, f90flags):
     '''Test that we can convert a synchronous halo exchange to an
-    asynchronous one using the DynAsyncHaloExchangeTrans
+    asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
     case we move them before and after other halo exchanges
     respectively.
@@ -6554,7 +6554,7 @@ def test_async_hex_move_1(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     m1_hex = schedule.children[1]
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(m1_hex)
 
     mtrans = MoveTrans()
@@ -6588,7 +6588,7 @@ def test_async_hex_move_1(tmpdir, f90, f90flags):
 
 def test_async_hex_preserve_properties():
     '''Test that an asynchronous halo exchange created by the
-    DynAsyncHaloExchangeTrans transformation maintains the properties
+    Dynamo0p3AsyncHaloExchangeTrans transformation maintains the properties
     of the original halo exchange.
 
     '''
@@ -6607,7 +6607,7 @@ def test_async_hex_preserve_properties():
     stencil_type = f2_hex._compute_stencil_type()
     halo_depth = f2_hex._compute_halo_depth()
     
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
     f2_async_hex_start = schedule.children[0]
 
@@ -6631,7 +6631,7 @@ def test_async_hex_preserve_properties():
     stencil_type = f1_hex._compute_stencil_type()
     halo_depth = f1_hex._compute_halo_depth()
 
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f1_hex)
 
     f1_async_hex_start = schedule.children[6]
@@ -6651,7 +6651,7 @@ def test_async_hex_preserve_properties():
 
 def test_async_hex_move_2(tmpdir, f90, f90flags):
     '''Test that we can convert a synchronous halo exchange to an
-    asynchronous one using the DynAsyncHaloExchangeTrans
+    asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
     case we move a haloexchangestart before a loop.
 
@@ -6664,7 +6664,7 @@ def test_async_hex_move_2(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     f2_hex = schedule.children[11]
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
 
     mtrans = MoveTrans()
@@ -6702,7 +6702,7 @@ def test_async_hex_move_error_1():
     schedule = psy.invokes.invoke_list[0].schedule
 
     m1_hex = schedule.children[1]
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(m1_hex)
 
     mtrans = MoveTrans()
@@ -6735,7 +6735,7 @@ def test_async_hex_move_error_2():
     schedule = psy.invokes.invoke_list[0].schedule
 
     f1_hex = schedule.children[5]
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f1_hex)
 
     mtrans = MoveTrans()
@@ -6768,7 +6768,7 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
 
     f2_hex = schedule.children[3]
     schedule, _ = ahex_trans.apply(f2_hex)
@@ -6836,7 +6836,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
 
     # make m2 halo exchange asynchronous and check depths and set
     # clean are generated correctly for m2
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     m2_hex = schedule.children[5]
     schedule, _ = ahex_trans.apply(m2_hex)
     result = str(psy.gen)
@@ -6906,7 +6906,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
 
 @pytest.mark.xfail(reason="dependence analysis thinks independent vectors "
                    "depend on each other")
-def test_move_vector_halo_exhange():
+def test_move_vector_halo_exchange():
     '''Test that halo exchanges for different vectors for the same field
     are independent of each other, i.e. they do not depend on
     eachother
@@ -6967,7 +6967,7 @@ def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
     # make all f1 vector halo exchanges asynchronous before the first
     # loop and one of them before the second loop, then check depths
     # and set clean are still generated correctly
-    ahex_trans = DynAsyncHaloExchangeTrans()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     for index in [5, 2, 1, 0]:
         hex = schedule.children[index]
         schedule, _ = ahex_trans.apply(hex)
@@ -7018,6 +7018,3 @@ def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
         # If compilation testing has been enabled (--compile flag
         # to py.test)
         assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
-
-# user guide
-# developers guide

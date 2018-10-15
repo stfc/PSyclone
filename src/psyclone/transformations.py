@@ -2206,7 +2206,7 @@ class ProfileRegionTrans(RegionTrans):
         return schedule, keep
 
 
-class DynAsyncHaloExchangeTrans(Transformation):
+class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
     '''Splits a synchronous halo exchange into a halo exchange start and
     halo exchange end. For example:
 
@@ -2218,8 +2218,8 @@ class DynAsyncHaloExchangeTrans(Transformation):
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
     >>>
-    >>> from psyclone.transformations import DynAsyncHaloExchangeTrans
-    >>> trans = DynAsyncHaloExchangeTrans()
+    >>> from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
+    >>> trans = Dynamo0p3AsyncHaloExchangeTrans()
     >>> new_schedule, memento = trans.apply(schedule.children[0])
     >>> new_schedule.view()
 
@@ -2234,7 +2234,7 @@ class DynAsyncHaloExchangeTrans(Transformation):
         :returns: the name of this transformation as a string.
         :rtype: str
         '''
-        return "DynAsyncHaloExchangeTrans"
+        return "Dynamo0p3AsyncHaloExchangeTrans"
 
     def apply(self, node):
         '''Transforms a synchronous halo exchange, represented by a
@@ -2291,8 +2291,8 @@ class DynAsyncHaloExchangeTrans(Transformation):
 
         if not isinstance(node, HaloExchange):
             raise TransformationError(
-                "Error in DynAsyncHaloExchange transformation. Supplied node "
-                "must be a synchronous halo exchange but found '{0}'."
+                "Error in Dynamo0p3AsyncHaloExchange transformation. Supplied "
+                "node must be a synchronous halo exchange but found '{0}'."
                 .format(type(node)))
 
 
