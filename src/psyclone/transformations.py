@@ -1140,7 +1140,6 @@ class ColourTrans(Transformation):
         colour_loop.set_lower_bound("start")
         colour_loop._kern = node._kern
 
-
         if _CONFIG.distributed_memory:
             index = node.upper_bound_halo_depth
             colour_loop.set_upper_bound("colour_halo", index)

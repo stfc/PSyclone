@@ -1954,6 +1954,9 @@ class DynMeshes(object):
             self._needs_colourmap = True
 
             if call.is_intergrid:
+                # This is an inter-grid kernel so look-up the names of
+                # the colourmap variables associated with the coarse
+                # mesh (since that determines the iteration space).
                 carg_name = self._ig_kernels[call.name].coarse.name
                 # Colour map
                 base_name = "cmap_" + carg_name
@@ -2019,7 +2022,7 @@ class DynMeshes(object):
                                    pointer=True,
                                    entity_decls=[kern.colourmap+"(:,:)"]))
                 parent.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=[kern.ncolours]))
+                                   entity_decls=[kern.ncolours_var]))
 
         if not self._ig_kernels and self._needs_colourmap:
             # There aren't any inter-grid kernels but we do need
@@ -2159,7 +2162,7 @@ class DynMeshes(object):
             # Colour map for the coarse mesh (if required)
             if dig.colourmap:
                 # Number of colours
-                parent.add(AssignGen(parent, lhs=dig.ncolours,
+                parent.add(AssignGen(parent, lhs=dig.ncolours_var,
                                      rhs=coarse_mesh + "%get_ncolours()"))
                 # Colour map itself
                 parent.add(AssignGen(parent, lhs=dig.colourmap,
@@ -2218,7 +2221,8 @@ class DynInterGrid(object):
             root_name=base_name, context="PSyVars", label=base_name)
         # We have no colourmap information when first created
         self.colourmap = ""
-        self.ncolours = 0
+        # Name of the variable holding the number of colours
+        self.ncolours = ""
 
 
 class DynInvokeBasisFns(object):
@@ -4290,8 +4294,15 @@ class DynLoop(Loop):
             if not kernels:
                 raise InternalError(
                     "Failed to find a kernel within a loop over colours.")
-            else:
-                return kernels[0].ncolours
+            # Check that all kernels have been coloured. We can't check the
+            # number of colours since that is only known at runtime.
+            ncolours = kernels[0].ncolours_var
+            for kern in kernels:
+                if not kern.ncolours_var:
+                    raise InternalError(
+                        "All kernels within a loop over colours must have been"
+                        " coloured but kernel '{0}' has not".format(kern.name))
+            return ncolours
         elif self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.
             # We use the same, DM API as that returns sensible values even
@@ -4937,7 +4948,7 @@ class DynKern(Kern):
         return cmap
 
     @property
-    def ncolours(self):
+    def ncolours_var(self):
         '''
         Getter for the name of the variable holding the number of colours
         associated with this kernel call.

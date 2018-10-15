@@ -40,7 +40,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
@@ -244,7 +244,7 @@ def test_colour_trans_cma_operator(tmpdir, f90, f90flags, dist_mem):
         lookup = "get_last_halo_cell_per_colour(colour,1)"
     else:
         lookup = "get_last_edge_cell_per_colour(colour)"
-        
+
     assert (
         "      DO colour=1,ncolour\n"
         "        DO cell=1,mesh%{0}\n"
@@ -461,10 +461,10 @@ def test_omp_colour_trans(tmpdir, f90, f90flags, dist_mem):
     else:
         lookup = "get_last_edge_cell_per_colour(colour)"
     output = (
-            "      DO colour=1,ncolour\n"
-            "        !$omp parallel do default(shared), private(cell), "
-            "schedule(static)\n"
-            "        DO cell=1,mesh%{0}\n".format(lookup))
+        "      DO colour=1,ncolour\n"
+        "        !$omp parallel do default(shared), private(cell), "
+        "schedule(static)\n"
+        "        DO cell=1,mesh%{0}\n".format(lookup))
     assert output in code
 
     if TEST_COMPILE:
@@ -1261,7 +1261,7 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags, dist_mem):
         lookup = "get_last_halo_cell_per_colour(colour,1)"
     else:
         lookup = "get_last_edge_cell_per_colour(colour)"
-        
+
     output = (
         "      !\n"
         "      DO colour=1,ncolour\n"
@@ -6333,9 +6333,9 @@ def test_intergrid_colour(dist_mem):
     loops = schedule.walk(schedule.children, psyGen.Loop)
     ctrans = Dynamo0p3ColourTrans()
     # To a prolong kernel
-    new_sched, _ = ctrans.apply(loops[1])
+    _, _ = ctrans.apply(loops[1])
     # To a restrict kernel
-    new_sched, _ = ctrans.apply(loops[3])
+    _, _ = ctrans.apply(loops[3])
     gen = str(psy.gen).lower()
     expected = '''\
       ncolour_fld_m = mesh_fld_m%get_ncolours()
@@ -6362,6 +6362,44 @@ def test_intergrid_colour(dist_mem):
         "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
         "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n")
     assert expected in gen
+
+
+def test_intergrid_colour_errors(dist_mem, monkeypatch):
+    ''' Check that we raise the expected error when colouring is not applied
+    correctly to inter-grid kernels within a loop over colours. '''
+    from psyclone import psyGen
+    ctrans = Dynamo0p3ColourTrans()
+    # Use an example that contains both prolongation and restriction kernels
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # First two kernels are prolongation, last two are restriction
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loop = loops[1]
+    # To a prolong kernel
+    new_sched, _ = ctrans.apply(loop)
+    # Update our list of loops
+    loops = new_sched.walk(schedule.children, psyGen.Loop)
+    # Trigger the error by calling the internal method to get the upper
+    # bound before the colourmaps have been set-up
+    with pytest.raises(InternalError) as err:
+        _ = loops[1]._upper_bound_fortran()
+    assert ("All kernels within a loop over colours must have been coloured "
+            "but kernel 'prolong_kernel_code' has not" in str(err))
+    # Set-up the colourmaps
+    psy.invokes.invoke_list[0].meshes._colourmap_init()
+    # Check that the upper bound is now correct
+    upperbound = loops[1]._upper_bound_fortran()
+    assert upperbound == "ncolour_fld_m"
+    # Manually add an un-coloured kernel to the loop that we coloured
+    loop = loops[2]
+    monkeypatch.setattr(loops[3].children[0], "is_coloured", lambda: True)
+    loop.children.append(loops[3].children[0])
+    with pytest.raises(InternalError) as err:
+        _ = loops[1]._upper_bound_fortran()
+    assert ("All kernels within a loop over colours must have been coloured "
+            "but kernel 'restrict_kernel_code' has not" in str(err))
 
 
 def test_intergrid_err(dist_mem):
@@ -6394,7 +6432,7 @@ def test_intergrid_err(dist_mem):
     # Keep a ref to the kernel as that makes it easy to find the correct
     # loop to which to apply OMP
     kern = loops[2]._kern
-    sched, _ = ctrans.apply(loops[2])
+    _, _ = ctrans.apply(loops[2])
     with pytest.raises(TransformationError) as excinfo:
         omplooptrans.apply(kern.parent)
     assert expected_err in str(excinfo)
