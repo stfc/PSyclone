@@ -3013,11 +3013,35 @@ class Kern(Call):
         self._fp2_ast = my_parser(reader)
         return self._fp2_ast
 
+    @staticmethod
+    def _new_name(original, tag, suffix):
+        '''
+        Construct a new name given the original, a tag and a suffix (which
+        may or may not terminate the original name). If suffix is present
+        in the original name then the `tag` is inserted before it.
+
+        :param str original: The original name
+        :param str tag: Tag to insert into new name
+        :param str suffix: Suffix with which to end new name.
+        :returns: New name made of original + tag + suffix
+        :rtype: str
+        '''
+        if original.endswith(suffix):
+            return original[:-len(suffix)] + tag + suffix
+        return original + tag + suffix
+
     def to_fortran(self):
         '''
-        Writes the (transformed) AST of this kernel to file.
+        Writes the (transformed) AST of this kernel to file and resets the
+        'modified' flag to False. By default, the kernel is re-named
+        so as to be unique within the kernel output directory stored
+        within the configuration object. If config.kernel_naming is
+        "single" then no re-naming and output is performed if there is
+        already a transformed copy of the kernel in the output dir.
 
-        :param str fname: 
+        :return: Tupe of new names for transformed module and kernel
+        :rtype: 2-tuple of str
+
         '''
         import os
         from fparser.two.Fortran2003 import walk_ast
@@ -3026,9 +3050,6 @@ class Kern(Call):
 
         orig_mod_name = self.module_name[:]
         orig_kern_name = self.name[:]
-        # The name of the original Fortran file (minus the .[fF]90 suffix) is
-        # actually the module name (as that's how PSyclone finds it).
-        orig_file = orig_mod_name
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
         if orig_mod_name.endswith("_mod"):
@@ -3056,21 +3077,23 @@ class Kern(Call):
             except FileExistsError:
                 # The os.O_CREATE and os.O_EXCL flags in combination mean
                 # that open() raises an error if the file exists
+                if _CONFIG.kernel_naming == "single":
+                    # If the kernel-renaming scheme is such that we only ever
+                    # create one copy of a transformed kernel then we're done
+                    break
                 continue
-
-        # Use the suffix we have determined to create a new module name. This
-        # will conform to the PSyclone convention of ending in "_mod".
-        if orig_mod_name.endswith("_mod"):
-            new_mod_name = orig_mod_name[:-4] + new_suffix + "_mod"
-        else:
-            new_mod_name = orig_mod_name + new_suffix + "_mod"
 
         # Use the suffix we have determined to create a new kernel name.
         # This will conform to the PSyclone convention of ending in "_code"
-        if self.name.endswith("_code"):
-            new_kern_name = self.name[:-5] + new_suffix + "_code"
-        else:
-            new_kern_name = self.name + new_suffix + "_code"
+        new_kern_name = self._new_name(orig_kern_name, new_suffix, "_code")
+        new_mod_name = self._new_name(orig_mod_name, new_suffix, "_mod")
+
+        if not fdesc:
+            # If we've not got a file descriptor at this point then that's
+            # because the file already exists and the kernel-naming scheme
+            # ("single") means we're not creating a new one
+            self.modified = False
+            return new_mod_name, new_kern_name
 
         # Query the fparser2 AST to determine the name of the type that
         # contains the kernel subroutine as a type-bound procedure
@@ -3089,10 +3112,8 @@ class Kern(Call):
 
                 # The new name for the type containing kernel metadata will
                 # conform to the PSyclone convention of ending in "_type"
-                if orig_type_name.endswith("_type"):
-                    new_type_name = orig_type_name[:-5] + new_suffix + "_type"
-                else:
-                    new_type_name = orig_type_name + new_suffix + "_type"
+                new_type_name = self._new_name(orig_type_name, new_suffix,
+                                               "_type")
                 # Rename the derived type. We do this here rather than
                 # search for Type_Name in the AST again below. We loop over
                 # the list of type names so as to ensure we rename the type

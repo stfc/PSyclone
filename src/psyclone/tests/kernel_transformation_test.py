@@ -193,13 +193,13 @@ def test_new_kernel_dir(tmpdir, monkeypatch):
 
 
 def test_new_kern_no_clobber(tmpdir, monkeypatch):
-    ''' Check that we create a new kernel with a new name if no-clobber
-    is set and we would otherwise get a name clash. '''
+    ''' Check that we create a new kernel with a new name when kernel-naming
+    is set to 'unique' and we would otherwise get a name clash. '''
     from psyclone.psyGen import Kern
     # Ensure kernel-output directory is uninitialised
     config = configuration.ConfigFactory().create()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
-    monkeypatch.setattr(config, "_kernel_clobber", False)
+    monkeypatch.setattr(config, "_kernel_naming", "unique")
     # Change to temp dir (so kernel written there)
     old_pwd = tmpdir.chdir()
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
@@ -219,7 +219,41 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     assert os.path.isfile(filename)
 
 
-def test_1kern_trans(tmpdir, monkeypatch):
+def test_new_kern_single(tmpdir, monkeypatch):
+    ''' Check that we do not overwrite an existing new kernel if there is a
+    name clash and kernel-naming is 'single'. '''
+    from psyclone.psyGen import Kern
+    # Ensure kernel-output directory is uninitialised
+    config = configuration.ConfigFactory().create()
+    monkeypatch.setattr(config, "_kernel_output_dir", "")
+    monkeypatch.setattr(config, "_kernel_naming", "single")
+    # Change to temp dir (so kernel written there)
+    old_pwd = tmpdir.chdir()
+    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    kern = kernels[0]
+    old_mod_name = kern.module_name[:]
+    # Create a file with the same name as we would otherwise generate
+    with open(os.path.join(str(tmpdir),
+                           old_mod_name+"_0_mod.f90"), "w") as ffile:
+        ffile.write("some code")
+    rtrans = ACCRoutineTrans()
+    new_kern, _ = rtrans.apply(kern)
+    # Generate the code - this should not create a new file since one of
+    # that name already exists
+    code = str(psy.gen).lower()
+    out_files = os.listdir(str(tmpdir))
+    assert len(out_files) == 1
+    assert out_files[0] == old_mod_name + "_0_mod.f90"
+    # Check that we haven't overwritten our original file
+    with open(os.path.join(str(tmpdir),
+                           old_mod_name+"_0_mod.f90"), "r") as ffile:
+        contents = ffile.read()
+        assert "some code" in contents
+
+
+def test_1kern_trans(tmpdir, monkeypatch, f90, f90flags):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''
     # Ensure kernel-output directory is uninitialised
@@ -247,6 +281,7 @@ def test_1kern_trans(tmpdir, monkeypatch):
     first = code.find("call testkern_code(")
     second = code.find("call testkern{0}_code(".format(tag))
     assert first < second
+    assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_2kern_trans(tmpdir, monkeypatch, f90, f90flags):
