@@ -519,7 +519,7 @@ metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'gh_shape', 4)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
   contains
-    procedure :: my_kernel_code
+    procedure, nopass :: my_kernel_code
   end type
 
 These five metadata elements are discussed in order in the following
@@ -1033,10 +1033,10 @@ following kernel meta-data:
           (/ func_type(w0, gh_basis, gh_diff_basis) &
              func_type(w1, gh_basis)                &
           /)
-      integer, parameter :: gh_shape = gh_quadrature_XYoZ
-      integer, parameter :: iterates_over = cells
+      integer :: gh_shape = gh_quadrature_XYoZ
+      integer :: iterates_over = cells
     contains
-      procedure() :: code => testkern_operator_code
+      procedure, nopass :: code => testkern_operator_code
     end type testkern_operator_type
 
 The ``arg_type`` component of this meta-data describes a kernel that
@@ -1067,8 +1067,8 @@ entry. This entry is a one-dimensional, integer array containing the
 desired function spaces. For example, to request basis/differential-basis
 functions evaluated on both W0 and W1::
 
-    integer, parameter :: gh_shape = gh_evaluator
-    integer, parameter :: gh_evaluator_targets(2) = (/W0, W1/)
+    integer :: gh_shape = gh_evaluator
+    integer :: gh_evaluator_targets(2) = (/W0, W1/)
 
 The kernel must have an argument (field or operator) on each of the
 function spaces listed in ``gh_evaluator_targets``.
@@ -1105,7 +1105,7 @@ For example:
 
 ::
 
-  procedure :: my_kernel_subroutine
+  procedure, nopass :: my_kernel_subroutine
 
 Subroutine
 ++++++++++
