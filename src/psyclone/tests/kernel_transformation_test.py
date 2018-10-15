@@ -121,7 +121,6 @@ def test_accroutine_empty_kernel():
     new_kern, _ = rtrans.apply(kernels[0])
     # Check that directive is in correct place (end of declarations)
     gen = str(new_kern._fp2_ast).lower()
-    print(gen)
     assert ("!$acc routine\n  end subroutine testkern_code" in gen)
 
 
@@ -178,6 +177,7 @@ def test_new_kernel_file(tmpdir, monkeypatch):
 def test_new_kernel_dir(tmpdir, monkeypatch):
     ''' Check that we write out the transformed kernel to a specified
     directory. '''
+    # Set the output directory in the configuration object
     config = configuration.ConfigFactory().create()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
@@ -189,7 +189,34 @@ def test_new_kernel_dir(tmpdir, monkeypatch):
     _ = str(psy.gen)
     file_list = os.listdir(str(tmpdir))
     assert len(file_list) == 1
-    assert re.match('continuity_(.+?)_mod.f90', file_list[0])
+    assert file_list[0] == 'continuity_0_mod.f90'
+
+
+def test_new_kern_no_clobber(tmpdir, monkeypatch):
+    ''' Check that we create a new kernel with a new name if no-clobber
+    is set and we would otherwise get a name clash. '''
+    from psyclone.psyGen import Kern
+    # Ensure kernel-output directory is uninitialised
+    config = configuration.ConfigFactory().create()
+    monkeypatch.setattr(config, "_kernel_output_dir", "")
+    monkeypatch.setattr(config, "_kernel_clobber", False)
+    # Change to temp dir (so kernel written there)
+    old_pwd = tmpdir.chdir()
+    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    kern = kernels[0]
+    old_mod_name = kern.module_name[:]
+    # Create a file with the same name as we would otherwise generate
+    with open(os.path.join(str(tmpdir),
+                           old_mod_name+"_0_mod.f90"), "w") as ffile:
+        ffile.write("some code")
+    rtrans = ACCRoutineTrans()
+    new_kern, _ = rtrans.apply(kern)
+    # Generate the code (this triggers the generation of a new kernel)
+    code = str(psy.gen).lower()
+    filename = os.path.join(str(tmpdir), old_mod_name+"_1_mod.f90")
+    assert os.path.isfile(filename)
 
 
 def test_1kern_trans(tmpdir, monkeypatch):

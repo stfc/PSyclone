@@ -3020,51 +3020,43 @@ class Kern(Call):
         :param str fname: 
         '''
         import os
-        from psyclone.line_length import FortLineLength
-
-        # Generate a new name for the kernel and update the PSy and
-        # kernel ASTs
-        mod_name, kern_name = self._rename()
-
-        # Write the modified AST out to file
-        out_dir = _CONFIG.kernel_output_dir
-        # Make sure that we limit line lengths
-        fll = FortLineLength()
-        with open(os.path.join(out_dir, mod_name+".f90"), "w") as ffile:
-            ffile.write(fll.process(str(self.ast)))
-
-        # Kernel is now self-consistent so unset the modified flag
-        self.modified = False
-
-        return mod_name, kern_name
-
-    def _rename(self):
-        '''
-        Re-names this kernel (by inserting a tag containing a hex
-        representation of a random number) and updates the fparser2 AST
-        accordingly.
-
-        :return: Tupe of new names for transformed module and kernel
-        :rtype: 2-tuple of str
-
-        '''
-        import random
         from fparser.two.Fortran2003 import walk_ast
         from fparser.two import Fortran2003
+        from psyclone.line_length import FortLineLength
 
         orig_mod_name = self.module_name[:]
         orig_kern_name = self.name[:]
+        # The name of the original Fortran file (minus the .[fF]90 suffix) is
+        # actually the module name (as that's how PSyclone finds it).
+        orig_file = orig_mod_name
+
+        # Remove any "_mod" if the file follows the PSyclone naming convention
+        if orig_mod_name.endswith("_mod"):
+            old_base_name = orig_mod_name[:-4]
+        else:
+            old_base_name = orig_mod_name[:]
 
         # We could create a hash of a string built from the name of the
         # Algorithm (module), the name/position of the Invoke and the
         # index of this kernel within that Invoke. However, that creates
-        # a very long name so we simply use a random number in the
-        # range [0,1000000) and convert it to hex (minus the leading 0x).
-        new_suffix = "_" + str(hex(random.randint(0, 1000000))).lstrip("0x")
-
-        # The name of the original Fortran file (minus the .[fF]90 suffix) is
-        # actually the module name (as that's how PSyclone finds it).
-        orig_file = orig_mod_name
+        # a very long name so we simply ensure that kernel names are unique
+        # within the user-supplied kernel-output directory.
+        name_idx = -1
+        fdesc = None
+        while not fdesc:
+            name_idx += 1
+            new_suffix = "_{0}".format(name_idx)
+            new_name = old_base_name + new_suffix + "_mod.f90"
+            try:
+                # Atomically attempt to open the new kernel file (in case
+                # this is part of a parallel build)
+                fdesc = os.open(
+                    os.path.join(_CONFIG.kernel_output_dir, new_name),
+                    os.O_CREAT | os.O_WRONLY | os.O_EXCL)
+            except FileExistsError:
+                # The os.O_CREATE and os.O_EXCL flags in combination mean
+                # that open() raises an error if the file exists
+                continue
 
         # Use the suffix we have determined to create a new module name. This
         # will conform to the PSyclone convention of ending in "_mod".
@@ -3128,8 +3120,18 @@ class Kern(Call):
             except KeyError:
                 # This is not one of the names we are looking for
                 pass
-            
-        return (new_mod_name, new_kern_name)
+
+        # Write the modified AST out to file making sure that we limit
+        # line lengths
+        fll = FortLineLength()
+        os.write(fdesc, fll.process(str(self.ast)).encode())
+        # Close the new kernel file
+        os.close(fdesc)
+
+        # Kernel is now self-consistent so unset the modified flag
+        self.modified = False
+
+        return new_mod_name, new_kern_name
 
     @property
     def modified(self):
