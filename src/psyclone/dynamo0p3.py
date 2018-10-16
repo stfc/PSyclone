@@ -4053,7 +4053,6 @@ class DynLoop(Loop):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
-        self._kern = None
 
         # Get the namespace manager instance so we can look-up
         # the name of the nlayers and ndf variables
@@ -5824,12 +5823,16 @@ class KernCallArgList(ArgOrdering):
 
     @property
     def _cell_ref_name(self):
-        '''utility routine which determines whether to return the cell value
-        or the colourmap lookup value '''
+        '''
+        Utility routine which determines whether to return the cell value
+        or the colourmap lookup value.
+
+        :returns: the Fortran code needed to access the current cell index.
+        :rtype: str
+        '''
         if self._kern.is_coloured():
             return self._kern.colourmap + "(colour, cell)"
-        else:
-            return "cell"
+        return "cell"
 
 
 class KernStubArgList(ArgOrdering):

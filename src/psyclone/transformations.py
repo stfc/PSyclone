@@ -1135,10 +1135,10 @@ class ColourTrans(Transformation):
         # can be run in parallel
         colour_loop = node.__class__(parent=colours_loop, loop_type="colour")
         colour_loop.field_space = node.field_space
-        colour_loop._field_name = node._field_name
+        colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
         colour_loop.set_lower_bound("start")
-        colour_loop._kern = node._kern
+        colour_loop.kernel = node.kernel
 
         if _CONFIG.distributed_memory:
             index = node.upper_bound_halo_depth
@@ -1284,6 +1284,13 @@ class Dynamo0p3ColourTrans(ColourTrans):
         class to convert the Loop represented by :py:obj:`node` into a
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
+
+        :param node: the loop to transform.
+        :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
+
+        :returns: 2-tuple of new schedule and memento of transform
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
         # check node is a loop
