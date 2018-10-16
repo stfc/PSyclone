@@ -42,6 +42,7 @@ import pytest
 from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError, ACCRoutineTrans
 from psyclone.psyGen import Kern
+from psyclone.generator import GenerationError
 from psyclone import configuration
 from psyclone_test_utils import code_compiles
 
@@ -219,10 +220,9 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     assert os.path.isfile(filename)
 
 
-def test_new_kern_single(tmpdir, monkeypatch):
-    ''' Check that we do not overwrite an existing new kernel if there is a
-    name clash and kernel-naming is 'single'. '''
-    from psyclone.psyGen import Kern
+def test_new_kern_single_error(tmpdir, monkeypatch):
+    ''' Check that we do not overwrite an existing, different kernel if
+    there is a name clash and kernel-naming is 'single'. '''
     # Ensure kernel-output directory is uninitialised
     config = configuration.ConfigFactory().create()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
@@ -231,7 +231,7 @@ def test_new_kern_single(tmpdir, monkeypatch):
     old_pwd = tmpdir.chdir()
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.kern_calls()
     kern = kernels[0]
     old_mod_name = kern.module_name[:]
     # Create a file with the same name as we would otherwise generate
@@ -240,17 +240,44 @@ def test_new_kern_single(tmpdir, monkeypatch):
         ffile.write("some code")
     rtrans = ACCRoutineTrans()
     new_kern, _ = rtrans.apply(kern)
-    # Generate the code - this should not create a new file since one of
-    # that name already exists
-    code = str(psy.gen).lower()
+    # Generate the code - this should raise an error as we get a name
+    # clash and the content of the existing file is not the same as that
+    # which we would generate
+    with pytest.raises(GenerationError) as err:
+        _ = new_kern.to_fortran()
+    assert ("transformed version of this Kernel 'testkern_0_mod.f90' already "
+            "exists in the kernel-output directory ({0}) but is not the same "
+            "as the current, transformed kernel and the kernel-renaming "
+            "scheme is set to 'single'".format(str(tmpdir)) in str(err))
+    
+
+def test_new_same_kern_single(tmpdir, monkeypatch):
+    ''' Check that we do not overwrite an existing, identical kernel if
+    there is a name clash and kernel-naming is 'single'. '''
+    # Ensure kernel-output directory is uninitialised
+    config = configuration.ConfigFactory().create()
+    monkeypatch.setattr(config, "_kernel_output_dir", "")
+    monkeypatch.setattr(config, "_kernel_naming", "single")
+    rtrans = ACCRoutineTrans()
+    # Change to temp dir (so kernel written there)
+    old_pwd = tmpdir.chdir()
+    psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
+                             idx=0)
+    sched = invoke.schedule
+    # Apply the same transformation to both kernels. This should produce
+    # two, identical transformed kernels.
+    new_kernels = []
+    for kern in sched.kern_calls():
+        new_kern, _ = rtrans.apply(kern)
+        new_kernels.append(new_kern)
+
+    # Generate the code - we should end up with just one transformed kernel
+    mod_name, kern_name = new_kernels[0].to_fortran()
+    mod_name, kern_name = new_kernels[1].to_fortran()
+    assert kern_name == "testkern_0_code"
+    assert mod_name == "testkern_0_mod"
     out_files = os.listdir(str(tmpdir))
-    assert len(out_files) == 1
-    assert out_files[0] == old_mod_name + "_0_mod.f90"
-    # Check that we haven't overwritten our original file
-    with open(os.path.join(str(tmpdir),
-                           old_mod_name+"_0_mod.f90"), "r") as ffile:
-        contents = ffile.read()
-        assert "some code" in contents
+    assert out_files == [mod_name+".f90"]
 
 
 def test_1kern_trans(tmpdir, monkeypatch, f90, f90flags):
@@ -264,7 +291,7 @@ def test_1kern_trans(tmpdir, monkeypatch, f90, f90flags):
     psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
     sched = invoke.schedule
-    kernels = sched.walk(sched.children, Kern)
+    kernels = sched.kern_calls() # walk(sched.children, Kern)
     # We will transform the second kernel but not the first
     kern = kernels[1]
     rtrans = ACCRoutineTrans()

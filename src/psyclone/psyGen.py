@@ -3044,14 +3044,10 @@ class Kern(Call):
 
         '''
         import os
-        from fparser.two.Fortran2003 import walk_ast
-        from fparser.two import Fortran2003
         from psyclone.line_length import FortLineLength
 
-        orig_mod_name = self.module_name[:]
-        orig_kern_name = self.name[:]
-
         # Remove any "_mod" if the file follows the PSyclone naming convention
+        orig_mod_name = self.module_name[:]
         if orig_mod_name.endswith("_mod"):
             old_base_name = orig_mod_name[:-4]
         else:
@@ -3074,7 +3070,7 @@ class Kern(Call):
                 fdesc = os.open(
                     os.path.join(_CONFIG.kernel_output_dir, new_name),
                     os.O_CREAT | os.O_WRONLY | os.O_EXCL)
-            except FileExistsError:
+            except (OSError, IOError):
                 # The os.O_CREATE and os.O_EXCL flags in combination mean
                 # that open() raises an error if the file exists
                 if _CONFIG.kernel_naming == "single":
@@ -3083,17 +3079,66 @@ class Kern(Call):
                     break
                 continue
 
-        # Use the suffix we have determined to create a new kernel name.
-        # This will conform to the PSyclone convention of ending in "_code"
-        new_kern_name = self._new_name(orig_kern_name, new_suffix, "_code")
-        new_mod_name = self._new_name(orig_mod_name, new_suffix, "_mod")
+        # Use the suffix we have determined to rename all relevant quantities
+        # within the AST of the kernel code
+        self._rename_ast(new_suffix)
+
+        # Generate the Fortran for this transformed kernel, ensuring that
+        # we limit the line lengths
+        fll = FortLineLength()
+        new_kern_code = fll.process(str(self.ast))
 
         if not fdesc:
             # If we've not got a file descriptor at this point then that's
             # because the file already exists and the kernel-naming scheme
-            # ("single") means we're not creating a new one
-            self.modified = False
-            return new_mod_name, new_kern_name
+            # ("single") means we're not creating a new one.
+            # Check that what we've got is the same as what's in the file
+            with open(os.path.join(_CONFIG.kernel_output_dir,
+                                   new_name), "r") as ffile:
+                kern_code = ffile.read()
+                import pdb; pdb.set_trace()
+                if kern_code != new_kern_code:
+                    raise GenerationError(
+                        "A transformed version of this Kernel '{0}' already "
+                        "exists in the kernel-output directory ({1}) but is "
+                        "not the same as the current, transformed kernel and "
+                        "the kernel-renaming scheme is set to '{2}'. (If you "
+                        "wish to generate a new, unique kernel for every "
+                        "kernel that is transformed then use "
+                        "'--kernel-renaming unique'.)".
+                        format(self._module_name+".f90",
+                               _CONFIG.kernel_output_dir,
+                               _CONFIG.kernel_naming))
+        else:
+            # Write the modified AST out to file
+            os.write(fdesc, new_kern_code.encode())
+            # Close the new kernel file
+            os.close(fdesc)
+
+        # Kernel is now self-consistent so unset the modified flag
+        self.modified = False
+
+        return self._module_name, self.name
+
+    def _rename_ast(self, suffix):
+        '''
+        Renames all quantities (module, kernel routine, kernel derived type)
+        in the kernel AST by inserting the supplied suffix. The resulting
+        names follow the PSyclone naming convention (modules end with "_mod",
+        types with "_type" and kernels with "_code").
+
+        :param str suffix: the string to insert into the quantity names.
+        '''
+        from fparser.two.Fortran2003 import walk_ast
+        from fparser.two import Fortran2003
+
+        # Use the suffix we have determined to create a new kernel name.
+        # This will conform to the PSyclone convention of ending in "_code"
+        orig_mod_name = self.module_name[:]
+        orig_kern_name = self.name[:]
+
+        new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
+        new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
 
         # Query the fparser2 AST to determine the name of the type that
         # contains the kernel subroutine as a type-bound procedure
@@ -3112,8 +3157,7 @@ class Kern(Call):
 
                 # The new name for the type containing kernel metadata will
                 # conform to the PSyclone convention of ending in "_type"
-                new_type_name = self._new_name(orig_type_name, new_suffix,
-                                               "_type")
+                new_type_name = self._new_name(orig_type_name, suffix, "_type")
                 # Rename the derived type. We do this here rather than
                 # search for Type_Name in the AST again below. We loop over
                 # the list of type names so as to ensure we rename the type
@@ -3140,19 +3184,7 @@ class Kern(Call):
                 name.string = new_value[:]
             except KeyError:
                 # This is not one of the names we are looking for
-                pass
-
-        # Write the modified AST out to file making sure that we limit
-        # line lengths
-        fll = FortLineLength()
-        os.write(fdesc, fll.process(str(self.ast)).encode())
-        # Close the new kernel file
-        os.close(fdesc)
-
-        # Kernel is now self-consistent so unset the modified flag
-        self.modified = False
-
-        return new_mod_name, new_kern_name
+                continue
 
     @property
     def modified(self):
