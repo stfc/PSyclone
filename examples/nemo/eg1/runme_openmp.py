@@ -66,10 +66,8 @@ if __name__ == "__main__":
     omp_trans = trans_info.get_trans_name('OMPParallelLoopTrans')
 
     for loop in sched.loops():
-        kernel = loop.kernel
-        if kernel:
-            if loop.loop_type == "levels":
-                sched, _ = omp_trans.apply(loop)
+        if loop.kernel and loop.loop_type == "levels":
+            sched, _ = omp_trans.apply(loop)
 
     sched.view()
 

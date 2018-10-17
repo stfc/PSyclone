@@ -31,30 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author A. R. Porter, STFC Daresbury Lab
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
+This directory contains a source file, traldf_iso.F90, taken from the
+NEMO ocean model.  In addition to this code, there are two python
+scripts demonstrating the use of PSyclone to add OpenMP parallelism.
+Once you have installed PSyclone, the standalone script (runme_openmp.py) may
+be run by doing:
 
-Once you have PSyclone installed, this script may be used by doing:
+    $ ./runme_openmp.py
 
- >>> psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
+This will output PSyclone's Schedule view of the Fortran routine followed by
+the generated Fortran code with the OpenMP directives added.
 
-This should produce a lot of output, ending with generated
-Fortran.
-'''
+The second script, omp_levels_trans.py, is intended to be provided to
+PSyclone as an optimisation script:
 
-def trans(psy):
-    ''' Transform a specific Schedule by making all loops
-    over levels OpenMP parallel. '''
-    from psyclone.psyGen import PSyFactory, TransInfo
-    # Get the Schedule of the target routine
-    sched = psy.invokes.get('tra_ldf_iso').schedule
-    # Get the transformation we will apply
-    ompt = TransInfo().get_trans_name('OMPParallelLoopTrans')
-    # Apply it to each loop over levels containing a kernel
-    for loop in sched.loops():
-        if loop.kernel and loop.loop_type == "levels":
-            sched, _ = ompt.apply(loop)
-    psy.invokes.get('tra_ldf_iso').schedule = sched
+    $ psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
+
+Again, the generated Fortran will be written to stdout.

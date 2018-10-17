@@ -31,30 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author A. R. Porter, STFC Daresbury Lab
 
-'''A simple transformation script for the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
+This directory contains various examples of the use of PSyclone
+to transform source code from the NEMO ocean model. See the READMEs
+in the individual example directories for further details.
 
-Once you have PSyclone installed, this script may be used by doing:
+Example 1
+---------
 
- >>> psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
+Tracer advection benchmark routine (tra_adv), as provided by Silvia
+Mocavero of CMCC.
 
-This should produce a lot of output, ending with generated
-Fortran.
-'''
+Example 2
+---------
 
-def trans(psy):
-    ''' Transform a specific Schedule by making all loops
-    over levels OpenMP parallel. '''
-    from psyclone.psyGen import PSyFactory, TransInfo
-    # Get the Schedule of the target routine
-    sched = psy.invokes.get('tra_ldf_iso').schedule
-    # Get the transformation we will apply
-    ompt = TransInfo().get_trans_name('OMPParallelLoopTrans')
-    # Apply it to each loop over levels containing a kernel
-    for loop in sched.loops():
-        if loop.kernel and loop.loop_type == "levels":
-            sched, _ = ompt.apply(loop)
-    psy.invokes.get('tra_ldf_iso').schedule = sched
+Original NEMO subroutine computing the horizontal component of the lateral
+tracer mixing trend (traldf_iso).
