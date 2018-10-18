@@ -47,7 +47,16 @@ Fortran.
 
 def trans(psy):
     ''' Transform a specific Schedule by making all loops
-    over levels OpenMP parallel. '''
+    over levels OpenMP parallel.
+
+    :param psy: the object holding all information on the PSy layer \
+                to be modified.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+
+    :returns: the transformed PSy object
+    :rtype:  :py:class:`psyclone.psyGen.PSy`
+
+    '''
     from psyclone.psyGen import PSyFactory, TransInfo
     # Get the Schedule of the target routine
     sched = psy.invokes.get('tra_ldf_iso').schedule
@@ -58,3 +67,5 @@ def trans(psy):
         if loop.kernel and loop.loop_type == "levels":
             sched, _ = ompt.apply(loop)
     psy.invokes.get('tra_ldf_iso').schedule = sched
+    # Return the modified psy object
+    return psy
