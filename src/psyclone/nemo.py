@@ -96,8 +96,21 @@ class ASTProcessor(object):
     # parent information (fparser/#102).
     def process_nodes(self, parent, nodes, nodes_parent):
         '''
-        Create the PSyclone AST representation of the code represented
-        by the supplied list of nodes in the fparser2 AST.
+        Create the PSyclone IR of the supplied list of nodes in the
+        fparser2 AST. Currently also inserts parent information back
+        into the fparser2 AST. This is a workaround until fparser2
+        itself generates and stores this information.
+
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param nodes: List of sibling nodes in fparser2 AST.
+        :type nodes: list of :py:class:`fparser.two.utils.Base` or \
+                     :py:class:`fparser.two.utils.BlockBase`
+        :param nodes_parent: the parent of the supplied list of nodes in \
+                             the fparser2 AST.
+        :type nodes_parent: :py:class:`fparser.two.utils.Base` or \
+                            :py:class:`fparser.two.utils.BlockBase`
+
         '''
         code_block_nodes = []
         for child in nodes:
