@@ -979,34 +979,6 @@ class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
         return OMPParallelLoopTrans.apply(self, node)
 
 
-class NemoOMPParallelLoopTrans(OMPParallelLoopTrans):
-
-    ''' NEMO-specific OpenMP loop transformation. Adds NEMO specific
-        validity checks. Actual transformation is done by the
-        :py:class:`base class <OMPParallelLoopTrans>`.
-
-    '''
-
-    @property
-    def name(self):
-        ''' Returns the name of this transformation as a string '''
-        return "NemoOMPParallelLoopTrans"
-
-    def __str__(self):
-        return "Add an OpenMP Parallel Do directive to a NEMO loop"
-
-    def apply(self, node):
-
-        ''' Perform NEMO specific loop validity checks then call the
-        :py:meth:`~OMPParallelLoopTrans.apply` method of the
-        :py:class:`base class <OMPParallelLoopTrans>`. '''
-        from fparser.two import Fortran2003
-        from fparser.common.readfortran import FortranStringReader
-        OMPParallelLoopTrans._validate(self, node)
-
-        return OMPParallelLoopTrans.apply(self, node)
-
-
 class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
 
     ''' Dynamo 0.3 specific orphan OpenMP loop transformation. Adds

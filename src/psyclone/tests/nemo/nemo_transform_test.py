@@ -57,8 +57,7 @@ def test_explicit_gen():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('explicit_do').schedule
-    tinfo = TransInfo()
-    omp_trans = tinfo.get_trans_name('NemoOMPParallelLoopTrans')
+    omp_trans = TransInfo().get_trans_name('OMPParallelLoopTrans')
 
     for loop in schedule.loops():
         kernel = loop.kernel
