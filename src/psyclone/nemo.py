@@ -69,10 +69,12 @@ class ASTProcessor(object):
     Mixin class to provide functionality for processing the fparser2 AST.
     '''
     @staticmethod
-    def add_code_block(parent, statements):
+    def nodes_to_code_block(parent, statements):
         '''
         Create a NemoCodeBlock for the supplied list of statements
-        and then wipe the list of statements.
+        and then wipe the list of statements. A NemoCodeBlock is a node
+        in the PSyIRe (Schedule) that represents a sequence of one or more
+        Fortran statements which PSyclone does not attempt to handle.
 
         :param parent: Node in the PSyclone AST to which to add this code \
                        block.
@@ -106,15 +108,15 @@ class ASTProcessor(object):
                           Fortran2003.Block_Nonlabel_Do_Construct):
                 # The start of a loop is taken as the end of any
                 # existing code block so we create that now
-                self.add_code_block(parent, code_block_nodes)
+                self.nodes_to_code_block(parent, code_block_nodes)
                 parent.addchild(NemoLoop(child, parent=parent))
             elif NemoImplicitLoop.match(child):
                 # An implicit loop marks the end of any current
                 # code block
-                self.add_code_block(parent, code_block_nodes)
+                self.nodes_to_code_block(parent, code_block_nodes)
                 parent.addchild(NemoImplicitLoop(child, parent=parent))
             elif NemoIfBlock.match(child):
-                self.add_code_block(parent, code_block_nodes)
+                self.nodes_to_code_block(parent, code_block_nodes)
                 parent.addchild(NemoIfBlock(child, parent=parent))
             elif not isinstance(child, (Fortran2003.End_Do_Stmt,
                                         Fortran2003.Nonlabel_Do_Stmt)):
@@ -122,7 +124,7 @@ class ASTProcessor(object):
                 code_block_nodes.append(child)
 
         # Complete any unfinished code-block
-        self.add_code_block(parent, code_block_nodes)
+        self.nodes_to_code_block(parent, code_block_nodes)
 
 
 class NemoInvoke(Invoke):
