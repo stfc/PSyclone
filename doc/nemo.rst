@@ -49,6 +49,8 @@ scratch (as is done for other APIs), the Schedule is constructed by
 parsing the supplied Fortran code and generating a higher-level
 representation.
 
+.. note:: the NEMO API is currently only a prototype. The known issues are listed in :ref:`limitations`.
+
 Algorithm
 ---------
 
@@ -156,3 +158,20 @@ internal representation of it::
              Loop[type='lat',field_space='None',it_space='None']
                  Loop[type='lon',field_space='None',it_space='None']
                      KernCall[]
+
+.. _limitations:
+
+Limitations
+-----------
+
+The NEMO API is currently only a prototype implementation. Here
+we list the current, known limitations/issues:
+
+ 1. When converting implicit loops into explicit loops, the
+    declaration of the loop variables is repeated (there is an
+    x-failing test for this);
+ 2. Scalar variables inside loops are not made private when
+    parallelising using OpenMP;
+ 3. All recognised loops (levels, latitude etc.) are assumed to be
+    parallelisable. This will not always be the case (e.g. tridiagonal
+    solve has a loop-carried dependence in the vertical).
