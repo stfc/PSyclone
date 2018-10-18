@@ -228,8 +228,11 @@ def main(args):
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
     parser.add_argument(
         '-opsy', help='filename of generated PSy code')
-    parser.add_argument('-api', help='choose a particular api from {0}.'
-                        .format(str(Config.get().supported_apis)))
+    parser.add_argument('-api',
+                        help='choose a particular api from {0}, '
+                             'default \'{1}\'.'
+                        .format(str(Config.get().supported_apis),
+                                Config.get().default_api))
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -288,15 +291,21 @@ def main(args):
     # and config will load the default config file.
     Config.get().load(args.config)
 
-    # Check API, if none is specified, take the default from the config file
+    # Check API, if none is specified, take the setting from the config file
     if args.api is None:
-        api = Config.get().default_api
+        # No command line option, use the one specified in Config - which
+        # is either based on a parameter in the config file, or otherwise
+        # the default:
+        api = Config.get().api
     elif args.api not in Config.get().supported_apis:
         print("Unsupported API '{0}' specified. Supported API's are "
               "{1}.".format(args.api, Config.get().supported_apis))
         exit(1)
     else:
+        # There is a valid API specified on the command line. Set it
+        # as API in the config object as well.
         api = args.api
+        Config.get().api = api
 
     try:
         alg, psy = generate(args.filename, api=api,

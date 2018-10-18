@@ -79,6 +79,8 @@ class Config(object):
                            "gocean0.1", "gocean1.0"]
     _supported_stub_api_list = ["dynamo0.3"]
 
+    _default_api = u"dynamo0.3"
+
     @staticmethod
     def get(do_not_load_file=False):
         '''Static function that if necessary creates and returns the singleton
@@ -113,7 +115,7 @@ class Config(object):
         self._api_conf = None
         self._config = None
         self._config_file = None
-        self._default_api = None
+        self._api = None
         self._default_stub_api = None
         self._distributed_mem = None
         self._reproducible_reductions = None
@@ -171,35 +173,32 @@ class Config(object):
                 "error while parsing DISTRIBUTED_MEMORY: {0}".
                 format(str(err)), config=self)
 
-        # Default API for psyclone
-        if "DEFAULTAPI" in self._config["DEFAULT"]:
-            self._default_api = self._config['DEFAULT']['DEFAULTAPI']
+        # API for psyclone
+        if "API" in self._config["DEFAULT"]:
+            self._api = self._config['DEFAULT']['API']
         else:
+            self._api = Config._default_api
             # Test if we have exactly one section (besides DEFAULT).
-            # If so, make this section the default API
+            # If so, make this section the API (otherwise stick with
+            # the default API)
             if len(self._config) == 2:
                 for section in self._config:
-                    self._default_api = section.lower()
-                    if self._default_api != "default":
+                    self._api = section.lower()
+                    if self._api != "default":
                         break
-            else:
-                raise ConfigurationError("No DEFAULTAPI specified and config "
-                                         "file contains more than one API "
-                                         "section.",
-                                         config=self)
 
         # Sanity check
-        if self._default_api not in Config._supported_api_list:
+        if self._api not in Config._supported_api_list:
             raise ConfigurationError(
-                "The default API ({0}) is not in the list of supported "
-                "APIs ({1}).".format(self._default_api,
+                "The API ({0}) is not in the list of supported "
+                "APIs ({1}).".format(self._api,
                                      Config._supported_api_list),
                 config=self)
 
         # Default API for stub-generator
         if 'defaultstubapi' not in self._config['DEFAULT']:
             # Use the default API if no default is specified for stub API
-            self._default_stub_api = self._default_api
+            self._default_stub_api = Config._default_api
         else:
             self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
 
@@ -351,6 +350,23 @@ class Config(object):
         :rtype: str
         '''
         return self._default_api
+
+    @property
+    def api(self):
+        '''Getter for the API selected by the user.
+
+        :returns: The name of the selected API.
+        :rtype: str
+        '''
+        return self._api
+
+    @api.setter
+    def api(self, api):
+        '''Setter for the API selected by the user.
+
+        :param str api: The name of the API to use.
+        '''
+        self._api = api
 
     @property
     def supported_apis(self):
