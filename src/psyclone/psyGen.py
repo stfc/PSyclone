@@ -1956,15 +1956,13 @@ class OMPParallelDirective(OMPDirective):
             ",".join(self._get_private_list()))
         startdir = Comment(FortranStringReader(text,
                                                ignore_comments=False))
-
         # Create the end directive and insert it after the node in
         # the AST representing our last child
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
-        if end_idx == len(self._parent._ast.content) - 1:
-            self._parent._ast.content.append(enddir)
-        else:
-            self._parent._ast.content.insert(end_idx+1, enddir)
+        # If end_idx+1 takes us beyond the range of the list then the
+        # element is appended to the list
+        self._parent._ast.content.insert(end_idx+1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
