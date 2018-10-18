@@ -63,16 +63,13 @@ if __name__ == "__main__":
     sched = psy.invokes.get('tra_ldf_iso').schedule
     sched.view()
 
-    TRANS_INFO = TransInfo()
-    print(TRANS_INFO.list)
-    FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
-    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
+    trans_info = TransInfo()
+    print(trans_info.list)
+    omp_trans = trans_info.get_trans_name('OMPParallelLoopTrans')
 
     for loop in sched.loops():
-        kernel = loop.kernel
-        if kernel:
-            if loop.loop_type == "levels":
-                sched, _ = OMP_TRANS.apply(loop)
+        if loop.kernel and loop.loop_type == "levels":
+            sched, _ = omp_trans.apply(loop)
 
     sched.view()
 
