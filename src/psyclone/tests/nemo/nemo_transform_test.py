@@ -150,8 +150,8 @@ def test_omp_parallel_multi():
 
 
 def test_omp_parallel_errs():
-    ''' Check insertion of an OpenMP parallel region containing more than
-    one node. '''
+    ''' Check that we raise the expected errors when incorrectly attempting
+    to add an OpenMP parallel region containing more than one node. '''
     from psyclone.transformations import OMPParallelTrans
     otrans = OMPParallelTrans()
     _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),

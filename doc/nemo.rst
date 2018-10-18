@@ -175,4 +175,6 @@ we list the current, known limitations/issues:
  3. All recognised loops (levels, latitude etc.) are assumed to be
     parallelisable. This will not always be the case (e.g. tridiagonal
     solve has a loop-carried dependence in the vertical);
- 4. Loops/kernels within CASE statements are not found.
+ 4. Loops/kernels within CASE statements are not found;
+ 5. Labelled do-loops are not handled (i.e. they will probably end up
+    being put inside a code block).
