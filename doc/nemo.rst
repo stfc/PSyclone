@@ -174,4 +174,5 @@ we list the current, known limitations/issues:
     parallelising using OpenMP;
  3. All recognised loops (levels, latitude etc.) are assumed to be
     parallelisable. This will not always be the case (e.g. tridiagonal
-    solve has a loop-carried dependence in the vertical).
+    solve has a loop-carried dependence in the vertical);
+ 4. Loops/kernels within CASE statements are not found.
