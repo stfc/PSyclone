@@ -55,6 +55,68 @@ Algorithm
 Since NEMO source is treated as a pre-existing PSy layer, this API
 does not have the concept of an Algorithm layer.
 
+Constructing the PSyIRe
+-----------------------
+
+Transformations in PSyclone are applied to an Internal Representation,
+the "PSyIRe." In contrast to the other APIs where the PSyIRe is
+constructed from scratch, for NEMO PSyclone must parse the existing
+Fortran and create a higher-level representation of it. This is done
+using rules based upon the NEMO Coding Conventions :cite:`nemo_code_conv`.
+These rules are described in the following sections.
+
+Loops
++++++
+
+Explicit
+^^^^^^^^
+
+PSyclone recognises the following loop types, based on the name of the loop
+variable:
+
+===============  =============
+Loop type        Loop variable
+===============  =============
+Vertical levels  jk
+Latitude         ji
+Longitude        jj
+Tracer species   jn
+===============  =============
+
+PSyclone currently assumes that each of these loop types may be safely
+parallelised. In practice this will not always be the case (e.g. when
+performing a tri-diagonal solve) and this implementation will need to
+be refined.
+
+Implicit
+^^^^^^^^
+
+The use of Fortran array notation is encouraged in the NEMO Coding
+Conventions and is employed throughout the NEMO code base. PSyclone
+therefore also recognises the loops implied by this notation. The type
+of loop is inferred from the position of the colon in the array
+subscripts. Since NEMO uses `(ji,jj,jk)` index ordering (longitude,
+latitude, levels) this means that loop types are determined
+according to the following table:
+
+===========  ===============  ===========
+Array index  Loop type        Loop limits
+===========  ===============  ===========
+1            Longitude        1, jpi
+2            Latitude         1, jpj
+3            Vertical levels  1, jpk
+===========  ===============  ===========
+
+Currently PSyclone will convert every implicit loop it encounters in
+one of these dimensions into an explicit loop over the full
+sub-domain. This is because it has been found by CMCC and Intel that
+the Intel compiler is better able to OpenMP-parallelise explicit loops.
+However, as with all compiler-specific optimisations, this situation
+may change and will depend on the compiler being used.
+
+If an implicit loop is encountered in an array index other than 1-3 then
+currently PSyclone will raise an error.
+
 Example
 -------
 
