@@ -533,7 +533,7 @@ def test_main_api():
     Config._instance = None
     Config.get()
 
-    assert Config.get().api == Config.default_api
+    assert Config.get().api == Config.get().default_api
 
     # 2) Check that a command line option will overwrite the default
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
