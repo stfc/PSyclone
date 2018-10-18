@@ -911,9 +911,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     if api == "nemo":
         # For this API we just parse the NEMO code and return the resulting
-        # fparser2 AST
+        # fparser2 AST with None for the Algorithm AST.
         ast = parse_fp2(alg_filename)
-        return ast, ast
+        return None, ast
 
     # Get the names of the supported Built-in operations for this API
     builtin_names, builtin_defs_file = get_builtin_defs(api)

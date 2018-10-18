@@ -51,7 +51,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_identify_implicit_loop():
     ''' Check that we correctly identify implicit loops in the fparser2 AST '''
     from fparser.two import Fortran2003
-    ast, _ = parse(os.path.join(BASE_PATH, "code_block.f90"),
+    _, ast = parse(os.path.join(BASE_PATH, "code_block.f90"),
                    api=API, line_length=False)
     assert not nemo.NemoImplicitLoop.match(ast)
     stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
