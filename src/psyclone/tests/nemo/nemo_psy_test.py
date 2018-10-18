@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -176,6 +176,15 @@ def test_codeblock():
     assert len(kerns) == 2
     # The last loop does not contain a kernel
     assert loops[-1].kernel is None
+
+
+def test_codeblock_gencode_error():
+    ''' Check that calling NemoCodeBlock.gen_code() results in an internal
+    error. '''
+    cblock = nemo.NemoCodeBlock([])
+    with pytest.raises(InternalError) as err:
+        cblock.gen_code()
+    assert "NemoCodeBlock.gen_code() should not be called" in str(err)
 
 
 def test_io_not_kernel():

@@ -153,7 +153,6 @@ class NemoInvoke(Invoke):
     def __init__(self, ast, name):
         self._schedule = None
         self._name = name
-        self._psy_unique_vars = ["a_variable"]
         # Store the whole fparser2 AST
         self._ast = ast
         self._name_space_manager = NameSpaceFactory().create()
@@ -246,11 +245,17 @@ class NemoInvokes(Invokes):
 
 
 class NemoPSy(PSy):
-    ''' The NEMO 0.1-specific PSy class. This creates a NEMO-specific
-        invokes object (which controls all the required invocation calls).
-        Also overrides the PSy gen method so that we generate GOcean-
-        specific PSy module code. '''
+    '''
+    The NEMO-specific PSy class. This creates a NEMO-specific
+    invokes object (which controls all the required invocation calls).
+    Also overrides the PSy gen() method so that we update and then
+    return the fparser2 AST for the (transformed) PSy layer.
 
+    :param ast: the fparser2 AST for this PSy layer (i.e. NEMO routine)
+    :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
+               :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
+               :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
+    '''
     def __init__(self, ast):
 
         self._name = "NEMO-PSY"  # TODO use a meaningful name
@@ -283,8 +288,7 @@ class NemoPSy(PSy):
 class NemoSchedule(Schedule, ASTProcessor):
     '''
     The NEMO-specific schedule class. This is the top-level node in
-    PSyclone's representation of a NEMO program unit (program,
-    subroutine etc).
+    PSyclone's IR of a NEMO program unit (program, subroutine etc).
 
     :param invoke: The Invoke to which this Schedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
@@ -293,8 +297,8 @@ class NemoSchedule(Schedule, ASTProcessor):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
-    '''
 
+    '''
     def __init__(self, invoke, ast):
         Node.__init__(self)
 
@@ -304,13 +308,17 @@ class NemoSchedule(Schedule, ASTProcessor):
 
 
     def view(self, indent=0):
-        ''' Print a representation of this NemoSchedule '''
+        '''
+        Print a representation of this NemoSchedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
         print(self.indent(indent) + self.coloured_text + "[]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        ''' Returns the string representation of this NemoSchedule '''
+        ''' Returns the string representation of this NemoSchedule. '''
         result = "NemoSchedule():\n"
         for entity in self._children:
             result += str(entity)+"\n"
@@ -319,28 +327,43 @@ class NemoSchedule(Schedule, ASTProcessor):
 
 
 class NemoCodeBlock(Node):
-    ''' Node representing some generic Fortran code that PSyclone
+    '''
+    Node representing some generic Fortran code that PSyclone
     does not attempt to manipulate. As such it is a leaf in the PSyclone
-    AST and therefore has no children. '''
+    IR and therefore has no children.
 
+    :param statements: list of fparser2 AST nodes representing the Fortran \
+                       code constituting the code block.
+    :type statements: list of :py:class:`fparser.two.utils.Base` or \
+                      :py:class:`fparser.two.utils.BlockBase` objects.
+    :param parent: the parent node of this code block in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
     def __init__(self, statements, parent=None):
         Node.__init__(self, parent=parent)
-        # Store a list of the parser objects holding the code
-        # associated with this block
+        # Store a list of the parser objects holding the code associated
+        # with this block. We make a copy of the contents of the list because
+        # the list itself is a temporary product of the process of converting
+        # from the fparser2 AST to the PSyIRe.
         self._statements = statements[:]
 
     @property
     def coloured_text(self):
         '''
         Return the name of this node type with control codes for
-        terminal colouring
-        :return: Name of node + control chars for colour
-        :rtype: string
+        terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
         '''
         return colored("NemoCodeBlock", NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"])
 
     def view(self, indent=0):
-        ''' Print a representation of this node in the schedule. '''
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
         print(self.indent(indent) + self.coloured_text + "[" +
               str(type(self._statements[0])) + "]")
 
@@ -348,7 +371,13 @@ class NemoCodeBlock(Node):
         return "CodeBlock[{0} statements]".format(len(self._statements))
 
     def gen_code(self):
-        ''' Override abstract method from base class. '''
+        '''
+        Override abstract method from base class.
+
+        :raises InternalError: because it is not relevant to the NEMO API and \
+                               should never be called.
+        '''
+        raise InternalError("NemoCodeBlock.gen_code() should not be called.")
 
 
 class NemoKern(Kern):
