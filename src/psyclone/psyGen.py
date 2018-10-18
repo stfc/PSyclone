@@ -2339,6 +2339,7 @@ class Loop(Node):
         self._field_name = None       # name of the field
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
+        self._kern = None             # Kernel associated with this loop
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
@@ -2458,6 +2459,24 @@ class Loop(Node):
     @iteration_space.setter
     def iteration_space(self, it_space):
         self._iteration_space = it_space
+
+    @property
+    def kernel(self):
+        '''
+        :returns: the kernel object associated with this Loop (if any).
+        :rtype: :py:class:`psyclone.psyGen.Kern`
+        '''
+        return self._kern
+
+    @kernel.setter
+    def kernel(self, kern):
+        '''
+        Setter for kernel object associated with this loop.
+
+        :param kern: a kernel object.
+        :type kern: :py:class:`psyclone.psyGen.Kern`
+        '''
+        self._kern = kern
 
     def __str__(self):
         result = "Loop[" + self._id + "]: " + self._variable_name + "=" + \

@@ -283,11 +283,22 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         return "DynamoLoopFuse"
 
     def apply(self, node1, node2, same_space=False):
-        '''Fuse the two Dynamo loops represented by :py:obj:`node1` and
+        '''
+        Fuse the two Dynamo loops represented by :py:obj:`node1` and
         :py:obj:`node2`. The optional same_space flag asserts that an
         unknown iteration space (i.e. any_space) matches the other
-        iteration space. This is set at the users own risk. '''
+        iteration space. This is set at the users own risk.
 
+        :param node1: First Loop to fuse.
+        :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :param node2: Second Loop to fuse.
+        :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :returns: two-tuple of modified schedule and Memento
+        :rtype: :py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`
+        :raises TransformationError: if either of the supplied loops contains \
+                                     an inter-grid kernel.
+        '''
         LoopFuseTrans._validate(self, node1, node2)
 
         # Check that we don't have an inter-grid kernel
@@ -1120,8 +1131,10 @@ class ColourTrans(Transformation):
         # can be run in parallel
         colour_loop = node.__class__(parent=colours_loop, loop_type="colour")
         colour_loop.field_space = node.field_space
+        colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
         colour_loop.set_lower_bound("start")
+        colour_loop.kernel = node.kernel
 
         if Config.get().distributed_memory:
             index = node.upper_bound_halo_depth
@@ -1268,6 +1281,13 @@ class Dynamo0p3ColourTrans(ColourTrans):
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
 
+        :param node: the loop to transform.
+        :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
+
+        :returns: 2-tuple of new schedule and memento of transform
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
         '''
         # check node is a loop
         from psyclone.psyGen import Loop
@@ -1280,9 +1300,6 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError(
                 "Error in DynamoColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
-
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node)
 
         # Colouring is only necessary (and permitted) if the loop is
         # over cells. Since this is the default it is represented by

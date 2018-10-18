@@ -42,8 +42,9 @@
     Loop, Kern, Inf, Arguments and Argument). '''
 
 # Imports
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import os
+from collections import OrderedDict
 import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
@@ -51,8 +52,8 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
-from collections import OrderedDict
+    InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
+    FORTRAN_INTENT_NAMES
 
 # First section : Parser specialisations and classes
 
@@ -1837,33 +1838,39 @@ class DynInvokeCMAOperators(object):
 
 
 class DynMeshes(object):
-    '''
-    Holds all mesh-related information. If there are no inter-grid
-    kernels then there is only one mesh object required (when doing
-    distributed memory). However, kernels performing inter-grid
-    operations require multiple mesh objects as well as mesh maps and
-    other quantities.
+    '''Holds all mesh-related information (including colour maps if
+    required).  If there are no inter-grid kernels then there is only
+    one mesh object required (when colouring or doing distributed memory).
+    However, kernels performing inter-grid operations require multiple mesh
+    objects as well as mesh maps and other quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
     where a field on a coarse mesh is mapped onto a fine mesh. The second
     is "restriction" where a field on a fine mesh is mapped onto a coarse
     mesh.
 
+    :param schedule: the schedule of the Invoke for which to extract \
+                     information on all required inter-grid operations.
+    :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+    :param unique_psy_vars: list of arguments to the PSy-layer routine.
+    :type unique_psy_vars: list of \
+                      :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects.
     '''
 
     def __init__(self, schedule, unique_psy_vars):
-        '''
-        :param schedule: the schedule of the Invoke for which to extract \
-                         information on all required inter-grid operations
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
-        :param unique_psy_vars: list of arguments to the PSy-layer routine
-        :type unique_psy_vars: list of \
-                   :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects
-        '''
         self._name_space_manager = NameSpaceFactory().create()
-
-        self._kern_calls = []
+        # Dict of DynInterGrid objects holding information on the mesh-related
+        # variables required by each inter-grid kernel. Keys are the kernel
+        # names.
+        self._ig_kernels = OrderedDict()
+        # List of names of unique mesh variables referenced in the Invoke
         self._mesh_names = []
+        # Whether or not the associated Invoke requires colourmap information
+        self._needs_colourmap = False
+        # Keep a reference to the Schedule so we can check for colouring
+        # later
+        self._schedule = schedule
+
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -1894,37 +1901,9 @@ class DynMeshes(object):
             fine_arg = fine_args[0]
             coarse_arg = coarse_args[0]
 
-            # Generate name for inter-mesh map
-            base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
-                                                   coarse_arg.name)
-            mmap = self._name_space_manager.create_name(
-                root_name=base_mmap_name,
-                context="PSyVars",
-                label=base_mmap_name)
-
-            # Generate name for ncell variables
-            ncell_fine = self._name_space_manager.create_name(
-                root_name="ncell_{0}".format(fine_arg.name),
-                context="PSyVars",
-                label="ncell_{0}".format(fine_arg.name))
-            ncellpercell = self._name_space_manager.create_name(
-                root_name="ncpc_{0}_{1}".format(fine_arg.name,
-                                                coarse_arg.name),
-                context="PSyVars",
-                label="ncpc_{0}_{1}".format(fine_arg.name,
-                                            coarse_arg.name))
-            # Name for cell map
-            base_name = "cell_map_" + coarse_arg.name
-            cell_map = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
-
-            # Store this information in our list of dicts
-            self._kern_calls.append({"fine": fine_arg,
-                                     "ncell_fine": ncell_fine,
-                                     "coarse": coarse_arg,
-                                     "mmap": mmap,
-                                     "ncperc": ncellpercell,
-                                     "cellmap": cell_map})
+            # Create an object to capture info. on this inter-grid kernel
+            # and store in our dictionary
+            self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
             _name_set.add(
@@ -1940,7 +1919,7 @@ class DynMeshes(object):
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
-        if non_intergrid_kernels and self._kern_calls:
+        if non_intergrid_kernels and self._ig_kernels:
             raise GenerationError(
                 "An invoke containing inter-grid kernels must contain no "
                 "other kernel types but kernels '{0}' in invoke '{1}' are "
@@ -1949,29 +1928,70 @@ class DynMeshes(object):
                     schedule.invoke.name))
 
         # If we didn't have any inter-grid kernels but distributed memory
-        # is enabled then we will still need a mesh object
+        # is enabled then we will still need a mesh object. (Colourmaps also
+        # require a mesh object but that is handled in _colourmap_init().)
         if not _name_set and Config.get().distributed_memory:
-            mesh_name = "mesh"
-            _name_set.add(
-                self._name_space_manager.create_name(
-                    root_name=mesh_name, context="PSyVars", label=mesh_name))
+            _name_set.add(self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh"))
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
 
+    def _colourmap_init(self):
+        '''
+        Sets-up information on any required colourmaps. This cannot be done
+        in the constructor since colouring is applied by Transformations
+        and happens after the Schedule has already been constructed.
+        '''
+        for call in [call for call in self._schedule.kern_calls() if
+                     call.is_coloured()]:
+            # Keep a record of whether or not any kernels (loops) in this
+            # invoke have been coloured
+            self._needs_colourmap = True
+
+            if call.is_intergrid:
+                # This is an inter-grid kernel so look-up the names of
+                # the colourmap variables associated with the coarse
+                # mesh (since that determines the iteration space).
+                carg_name = self._ig_kernels[call.name].coarse.name
+                # Colour map
+                base_name = "cmap_" + carg_name
+                colour_map = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # No. of colours
+                base_name = "ncolour_" + carg_name
+                ncolours = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # Add these names into the dictionary entry for this
+                # inter-grid kernel
+                self._ig_kernels[call.name].colourmap = colour_map
+                self._ig_kernels[call.name].ncolours_var = ncolours
+
+        if not self._mesh_names and self._needs_colourmap:
+            # There aren't any inter-grid kernels but we do need colourmap
+            # information and that means we'll need a mesh object
+            mesh_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            self._mesh_names.append(mesh_name)
+
     def declarations(self, parent):
         '''
-        Declare variables specific to inter-grid kernels
+        Declare variables specific to mesh objects.
 
         :param parent: the parent node to which to add the declarations
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+
+        # Since we're now generating code, any transformations must
+        # have been applied so we can set-up colourmap information
+        self._colourmap_init()
+
         # We'll need various typedefs from the mesh module
         if self._mesh_names:
             parent.add(UseGen(parent, name="mesh_mod", only=True,
                               funcnames=["mesh_type"]))
-        if self._kern_calls:
+        if self._ig_kernels:
             parent.add(UseGen(parent, name="mesh_map_mod", only=True,
                               funcnames=["mesh_map_type"]))
         # Declare the mesh object(s)
@@ -1979,19 +1999,43 @@ class DynMeshes(object):
             parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
                                    entity_decls=[name + " => null()"]))
         # Declare the inter-mesh map(s) and cell map(s)
-        for kern in self._kern_calls:
+        for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype="mesh_map_type",
-                                   entity_decls=[kern["mmap"] + " => null()"]))
+                                   entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
-                        entity_decls=[kern["cellmap"] + "(:,:) => null()"]))
+                        entity_decls=[kern.cell_map + "(:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[kern["ncell_fine"],
-                                             kern["ncperc"]]))
+                               entity_decls=[kern.ncell_fine,
+                                             kern.ncellpercell]))
+            # Declare variables to hold the colourmap information if required
+            if kern.colourmap:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   pointer=True,
+                                   entity_decls=[kern.colourmap+"(:,:)"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=[kern.ncolours_var]))
+
+        if not self._ig_kernels and self._needs_colourmap:
+            # There aren't any inter-grid kernels but we do need
+            # colourmap information
+            base_name = "cmap"
+            colour_map = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            # No. of colours
+            base_name = "ncolour"
+            ncolours = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            # Add declarations for these variables
+            parent.add(DeclGen(parent, datatype="integer",
+                               pointer=True,
+                               entity_decls=[colour_map+"(:,:)"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[ncolours]))
 
     def initialise(self, parent):
         '''
@@ -2011,12 +2055,30 @@ class DynMeshes(object):
 
         if len(self._mesh_names) == 1:
             # We only require one mesh object which means that this invoke
-            # contains no inter-grid kernels
+            # contains no inter-grid kernels (which would require at least 2)
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
             rhs = self._first_var.name_indexed + "%get_mesh()"
             parent.add(AssignGen(parent, pointer=True,
                                  lhs=self._mesh_names[0], rhs=rhs))
+            if self._needs_colourmap:
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent, " Get the colourmap"))
+                parent.add(CommentGen(parent, ""))
+                # Look-up variable names for colourmap and number of colours
+                colour_map = self._name_space_manager.create_name(
+                    root_name="cmap", context="PSyVars", label="cmap")
+                ncolour = self._name_space_manager.create_name(
+                    root_name="ncolour", context="PSyVars",
+                    label="ncolour")
+                # Get the number of colours
+                parent.add(AssignGen(
+                    parent, lhs=ncolour,
+                    rhs="{0}%get_ncolours()".format(self._mesh_names[0])))
+                # Get the colour map
+                parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
+                                     rhs=self._mesh_names[0] +
+                                     "%get_colour_map()"))
             return
 
         parent.add(CommentGen(
@@ -2028,69 +2090,135 @@ class DynMeshes(object):
         # that we don't generate duplicate assignments
         initialised = []
 
-        for kern in self._kern_calls:
+        # Loop over the DynInterGrid objects in our dictionary
+        for dig in self._ig_kernels.values():
             # We need pointers to both the coarse and the fine mesh
             fine_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern["fine"].name),
+                root_name="mesh_{0}".format(dig.fine.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern["fine"].name))
+                label="mesh_{0}".format(dig.fine.name))
             coarse_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern["coarse"].name),
+                root_name="mesh_{0}".format(dig.coarse.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern["coarse"].name))
+                label="mesh_{0}".format(dig.coarse.name))
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=fine_mesh,
-                              rhs=kern["fine"].name_indexed + "%get_mesh()"))
+                              rhs=dig.fine.name_indexed + "%get_mesh()"))
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=coarse_mesh,
-                              rhs=kern["coarse"].name_indexed + "%get_mesh()"))
+                              rhs=dig.coarse.name_indexed + "%get_mesh()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
-            if kern["mmap"] not in initialised:
-                initialised.append(kern["mmap"])
+            if dig.mmap not in initialised:
+                initialised.append(dig.mmap)
                 parent.add(
                     AssignGen(parent, pointer=True,
-                              lhs=kern["mmap"],
+                              lhs=dig.mmap,
                               rhs="{0}%get_mesh_map({1})".format(coarse_mesh,
                                                                  fine_mesh)))
 
             # Cell map. This is obtained from the mesh map.
-            if kern["cellmap"] not in initialised:
-                initialised.append(kern["cellmap"])
+            if dig.cell_map not in initialised:
+                initialised.append(dig.cell_map)
                 parent.add(
-                    AssignGen(parent, pointer=True, lhs=kern["cellmap"],
-                              rhs=kern["mmap"]+"%get_whole_cell_map()"))
+                    AssignGen(parent, pointer=True, lhs=dig.cell_map,
+                              rhs=dig.mmap+"%get_whole_cell_map()"))
 
             # Number of cells in the fine mesh
-            if kern["ncell_fine"] not in initialised:
-                initialised.append(kern["ncell_fine"])
+            if dig.ncell_fine not in initialised:
+                initialised.append(dig.ncell_fine)
                 if Config.get().distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
                     parent.add(
-                        AssignGen(parent, lhs=kern["ncell_fine"],
+                        AssignGen(parent, lhs=dig.ncell_fine,
                                   rhs=(fine_mesh+"%get_last_halo_cell"
                                        "(depth=2)")))
                 else:
                     parent.add(
-                        AssignGen(parent, lhs=kern["ncell_fine"],
-                                  rhs="%".join([kern["fine"].proxy_name,
-                                                kern["fine"].ref_name(),
+                        AssignGen(parent, lhs=dig.ncell_fine,
+                                  rhs="%".join([dig.fine.proxy_name,
+                                                dig.fine.ref_name(),
                                                 "get_ncell()"])))
 
             # Number of fine cells per coarse cell.
-            if kern["ncperc"] not in initialised:
-                initialised.append(kern["ncperc"])
+            if dig.ncellpercell not in initialised:
+                initialised.append(dig.ncellpercell)
                 parent.add(
-                    AssignGen(parent, lhs=kern["ncperc"],
-                              rhs=kern["mmap"] +
+                    AssignGen(parent, lhs=dig.ncellpercell,
+                              rhs=dig.mmap +
                               "%get_ntarget_cells_per_source_cell()"))
+
+            # Colour map for the coarse mesh (if required)
+            if dig.colourmap:
+                # Number of colours
+                parent.add(AssignGen(parent, lhs=dig.ncolours_var,
+                                     rhs=coarse_mesh + "%get_ncolours()"))
+                # Colour map itself
+                parent.add(AssignGen(parent, lhs=dig.colourmap,
+                                     pointer=True,
+                                     rhs=coarse_mesh + "%get_colour_map()"))
+
+    @property
+    def intergrid_kernels(self):
+        ''' Getter for the dictionary of intergrid kernels.
+
+        :returns: Dictionary of intergrid kernels, indexed by name.
+        :rtype: :py:class:`collections.OrderedDict`
+        '''
+        return self._ig_kernels
+
+
+class DynInterGrid(object):
+    '''
+    Holds information on quantities required by an inter-grid kernel.
+
+    :param fine_arg: Kernel argument on the fine mesh.
+    :type fine_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param coarse_arg: Kernel argument on the coarse mesh.
+    :type coarse_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    '''
+    def __init__(self, fine_arg, coarse_arg):
+        self._name_space_manager = NameSpaceFactory().create()
+
+        # Arguments on the coarse and fine grids
+        self.coarse = coarse_arg
+        self.fine = fine_arg
+
+        # Generate name for inter-mesh map
+        base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
+                                               coarse_arg.name)
+        self.mmap = self._name_space_manager.create_name(
+            root_name=base_mmap_name,
+            context="PSyVars",
+            label=base_mmap_name)
+
+        # Generate name for ncell variables
+        self.ncell_fine = self._name_space_manager.create_name(
+            root_name="ncell_{0}".format(fine_arg.name),
+            context="PSyVars",
+            label="ncell_{0}".format(fine_arg.name))
+        # No. of fine cells per coarse cell
+        self.ncellpercell = self._name_space_manager.create_name(
+            root_name="ncpc_{0}_{1}".format(fine_arg.name,
+                                            coarse_arg.name),
+            context="PSyVars",
+            label="ncpc_{0}_{1}".format(fine_arg.name,
+                                        coarse_arg.name))
+        # Name for cell map
+        base_name = "cell_map_" + coarse_arg.name
+        self.cell_map = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
+        # We have no colourmap information when first created
+        self.colourmap = ""
+        # Name of the variable holding the number of colours
+        self.ncolours_var = ""
 
 
 class DynInvokeBasisFns(object):
@@ -3066,26 +3194,6 @@ class DynInvoke(Invoke):
         # Initialise basis and/or differential-basis functions
         self.evaluators.initialise_basis_fns(invoke_sub)
 
-        if self.is_coloured():
-            # Declare the colour map
-            declns = ["cmap(:,:)"]
-            if not Config.get().distributed_memory:
-                # Declare the array holding the no. of cells of each
-                # colour. For distributed memory this variable is not
-                # used, as a function is called to determine the upper
-                # bound in a loop
-                declns.append("ncp_colour(:)")
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   pointer=True,
-                                   entity_decls=declns))
-            if not Config.get().distributed_memory:
-                # Declaration of variable to hold the number of
-                # colours. For distributed memory this variable is not
-                # used, as a function is called to determine loop
-                # colour information
-                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                       entity_decls=["ncolour"]))
-
         # add calls to compute the values of any basis arrays
         self.evaluators.compute_basis_fns(invoke_sub)
 
@@ -3942,7 +4050,6 @@ class DynLoop(Loop):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
-        self._kern = None
 
         # Get the namespace manager instance so we can look-up
         # the name of the nlayers and ndf variables
@@ -4161,46 +4268,46 @@ class DynLoop(Loop):
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
 
-        # We only require a mesh object to get upper loop bounds if
-        # distributed memory is enabled and the loop is over cells
-        if Config.get().distributed_memory and \
-           self._upper_bound_name in ["ncells", "cell_halo"]:
-            # We must allow for self._kern being None (as it will be for
-            # a built-in).
-            if self._kern and self._kern.is_intergrid:
-                # We have more than one mesh object to choose from and we
-                # want the coarse one because that determines the iteration
-                # space. _field_name holds the name of the argument that
-                # determines the iteration space of this kernel and that
-                # is set-up to be the one on the coarse mesh (in
-                # DynKerelArguments.iteration_space_arg()).
-                mesh_name = "mesh_" + self._field_name
-            else:
-                # It's not an inter-grid kernel so there's only one mesh
-                mesh_name = "mesh"
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name=mesh_name, context="PSyVars", label=mesh_name)
+        # We must allow for self._kern being None (as it will be for
+        # a built-in).
+        if self._kern and self._kern.is_intergrid:
+            # We have more than one mesh object to choose from and we
+            # want the coarse one because that determines the iteration
+            # space. _field_name holds the name of the argument that
+            # determines the iteration space of this kernel and that
+            # is set-up to be the one on the coarse mesh (in
+            # DynKerelArguments.iteration_space_arg()).
+            mesh_name = "mesh_" + self._field_name
+        else:
+            # It's not an inter-grid kernel so there's only one mesh
+            mesh_name = "mesh"
+        mesh = self._name_space_manager.create_name(
+            root_name=mesh_name, context="PSyVars", label=mesh_name)
 
         if self._upper_bound_name == "ncolours":
-            if Config.get().distributed_memory:
-                # Extract the value in-place rather than extracting to
-                # a variable first. This is the way the manual
-                # reference examples were implemented so I copied these
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
-                return "{0}%get_ncolours()".format(mesh_obj_name)
-            else:
-                return "ncolour"
+            # Loop over colours
+            kernels = self.walk(self.children, DynKern)
+            if not kernels:
+                raise InternalError(
+                    "Failed to find a kernel within a loop over colours.")
+            # Check that all kernels have been coloured. We can't check the
+            # number of colours since that is only known at runtime.
+            ncolours = kernels[0].ncolours_var
+            for kern in kernels:
+                if not kern.ncolours_var:
+                    raise InternalError(
+                        "All kernels within a loop over colours must have been"
+                        " coloured but kernel '{0}' has not".format(kern.name))
+            return ncolours
         elif self._upper_bound_name == "ncolour":
-            return "ncp_colour(colour)"
+            # Loop over cells of a particular colour when DM is disabled.
+            # We use the same, DM API as that returns sensible values even
+            # when running without MPI.
+            return "{0}%get_last_edge_cell_per_colour(colour)".format(mesh)
         elif self._upper_bound_name == "colour_halo":
-            # the LFRic API used here allows for colouring with
-            # redundant computation. This API is now used when
-            # ditributed memory is switched on (the default for
-            # LFRic). THe original API (see previous elif) is now only
-            # used when distributed memory is switched off.
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
+            # Loop over cells of a particular colour when DM is enabled. The
+            # LFRic API used here allows for colouring with redundant
+            # computation.
             append = ""
             if halo_index:
                 # The colouring API support an additional optional
@@ -4211,7 +4318,7 @@ class DynLoop(Loop):
                 # may be).
                 append = ","+halo_index
             return ("{0}%get_last_halo_cell_per_colour(colour"
-                    "{1})".format(mesh_obj_name, append))
+                    "{1})".format(mesh, append))
         elif self._upper_bound_name in ["ndofs", "nannexed"]:
             if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
@@ -4225,14 +4332,14 @@ class DynLoop(Loop):
             return result
         elif self._upper_bound_name == "ncells":
             if Config.get().distributed_memory:
-                result = mesh_obj_name + "%get_last_edge_cell()"
+                result = mesh + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             return result
         elif self._upper_bound_name == "cell_halo":
             if Config.get().distributed_memory:
-                return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
+                return "{0}%get_last_halo_cell({1})".format(mesh,
                                                             halo_index)
             else:
                 raise GenerationError(
@@ -4249,7 +4356,7 @@ class DynLoop(Loop):
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
             if Config.get().distributed_memory:
-                return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
+                return "{0}%get_last_inner_cell({1})".format(mesh,
                                                              halo_index)
             else:
                 raise GenerationError(
@@ -4812,6 +4919,58 @@ class DynKern(Kern):
         return self._is_intergrid
 
     @property
+    def colourmap(self):
+        '''
+        Getter for the name of the colourmap associated with this kernel call.
+
+        :return: name of the colourmap (Fortran array)
+        :rtype: str
+        :raises InternalError: if this kernel is not coloured or the \
+                               dictionary of inter-grid kernels and \
+                               colourmaps has not been constructed.
+        '''
+        if not self.is_coloured():
+            raise InternalError("Kernel '{0}' is not inside a coloured "
+                                "loop.".format(self.name))
+        if self._is_intergrid:
+            invoke = self.root.invoke
+            if self.name not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    "Colourmap information for kernel '{0}' has not yet "
+                    "been initialised".format(self.name))
+            cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
+        else:
+            cmap = self._name_space_manager.create_name(
+                root_name="cmap", context="PSyVars", label="cmap")
+        return cmap
+
+    @property
+    def ncolours_var(self):
+        '''
+        Getter for the name of the variable holding the number of colours
+        associated with this kernel call.
+
+        :return: name of the variable holding the number of colours
+        :rtype: str
+        :raises InternalError: if this kernel is not coloured or the \
+                               colour-map information has not been initialised.
+        '''
+        if not self.is_coloured():
+            raise InternalError("Kernel '{0}' is not inside a coloured "
+                                "loop.".format(self.name))
+        if self._is_intergrid:
+            invoke = self.root.invoke
+            if self.name not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    "Colourmap information for kernel '{0}' has not yet "
+                    "been initialised".format(self.name))
+            ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
+        else:
+            ncols = self._name_space_manager.create_name(
+                root_name="ncolour", context="PSyVars", label="ncolour")
+        return ncols
+
+    @property
     def fs_descriptors(self):
         ''' Returns a list of function space descriptor objects of
         type FSDescriptor which contain information about the function
@@ -4966,49 +5125,15 @@ class DynKern(Kern):
                     format(self._name, self.parent.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
-        # loop then we have to look-up the colour map
+        # loop then we have to look-up the name of the colour map
         if self.is_coloured():
-
-            # Find which argument object the kernel writes to (either GH_INC
-            # or GH_WRITE) in order to look-up the colour map
-            arg = self.updated_arg
             # TODO Check whether this arg is gh_inc and if not, Warn that
             # we're colouring a kernel that has no field object with INC access
 
-            new_parent, position = parent.start_parent_loop()
-            # Add the look-up of the colouring map for this kernel
-            # call
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-            new_parent.add(CommentGen(new_parent, " Look-up colour map"),
-                           position=["before", position])
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
-            if Config.get().distributed_memory:
-                # the LFRic colouring API for distributed memory
-                # differs from the API without distributed
-                # memory. This is to support and control redundant
-                # computation with coloured loops.
-                new_parent.add(AssignGen(new_parent, pointer=True, lhs="cmap",
-                                         rhs=mesh_obj_name +
-                                         "%get_colour_map()"),
-                               position=["before", position])
-            else:
-                name = arg.proxy_name_indexed + \
-                       "%" + arg.ref_name() + "%get_colours"
-                new_parent.add(CallGen(new_parent,
-                                       name=name,
-                                       args=["ncolour", "ncp_colour", "cmap"]),
-                               position=["before", position])
-
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-
             # We must look-up the cell index using the colour map rather than
-            # use the current cell index directly
-            cell_index = "cmap(colour, cell)"
+            # use the current cell index directly. We need to know the name
+            # of the variable holding the colour map for this kernel.
+            cell_index = self.colourmap + "(colour, cell)"
         else:
             # This kernel call has not been coloured
             #  - is it OpenMP parallel, i.e. are we a child of
@@ -5451,7 +5576,8 @@ class KernCallArgList(ArgOrdering):
         map_name = self._name_space_manager.create_name(
             root_name=base_name, context="PSyVars", label=base_name)
         # Add the cell map to our argument list
-        self._arglist.append(map_name+"(:,cell)")
+        self._arglist.append("{0}(:,{1})".format(map_name,
+                                                 self._cell_ref_name))
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = self._name_space_manager.create_name(
@@ -5695,12 +5821,16 @@ class KernCallArgList(ArgOrdering):
 
     @property
     def _cell_ref_name(self):
-        '''utility routine which determines whether to return the cell value
-        or the colourmap lookup value '''
+        '''
+        Utility routine which determines whether to return the cell value
+        or the colourmap lookup value.
+
+        :returns: the Fortran code needed to access the current cell index.
+        :rtype: str
+        '''
         if self._kern.is_coloured():
-            return "cmap(colour, cell)"
-        else:
-            return "cell"
+            return self._kern.colourmap + "(colour, cell)"
+        return "cell"
 
 
 class KernStubArgList(ArgOrdering):
