@@ -947,7 +947,7 @@ The full interface to each of these classes is detailed below:
     :members:
     :noindex:
 
-configuration
+Configuration
 =============
 
 PSyclone uses the Python ``ConfigParser`` class
@@ -991,7 +991,7 @@ encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
 
-transformations
+Transformations
 ===============
 
 As one might expect, the transformations module holds the various
