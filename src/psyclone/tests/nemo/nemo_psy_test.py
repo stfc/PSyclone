@@ -150,6 +150,7 @@ def test_unrecognised_implicit():
     unrecognised form of implicit loop. '''
     from psyclone.nemo import NemoImplicitLoop, NemoInvoke
     from fparser.two.utils import walk_ast
+    # Array syntax used in an unsupported index location
     reader = FortranStringReader("umask(:, :, :, :) = 0.0D0")
     assign = Fortran2003.Assignment_Stmt(reader)
     with pytest.raises(GenerationError) as err:
@@ -175,6 +176,18 @@ def test_unrecognised_implicit():
     with pytest.raises(InternalError) as err:
         loop.__init__(assign)
     assert "No specification part found for routine atest" in str(err)
+
+
+def test_implicit_range_err():
+    ''' Check that we raise the expected error if we encounter an implicit
+    loop with an explicit range (since we don't yet support that). '''
+    # Array syntax with an explicit range
+    reader = FortranStringReader("umask(1:jpi, 1, :) = 0.0D0")
+    assign = Fortran2003.Assignment_Stmt(reader)
+    with pytest.raises(NotImplementedError) as err:
+        nemo.NemoImplicitLoop(assign)
+    assert ("Support for implicit loops with specified bounds is not yet "
+            "implemented: 'umask(1 : jpi, 1, :) = 0.0D0'" in str(err))
 
 
 def test_codeblock():

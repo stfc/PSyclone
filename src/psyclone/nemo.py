@@ -641,8 +641,13 @@ class NemoLoop(Loop, ASTProcessor):
 
     @property
     def kernel(self):
-        ''' Returns the kernel object if one is associated with this loop,
-        None otherwise. '''
+        '''
+        :returns: the kernel object if one is associated with this loop, \
+                  None otherwise.
+        :rtype: :py:class:`psyclone.nemo.NemoKern` or None
+
+        :raises NotImplementedError: if the loop contains >1 kernel.
+        '''
         kernels = self.walk(self.children, NemoKern)
         if kernels:
             # TODO cope with case where loop contains >1 kernel (e.g.
@@ -664,6 +669,7 @@ class NemoImplicitLoop(NemoLoop):
     :param ast: the part of the fparser2 AST representing the loop
     :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
     :param parent: the parent of this Loop in the PSyclone AST
+
     '''
     def __init__(self, ast, parent=None):
         from fparser.common.readfortran import FortranStringReader
@@ -681,11 +687,21 @@ class NemoImplicitLoop(NemoLoop):
         # array-index expressions for the corresponding dimension of the array.
         for idx, item in enumerate(subsections[0].items):
             if isinstance(item, Fortran2003.Subscript_Triplet):
+                # A Subscript_Triplet has a 3-tuple containing the expressions
+                # for the start, end and increment of the slice. If any of
+                # these are not None then we have an explicit range of some
+                # sort and we do not yet support that.
+                # TODO allow for implicit loops with specified bounds
+                # (e.g. 2:jpjm1)
+                if [part for part in item.items if part]:
+                    raise NotImplementedError(
+                        "Support for implicit loops with specified bounds is "
+                        "not yet implemented: '{0}'".format(str(ast)))
                 # If an array index is a Subscript_Triplet then it is a range
-                # and thus we need an explicit loop for this dimension.
+                # and thus we need to create an explicit loop for this
+                # dimension.
                 outermost_dim = idx
 
-        # TODO allow for implicit loops with specified bounds (e.g. 2:jpjm1)
         self._start = 1
         self._step = 1
         if outermost_dim == 0:

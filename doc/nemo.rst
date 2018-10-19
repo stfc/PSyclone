@@ -183,3 +183,5 @@ we list the current, known limitations/issues:
     should e.g. work out which variables are private to the kernel.
  7. Loops are currently only permitted to contain one kernel.  This
     restriction will have to be lifted in order to permit loop fusion.
+ 8. Array slices with specified bounds (e.g. umask(1:10)) are not yet
+    supported and will raise an exception.
