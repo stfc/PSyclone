@@ -178,3 +178,8 @@ we list the current, known limitations/issues:
  4. Loops/kernels within CASE statements are not found;
  5. Labelled do-loops are not handled (i.e. they will probably end up
     being put inside a code block).
+ 6. ``NemoKern._load_from_loop()`` and ``_load_from_implicit_loop()``
+    both need to be implemented. Currently they do nothing but they
+    should e.g. work out which variables are private to the kernel.
+ 7. Loops are currently only permitted to contain one kernel.  This
+    restriction will have to be lifted in order to permit loop fusion.

@@ -83,7 +83,7 @@ def test_implicit_loop_sched1():
     sched.view()
     loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 3
-    kerns = sched.walk(sched.children, nemo.NemoKern)
+    kerns = sched.kern_calls()
     assert len(kerns) == 1
 
 
@@ -100,8 +100,25 @@ def test_implicit_loop_sched2():
     # the other two from the implicit loops over ji and jj).
     loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 3
-    kerns = sched.walk(sched.children, nemo.NemoKern)
+    kerns = sched.kern_calls()
     assert len(kerns) == 1
+
+
+def test_multi_kern():
+    ''' Test that having multiple kernels within a single loop raises
+    the expected error. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    loops = sched.walk(sched.children, nemo.NemoLoop)
+    kerns = sched.kern_calls()
+    # Add the second kernel as a child of the first loop
+    loops[0].children.append(kerns[1])
+    with pytest.raises(NotImplementedError) as err:
+        _ = loops[0].kernel
+    assert ("getter method does not yet support a loop containing more than "
+            "one kernel but this loop contains 2" in str(err))
 
 
 @pytest.mark.xfail(reason="Do not currently check for previous variable"
@@ -172,7 +189,7 @@ def test_codeblock():
     assert len(loops) == 5
     cblocks = sched.walk(sched.children, nemo.NemoCodeBlock)
     assert len(cblocks) == 4
-    kerns = sched.walk(sched.children, nemo.NemoKern)
+    kerns = sched.kern_calls()
     assert len(kerns) == 2
     # The last loop does not contain a kernel
     assert loops[-1].kernel is None
@@ -197,7 +214,7 @@ def test_io_not_kernel():
     # We should have only 1 actual kernel and 2 code blocks
     cblocks = sched.walk(sched.children, nemo.NemoCodeBlock)
     assert len(cblocks) == 2
-    kerns = sched.walk(sched.children, nemo.NemoKern)
+    kerns = sched.kern_calls()
     assert len(kerns) == 1
 
 
@@ -257,7 +274,7 @@ def test_kern_inside_if():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    kerns = sched.walk(sched.children, nemo.NemoKern)
+    kerns = sched.kern_calls()
     assert len(kerns) == 6
     ifblock = sched.children[0].children[1]
     assert isinstance(ifblock, nemo.NemoIfBlock)
@@ -286,7 +303,7 @@ def test_kern_load_errors(monkeypatch):
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     # The schedule should contain 3 loop objects
-    kerns = sched.walk(sched.children, nemo.NemoKern)
+    kerns = sched.kern_calls()
     with pytest.raises(InternalError) as err:
         kerns[0].load("Not an fparser2 AST node")
     assert ("internal error: Expecting either Block_Nonlabel_Do_Construct "

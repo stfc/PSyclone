@@ -624,6 +624,11 @@ class NemoLoop(Loop, ASTProcessor):
         if kernels:
             # TODO cope with case where loop contains >1 kernel (e.g.
             # following loop fusion)
+            if len(kernels) > 1:
+                raise NotImplementedError(
+                    "Kernel getter method does not yet support a loop "
+                    "containing more than one kernel but this loop contains "
+                    "{0}".format(len(kernels)))
             return kernels[0]
         return None
 
