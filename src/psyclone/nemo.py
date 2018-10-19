@@ -57,7 +57,7 @@ NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
 NEMO_LOOP_VARS = ["ji", "jj", "jk", "jt", "jn"]
 
 # The valid types of loop.
-VALID_LOOP_TYPES = ["lon", "lat", "levels", "tracers"]
+VALID_LOOP_TYPES = ["lon", "lat", "levels", "tracers", "unknown"]
 
 # Mapping from loop variable to loop type
 NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
@@ -462,8 +462,14 @@ class NemoKern(Kern):
     def load(self, loop, parent=None):
         ''' Populate the state of this NemoKern object.
 
-        :param node:
-        :param parent:
+        :param loop: node in the fparser2 AST representing a loop (explicit \
+                     or implicit).
+        :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt` or \
+                :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
+        :param parent: parent of this node in the PSyIRe.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :raises InternalError: if the supplied loop node is not recognised.
         '''
         from fparser.two.Fortran2003 import Block_Nonlabel_Do_Construct, \
             Assignment_Stmt
@@ -478,8 +484,18 @@ class NemoKern(Kern):
                 "Assignment_Stmt but got {0}".format(str(type(loop))))
 
     def _load_from_loop(self, loop, parent=None):
-        ''' Populate the state of this NemoKern object from an fparser2
-        AST for a loop nest '''
+        '''
+        Populate the state of this NemoKern object from an fparser2
+        AST for an explicit loop.
+
+        :param loop: Node in the fparser2 AST representing an implicit loop.
+        :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :param parent: parent of this node in the PSyIRe.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :raises InternalError: if first child of supplied loop node is not a \
+                           :py:class:`fparser.two.Fortran2003.Nonlabel_Do_Stmt`
+        '''
         from fparser.two.Fortran2003 import Nonlabel_Do_Stmt, End_Do_Stmt
 
         # Keep a pointer to the original loop in the AST
@@ -536,8 +552,15 @@ class NemoKern(Kern):
         return
 
     def _load_from_implicit_loop(self, loop, parent=None):
-        ''' Populate the state of this NemoKern object from an fparser2
-        AST for an implicit loop (Fortran array syntax) '''
+        '''
+        Populate the state of this NemoKern object from an fparser2
+        AST for an implicit loop (Fortran array syntax).
+
+        :param loop: Node in the fparser2 AST representing an implicit loop.
+        :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :param parent: parent of this node in the PSyIRe.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
         # TODO implement this method!
         self._kernel_type = "Implicit"
         return
@@ -567,7 +590,7 @@ class NemoLoop(Loop, ASTProcessor):
     def __init__(self, ast, parent=None):
         from fparser.two.Fortran2003 import Loop_Control
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES+["unknown"])
+                      valid_loop_types=VALID_LOOP_TYPES)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
@@ -645,7 +668,7 @@ class NemoImplicitLoop(NemoLoop):
     def __init__(self, ast, parent=None):
         from fparser.common.readfortran import FortranStringReader
         Loop.__init__(self, parent=parent,
-                      valid_loop_types=VALID_LOOP_TYPES+["unknown"])
+                      valid_loop_types=VALID_LOOP_TYPES)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
