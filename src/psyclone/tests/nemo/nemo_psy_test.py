@@ -57,6 +57,29 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 _PARSER = ParserFactory().create()
 
 
+def test_unamed_unit():
+    '''
+    Test that we raise the expected internal error if we fail to find
+    a name for the PSy object.
+    '''
+    code = ("program simple\n"
+            "  ztmp(:,:,:) = 0.0\n"
+            "end program\n")
+    reader = FortranStringReader(code)
+    prog = Fortran2003.Program_Unit(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(prog)
+    assert psy._name == "simple_psy"
+    # We have to work quite hard to trigger the internal error that is
+    # raised when no names are found.
+    # Delete most of the AST
+    del prog.content[1:]
+    # Remove the Name object from the items tuple of the remaining AST node
+    prog.content[0].items = (prog.content[0].items[0], "not a Name")
+    with pytest.raises(InternalError) as err:
+        _ = PSyFactory(API, distributed_memory=False).create(prog)
+    assert "Found no names in supplied Fortran" in str(err)
+
+
 def test_explicit_do_sched():
     ''' Check that we generate a correct schedule for a triply-nested,
     explicit do loop '''
@@ -64,6 +87,7 @@ def test_explicit_do_sched():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     assert isinstance(psy, nemo.NemoPSy)
+    assert psy._name == "explicit_do_psy"
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
     # The schedule should contain 3 loop objects

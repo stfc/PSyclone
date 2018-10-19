@@ -70,6 +70,7 @@ NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
 # layout.
 NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
 
+
 class ASTProcessor(object):
     '''
     Mixin class to provide functionality for processing the fparser2 AST.
@@ -183,7 +184,6 @@ class NemoInvoke(Invoke):
         # new AST using objects from the nemo module.
         self._schedule = NemoSchedule(self, exe_part)
 
-
     def update(self):
         '''Updates the fparser2 AST associated with this Schedule to make it
         reflect any transformations that have been applied to the
@@ -261,14 +261,25 @@ class NemoPSy(PSy):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
+    :raises InternalError: if no Fortran2003.Name nodes are found in the \
+                           supplied AST.
     '''
     def __init__(self, ast):
+        names = walk_ast(ast.content, [Fortran2003.Name])
+        # The name of the program unit will be the first in the list
+        if not names:
+            raise InternalError("Found no names in supplied Fortran - should "
+                                "be impossible!")
+        self._name = str(names[0]) + "_psy"
 
-        self._name = "NEMO-PSY"  # TODO use a meaningful name
         self._invokes = NemoInvokes(ast)
         self._ast = ast
 
-    def inline(self, module):
+    def inline(self, _):
+        '''
+        :raises NotImplementedError: since kernels in NEMO are, in general,
+                                     already in-lined.
+        '''
         # Override base-class method because we don't yet support it
         raise NotImplementedError("The NemoPSy.inline method has not yet "
                                   "been implemented!")
@@ -311,7 +322,6 @@ class NemoSchedule(Schedule, ASTProcessor):
         self._invoke = invoke
         self._ast = ast
         self.process_nodes(self, ast.content, ast)
-
 
     def view(self, indent=0):
         '''
@@ -462,7 +472,10 @@ class NemoKern(Kern):
 
     @property
     def ktype(self):
-        ''' Returns what type of kernel this is '''
+        '''
+        :returns: what type of kernel this is.
+        :rtype: str
+        '''
         return self._kernel_type
 
     def load(self, loop, parent=None):
@@ -517,44 +530,44 @@ class NemoKern(Kern):
                 break
             self._body.append(content)
 
-        # I could get this by walking back up the tree and counting how
-        # many NemoLoops I have as ancestors before I come across
-        # something that is not a loop...
-        #if len(self._loop_vars) == 2:
-        #    self._kernel_type = "2D"
-        #else:
-        #    self._kernel_type = "3D"
+        #  I could get this by walking back up the tree and counting how
+        #  many NemoLoops I have as ancestors before I come across
+        #  something that is not a loop...
+        # if len(self._loop_vars) == 2:
+        #     self._kernel_type = "2D"
+        # else:
+        #     self._kernel_type = "3D"
 
         # TODO bring habakkuk up-to-date with changes to fparser and then
         # uncomment this code.
 
-        # Analyse the loop body to identify private and shared variables
-        #from habakkuk.make_dag import dag_of_code_block
-        # Create a DAG of the kernel code block using Habakkuk
-        #kernel_dag = dag_of_code_block(loop, "nemo_kernel")
-        #inputs = kernel_dag.input_nodes()
-        #outputs = kernel_dag.output_nodes()
-        #print "Kernel has {0} outputs: ".format(len(outputs)) + \
-        #    ",".join([node.variable.orig_name for node in outputs])
+        #  Analyse the loop body to identify private and shared variables
+        # from habakkuk.make_dag import dag_of_code_block
+        #  Create a DAG of the kernel code block using Habakkuk
+        # kernel_dag = dag_of_code_block(loop, "nemo_kernel")
+        # inputs = kernel_dag.input_nodes()
+        # outputs = kernel_dag.output_nodes()
+        # print "Kernel has {0} outputs: ".format(len(outputs)) + \
+        #     ",".join([node.variable.orig_name for node in outputs])
         self._shared_vars = set()
         self._first_private_vars = set()
         self._private_vars = set()
-        # If there are scalar variables that are inputs to the DAG (other than
-        # the loop counters) then they must be declared first-private.
-        #for node in inputs:
-        #    if not node.node_type:
-        #        if node.name not in NEMO_LOOP_TYPE_MAPPING:
-        #            self._first_private_vars.add(node.name)
-        #for key, node in kernel_dag._nodes.iteritems():
-        #    if node.node_type == "array_ref":
-        #        self._shared_vars.add(node.variable.orig_name)
-        #    elif not node.node_type:
-        #        self._private_vars.add(node.variable.orig_name)
-        #self._private_vars -= self._first_private_vars
-        #print "OpenMP shared vars: " + ",".join(self._shared_vars)
-        #print "OpenMP private vars: " + ",".join(self._private_vars)
-        #print "OpenMP first-private vars: " + \
-        #    ",".join(self._first_private_vars)
+        #  If there are scalar variables that are inputs to the DAG (other than
+        #  the loop counters) then they must be declared first-private.
+        # for node in inputs:
+        #     if not node.node_type:
+        #         if node.name not in NEMO_LOOP_TYPE_MAPPING:
+        #             self._first_private_vars.add(node.name)
+        # for key, node in kernel_dag._nodes.iteritems():
+        #     if node.node_type == "array_ref":
+        #         self._shared_vars.add(node.variable.orig_name)
+        #     elif not node.node_type:
+        #         self._private_vars.add(node.variable.orig_name)
+        # self._private_vars -= self._first_private_vars
+        # print "OpenMP shared vars: " + ",".join(self._shared_vars)
+        # print "OpenMP private vars: " + ",".join(self._private_vars)
+        # print "OpenMP first-private vars: " + \
+        #     ",".join(self._first_private_vars)
         return
 
     def _load_from_implicit_loop(self, loop, parent=None):
@@ -572,14 +585,18 @@ class NemoKern(Kern):
         return
 
     def local_vars(self):
-        '''Return a list of the variable (names) that are local to this loop
-        (and must therefore be e.g. threadprivate if doing OpenMP)
-
+        '''
+        :returns: list of the variable (names) that are local to this loop \
+                  (and must therefore be e.g. threadprivate if doing OpenMP)
+        :rtype: list of str
         '''
         return []
 
     def view(self, indent=0):
-        ''' Print representation of this node to stdout. '''
+        '''
+        Print representation of this node to stdout.
+        :param int indent: level to which to indent output.
+        '''
         print(self.indent(indent) + self.coloured_text + "[" +
               self.ktype + "]")
 
@@ -672,10 +689,14 @@ class NemoImplicitLoop(NemoLoop):
     Class representing an implicit loop in NEMO (i.e. using Fortran array
     syntax).
 
-    :param ast: the part of the fparser2 AST representing the loop
+    :param ast: the part of the fparser2 AST representing the loop.
     :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-    :param parent: the parent of this Loop in the PSyclone AST
+    :param parent: the parent of this Loop in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
 
+    :raises NotImplementedError: if the array slice has explicit bounds.
+    :raises GenerationError: if an array slice is not in dimensions 1-3 of \
+                             the array.
     '''
     def __init__(self, ast, parent=None):
         from fparser.common.readfortran import FortranStringReader
@@ -902,9 +923,10 @@ class NemoIfClause(IfClause, ASTProcessor):
     '''
     Represents a sub-clause of an if-block (else-if or else).
 
-    :param list ast_nodes: List of nodes making up the clause. First node \
-                           is the else/else-if statement itself.
-    :param parent: Parent of this clause in the AST (must be an IfBlock).
+    :param list ast_nodes: List of nodes making up the clause in the fparser2 \
+                           AST. First node is the else/else-if statement \
+                           itself.
+    :param parent: Parent of this clause in the PSyIRe (must be an IfBlock).
     :type parent: :py:class:`psyclone.nemo.NemoIfBlock`
 
     :raises InternalError: if fparser2 AST doesn't have the expected structure.
