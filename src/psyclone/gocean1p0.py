@@ -567,7 +567,7 @@ class GOLoop(Loop):
                 _ = Nonlabel_Do_Stmt(do_string)
             except NoMatchError as err:
                 from psyclone.configuration import ConfigurationError
-                raise ConfigurationError("Expression '{0}'' is not a "
+                raise ConfigurationError("Expression '{0}' is not a "
                                          "valid do loop boundary. Error "
                                          "message: '{1}'."
                                          .format(bound, str(err)))
