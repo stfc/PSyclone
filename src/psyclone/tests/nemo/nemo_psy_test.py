@@ -43,6 +43,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
+from fparser.two.utils import walk_ast
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, InternalError, GenerationError
 from psyclone import nemo
@@ -149,7 +150,6 @@ def test_unrecognised_implicit():
     ''' Check that we raise the expected error if we encounter an
     unrecognised form of implicit loop. '''
     from psyclone.nemo import NemoImplicitLoop, NemoInvoke
-    from fparser.two.utils import walk_ast
     # Array syntax used in an unsupported index location
     reader = FortranStringReader("umask(:, :, :, :) = 0.0D0")
     assign = Fortran2003.Assignment_Stmt(reader)
@@ -325,13 +325,27 @@ def test_ifblock_ast_err():
 
 
 def test_ifblock_gencode_err():
-    ''' Check that calling gen_code() on an NemoIfBlock raises an error. '''
+    ''' Check that calling gen_code() on a NemoIfBlock raises an error. '''
     reader = FortranStringReader("if(.true.)then\ndone=.true.\nend if\n")
     ifblock = Fortran2003.If_Construct(reader)
     blk = nemo.NemoIfBlock(ifblock)
     with pytest.raises(InternalError) as err:
         blk.gen_code()
     assert "this method should not have been called" in str(err)
+
+
+def test_elseif_gencode_err():
+    ''' Check that calling gen_code() on a NemoIfClause raises an error.
+    Generating a valid NemoIfClause artificially is difficult so we resort
+    to parsing a full routine. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    clauses = sched.walk(sched.children, nemo.NemoIfClause)
+    with pytest.raises(InternalError) as err:
+        clauses[0].gen_code()
+    assert "This method should not have been called" in str(err)
 
 
 def test_kern_load_errors(monkeypatch):

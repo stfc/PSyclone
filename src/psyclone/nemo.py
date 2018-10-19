@@ -864,7 +864,10 @@ class NemoIfBlock(IfBlock, ASTProcessor):
                                        parent=self))
 
     def gen_code(self):
-        ''' Override abstract method of base class. '''
+        '''
+        Override abstract method of base class.
+        :raises InternalError: because is not relevant to this API.
+        '''
         # If we get here it's an error as the NEMO API does not generate
         # code (we manipulate existing code instead).
         raise InternalError("this method should not have been called!")
@@ -903,6 +906,8 @@ class NemoIfClause(IfClause, ASTProcessor):
                            is the else/else-if statement itself.
     :param parent: Parent of this clause in the AST (must be an IfBlock).
     :type parent: :py:class:`psyclone.nemo.NemoIfBlock`
+
+    :raises InternalError: if fparser2 AST doesn't have the expected structure.
     '''
     def __init__(self, ast_nodes, parent=None):
         super(NemoIfClause, self).__init__(parent=parent)
@@ -923,4 +928,10 @@ class NemoIfClause(IfClause, ASTProcessor):
                            nodes_parent=self._ast._parent)
 
     def gen_code(self):
-        ''' Override abstract method of base class. '''
+        '''
+        Override abstract method of base class.
+        :raises InternalError: because is not relevant to this API.
+        '''
+        # If we get here it's an error as the NEMO API does not generate
+        # code (we manipulate existing code instead).
+        raise InternalError("This method should not have been called!")
