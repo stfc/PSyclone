@@ -411,7 +411,7 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
-        if len(GOLoop._bounds_lookup) == 0:
+        if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
 
     # -------------------------------------------------------------------------
@@ -530,7 +530,7 @@ class GOLoop(Loop):
                                      "outer-stop:inner-start:inner-stop\"\n"
                                      "But got \"{0}\"".format(bound_info))
 
-        if len(GOLoop._bounds_lookup) == 0:
+        if not GOLoop._bounds_lookup:
             GOLoop.setup_bounds()
 
         # Check that all bound specifications (min and max index) are valid.
@@ -567,7 +567,7 @@ class GOLoop(Loop):
                 _ = Nonlabel_Do_Stmt(do_string)
             except NoMatchError as err:
                 from psyclone.configuration import ConfigurationError
-                raise ConfigurationError("Expression {0} is not a "
+                raise ConfigurationError("Expression '{0}'' is not a "
                                          "valid do loop boundary. Error "
                                          "message: '{1}'."
                                          .format(bound, str(err)))

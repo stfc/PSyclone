@@ -215,8 +215,8 @@ TBD
 .. ---------
 .. 
 .. The names of the supported API's and the default API are specified in
-.. `config.py`. When adding a new API you must add the name you would like
-.. to use to the `SUPPORTEDAPIS` list (and change the `DEFAULTAPI` if
+.. `configuration.py`. When adding a new API you must add the name you would like
+.. to use to the ``_supported_api_list`` (and change the ``_default_api`` if
 .. required).
 .. 
 .. parse.py
@@ -1038,10 +1038,15 @@ using  ``Config.get()``. Only one such instance will ever exist:
 
 The ``Config`` class is responsible for finding the configuration file
 (if no filename is passed to the constructor), parsing it and then storing
-the various configuration options. It also performs some basic consistency
+the various configuration options. It also stores the list of supported
+APIs (``Config._supported_api_list``) and the default API to use if none
+is specified in either a config file or the command line (``Config``.)
+
+
+It also performs some basic consistency
 checks on the values it obtains from the configuration file.
 
-Since the default PSyclone API to use is read from the configuration
+Since the PSyclone API to use can be read from the configuration
 file, it is not possible to have API-specifc sub-classes of ``Config``
 as we don't know which API is in use before we read the file. However, the
 configuration file can contain API-specific settings. These are placed in
@@ -1060,7 +1065,7 @@ corresponding section. The resulting object is stored in the
 dictionary under the appropriate key. The API-specific values may then
 be accessed as, e.g.::
 
-  config.api("dynamo0.3").compute_annexed_dofs
+  Config.get().api_conf("dynamo0.3").compute_annexed_dofs
 
 The API-specific sub-classes exist to provide validation/type-checking and
 encapsulation for API-specific options. They do not sub-class ``Config``

@@ -248,7 +248,8 @@ class Config(object):
 
         :param str api: the API for which configuration details are required.
         :returns: object containing API-specific configuration
-        :rtype: One of :py:class:`psyclone.configuration.DynConfig` or None.
+        :rtype: One of :py:class:`psyclone.configuration.DynConfig`,
+                :py:class:`psyclone.configuration.GOceanConfig` or None.
 
         :raises ConfigurationError: if api is not in the list of supported \
                                     APIs.

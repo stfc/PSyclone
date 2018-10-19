@@ -106,7 +106,8 @@ def test_invalid_config_files():
     REPROD_PAD_SIZE = 8
     [gocean1.0]
     '''
-    # Create a config files with gocean1.0 section, but an unsupported key:
+    # Create a config files with gocean1.0 section, but an
+    # invalid iteration space:
     content = _CONFIG_CONTENT + "iteration-spaces=a:b"
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
@@ -160,7 +161,7 @@ def test_invalid_config_files():
                "expression in an iteration space." in str(err)
         assert "But got {Y}" in str(err)
 
-    # Add an invalid key:""
+    # Add an invalid key:
     content = _CONFIG_CONTENT + "invalid-key=value"
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
@@ -189,10 +190,10 @@ def test_invalid_config_files():
     # Test syntactically invalid loop boundaries
     with pytest.raises(ConfigurationError) as err:
         GOLoop.add_bounds("offset:field:space:1(:2:3:4")
-    assert "Expression 1( is not a valid do loop boundary" in str(err)
+    assert "Expression '1(' is not a valid do loop boundary" in str(err)
     with pytest.raises(ConfigurationError) as err:
         GOLoop.add_bounds("offset:field:space:1:2:3:4+")
-    assert "Expression 4+ is not a valid do loop boundary" in str(err)
+    assert "Expression '4+' is not a valid do loop boundary" in str(err)
 
 
 # =============================================================================
@@ -201,7 +202,6 @@ def test_valid_config_files():
     '''
     from psyclone_test_utils import get_invoke
 
-    # Using "" adds the directory separator to the end:
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
