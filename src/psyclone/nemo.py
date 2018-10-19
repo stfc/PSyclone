@@ -53,16 +53,22 @@ from fparser.two import Fortran2003
 NEMO_SCHEDULE_COLOUR_MAP = copy.deepcopy(_BASE_CMAP)
 NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"] = "red"
 
-# The loop index variables we expect NEMO to use
-NEMO_LOOP_VARS = ["ji", "jj", "jk", "jt", "jn"]
+# The valid types of loop and associated loop variable and bounds
+VALID_LOOP_TYPES = {"lon": {"var": "ji", "start": "1", "stop": "jpi"},
+                    "lat": {"var": "jj", "start": "1", "stop": "jpj"},
+                    "levels": {"var": "jk", "start": "1", "stop": "jpk"},
+                    # TODO what is the upper bound of tracer loops?
+                    "tracers": {"var": "jt", "start": "1", "stop": ""},
+                    "unknown": {"var": "", "start": "1", "stop": ""}}
 
-# The valid types of loop.
-VALID_LOOP_TYPES = ["lon", "lat", "levels", "tracers", "unknown"]
-
-# Mapping from loop variable to loop type
+# Mapping from loop variable to loop type. This is how we identify each
+# explicit do loop we encounter.
 NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
                           "jt": "tracers", "jn": "tracers"}
 
+# Mapping from loop type to array index. NEMO uses an "i, j, k" data
+# layout.
+NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
 
 class ASTProcessor(object):
     '''
@@ -537,7 +543,7 @@ class NemoKern(Kern):
         # the loop counters) then they must be declared first-private.
         #for node in inputs:
         #    if not node.node_type:
-        #        if node.name not in NEMO_LOOP_VARS:
+        #        if node.name not in NEMO_LOOP_TYPE_MAPPING:
         #            self._first_private_vars.add(node.name)
         #for key, node in kernel_dag._nodes.iteritems():
         #    if node.node_type == "array_ref":
@@ -702,29 +708,21 @@ class NemoImplicitLoop(NemoLoop):
                 # dimension.
                 outermost_dim = idx
 
-        self._start = 1
-        self._step = 1
-        if outermost_dim == 0:
-            # TODO ensure no name clash is possible with variables that
-            # already exist in the NEMO source.
-            self._variable_name = name_space_manager.create_name(
-                root_name="psy_ji", context="PSyVars", label="psy_ji")
-            self.loop_type = "lon"
-            self._stop = "jpi"
-        elif outermost_dim == 1:
-            self._variable_name = name_space_manager.create_name(
-                root_name="psy_jj", context="PSyVars", label="psy_jj")
-            self.loop_type = "lat"
-            self._stop = "jpj"
-        elif outermost_dim == 2:
-            self._variable_name = name_space_manager.create_name(
-                root_name="psy_jk", context="PSyVars", label="psy_jk")
-            self.loop_type = "levels"
-            self._stop = "jpk"
-        else:
+        if outermost_dim < 0 or outermost_dim > 2:
             raise GenerationError(
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(ast)))
+
+        self._step = 1
+        # TODO ensure no name clash is possible with variables that
+        # already exist in the NEMO source.
+        self.loop_type = NEMO_INDEX_ORDERING[outermost_dim]
+        self._start = VALID_LOOP_TYPES[self.loop_type]["start"]
+        self._stop = VALID_LOOP_TYPES[self.loop_type]["stop"]
+        var_name = "psy_" + VALID_LOOP_TYPES[self.loop_type]["var"]
+        self._variable_name = name_space_manager.create_name(
+            root_name=var_name, context="PSyVars", label=var_name)
+
         # TODO Since the fparser2 AST does not have parent
         # information (and no other way of getting to the root node), it is
         # currently not possible to insert a declaration in the correct

@@ -177,11 +177,13 @@ we list the current, known limitations/issues:
     solve has a loop-carried dependence in the vertical);
  4. Loops/kernels within CASE statements are not found;
  5. Labelled do-loops are not handled (i.e. they will probably end up
-    being put inside a code block).
+    being put inside a code block);
  6. ``NemoKern._load_from_loop()`` and ``_load_from_implicit_loop()``
     both need to be implemented. Currently they do nothing but they
-    should e.g. work out which variables are private to the kernel.
+    should e.g. work out which variables are private to the kernel;
  7. Loops are currently only permitted to contain one kernel.  This
-    restriction will have to be lifted in order to permit loop fusion.
+    restriction will have to be lifted in order to permit loop fusion;
  8. Array slices with specified bounds (e.g. umask(1:10)) are not yet
-    supported and will raise an exception.
+    supported and will raise an exception;
+ 9. When generating new variable names, no attempt is made to avoid
+    clashing with variables already present in the NEMO source.
