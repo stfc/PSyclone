@@ -755,11 +755,9 @@ class NemoImplicitLoop(NemoLoop):
             subsec.items = tuple(indices)
 
         # Create an explicit loop
-        text = '''\
-do {0}=1,{1},{2}
-  replace = me
-end do
-'''.format(self._variable_name, self._stop, self._step)
+        text = ("do {0}=1,{1},{2}\n"
+                "  replace = me\n"
+                "end do\n".format(self._variable_name, self._stop, self._step))
         loop = Fortran2003.Block_Nonlabel_Do_Construct(
             FortranStringReader(text))
         parent_index = ast._parent.content.index(ast)
@@ -818,14 +816,26 @@ class NemoIfBlock(IfBlock, ASTProcessor):
       End_If_Stmt
     i.e. the statements contained inside the if-block are siblings
     of the control statements, not children of them.
+
+    :param ast: reference to fparser2 AST representing if block.
+    :type ast: :py:class:`fparser.two.Fortran2003.If_Construct`
+    :param parent: parent node of this if block in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
+    :raises InternalError: if the fparser2 AST does not have the expected \
+                           structure.
     '''
     def __init__(self, ast, parent=None):
         super(NemoIfBlock, self).__init__(parent=parent)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
-        # TODO convert these into proper exceptions
-        assert isinstance(ast.content[0], Fortran2003.If_Then_Stmt)
-        assert isinstance(ast.content[-1], Fortran2003.End_If_Stmt)
+        # Check that the fparser2 AST has the expected structure
+        if not isinstance(ast.content[0], Fortran2003.If_Then_Stmt):
+            raise InternalError("Failed to find opening if then statement: "
+                                "{0}".format(str(ast)))
+        if not isinstance(ast.content[-1], Fortran2003.End_If_Stmt):
+            raise InternalError("Failed to find closing end if statement: "
+                                "{0}".format(str(ast)))
         clause_indices = []
         for idx, child in enumerate(ast.content):
             child._parent = self._ast  # Retrofit parent info
@@ -855,7 +865,9 @@ class NemoIfBlock(IfBlock, ASTProcessor):
 
     def gen_code(self):
         ''' Override abstract method of base class. '''
-
+        # If we get here it's an error as the NEMO API does not generate
+        # code (we manipulate existing code instead).
+        raise InternalError("this method should not have been called!")
 
     @staticmethod
     def match(node):
@@ -863,6 +875,12 @@ class NemoIfBlock(IfBlock, ASTProcessor):
         Checks whether the supplied fparser2 AST represents an if-block
         that must be represented in the Schedule AST. If-blocks that do
         not contain kernels are just treated as code blocks.
+
+        :param node: the node in the fparser2 AST representing an if-block
+        :type node: :py:class:`fparser.two.Fortran2003.If_Construct`
+        :returns: True if this if-block must be represented in the PSyIRe
+        :rtype: bool
+
         '''
         if not isinstance(node, Fortran2003.If_Construct):
             return False

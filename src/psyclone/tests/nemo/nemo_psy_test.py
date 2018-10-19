@@ -307,6 +307,33 @@ def test_invalid_if_clause():
     assert "Unrecognised member of if block: " in str(err)
 
 
+def test_ifblock_ast_err():
+    ''' Check that the NemoIfBlock constructor raises the expected error if
+    the fparser2 AST does not have the expected structure. '''
+    reader = FortranStringReader("if(.true.)then\ndone=.true.\nend if\n")
+    ifblock = Fortran2003.If_Construct(reader)
+    # Break the AST projected by fparser2 - delete the 'end if'
+    del ifblock.content[-1]
+    with pytest.raises(InternalError) as err:
+        _ = nemo.NemoIfBlock(ifblock)
+    assert "Failed to find closing end if" in str(err)
+    # Now delete the 'if then'
+    del ifblock.content[0]
+    with pytest.raises(InternalError) as err:
+        _ = nemo.NemoIfBlock(ifblock)
+    assert "Failed to find opening if then" in str(err)
+
+
+def test_ifblock_gencode_err():
+    ''' Check that calling gen_code() on an NemoIfBlock raises an error. '''
+    reader = FortranStringReader("if(.true.)then\ndone=.true.\nend if\n")
+    ifblock = Fortran2003.If_Construct(reader)
+    blk = nemo.NemoIfBlock(ifblock)
+    with pytest.raises(InternalError) as err:
+        blk.gen_code()
+    assert "this method should not have been called" in str(err)
+
+
 def test_kern_load_errors(monkeypatch):
     ''' Check that the various load methods of the NemoKern class raise
     the expected errors. '''
