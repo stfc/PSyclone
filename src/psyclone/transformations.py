@@ -287,11 +287,22 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         return "DynamoLoopFuse"
 
     def apply(self, node1, node2, same_space=False):
-        '''Fuse the two Dynamo loops represented by :py:obj:`node1` and
+        '''
+        Fuse the two Dynamo loops represented by :py:obj:`node1` and
         :py:obj:`node2`. The optional same_space flag asserts that an
         unknown iteration space (i.e. any_space) matches the other
-        iteration space. This is set at the users own risk. '''
+        iteration space. This is set at the users own risk.
 
+        :param node1: First Loop to fuse.
+        :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :param node2: Second Loop to fuse.
+        :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :returns: two-tuple of modified schedule and Memento
+        :rtype: :py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`
+        :raises TransformationError: if either of the supplied loops contains \
+                                     an inter-grid kernel.
+        '''
         LoopFuseTrans._validate(self, node1, node2)
 
         # Check that we don't have an inter-grid kernel
@@ -1124,8 +1135,10 @@ class ColourTrans(Transformation):
         # can be run in parallel
         colour_loop = node.__class__(parent=colours_loop, loop_type="colour")
         colour_loop.field_space = node.field_space
+        colour_loop.field_name = node.field_name
         colour_loop.iteration_space = node.iteration_space
         colour_loop.set_lower_bound("start")
+        colour_loop.kernel = node.kernel
 
         if _CONFIG.distributed_memory:
             index = node.upper_bound_halo_depth
@@ -1272,6 +1285,13 @@ class Dynamo0p3ColourTrans(ColourTrans):
         nested loop where the outer loop is over colours and the inner
         loop is over cells of that colour.
 
+        :param node: the loop to transform.
+        :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
+
+        :returns: 2-tuple of new schedule and memento of transform
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynSchedule`, \
+                 :py:class:`psyclone.undoredo.Memento`)
+
         '''
         # check node is a loop
         from psyclone.psyGen import Loop
@@ -1284,9 +1304,6 @@ class Dynamo0p3ColourTrans(ColourTrans):
             raise TransformationError(
                 "Error in DynamoColour transformation. Loops iterating over "
                 "a discontinuous function space are not currently supported.")
-
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node)
 
         # Colouring is only necessary (and permitted) if the loop is
         # over cells. Since this is the default it is represented by
@@ -2286,3 +2303,85 @@ class ACCDataTrans(Transformation):
         schedule.addchild(data_dir, index=0)
 
         return schedule, keep
+
+
+class ACCRoutineTrans(Transformation):
+    '''
+    Transform a kernel subroutine by adding a "!$acc routine" directive
+    (causing it to be compiled for the OpenACC accelerator device).
+    For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "gocean1.0"
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import ACCRoutineTrans
+    >>> rtrans = ACCRoutineTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> kern = schedule.children[0].children[0].children[0]
+    >>> # Transform the kernel
+    >>> newkern, _ = rtrans.apply(kern)
+    '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation class.
+        :rtype: str
+        '''
+        return "ACCRoutineTrans"
+
+    def apply(self, kern):
+        '''
+        Modifies the AST of the supplied kernel so that it contains an
+        '!$acc routine' OpenACC directive.
+
+        :param kern: The kernel object to transform.
+        :type kern: :py:class:`psyclone.psyGen.Call`
+        :returns: (transformed kernel, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
+                :py:class:`psyclone.undoredo.Memento`).
+        :raises TransformationError: if we fail to find the subroutine \
+                                     corresponding to the kernel object.
+        '''
+        from fparser.two.Fortran2003 import walk_ast, Subroutine_Subprogram, \
+            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
+            Implicit_Part, Comment
+        from fparser.common.readfortran import FortranStringReader
+        # Get the fparser2 AST of the kernel
+        ast = kern.ast
+        # Keep a record of this transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(kern, self)
+        # Find the kernel subroutine
+        kern_sub = None
+        subroutines = walk_ast(ast.content, [Subroutine_Subprogram])
+        for sub in subroutines:
+            for child in sub.content:
+                if isinstance(child, Subroutine_Stmt) and \
+                   str(child.items[1]) == kern.name:
+                    kern_sub = sub
+                    break
+            if kern_sub:
+                break
+        if not kern_sub:
+            raise TransformationError(
+                "Failed to find subroutine source for kernel {0}".
+                format(kern.name))
+        # Find the last declaration statement in the subroutine
+        spec = walk_ast(kern_sub.content, [Specification_Part])[0]
+        idx = 0
+        for idx, node in enumerate(spec.content):
+            if not (isinstance(node, (Implicit_Part, Type_Declaration_Stmt))):
+                break
+        # Create the directive and insert it
+        cmt = Comment(FortranStringReader("!$acc routine",
+                                          ignore_comments=False))
+        spec.content.insert(idx, cmt)
+
+        # Return the now modified kernel
+        return kern, keep

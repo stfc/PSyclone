@@ -402,141 +402,136 @@ def test_field_restrict(tmpdir, f90, f90flags):
             assert set_dirty in output
 
 
-def test_restrict_prolong_chain(tmpdir, f90, f90flags):
+def test_restrict_prolong_chain(tmpdir, f90, f90flags, dist_mem):
     ''' Test when we have a single invoke containing a chain of
     restrictions and prolongations '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.2_intergrid_3levels.f90"),
                            api=API)
-    for distmem in [False, True]:
-        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
-        output = str(psy.gen)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    output = str(psy.gen)
+    if TEST_COMPILE:
+        assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
-        if TEST_COMPILE:
-            assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    expected = (
+        "      ! Look-up mesh objects and loop limits for inter-grid "
+        "kernels\n"
+        "      !\n"
+        "      mesh_fld_f => fld_f%get_mesh()\n"
+        "      mesh_fld_m => fld_m%get_mesh()\n"
+        "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)\n"
+        "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()\n")
 
+    assert expected in output
+
+    if dist_mem:
         expected = (
-            "      ! Look-up mesh objects and loop limits for inter-grid "
-            "kernels\n"
-            "      !\n"
-            "      mesh_fld_m => fld_m%get_mesh()\n"
+            "      ncell_fld_f = mesh_fld_f%get_last_halo_cell(depth=2)\n"
+            "      ncpc_fld_f_fld_m = mmap_fld_f_fld_m%"
+            "get_ntarget_cells_per_source_cell()\n"
             "      mesh_fld_c => fld_c%get_mesh()\n"
             "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
-            "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n")
+            "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n"
+            "      ncell_fld_m = mesh_fld_m%get_last_halo_cell(depth=2)\n"
+            "      ncpc_fld_m_fld_c = mmap_fld_m_fld_c%"
+            "get_ntarget_cells_per_source_cell()\n")
+    else:
+        expected = (
+            "      ncell_fld_f = fld_f_proxy%vspace%get_ncell()\n"
+            "      ncpc_fld_f_fld_m = mmap_fld_f_fld_m%"
+            "get_ntarget_cells_per_source_cell()\n"
+            "      mesh_fld_c => fld_c%get_mesh()\n"
+            "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
+            "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n"
+            "      ncell_fld_m = fld_m_proxy%vspace%get_ncell()\n"
+            "      ncpc_fld_m_fld_c = mmap_fld_m_fld_c%get_ntarget_cells_"
+            "per_source_cell()\n")
+    assert expected in output
+
+    # Check that we haven't got duplicated output
+    assert output.count("mesh_fld_m => fld_m%get_mesh") == 1
+    assert output.count("ncell_fld_m = ") == 1
+    assert output.count("ncell_fld_f = ") == 1
+
+    if dist_mem:
+        # Have a potential halo exchange before 1st prolong
+        expected = (
+            "      IF (fld_c_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL fld_c_proxy%halo_exchange(depth=1)\n"
+            "      END IF \n"
+            "      !\n"
+            "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n")
         assert expected in output
-
-        if distmem:
-            expected = (
-                "      ncell_fld_m = mesh_fld_m%get_last_halo_cell(depth=2)\n"
-                "      ncpc_fld_m_fld_c = mmap_fld_m_fld_c%"
-                "get_ntarget_cells_per_source_cell()\n"
-                "      mesh_fld_f => fld_f%get_mesh()\n"
-                "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map"
-                "(mesh_fld_f)\n"
-                "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map"
-                "()\n"
-                "      ncell_fld_f = mesh_fld_f%get_last_halo_cell(depth=2)\n"
-                "      ncpc_fld_f_fld_m = mmap_fld_f_fld_m%"
-                "get_ntarget_cells_per_source_cell()\n")
-        else:
-            expected = (
-                "      ncell_fld_m = fld_m_proxy%vspace%get_ncell()\n"
-                "      ncpc_fld_m_fld_c = mmap_fld_m_fld_c%"
-                "get_ntarget_cells_per_source_cell()\n"
-                "      mesh_fld_f => fld_f%get_mesh()\n"
-                "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map"
-                "(mesh_fld_f)\n"
-                "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map"
-                "()\n"
-                "      ncell_fld_f = fld_f_proxy%vspace%get_ncell()\n"
-                "      ncpc_fld_f_fld_m = mmap_fld_f_fld_m%get_ntarget_cells_"
-                "per_source_cell()\n")
+        # Since we loop into L1 halo of the coarse mesh, the L1 halo
+        # of the fine(r) mesh will now be clean. Therefore, no halo
+        # swap before the next prolongation
+        expected = (
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL fld_m_proxy%set_dirty()\n"
+            "      CALL fld_m_proxy%set_clean(1)\n"
+            "      !\n"
+            "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n")
         assert expected in output
-
-        # Check that we haven't got duplicated output
-        assert output.count("mesh_fld_m => fld_m%get_mesh") == 1
-        assert output.count("ncell_fld_m = ") == 1
-        assert output.count("ncell_fld_f = ") == 1
-
-        if distmem:
-            # Have a potential halo exchange before 1st prolong
-            expected = (
-                "      IF (fld_c_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL fld_c_proxy%halo_exchange(depth=1)\n"
-                "      END IF \n"
-                "      !\n"
-                "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n")
-            assert expected in output
-            # Since we loop into L1 halo of the coarse mesh, the L1 halo
-            # of the fine(r) mesh will now be clean. Therefore, no halo
-            # swap before the next prolongation
-            expected = (
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL fld_m_proxy%set_dirty()\n"
-                "      CALL fld_m_proxy%set_clean(1)\n"
-                "      !\n"
-                "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n")
-            assert expected in output
-            # Again the L1 halo for fld_f will now be clean but for restriction
-            # we need the L2 halo to be clean. There's a set_clean(1) for
-            # fld_f because the above loop over the coarser fld_m will go
-            # into the L2 halo of fld_f. However, it is a continuous field
-            # so only the L1 halo will actually be clean.
-            expected = ("      CALL fld_f_proxy%set_dirty()\n"
-                        "      CALL fld_f_proxy%set_clean(1)\n"
-                        "      !\n"
-                        "      CALL fld_f_proxy%halo_exchange(depth=2)\n"
-                        "      !\n"
-                        "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n"
-                        "        !\n"
-                        "        CALL restrict_kernel_code")
-            assert expected in output
-            # For the final restriction we need the L2 halo of fld_m to be
-            # clean. There's no set_clean() call on fld_m because it is
-            # only updated out to the L1 halo and it is a continuous field
-            # so the shared dofs in the L1 halo will still be dirty.
-            expected = ("      CALL fld_m_proxy%set_dirty()\n"
-                        "      !\n"
-                        "      CALL fld_m_proxy%halo_exchange(depth=2)\n"
-                        "      !\n"
-                        "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n"
-                        "        !\n"
-                        "        CALL restrict_kernel_code")
-            assert expected in output
-        else:
-            expected = (
-                "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
-                "        !\n"
-                "        CALL prolong_kernel_code(nlayers, cell_map_fld_c(:,"
-                "cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_m_proxy%data, "
-                "fld_c_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
-                "map_w2(:,cell))\n"
-                "      END DO \n"
-                "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
-                "        !\n"
-                "        CALL prolong_kernel_code(nlayers, cell_map_fld_m(:,"
-                "cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_f_proxy%data, "
-                "fld_m_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
-                "map_w2(:,cell))\n"
-                "      END DO \n"
-                "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
-                "        !\n"
-                "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,"
-                "cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_m_proxy%data, "
-                "fld_f_proxy%data, undf_any_space_1_fld_m, "
-                "map_any_space_1_fld_m(:,cell), ndf_any_space_2_fld_f, "
-                "undf_any_space_2_fld_f, map_any_space_2_fld_f)\n"
-                "      END DO \n"
-                "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
-                "        !\n"
-                "        CALL restrict_kernel_code(nlayers, cell_map_fld_c(:,"
-                "cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_c_proxy%data, "
-                "fld_m_proxy%data, undf_any_space_1_fld_c, "
-                "map_any_space_1_fld_c(:,cell), ndf_any_space_2_fld_m, "
-                "undf_any_space_2_fld_m, map_any_space_2_fld_m)\n")
-            assert expected in output
+        # Again the L1 halo for fld_f will now be clean but for restriction
+        # we need the L2 halo to be clean. There's a set_clean(1) for
+        # fld_f because the above loop over the coarser fld_m will go
+        # into the L2 halo of fld_f. However, it is a continuous field
+        # so only the L1 halo will actually be clean.
+        expected = ("      CALL fld_f_proxy%set_dirty()\n"
+                    "      CALL fld_f_proxy%set_clean(1)\n"
+                    "      !\n"
+                    "      CALL fld_f_proxy%halo_exchange(depth=2)\n"
+                    "      !\n"
+                    "      DO cell=1,mesh_fld_m%get_last_halo_cell(1)\n"
+                    "        !\n"
+                    "        CALL restrict_kernel_code")
+        assert expected in output
+        # For the final restriction we need the L2 halo of fld_m to be
+        # clean. There's no set_clean() call on fld_m because it is
+        # only updated out to the L1 halo and it is a continuous field
+        # so the shared dofs in the L1 halo will still be dirty.
+        expected = ("      CALL fld_m_proxy%set_dirty()\n"
+                    "      !\n"
+                    "      CALL fld_m_proxy%halo_exchange(depth=2)\n"
+                    "      !\n"
+                    "      DO cell=1,mesh_fld_c%get_last_halo_cell(1)\n"
+                    "        !\n"
+                    "        CALL restrict_kernel_code")
+        assert expected in output
+    else:
+        expected = (
+            "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
+            "        !\n"
+            "        CALL prolong_kernel_code(nlayers, cell_map_fld_c(:,"
+            "cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_m_proxy%data, "
+            "fld_c_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
+            "map_w2(:,cell))\n"
+            "      END DO \n"
+            "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
+            "        !\n"
+            "        CALL prolong_kernel_code(nlayers, cell_map_fld_m(:,"
+            "cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_f_proxy%data, "
+            "fld_m_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
+            "map_w2(:,cell))\n"
+            "      END DO \n"
+            "      DO cell=1,fld_m_proxy%vspace%get_ncell()\n"
+            "        !\n"
+            "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,"
+            "cell), ncpc_fld_f_fld_m, ncell_fld_f, fld_m_proxy%data, "
+            "fld_f_proxy%data, undf_any_space_1_fld_m, "
+            "map_any_space_1_fld_m(:,cell), ndf_any_space_2_fld_f, "
+            "undf_any_space_2_fld_f, map_any_space_2_fld_f)\n"
+            "      END DO \n"
+            "      DO cell=1,fld_c_proxy%vspace%get_ncell()\n"
+            "        !\n"
+            "        CALL restrict_kernel_code(nlayers, cell_map_fld_c(:,"
+            "cell), ncpc_fld_m_fld_c, ncell_fld_m, fld_c_proxy%data, "
+            "fld_m_proxy%data, undf_any_space_1_fld_c, "
+            "map_any_space_1_fld_c(:,cell), ndf_any_space_2_fld_m, "
+            "undf_any_space_2_fld_m, map_any_space_2_fld_m)\n")
+        assert expected in output
 
 
 def test_fine_halo_read():
@@ -581,9 +576,8 @@ def test_prolong_vector(tmpdir, f90, f90flags):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.4_intergrid_prolong_vec.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     output = str(psy.gen)
-    print(output)
 
     if TEST_COMPILE:
         assert code_compiles(API, psy, tmpdir, f90, f90flags)
