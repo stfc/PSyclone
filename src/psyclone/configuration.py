@@ -75,6 +75,11 @@ class Config(object):
     '''
     # Class variable to store the singleton instance
     _instance = None
+    _supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
+                           "gocean0.1", "gocean1.0"]
+    _supported_stub_api_list = ["dynamo0.3"]
+
+    _default_api = u"dynamo0.3"
 
     @staticmethod
     def get(do_not_load_file=False):
@@ -98,7 +103,7 @@ class Config(object):
         is a singleton, and as such will test that no instance already exists
         and raise an exception otherwise.
         :raises GenerationError: If a singleton instance of Config already \
-                exists (and the testing flag is not specified).
+                exists.
         '''
 
         if Config._instance is not None:
@@ -107,13 +112,10 @@ class Config(object):
 
         # Setup the list of supported APIs and stubs before reading any
         # config file:
-        self._supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
-                                    "gocean0.1", "gocean1.0"]
-        self._supported_stub_api_list = ["dynamo0.3"]
-        self._api = None
+        self._api_conf = None
         self._config = None
         self._config_file = None
-        self._default_api = None
+        self._api = None
         self._default_stub_api = None
         self._distributed_mem = None
         self._reproducible_reductions = None
@@ -171,45 +173,42 @@ class Config(object):
                 "error while parsing DISTRIBUTED_MEMORY: {0}".
                 format(str(err)), config=self)
 
-        # Default API for psyclone
-        if "DEFAULTAPI" in self._config["DEFAULT"]:
-            self._default_api = self._config['DEFAULT']['DEFAULTAPI']
+        # API for psyclone
+        if "API" in self._config["DEFAULT"]:
+            self._api = self._config['DEFAULT']['API']
         else:
+            self._api = Config._default_api
             # Test if we have exactly one section (besides DEFAULT).
-            # If so, make this section the default API
+            # If so, make this section the API (otherwise stick with
+            # the default API)
             if len(self._config) == 2:
                 for section in self._config:
-                    self._default_api = section.lower()
-                    if self._default_api != "default":
+                    self._api = section.lower()
+                    if self._api != "default":
                         break
-            else:
-                raise ConfigurationError("No DEFAULTAPI specified and config "
-                                         "file contains more than one API "
-                                         "section.",
-                                         config=self)
 
         # Sanity check
-        if self._default_api not in self._supported_api_list:
+        if self._api not in Config._supported_api_list:
             raise ConfigurationError(
-                "The default API ({0}) is not in the list of supported "
-                "APIs ({1}).".format(self._default_api,
-                                     self._supported_api_list),
+                "The API ({0}) is not in the list of supported "
+                "APIs ({1}).".format(self._api,
+                                     Config._supported_api_list),
                 config=self)
 
         # Default API for stub-generator
         if 'defaultstubapi' not in self._config['DEFAULT']:
             # Use the default API if no default is specified for stub API
-            self._default_stub_api = self._default_api
+            self._default_stub_api = Config._default_api
         else:
             self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
 
         # Sanity check for defaultstubapi:
-        if self._default_stub_api not in self._supported_stub_api_list:
+        if self._default_stub_api not in Config._supported_stub_api_list:
             raise ConfigurationError(
                 "The default stub API ({0}) is not in the list of "
                 "supported stub APIs ({1}).".format(
                     self._default_stub_api,
-                    self._supported_stub_api_list),
+                    Config._supported_stub_api_list),
                 config=self)
 
         try:
@@ -230,26 +229,27 @@ class Config(object):
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
-        self._api = {}
-        for api in self._supported_api_list:
+        self._api_conf = {}
+        for api in Config._supported_api_list:
             if api in self._config:
                 if api == "dynamo0.3":
-                    self._api[api] = DynConfig(self, self._config[api])
+                    self._api_conf[api] = DynConfig(self, self._config[api])
                 elif api == "gocean1.0":
-                    self._api[api] = GOceanConfig(self, self._config[api])
+                    self._api_conf[api] = GOceanConfig(self, self._config[api])
                 else:
                     raise NotImplementedError(
                         "Configuration file contains a {0} section but no "
                         "Config sub-class has been implemented for this API".
                         format(api))
 
-    def api(self, api):
+    def api_conf(self, api):
         '''
         Getter for the object holding API-specific configuration options.
 
         :param str api: the API for which configuration details are required.
         :returns: object containing API-specific configuration
-        :rtype: One of :py:class:`psyclone.configuration.DynConfig` or None.
+        :rtype: One of :py:class:`psyclone.configuration.DynConfig`,
+                :py:class:`psyclone.configuration.GOceanConfig` or None.
 
         :raises ConfigurationError: if api is not in the list of supported \
                                     APIs.
@@ -261,11 +261,11 @@ class Config(object):
                 "API '{0}' is not one of the supported APIs listed in the "
                 "configuration file ({1}).".format(api, self.supported_apis),
                 config=self)
-        if api not in self._api:
+        if api not in self._api_conf:
             raise ConfigurationError(
                 "Configuration file did not contain a section for the '{0}' "
                 "API".format(api), config=self)
-        return self._api[api]
+        return self._api_conf[api]
 
     @staticmethod
     def find_file():
@@ -353,6 +353,23 @@ class Config(object):
         return self._default_api
 
     @property
+    def api(self):
+        '''Getter for the API selected by the user.
+
+        :returns: The name of the selected API.
+        :rtype: str
+        '''
+        return self._api
+
+    @api.setter
+    def api(self, api):
+        '''Setter for the API selected by the user.
+
+        :param str api: The name of the API to use.
+        '''
+        self._api = api
+
+    @property
     def supported_apis(self):
         '''
         Getter for the list of APIs supported by PSyclone.
@@ -360,7 +377,7 @@ class Config(object):
         :returns: list of supported APIs
         :rtype: list of str
         '''
-        return self._supported_api_list
+        return Config._supported_api_list
 
     @property
     def default_stub_api(self):
@@ -380,7 +397,7 @@ class Config(object):
         :returns: list of supported APIs.
         :rtype: list of str
         '''
-        return self._supported_stub_api_list
+        return Config._supported_stub_api_list
 
     @property
     def reproducible_reductions(self):
@@ -465,7 +482,7 @@ class GOceanConfig(object):
 
     :param config: The 'parent' Config object.
     :type config: :py:class:`psyclone.configuration.Config`
-    :param section: The entry for the dynamo0.3 section of \
+    :param section: The entry for the gocean1.0 section of \
                     the configuration file, as produced by ConfigParser.
     :type section:  :py:class:`configparser.SectionProxy`
 
@@ -478,8 +495,8 @@ class GOceanConfig(object):
             if key in config.get_default_keys():
                 continue
             if key == "iteration-spaces":
-                # The value of for the key iteration-spaces is a set of
-                # lines, each line defining one new iteration space.
+                # The value associated with the iteration-spaces key is a
+                # set of lines, each line defining one new iteration space.
                 # Each individual iteration space added is checked
                 # in add_bounds for correctness.
                 value_as_str = str(section[key])

@@ -1199,7 +1199,6 @@ def test05p1_kernel_add_iteration_spaces():
         "EndLoop\n"
         "End Schedule\n")
     sched_str = str(schedule)
-    print(sched_str)
     assert sched_str in expected_sched
 
 

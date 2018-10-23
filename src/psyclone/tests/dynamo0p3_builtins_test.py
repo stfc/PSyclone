@@ -358,76 +358,75 @@ def test_dynbuiltfactory_str():
 # ------------- Adding (scaled) fields ------------------------------------- #
 
 
-def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch):
+def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch, annexed):
     '''Test that 1) the str method of DynXPlusYKern returns the expected
     string and 2) we generate correct code for the built-in Z = X + Y
     where X and Y are fields. Also check that we generate correct
-    bounds when Config.api(API)._compute_annexed_dofs is False and True
+    bounds when Config.api_conf(API)._compute_annexed_dofs is False and True
 
     '''
-    for annexed in [False, True]:
-        api_config = Config.get().api(API)
-        monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
-        _, invoke_info = parse(os.path.join(BASE_PATH,
-                                            "15.1.1_X_plus_Y_builtin.f90"),
-                               api=API)
-        for distmem in [False, True]:
-            psy = PSyFactory(API,
-                             distributed_memory=distmem).create(invoke_info)
-            # Test string method
-            first_invoke = psy.invokes.invoke_list[0]
-            kern = first_invoke.schedule.children[0].children[0]
-            assert str(kern) == "Built-in: Add fields"
-            # Test code generation
-            code = str(psy.gen)
-            if not distmem:
-                # The value of _compute_annexed_dofs should make no difference
-                output = (
-                    "      f3_proxy = f3%get_proxy()\n"
-                    "      f1_proxy = f1%get_proxy()\n"
-                    "      f2_proxy = f2%get_proxy()\n"
-                    "      !\n"
-                    "      ! Initialise number of layers\n"
-                    "      !\n"
-                    "      nlayers = f3_proxy%vspace%get_nlayers()\n"
-                    "      !\n"
-                    "      ! Initialise number of DoFs for any_space_1_f3\n"
-                    "      !\n"
-                    "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
-                    "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
-                    "      !\n"
-                    "      ! Call our kernels\n"
-                    "      !\n"
-                    "      DO df=1,undf_any_space_1_f3\n"
-                    "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                    "f2_proxy%data(df)\n"
-                    "      END DO")
-                assert output in code
-            else:
-                mesh_code_present("f3", code)
-                output_dm_2 = (
-                    "      !\n"
-                    "      ! Call kernels and communication routines\n"
-                    "      !\n"
-                    "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
-                    "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                    "f2_proxy%data(df)\n"
-                    "      END DO \n"
-                    "      !\n"
-                    "      ! Set halos dirty/clean for fields modified in the "
-                    "above loop\n"
-                    "      !\n"
-                    "      CALL f3_proxy%set_dirty()\n"
-                    "      !\n")
-                if not annexed:
-                    # Only compute owned dofs if _compute_annexed_dofs is False
-                    output_dm_2 = output_dm_2.replace("annexed", "owned")
-                assert output_dm_2 in code
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.1_X_plus_Y_builtin.f90"),
+                           api=API)
+    for distmem in [False, True]:
+        psy = PSyFactory(API,
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Add fields"
+        # Test code generation
+        code = str(psy.gen)
+        if not distmem:
+            # The value of _compute_annexed_dofs should make no difference
+            output = (
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise number of DoFs for any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            if not annexed:
+                # Only compute owned dofs if _compute_annexed_dofs is False
+                output_dm_2 = output_dm_2.replace("annexed", "owned")
+            assert output_dm_2 in code
 
-            if TEST_COMPILE:
-                # If compilation testing has been enabled (--compile
-                # flag to py.test)
-                assert code_compiles(API, psy, tmpdir, f90, f90flags)
+        if TEST_COMPILE:
+            # If compilation testing has been enabled (--compile
+            # flag to py.test)
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
 
 def test_inc_X_plus_Y(monkeypatch, annexed):
@@ -437,7 +436,7 @@ def test_inc_X_plus_Y(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -491,7 +490,7 @@ def test_aX_plus_Y(monkeypatch, annexed):
     generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.3_aX_plus_Y_builtin.f90"),
@@ -570,7 +569,7 @@ def test_inc_aX_plus_Y(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.4_inc_aX_plus_Y_builtin.f90"),
@@ -648,7 +647,7 @@ def test_inc_X_plus_bY(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.5_inc_X_plus_bY_builtin.f90"),
@@ -726,7 +725,7 @@ def test_aX_plus_bY(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.6_aX_plus_bY_builtin.f90"),
@@ -805,7 +804,7 @@ def test_inc_aX_plus_bY(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -887,7 +886,7 @@ def test_X_minus_Y(monkeypatch, annexed):
     code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.1_X_minus_Y_builtin.f90"),
@@ -953,7 +952,7 @@ def test_inc_X_minus_Y(monkeypatch, annexed):
     code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1017,7 +1016,7 @@ def test_aX_minus_Y(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.3_aX_minus_Y_builtin.f90"),
@@ -1096,7 +1095,7 @@ def test_X_minus_bY(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.4_X_minus_bY_builtin.f90"),
@@ -1175,7 +1174,7 @@ def test_inc_X_minus_bY(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.5_inc_X_minus_bY_builtin.f90"),
@@ -1255,7 +1254,7 @@ def test_X_times_Y(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1329,7 +1328,7 @@ def test_inc_X_times_Y(monkeypatch, annexed):
     code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -1395,7 +1394,7 @@ def test_inc_aX_times_Y(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.3_inc_aX_times_Y_builtin.f90"),
@@ -1476,7 +1475,7 @@ def test_a_times_X(monkeypatch, annexed):
     generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -1540,7 +1539,7 @@ def test_inc_a_times_X(monkeypatch, annexed):
     generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1616,7 +1615,7 @@ def test_X_divideby_Y(monkeypatch, annexed):
     code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.1_X_divideby_Y_builtin.f90"),
@@ -1681,7 +1680,7 @@ def test_inc_X_divideby_Y(monkeypatch, annexed):
     annexed dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.2_inc_X_divideby_Y_builtin.f90"),
@@ -1749,7 +1748,7 @@ def test_inc_X_powreal_a(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1802,7 +1801,7 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -1864,7 +1863,7 @@ def test_setval_c(monkeypatch, annexed):
     generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.1_setval_c_builtin.f90"),
@@ -1935,7 +1934,7 @@ def test_setval_X(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.2_setval_X_builtin.f90"),
@@ -2282,7 +2281,7 @@ def test_builtin_set(tmpdir, f90, f90flags, monkeypatch, annexed):
     annexed dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -2358,7 +2357,7 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed):
     code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -2431,7 +2430,7 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed):
     generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -2506,7 +2505,7 @@ def test_multiple_builtin_set(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.14.2_multiple_set_kernels.f90"),
@@ -2610,7 +2609,7 @@ def test_builtin_set_plus_normal(monkeypatch, annexed):
     code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
@@ -2712,7 +2711,7 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(API)
+    api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(

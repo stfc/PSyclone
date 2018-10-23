@@ -50,7 +50,7 @@ section e.g.:
 ::
 
     [DEFAULT]
-    DEFAULTAPI = dynamo0.3
+    API = dynamo0.3
     DEFAULTSTUBAPI = dynamo0.3
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
@@ -88,15 +88,19 @@ supported by PSyclone.
 ======================= =======================================================
 Entry         		Description
 ======================= =======================================================
-DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernl
+API                     The API that PSyclone assumes an Algorithm/Kernl
                         conforms to if no API is specified. Must be one of the
-                        APIs supported by PSyclone. If there is no DEFAULTAPI
-                        specified but only one API specific section is in the
-                        config file loaded, this API will be used as
-                        default.
+                        APIs supported by PSyclone (gunghoproto, dynamo0.1,
+                        dynamo0.3, gocean0.1, gocean1.0). If there is no
+                        API specified and there is only one API-specific
+                        section is in the config file loaded, this API will be
+                        used. This value can be overwritten by the command
+                        line option '-api'. If there is no API entry in the
+                        config file, and '-api' is not specified on the 
+                        command line, dynamo0.3 is used as default.
 DEFAULTSTUBAPI          The API that the kernel-stub generator assumes by
                         default. Must be one of the stub-APIs supported by
-                        PSyclone.
+                        PSyclone (dynamo0.3 only at this stage).
 DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory
                         parallelism by default.  Note that this is currently
                         only supported for the dynamo0.3 API.

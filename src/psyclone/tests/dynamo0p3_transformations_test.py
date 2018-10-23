@@ -40,7 +40,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
@@ -61,7 +61,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 
-def test_colour_trans_declarations(tmpdir, f90, f90flags):
+def test_colour_trans_declarations(tmpdir, f90, f90flags, dist_mem):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
     is both off and on '''
@@ -70,118 +70,106 @@ def test_colour_trans_declarations(tmpdir, f90, f90flags):
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_type')
-        schedule = invoke.schedule
-        ctrans = Dynamo0p3ColourTrans()
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
 
-        if dist_mem:
-            index = 3
-        else:
-            index = 0
+    if dist_mem:
+        index = 3
+    else:
+        index = 0
 
-        # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[index])
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[index])
 
-        # Replace the original loop schedule with the transformed one
-        invoke.schedule = cschedule
+    # Replace the original loop schedule with the transformed one
+    invoke.schedule = cschedule
 
-        # Store the results of applying this code transformation as
-        # a string
-        gen = str(psy.gen)
-        # Fortran is not case sensitive
-        gen = gen.lower()
-        print(gen)
+    # Store the results of applying this code transformation as
+    # a string (Fortran is not case sensitive)
+    gen = str(psy.gen).lower()
 
-        # Check that we've declared the loop-related variables
-        # and colour-map pointers
-        if dist_mem:
-            assert "integer, pointer :: cmap(:,:)" in gen
-        else:
-            assert "integer ncolour" in gen
-            assert "integer, pointer :: cmap(:,:), ncp_colour(:)" in gen
-        assert "integer colour" in gen
+    # Check that we've declared the loop-related variables
+    # and colour-map pointers
+    assert "integer, pointer :: cmap(:,:)" in gen
+    assert "integer ncolour" in gen
+    assert "integer colour" in gen
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag
-            # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_colour_trans(tmpdir, f90, f90flags):
+def test_colour_trans(tmpdir, f90, f90flags, dist_mem):
     '''test of the colouring transformation of a single loop. We test
     when distributed memory is both off and on'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_type')
-        schedule = invoke.schedule
-        ctrans = Dynamo0p3ColourTrans()
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
 
-        if dist_mem:
-            index = 3
-        else:
-            index = 0
+    if dist_mem:
+        index = 3
+    else:
+        index = 0
 
-        # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[index])
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[index])
+    # Replace the original loop schedule with the transformed one
+    invoke.schedule = cschedule
 
-        # Replace the original loop schedule with the transformed one
-        invoke.schedule = cschedule
+    # Store the results of applying this code transformation as
+    # a string (Fortran is not case sensitive)
+    gen = str(psy.gen).lower()
 
-        # Store the results of applying this code transformation as
-        # a string
-        gen = str(psy.gen)
-        # Fortran is not case sensitive
-        gen = gen.lower()
-        print(gen)
-        # Check that we're calling the API to get the no. of colours
-        # and the generated loop bounds are correct
-        if dist_mem:
-            output = (
-                "      cmap => mesh%get_colour_map()\n"
-                "      !\n"
-                "      do colour=1,mesh%get_ncolours()\n"
-                "        do cell=1,mesh%get_last_halo_cell_per_colour("
-                "colour,1)\n")
-        else:  # not dist_mem
-            output = (
-                "      call f1_proxy%vspace%get_colours(ncolour, ncp_colour, "
-                "cmap)\n"
-                "      !\n"
-                "      do colour=1,ncolour\n"
-                "        do cell=1,ncp_colour(colour)\n")
-        assert output in gen
+    # Check that we're calling the API to get the no. of colours
+    # and the generated loop bounds are correct
+    output = ("      ncolour = mesh%get_ncolours()\n"
+              "      cmap => mesh%get_colour_map()\n")
+    assert output in gen
+    if dist_mem:
+        output = (
+            "      do colour=1,ncolour\n"
+            "        do cell=1,mesh%get_last_halo_cell_per_colour("
+            "colour,1)\n")
+    else:  # not dist_mem
+        output = (
+            "      do colour=1,ncolour\n"
+            "        do cell=1,mesh%get_last_edge_cell_per_colour("
+            "colour)\n")
+    assert output in gen
 
-        # Check that we're using the colour map when getting the cell dof maps
-        assert (
-            "call testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
-            "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-            "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
-            "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
-            "map_w3(:,cmap(colour, cell)))" in gen)
+    # Check that we're using the colour map when getting the cell dof maps
+    assert (
+        "call testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
+        "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
+        "map_w3(:,cmap(colour, cell)))" in gen)
 
-        if dist_mem:
-            # Check that we get the right number of set_dirty halo calls in
-            # the correct location
-            dirty_str = (
-                "      end do \n"
-                "      !\n"
-                "      ! set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      call f1_proxy%set_dirty()\n")
-            assert dirty_str in gen
-            assert gen.count("set_dirty()") == 1
+    if dist_mem:
+        # Check that we get the right number of set_dirty halo calls in
+        # the correct location
+        dirty_str = (
+            "      end do \n"
+            "      !\n"
+            "      ! set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      call f1_proxy%set_dirty()\n")
+        assert dirty_str in gen
+        assert gen.count("set_dirty()") == 1
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag
-            # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_trans_operator(tmpdir, f90, f90flags):
@@ -221,7 +209,7 @@ def test_colour_trans_operator(tmpdir, f90, f90flags):
             assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_colour_trans_cma_operator(tmpdir, f90, f90flags):
+def test_colour_trans_cma_operator(tmpdir, f90, f90flags, dist_mem):
     '''test of the colouring transformation of a single loop with a CMA
     operator. We check that the first argument is a colourmap lookup,
     not a direct cell index. We test when distributed memory is both
@@ -230,59 +218,53 @@ def test_colour_trans_cma_operator(tmpdir, f90, f90flags):
                                  "test_files", "dynamo0p3",
                                  "20.3_cma_assembly_field.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get(
-            'invoke_0_columnwise_op_asm_field_kernel_type')
-        schedule = invoke.schedule
-        ctrans = Dynamo0p3ColourTrans()
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get(
+        'invoke_0_columnwise_op_asm_field_kernel_type')
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
 
-        if dist_mem:
-            index = 1
-        else:
-            index = 0
+    if dist_mem:
+        index = 1
+    else:
+        index = 0
 
-        # Colour the loop
-        schedule, _ = ctrans.apply(schedule.children[index])
+    # Colour the loop
+    schedule, _ = ctrans.apply(schedule.children[index])
 
-        # Store the results of applying this code transformation as a
-        # string
-        gen = str(psy.gen)
-        print(gen)
+    # Store the results of applying this code transformation as a
+    # string
+    gen = str(psy.gen)
 
-        if dist_mem:
-            assert (
-                "      DO colour=1,mesh%get_ncolours()\n"
-                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
-                "colour,1)\n"
-                "          !\n"
-                "          CALL columnwise_op_asm_field_kernel_code("
-                "cmap(colour, ") in gen
-        else:
-            assert (
-                "      DO colour=1,ncolour\n"
-                "        DO cell=1,ncp_colour(colour)\n"
-                "          !\n"
-                "          CALL columnwise_op_asm_field_kernel_code(cmap"
-                "(colour, ") in gen
+    if dist_mem:
+        lookup = "get_last_halo_cell_per_colour(colour,1)"
+    else:
+        lookup = "get_last_edge_cell_per_colour(colour)"
 
-        assert (
-            "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
-            "cell), nlayers, ncell_2d, afield_proxy%data, "
-            "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
-            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
-            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-            "ndf_any_space_1_afield, undf_any_space_1_afield, "
-            "map_any_space_1_afield(:,cmap(colour, cell)), "
-            "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
-            "cbanded_map_any_space_2_lma_op1)\n"
-            "        END DO \n"
-            "      END DO \n") in gen
+    assert (
+        "      DO colour=1,ncolour\n"
+        "        DO cell=1,mesh%{0}\n"
+        "          !\n"
+        "          CALL columnwise_op_asm_field_kernel_code("
+        "cmap(colour, ".format(lookup)) in gen
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag
-            # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert (
+        "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
+        "cell), nlayers, ncell_2d, afield_proxy%data, "
+        "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
+        "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+        "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+        "ndf_any_space_1_afield, undf_any_space_1_afield, "
+        "map_any_space_1_afield(:,cmap(colour, cell)), "
+        "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
+        "cbanded_map_any_space_2_lma_op1)\n"
+        "        END DO \n"
+        "      END DO \n") in gen
+
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_colour_trans_stencil():
@@ -440,61 +422,51 @@ def test_colour_str():
     assert cstr == "Split a Dynamo 0.3 loop over cells into colours"
 
 
-def test_omp_colour_trans(tmpdir, f90, f90flags):
+def test_omp_colour_trans(tmpdir, f90, f90flags, dist_mem):
     '''Test the OpenMP transformation applied to a coloured loop. We test
     when distributed memory is on or off '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0_testkern_type')
-        schedule = invoke.schedule
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get('invoke_0_testkern_type')
+    schedule = invoke.schedule
 
-        ctrans = Dynamo0p3ColourTrans()
-        otrans = DynamoOMPParallelLoopTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
 
-        if dist_mem:
-            index = 3
-        else:
-            index = 0
+    if dist_mem:
+        index = 3
+    else:
+        index = 0
 
-        # Colour the loop
-        cschedule, _ = ctrans.apply(schedule.children[index])
+    # Colour the loop
+    cschedule, _ = ctrans.apply(schedule.children[index])
 
-        # Then apply OpenMP to the inner loop
-        schedule, _ = otrans.apply(cschedule.children[index].children[0])
+    # Then apply OpenMP to the inner loop
+    schedule, _ = otrans.apply(cschedule.children[index].children[0])
 
-        invoke.schedule = schedule
-        code = str(psy.gen)
-        print(code)
+    invoke.schedule = schedule
+    code = str(psy.gen)
 
-        if dist_mem:
-            output = (
-                "      cmap => mesh%get_colour_map()\n"
-                "      !\n"
-                "      DO colour=1,mesh%get_ncolours()\n"
-                "        !$omp parallel do default(shared), private(cell), "
-                "schedule(static)\n"
-                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
-                "colour,1)\n")
-        else:
-            output = (
-                "      CALL f1_proxy%vspace%get_colours(ncolour, "
-                "ncp_colour, cmap)\n"
-                "      !\n"
-                "      DO colour=1,ncolour\n"
-                "        !$omp parallel do default(shared), private(cell), "
-                "schedule(static)\n"
-                "        DO cell=1,ncp_colour(colour)\n")
+    assert ("      ncolour = mesh%get_ncolours()\n"
+            "      cmap => mesh%get_colour_map()\n" in code)
+    if dist_mem:
+        lookup = "get_last_halo_cell_per_colour(colour,1)"
+    else:
+        lookup = "get_last_edge_cell_per_colour(colour)"
+    output = (
+        "      DO colour=1,ncolour\n"
+        "        !$omp parallel do default(shared), private(cell), "
+        "schedule(static)\n"
+        "        DO cell=1,mesh%{0}\n".format(lookup))
+    assert output in code
 
-        assert output in code
-
-        if TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag
-            # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_omp_colour_orient_trans():
@@ -690,7 +662,7 @@ def test_colouring_after_openmp():
         assert "within an OpenMP parallel region" in str(excinfo.value)
 
 
-def test_colouring_multi_kernel():
+def test_colouring_multi_kernel(dist_mem):
     '''Test that we correctly generate all the map-lookups etc.  when an
     invoke contains more than one kernel. We test when distributed
     memory is on or off '''
@@ -698,43 +670,36 @@ def test_colouring_multi_kernel():
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0')
-        schedule = invoke.schedule
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
 
-        ctrans = Dynamo0p3ColourTrans()
-        otrans = DynamoOMPParallelLoopTrans()
-        mtrans = MoveTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
+    mtrans = MoveTrans()
 
-        if dist_mem:
-            # f is required but can be moved before the first loop
-            schedule, _ = mtrans.apply(schedule.children[7],
-                                       schedule.children[6])
-            index = 7
-        else:
-            index = 0
+    if dist_mem:
+        # f is required but can be moved before the first loop
+        schedule, _ = mtrans.apply(schedule.children[7],
+                                   schedule.children[6])
+        index = 7
+    else:
+        index = 0
 
-        # colour each loop
-        schedule, _ = ctrans.apply(schedule.children[index])
-        schedule, _ = ctrans.apply(schedule.children[index+1])
+    # colour each loop
+    schedule, _ = ctrans.apply(schedule.children[index])
+    schedule, _ = ctrans.apply(schedule.children[index+1])
 
-        # Apply OpenMP to each of the colour loops
-        schedule, _ = otrans.apply(schedule.children[index].children[0])
-        schedule, _ = otrans.apply(schedule.children[index+1].children[0])
+    # Apply OpenMP to each of the colour loops
+    schedule, _ = otrans.apply(schedule.children[index].children[0])
+    schedule, _ = otrans.apply(schedule.children[index+1].children[0])
 
-        gen = str(psy.gen)
-        print(gen)
+    gen = str(psy.gen)
 
-        # Check that we're calling the API to get the no. of colours
-        if dist_mem:
-            assert gen.count("cmap => mesh%get_colour_map()") == 2
-        else:
-            assert "a_proxy%vspace%get_colours(" in gen
-            assert "f_proxy%vspace%get_colours(" in gen
-            assert gen.count("_proxy%vspace%get_colours(") == 2
-        assert "private(cell)" in gen
-        assert gen.count("private(cell)") == 2
+    # Check that we're calling the API to get the no. of colours
+    assert gen.count("cmap => mesh%get_colour_map()") == 1
+    assert "private(cell)" in gen
+    assert gen.count("private(cell)") == 2
 
 
 def test_omp_region_omp_do():
@@ -806,7 +771,7 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -1178,7 +1143,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
 
     '''
     # pylint: disable=too-many-branches
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -1245,7 +1210,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
             assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_fuse_colour_loops(tmpdir, f90, f90flags):
+def test_fuse_colour_loops(tmpdir, f90, f90flags, dist_mem):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP PARALLEL DO for
     both sequential and distributed-memory code '''
@@ -1253,127 +1218,95 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags):
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
                     api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0')
-        schedule = invoke.schedule
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
 
-        ctrans = Dynamo0p3ColourTrans()
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        ftrans = DynamoLoopFuseTrans()
-        mtrans = MoveTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    ftrans = DynamoLoopFuseTrans()
+    mtrans = MoveTrans()
 
-        if dist_mem:
-            # f is required but can be moved before the first loop
-            schedule, _ = mtrans.apply(schedule.children[7],
-                                       schedule.children[6])
-            index = 7
-        else:
-            index = 0
+    if dist_mem:
+        # f is required but can be moved before the first loop
+        schedule, _ = mtrans.apply(schedule.children[7],
+                                   schedule.children[6])
+        index = 7
+    else:
+        index = 0
 
-        # colour each loop
-        schedule, _ = ctrans.apply(schedule.children[index])
-        schedule, _ = ctrans.apply(schedule.children[index+1])
+    # colour each loop
+    schedule, _ = ctrans.apply(schedule.children[index])
+    schedule, _ = ctrans.apply(schedule.children[index+1])
 
-        # fuse the sequential colours loop
-        schedule, _ = ftrans.apply(schedule.children[index],
-                                   schedule.children[index+1])
+    # fuse the sequential colours loop
+    schedule, _ = ftrans.apply(schedule.children[index],
+                               schedule.children[index+1])
 
-        # Enclose the colour loops within an OMP parallel region
-        schedule, _ = rtrans.apply(schedule.children[index].children)
+    # Enclose the colour loops within an OMP parallel region
+    schedule, _ = rtrans.apply(schedule.children[index].children)
 
-        # Put an OMP DO around each of the colour loops
-        for loop in schedule.children[index].children[0].children:
-            schedule, _ = otrans.apply(loop)
+    # Put an OMP DO around each of the colour loops
+    for loop in schedule.children[index].children[0].children:
+        schedule, _ = otrans.apply(loop)
 
-        code = str(psy.gen)
-        print(code)
+    code = str(psy.gen)
+    assert "      ncolour = mesh%get_ncolours()" in code
+    assert "      cmap => mesh%get_colour_map()\n" in code
 
-        if dist_mem:
-            output = (
-                "      cmap => mesh%get_colour_map()\n"
-                "      !\n"
-                "      DO colour=1,mesh%get_ncolours()\n"
-                "        !$omp parallel default(shared), private(cell)\n"
-                "        !$omp do schedule(static)\n"
-                "        DO cell=1,mesh%get_last_halo_cell_per_colour("
-                "colour,1)\n"
-                "          !\n"
-                "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
-                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-                "        END DO \n"
-                "        !$omp end do\n"
-                "        !$omp do schedule(static)\n"
-                "        DO cell=1,mesh%get_last_halo_cell_per_colour"
-                "(colour,1)\n"
-                "          !\n"
-                "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
-                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-                "        END DO \n"
-                "        !$omp end do\n"
-                "        !$omp end parallel\n"
-                "      END DO \n")
-        else:
-            output = (
-                "      CALL f_proxy%vspace%get_colours(ncolour, ncp_colour, "
-                "cmap)\n"
-                "      !\n"
-                "      DO colour=1,ncolour\n"
-                "        !$omp parallel default(shared), private(cell)\n"
-                "        !$omp do schedule(static)\n"
-                "        DO cell=1,ncp_colour(colour)\n"
-                "          !\n"
-                "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
-                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-                "        END DO \n"
-                "        !$omp end do\n"
-                "        !$omp do schedule(static)\n"
-                "        DO cell=1,ncp_colour(colour)\n"
-                "          !\n"
-                "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
-                "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-                "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
-                "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-                "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-                "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-                "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-                "        END DO \n"
-                "        !$omp end do\n"
-                "        !$omp end parallel\n"
-                "      END DO \n")
+    if dist_mem:
+        lookup = "get_last_halo_cell_per_colour(colour,1)"
+    else:
+        lookup = "get_last_edge_cell_per_colour(colour)"
 
-        assert output in code
+    output = (
+        "      !\n"
+        "      DO colour=1,ncolour\n"
+        "        !$omp parallel default(shared), private(cell)\n"
+        "        !$omp do schedule(static)\n"
+        "        DO cell=1,mesh%{0}\n"
+        "          !\n"
+        "          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
+        "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+        "        END DO \n"
+        "        !$omp end do\n"
+        "        !$omp do schedule(static)\n"
+        "        DO cell=1,mesh%{0}\n"
+        "          !\n"
+        "          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
+        "istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
+        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        "cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
+        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
+        "        END DO \n"
+        "        !$omp end do\n"
+        "        !$omp end parallel\n"
+        "      END DO \n".format(lookup))
 
-        if dist_mem:
-            set_dirty_str = (
-                "      ! Set halos dirty/clean for fields modified in the "
-                "above loop\n"
-                "      !\n"
-                "      CALL a_proxy%set_dirty()\n"
-                "      CALL f_proxy%set_dirty()\n")
-            assert set_dirty_str in code
-            assert code.count("set_dirty()") == 2
+    assert output in code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled (--compile flag
-            # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    if dist_mem:
+        set_dirty_str = (
+            "      ! Set halos dirty/clean for fields modified in the "
+            "above loop\n"
+            "      !\n"
+            "      CALL a_proxy%set_dirty()\n"
+            "      CALL f_proxy%set_dirty()\n")
+        assert set_dirty_str in code
+        assert code.count("set_dirty()") == 2
+
+    if TEST_COMPILE:
+        # If compilation testing has been enabled (--compile flag
+        # to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_loop_fuse_cma():
@@ -1502,7 +1435,7 @@ def test_builtin_single_OpenMP_pdo(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1549,7 +1482,7 @@ def test_builtin_multiple_OpenMP_pdo(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1632,7 +1565,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed):
     applied to multiple loop fused builtins. We have to assert that it
     is safe to loop fuse. Also test with and without annexed
     dofs being computed as this affects the generated code. '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1691,7 +1624,7 @@ def test_builtin_single_OpenMP_do(monkeypatch, annexed):
     generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1748,7 +1681,7 @@ def test_builtin_multiple_OpenMP_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -1843,7 +1776,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
@@ -2070,7 +2003,7 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
 
     '''
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2155,7 +2088,7 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
 
     '''
     file_name = "15.17.2_one_standard_builtin_one_reduction.f90"
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2599,7 +2532,7 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
     generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2675,7 +2608,7 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
     code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2762,7 +2695,7 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
     this affects the validity of the transform.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2846,7 +2779,7 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2930,7 +2863,7 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
     as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3010,7 +2943,7 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3084,7 +3017,7 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3349,7 +3282,7 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
     being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3468,7 +3401,7 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3589,7 +3522,7 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -3782,7 +3715,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
     as this affects the output.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     from psyclone.dynamo0p3 import DynLoop
     from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
@@ -4249,7 +4182,7 @@ def test_rc_discontinuous_depth(tmpdir, f90, f90flags, monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
@@ -4292,7 +4225,7 @@ def test_rc_discontinuous_no_depth(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
@@ -4693,7 +4626,7 @@ def test_rc_dofs_depth_prev_dep(monkeypatch, annexed):
     with and without annexed dofs.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(
         BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
@@ -4812,7 +4745,7 @@ def test_dofs_no_set_clean(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.7.1_setval_c_builtin.f90"),
@@ -5014,7 +4947,7 @@ def test_rc_remove_halo_exchange(tmpdir, f90, f90flags, monkeypatch):
     compute over owned dofs (via monkeypatch) to perform the test.
 
     '''
-    api_config = Config.get().api(TEST_API)
+    api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(
         BASE_PATH, "14.7_halo_annexed.f90"),
@@ -5744,10 +5677,9 @@ def test_rc_colour(tmpdir, f90, f90flags):
         "      IF (m2_proxy%is_dirty(depth=2)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=2)\n"
         "      END IF \n" in result)
+    assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
-        "      cmap => mesh%get_colour_map()\n"
-        "      !\n"
-        "      DO colour=1,mesh%get_ncolours()\n"
+        "      DO colour=1,ncolour\n"
         "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour,2)\n"
         in result)
 
@@ -5786,7 +5718,6 @@ def test_rc_max_colour(tmpdir, f90, f90flags):
     rc_trans.apply(cschedule.children[3].children[0])
 
     result = str(psy.gen)
-
     assert (
         "      IF (f2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL f2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
@@ -5799,10 +5730,9 @@ def test_rc_max_colour(tmpdir, f90, f90flags):
         "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
         "      END IF \n" in result)
+    assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
-        "      cmap => mesh%get_colour_map()\n"
-        "      !\n"
-        "      DO colour=1,mesh%get_ncolours()\n"
+        "      DO colour=1,ncolour\n"
         "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
         in result)
 
@@ -5880,10 +5810,9 @@ def test_rc_then_colour(tmpdir, f90, f90flags):
         "      IF (m2_proxy%is_dirty(depth=3)) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=3)\n"
         "      END IF \n" in result)
+    assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
-        "      cmap => mesh%get_colour_map()\n"
-        "      !\n"
-        "      DO colour=1,mesh%get_ncolours()\n"
+        "      DO colour=1,ncolour\n"
         "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour,3)\n"
         "          !\n"
         "          CALL testkern_code(nlayers, a, f1_proxy%data,"
@@ -5942,10 +5871,9 @@ def test_rc_then_colour2(tmpdir, f90, f90flags):
         "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
         "      END IF \n" in result)
+    assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
-        "      cmap => mesh%get_colour_map()\n"
-        "      !\n"
-        "      DO colour=1,mesh%get_ncolours()\n"
+        "      DO colour=1,ncolour\n"
         "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
         in result)
 
@@ -6004,10 +5932,9 @@ def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
         "      IF (m2_proxy%is_dirty(depth=mesh%get_halo_depth())) THEN\n"
         "        CALL m2_proxy%halo_exchange(depth=mesh%get_halo_depth())\n"
         "      END IF \n" in result)
+    assert "      cmap => mesh%get_colour_map()\n" in result
     assert (
-        "      cmap => mesh%get_colour_map()\n"
-        "      !\n"
-        "      DO colour=1,mesh%get_ncolours()\n"
+        "      DO colour=1,ncolour\n"
         "        DO cell=1,mesh%get_last_halo_cell_per_colour(colour)\n"
         in result)
 
@@ -6414,52 +6341,132 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
         print("OK for iteration ", idx)
 
 
-def test_intergrid_rejected():
-    ''' Check that any attempt to apply a transformation that affects
-    an inter-grid kernel is rejected. (Obviously this can be removed
-    once transformations with inter-grid kernels are supported.) '''
+def test_intergrid_colour(dist_mem):
+    ''' Check that we can apply colouring to a loop containing
+    an inter-grid kernel. '''
+    from psyclone import psyGen
+    # Use an example that contains both prolongation and restriction
+    # kernels
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # First two kernels are prolongation, last two are restriction
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    ctrans = Dynamo0p3ColourTrans()
+    # To a prolong kernel
+    _, _ = ctrans.apply(loops[1])
+    # To a restrict kernel
+    _, _ = ctrans.apply(loops[3])
+    gen = str(psy.gen).lower()
+    expected = '''\
+      ncolour_fld_m = mesh_fld_m%get_ncolours()
+      cmap_fld_m => mesh_fld_m%get_colour_map()'''
+    assert expected in gen
+    expected = '''\
+      ncolour_fld_c = mesh_fld_c%get_ncolours()
+      cmap_fld_c => mesh_fld_c%get_colour_map()'''
+    assert expected in gen
+    if dist_mem:
+        expected = (
+            "      do colour=1,ncolour_fld_m\n"
+            "        do cell=1,mesh_fld_m%get_last_halo_cell_per_colour("
+            "colour,1)\n")
+    else:
+        expected = (
+            "      do colour=1,ncolour_fld_m\n"
+            "        do cell=1,mesh_fld_m%get_last_edge_cell_per_colour("
+            "colour)\n")
+    assert expected in gen
+    expected = (
+        "          call prolong_kernel_code(nlayers, cell_map_fld_m(:,"
+        "cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m, ncell_fld_f, "
+        "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
+        "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n")
+    assert expected in gen
+
+
+def test_intergrid_colour_errors(dist_mem, monkeypatch):
+    ''' Check that we raise the expected error when colouring is not applied
+    correctly to inter-grid kernels within a loop over colours. '''
+    from psyclone import psyGen
+    ctrans = Dynamo0p3ColourTrans()
+    # Use an example that contains both prolongation and restriction kernels
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # First two kernels are prolongation, last two are restriction
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    loop = loops[1]
+    # To a prolong kernel
+    new_sched, _ = ctrans.apply(loop)
+    # Update our list of loops
+    loops = new_sched.walk(schedule.children, psyGen.Loop)
+    # Trigger the error by calling the internal method to get the upper
+    # bound before the colourmaps have been set-up
+    with pytest.raises(InternalError) as err:
+        _ = loops[1]._upper_bound_fortran()
+    assert ("All kernels within a loop over colours must have been coloured "
+            "but kernel 'prolong_kernel_code' has not" in str(err))
+    # Set-up the colourmaps
+    psy.invokes.invoke_list[0].meshes._colourmap_init()
+    # Check that the upper bound is now correct
+    upperbound = loops[1]._upper_bound_fortran()
+    assert upperbound == "ncolour_fld_m"
+    # Manually add an un-coloured kernel to the loop that we coloured
+    loop = loops[2]
+    monkeypatch.setattr(loops[3].children[0], "is_coloured", lambda: True)
+    loop.children.append(loops[3].children[0])
+    with pytest.raises(InternalError) as err:
+        _ = loops[1]._upper_bound_fortran()
+    assert ("All kernels within a loop over colours must have been coloured "
+            "but kernel 'restrict_kernel_code' has not" in str(err))
+
+
+def test_intergrid_err(dist_mem):
+    ''' Check that we cannot apply redundant computation, OpenMP or loop
+    fusion to loops containing inter-grid kernels. '''
+    from psyclone import psyGen
+    # Use an example that contains both prolongation and restriction
+    # kernels
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # First two kernels are prolongation, last two are restriction
+    loops = schedule.walk(schedule.children, psyGen.Loop)
 
     expected_err = (
         "cannot currently be applied to nodes which have inter-grid "
         "kernels as children and ")
 
-    # Use an example that contains both prolongation and restriction
-    # kernels
-    _, invoke_info = parse(os.path.join(
-        BASE_PATH, "22.2_intergrid_3levels.f90"), api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-
-    # To a prolong kernel
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[1], depth=2)
-    assert expected_err in str(excinfo)
+    if not dist_mem:
+        # Cannot apply redundant computation unless DM is enabled
+        rc_trans = Dynamo0p3RedundantComputationTrans()
+        with pytest.raises(TransformationError) as excinfo:
+            rc_trans.apply(loops[2], depth=2)
+            assert expected_err in str(excinfo)
 
     ctrans = Dynamo0p3ColourTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ctrans.apply(schedule.children[4])
-    assert expected_err in str(excinfo)
-
-    # To a restrict kernel
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        rc_trans.apply(schedule.children[4], depth=2)
-    assert expected_err in str(excinfo)
-
     omplooptrans = Dynamo0p3OMPLoopTrans()
+    # We have to colour before we can apply OMP to this loop...
+    # Keep a ref to the kernel as that makes it easy to find the correct
+    # loop to which to apply OMP
+    kern = loops[2]._kern
+    _, _ = ctrans.apply(loops[2])
     with pytest.raises(TransformationError) as excinfo:
-        omplooptrans.apply(schedule.children[1])
+        omplooptrans.apply(kern.parent)
     assert expected_err in str(excinfo)
 
     ompparatrans = DynamoOMPParallelLoopTrans()
     with pytest.raises(TransformationError) as excinfo:
-        ompparatrans.apply(schedule.children[1])
+        ompparatrans.apply(loops[2])
     assert expected_err in str(excinfo)
 
     lftrans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        lftrans.apply(schedule.children[1], schedule.children[2])
+        lftrans.apply(loops[0], loops[1])
     assert expected_err in str(excinfo)
 
 

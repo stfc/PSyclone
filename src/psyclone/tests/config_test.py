@@ -54,7 +54,7 @@ TEST_CONFIG = os.path.join(BASE_PATH, "dummy_config.cfg")
 # different tests
 _CONFIG_CONTENT = '''\
 [DEFAULT]
-DEFAULTAPI = dynamo0.3
+API = dynamo0.3
 DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
@@ -70,7 +70,7 @@ def teardown_function():
     one from a test here).
     '''
     # Enforce loading of the default config file
-    Config.get().load()
+    Config._instance = None
 
 
 # Disable this pylint warning because otherwise it gets upset about the
@@ -118,7 +118,6 @@ def test_singleton_create():
     # line to load a config file when the singleton is created might not
     # be executed. So to be certain explicitly delete the singleton here
     # to force that the next line will test loading the default config file.
-    Config._instance = None
     _config = Config.get()
     assert isinstance(_config, Config)
     # Check that we are creating a singleton instance
@@ -134,7 +133,6 @@ def test_singleton_create():
 def test_missing_file(tmpdir):
     ''' Check that we get the expected error when the specified
     config file cannot be found '''
-    Config._instance = None
     with pytest.raises(ConfigurationError) as err:
         config = Config()
         config.load(config_file=os.path.join(str(tmpdir),
@@ -259,7 +257,6 @@ def test_read_values():
 
 def test_dm():
     ''' Checks for getter and setter for distributed memory '''
-    Config._instance = None
     config = Config()
     config.load(config_file=TEST_CONFIG)
     # Check the setter method
@@ -271,23 +268,22 @@ def test_dm():
     assert "distributed_memory must be a boolean but got " in str(err)
 
 
-def test_default_api_not_in_list():
+def test_api_not_in_list():
     ''' Check that we raise an error if the default API is not in
     the list of supported APIs '''
-    content = re.sub(r"^DEFAULTAPI = .*$",
-                     "DEFAULTAPI = invalid",
+    content = re.sub(r"^API = .*$",
+                     "API = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=new_name)
 
-        assert ("The default API (invalid) is not in the list of "
+        assert ("The API (invalid) is not in the list of "
                 "supported APIs" in str(err))
 
 
@@ -302,7 +298,6 @@ def test_default_stubapi_invalid():
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=new_name)
@@ -322,7 +317,6 @@ def test_default_stubapi_missing():
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-        Config._instance = None
         config = Config()
         config.load(config_file=new_name)
 
@@ -341,7 +335,6 @@ def test_not_bool(bool_entry):
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=new_name)
@@ -363,7 +356,6 @@ def test_not_int(int_entry):
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(config_file=new_name)
@@ -384,7 +376,6 @@ def test_broken_fmt():
         new_cfg.close()
 
         with pytest.raises(ConfigurationError) as err:
-            Config._instance = None
             config = Config()
             config.load(config_file=new_name)
         assert ("ConfigParser failed to read the configuration file. Is it "
@@ -405,7 +396,6 @@ COMPUTE_ANNEXED_DOFS = false
         new_cfg.close()
 
         with pytest.raises(ConfigurationError) as err:
-            Config._instance = None
             config = Config()
             config.load(config_file=new_name)
 
@@ -416,14 +406,13 @@ COMPUTE_ANNEXED_DOFS = false
 def test_wrong_api():
     ''' Check that we raise the correct errors when a user queries
     API-specific configuration options '''
-    Config._instance = None
     _config = Config()
     _config.load(config_file=TEST_CONFIG)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api("blah")
+        _ = _config.api_conf("blah")
     assert "API 'blah' is not one of the supported APIs listed" in str(err)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api("dynamo0.1")
+        _ = _config.api_conf("dynamo0.1")
     assert ("Configuration file did not contain a section for the "
             "'dynamo0.1' API" in str(err))
 
@@ -440,7 +429,6 @@ def test_api_unimplemented():
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-        Config._instance = None
         config = Config()
         with pytest.raises(NotImplementedError) as err:
             config.load(new_name)
@@ -453,7 +441,7 @@ def test_default_api():
     a single (non-default) section, this section should be used as the
     default api.
     '''
-    content = re.sub(r"^DEFAULTAPI.*$",
+    content = re.sub(r"^API.*$",
                      "",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
@@ -462,44 +450,6 @@ def test_default_api():
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-        Config._instance = None
         config = Config()
         config.load(new_name)
-        assert config.default_api == "dynamo0.3"
-
-
-def test_no_default_api():
-    '''If a config file has no default-api specified and contains 0
-    or more than one non-default sections, ane exception must be raised.
-    '''
-
-    # First test no API specific section at all:
-    content = "[DEFAULT]\nCOMPUTE_ANNEXED_DOFS = false\n"
-
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
-        new_cfg.write(content)
-        new_cfg.close()
-        Config._instance = None
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(new_name)
-        assert "No DEFAULTAPI specified" in str(err)
-
-    # Then test if there are two API specific sections (and no default)
-    content = '''[DEFAULT]
-COMPUTE_ANNEXED_DOFS = false
-[dynamo0.3]
-[gocean1.0]
-'''
-
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
-        new_cfg.write(content)
-        new_cfg.close()
-        Config._instance = None
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(new_name)
-        assert "No DEFAULTAPI specified and config file contains more than " \
-               "one API section" in str(err)
+        assert config.api == "dynamo0.3"

@@ -53,7 +53,7 @@ def teardown_function():
     one from a test here).
     '''
     # Enforce loading of the default config file
-    Config.get().load()
+    Config._instance = None
 
 
 # =============================================================================
@@ -72,6 +72,9 @@ def test_command_line(capsys):
 
     options = ["-api", "gocean1.0"]
 
+    # Make sure we always trigger the GOLoop.setup_bounds()
+    # in the constructor so that part is always tested!
+    GOLoop._bounds_lookup = {}
     # Check that --config with a parameter is accepted
     main(options+["--config", config_file, f90_file])
 
@@ -93,6 +96,7 @@ def test_invalid_config_files():
     # Valid configuration file without iteration spaces. We add several
     # iteration spaces to it to test for various error conditions
     # pylint: disable=invalid-name
+    # pylint: disable=too-many-statements
     _CONFIG_CONTENT = '''\
     [DEFAULT]
     DEFAULTAPI = dynamo0.3
@@ -102,14 +106,14 @@ def test_invalid_config_files():
     REPROD_PAD_SIZE = 8
     [gocean1.0]
     '''
-    # Create a config files with gocean1.0 section, but an unsupported key:
+    # Create a config files with gocean1.0 section, but an
+    # invalid iteration space:
     content = _CONFIG_CONTENT + "iteration-spaces=a:b"
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
@@ -123,21 +127,19 @@ def test_invalid_config_files():
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
         assert "An iteration space must be in the form" in str(err)
         assert "But got \"d:e\"" in str(err)
 
-    # Invalid {} expression
-    content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:{X}:2:{Y}:4"
+    # Invalid {} expression in first loop bound
+    content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:{X}:2:3:4"
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
@@ -145,14 +147,27 @@ def test_invalid_config_files():
                "expression in an iteration space." in str(err)
         assert "But got {X}" in str(err)
 
-    # Add an invalid key:""
+    # Invalid {} expression in last loop bound:
+    content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:{Y}"
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+
+        config = Config()
+        with pytest.raises(ConfigurationError) as err:
+            config.load(new_name)
+        assert "Only '{start}' and '{stop}' are allowed as bracketed "\
+               "expression in an iteration space." in str(err)
+        assert "But got {Y}" in str(err)
+
+    # Add an invalid key:
     content = _CONFIG_CONTENT + "invalid-key=value"
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
 
-        Config._instance = None
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(new_name)
@@ -168,9 +183,17 @@ def test_invalid_config_files():
         GOLoop.add_bounds(1)
     # Different error message (for type) in python2 vs python3:
     assert "The parameter 'bound_info' must be a string, got '1' "\
-           "(type <type 'int'>" in str(err) or \
+           "(type <type 'int'>)" in str(err) or \
            "The parameter 'bound_info' must be a string, got '1' "\
-           "(type <class 'int'>" in str(err)
+           "(type <class 'int'>)" in str(err)
+
+    # Test syntactically invalid loop boundaries
+    with pytest.raises(ConfigurationError) as err:
+        GOLoop.add_bounds("offset:field:space:1(:2:3:4")
+    assert "Expression '1(' is not a valid do loop boundary" in str(err)
+    with pytest.raises(ConfigurationError) as err:
+        GOLoop.add_bounds("offset:field:space:1:2:3:4+")
+    assert "Expression '4+' is not a valid do loop boundary" in str(err)
 
 
 # =============================================================================
@@ -179,7 +202,6 @@ def test_valid_config_files():
     '''
     from psyclone_test_utils import get_invoke
 
-    # Using "" adds the directory separator to the end:
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
