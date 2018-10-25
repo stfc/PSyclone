@@ -60,6 +60,15 @@ def generate(filename, api=""):
        they are using the correct arguments in the correct order.  The
        Kernel Metadata must be presented in the standard Kernel
        format.
+
+       :param str filename: The name of the file for which to create a \
+               kernel stub for.
+       :param str api: The name of the API for which to create a kernel \
+              stub. Must be one of the supported stub APIs.
+
+       :raise GenerationError: if an invalid stub API is specified.
+       :raise IOError: if filename does not specify a file.
+       :raise ParseError: if the given file could not be parsed.
     '''
     if api == "":
         api = Config.get().default_stub_api

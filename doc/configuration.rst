@@ -93,7 +93,7 @@ API                     The API that PSyclone assumes an Algorithm/Kernl
                         APIs supported by PSyclone (gunghoproto, dynamo0.1,
                         dynamo0.3, gocean0.1, gocean1.0). If there is no
                         API specified and there is only one API-specific
-                        section is in the config file loaded, this API will be
+                        section in the config file loaded, this API will be
                         used. This value can be overwritten by the command
                         line option '-api'. If there is no API entry in the
                         config file, and '-api' is not specified on the 

@@ -976,8 +976,8 @@ Modules
 This section describes the functionality of the various Python modules
 that make up PSyclone.
 
-f2pygen
-=======
+Module: f2pygen
+===============
 
 `f2pygen` provides functionality for generating Fortran code from
 scratch (i.e. when not modifying existing source).
@@ -1023,8 +1023,8 @@ The full interface to each of these classes is detailed below:
     :members:
     :noindex:
 
-Configuration
-=============
+Module: configuration
+======================
 
 PSyclone uses the Python ``ConfigParser`` class
 (https://docs.python.org/3/library/configparser.html) for reading the
@@ -1040,7 +1040,8 @@ The ``Config`` class is responsible for finding the configuration file
 (if no filename is passed to the constructor), parsing it and then storing
 the various configuration options. It also stores the list of supported
 APIs (``Config._supported_api_list``) and the default API to use if none
-is specified in either a config file or the command line (``Config``.)
+is specified in either a config file or the command line
+(``Config._default_api``.)
 
 
 It also performs some basic consistency
@@ -1072,8 +1073,8 @@ encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
 
-Transformations
-===============
+Module: transformations
+=======================
 
 As one might expect, the transformations module holds the various
 transformation classes that may be used to modify the Schedule of an

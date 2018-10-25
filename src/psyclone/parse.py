@@ -57,7 +57,7 @@ def check_api(api):
     :raises ParseError: if the supplied API is not recognised.
 
     '''
-    _config =Config.get()
+    _config = Config.get()
 
     if api not in _config.supported_apis:
         raise ParseError(
@@ -615,7 +615,7 @@ class KernelType(object):
                     declared_public = True
             if isinstance(statement, fparser1.block_statements.Type) \
                and statement.name == name and statement.is_public():
-                    declared_public = True
+                declared_public = True
         if declared_private or (not default_public and not declared_public):
             raise ParseError("Kernel type '%s' is not public" % name)
 
@@ -699,8 +699,8 @@ class GHProtoKernelType(KernelType):
                     "'arg' type expects 3 arguments but found '{}' in '{}'".
                     format(str(len(init.args)), init.args))
             self._arg_descriptors.append(GHProtoDescriptor(init.args[0].name,
-                                         str(init.args[1]),
-                                         init.args[2].name))
+                                                           str(init.args[1]),
+                                                           init.args[2].name))
 
 
 class ParsedCall(object):

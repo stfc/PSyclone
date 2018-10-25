@@ -75,10 +75,16 @@ class Config(object):
     '''
     # Class variable to store the singleton instance
     _instance = None
+
+    # List of supported API by PSyclone
     _supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
                            "gocean0.1", "gocean1.0"]
+
+    # List of supported stub API by PSyclone
     _supported_stub_api_list = ["dynamo0.3"]
 
+    # The default API, i.e. the one to be used if neither a command line
+    # option is specified nor is the API in the config file used.
     _default_api = u"dynamo0.3"
 
     @staticmethod
@@ -110,15 +116,32 @@ class Config(object):
             raise ConfigurationError("Only one instance of "
                                      "Config can be created")
 
-        # Setup the list of supported APIs and stubs before reading any
-        # config file:
-        self._api_conf = None
+        # This dictionary stores the API-specific config instances
+        # for each API specified in a config file.
+        self._api_conf = {}
+
+        # This will store the ConfigParser instance for the specified
+        # config file.
         self._config = None
+
+        # The name (including path) of the config file read.
         self._config_file = None
+
+        # The API selected by the user - either on the command line,
+        # or in the config file (or the default if neither).
         self._api = None
+
+        # The default stub API to use.
         self._default_stub_api = None
+
+        # True if distributed memory code should be created/
         self._distributed_mem = None
+
+        # True if reproducible reductions should be used.
         self._reproducible_reductions = None
+
+        # Padding size (number of array elements) to be used when
+        # reproducible reductions are created.
         self._reprod_pad_size = None
 
     # -------------------------------------------------------------------------
@@ -258,9 +281,8 @@ class Config(object):
         '''
         if api not in self.supported_apis:
             raise ConfigurationError(
-                "API '{0}' is not one of the supported APIs listed in the "
-                "configuration file ({1}).".format(api, self.supported_apis),
-                config=self)
+                "API '{0}' is not in the list '{1}'' of supported APIs."
+                .format(api, self.supported_apis))
         if api not in self._api_conf:
             raise ConfigurationError(
                 "Configuration file did not contain a section for the '{0}' "
@@ -366,7 +388,13 @@ class Config(object):
         '''Setter for the API selected by the user.
 
         :param str api: The name of the API to use.
+
+        :raises ValueError if api is not a supported API.
         '''
+        if api not in self._supported_api_list:
+            raise ValueError("'{0}' is not a valid API, it must be one "
+                             "of {1}'.".format(api,
+                                               Config._supported_api_list))
         self._api = api
 
     @property

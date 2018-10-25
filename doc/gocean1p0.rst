@@ -764,7 +764,7 @@ The supported keys are listed in the next section.
 
 Iteration-spaces
 +++++++++++++++++
-This section list additional iteration spaces that can be used in a kernel
+This section lists additional iteration spaces that can be used in a kernel
 metadata declaration to allow PSyclone to create a loop with different
 loop boundaries. Each line of the ``iteration-spaces`` declaration
 contains 7 values, separated by ':'. The fields are:
