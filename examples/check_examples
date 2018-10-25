@@ -108,6 +108,12 @@ cd dynamo/eg10
 ${PSYCLONE} intergrid_3levels.x90
 cd -
 
+echo "Running example dynamo/eg11"
+cd dynamo/eg11
+${PSYCLONE} gravity_wave_alg_mod.x90
+${PSYCLONE} -s ./global_plus_extract.py -nodm gravity_wave_alg_mod.x90
+cd -
+
 echo "Running gocean examples"
 cd gocean
 python runme.py

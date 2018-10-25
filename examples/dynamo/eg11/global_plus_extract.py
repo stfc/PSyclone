@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,9 @@ from psyclone.transformations import Dynamo0p3ColourTrans, \
 from psyclone.psyGen import Loop, Kern, Node
 from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
 
-invoke_extract_name = "BICG_group1"
+invoke_extract_name = "1"
 invoke_name = "invoke_" + invoke_extract_name.lower()
-kernel_name = "matrix_vector_mm_code"
+kernel_name = "matrix_vector_code"
 
 def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 api to apply
