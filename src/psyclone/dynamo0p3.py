@@ -856,6 +856,10 @@ class DynKernMetadata(KernelType):
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
         self._eval_shape = self.get_integer_variable('gh_shape')
+        # Check to see whether the optional 'gh_evaluator_targets'
+        # has been supplied. This lists the function spaces for which
+        # any evaluators (gh_shape=gh_evaluator) should be provided.
+        self._eval_targets = self.get_integer_array('gh_evaluator_targets')
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
         # specified for each [field] argument). This property is
@@ -930,6 +934,7 @@ class DynKernMetadata(KernelType):
                             "kernel '{2}'".
                             format(VALID_EVALUATOR_SHAPES, self._eval_shape,
                                    self.name))
+
             self._func_descriptors.append(descriptor)
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
@@ -971,16 +976,33 @@ class DynKernMetadata(KernelType):
                 "Kernel '{0}' specifies a gh_shape ({1}) but does not "
                 "need an evaluator because no basis or differential basis "
                 "functions are required".format(self.name, self._eval_shape))
-
-        # Check that this kernel only updates a single argument if an
-        # evaluator is required
-        if self._eval_shape == "gh_evaluator" and write_count > 1:
-            raise ParseError(
-                "A Dynamo 0.3 kernel requiring quadrature/evaluator must "
-                "only write to one argument but kernel {0} requires {1} and "
-                "updates {2} arguments".format(self.name,
-                                               self._eval_shape, write_count))
-
+        # Check that gh_evaluator_targets is only present if required
+        if self._eval_targets:
+            if not need_evaluator:
+                raise ParseError(
+                    "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
+                    "does not need an evaluator because no basis or "
+                    "differential basis functions are required".
+                    format(self.name, self._eval_targets))
+            if self._eval_shape != "gh_evaluator":
+                raise ParseError(
+                    "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
+                    "does not need an evaluator because gh_shape={2}".
+                    format(self.name, self._eval_targets, self._eval_shape))
+            # Check that there is a kernel argument on each of the
+            # specified spaces...
+            # Create a list (set) of the function spaces associated with
+            # the kernel arguments
+            fs_list = set()
+            for arg in self._arg_descriptors:
+                fs_list.update(arg.function_spaces)
+            # Check each evaluator_target against this list
+            for eval_fs in self._eval_targets:
+                if eval_fs not in fs_list:
+                    raise ParseError(
+                        "Kernel '{0}' specifies that an evaluator is required "
+                        "on {1} but does not have an argument on this space."
+                        .format(self.name, eval_fs))
         # If we have a columnwise operator as argument then we need to
         # identify the operation that this kernel performs (one of
         # assemble, apply/apply-inverse and matrix-matrix)
@@ -4729,8 +4751,8 @@ class DynKern(Kern):
         self._qr_text = ""
         self._qr_name = None
         self._qr_args = None
-        # The function space on which to evaluate basis/diff-basis functions
-        # if any are required
+        # The function spaces on which to evaluate basis/diff-basis functions
+        # if any are required. TODO make this a list.
         self._nodal_fspace = None
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
@@ -4888,9 +4910,11 @@ class DynKern(Kern):
                     arg + "_" + self._qr_name for arg in self._qr_args]
 
         elif self._eval_shape == "gh_evaluator":
-            # Kernel has an evaluator. The FS of the updated argument tells
+            # Kernel has an evaluator. If gh_evaluator_targets is present
+            # then that specifies the function spaces for which the evaluator
+            # is required. Otherwise, the FS of the updated argument(s) tells
             # us upon which nodal points the evaluator will be required
-            arg = self.updated_arg
+            arg = self.updated_arg  # TODO allow for multiple, updated args
             if arg.is_operator:
                 self._nodal_fspace = arg.function_space_to
             else:

@@ -303,7 +303,7 @@ in which they are to be applied and the fields (and scalars) that they
 work with.
 
 Note that the kernel names specified in an Invoke are the names of the
-corresponding kernel *types* defined in the kernel meta-data (see the
+corresponding kernel *types* defined in the kernel metadata (see the
 :ref:`gocean1.0-kernels` Section). These are not the same as the names
 of the Fortran subroutines which contain the actual kernel code.
 The kernel arguments are typically field objects, as described in the
@@ -359,13 +359,13 @@ Kernel
 -------
 
 The general requirements for the structure of a Kernel are explained
-in the :ref:`kernel-layer` section. This section explains the meta-data
+in the :ref:`kernel-layer` section. This section explains the metadata
 and subroutine arguments that are specific to the GOcean 1.0 API.
 
 Metadata
 ++++++++
 
-The meta-data for a GOcean 1.0 API kernel has four components:
+The metadata for a GOcean 1.0 API kernel has four components:
 
  1) 'meta_args',
  2) 'iterates_over',
@@ -384,7 +384,7 @@ These are illustrated in the code below:
     procedure, nopass :: code => my_kernel_code
   end type my_kernel_type
 
-These four meta-data elements are discussed in order in the following
+These four metadata elements are discussed in order in the following
 sections.
 
 Argument Metadata: meta_args
@@ -437,7 +437,7 @@ The second entry to argument-metadata (information contained within
 the brackets of an ``arg`` type) describes the type of data
 represented by the argument. This type falls into three categories;
 field data, scalar data and grid properties. For field data the
-meta-data entry consists of the type of grid-point that field values
+metadata entry consists of the type of grid-point that field values
 are defined on. Since the GOcean API supports fields on an Arakawa C
 grid, the possible grid-point types are ``CU``, ``CV``, ``CF`` and
 ``CT``. GOcean Kernels can also take scalar quantities as
@@ -499,7 +499,7 @@ describes whether the kernel accesses the corresponding argument with
 a stencil. The value ``POINTWISE`` indicates that there is no stencil
 access. Metadata for a scalar field is limited to this value.
 Grid-property arguments have no third metadata argument. If there
-are no stencil accesses then the full argument meta-data for our
+are no stencil accesses then the full argument metadata for our
 previous example will be:
 
 ::
@@ -587,7 +587,7 @@ information that is most important.
 Iterates Over
 #############
 
-The second element of kernel meta-data is ``ITERATES_OVER``. This
+The second element of kernel metadata is ``ITERATES_OVER``. This
 specifies that the Kernel has been written with the assumption that it
 is iterating over grid points of the specified type. By default the supported
 values are: ``INTERNAL_PTS``, ``EXTERNAL_PTS`` and ``ALL_PTS``. These
@@ -613,14 +613,14 @@ additional iteration spaces to PSyclone.
 Index Offset
 ############
 
-The third element of kernel meta-data, ``INDEX_OFFSET``, specifies the
+The third element of kernel metadata, ``INDEX_OFFSET``, specifies the
 index-offset that the kernel uses. This is the same quantity as
 supplied to the grid constructor (see the :ref:`gocean1.0-grid`
 Section for a description).
 
 The GOcean 1.0 API supports two different offset schemes;
 ``OFFSET_NE``, ``OFFSET_SW``. The scheme used by a kernel is specified
-in the meta-data as, e.g.:
+in the metadata as, e.g.:
 
 ::
 
@@ -633,8 +633,8 @@ scheme which must also be the same as passed to the grid constructor.
 Procedure
 #########
 
-The fourth and final type of meta-data is ``procedure`` meta-data. This
-specifies the name of the Kernel Fortran subroutine that this meta-data
+The fourth and final type of metadata is ``procedure`` metadata. This
+specifies the name of the Kernel Fortran subroutine that this metadata
 describes.
 
 For example:
@@ -669,7 +669,7 @@ rules, along with PSyclone's naming conventions, are:
    the kernel.
 
 As an example, consider the ``bc_solid_u`` kernel that is used in the
-``gocean2d`` program shown earlier. The meta-data for this kernel is:
+``gocean2d`` program shown earlier. The metadata for this kernel is:
 
 ::
 
