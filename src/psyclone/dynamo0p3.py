@@ -5214,10 +5214,9 @@ class DynKern(Kern):
         create_arg_list.generate()
         arglist = create_arg_list.arglist
 
-        # If this kernel has been transformed then we need rename it and
+        # If this kernel has been transformed then we need to rename it and
         # write it to file. 
-        if self.modified:
-            _, _ = self.to_fortran()
+        self.update()
 
         # generate the kernel call and associated use statement
         parent.add(CallGen(parent, self._name, arglist))

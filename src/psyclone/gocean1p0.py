@@ -928,8 +928,7 @@ class GOKern(Kern):
             
         # If kernel has been transformed then we need to rename it and
         # write it to file
-        if self.modified:
-            _, _ = self.to_fortran()
+        self.update()
 
         parent.add(CallGen(parent, self._name, arguments))
         if not self.module_inline:

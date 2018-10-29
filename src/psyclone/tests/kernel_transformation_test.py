@@ -40,12 +40,11 @@ import os
 import re
 import pytest
 from fparser.two.utils import walk_ast
-from psyclone_test_utils import get_invoke
+from psyclone_test_utils import get_invoke, code_compiles
 from psyclone.transformations import TransformationError, ACCRoutineTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
-from psyclone_test_utils import code_compiles
 
 
 def teardown_function():
@@ -115,40 +114,39 @@ def test_accroutine():
 def test_accroutine_empty_kernel():
     ''' Check that the directive goes at the end of the declarations,
     even when the rest of the kernel is empty. '''
-    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.kern_calls()
     rtrans = ACCRoutineTrans()
     new_kern, _ = rtrans.apply(kernels[0])
     # Check that directive is in correct place (end of declarations)
     gen = str(new_kern._fp2_ast).lower()
-    assert ("!$acc routine\n  end subroutine testkern_code" in gen)
+    assert "!$acc routine\n  end subroutine testkern_code" in gen
 
 
 def test_new_kernel_file(tmpdir, monkeypatch):
     ''' Check that we write out the transformed kernel to the CWD. '''
-    from psyclone.gocean1p0 import GOKern
     from fparser.two import Fortran2003, parser
     from fparser.common.readfortran import FortranFileReader
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     # Change to temp dir (so kernel written there)
-    old_pwd = tmpdir.chdir()
+    _ = tmpdir.chdir()
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
     rtrans = ACCRoutineTrans()
-    new_kern, _ = rtrans.apply(kern)
+    _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     code = str(psy.gen).lower()
-    # Work out the value of the random tag used to re-name the kernel
+    # Work out the value of the tag used to re-name the kernel
     tag = re.search('use continuity(.+?)_mod', code).group(1)
     assert ("use continuity{0}_mod, only: continuity{0}_code".format(tag)
             in code)
     assert "call continuity{0}_code(".format(tag) in code
-    # The kernel and module name should have gained some random chars and be
-    # written to the CWD
+    # The kernel and module name should have gained the tag just identified
+    # and be written to the CWD
     filename = os.path.join(str(tmpdir), "continuity{0}_mod.f90".format(tag))
     assert os.path.isfile(filename)
     # Parse the new kernel file
@@ -167,8 +165,7 @@ def test_new_kernel_file(tmpdir, monkeypatch):
             break
     assert found
     # Check that the kernel type has been re-named
-    dtypes = walk_ast(prog.content,
-                                  [Fortran2003.Derived_Type_Def])
+    dtypes = walk_ast(prog.content, [Fortran2003.Derived_Type_Def])
     names = walk_ast(dtypes[0].content, [Fortran2003.Type_Name])
     assert str(names[0]) == "continuity{0}_type".format(tag)
     # TODO check compilation of code (needs Joerg's extension of compilation
@@ -185,7 +182,7 @@ def test_new_kernel_dir(tmpdir, monkeypatch):
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
     rtrans = ACCRoutineTrans()
-    new_kern, _ = rtrans.apply(kern)
+    _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     _ = str(psy.gen)
     file_list = os.listdir(str(tmpdir))
@@ -196,13 +193,12 @@ def test_new_kernel_dir(tmpdir, monkeypatch):
 def test_new_kern_no_clobber(tmpdir, monkeypatch):
     ''' Check that we create a new kernel with a new name when kernel-naming
     is set to 'unique' and we would otherwise get a name clash. '''
-    from psyclone.psyGen import Kern
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     monkeypatch.setattr(config, "_kernel_naming", "unique")
     # Change to temp dir (so kernel written there)
-    old_pwd = tmpdir.chdir()
+    _ = tmpdir.chdir()
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
@@ -213,9 +209,9 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
                            old_mod_name+"_0_mod.f90"), "w") as ffile:
         ffile.write("some code")
     rtrans = ACCRoutineTrans()
-    new_kern, _ = rtrans.apply(kern)
+    _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
-    code = str(psy.gen).lower()
+    _ = str(psy.gen).lower()
     filename = os.path.join(str(tmpdir), old_mod_name+"_1_mod.f90")
     assert os.path.isfile(filename)
 
@@ -228,8 +224,8 @@ def test_new_kern_single_error(tmpdir, monkeypatch):
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     monkeypatch.setattr(config, "_kernel_naming", "single")
     # Change to temp dir (so kernel written there)
-    old_pwd = tmpdir.chdir()
-    psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    _ = tmpdir.chdir()
+    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.kern_calls()
     kern = kernels[0]
@@ -244,12 +240,12 @@ def test_new_kern_single_error(tmpdir, monkeypatch):
     # clash and the content of the existing file is not the same as that
     # which we would generate
     with pytest.raises(GenerationError) as err:
-        _ = new_kern.to_fortran()
+        new_kern.update()
     assert ("transformed version of this Kernel 'testkern_0_mod.f90' already "
             "exists in the kernel-output directory ({0}) but is not the same "
             "as the current, transformed kernel and the kernel-renaming "
             "scheme is set to 'single'".format(str(tmpdir)) in str(err))
-    
+
 
 def test_new_same_kern_single(tmpdir, monkeypatch):
     ''' Check that we do not overwrite an existing, identical kernel if
@@ -260,9 +256,9 @@ def test_new_same_kern_single(tmpdir, monkeypatch):
     monkeypatch.setattr(config, "_kernel_naming", "single")
     rtrans = ACCRoutineTrans()
     # Change to temp dir (so kernel written there)
-    old_pwd = tmpdir.chdir()
-    psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
-                             idx=0)
+    _ = tmpdir.chdir()
+    _, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
+                           idx=0)
     sched = invoke.schedule
     # Apply the same transformation to both kernels. This should produce
     # two, identical transformed kernels.
@@ -272,12 +268,12 @@ def test_new_same_kern_single(tmpdir, monkeypatch):
         new_kernels.append(new_kern)
 
     # Generate the code - we should end up with just one transformed kernel
-    mod_name, kern_name = new_kernels[0].to_fortran()
-    mod_name, kern_name = new_kernels[1].to_fortran()
-    assert kern_name == "testkern_0_code"
-    assert mod_name == "testkern_0_mod"
+    new_kernels[0].update()
+    new_kernels[1].update()
+    assert new_kernels[1]._name == "testkern_0_code"
+    assert new_kernels[1].module_name == "testkern_0_mod"
     out_files = os.listdir(str(tmpdir))
-    assert out_files == [mod_name+".f90"]
+    assert out_files == [new_kernels[1].module_name+".f90"]
 
 
 def test_1kern_trans(tmpdir, monkeypatch, f90, f90flags):
@@ -287,15 +283,15 @@ def test_1kern_trans(tmpdir, monkeypatch, f90, f90flags):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     # Change to temp dir (so kernel written there)
-    old_pwd = tmpdir.chdir()
+    _ = tmpdir.chdir()
     psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
     sched = invoke.schedule
-    kernels = sched.kern_calls() # walk(sched.children, Kern)
+    kernels = sched.kern_calls()
     # We will transform the second kernel but not the first
     kern = kernels[1]
     rtrans = ACCRoutineTrans()
-    new_kern, _ = rtrans.apply(kern)
+    _, _ = rtrans.apply(kern)
     # Generate the code (this triggers the generation of a new kernel)
     code = str(psy.gen).lower()
     tag = re.search('use testkern(.+?)_mod', code).group(1)
@@ -318,18 +314,18 @@ def test_2kern_trans(tmpdir, monkeypatch, f90, f90flags):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     # Change to temp dir (so kernel written there)
-    old_pwd = tmpdir.chdir()
+    _ = tmpdir.chdir()
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
     assert len(kernels) == 5
     rtrans = ACCRoutineTrans()
-    new_kern1, _ = rtrans.apply(kernels[1])
-    new_kern2, _ = rtrans.apply(kernels[2])
+    _, _ = rtrans.apply(kernels[1])
+    _, _ = rtrans.apply(kernels[2])
     # Generate the code (this triggers the generation of new kernels)
     code = str(psy.gen).lower()
-    # Find the random tags added to the kernel/module names
+    # Find the tags added to the kernel/module names
     for match in re.finditer('use testkern_any_space_2(.+?)_mod', code):
         tag = match.group(1)
         assert ("use testkern_any_space_2{0}_mod, only: "
@@ -355,4 +351,3 @@ def test_builtin_no_trans():
         _ = rtrans.apply(kernels[0])
     assert ("ACCRoutineTrans to a built-in kernel is not yet supported and "
             "kernel 'x_plus_y' is of type " in str(err))
-

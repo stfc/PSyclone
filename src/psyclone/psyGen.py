@@ -2927,10 +2927,10 @@ class Kern(Call):
         :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
         '''
         from psyclone.f2pygen import CallGen, UseGen
-        if self.modfied:
-            # Kernel body has been modified (transformed) and so must be
-            # renamed and written to file
-            _, _ = self.to_fortran()
+
+        # If kernel has been transformed then we rename it and write it to file
+        self.update()
+        
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
         parent.add(UseGen(parent, name=self._module_name, only=True,
                           funcnames=[self._name]))
@@ -3025,7 +3025,7 @@ class Kern(Call):
             return original[:-len(suffix)] + tag + suffix
         return original + tag + suffix
 
-    def to_fortran(self):
+    def update(self):
         '''
         Writes the (transformed) AST of this kernel to file and resets the
         'modified' flag to False. By default, the kernel is re-named
@@ -3034,12 +3034,16 @@ class Kern(Call):
         "single" then no re-naming and output is performed if there is
         already a transformed copy of the kernel in the output dir.
 
-        :return: Tupe of new names for transformed module and kernel
-        :rtype: 2-tuple of str
-
+        :raises GenerationError: if config.kernel_naming == "single" and a \
+                                 different, transformed version of this \
+                                 kernel is already in the output directory.
         '''
         import os
         from psyclone.line_length import FortLineLength
+
+        # If this kernel has not been transformed we do nothing
+        if not self.modified:
+            return
 
         # Remove any "_mod" if the file follows the PSyclone naming convention
         orig_mod_name = self.module_name[:]
@@ -3112,7 +3116,6 @@ class Kern(Call):
         # Kernel is now self-consistent so unset the modified flag
         self.modified = False
 
-        return self._module_name, self.name
 
     def _rename_ast(self, suffix):
         '''
