@@ -61,6 +61,9 @@
 	18) #196 and PR #210. Adds metadata support for evaluators on
 	multiple function spaces in the Dynamo 0.3 API.
 
+	19) #191 and PR #215. Add ability to specify iteration space
+	definitions to the configuration file.
+
 release 1.6.0 18th May 2018
 
         1) #91 and PR #111 Remove unnecessary __init__.py files.
