@@ -198,6 +198,89 @@ guidelines for performing a review (i.e. what is expected from the
 developer) are available on the GitHub PSyclone wiki pages:
 https://github.com/stfc/PSyclone/wiki.
 
+Generic Code
+############
+
+PSyclone is designed to be configurable so that new front-ends (called
+API's) can be built, re-using as much existing code as possible. The
+generic code is kept in the `psyGen.py` file for psy-code generation.
+
+Dependency Analysis
+===================
+
+Dependence analysis is implemented in PSyclone to support
+functionality such as adding and removing halo exchanges and moving
+nodes in a schedule.
+
+DataAccess Class
+----------------
+
+The DataAccess class is at the core of data dependency analysis. It
+determines 2 main things:
+
+1: whether accesses to two arguments overlap or not. One of the
+arguments is owned by the class instance and the other is passed in to
+the `overlaps()` method. The current assumption is that if two arguments
+access the same field (determined by name) then there is an overlap
+(apart from independent accesses to field vectors, see below). In the
+future this assumption will have to be modified to support accesses to
+subsets of fields e.g. when we support loop splitting to allow
+increased overlap and comms and compute.
+
+2: whether the class instances argument is fully covered by previous
+accesses which are passed into the `update_coverage()` method and then
+checked by the covered property. The current assumption is that an
+argument access (read, write etc.) will access all of the associated
+field. This means that the class instances argument will be covered by
+any other access to the same field. For example
+::
+   
+   access = DataAccess(arg1)
+   access.update_coverage(arg2)
+   result = access.covered  # will be True
+   access.reset_coverage()
+
+If `arg1` and `arg2` have the same name then `access.covered` will return
+`True`. The `reset_coverage()` method can be used to reset internal
+state so the instance can be re-used (but this is not used by PSyclone
+at the moment).
+
+There is one exception to this rule. In the case of vector fields, all
+of the vector is assumed to be accessed in a kernel or global sum, but
+only one vector is accessed in a halo exchange. This means that a
+number of halo-exchanges are required (one for each vector) in order
+to fully cover an access to the full vector field e.g. for a kernel
+access. Also, halo exchanges for the same field with different vector
+indices are independent of each other. This is supported in the
+DataAccess class by counting the number of halo exchange vector
+accesses (and testing that each index is different). For example
+::
+   
+   # this example is for a field vector of size 3
+   # varg2_index[1,2,3] are halo exchange accesses to vector indices [1,2,3] respectively
+   access = DataAccess(varg1)
+   access.update_coverage(varg2_index1)
+   result = access.covered  # will be False
+   access.update_coverage(varg2_index2)
+   result = access.covered  # will be False
+   access.update_coverage(varg2_index3)
+   result = access.covered  # will be True
+
+The way in which halo exchanges are placed means that it is not
+possible for two halo exchange with the same index to depend on
+eachother in a schedule. As a result an exception is raised if this
+situation is found.
+
+Notice there is no concept of read or write dependencies here, that is
+handled by the classes that make use of the DataAccess class
+i.e. `_field_write_arguments()` and `_field_read_arguments()` methods,
+both in the `Arguments` class.
+
+This class is likely to become more complex in the future. By
+isolating this functionality in this class it is hoped that additional
+complexity can be isolated.
+
+
 New APIs
 ########
 

@@ -3161,13 +3161,13 @@ class DataAccess(object):
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
-        
+
         if not self.overlaps(arg):
             ''' there is no overlap so there is nothing to update '''
             return
-        
+
         if isinstance(arg.call, HaloExchange) and \
-           self._arg.vector_size > 1 :
+           self._arg.vector_size > 1:
             # The supplied argument is a vector field coming from a
             # halo exchange and therefore only accesses one of the
             # vectors
@@ -3375,9 +3375,8 @@ class Argument(object):
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
-        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           isinstance(x, HaloExchange) or
-                           isinstance(x, GlobalSum)]
+        nodes_with_args = [x for x in nodes if
+                           isinstance(x, (Call, HaloExchange, GlobalSum))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -3400,9 +3399,8 @@ class Argument(object):
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           isinstance(x, HaloExchange) or
-                           isinstance(x, GlobalSum)]
+        nodes_with_args = [x for x in nodes if
+                           isinstance(x, (Call, HaloExchange, GlobalSum))]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
@@ -3440,13 +3438,11 @@ class Argument(object):
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           (isinstance(x, HaloExchange) and
-                            not ignore_halos) or
-                           isinstance(x, GlobalSum)]
+        nodes_with_args = [x for x in nodes if
+                           isinstance(x, (Call, GlobalSum)) or
+                           (isinstance(x, HaloExchange) and not ignore_halos)]
         access = DataAccess(self)
         arguments = []
-        vector_count = 0
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
@@ -3460,7 +3456,8 @@ class Argument(object):
                 access.update_coverage(argument)
                 if access.covered:
                     # sanity check
-                    if not isinstance(node, HaloExchange) and len(arguments)>1:
+                    if not isinstance(node, HaloExchange) and \
+                       len(arguments) > 1:
                         raise InternalError(
                             "Found a writer dependence but there are already "
                             "dependencies. This should not happen.")

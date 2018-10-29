@@ -2300,8 +2300,8 @@ def test_dataaccess_vector():
     halo_exchange_d_v3 = schedule.children[5]
     field_d_v3 = halo_exchange_d_v3.field
     # d from a kernel argument
-    loop =  schedule.children[6]
-    kernel =  loop.children[0]
+    loop = schedule.children[6]
+    kernel = loop.children[0]
     d_arg = kernel.arguments.args[5]
 
     access = DataAccess(d_arg)
