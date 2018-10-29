@@ -54,9 +54,7 @@ TEST_CONFIG = os.path.join(BASE_PATH, "dummy_config.cfg")
 # different tests
 _CONFIG_CONTENT = '''\
 [DEFAULT]
-SUPPORTEDAPIS = gunghoproto, dynamo0.1, dynamo0.3, gocean0.1, gocean1.0
-DEFAULTAPI = dynamo0.3
-SUPPORTEDSTUBAPIS = dynamo0.3
+API = dynamo0.3
 DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
@@ -64,6 +62,17 @@ REPROD_PAD_SIZE = 8
 [dynamo0.3]
 COMPUTE_ANNEXED_DOFS = false
 '''
+
+
+def teardown_function():
+    '''This teardown function is called at the end of all tests and makes
+    sure that we wipe the Config object so we get a fresh/default one
+    for any further test (and not a left-over one from a test here).
+    '''
+
+    # Enforce loading of the default config file
+    Config._instance = None
+
 
 # Disable this pylint warning because otherwise it gets upset about the
 # use of these fixtures in the test code.
@@ -101,32 +110,36 @@ def int_entry(request):
     return request.param
 
 
-def test_factory_create():
+def test_singleton_create():
     '''
     Check that we can create a Config object
     '''
-    from psyclone.configuration import ConfigFactory
-    try:
-        _config = ConfigFactory().create()
-        assert isinstance(_config, Config)
-        # Check that we are creating a singleton instance
-        _config2 = ConfigFactory().create()
-        assert _config is _config2
-        # Check that specifying which config file to use results
-        # in a new instance
-        _config2 = ConfigFactory(config_file=TEST_CONFIG).create()
-        assert _config2 is not _config
-    finally:
-        # Reset the factory
-        ConfigFactory._instance = None
+
+    # In general loading the config file when using Config.get() will be
+    # tested, but if the tests are executed in a specific order (e.g.
+    # gocean1p0_config first, which manually loads a Config file), the
+    # line to load a config file when the singleton is created might not
+    # be executed. So to be certain explicitly delete the singleton here
+    # to force that the next line will test loading the default config file.
+    _config = Config.get()
+    assert isinstance(_config, Config)
+    # Check that we are creating a singleton instance
+    _config2 = Config.get()
+    assert _config is _config2
+
+    # Test that we can not create more than one instance
+    with pytest.raises(ConfigurationError) as err:
+        Config()
+    assert "Only one instance of Config can be created" in str(err)
 
 
 def test_missing_file(tmpdir):
     ''' Check that we get the expected error when the specified
     config file cannot be found '''
     with pytest.raises(ConfigurationError) as err:
-        _ = Config(config_file=os.path.join(str(tmpdir),
-                                            "not_a_file.cfg"))
+        config = Config()
+        config.load(config_file=os.path.join(str(tmpdir),
+                                             "not_a_file.cfg"))
     assert "not_a_file.cfg does not exist" in str(err)
 
 
@@ -211,107 +224,106 @@ def test_read_values():
     '''
     Check that we get the expected values from the test config file
     '''
-    from psyclone.configuration import ConfigFactory
-    try:
-        _config = ConfigFactory(config_file=TEST_CONFIG).create()
-        # Whether distributed memory is enabled
-        dist_mem = _config.distributed_memory
-        assert isinstance(dist_mem, bool)
-        assert dist_mem
-        # The default API
-        api = _config.default_api
-        assert isinstance(api, six.text_type)
-        assert api == "dynamo0.3"
-        # The list of supported APIs
-        api_list = _config.supported_apis
-        assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
-                            'gocean0.1', 'gocean1.0']
-        # The default API for kernel stub generation
-        api = _config.default_stub_api
-        assert isinstance(api, six.text_type)
-        assert api == "dynamo0.3"
-        # The list of supported APIs for kernel stub generation
-        api_list = _config.supported_stub_apis
-        assert api_list == ['dynamo0.3']
-        # Whether reproducible reductions are enabled
-        reprod = _config.reproducible_reductions
-        assert isinstance(reprod, bool)
-        assert not reprod
-        # How much to pad arrays by when doing reproducible reductions
-        pad = _config.reprod_pad_size
-        assert isinstance(pad, int)
-        assert pad == 8
-        # The filename of the config file which was parsed to produce
-        # the Config object
-        assert _config.filename == str(TEST_CONFIG)
-    finally:
-        # Reset the configuration object held in the factory
-        ConfigFactory._instance = None
+    _config = Config.get()
+    _config.load(config_file=TEST_CONFIG)
+    # Whether distributed memory is enabled
+    dist_mem = _config.distributed_memory
+    assert isinstance(dist_mem, bool)
+    assert dist_mem
+    # The default API
+    api = _config.default_api
+    assert isinstance(api, six.text_type)
+    assert api == "dynamo0.3"
+    # The list of supported APIs
+    api_list = _config.supported_apis
+    assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
+                        'gocean0.1', 'gocean1.0']
+    # The default API for kernel stub generation
+    api = _config.default_stub_api
+    assert isinstance(api, six.text_type)
+    assert api == "dynamo0.3"
+    # The list of supported APIs for kernel stub generation
+    api_list = _config.supported_stub_apis
+    assert api_list == ['dynamo0.3']
+    # Whether reproducible reductions are enabled
+    reprod = _config.reproducible_reductions
+    assert isinstance(reprod, bool)
+    assert not reprod
+    # How much to pad arrays by when doing reproducible reductions
+    pad = _config.reprod_pad_size
+    assert isinstance(pad, int)
+    assert pad == 8
+    # The filename of the config file which was parsed to produce
+    # the Config object
+    assert _config.filename == str(TEST_CONFIG)
 
 
 def test_dm():
     ''' Checks for getter and setter for distributed memory '''
-    _config = Config(config_file=TEST_CONFIG)
+    config = Config()
+    config.load(config_file=TEST_CONFIG)
     # Check the setter method
-    _config.distributed_memory = False
-    assert not _config.distributed_memory
+    config.distributed_memory = False
+    assert not config.distributed_memory
     with pytest.raises(ConfigurationError) as err:
-        _config.distributed_memory = "not-a-bool"
+        # pylint: disable=redefined-variable-type
+        config.distributed_memory = "not-a-bool"
     assert "distributed_memory must be a boolean but got " in str(err)
 
 
-def test_list_no_commas():
-    ''' Check that we parse a space-delimited list OK. '''
-    # Remove the commas from the list of supported APIs
-    content = re.sub(r"^SUPPORTEDAPIS = .*$",
-                     "SUPPORTEDAPIS = dynamo0.3  gocean1.0",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
-        new_cfg.write(content)
-        new_cfg.close()
-
-        _config = Config(config_file=new_name)
-        assert _config.supported_apis == ["dynamo0.3", "gocean1.0"]
-
-
-def test_default_api_not_in_list():
+def test_api_not_in_list():
     ''' Check that we raise an error if the default API is not in
     the list of supported APIs '''
-    content = re.sub(r"^SUPPORTEDAPIS = .*$",
-                     "SUPPORTEDAPIS = gocean1.0",
+    content = re.sub(r"^API = .*$",
+                     "API = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
-            _ = Config(config_file=new_name)
+            config.load(config_file=new_name)
 
-        assert ("The default API (dynamo0.3) is not in the list of "
+        assert ("The API (invalid) is not in the list of "
                 "supported APIs" in str(err))
 
 
-def test_default_stubapi_missing():
+def test_default_stubapi_invalid():
     ''' Check that we raise an error if the default stub API is not in
     the list of supported stub APIs '''
-    content = re.sub(r"^SUPPORTEDSTUBAPIS = .*$",
-                     "SUPPORTEDSTUBAPIS = gocean1.0",
+    content = re.sub(r"^DEFAULTSTUBAPI = .*$",
+                     "DEFAULTSTUBAPI = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
-
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
-            _ = Config(config_file=new_name)
+            config.load(config_file=new_name)
 
-        assert ("The default stub API (dynamo0.3) is not in the list of "
+        assert ("The default stub API (invalid) is not in the list of "
                 "supported stub APIs" in str(err))
+
+
+def test_default_stubapi_missing():
+    ''' Check that we raise an error if the default stub API is missing,
+    in which case it defaults to the default_api'''
+    content = re.sub(r"^DEFAULTSTUBAPI = .*$",
+                     "",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        config.load(config_file=new_name)
+
+        assert config.default_stub_api == config.default_api
 
 
 def test_not_bool(bool_entry):
@@ -326,8 +338,9 @@ def test_not_bool(bool_entry):
         new_cfg.write(content)
         new_cfg.close()
 
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
-            _ = Config(config_file=new_name)
+            config.load(config_file=new_name)
 
         assert "configuration error (file=" in str(err)
         assert ": error while parsing {0}".format(bool_entry) in str(err)
@@ -346,8 +359,9 @@ def test_not_int(int_entry):
         new_cfg.write(content)
         new_cfg.close()
 
+        config = Config()
         with pytest.raises(ConfigurationError) as err:
-            _ = Config(config_file=new_name)
+            config.load(config_file=new_name)
 
         assert "configuration error (file=" in str(err)
         assert (": error while parsing {0}: invalid literal".format(int_entry)
@@ -365,7 +379,8 @@ def test_broken_fmt():
         new_cfg.close()
 
         with pytest.raises(ConfigurationError) as err:
-            _ = Config(config_file=new_name)
+            config = Config()
+            config.load(config_file=new_name)
         assert ("ConfigParser failed to read the configuration file. Is it "
                 "formatted correctly? (Error was: File contains no section "
                 "headers" in str(err))
@@ -384,7 +399,8 @@ COMPUTE_ANNEXED_DOFS = false
         new_cfg.close()
 
         with pytest.raises(ConfigurationError) as err:
-            _ = Config(config_file=new_name)
+            config = Config()
+            config.load(config_file=new_name)
 
         assert "configuration error (file=" in str(err)
         assert "Configuration file has no [DEFAULT] section" in str(err)
@@ -393,14 +409,18 @@ COMPUTE_ANNEXED_DOFS = false
 def test_wrong_api():
     ''' Check that we raise the correct errors when a user queries
     API-specific configuration options '''
-    _config = Config(config_file=TEST_CONFIG)
+    _config = Config()
+    _config.load(config_file=TEST_CONFIG)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api("blah")
-    assert "API 'blah' is not one of the supported APIs listed" in str(err)
+        _ = _config.api_conf("blah")
+    assert "API 'blah' is not in the list" in str(err)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api("dynamo0.1")
+        _ = _config.api_conf("dynamo0.1")
     assert ("Configuration file did not contain a section for the "
             "'dynamo0.1' API" in str(err))
+    with pytest.raises(ValueError) as err:
+        _config.api = "invalid"
+    assert "'invalid' is not a valid API" in str(err)
 
 
 def test_api_unimplemented():
@@ -415,7 +435,27 @@ def test_api_unimplemented():
         new_name = new_cfg.name
         new_cfg.write(content)
         new_cfg.close()
+        config = Config()
         with pytest.raises(NotImplementedError) as err:
-            _ = Config(config_file=new_name)
+            config.load(new_name)
         assert ("file contains a gocean0.1 section but no Config sub-class "
                 "has been implemented for this API" in str(err))
+
+
+def test_default_api():
+    '''If a config file has no default-api specified, but contains only
+    a single (non-default) section, this section should be used as the
+    default api.
+    '''
+    content = re.sub(r"^API.*$",
+                     "",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
+        new_name = new_cfg.name
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        config.load(new_name)
+        assert config.api == "dynamo0.3"

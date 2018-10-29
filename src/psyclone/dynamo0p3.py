@@ -49,15 +49,11 @@ import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
-from psyclone.configuration import ConfigFactory
+from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES
-
-# Get our one-and-only Config object - this holds the global configuration
-# options read from the psyclone.cfg file.
-_CONFIG = ConfigFactory().create()
 
 # First section : Parser specialisations and classes
 
@@ -860,6 +856,10 @@ class DynKernMetadata(KernelType):
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
         self._eval_shape = self.get_integer_variable('gh_shape')
+        # Check to see whether the optional 'gh_evaluator_targets'
+        # has been supplied. This lists the function spaces for which
+        # any evaluators (gh_shape=gh_evaluator) should be provided.
+        self._eval_targets = self.get_integer_array('gh_evaluator_targets')
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
         # specified for each [field] argument). This property is
@@ -934,6 +934,7 @@ class DynKernMetadata(KernelType):
                             "kernel '{2}'".
                             format(VALID_EVALUATOR_SHAPES, self._eval_shape,
                                    self.name))
+
             self._func_descriptors.append(descriptor)
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
@@ -975,16 +976,33 @@ class DynKernMetadata(KernelType):
                 "Kernel '{0}' specifies a gh_shape ({1}) but does not "
                 "need an evaluator because no basis or differential basis "
                 "functions are required".format(self.name, self._eval_shape))
-
-        # Check that this kernel only updates a single argument if an
-        # evaluator is required
-        if self._eval_shape == "gh_evaluator" and write_count > 1:
-            raise ParseError(
-                "A Dynamo 0.3 kernel requiring quadrature/evaluator must "
-                "only write to one argument but kernel {0} requires {1} and "
-                "updates {2} arguments".format(self.name,
-                                               self._eval_shape, write_count))
-
+        # Check that gh_evaluator_targets is only present if required
+        if self._eval_targets:
+            if not need_evaluator:
+                raise ParseError(
+                    "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
+                    "does not need an evaluator because no basis or "
+                    "differential basis functions are required".
+                    format(self.name, self._eval_targets))
+            if self._eval_shape != "gh_evaluator":
+                raise ParseError(
+                    "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
+                    "does not need an evaluator because gh_shape={2}".
+                    format(self.name, self._eval_targets, self._eval_shape))
+            # Check that there is a kernel argument on each of the
+            # specified spaces...
+            # Create a list (set) of the function spaces associated with
+            # the kernel arguments
+            fs_list = set()
+            for arg in self._arg_descriptors:
+                fs_list.update(arg.function_spaces)
+            # Check each evaluator_target against this list
+            for eval_fs in self._eval_targets:
+                if eval_fs not in fs_list:
+                    raise ParseError(
+                        "Kernel '{0}' specifies that an evaluator is required "
+                        "on {1} but does not have an argument on this space."
+                        .format(self.name, eval_fs))
         # If we have a columnwise operator as argument then we need to
         # identify the operation that this kernel performs (one of
         # assemble, apply/apply-inverse and matrix-matrix)
@@ -1934,7 +1952,7 @@ class DynMeshes(object):
         # If we didn't have any inter-grid kernels but distributed memory
         # is enabled then we will still need a mesh object. (Colourmaps also
         # require a mesh object but that is handled in _colourmap_init().)
-        if not _name_set and _CONFIG.distributed_memory:
+        if not _name_set and Config.get().distributed_memory:
             _name_set.add(self._name_space_manager.create_name(
                 root_name="mesh", context="PSyVars", label="mesh"))
 
@@ -2137,7 +2155,7 @@ class DynMeshes(object):
             # Number of cells in the fine mesh
             if dig.ncell_fine not in initialised:
                 initialised.append(dig.ncell_fine)
-                if _CONFIG.distributed_memory:
+                if Config.get().distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
                     parent.add(
@@ -2846,7 +2864,7 @@ class DynInvoke(Invoke):
         # since operators are assembled in place and scalars don't
         # have halos. We only need to add global sum calls for scalars
         # which have a gh_sum access.
-        if _CONFIG.distributed_memory:
+        if Config.get().distributed_memory:
             # halo exchange calls
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
@@ -3202,7 +3220,7 @@ class DynInvoke(Invoke):
         self.evaluators.compute_basis_fns(invoke_sub)
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        if _CONFIG.distributed_memory:
+        if Config.get().distributed_memory:
             invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
                                       "communication routines"))
         else:
@@ -3238,7 +3256,8 @@ class DynSchedule(Schedule):
         :param int indent: the amount by which to indent the output.
         '''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "' dm="+str(_CONFIG.distributed_memory)+"]")
+              self.invoke.name + "' dm=" +
+              str(Config.get().distributed_memory)+"]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -3254,7 +3273,7 @@ class DynGlobalSum(GlobalSum):
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, scalar, parent=None):
-        if not _CONFIG.distributed_memory:
+        if not Config.get().distributed_memory:
             raise GenerationError("It makes no sense to create a DynGlobalSum "
                                   "object when dm=False")
         # a list of scalar types that this class supports
@@ -3516,7 +3535,7 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-        if _CONFIG.api("dynamo0.3").compute_annexed_dofs and \
+        if Config.get().api_conf("dynamo0.3").compute_annexed_dofs and \
            len(required_clean_info) == 1 and \
            required_clean_info[0].annexed_only:
             # We definitely don't need the halo exchange as we
@@ -4126,14 +4145,14 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if _CONFIG.api("dynamo0.3").compute_annexed_dofs \
-               and _CONFIG.distributed_memory \
+            if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
+               and Config.get().distributed_memory \
                and not kern.is_reduction:
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
         else:
-            if _CONFIG.distributed_memory:
+            if Config.get().distributed_memory:
                 if self._field.type in VALID_OPERATOR_NAMES:
                     # We always compute operators redundantly out to the L1
                     # halo
@@ -4226,7 +4245,7 @@ class DynLoop(Loop):
                                  for sequential code.
         :raises GenerationError: if self._lower_bound_name is unrecognised
         '''
-        if not _CONFIG.distributed_memory and \
+        if not Config.get().distributed_memory and \
            self._lower_bound_name != "start":
             raise GenerationError(
                 "The lower bound must be 'start' if we are sequential but "
@@ -4323,7 +4342,7 @@ class DynLoop(Loop):
             return ("{0}%get_last_halo_cell_per_colour(colour"
                     "{1})".format(mesh, append))
         elif self._upper_bound_name in ["ndofs", "nannexed"]:
-            if _CONFIG.distributed_memory:
+            if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
                     result = self.field.proxy_name_indexed + "%" + \
                              self.field.ref_name() + "%get_last_dof_owned()"
@@ -4334,14 +4353,14 @@ class DynLoop(Loop):
                 result = self._kern.undf_name
             return result
         elif self._upper_bound_name == "ncells":
-            if _CONFIG.distributed_memory:
+            if Config.get().distributed_memory:
                 result = mesh + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             return result
         elif self._upper_bound_name == "cell_halo":
-            if _CONFIG.distributed_memory:
+            if Config.get().distributed_memory:
                 return "{0}%get_last_halo_cell({1})".format(mesh,
                                                             halo_index)
             else:
@@ -4349,7 +4368,7 @@ class DynLoop(Loop):
                     "'cell_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "dof_halo":
-            if _CONFIG.distributed_memory:
+            if Config.get().distributed_memory:
                 return "{0}%{1}%get_last_dof_halo({2})".format(
                     self.field.proxy_name_indexed, self.field.ref_name(),
                     halo_index)
@@ -4358,7 +4377,7 @@ class DynLoop(Loop):
                     "'dof_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
-            if _CONFIG.distributed_memory:
+            if Config.get().distributed_memory:
                 return "{0}%get_last_inner_cell({1})".format(mesh,
                                                              halo_index)
             else:
@@ -4435,7 +4454,8 @@ class DynLoop(Loop):
                 # we read annexed dofs. Return False if we always
                 # compute annexed dofs and True if we don't (as
                 # annexed dofs are part of the level 1 halo).
-                return not _CONFIG.api("dynamo0.3").compute_annexed_dofs
+                return not Config.get()\
+                                 .api_conf("dynamo0.3").compute_annexed_dofs
             elif self._upper_bound_name in ["ndofs"]:
                 # argument does not read from the halo
                 return False
@@ -4601,7 +4621,7 @@ class DynLoop(Loop):
         self._stop = self._upper_bound_fortran()
         Loop.gen_code(self, parent)
 
-        if _CONFIG.distributed_memory and self._loop_type != "colour":
+        if Config.get().distributed_memory and self._loop_type != "colour":
 
             # Set halo clean/dirty for all fields that are modified
             from psyclone.f2pygen import CallGen, CommentGen, DirectiveGen
@@ -4731,8 +4751,8 @@ class DynKern(Kern):
         self._qr_text = ""
         self._qr_name = None
         self._qr_args = None
-        # The function space on which to evaluate basis/diff-basis functions
-        # if any are required
+        # The function spaces on which to evaluate basis/diff-basis functions
+        # if any are required. TODO make this a list.
         self._nodal_fspace = None
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
@@ -4890,9 +4910,11 @@ class DynKern(Kern):
                     arg + "_" + self._qr_name for arg in self._qr_args]
 
         elif self._eval_shape == "gh_evaluator":
-            # Kernel has an evaluator. The FS of the updated argument tells
+            # Kernel has an evaluator. If gh_evaluator_targets is present
+            # then that specifies the function spaces for which the evaluator
+            # is required. Otherwise, the FS of the updated argument(s) tells
             # us upon which nodal points the evaluator will be required
-            arg = self.updated_arg
+            arg = self.updated_arg  # TODO allow for multiple, updated args
             if arg.is_operator:
                 self._nodal_fspace = arg.function_space_to
             else:

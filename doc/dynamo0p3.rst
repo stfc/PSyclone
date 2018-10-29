@@ -188,14 +188,14 @@ The above invoke uses two LMA operators to construct the CMA operator
 ``cma_op1``.  A second CMA operator, ``cma_op2``, is assembled from
 the same two LMA operators but also uses a field. The first of these
 CMA operators is then applied to ``field2`` and the result stored in
-``field1`` (assuming that the meta-data for ``apply_kernel`` specifies
+``field1`` (assuming that the metadata for ``apply_kernel`` specifies
 that it is the first field argument that is written to). The two CMA
 operators are then combined to produce a third, ``cma_op3``. This is
 then applied to ``field1`` and the result stored in ``field3``.
 
 Note that PSyclone identifies the type of kernels performing
 Column-Wise operations based on their arguments as described in
-meta-data (see :ref:`dynamo0.3-cma-mdata-rules` below). The names of the
+metadata (see :ref:`dynamo0.3-cma-mdata-rules` below). The names of the
 kernels in the above example are purely illustrative and are not used
 by PSyclone when determining kernel type.
 
@@ -209,7 +209,7 @@ Quadrature
 
 Kernels conforming to the Dynamo 0.3 API may require quadrature
 information (specified using e.g. ``gh_shape = gh_quadrature_XYoZ`` in
-the kernel meta-data - see Section :ref:`dynamo0.3-gh-shape`). This information
+the kernel metadata - see Section :ref:`dynamo0.3-gh-shape`). This information
 must be passed to the kernel from the Algorithm layer in the form of a
 `quadrature_type` object. This must be the last argument passed to the
 kernel, e.g.:
@@ -410,7 +410,7 @@ Rules specific to General-Purpose Kernels without CMA Operators
 
  3) A Kernel may not write to a scalar argument. (Only
     :ref:`dynamo0.3-built-ins` are permitted to do this.) Any scalar
-    aguments must therefore be declared in the meta-data as
+    aguments must therefore be declared in the metadata as
     ``GH_READ`` - see below.
 
 .. _dynamo0.3-cma-mdata-rules:
@@ -480,7 +480,7 @@ Rules for Inter-Grid Kernels
 ++++++++++++++++++++++++++++
 
 1) An inter-grid kernel is identified by the presence of a field or
-   field-vector argument with the optional `mesh_arg` meta-data element (see
+   field-vector argument with the optional `mesh_arg` metadata element (see
    :ref:`dynamo0.3-intergrid-mdata`).
 
 2) An invoke that contains one or more inter-grid kernels must not contain
@@ -490,9 +490,9 @@ Rules for Inter-Grid Kernels
 3) An inter-grid kernel is only permitted to have field or field-vector
    arguments.
 
-4) All inter-grid kernel arguments must have the `mesh_arg` meta-data entry.
+4) All inter-grid kernel arguments must have the `mesh_arg` metadata entry.
 
-5) An inter-grid kernel (and meta-data) must have at least one field on
+5) An inter-grid kernel (and metadata) must have at least one field on
    each of the fine and coarse meshes. Specifying all fields as coarse or
    fine is forbidden.
 
@@ -519,7 +519,7 @@ metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'gh_shape', 4)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
   contains
-    procedure :: my_kernel_code
+    procedure, nopass :: my_kernel_code
   end type
 
 These five metadata elements are discussed in order in the following
@@ -643,7 +643,7 @@ field the 3rd argument specifies the function space that the field
 lives on. More details about the supported function spaces are in
 subsection :ref:`dynamo0.3-function-space`.
 
-For example, the meta-data for a kernel that applies a Column-wise
+For example, the metadata for a kernel that applies a Column-wise
 operator to a field might look like:
 
 ::
@@ -693,7 +693,7 @@ Invoke contains say, two kernel calls that each support arguments on
 any function space, e.g. ``ANY_SPACE_1``, there is no requirement that
 these two function spaces be the same. Put another way, if an Invoke
 contained two calls of a kernel with arguments described by the above
-meta-data then the first field argument passed to each kernel call
+metadata then the first field argument passed to each kernel call
 need not be on the same space.
 
 .. note:: A ``GH_FIELD`` argument that specifies ``GH_WRITE`` or
@@ -860,7 +860,7 @@ A field entry in the meta_args array may have an optional fourth element.
 This element describes either a stencil access or, for inter-grid kernels,
 which mesh the field is on. Since an inter-grid kernel is not permitted
 to have stencil accesses, these two options are mutually exclusive.
-The meta-data for each case is described in the following sections.
+The metadata for each case is described in the following sections.
 
 Stencil Metadata
 ________________
@@ -954,7 +954,7 @@ Mesh metadata is written in the following format:
   mesh_arg=type
 
 where ``type`` may be one of ``GH_COARSE`` or ``GH_FINE``. Any kernel
-having a field argument with this meta-data is assumed to be an
+having a field argument with this metadata is assumed to be an
 inter-grid kernel and, as such, all of its other arguments (which
 must also be fields) must have it specified too. An example of the
 metadata for such a kernel is given below:
@@ -1010,16 +1010,16 @@ the rest are read-only. They may also have read-only scalar arguments, e.g.:
         arg_type(GH_COLUMNWISE_OPERATOR, GH_READ, ANY_SPACE_1, ANY_SPACE_2),  &
         arg_type(GH_REAL, GH_READ) /)
 
-.. note:: The order with which arguments are specified in meta-data for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
+.. note:: The order with which arguments are specified in metadata for CMA kernels does not affect the process of identifying the type of kernel (whether it is assembly, matrix-matrix etc.)
 
 meta_funcs
 ##########
 
-The (optional) second component of kernel meta-data specifies
+The (optional) second component of kernel metadata specifies
 whether any quadrature or evaluator data is required for a given
 function space. (If no quadrature or evaluator data is required then
-this meta-data should be omitted.) Consider the
-following kernel meta-data:
+this metadata should be omitted.) Consider the
+following kernel metadata:
 
 ::
    
@@ -1033,13 +1033,13 @@ following kernel meta-data:
           (/ func_type(w0, gh_basis, gh_diff_basis) &
              func_type(w1, gh_basis)                &
           /)
-      integer, parameter :: gh_shape = gh_quadrature_XYoZ
-      integer, parameter :: iterates_over = cells
+      integer :: gh_shape = gh_quadrature_XYoZ
+      integer :: iterates_over = cells
     contains
-      procedure() :: code => testkern_operator_code
+      procedure, nopass :: code => testkern_operator_code
     end type testkern_operator_type
 
-The ``arg_type`` component of this meta-data describes a kernel that
+The ``arg_type`` component of this metadata describes a kernel that
 takes three arguments (an operator, a field and an integer
 scalar). Following the ``meta_args`` array we now have a
 ``meta_funcs`` array. This allows the user to specify that the kernel
@@ -1051,26 +1051,40 @@ functions for W1.
 
 .. _dynamo0.3-gh-shape:
 
-gh_shape
-########
+gh_shape and gh_evaluator_targets
+#################################
 
 If a kernel requires basis or differential-basis functions then the
-meta-data must also specify the set of points on which these functions
+metadata must also specify the set of points on which these functions
 are required. This information is provided by the ``gh_shape``
-component of the meta-data.  Currently PSyclone supports two shapes;
+component of the metadata.  Currently PSyclone supports two shapes;
 ``gh_quadrature_XYoZ`` for Gaussian quadrature points and
-``gh_evaluator`` for evaluation at nodal points. For the latter,
-the values of the basis/differential-basis functions are computed at
-the nodes defined by the function space of the quantity that the
-associated kernel is updating. All necessary data is extracted in the
-PSy layer and passed to the kernel(s) as required - nothing is
-required from the Algorithm layer. If a kernel requires quadrature on
-the other hand, the Algorithm writer must supply a ``quadrature_type``
-object as the last argument to the kernel (see Section :ref:`dynamo0.3-quadrature`).
+``gh_evaluator`` for evaluation (of the basis/differential-basis
+functions) at nodal points. For the latter, there are two options: if
+an evaluator is required for multiple function spaces then these can
+be specified using the additional ``gh_evaluator_targets`` metadata
+entry. This entry is a one-dimensional, integer array containing the
+desired function spaces. For example, to request basis/differential-basis
+functions evaluated on both W0 and W1 the metadata would be::
 
-Note that it is an error for kernel meta-data to specify a value for
-``gh_shape`` if no basis or differential-basis functions are
-required.
+    integer :: gh_shape = gh_evaluator
+    integer :: gh_evaluator_targets(2) = (/W0, W1/)
+
+The kernel must have an argument (field or operator) on each of the
+function spaces listed in ``gh_evaluator_targets``.
+The default behaviour if ``gh_evaluator_targets`` is not specified is
+to provide evaluators for each function space associated with the
+quantities that the kernel is updating. All necessary data is
+extracted in the PSy layer and passed to the kernel(s) as required -
+nothing is required from the Algorithm layer. If a kernel requires
+quadrature on the other hand, the Algorithm writer must supply a
+``quadrature_type`` object as the last argument to the kernel (see
+Section :ref:`dynamo0.3-quadrature`).
+
+Note that it is an error for kernel metadata to specify a value for
+``gh_shape`` if no basis or differential-basis functions are required.
+It is also an error to specify ``gh_evaluator_targets`` if the kernel
+does not require an evaluator (i.e. ``gh_shape != gh_evaluator``).
 
 iterates over
 #############
@@ -1087,11 +1101,9 @@ The fifth and final type of metadata is ``procedure`` metadata. This
 specifies the name of the Kernel subroutine that this metadata
 describes.
 
-For example:
+For example::
 
-::
-
-  procedure :: my_kernel_subroutine
+  procedure, nopass :: my_kernel_subroutine
 
 Subroutine
 ++++++++++
@@ -1176,14 +1188,77 @@ rules, along with PSyclone's naming conventions, are:
 
 5) If Quadrature or an Evaluator is required (this is the case if any of the function spaces require basis or differential basis functions)
 
-    1) include integer scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
+    1) include integer, scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
 
-       1) If ``gh_shape`` is ``gh_evaluator`` then pass ``n_xyz``
-       2) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``n_xy`` and ``n_z``
+       1) If ``gh_shape`` is ``gh_evaluator`` then pass ``np_xyz`` for
+	  each function space on which an evaluator is required, in
+	  the order in which they are encountered in the metadata;
+	  i.e. if ``gh_evaluator_targets`` has been specified then the
+	  ordering of function spaces in that list defines this
+	  ordering.  Otherwise, the order in which the updated
+	  (written-to) kernel arguments appear in the argument list is
+	  used.
+
+       2) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``np_xy``
+	  and ``np_z``.
 
     2) if Quadrature is required (``gh_shape`` is of type ``gh_quadrature_*``) then include weights which are real arrays of kind ``r_def``:
 
-       1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(n_xy)`` and ``w_Z(n_z)``
+       1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``
+
+Examples
+^^^^^^^^
+
+.. highlight:: fortran
+	  
+For instance, if a kernel has only one written argument and requires an
+evaluator then its metadata might be::
+  
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w0), &
+             arg_type(gh_field*3, gh_read, w0) /)
+     type(func_type) :: meta_funcs(1) =               &
+          (/ func_type(w0, gh_basis) /)
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_evaluator
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+then we only pass the basis functions evaluated on W0 (the space of
+the written kernel argument). The subroutine arguments will therefore
+be::
+
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
+       basis_w0, np_xyz_w0)    
+
+where ``local_stencil`` is the operator, ``xdata``, ``ydata``
+etc\. are the three components of the field vector and ``map_w0`` is
+the dof map for the W0 function space.
+
+If instead, ``gh_evaluator_targets`` is specified in the metadata::
+
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w0), &
+             arg_type(gh_field*3, gh_read, w0) /)
+     type(func_type) :: meta_funcs(1) =               &
+          (/ func_type(w0, gh_basis) /)
+     integer :: iterates_over = cells
+     integer :: gh_shape = gh_evaluator
+     integer :: gh_evaluator_targets(2) = (/W0, W1/)
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+then we will need to pass two sets of basis functions (evaluated at W0
+and at W1)::
+  
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
+       basis_w0, basis_w1, np_xyz_w0, np_xyz_w1)    
 
 
 Rules for CMA Kernels
@@ -1208,7 +1283,7 @@ as the number of dofs for each of the dofmaps. The full set of rules is:
        an integer with intent ``in``.
     4) Include the total number of cells, ``ncell_3d``, which is an integer
        with intent ``in``.
-    5) For each argument in the ``meta_args`` meta-data array:
+    5) For each argument in the ``meta_args`` metadata array:
        
        1) If it is a LMA operator, include a real, 3-dimensional
           array of type ``r_def``. The first two dimensions are the local
@@ -1283,7 +1358,7 @@ The full set of rules is then:
        intent ``in``.
     2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
        an integer with intent ``in``.
-    3) For each argument in the ``meta_args`` meta-data array:
+    3) For each argument in the ``meta_args`` metadata array:
 
        1) If it is a field, include the field array. This is a real
           array of kind ``r_def`` and is of rank 1.  The field array name
@@ -1298,7 +1373,7 @@ The full set of rules is then:
           parameters (see Rule 5 of CMA Assembly kernels).
 
     4) For each of the unique function spaces encountered in the
-       meta-data arguments (the ``to`` function space of an operator
+       metadata arguments (the ``to`` function space of an operator
        is considered to be before the ``from`` function space of the
        same operator as it appears first in lexicographic order):
 
@@ -1328,7 +1403,7 @@ and ``ncell_3d`` scalar arguments. The full set of rules are then:
        intent ``in``.
     2) Include the number of cells in the 2D mesh, ``ncell_2d``, which is
        an integer with intent ``in``.
-    3) For each CMA operator or scalar argument specifed in meta-data:
+    3) For each CMA operator or scalar argument specifed in metadata:
 
        1) If it is a CMA operator, include it and its associated
 	  parameters (see Rule 5 of CMA Assembly kernels).
@@ -1359,14 +1434,14 @@ arguments to inter-grid kernels are as follows:
        This is an integer and has intent ``in``.
     4) Include ``ncell_f``, the number of cells (columns) in the fine mesh.
        This is an integer and has intent ``in``.
-    5) For each argument in the ``meta_args`` meta-data array (which must be
+    5) For each argument in the ``meta_args`` metadata array (which must be
        a field or field-vector):
 
        1) Pass in field data as done for a regular kernel.
 
     6) For each unique function space (of which there will currently be two)
        in the order in which they are encountered in the ``meta_args``
-       meta-data array, include dofmap information:
+       metadata array, include dofmap information:
 
        If the dofmap is associated with an argument on the fine mesh:
 
