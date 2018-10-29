@@ -46,10 +46,11 @@ import os
 # Name of the config file we search for
 _FILE_NAME = "psyclone.cfg"
 
-# The different naming schemes supported when transforming kernels
-# unique = Every kernel is given a unique name.
-# single = Each kernel encountered is transformed just once and that version
-#          used throughout the application.
+# The different naming schemes supported when transforming kernels:
+# unique = Every transformed kernel is given a unique name.
+# single = If any given kernel is transformed more than once then it is
+#          assumed that the same transformation is always applied and only
+#          one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["unique", "single"]
 
 
@@ -273,7 +274,7 @@ class Config(object):
 
         # Where to write any transformed kernels (set at runtime)
         self._kernel_output_dir = ""
-        # Whether or not to overwrite existing, transformed kernels.
+        # The scheme to use when re-naming transformed kernels.
         # By default we ensure that each transformed kernel is given a
         # unique name (within the specified kernel-output directory).
         self._kernel_naming = "unique"
@@ -504,9 +505,12 @@ class Config(object):
     @kernel_naming.setter
     def kernel_naming(self, value):
         '''
-        Setter for whether or not to overwrite existing kernels when writing \
-        transformed kernels to file.
-        :param bool value: True to overwrite, False otherwise.
+        Setter for how to re-name kernels when writing transformed kernels
+        to file.
+
+        :param str value: one of VALID_KERNEL_NAMING_SCHEMES.
+        :raises ConfigurationError: if the supplied value is not a recognised \
+                                    kernel-renaming scheme.
         '''
         if value not in VALID_KERNEL_NAMING_SCHEMES:
             raise ConfigurationError(

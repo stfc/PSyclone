@@ -52,12 +52,8 @@ class DynamoPSy(PSy):
     :param invoke_info: An object containing the required invocation \
                         information for code optimisation and generation.
     :type invoke_info: :py:class:`psyclone.parse.FileInfo`
-    :param kern_info: settings for output of transformed kernels.
-    :type kern_info: 2-tuple of output directory (str) and whether or not to \
-                     overwrite existing kernel files in that directory (bool).
-
     '''
-    def __init__(self, invoke_info, kern_info=None):
+    def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls)
 

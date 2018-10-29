@@ -5214,8 +5214,8 @@ class DynKern(Kern):
         create_arg_list.generate()
         arglist = create_arg_list.arglist
 
-        # If this kernel has been transformed then we need to write it
-        # to file
+        # If this kernel has been transformed then we need rename it and
+        # write it to file. 
         if self.modified:
             _, _ = self.to_fortran()
 

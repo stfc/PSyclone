@@ -139,8 +139,6 @@ class GOPSy(PSy):
         self.invokes.gen_code(psy_module)
         # inline kernels where requested
         self.inline(psy_module)
-        # Write out any transformed kernels
-        ####self.write_kernels()
         return psy_module.root
 
 
@@ -927,6 +925,9 @@ class GOKern(Kern):
                 raise GenerationError("Kernel {0}, argument {1} has "
                                       "unrecognised type: {2}".
                                       format(self._name, arg.name, arg.type))
+            
+        # If kernel has been transformed then we need to rename it and
+        # write it to file
         if self.modified:
             _, _ = self.to_fortran()
 

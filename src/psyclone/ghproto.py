@@ -43,13 +43,10 @@ class GHProtoPSy(PSy):
     :param invoke_info: An object containing the required invocation \
                         information for code optimisation and generation.
     :type invoke_info: :py:class:`psyclone.parse.FileInfo`
-    :param kern_info: Information on generation options for transformed kernels
-    :type kern_info: 2-tuple of output directory (str) and whether or not to \
-                     overwrite existing kernels in that directory.
     '''
-    def __init__(self, invoke_info, kern_info=None):
-        PSy.__init__(self,invoke_info)
-        self._invokes=GHProtoInvokes(invoke_info.calls)
+    def __init__(self, invoke_info):
+        PSy.__init__(self, invoke_info)
+        self._invokes = GHProtoInvokes(invoke_info.calls)
 
     @property
     def gen(self):

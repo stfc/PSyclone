@@ -271,9 +271,6 @@ class PSy(object):
     :param invoke_info: An object containing the required invocation \
                         information for code optimisation and generation.
     :type invoke_info: :py:class:`psyclone.parse.FileInfo`
-    :param kern_info: settings for output of transformed kernels.
-    :type kern_info: 2-tuple of output directory (str) and whether or not to \
-                     overwrite existing kernel files in that directory (bool).
 
         For example:
 
@@ -286,12 +283,9 @@ class PSy(object):
         >>> print(psy.gen)
 
     '''
-    def __init__(self, invoke_info, kern_info=None):
+    def __init__(self, invoke_info):
         self._name = invoke_info.name
         self._invokes = None
-        # Information on how to write out this kernel if it has been
-        # transformed
-        self._kern_info = kern_info
 
     def __str__(self):
         return "PSy"
@@ -320,20 +314,6 @@ class PSy(object):
                     if kernel.name.lower() not in inlined_kernel_names:
                         inlined_kernel_names.append(kernel.name.lower())
                         module.add_raw_subroutine(kernel._kernel_code)
-
-    def ___arp_write_kernels(self):
-        ''' Write out any transformed kernels. '''
-        for invoke in self.invokes.invoke_list:
-            schedule = invoke.schedule
-            for kernel in schedule.walk(schedule.children, Kern):
-                # Has this kernel been transformed?
-                if kernel.modified:
-                    # Generate a suitable name for the kernel
-
-                    # Update the Schedule AST with this name
-
-                    # Write the kernel to file
-                    kernel.to_fortran()
 
 
 class Invokes(object):
@@ -2949,8 +2929,8 @@ class Kern(Call):
         from psyclone.f2pygen import CallGen, UseGen
         if self.modfied:
             # Kernel body has been modified (transformed) and so must be
-            # written to file
-            (kname, mname) = self.to_fortran()
+            # renamed and written to file
+            _, _ = self.to_fortran()
         parent.add(CallGen(parent, self._name, self._arguments.arglist))
         parent.add(UseGen(parent, name=self._module_name, only=True,
                           funcnames=[self._name]))
