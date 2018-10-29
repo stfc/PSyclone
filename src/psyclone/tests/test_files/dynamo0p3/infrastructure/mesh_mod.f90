@@ -128,6 +128,7 @@ module mesh_mod
     procedure, public :: get_last_inner_cell
     procedure, public :: get_num_cells_edge
     procedure, public :: get_last_edge_cell
+    procedure, public :: get_last_edge_cell_per_colour
     procedure, public :: get_halo_depth
     procedure, public :: get_num_cells_halo
     procedure, public :: get_last_halo_cell_any
@@ -657,5 +658,15 @@ contains
 
     mesh_map => null()
   end function get_mesh_map_id
+  
+  function get_last_edge_cell_per_colour( self, colour ) &
+                                        result ( last_edge_cell )
+    implicit none
+    class(mesh_type), intent(in) :: self
+    integer(i_def), intent(in) :: colour
+    integer(i_def) :: last_edge_cell
+
+    last_edge_cell = 0
+  end function get_last_edge_cell_per_colour
 
 end module mesh_mod

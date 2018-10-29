@@ -42,7 +42,7 @@
 from __future__ import print_function
 import abc
 import six
-from psyclone import configuration
+from psyclone.configuration import Config
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -65,10 +65,6 @@ except ImportError:
         :rtype: string
         '''
         return text
-
-# Get our one-and-only Config object - this holds the global configuration
-# options read from the psyclone.cfg file.
-_CONFIG = configuration.ConfigFactory().create()
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -125,13 +121,13 @@ def get_api(api):
 
     '''
     if api == "":
-        api = _CONFIG.default_api
+        api = Config.get().default_api
     else:
-        if api not in _CONFIG.supported_apis:
+        if api not in Config.get().supported_apis:
             raise GenerationError("get_api: Unsupported API '{0}' "
                                   "specified. Supported types are "
                                   "{1}.".format(api,
-                                                _CONFIG.supported_apis))
+                                                Config.get().supported_apis))
     return api
 
 
@@ -231,7 +227,7 @@ class PSyFactory(object):
                                         supported.
         '''
         if distributed_memory is None:
-            _distributed_memory = _CONFIG.distributed_memory
+            _distributed_memory = Config.get().distributed_memory
         else:
             _distributed_memory = distributed_memory
 
@@ -239,7 +235,7 @@ class PSyFactory(object):
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
-        _CONFIG.distributed_memory = _distributed_memory
+        Config.get().distributed_memory = _distributed_memory
         self._type = get_api(api)
 
     def create(self, invoke_info):
@@ -1936,7 +1932,7 @@ class OMPDoDirective(OMPDirective):
             children = []
 
         if reprod is None:
-            self._reprod = _CONFIG.reproducible_reductions
+            self._reprod = Config.get().reproducible_reductions
         else:
             self._reprod = reprod
 
@@ -2349,6 +2345,7 @@ class Loop(Node):
         self._field_name = None       # name of the field
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
+        self._kern = None             # Kernel associated with this loop
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
@@ -2468,6 +2465,24 @@ class Loop(Node):
     @iteration_space.setter
     def iteration_space(self, it_space):
         self._iteration_space = it_space
+
+    @property
+    def kernel(self):
+        '''
+        :returns: the kernel object associated with this Loop (if any).
+        :rtype: :py:class:`psyclone.psyGen.Kern`
+        '''
+        return self._kern
+
+    @kernel.setter
+    def kernel(self, kern):
+        '''
+        Setter for kernel object associated with this loop.
+
+        :param kern: a kernel object.
+        :type kern: :py:class:`psyclone.psyGen.Kern`
+        '''
+        self._kern = kern
 
     def __str__(self):
         result = "Loop[" + self._id + "]: " + self._variable_name + "=" + \
@@ -2719,12 +2734,12 @@ class Call(Node):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
-            if _CONFIG.reprod_pad_size < 1:
+            if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
                     "integer, but it is set to '{1}'.".format(
-                        _CONFIG.filename, _CONFIG.reprod_pad_size))
-            pad_size = str(_CONFIG.reprod_pad_size)
+                        Config.get().filename, Config.get().reprod_pad_size))
+            pad_size = str(Config.get().reprod_pad_size)
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
@@ -2809,12 +2824,29 @@ class Call(Node):
 
 
 class Kern(Call):
+    '''
+    Class representing a Kernel call within the Schedule (AST) of an Invoke.
+
+    :param type KernelArguments: the API-specific sub-class of \
+                                 :py:class:`psyclone.psyGen.Arguments` to \
+                                 create.
+    :param call: Details of the call to this kernel in the Algorithm layer.
+    :type call: :py:class:`psyclone.parse.KernelCall`.
+    :param parent: the parent of this Node (kernel call) in the Schedule.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`.
+    :param bool check: Whether or not to check that the number of arguments \
+                       specified in the kernel meta-data matches the number \
+                       provided by the call in the Algorithm layer.
+    :raises GenerationError: if(check) and the number of arguments in the \
+                             call does not match that in the meta-data.
+    '''
     def __init__(self, KernelArguments, call, parent=None, check=True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
         self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
+        self._fp2_ast = None  # The fparser2 AST for the kernel
         self._module_inline = False
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
@@ -2939,6 +2971,28 @@ class Kern(Call):
         ''' Returns true if this kernel is being called from within a
         coloured loop '''
         return self.parent.loop_type == "colour"
+
+    @property
+    def ast(self):
+        '''
+        Generate and return the fparser2 AST of the kernel source.
+
+        :returns: fparser2 AST of the Fortran file containing this kernel.
+        :rtype: :py:class:`fparser.two.Fortran2003.Program`
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two import parser
+        # If we've already got the AST then just return it
+        if self._fp2_ast:
+            return self._fp2_ast
+        # Use the fparser1 AST to generate Fortran source
+        fortran = self._module_code.tofortran()
+        # Create an fparser2 Fortran2003 parser
+        my_parser = parser.ParserFactory().create()
+        # Parse that Fortran using our parser
+        reader = FortranStringReader(fortran)
+        self._fp2_ast = my_parser(reader)
+        return self._fp2_ast
 
 
 class BuiltIn(Call):

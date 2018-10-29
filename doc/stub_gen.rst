@@ -154,9 +154,9 @@ is shown below:
     type, extends(kernel_type) :: simple_type
         type(arg_type), dimension(1) :: meta_args =  &
             (/ arg_type(gh_field,gh_write,w1) /)
-        integer, parameter :: iterates_over = cells
+        integer :: iterates_over = cells
       contains
-        procedure() :: code => simple_code
+        procedure, nopass :: code => simple_code
     end type simple_type
     contains
     subroutine simple_code()
