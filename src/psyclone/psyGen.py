@@ -3092,13 +3092,19 @@ class DataAccess(object):
     accesses between fields
 
     '''
-    
+
     def __init__(self, arg):
-        ''' store the source argument and its parent call'''
+        '''store the source argument and its parent call. Also set any
+        internal coverage data.
+
+        :param arg: the argument that we are concerned with
+        :type arg: :py:class:`psyclone.psyGen.Argument`
+
+        '''
         self._arg = arg
         self._call = arg.call
-        self.reset_coverage
-        
+        self.reset_coverage()
+
     def overlaps(self, arg):
         '''Determine whether the accesses to the provided field overlap
         with the accesses of the source argument
@@ -3108,6 +3114,11 @@ class DataAccess(object):
         added once loop splitting is supported and would be useful for
         boundary condition kernels
 
+        :param arg: the argument to compare with our internal argument
+        :type arg: :py:class:`psyclone.psyGen.Argument`
+        :return Bool: True is there are overlapping accesses between \
+                      arguments and False if not.
+
         '''
         if self._arg.name != arg.name:
             # the arguments are different args so do not overlap
@@ -3115,18 +3126,14 @@ class DataAccess(object):
 
         if isinstance(self._call, HaloExchange) and \
            isinstance(arg.call, HaloExchange) and \
-           self._arg.vector_size > 1 :
+           (self._arg.vector_size > 1 or arg.vector_size > 1):
             # This is a vector field and both accesses come from halo
             # exchanges. As halo exchanges only access a particular
             # vector the accesses do not overlap if the vector indices
             # being accessed differ.
 
             # sanity check
-            if self._arg.vector_size != arg.vector_size:
-                raise InternalError(
-                    "DataAccess.overlaps() two halo exchanges act on "
-                    "the same field '{0}' but the vector sizes "
-                    "differ".format(self.arg.name))
+            self._call.check_vector_halos_differ(arg.call)
 
             if self._call.vector_index != arg.call.vector_index:
                 # accesses are to different vector indices so do not overlap
@@ -3134,9 +3141,11 @@ class DataAccess(object):
         # accesses do overlap
         return True
 
-    @property
     def reset_coverage(self):
-        ''' xxx '''
+        '''Reset internal state to allow re-use of the object for a different
+        situation.
+
+        '''
         self._covered = False
         self._vector_index_access = []
 
@@ -3146,6 +3155,10 @@ class DataAccess(object):
         accesses to the source argument being covered (either directly
         or as a combination with previous arguments) then ensure that
         the covered() method returns True.
+
+        :param arg: the argument to compare with our internal argument \
+                    and update coverage information
+        :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
         
@@ -3199,6 +3212,9 @@ class DataAccess(object):
     def covered(self):
         '''Returns true if all of this arguments data has been covered by the
         arguments provided in update_coverage
+
+        :return Bool: True if all of an argument is covered by \
+        previous accesses and False if not.
 
         '''
         return self._covered
@@ -3441,6 +3457,7 @@ class Argument(object):
                            (isinstance(x, HaloExchange) and
                             not ignore_halos) or
                            isinstance(x, GlobalSum)]
+        access = DataAccess(self)
         arguments = []
         vector_count = 0
         for node in nodes_with_args:
@@ -3452,33 +3469,18 @@ class Argument(object):
                 if argument.access not in self._write_access_types:
                     # no dependence if not a writer
                     continue
-                if isinstance(node, HaloExchange):
-                    if isinstance(self.call, HaloExchange):
-                        # no dependence if both nodes are halo
-                        # exchanges (as they act on different vector
-                        # indices).
-                        self.call.check_vector_halos_differ(node)
-                        continue
-                    else:
-                        # a vector read will depend on more than one
-                        # halo exchange (a dependence for each vector
-                        # index) as halo exchanges only act on a
-                        # single vector index
-                        vector_count += 1
-                        arguments.append(argument)
-                        if vector_count == self._vector_size:
-                            # found all of the halo exchange
-                            # dependencies. As they are writers
-                            # we now return
-                            return arguments
-                else:
-                    # this argument is a writer so add it and return
-                    if arguments:
-                        raise GenerationError(
-                            "Internal error, found a writer dependence but "
-                            "there are already dependencies. This should not "
-                            "happen.")
-                    return [argument]
+                if not access.overlaps(argument):
+                    # Accesses are independent of each other
+                    continue
+                arguments.append(argument)
+                access.update_coverage(argument)
+                if access.covered:
+                    # sanity check
+                    if not isinstance(node, HaloExchange) and len(arguments)>1:
+                        raise InternalError(
+                            "Found a writer dependence but there are already "
+                            "dependencies. This should not happen.")
+                    return arguments
         if arguments:
             raise GenerationError(
                 "Internal error, no more nodes but there are "

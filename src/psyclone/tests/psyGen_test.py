@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
-     HaloExchange, Invoke
+     InternalError, HaloExchange, Invoke
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
 from psyclone.parse import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
@@ -2195,10 +2195,10 @@ def test_find_w_args_multiple_deps_error():
     loop = schedule.children[6]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[0]
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         d_field.backward_write_dependencies()
     assert (
-        "found a writer dependence but there are already dependencies"
+        "Found a writer dependence but there are already dependencies"
         in str(excinfo.value))
 
 
