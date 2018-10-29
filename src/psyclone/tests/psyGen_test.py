@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
-     InternalError, HaloExchange, Invoke
+     InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
 from psyclone.parse import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
@@ -2220,7 +2220,7 @@ def test_find_write_arguments_no_more_nodes():
     loop = schedule.children[5]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[5]
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         d_field.backward_write_dependencies()
     assert (
         "no more nodes but there are already dependencies"
@@ -2274,3 +2274,87 @@ def test_kern_ast():
     assert isinstance(kern, GOKern)
     assert kern.ast
     assert isinstance(kern.ast, Fortran2003.Program)
+
+
+def test_dataaccess_vector():
+    '''Test that the DataAccess class works as expected when we have a
+    vector field argument that depends on more than one halo exchange
+    (due to halo exchanges working separately on vectors)
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # d from halo exchange vector 1
+    halo_exchange_d_v1 = schedule.children[3]
+    field_d_v1 = halo_exchange_d_v1.field
+    # d from halo exchange vector 2
+    halo_exchange_d_v2 = schedule.children[4]
+    field_d_v2 = halo_exchange_d_v2.field
+    # d from halo exchange vector 3
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    # d from a kernel argument
+    loop =  schedule.children[6]
+    kernel =  loop.children[0]
+    d_arg = kernel.arguments.args[5]
+
+    access = DataAccess(d_arg)
+    assert not access.covered
+
+    access.update_coverage(field_d_v3)
+    assert not access.covered
+    access.update_coverage(field_d_v2)
+    assert not access.covered
+
+    with pytest.raises(InternalError) as excinfo:
+        access.update_coverage(field_d_v3)
+    assert (
+        "Found more than one dependent halo exchange with the same vector "
+        "index" in str(excinfo.value))
+
+    access.update_coverage(field_d_v1)
+    assert access.covered
+
+    access.reset_coverage()
+    assert not access.covered
+    assert not access._vector_index_access
+
+
+def test_dataaccess_vector_size_differs(monkeypatch):
+    '''If update_coverage() is called from DataAccess and the arguments
+    are the same vector field, then the field vector sizes should be
+    the same. This test checks that an exception is raised if they
+    differ.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # d from vector 2 has vector size 3
+    halo_exchange_d_v2 = schedule.children[4]
+    field_d_v2 = halo_exchange_d_v2.field
+    # modify d from vector 3 to have vector size 2
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    monkeypatch.setattr(field_d_v3, "_vector_size", 2)
+
+    # now raise an exception with our erroneous vector sizes
+    access = DataAccess(field_d_v2)
+    # make sure that overlaps returns true so we can trip our
+    # exception
+    monkeypatch.setattr(access, "overlaps", lambda arg: True)
+    with pytest.raises(InternalError) as excinfo:
+        access.update_coverage(field_d_v3)
+    assert (
+        "The halo exchange vector indices for 'd' are the same. This should "
+        "never happen" in str(excinfo.value))

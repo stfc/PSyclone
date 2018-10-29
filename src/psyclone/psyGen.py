@@ -3172,27 +3172,15 @@ class DataAccess(object):
             # halo exchange and therefore only accesses one of the
             # vectors
 
-            # sanity check
-            if self._arg.vector_size != arg.vector_size:
-                raise InternalError(
-                    "DataAccess.update_coverage() vector fields have the "
-                    "same '{0}' but the vector sizes "
-                    "differ".format(self.arg.name))
-
             if isinstance(self._call, HaloExchange):
-               # I am also a halo exchange so only access one of the
-               # vectors
-            
-                if self._call.vector_index == arg.call.vector_index:
-                    # As halo exchanges with vector fields only access a
-                    # particular vector the accesses have full coverage if
-                    # the vector indices being accessed are the same.
-                    self._covered = True
-                    return
-                # no else is required for this if as there is no
-                # overlap if vectors differ and that case is dealt
-                # with by the self.overlaps() call
-
+                # I am also a halo exchange so only access one of the
+                # vectors. At this point the vector indices of the two
+                # halo exchange fields must be the same, which should
+                # never happen.
+                raise InternalError(
+                    "DataAccess:update_coverage() The halo exchange vector "
+                    "indices for '{0}' are the same. This should never "
+                    "happen".format(self._arg.name))
             else:
                 # I am not a halo exchange so access all
                 # vectors. However, the supplied argument is a halo
@@ -3201,11 +3189,13 @@ class DataAccess(object):
                 # index that is accessed and check whether all indices
                 # are now covered
                 if arg.call.vector_index in self._vector_index_access:
-                    raise InternalError("Error")
+                    raise InternalError(
+                        "DataAccess:update_coverage() Found more than one "
+                        "dependent halo exchange with the same vector index")
                 self._vector_index_access.append(arg.call.vector_index)
                 if len(self._vector_index_access) != self._arg.vector_size:
                     return
-        # all covered
+        # This argument is fully covered
         self._covered = True
 
     @property
@@ -3418,9 +3408,6 @@ class Argument(object):
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.name != self.name:
-                    # different names so there is no dependence
-                    continue
                 if argument.access in self._read_access_types:
                     if not access.overlaps(argument):
                         # Accesses are independent of each other
@@ -3463,9 +3450,6 @@ class Argument(object):
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.name != self.name:
-                    # different names so there is no dependence
-                    continue
                 if argument.access not in self._write_access_types:
                     # no dependence if not a writer
                     continue
@@ -3482,9 +3466,9 @@ class Argument(object):
                             "dependencies. This should not happen.")
                     return arguments
         if arguments:
-            raise GenerationError(
-                "Internal error, no more nodes but there are "
-                "already dependencies. This should not happen.")
+            raise InternalError(
+                "Argument()._field_write_arguments() There are no more nodes "
+                "but there are already dependencies. This should not happen.")
         # no dependencies have been found
         return []
 
