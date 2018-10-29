@@ -2802,10 +2802,19 @@ class Call(Node):
 
     @property
     def name(self):
+        '''
+        :returns: the name of the kernel associated with this call.
+        :rtype: str
+        '''
         return self._name
 
     @name.setter
     def name(self, value):
+        '''
+        Set the name of the kernel that this call is for.
+
+        :param str value: The name of the kernel.
+        '''
         self._name = value
 
     @property
