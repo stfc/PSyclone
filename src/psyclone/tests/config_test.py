@@ -64,12 +64,20 @@ COMPUTE_ANNEXED_DOFS = false
 '''
 
 
+def setup_module():
+    ''' The tests in this module all assume that there is no pre-existing
+    Config object. This setup routine ensures that this is the case when
+    this module is first entered and the teardown function below guarantees
+    it for subsequent tests.
+    '''
+    Config._instance = None
+
+
 def teardown_function():
     '''This teardown function is called at the end of all tests and makes
     sure that we wipe the Config object so we get a fresh/default one
     for any further test (and not a left-over one from a test here).
     '''
-
     # Enforce loading of the default config file
     Config._instance = None
 
