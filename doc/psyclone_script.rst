@@ -273,7 +273,7 @@ details on the use of this profiling functionality please see the
 Naming of Transformed Kernels
 -----------------------------
 
-When transforming kernels there are various use-cases to consider:
+When transforming kernels there are two use-cases to consider:
 
  1. a given kernel will be transformed only once and that version
     then used from multiple, different Invokes and Algorithms;
@@ -286,14 +286,14 @@ be re-named in order to avoid clashing with other possible calls to
 the original. By default (``--kernel-renaming unique``), PSyclone
 generates a new, unique name for each kernel that is
 transformed. Since PSyclone is run on one Algorithm file at a time, it
-uses the chosen kernel output directory to ensure that names created
-by different invocations do not clash.  Therefore, when building a
-single application, the same kernel output directory must be used for
-each separate invocation of PSyclone.
+uses the chosen kernel output directory (``-okern``) to ensure that
+names created by different invocations do not clash.  Therefore, when
+building a single application, the same kernel output directory must
+be used for each separate invocation of PSyclone.
 
 Alternatively, in order to support use case 1, a user may specify
 ``--kernel-renaming single``: now, before transforming a kernel,
 PSyclone will check the kernel output directory and if a transformed
 version of that kernel is already present then that will be
-used. Note, currently no attempt is made to ascertain whether the
-kernel file on disk is the same as that which would be generated.
+used. Note, if the kernel file on disk does not match with what would
+be generated then PSyclone will raise an exception.

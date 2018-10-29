@@ -727,15 +727,11 @@ The GOcean 1.0 API does not support any built-in operations.
 Conventions
 -----------
 
-There is a convention in the GOcean 1.0 API kernel code that if the
-name of the operation being performed is ``<name>`` then a kernel file
-is ``<name>_mod.[fF90]``, the name of the module inside the kernel
-file is ``<name>_mod``, the name of the kernel metadata in the module
-is ``<name>_type`` and the name of the kernel subroutine in the module
-is ``<name>_code``. PSyclone does not require this convention to be
-followed in the GOcean 1.0 API.
+The GOcean 1.0 API kernel code conforms to the PSyclone Fortran naming
+conventions (see :ref:`fortran_naming`). However, PSyclone's support
+for the GOcean 1.0 API does not rely on this convention.
 
-The contents of the metadata is also usually declared private but this
+The contents of the kernel metadata is usually declared private but this
 does not affect PSyclone.
 
 Finally, the ``procedure`` metadata (located within the kernel

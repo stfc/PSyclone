@@ -123,7 +123,44 @@ Kernels
 -------
 
 PSyclone supports the transformation of Kernels as well as PSy-layer
-code. Currently just one transformation is provided for this purpose:
+code. However, the transformation of kernels to produce new kernels
+brings with it additional considerations, especialy regarding the
+naming of the resulting kernels. PSyclone supports two use cases:
+
+  1. the HPC expert wishes to optimise the same kernel in different ways,
+     depending on where/how it is called;
+  2. the HPC expert wishes to transform the kernel just once and have the
+     new version used throughout the Algorithm file.
+
+The second case is really an optimisation of the first for the case
+where the same set of transformations is applied to every instance of
+a given kernel. 
+
+Since PSyclone is run separately for each Algorithm in a given
+application, ensuring that there are no name clashes for kernels in
+the application as a whole requires that some state is maintained
+between PSyclone invocations. This is achieved by requiring that the
+same kernel output directory is used for every invocation of PSyclone
+when building a given application. By default, transformed kernels
+are written to the current working directory. Alternatively, the user
+may specify the location to which to write the modified code via the
+``-okern`` command-line flag.
+
+In order to support the two use cases given above, PSyclone supports
+two different kernel-renaming schemes: "unique" and "single"
+(specified via the ``--kernel-renaming`` command-line flag). In the
+default, "unique" scheme, PSyclone ensures that each transformed
+kernel is given a unique name (with reference to the contents of the
+kernel output directory). In the "single" scheme, it is assumed that
+any given kernel that is transformed is always transformed in the same
+way (or left unchanged) and thus just one transformed version of it is
+created. This assumption is checked by examining the Fortran code for
+any pre-existing transformed version of that kernel. If another
+transformed version of that kernel exists and does not match that
+created by the current transformation then PSyclone will raise an
+exception.
+
+PSyclone currently provides just one kernel transformation:
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
    :noindex:

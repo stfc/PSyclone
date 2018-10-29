@@ -891,41 +891,34 @@ Kernel Transformations
 ++++++++++++++++++++++
 
 When a kernel is transformed we need to ensure that the PSy layer is
-updated so as to call the new version of the kernel. PSyclone works on
-individual Algorithm files.  Consider the case where an Algorithm
-contains multiple Invokes that involve multiple calls to a particular
-kernel (plus other Kernel calls).  PSyclone supports two use cases:
+updated so as to call the new version of the kernel. Since PSyclone is
+invoked separately for each Algorithm file in an application, the
+naming of the new, transformed kernels is done with reference to the
+kernel output directory. All transformed kernels (and the modules that
+contain them) are re-named following the PSyclone Fortran naming
+conventions (:ref:`fortran_naming`). This enables the reliable
+identification of transformed versions of any given kernel within the
+output directory.
 
-  1. HPC expert wishes to optimise the same kernel in different ways,
-     depending on where/how it is called;
-  2. HPC expert wishes to transform the kernel just once and have the new
-     version used throughout the Algorithm file.
+If the "unique" kernel-renaming scheme is in use, PSyclone simply
+appends an integer to the original kernel name, checks whether such a
+kernel is present in the output directory and if not, creates it. If a
+kernel with the generated name is present then the integer is
+incremented and the process repeated. If the "single" kernel-renaming
+scheme is in use, the same procedure is followed but if a matching
+kernel is already present in the output directory then the new kernel
+is not written (and we check that the contents of the existing kernel
+are the same as the one we would create).
 
-The second case is really an optimisation of the first for the case
-where the same set of transformations is applied to every instance of
-a given kernel. 
+If an application is being built in parallel then it is possible that
+different invocations of PSyclone will happen simultaneously and
+therefore we must take care to avoid race conditions when querying the
+filesystem. For this reason we use ``os.open``::
+  
+    fd = os.open(<filename>, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
 
-Given that PSyclone is run separately for each Algorithm, we must take
-care to ensure that there are no name clashes for kernels in the
-application as a whole. Since the kernel output directory might vary
-from one invocation of PSyclone to the next, we cannot just rely on
-avoiding name clashes with the contents of that directory. The only
-way therefore to prevent possible name clashes is to ensure that
-each transformed kernel is always given a unique name.
-
-Therefore, whenever a kernel is transformed by PSyclone, a new,
-uniquely-named kernel is generated and written to file. The user must
-choose a location to which to write the modified code (``-okern``
-flag). This can be done on a per-Algorithm basis or the same location
-can be specified to multiple PSyclone invocations.
-
-The Fortran representation of the PSy layer is only (optionally)
-written to file after the transformation script has been applied. This
-is done in ``psyclone.generator.main()``. Obviously, this Fortran must
-include ``use`` statements for the Kernels called by the associated
-Invoke.  If one or more of those Kernels has been transformed then the
-corresponding ``use`` statement must specify the name of the *new*
-Fortran module.
+The ``os.O_CREATE`` and ``os.O_EXCL`` flags in combination mean that
+``open()`` raises an error if the file in question already exists.
 
 Colouring
 +++++++++
