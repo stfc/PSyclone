@@ -45,7 +45,7 @@ by the script:
     -okern OKERN          directory in which to put transformed kernels
     -api API              choose a particular api from ['gunghoproto',
                           'dynamo0.1', 'dynamo0.3', 'gocean0.1', 'gocean1.0'],
-                          default dynamo0.3
+                          default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY

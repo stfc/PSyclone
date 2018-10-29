@@ -215,8 +215,8 @@ TBD
 .. ---------
 .. 
 .. The names of the supported API's and the default API are specified in
-.. `config.py`. When adding a new API you must add the name you would like
-.. to use to the `SUPPORTEDAPIS` list (and change the `DEFAULTAPI` if
+.. `configuration.py`. When adding a new API you must add the name you would like
+.. to use to the ``_supported_api_list`` (and change the ``_default_api`` if
 .. required).
 .. 
 .. parse.py
@@ -523,6 +523,38 @@ returns the index of the last owned dof, the index of the last annexed
 dof, the index of the last halo dof at a particular depth and the
 index of the last halo dof, to support PSyclone code generation.
 
+.. _multigrid:
+
+Multi-grid
+----------
+
+The Dynamo 0.3 API supports kernels that map fields between meshes of
+different horizontal resolutions; these are termed "inter-grid"
+kernels. As indicated in :numref:`fig-multigrid` below, the change in
+resolution between each level is always a factor of two in both the
+``x`` and ``y`` dimensions.
+
+.. _fig-multigrid:
+
+.. figure:: multigrid.png
+	   :width: 600
+	   :align: center
+
+	   The arrangement of cells in the multi-grid hierarchy used
+	   by LFRic. (Courtesy of R. Wong, Met Office.)
+
+Inter-grid kernels are only permitted to deal with fields on two,
+neighbouring levels of the mesh hierarchy. In the context of a single
+inter-grid kernel we term the coarser of these meshes the "coarse"
+mesh and the other the "fine" mesh.
+
+There are two types of inter-grid operation; the first is
+"prolongation" where a field on a coarse mesh is mapped onto a fine
+mesh. The second is "restriction" where a field on a fine mesh is
+mapped onto a coarse mesh.  Given the factor of two difference in
+resolution between the fine and coarse meshes, the depth of any halo
+accesses for the field on the fine mesh must automatically be double
+that of those on the coarse mesh.
 
 Loop iterators
 --------------
@@ -537,21 +569,26 @@ the case of builtin's there is kernel metadata but it is part of
 PSyclone and is specified in
 `src/psyclone/dynamo0p3_builtins_mod.f90`.
 
+For inter-grid kernels, it is the coarse mesh that provides the iteration
+space. (The kernel is passed a list of the cells in the fine mesh that are
+associated with the current coarse cell.)
+
 Cell iterators: Continuous
 --------------------------
 
 When a kernel is written to iterate over cells and modify a continuous
 field, PSyclone always computes dofs on owned cells and redundantly
-computes dofs in the level-1 halo. Users can apply a redundant
-computation transformation to increase the halo depth for additional
-redundant computation but it must always at least compute the level-1
-halo. The reason for this is to ensure that the shared dofs on cells
-on the edge of the partition (both owned and annexed) are always
-correctly computed. Note that the outermost halo dofs are not
-correctly computed and therefore the outermost halo of the modified
-field is dirty after redundant computation. Also note that if we do
-not know whether a modified field is discontinuous or continuous then
-we must assume it is continuous.
+computes dofs in the level-1 halo (or to depth 2 if the field is on
+the fine mesh of an inter-grid kernel - see :ref:`multigrid`). Users
+can apply a redundant computation transformation to increase the halo
+depth for additional redundant computation but it must always at least
+compute the level-1 halo. The reason for this is to ensure that the
+shared dofs on cells on the edge of the partition (both owned and
+annexed) are always correctly computed. Note that the outermost halo
+dofs are not correctly computed and therefore the outermost halo of
+the modified field is dirty after redundant computation. Also note
+that if we do not know whether a modified field is discontinuous or
+continuous then we must assume it is continuous.
 
 An alternative solution could have been adopted in Dynamo0.3 whereby
 no redundant computation is performed and partial-sum results are
@@ -890,6 +927,45 @@ Invoke.  If one or more of those Kernels has been transformed then the
 corresponding ``use`` statement must specify the name of the *new*
 Fortran module.
 
+Colouring
++++++++++
+
+If a loop contains one or more kernels that write to a field on a
+continuous function space then it cannot be safely executed in
+parallel on a shared-memory device. This is because fields on a
+continuous function space share dofs between neighbouring cells. One
+solution to this is to 'colour' the cells in a mesh so that all cells
+of a given colour may be safely updated in parallel
+(:numref:`fig-colouring`).
+
+.. _fig-colouring:
+
+.. figure:: lfric_colouring.png
+	   :width: 300
+	   :align: center
+
+	   Example of the colouring of the horizontal cells used to
+	   ensure the thread-safe update of shared dofs (black
+	   circles).  (Courtesy of S. Mullerworth, Met Office.)
+	   
+The loop over colours must then be performed sequentially but the loop
+over cells of a given colour may be done in parallel. A loop that
+requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
+transformation.
+
+Each mesh in the multi-grid hierarchy is coloured separately
+(https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicInfrastructure/MeshColouring)
+and therefore we cannot assume any relationship between the colour
+maps of meshes of differing resolution.
+
+However, the iteration space for inter-grid kernels (that map a field
+from one mesh to another) is always determined by the coarser of the
+two meshes.  Consequently, it is always the colouring of this mesh
+that must be used.  Due to the set-up of the mesh hierarchy (see
+:numref:`fig-multigrid`), this guarantees that there will not be any
+race conditions when updating shared quantities on either the fine or
+coarse mesh.
+
 GOcean1.0
 =========
 
@@ -940,8 +1016,8 @@ Modules
 This section describes the functionality of the various Python modules
 that make up PSyclone.
 
-f2pygen
-=======
+Module: f2pygen
+===============
 
 `f2pygen` provides functionality for generating Fortran code from
 scratch (i.e. when not modifying existing source).
@@ -987,25 +1063,31 @@ The full interface to each of these classes is detailed below:
     :members:
     :noindex:
 
-configuration
-=============
+Module: configuration
+======================
 
 PSyclone uses the Python ``ConfigParser`` class
 (https://docs.python.org/3/library/configparser.html) for reading the
 configuration file. This is managed by the ``psyclone.configuration``
-module which provides the ``ConfigFactory`` and ``Config``
-classes. The former's constructor creates a singleton ``Config`` instance
-and stores it for return by any future calls to ``create``:
+module which provides a ``Config``
+class. This class is a singleton, which can be (created and) accessed
+using  ``Config.get()``. Only one such instance will ever exist:
 
-.. autoclass:: psyclone.configuration.ConfigFactory
+.. autoclass:: psyclone.configuration.Config
     :members:
 
 The ``Config`` class is responsible for finding the configuration file
 (if no filename is passed to the constructor), parsing it and then storing
-the various configuration options. It also performs some basic consistency
+the various configuration options. It also stores the list of supported
+APIs (``Config._supported_api_list``) and the default API to use if none
+is specified in either a config file or the command line
+(``Config._default_api``.)
+
+
+It also performs some basic consistency
 checks on the values it obtains from the configuration file.
 
-Since the default PSyclone API to use is read from the configuration
+Since the PSyclone API to use can be read from the configuration
 file, it is not possible to have API-specifc sub-classes of ``Config``
 as we don't know which API is in use before we read the file. However, the
 configuration file can contain API-specific settings. These are placed in
@@ -1024,15 +1106,15 @@ corresponding section. The resulting object is stored in the
 dictionary under the appropriate key. The API-specific values may then
 be accessed as, e.g.::
 
-  config.api("dynamo0.3").compute_annexed_dofs
+  Config.get().api_conf("dynamo0.3").compute_annexed_dofs
 
 The API-specific sub-classes exist to provide validation/type-checking and
 encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
 
-transformations
-===============
+Module: transformations
+=======================
 
 As one might expect, the transformations module holds the various
 transformation classes that may be used to modify the Schedule of an
@@ -1119,4 +1201,3 @@ Of course, a given field may already be on the device (and have been
 updated) due to a previous Invoke. In this case, the fact that the
 OpenACC run-time does not copy over the now out-dated host version of
 the field is essential for correctness.
-

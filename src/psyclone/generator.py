@@ -56,11 +56,7 @@ from psyclone.algGen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
-from psyclone.configuration import ConfigFactory
-from psyclone import configuration
-
-# Get (a reference to) our one-and-only Config object
-_CONFIG = ConfigFactory().create()
+from psyclone.configuration import Config
 
 
 def handle_script(script_name, psy):
@@ -186,16 +182,16 @@ def generate(filename, api="", kernel_path="", script_name=None,
     '''
 
     if distributed_memory is None:
-        distributed_memory = _CONFIG.distributed_memory
+        distributed_memory = Config.get().distributed_memory
 
     # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
-        api = _CONFIG.default_api
+        api = Config.get().default_api
     else:
-        if api not in _CONFIG.supported_apis:
+        if api not in Config.get().supported_apis:
             raise GenerationError(
                 "generate: Unsupported API '{0}' specified. Supported "
-                "types are {1}.".format(api, _CONFIG.supported_apis))
+                "types are {1}.".format(api, Config.get().supported_apis))
 
     # Store Kernel-output options in our Configuration object
     _CONFIG.kernel_output_dir = kern_out_path
@@ -230,6 +226,12 @@ def main(args):
                       been invoked with.
     '''
     # pylint: disable=too-many-statements,too-many-branches
+
+    # Make sure we have the supported APIs defined in the Config singleton,
+    # but postpone loading the config file till the command line was parsed
+    # in case that the user specifies a different config file.
+    Config.get(do_not_load_file=True)
+
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
@@ -237,10 +239,11 @@ def main(args):
         '-opsy', help='filename of generated PSy code')
     parser.add_argument('-okern',
                         help='directory in which to put transformed kernels')
-    parser.add_argument(
-        '-api', default=_CONFIG.default_api,
-        help='choose a particular api from {0}, '
-        'default {1}'.format(str(_CONFIG.supported_apis), _CONFIG.default_api))
+    parser.add_argument('-api',
+                        help='choose a particular api from {0}, '
+                             'default \'{1}\'.'
+                        .format(str(Config.get().supported_apis),
+                                Config.get().default_api))
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -268,18 +271,15 @@ def main(args):
         choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
              "transformation script is used. Use at your own risk.")
-    parser.set_defaults(dist_mem=_CONFIG.distributed_memory)
+    parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
+    parser.add_argument("--config", help="Config file with "
+                        "PSyclone specific options.")
     parser.add_argument(
         '-v', '--version', dest='version', action="store_true",
         help='Display version information ({0})'.format(__VERSION__))
 
     args = parser.parse_args(args)
-
-    if args.api not in _CONFIG.supported_apis:
-        print("Unsupported API '{0}' specified. Supported API's are "
-              "{1}.".format(args.api, _CONFIG.supported_apis))
-        exit(1)
 
     if args.version:
         print("PSyclone version: {0}".format(__VERSION__))
@@ -318,8 +318,28 @@ def main(args):
         # We write any transformed kernels to the current working directory
         kern_out_path = os.getcwd()
 
+    # If no config file name is specified, args.config is none
+    # and config will load the default config file.
+    Config.get().load(args.config)
+
+    # Check API, if none is specified, take the setting from the config file
+    if args.api is None:
+        # No command line option, use the one specified in Config - which
+        # is either based on a parameter in the config file, or otherwise
+        # the default:
+        api = Config.get().api
+    elif args.api not in Config.get().supported_apis:
+        print("Unsupported API '{0}' specified. Supported API's are "
+              "{1}.".format(args.api, Config.get().supported_apis))
+        exit(1)
+    else:
+        # There is a valid API specified on the command line. Set it
+        # as API in the config object as well.
+        api = args.api
+        Config.get().api = api
+
     try:
-        alg, psy = generate(args.filename, api=args.api,
+        alg, psy = generate(args.filename, api=api,
                             kernel_path=args.directory,
                             script_name=args.script,
                             line_length=args.limit,

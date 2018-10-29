@@ -88,6 +88,7 @@ def test_accroutine():
     directive to it. '''
     from psyclone.gocean1p0 import GOKern
     from fparser.two import Fortran2003
+    from fparser.two.utils import walk_ast
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
@@ -100,8 +101,7 @@ def test_accroutine():
     assert new_kern._fp2_ast
     assert isinstance(new_kern._fp2_ast, Fortran2003.Program)
     # Check AST contains directive
-    comments = Fortran2003.walk_ast(new_kern._fp2_ast.content,
-                                    [Fortran2003.Comment])
+    comments = walk_ast(new_kern._fp2_ast.content, [Fortran2003.Comment])
     assert len(comments) == 1
     assert str(comments[0]) == "!$acc routine"
     # Check that directive is in correct place (end of declarations)
