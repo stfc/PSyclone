@@ -3083,12 +3083,12 @@ class Kern(Call):
                 # Atomically attempt to open the new kernel file (in case
                 # this is part of a parallel build)
                 fdesc = os.open(
-                    os.path.join(_CONFIG.kernel_output_dir, new_name),
+                    os.path.join(Config.get().kernel_output_dir, new_name),
                     os.O_CREAT | os.O_WRONLY | os.O_EXCL)
             except (OSError, IOError):
                 # The os.O_CREATE and os.O_EXCL flags in combination mean
                 # that open() raises an error if the file exists
-                if _CONFIG.kernel_naming == "single":
+                if Config.get().kernel_naming == "single":
                     # If the kernel-renaming scheme is such that we only ever
                     # create one copy of a transformed kernel then we're done
                     break
@@ -3108,10 +3108,9 @@ class Kern(Call):
             # because the file already exists and the kernel-naming scheme
             # ("single") means we're not creating a new one.
             # Check that what we've got is the same as what's in the file
-            with open(os.path.join(_CONFIG.kernel_output_dir,
+            with open(os.path.join(Config.get().kernel_output_dir,
                                    new_name), "r") as ffile:
                 kern_code = ffile.read()
-                import pdb; pdb.set_trace()
                 if kern_code != new_kern_code:
                     raise GenerationError(
                         "A transformed version of this Kernel '{0}' already "
@@ -3122,8 +3121,8 @@ class Kern(Call):
                         "kernel that is transformed then use "
                         "'--kernel-renaming unique'.)".
                         format(self._module_name+".f90",
-                               _CONFIG.kernel_output_dir,
-                               _CONFIG.kernel_naming))
+                               Config.get().kernel_output_dir,
+                               Config.get().kernel_naming))
         else:
             # Write the modified AST out to file
             os.write(fdesc, new_kern_code.encode())
@@ -3144,7 +3143,7 @@ class Kern(Call):
 
         :param str suffix: the string to insert into the quantity names.
         '''
-        from fparser.two.Fortran2003 import walk_ast
+        from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
 
         # Use the suffix we have determined to create a new kernel name.

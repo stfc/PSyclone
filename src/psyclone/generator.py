@@ -56,6 +56,7 @@ from psyclone.algGen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
+from psyclone import configuration
 from psyclone.configuration import Config
 
 
@@ -135,7 +136,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
              distributed_memory=None,
              kern_out_path="",
-             kern_naming=""):
+             kern_naming="unique"):
     # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -194,8 +195,8 @@ def generate(filename, api="", kernel_path="", script_name=None,
                 "types are {1}.".format(api, Config.get().supported_apis))
 
     # Store Kernel-output options in our Configuration object
-    _CONFIG.kernel_output_dir = kern_out_path
-    _CONFIG.kernel_naming = kern_naming
+    Config.get().kernel_output_dir = kern_out_path
+    Config.get().kernel_naming = kern_naming
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))

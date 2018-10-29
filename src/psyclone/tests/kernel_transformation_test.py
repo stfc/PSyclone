@@ -39,18 +39,19 @@ from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
+from fparser.two.utils import walk_ast
 from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError, ACCRoutineTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
-from psyclone import configuration
+from psyclone.configuration import Config
 from psyclone_test_utils import code_compiles
+
 
 def teardown_function():
     ''' This function is called automatically after every test in this
     file. It ensures that any existing configuration object is deleted. '''
-    from psyclone.configuration import ConfigFactory
-    ConfigFactory._instance = None
+    Config._instance = None
 
 
 def test_accroutine_err(monkeypatch):
@@ -88,7 +89,6 @@ def test_accroutine():
     directive to it. '''
     from psyclone.gocean1p0 import GOKern
     from fparser.two import Fortran2003
-    from fparser.two.utils import walk_ast
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
@@ -131,7 +131,7 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     from fparser.two import Fortran2003, parser
     from fparser.common.readfortran import FortranFileReader
     # Ensure kernel-output directory is uninitialised
-    config = configuration.ConfigFactory().create()
+    config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     # Change to temp dir (so kernel written there)
     old_pwd = tmpdir.chdir()
@@ -156,10 +156,10 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     reader = FortranFileReader(filename)
     prog = f2003_parser(reader)
     # Check that the module has the right name
-    modules = Fortran2003.walk_ast(prog.content, [Fortran2003.Module_Stmt])
+    modules = walk_ast(prog.content, [Fortran2003.Module_Stmt])
     assert str(modules[0].items[1]) == "continuity{0}_mod".format(tag)
     # Check that the subroutine has the right name
-    subs = Fortran2003.walk_ast(prog.content, [Fortran2003.Subroutine_Stmt])
+    subs = walk_ast(prog.content, [Fortran2003.Subroutine_Stmt])
     found = False
     for sub in subs:
         if str(sub.items[1]) == "continuity{0}_code".format(tag):
@@ -167,9 +167,9 @@ def test_new_kernel_file(tmpdir, monkeypatch):
             break
     assert found
     # Check that the kernel type has been re-named
-    dtypes = Fortran2003.walk_ast(prog.content,
+    dtypes = walk_ast(prog.content,
                                   [Fortran2003.Derived_Type_Def])
-    names = Fortran2003.walk_ast(dtypes[0].content, [Fortran2003.Type_Name])
+    names = walk_ast(dtypes[0].content, [Fortran2003.Type_Name])
     assert str(names[0]) == "continuity{0}_type".format(tag)
     # TODO check compilation of code (needs Joerg's extension of compilation
     # testing to GOcean)
@@ -179,7 +179,7 @@ def test_new_kernel_dir(tmpdir, monkeypatch):
     ''' Check that we write out the transformed kernel to a specified
     directory. '''
     # Set the output directory in the configuration object
-    config = configuration.ConfigFactory().create()
+    config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", str(tmpdir))
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
@@ -198,7 +198,7 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     is set to 'unique' and we would otherwise get a name clash. '''
     from psyclone.psyGen import Kern
     # Ensure kernel-output directory is uninitialised
-    config = configuration.ConfigFactory().create()
+    config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     monkeypatch.setattr(config, "_kernel_naming", "unique")
     # Change to temp dir (so kernel written there)
@@ -224,7 +224,7 @@ def test_new_kern_single_error(tmpdir, monkeypatch):
     ''' Check that we do not overwrite an existing, different kernel if
     there is a name clash and kernel-naming is 'single'. '''
     # Ensure kernel-output directory is uninitialised
-    config = configuration.ConfigFactory().create()
+    config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     monkeypatch.setattr(config, "_kernel_naming", "single")
     # Change to temp dir (so kernel written there)
@@ -255,7 +255,7 @@ def test_new_same_kern_single(tmpdir, monkeypatch):
     ''' Check that we do not overwrite an existing, identical kernel if
     there is a name clash and kernel-naming is 'single'. '''
     # Ensure kernel-output directory is uninitialised
-    config = configuration.ConfigFactory().create()
+    config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     monkeypatch.setattr(config, "_kernel_naming", "single")
     rtrans = ACCRoutineTrans()
@@ -284,7 +284,7 @@ def test_1kern_trans(tmpdir, monkeypatch, f90, f90flags):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''
     # Ensure kernel-output directory is uninitialised
-    config = configuration.ConfigFactory().create()
+    config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     # Change to temp dir (so kernel written there)
     old_pwd = tmpdir.chdir()
@@ -315,7 +315,7 @@ def test_2kern_trans(tmpdir, monkeypatch, f90, f90flags):
     ''' Check that we generate correct code when we transform two kernels
     within a single invoke. '''
     # Ensure kernel-output directory is uninitialised
-    config = configuration.ConfigFactory().create()
+    config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     # Change to temp dir (so kernel written there)
     old_pwd = tmpdir.chdir()
