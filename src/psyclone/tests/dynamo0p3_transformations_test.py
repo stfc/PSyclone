@@ -65,6 +65,31 @@ _CONFIG = ConfigFactory().create()
 _API_CONFIG = _CONFIG.api(TEST_API)
 
 
+def test_vector_halo_exchange_remove():
+    '''test that we remove vector halo exchanges when they are no longer
+    required
+     '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # remove second set of halo exchanges via redundant
+    # computation. If they are removed correctly then the two loops
+    # will be adjacent to eachother and will follow 3 haloexchange
+    # calls.
+    schedule.view()
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[3], depth=2)
+    schedule.view()
+    assert len(schedule.children) == 5
+    from psyclone.dynamo0p3 import DynHaloExchange, DynLoop
+    for index in [0, 1, 2]:
+        assert isinstance(schedule.children[index], DynHaloExchange)
+    assert isinstance(schedule.children[3], DynLoop)
+    assert isinstance(schedule.children[4], DynLoop)
+
+
 def test_colour_trans_declarations(tmpdir, f90, f90flags, dist_mem):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory

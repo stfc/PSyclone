@@ -3087,6 +3087,123 @@ class Arguments(object):
             "Arguments.scalars must be implemented in sub-class")
 
 
+class DataAccess(object):
+    '''A helper class to handle dependencies due to overlapping data
+    accesses between fields
+
+    '''
+    
+    def __init__(self, arg):
+        ''' store the source argument and its parent call'''
+        self._arg = arg
+        self._call = arg.call
+        self.reset_coverage
+        
+    def overlaps(self, arg):
+        '''Determine whether the accesses to the provided field overlap
+        with the accesses of the source argument
+
+        We do not currently deal with accesses to a subset of a field
+        (unless it is a vector). This distinction will need to be
+        added once loop splitting is supported and would be useful for
+        boundary condition kernels
+
+        '''
+        if self._arg.name != arg.name:
+            # the arguments are different args so do not overlap
+            return False
+
+        if isinstance(self._call, HaloExchange) and \
+           isinstance(arg.call, HaloExchange) and \
+           self._arg.vector_size > 1 :
+            # This is a vector field and both accesses come from halo
+            # exchanges. As halo exchanges only access a particular
+            # vector the accesses do not overlap if the vector indices
+            # being accessed differ.
+
+            # sanity check
+            if self._arg.vector_size != arg.vector_size:
+                raise InternalError(
+                    "DataAccess.overlaps() two halo exchanges act on "
+                    "the same field '{0}' but the vector sizes "
+                    "differ".format(self.arg.name))
+
+            if self._call.vector_index != arg.call.vector_index:
+                # accesses are to different vector indices so do not overlap
+                return False
+        # accesses do overlap
+        return True
+
+    @property
+    def reset_coverage(self):
+        ''' xxx '''
+        self._covered = False
+        self._vector_index_access = []
+
+    def update_coverage(self, arg):
+        '''Record any overlap between accesses to the supplied argument and
+        the source argument. If the overlap results in all of the
+        accesses to the source argument being covered (either directly
+        or as a combination with previous arguments) then ensure that
+        the covered() method returns True.
+
+        '''
+        
+        if not self.overlaps(arg):
+            ''' there is no overlap so there is nothing to update '''
+            return
+        
+        if isinstance(arg.call, HaloExchange) and \
+           self._arg.vector_size > 1 :
+            # The supplied argument is a vector field coming from a
+            # halo exchange and therefore only accesses one of the
+            # vectors
+
+            # sanity check
+            if self._arg.vector_size != arg.vector_size:
+                raise InternalError(
+                    "DataAccess.update_coverage() vector fields have the "
+                    "same '{0}' but the vector sizes "
+                    "differ".format(self.arg.name))
+
+            if isinstance(self._call, HaloExchange):
+               # I am also a halo exchange so only access one of the
+               # vectors
+            
+                if self._call.vector_index == arg.call.vector_index:
+                    # As halo exchanges with vector fields only access a
+                    # particular vector the accesses have full coverage if
+                    # the vector indices being accessed are the same.
+                    self._covered = True
+                    return
+                # no else is required for this if as there is no
+                # overlap if vectors differ and that case is dealt
+                # with by the self.overlaps() call
+
+            else:
+                # I am not a halo exchange so access all
+                # vectors. However, the supplied argument is a halo
+                # exchange so only accesses one of the vectors. This
+                # results in partial coverage. Therefore record the
+                # index that is accessed and check whether all indices
+                # are now covered
+                if arg.call.vector_index in self._vector_index_access:
+                    raise InternalError("Error")
+                self._vector_index_access.append(arg.call.vector_index)
+                if len(self._vector_index_access) != self._arg.vector_size:
+                    return
+        # all covered
+        self._covered = True
+
+    @property
+    def covered(self):
+        '''Returns true if all of this arguments data has been covered by the
+        arguments provided in update_coverage
+
+        '''
+        return self._covered
+
+
 class Argument(object):
     ''' Argument base class '''
 
@@ -3280,6 +3397,7 @@ class Argument(object):
         nodes_with_args = [x for x in nodes if isinstance(x, Call) or
                            isinstance(x, HaloExchange) or
                            isinstance(x, GlobalSum)]
+        access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
             for argument in node.args:
@@ -3287,18 +3405,15 @@ class Argument(object):
                 if argument.name != self.name:
                     # different names so there is no dependence
                     continue
-                if isinstance(node, HaloExchange) and \
-                   isinstance(self.call, HaloExchange):
-                    # no dependence if both nodes are halo exchanges
-                    # (as they act on different vector indices).
-                    self.call.check_vector_halos_differ(node)
-                    continue
                 if argument.access in self._read_access_types:
-                    # there is a read dependence so append to list
+                    if not access.overlaps(argument):
+                        # Accesses are independent of each other
+                        continue
                     arguments.append(argument)
                 if argument.access in self._write_access_types:
-                    # there is a write dependence so finish our search
-                    return arguments
+                    access.update_coverage(argument)
+                    if access.covered:
+                        return arguments
 
         # we did not find a terminating write dependence in the list
         # of nodes so we return any read dependencies that were found
