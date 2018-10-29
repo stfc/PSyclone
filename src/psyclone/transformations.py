@@ -1006,6 +1006,14 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         '''Perform Dynamo 0.3 specific loop validity checks then call
         :py:meth:`OMPLoopTrans.apply`.
 
+        :param node: the Node in the Schedule to check
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param reprod: if reproducible reductions should be used.
+        :type reprod: bool or None (default, which indicates to use the \
+              default from the config file).
+
+        :raise TransformationError: if an OMP loop transform would create \
+                incorrect code.
         '''
 
         if reprod is None:
@@ -2345,6 +2353,7 @@ class ACCRoutineTrans(Transformation):
                                      corresponding to the kernel object.
         '''
         # pylint: disable=too-many-locals
+
         from fparser.two.Fortran2003 import Subroutine_Subprogram, \
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment

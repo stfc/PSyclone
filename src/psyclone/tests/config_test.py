@@ -66,9 +66,10 @@ COMPUTE_ANNEXED_DOFS = false
 
 def teardown_function():
     '''This teardown function is called at the end of all tests and makes
-    sure that we have the default config file loaded (and not a left-over
-    one from a test here).
+    sure that we wipe the Config object so we get a fresh/default one
+    for any further test (and not a left-over one from a test here).
     '''
+
     # Enforce loading of the default config file
     Config._instance = None
 
@@ -410,11 +411,14 @@ def test_wrong_api():
     _config.load(config_file=TEST_CONFIG)
     with pytest.raises(ConfigurationError) as err:
         _ = _config.api_conf("blah")
-    assert "API 'blah' is not one of the supported APIs listed" in str(err)
+    assert "API 'blah' is not in the list" in str(err)
     with pytest.raises(ConfigurationError) as err:
         _ = _config.api_conf("dynamo0.1")
     assert ("Configuration file did not contain a section for the "
             "'dynamo0.1' API" in str(err))
+    with pytest.raises(ValueError) as err:
+        _config.api = "invalid"
+    assert "'invalid' is not a valid API" in str(err)
 
 
 def test_api_unimplemented():

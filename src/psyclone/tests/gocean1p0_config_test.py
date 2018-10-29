@@ -49,8 +49,8 @@ from psyclone.psyGen import InternalError
 
 def teardown_function():
     '''This teardown function is called at the end of all tests and makes
-    sure that we have the default config file loaded (and not a left-over
-    one from a test here).
+    sure that we wipe the Config object so we get a fresh/default one
+    for any further test (and not a left-over one from a test here).
     '''
     # Enforce loading of the default config file
     Config._instance = None

@@ -17,7 +17,7 @@ specification of what is required without an implementation. Therefore
 the PSy layer is free to implement these operations in whatever way it
 chooses.
 
-.. note:: In general, PSyclone will need to know the types of the arguments being passed to any Built-ins. The parser obtains this information from an API-specific file that contains the meta-data for all Built-in operations supported for that API.
+.. note:: In general, PSyclone will need to know the types of the arguments being passed to any Built-ins. The parser obtains this information from an API-specific file that contains the metadata for all Built-in operations supported for that API.
 
 Example
 -------
@@ -220,7 +220,7 @@ Adding new additional Built-in operations
  3. Implement ``__str__`` and ``gen_code()`` methods for this new class.
  4. Add the name of the new Built-in operation and its corresponding class
     to the ``BUILTIN_MAP`` dictionary in that source file.
- 5. Add meta-data describing this call to the appropriate file specified in
+ 5. Add metadata describing this call to the appropriate file specified in
     the ``BUILTIN_DEFINITIONS_FILE`` in that source file. For dynamo0.3
     this is ``dynamo0p3_builtins_mod.f90``.
  6. Add relevant tests to the PSyclone test file for the API to be extended. 
@@ -241,7 +241,7 @@ If the API being extended does not currently support any Built-ins
 then the ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` module
 variables must be added to the source file for the API.  A Fortran
 module file must be created in the PSyclone src directory (with the
-name specified in ``BUILTIN_DEFINITIONS_FILE``) containing meta-data
+name specified in ``BUILTIN_DEFINITIONS_FILE``) containing metadata
 describing the Built-in operations. Finally,
 ``parse.get_builtin_defs()`` must be extended to import
 ``BUILTIN_MAP`` and ``BUILTIN_DEFINITIONS_FILE`` for this API.
