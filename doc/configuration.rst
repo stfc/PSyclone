@@ -11,8 +11,14 @@ during the installation process. (The original version of this file
 may be found in the ``PSyclone/config`` directory of the PSyclone
 distribution.)
 
-At execution-time, PSyclone searches for the configuration file in a
-number of locations. The ordering of these
+At execution-time, the user can specify a custom configuration file to
+be used. This can either be done with the ``--config`` command line
+option, or by specifying the (full path to the) configuration file
+to use via the ``PSYCLONE_CONFIG`` environment variable. If the specified
+configuration file is not found then PSyclone will fall back to
+searching in a list of default locations.
+
+The ordering of these
 locations depends upon whether PSyclone is being run within a Python
 virtual environment (such as ``venv``). If no virtual environment is
 detected then the locations searched, in order, are:
@@ -33,12 +39,6 @@ locations searched is now:
 2. ``<python-base-dir>/share/psyclone/``
 3. ``${HOME}/.local/share/psyclone/``
 
-If it is desired to use a configuration file in a non-standard
-location then the search mechanism may be overriden by specifying the
-(full path to the) configuration file to use via the
-``PSYCLONE_CONFIG`` environment variable. If the specified
-configuration file is not found then PSyclone will fall back to
-searching the previously listed locations.
 
 Options
 -------
@@ -50,19 +50,25 @@ section e.g.:
 ::
 
     [DEFAULT]
-    SUPPORTEDAPIS = gunghoproto, dynamo0.1, dynamo0.3, gocean0.1, gocean1.0
-    DEFAULTAPI = dynamo0.3
-    SUPPORTEDSTUBAPIS = dynamo0.3
+    API = dynamo0.3
     DEFAULTSTUBAPI = dynamo0.3
     DISTRIBUTED_MEMORY = true
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
 
-and a ``dynamo0.3`` section, e.g.:
+and a an optional API specific section, for example for 
+``dynamo0.3`` section:
 ::
 
    [dynamo0.3]
    COMPUTE_ANNEXED_DOFS = false
+
+or for ``gocean1.0``:
+::
+
+   [gocean1.0]
+   iteration-spaces=offset_sw:ct:internal_we_halo:1:2:3:4
+                    offset_sw:ct:internal_ns_halo:1:{stop}:1:{stop}+1
 
 The meaning of the various entries is described in the following sub-sections.
 
@@ -79,27 +85,31 @@ supported by PSyclone.
 
 .. tabularcolumns:: |l|L|
 
-=======================	=======================================================
+======================= =======================================================
 Entry         		Description
-=======================	=======================================================
-SUPPORTEDAPIS 		A comma-separated list of the names of the various APIs
-                        that PSyclone supports.
-DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernl
+======================= =======================================================
+API                     The API that PSyclone assumes an Algorithm/Kernl
                         conforms to if no API is specified. Must be one of the
-			SUPPORTEDAPIS.
-SUPPORTEDSTUBAPIS       Comma-separated list of the APIs that the kernel-stub
-                        generator (see :ref:`stub-generation`) supports.
+                        APIs supported by PSyclone (gunghoproto, dynamo0.1,
+                        dynamo0.3, gocean0.1, gocean1.0). If there is no
+                        API specified and there is only one API-specific
+                        section in the config file loaded, this API will be
+                        used. This value can be overwritten by the command
+                        line option '-api'. If there is no API entry in the
+                        config file, and '-api' is not specified on the 
+                        command line, dynamo0.3 is used as default.
 DEFAULTSTUBAPI          The API that the kernel-stub generator assumes by
-                        default.
+                        default. Must be one of the stub-APIs supported by
+                        PSyclone (dynamo0.3 only at this stage).
 DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory
                         parallelism by default.  Note that this is currently
-			only supported for the dynamo0.3 API.
+                        only supported for the dynamo0.3 API.
 REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP
                         reductions (see :ref:`openmp-reductions`) by default.
 REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
                         this setting controls the amount of padding used
-			between elements of the array in which each thread
-			accumulates its local reduction. (This prevents false
+                        between elements of the array in which each thread
+                        accumulates its local reduction. (This prevents false
                         sharing of cache lines by different threads.)
 ======================= =======================================================
 
@@ -112,10 +122,26 @@ using the Dynamo 0.3 API.
 .. tabularcolumns:: |l|L|
 
 =======================	=======================================================
-Entry         		Description
+Entry             		Description
 =======================	=======================================================
 COMPUTE_ANNEXED_DOFS    Whether or not to perform redundant computation over
                         annexed dofs in order to reduce the number of halo
-			exchanges. See :ref:`annexed_dofs` in the Developers'
-			guide.
+                        exchanges. See :ref:`annexed_dofs` in the Developers'
+                        guide.
+======================= =======================================================
+
+``gocean1.0`` Section
+^^^^^^^^^^^^^^^^^^^^^
+This section contains configuration options that are only applicable when
+using the Gocean 1.0 API.
+
+.. tabularcolumns:: |l|L|
+
+======================= =======================================================
+Entry                   Description
+======================= =======================================================
+iteration-spaces        This contains definitions of additional iteration spaces
+                        used by PSyclone. A detailed description can be found
+                        in the :ref:`gocean1.0-configuration` section of the
+                        GOcean1.0 chapter.
 ======================= =======================================================

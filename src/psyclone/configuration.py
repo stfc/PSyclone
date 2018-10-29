@@ -66,61 +66,93 @@ class ConfigurationError(Exception):
         return repr(self.value)
 
 
-def _str_to_list(svalue):
+# =============================================================================
+class Config(object):
+    # pylint: disable=too-many-instance-attributes
     '''
-    Helper routine to take a string containing a list of values and return
-    a list of those values.
-
-    :param str svalue: string containing space- or comma-delimited list
-                       of items
-    :returns: list of strings
-    :rtype: list
+    Handles all configuration management. It is implemented as a singleton
+    using a class _instance variable and a get() function.
     '''
-    if "," in svalue:
-        # Comma delimited
-        return [
-            str(item.strip()) for item in svalue.split(",")
-            if item.strip() != '']
-    # Space delimited
-    return [
-        str(item.strip()) for item in svalue.split(" ")
-        if item.strip() != '']
+    # Class variable to store the singleton instance
+    _instance = None
 
+    # List of supported API by PSyclone
+    _supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
+                           "gocean0.1", "gocean1.0"]
 
-class ConfigFactory(object):
-    '''
-    Create our singleton Config object. If config_file is specified
-    then we throw-away the old Config and create a new one.
+    # List of supported stub API by PSyclone
+    _supported_stub_api_list = ["dynamo0.3"]
 
-    :param str config_file: Specific configuration file to use when \
-                            creating the Config object.
-    '''
-    _instance = None  # Our single Config object
-
-    def __init__(self, config_file=None):
-        if not ConfigFactory._instance or config_file:
-            # Create a Config object if we've not already got one or if the
-            # caller has specified a particular file
-            ConfigFactory._instance = Config(config_file)
+    # The default API, i.e. the one to be used if neither a command line
+    # option is specified nor is the API in the config file used.
+    _default_api = u"dynamo0.3"
 
     @staticmethod
-    def create():
+    def get(do_not_load_file=False):
+        '''Static function that if necessary creates and returns the singleton
+        config instance.
+
+        :param bool do_not_load_file: If set it will not load the default \
+               config file. This is used when handling the command line so \
+               that the user can specify the file to load.
         '''
-        :returns: the singleton Config instance
-        :rtype: :py:class:`psyclone.config.Config`
+        if not Config._instance:
+            Config._instance = Config()
+            if not do_not_load_file:
+                Config._instance.load()
+        return Config._instance
+
+    # -------------------------------------------------------------------------
+    def __init__(self):
+        '''This is the basic constructor that only sets the supported APIs
+        and stub APIs, it does not load a config file. The Config instance
+        is a singleton, and as such will test that no instance already exists
+        and raise an exception otherwise.
+        :raises GenerationError: If a singleton instance of Config already \
+                exists.
         '''
-        return ConfigFactory._instance
 
+        if Config._instance is not None:
+            raise ConfigurationError("Only one instance of "
+                                     "Config can be created")
 
-class Config(object):
-    '''
-    Handles all configuration management.
+        # This dictionary stores the API-specific config instances
+        # for each API specified in a config file.
+        self._api_conf = {}
 
-    :param str config_file: Override default configuration file to read.
-    :raises ConfigurationError: if there are errors or inconsistencies in \
+        # This will store the ConfigParser instance for the specified
+        # config file.
+        self._config = None
+
+        # The name (including path) of the config file read.
+        self._config_file = None
+
+        # The API selected by the user - either on the command line,
+        # or in the config file (or the default if neither).
+        self._api = None
+
+        # The default stub API to use.
+        self._default_stub_api = None
+
+        # True if distributed memory code should be created/
+        self._distributed_mem = None
+
+        # True if reproducible reductions should be used.
+        self._reproducible_reductions = None
+
+        # Padding size (number of array elements) to be used when
+        # reproducible reductions are created.
+        self._reprod_pad_size = None
+
+    # -------------------------------------------------------------------------
+    def load(self, config_file=None):
+        '''Loads a configuration file.
+
+        :param str config_file: Override default configuration file to read.
+        :raises ConfigurationError: if there are errors or inconsistencies in \
                                 the specified config file.
-    '''
-    def __init__(self, config_file=None):
+        '''
+        # pylint: disable=too-many-branches, too-many-statements
         if config_file:
             # Caller has explicitly provided the full path to the config
             # file to read
@@ -164,33 +196,42 @@ class Config(object):
                 "error while parsing DISTRIBUTED_MEMORY: {0}".
                 format(str(err)), config=self)
 
-        # Default API and supported APIs for psyclone
-        self._default_api = self._config['DEFAULT']['DEFAULTAPI']
-
-        self._supported_api_list = _str_to_list(
-            self._config['DEFAULT']['SUPPORTEDAPIS'])
+        # API for psyclone
+        if "API" in self._config["DEFAULT"]:
+            self._api = self._config['DEFAULT']['API']
+        else:
+            self._api = Config._default_api
+            # Test if we have exactly one section (besides DEFAULT).
+            # If so, make this section the API (otherwise stick with
+            # the default API)
+            if len(self._config) == 2:
+                for section in self._config:
+                    self._api = section.lower()
+                    if self._api != "default":
+                        break
 
         # Sanity check
-        if self._default_api not in self._supported_api_list:
+        if self._api not in Config._supported_api_list:
             raise ConfigurationError(
-                "The default API ({0}) is not in the list of supported "
-                "APIs ({1}).".format(self._default_api,
-                                     self._supported_api_list),
+                "The API ({0}) is not in the list of supported "
+                "APIs ({1}).".format(self._api,
+                                     Config._supported_api_list),
                 config=self)
 
-        # Default API and supported APIs for stub-generator
-        self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
+        # Default API for stub-generator
+        if 'defaultstubapi' not in self._config['DEFAULT']:
+            # Use the default API if no default is specified for stub API
+            self._default_stub_api = Config._default_api
+        else:
+            self._default_stub_api = self._config['DEFAULT']['DEFAULTSTUBAPI']
 
-        self._supported_stub_api_list = _str_to_list(
-            self._config['DEFAULT']['SUPPORTEDSTUBAPIS'])
-
-        # Sanity check
-        if self._default_stub_api not in self._supported_stub_api_list:
+        # Sanity check for defaultstubapi:
+        if self._default_stub_api not in Config._supported_stub_api_list:
             raise ConfigurationError(
                 "The default stub API ({0}) is not in the list of "
                 "supported stub APIs ({1}).".format(
                     self._default_stub_api,
-                    self._supported_stub_api_list),
+                    Config._supported_stub_api_list),
                 config=self)
 
         try:
@@ -211,24 +252,27 @@ class Config(object):
 
         # Now we deal with the API-specific sections of the config file. We
         # create a dictionary to hold the API-specifc Config objects.
-        self._api = {}
-        for api in self._supported_api_list:
+        self._api_conf = {}
+        for api in Config._supported_api_list:
             if api in self._config:
                 if api == "dynamo0.3":
-                    self._api[api] = DynConfig(self, self._config[api])
+                    self._api_conf[api] = DynConfig(self, self._config[api])
+                elif api == "gocean1.0":
+                    self._api_conf[api] = GOceanConfig(self, self._config[api])
                 else:
                     raise NotImplementedError(
                         "Configuration file contains a {0} section but no "
                         "Config sub-class has been implemented for this API".
                         format(api))
 
-    def api(self, api):
+    def api_conf(self, api):
         '''
         Getter for the object holding API-specific configuration options.
 
         :param str api: the API for which configuration details are required.
         :returns: object containing API-specific configuration
-        :rtype: One of :py:class:`psyclone.configuration.DynConfig` or None.
+        :rtype: One of :py:class:`psyclone.configuration.DynConfig`,
+                :py:class:`psyclone.configuration.GOceanConfig` or None.
 
         :raises ConfigurationError: if api is not in the list of supported \
                                     APIs.
@@ -237,14 +281,13 @@ class Config(object):
         '''
         if api not in self.supported_apis:
             raise ConfigurationError(
-                "API '{0}' is not one of the supported APIs listed in the "
-                "configuration file ({1}).".format(api, self.supported_apis),
-                config=self)
-        if api not in self._api:
+                "API '{0}' is not in the list '{1}'' of supported APIs."
+                .format(api, self.supported_apis))
+        if api not in self._api_conf:
             raise ConfigurationError(
                 "Configuration file did not contain a section for the '{0}' "
                 "API".format(api), config=self)
-        return self._api[api]
+        return self._api_conf[api]
 
     @staticmethod
     def find_file():
@@ -253,11 +296,12 @@ class Config(object):
         file. If the full path to an existing file has been provided in
         the PSYCLONE_CONFIG environment variable then that is returned.
         Otherwise, we search the following locations, in order:
-        ${PWD}/.psyclone/
-        if inside-a-virtual-environment:
-            <base-dir-of-virtual-env>/share/psyclone/
-        ${HOME}/.local/share/psyclone/
-        <system-install-prefix>/share/psyclone/
+
+        - ${PWD}/.psyclone/
+        -  if inside-a-virtual-environment:
+              <base-dir-of-virtual-env>/share/psyclone/
+        - ${HOME}/.local/share/psyclone/
+        - <system-install-prefix>/share/psyclone/
 
         :returns: the fully-qualified path to the configuration file
         :rtype: str
@@ -300,6 +344,7 @@ class Config(object):
     def distributed_memory(self):
         '''
         Getter for whether or not distributed memory is enabled
+
         :returns: True if DM is enabled, False otherwise
         :rtype: bool
         '''
@@ -310,6 +355,7 @@ class Config(object):
         '''
         Setter for whether or not distributed memory support is enabled
         in this configuration.
+
         :param bool dist_mem: Whether or not dm is enabled
         '''
         if not isinstance(dist_mem, bool):
@@ -322,24 +368,50 @@ class Config(object):
     def default_api(self):
         '''
         Getter for the default API used by PSyclone.
+
         :returns: default PSyclone API
         :rtype: str
         '''
         return self._default_api
 
     @property
+    def api(self):
+        '''Getter for the API selected by the user.
+
+        :returns: The name of the selected API.
+        :rtype: str
+        '''
+        return self._api
+
+    @api.setter
+    def api(self, api):
+        '''Setter for the API selected by the user.
+
+        :param str api: The name of the API to use.
+
+        :raises ValueError if api is not a supported API.
+        '''
+        if api not in self._supported_api_list:
+            raise ValueError("'{0}' is not a valid API, it must be one "
+                             "of {1}'.".format(api,
+                                               Config._supported_api_list))
+        self._api = api
+
+    @property
     def supported_apis(self):
         '''
         Getter for the list of APIs supported by PSyclone.
+
         :returns: list of supported APIs
         :rtype: list of str
         '''
-        return self._supported_api_list
+        return Config._supported_api_list
 
     @property
     def default_stub_api(self):
         '''
         Getter for the default API used by the stub generator.
+
         :returns: default API for the stub generator
         :rtype: str
         '''
@@ -349,15 +421,17 @@ class Config(object):
     def supported_stub_apis(self):
         '''
         Getter for the list of APIs supported by the stub generator.
+
         :returns: list of supported APIs.
         :rtype: list of str
         '''
-        return self._supported_stub_api_list
+        return Config._supported_stub_api_list
 
     @property
     def reproducible_reductions(self):
         '''
         Getter for whether reproducible reductions are enabled.
+
         :returns: True if reproducible reductions are enabled, False otherwise.
         :rtype: bool
         '''
@@ -368,6 +442,7 @@ class Config(object):
         '''
         Getter for the amount of padding to use for the array required
         for reproducible OpenMP reductions
+
         :returns: padding size (no. of array elements)
         :rtype: int
         '''
@@ -378,12 +453,20 @@ class Config(object):
         '''
         Getter for the full path and name of the configuration file used
         to initialise this configuration object.
+
         :returns: full path and name of configuration file
         :rtype: str
         '''
         return self._config_file
 
+    def get_default_keys(self):
+        '''Returns all keys from the default section.
+        :returns list: List of all keys of the default section as strings.
+        '''
+        return self._config.defaults()
 
+
+# =============================================================================
 class DynConfig(object):
     '''
     Dynamo0.3-specific Config sub-class. Holds configuration options specific
@@ -394,8 +477,8 @@ class DynConfig(object):
     :param section: The entry for the dynamo0.3 section of \
                     the configuration file, as produced by ConfigParser.
     :type section:  :py:class:`configparser.SectionProxy`
-
     '''
+    # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
 
         self._config = config  # Ref. to parent Config object
@@ -418,3 +501,38 @@ class DynConfig(object):
 
         '''
         return self._compute_annexed_dofs
+
+
+# =============================================================================
+class GOceanConfig(object):
+    '''Gocean1.0-specific Config sub-class. Holds configuration options
+    specific to the GOcean 1.0 API.
+
+    :param config: The 'parent' Config object.
+    :type config: :py:class:`psyclone.configuration.Config`
+    :param section: The entry for the gocean1.0 section of \
+                    the configuration file, as produced by ConfigParser.
+    :type section:  :py:class:`configparser.SectionProxy`
+
+    '''
+    # pylint: disable=too-few-public-methods
+    def __init__(self, config, section):
+        for key in section.keys():
+            # Do not handle any keys from the DEFAULT section
+            # since they are handled by Config(), not this class.
+            if key in config.get_default_keys():
+                continue
+            if key == "iteration-spaces":
+                # The value associated with the iteration-spaces key is a
+                # set of lines, each line defining one new iteration space.
+                # Each individual iteration space added is checked
+                # in add_bounds for correctness.
+                value_as_str = str(section[key])
+                new_iteration_spaces = value_as_str.split("\n")
+                from psyclone.gocean1p0 import GOLoop
+                for it_space in new_iteration_spaces:
+                    GOLoop.add_bounds(it_space)
+            else:
+                raise ConfigurationError("Invalid key \"{0}\" found in "
+                                         "\"{1}\".".format(key,
+                                                           config.filename))

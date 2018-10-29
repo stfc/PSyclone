@@ -35,21 +35,72 @@
 
 ''' Tests for the kernel-stub generator. '''
 
-import pytest
+from __future__ import absolute_import
 import os
+import sys
+import pytest
 
 
 def test_run(monkeypatch, capsys):
     ''' Basic test for the run() routine. '''
-    import sys
     from psyclone.gen_kernel_stub import run
     # Use a dynamo 0.3 kernel so that we check that the default API
     # (dynamo 0.3) is picked up correctly
     kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "testkern_w0_mod.f90")
-    # Use monkeypatch to spoof some command-line arguments
-    monkeypatch.setattr(sys, "argv", ["genkernelstub", str(kern_file)])
+    # Use monkeypatch to spoof some command-line arguments - first with --limit
+    monkeypatch.setattr(sys, "argv", ["genkernelstub", str(kern_file),
+                                      "--limit"])
     run()
     result, _ = capsys.readouterr()
     assert "Kernel stub code:" in result
     assert "MODULE testkern_w0_mod" in result
+
+    # Test without --limit, but with -o:
+    import tempfile
+    filetemp_psy = tempfile.NamedTemporaryFile()
+    psy_filename = filetemp_psy.name
+    monkeypatch.setattr(sys, "argv", ["genkernelstub", str(kern_file),
+                                      "-api", "dynamo0.3", "-o", psy_filename])
+    run()
+    result, _ = capsys.readouterr()
+
+    # Now read output file into a string and check:
+    output = filetemp_psy.read()
+    assert "MODULE testkern_w0_mod" in str(output)
+
+
+# -----------------------------------------------------------------------------
+
+def test_failures(monkeypatch, capsys):
+    '''Tests various failures of the generate call.
+    '''
+
+    from psyclone.gen_kernel_stub import generate, run
+    from psyclone.parse import ParseError
+    from psyclone.psyGen import GenerationError
+
+    # Test error handling of command line options
+    with pytest.raises(SystemExit) as err:
+        # Use monkeypatch to spoof some command-line arguments
+        monkeypatch.setattr(sys, "argv", ["genkernelstub",
+                                          str("/does_not_exist")])
+        run()
+    result, _ = capsys.readouterr()
+    assert "Error: file '/does_not_exist' not found" in str(result)
+
+    # Test empty API (and file not found)
+    with pytest.raises(IOError) as err:
+        generate("/does_not_exist", api="")
+    assert "file '/does_not_exist' not found" in str(err)
+
+    # CHeck invalid API
+    with pytest.raises(GenerationError) as err:
+        generate("filename", api="invalid")
+    assert "Unsupported API 'invalid' specified." in str(err)
+
+    # Trapping Fortran errors:
+    with pytest.raises(ParseError) as err:
+        # Use this python file to trigger invalid Fortran
+        generate(__file__, api="dynamo0.3")
+    assert "Code appears to be invalid" in str(err)

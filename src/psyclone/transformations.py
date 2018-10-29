@@ -45,11 +45,7 @@
 import abc
 import six
 from psyclone.psyGen import Transformation
-import psyclone.configuration
-
-# Our one-and-only configuration object, populated by reading the
-# psyclone.cfg file
-_CONFIG = psyclone.configuration.ConfigFactory().create()
+from psyclone.configuration import Config
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -572,7 +568,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         # Whether or not to generate code for (run-to-run on n threads)
         # reproducible OpenMP reductions. This setting can be overridden
         # via the `reprod` argument to the apply() method.
-        self._reprod = _CONFIG.reproducible_reductions
+        self._reprod = Config.get().reproducible_reductions
 
         self._omp_schedule = ""
         # Although we create the _omp_schedule attribute above (so that
@@ -1010,10 +1006,18 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
         '''Perform Dynamo 0.3 specific loop validity checks then call
         :py:meth:`OMPLoopTrans.apply`.
 
+        :param node: the Node in the Schedule to check
+        :type node: :py:class:`psyclone.psyGen.Node`
+        :param reprod: if reproducible reductions should be used.
+        :type reprod: bool or None (default, which indicates to use the \
+              default from the config file).
+
+        :raise TransformationError: if an OMP loop transform would create \
+                incorrect code.
         '''
 
         if reprod is None:
-            reprod = _CONFIG.reproducible_reductions
+            reprod = Config.get().reproducible_reductions
 
         OMPLoopTrans._validate(self, node)
 
@@ -1140,7 +1144,7 @@ class ColourTrans(Transformation):
         colour_loop.set_lower_bound("start")
         colour_loop.kernel = node.kernel
 
-        if _CONFIG.distributed_memory:
+        if Config.get().distributed_memory:
             index = node.upper_bound_halo_depth
             colour_loop.set_upper_bound("colour_halo", index)
         else:  # no distributed memory
@@ -1881,7 +1885,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                     "apply method, if the parent of the supplied Loop is "
                     "also a Loop then the parent's parent must be the "
                     "Schedule, but found {0}".format(type(node.parent)))
-        if not _CONFIG.distributed_memory:
+        if not Config.get().distributed_memory:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
                 "method distributed memory must be switched on")
