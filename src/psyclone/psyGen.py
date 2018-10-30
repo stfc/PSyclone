@@ -2927,22 +2927,30 @@ class Kern(Call):
         '''
         return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
 
-    def gen_code(self, parent):
+    def gen_code(self, parent, arguments=None):
         '''
         Generates the f2pygen AST of the Fortran for this kernel call and
         writes the kernel itself to file if it has been transformed.
 
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+        :param arguments: The list of arguments to pass to the kernel.
+        :type arguments: list of str.
         '''
         from psyclone.f2pygen import CallGen, UseGen
 
         # If kernel has been transformed then we rename it and write it to file
         self.update()
-        
-        parent.add(CallGen(parent, self._name, self._arguments.arglist))
-        parent.add(UseGen(parent, name=self._module_name, only=True,
-                          funcnames=[self._name]))
+
+        if arguments:
+            # The list of arguments has been augmented by a sub-class
+            parent.add(CallGen(parent, self._name, arguments))
+        else:
+            parent.add(CallGen(parent, self._name, self._arguments.arglist))
+
+        if not self.module_inline:
+            parent.add(UseGen(parent, name=self._module_name, only=True,
+                              funcnames=[self._name]))
 
     def incremented_arg(self, mapping={}):
         ''' Returns the argument that has INC access. Raises a

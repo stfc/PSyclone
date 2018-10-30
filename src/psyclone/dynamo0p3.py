@@ -5210,19 +5210,12 @@ class DynKern(Kern):
         #    create_dump = DinoWriters(self, new_parent, position)
         #    create_dump.generate()
 
+        # Generate class-specific argument list and then call gen_code()
+        # method of base class.
         create_arg_list = KernCallArgList(self, parent)
         create_arg_list.generate()
-        arglist = create_arg_list.arglist
 
-        # If this kernel has been transformed then we need to rename it and
-        # write it to file. 
-        self.update()
-
-        # generate the kernel call and associated use statement
-        parent.add(CallGen(parent, self._name, arglist))
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name,
-                              only=True, funcnames=[self._name]))
+        super(DynKern, self).gen_code(parent, create_arg_list.arglist)
 
 
 class ArgOrdering(object):

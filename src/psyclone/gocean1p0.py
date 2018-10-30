@@ -925,15 +925,9 @@ class GOKern(Kern):
                 raise GenerationError("Kernel {0}, argument {1} has "
                                       "unrecognised type: {2}".
                                       format(self._name, arg.name, arg.type))
-            
-        # If kernel has been transformed then we need to rename it and
-        # write it to file
-        self.update()
-
-        parent.add(CallGen(parent, self._name, arguments))
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name, only=True,
-                              funcnames=[self._name]))
+        # Now sub-class specific setup is done, call the gen_code() method
+        # of base class
+        super(GOKern, self).gen_code(parent, arguments)
 
     @property
     def index_offset(self):
