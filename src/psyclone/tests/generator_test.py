@@ -746,3 +746,15 @@ def test_main_kern_output_no_write(tmpdir, capsys):
     output, _ = capsys.readouterr()
     assert ("Cannot write to specified kernel output directory ({0})".
             format(str(new_dir)) in output)
+
+
+def test_main_kern_output_dir(tmpdir):
+    ''' Test that we can specify a valid kernel output directory. '''
+    from psyclone.configuration import Config
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    main([alg_filename, '-okern', str(tmpdir)])
+    # The specified kernel output directory should have been stored in
+    # the configuration object
+    assert Config.get().kernel_output_dir == str(tmpdir)
