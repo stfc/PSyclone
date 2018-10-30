@@ -465,3 +465,16 @@ def test_default_api():
         config = Config()
         config.load(new_name)
         assert config.api == "dynamo0.3"
+
+
+def test_kernel_naming_setter():
+    ''' Check that the setter for the kernel-naming scheme rejects
+    unrecognised values. '''
+    from psyclone import configuration
+    config = Config()
+    config.kernel_naming = "single"
+    assert config.kernel_naming == "single"
+    with pytest.raises(ValueError) as err:
+        config.kernel_naming = "not-a-scheme"
+    assert ("kernel_naming must be one of '{0}' but got 'not-a-scheme'".
+            format(configuration.VALID_KERNEL_NAMING_SCHEMES) in str(err))

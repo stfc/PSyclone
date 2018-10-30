@@ -509,11 +509,11 @@ class Config(object):
         to file.
 
         :param str value: one of VALID_KERNEL_NAMING_SCHEMES.
-        :raises ConfigurationError: if the supplied value is not a recognised \
-                                    kernel-renaming scheme.
+        :raises ValueError: if the supplied value is not a recognised \
+                            kernel-renaming scheme.
         '''
         if value not in VALID_KERNEL_NAMING_SCHEMES:
-            raise ConfigurationError(
+            raise ValueError(
                 "kernel_naming must be one of '{0}' but got '{1}'".
                 format(VALID_KERNEL_NAMING_SCHEMES, value))
         self._kernel_naming = value
