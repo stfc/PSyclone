@@ -1,39 +1,18 @@
 
 module helmholtz_solver_alg_mod
 
-
-  !=============================================================================!
-  !> @brief Apply the full Helmholtz lhs to a pressure field p, this is the Ax
-  !!        routine called from the Krylov solver.
-  !> @param[in,out] Hp Field containg the result of multiplying the Helmholtz
-  !!                   matrix H by the field p
-  !> @param[in] p Field to apply the Helmholtz matrix to
   subroutine apply_helmholtz_lhs(Hp, p)
 
-    use scaled_matrix_vector_kernel_mod, only: scaled_matrix_vector_kernel_type, &
-                                               opt_scaled_matrix_vector_kernel_type
-    use operator_mod,                    only: operator_type
-    use enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
-    use apply_variable_hx_kernel_mod,    only: apply_variable_hx_kernel_type, &
-                                               opt_apply_variable_hx_kernel_type
-    use finite_element_config_mod,       only: element_order
+    use scaled_matrix_vector_kernel_mod, only: opt_scaled_matrix_vector_kernel_type
 
     implicit none
 
     type(field_type), intent(inout) :: Hp
     type(field_type), intent(in)    :: p
 
-    ! Compute M3*p + H[ D{\theta*}*p ]
-    if ( element_order == 0 ) then
-      ! Hard wired optimisation for desired configuration
-      call invoke( setval_c( grad_p, 0.0_r_def ),                                &
-                   opt_scaled_matrix_vector_kernel_type(grad_p, p, div_star,     &
-                                                        hb_inv, u_normalisation),&
-                   opt_apply_variable_hx_kernel_type(                            &
-                       l_p, grad_p, mt_lumped_inv, p,                            &
-                       compound_div, p3theta, ptheta2, m3_exner_star,            &
-                       one) )
-    end if
+    call invoke( setval_c( grad_p, 0.0_r_def ),                                 &
+                 opt_scaled_matrix_vector_kernel_type(grad_p, p, div_star,      &
+                                                      hb_inv, u_normalisation) )
 
   end subroutine apply_helmholtz_lhs
 

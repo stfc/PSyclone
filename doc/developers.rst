@@ -839,9 +839,9 @@ Note that we do not need to worry about halo depth or whether a halo
 is definitely required, or whether it might be required, as this is
 determined by the halo exchange itself at code generation time. The
 reason for deferring this information is that it can change as
-transformations are added.
+transformations are applied.
 
-Aynschronous Halo Exchanges
+Asynchronous Halo Exchanges
 +++++++++++++++++++++++++++
 
 The Dynamo0p3AsynchronousHaloExchange transformation allows the
@@ -873,7 +873,7 @@ than the solution chosen.
 Both halo exchange start and halo exchange end inherit from halo
 exchange. However, the halo exchange start and end are really two
 parts of the same thing and need to have consistent properties
-including after transformations are performed. This is achieved by
+including after transformations have been performed. This is achieved by
 having the halo exchange start find and use the methods from the halo
 exchange end, rather than implement them independently. The actual
 methods needed are `_compute_stencil_type()`,
@@ -882,19 +882,20 @@ halo exhange start really benefits from inheriting from halo exchange
 and this could probably be removed at the expense of returning
 appropriate names for the dag, colourmap, declaration etc.
 
-.. note:: Halo exchange vectors are currently broken when an existing
-   set of halo exchanges associated with a vector need to be removed
-   due to redundant computation being applied. At the moment not all
-   of them are removed. This is also the case for asynchronous halo
-   exchanges. See issue #219.
+.. note:: There is currently a problem with halo-exchanges for field
+   vectors: when an existing set of halo exchanges associated with a
+   vector need to be removed due to redundant computation being
+   applied. At the moment not all of them are removed. This is also
+   the case for asynchronous halo exchanges. See issue #219.
 
-.. note:: The dependence analysis for vector is currently over
-   zealous. It does not allow independent halo exchange vectors to be
-   moved past one another. For example, a halo exchange for vector 2,
-   if placed after a halo exchange for vector 1 could not be moved
-   before the halo exchange for vector 1, even though there accesses
-   are independent of each other. This is also the case for
-   asynchronous halo exchanges. See issue #220.
+.. note:: The dependence analysis for halo exchanges for field vectors
+   is currently over zealous. It does not allow halo exchanges for
+   independent vector components to be moved past one another. For
+   example, a halo exchange for vector 2, if placed after a halo
+   exchange for vector 1 could not be moved before the halo exchange
+   for vector 1, even though the accesses are independent of each
+   other. This is also the case for asynchronous halo exchanges. See
+   issue #220.
 
 Modifying the Schedule
 ----------------------
