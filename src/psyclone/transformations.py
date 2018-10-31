@@ -2309,8 +2309,10 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
         '''
         from psyclone.psyGen import HaloExchange
+        from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
 
-        if not isinstance(node, HaloExchange):
+        if not isinstance(node, HaloExchange) or \
+           isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
             raise TransformationError(
                 "Error in Dynamo0p3AsyncHaloExchange transformation. Supplied "
                 "node must be a synchronous halo exchange but found '{0}'."

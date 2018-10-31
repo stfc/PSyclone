@@ -3377,15 +3377,16 @@ class DynHaloExchange(HaloExchange):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicating
-    whether this halo exchange should be subject to a run-time check
+    :param check_dirty: optional argument default True indicating \
+    whether this halo exchange should be subject to a run-time check \
     for clean/dirty halos.
     :type check_dirty: bool
-    :param vector_index: optional vector index (default None) to
-    identify which index of a vector field this halo exchange is
+    :param vector_index: optional vector index (default None) to \
+    identify which index of a vector field this halo exchange is \
     responsible for
     :type vector_index: int
-    :param parent: optional parent (default None) of this object
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
@@ -3403,7 +3404,7 @@ class DynHaloExchange(HaloExchange):
         return that stencil, otherwise we return the "region" stencil
         type (as it is safe for all stencils).
 
-        :return: Return the type of stencil required for this halo exchange
+        :return: the type of stencil required for this halo exchange
         :rtype: str
 
         '''
@@ -3425,7 +3426,7 @@ class DynHaloExchange(HaloExchange):
         as the depth can change as transformations are applied to the
         schedule
 
-        :return: Return the halo exchange depth as a Fortran string
+        :return: the halo exchange depth as a Fortran string
         :rtype: str
 
         '''
@@ -3459,7 +3460,7 @@ class DynHaloExchange(HaloExchange):
         `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
         information e.g. depth=1 is not required if we have a depth=2
 
-        :return: a list containing halo depth information derived from
+        :return: a list containing halo depth information derived from \
         all fields dependent on this halo exchange
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
@@ -3491,10 +3492,10 @@ class DynHaloExchange(HaloExchange):
         '''Determines how much of the halo has been cleaned from any previous
         redundant computation
 
-        :return: a HaloWriteAccess object containing the required
+        :return: a HaloWriteAccess object containing the required \
         information, or None if no dependence information is found.
-        :rtype::py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
-        :raises GenerationError: if more than one write dependence is
+        :rtype: :py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
+        :raises GenerationError: if more than one write dependence is \
         found for this halo exchange as this should not be possible
 
         '''
@@ -3537,10 +3538,10 @@ class DynHaloExchange(HaloExchange):
         updated. Note, the routine would still be correct as is, it
         would just return more unknown results than it should).
 
-        :return: Returns (x, y) where x specifies whether this halo
-        exchange is (or might be) required - True, or is not required
-        - False. If the first argument is True then the second
-        argument specifies whether we definitely know that we need the
+        :return: Returns (x, y) where x specifies whether this halo \
+        exchange is (or might be) required - True, or is not required \
+        - False. If the first argument is True then the second \
+        argument specifies whether we definitely know that we need the \
         HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
 
@@ -3723,25 +3724,29 @@ class DynHaloExchange(HaloExchange):
 class DynHaloExchangeStart(DynHaloExchange):
     '''The start of an asynchronous halo exchange. This is similar to a
     regular halo exchange except that the Fortran name of the call is
-    different and the routine only reads the data being
-    transferred. As the data is only read it is not able to determine
-    some important properties (such as whether the halo exchange is
-    known to be required or not). This is solved by finding the
-    associated asynchronous halo exchange end and calling its methods
-    (as it writes to its field and therefore is able to determine the
-    required properties.
+    different and the routine only reads the data being transferred
+    (the associated field is specified as having a read access). As a
+    result this class is not able to determine some important
+    properties (such as whether the halo exchange is known to be
+    required or not). This is solved by finding the corresponding
+    asynchronous halo exchange end (a halo exchange start always has a
+    corresponding halo exchange end and vice versa) and calling its
+    methods (a halo exchange end is specified as having readwrite
+    access to its associated field and therefore is able to determine
+    the required properties).
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicating
-    whether this halo exchange should be subject to a run-time check
+    :param check_dirty: optional argument default True indicating \
+    whether this halo exchange should be subject to a run-time check \
     for clean/dirty halos.
     :type check_dirty: bool
-    :param vector_index: optional vector index (default None) to
-    identify which index of a vector field this halo exchange is
+    :param vector_index: optional vector index (default None) to \
+    identify which index of a vector field this halo exchange is \
     responsible for
     :type vector_index: int
-    :param parent: optional parent (default None) of this object
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
@@ -3749,11 +3754,10 @@ class DynHaloExchangeStart(DynHaloExchange):
                  vector_index=None, parent=None):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
                                  vector_index=vector_index, parent=parent)
-        if field:
-            # Update the field's access appropriately. Here "gh_read"
-            # specifies that the start of a halo exchange only reads
-            # the field's data.
-            self._field.access = "gh_read"
+        # Update the field's access appropriately. Here "gh_read"
+        # specifies that the start of a halo exchange only reads
+        # the field's data.
+        self._field.access = "gh_read"
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_start"
         self._text_name = "HaloExchangeStart"
@@ -3763,71 +3767,85 @@ class DynHaloExchangeStart(DynHaloExchange):
     def _compute_stencil_type(self):
         '''Call the required method in the corresponding halo exchange end
         object. This is done as the field in halo exchange start is
-        only read and the dependence analyis beneath this call
+        only read and the dependence analysis beneath this call
         requires the field to be modified.
 
-        :return: Return the type of stencil required for this pair of
+        :return: Return the type of stencil required for this pair of \
         halo exchanges
         :rtype: str
 
         '''
-        remote_node = self._get_hex_end()
-        return remote_node._compute_stencil_type()
+        return self._get_hex_end()._compute_stencil_type()
 
     def _compute_halo_depth(self):
         '''Call the required method in the corresponding halo exchange end
         object. This is done as the field in halo exchange start is
-        only read and the dependence analyis beneath this call
+        only read and the dependence analysis beneath this call
         requires the field to be modified.
 
         :return: Return the halo exchange depth as a Fortran string
         :rtype: str
 
         '''
-        remote_node = self._get_hex_end()
-        return remote_node._compute_halo_depth()
+        return self._get_hex_end()._compute_halo_depth()
 
     def required(self):
         '''Call the required method in the corresponding halo exchange end
         object. This is done as the field in halo exchange start is
-        only read and the dependence analyis beneath this call
+        only read and the dependence analysis beneath this call
         requires the field to be modified.
 
-        :return: Returns (x, y) where x specifies whether this halo
-        exchange is (or might be) required - True, or is not required
-        - False. If the first argument is True then the second
-        argument specifies whether we definitely know that we need the
+        :return: Returns (x, y) where x specifies whether this halo \
+        exchange is (or might be) required - True, or is not required \
+        - False. If the first argument is True then the second \
+        argument specifies whether we definitely know that we need the \
         HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
 
         '''
-        remote_node = self._get_hex_end()
-        return remote_node.required()
+        return self._get_hex_end().required()
 
     def _get_hex_end(self):
         '''An internal helper routine for this class which finds the halo
         exchange end object corresponding to this halo exchange start
         object or raises an exception if one is not found.
 
-        :return: The corresponding halo exhange end object
-        :rtype::py:class:`psyclone.dynamo0p3.DynHaloExchangeEnd`
-        :raises GenerationError: If a matching HaloExchangeEnd is not
-        found, or if the first matching haloexchange that is found is
+        :return: The corresponding halo exchange end object
+        :rtype: :py:class:`psyclone.dynamo0p3.DynHaloExchangeEnd`
+        :raises GenerationError: If no matching HaloExchangeEnd is \
+        found, or if the first matching haloexchange that is found is \
         not a HaloExchangeEnd
 
         '''
+        # Look at all nodes following this one in schedule order
+        # (which is PSyIRe node order)
         for node in self.following():
-            if self.sameParent(node):
-                if isinstance(node, DynHaloExchange):
-                    # ************** What about matching field vectors?????
-                    if node.field.name == self.field.name:
-                        if isinstance(node, DynHaloExchangeEnd):
-                            return node
-                        else:
-                            raise GenerationError(
-                                "Halo exchange start for field '{0}' should "
-                                "match with a halo exchange end, but found "
-                                "{1}".format(self.field.name, type(node)))
+            if self.sameParent(node) and isinstance(node, DynHaloExchange):
+                # Found a following `haloexchange`,
+                # `haloexchangestart` or `haloexchangeend` PSyIRe node
+                # that is at the same calling hierarchy level as this
+                # haloexchangestart
+
+                # TBD: support matching fields with the same vector
+                # index and skipping ones with different indices. This
+                # can be added simply once PR #225 is on master as
+                # that adds the concept of matching overlapping
+                # accesses. Note, we still get correct results if no
+                # move transformations are applied.
+                if node.field.name == self.field.name:
+                    # the names match so it should be the associated
+                    # haloexchangeend (unless it has been moved by a
+                    # transformation).
+                    if isinstance(node, DynHaloExchangeEnd):
+                        return node
+                    else:
+                        raise GenerationError(
+                            "Halo exchange start for field '{0}' should "
+                            "match with a halo exchange end, but found "
+                            "{1}".format(self.field.name, type(node)))
+        # no match has been found which is an error as a halo exchange
+        # start should always have a matching halo exchange end that
+        # follows it in schedule (PSyIRe sibling) order
         raise GenerationError(
             "Halo exchange start for field '{0}' has no matching halo "
             "exchange end".format(self.field.name))
@@ -3841,15 +3859,16 @@ class DynHaloExchangeEnd(DynHaloExchange):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicating
-    whether this halo exchange should be subject to a run-time check
+    :param check_dirty: optional argument default True indicating \
+    whether this halo exchange should be subject to a run-time check \
     for clean/dirty halos.
     :type check_dirty: bool
-    :param vector_index: optional vector index (default None) to
-    identify which index of a vector field this halo exchange is
+    :param vector_index: optional vector index (default None) to \
+    identify which index of a vector field this halo exchange is \
     responsible for
     :type vector_index: int
-    :param parent: optional parent (default None) of this object
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
     :type parent: :py:class:`psyclone.psyGen.node`
 
     '''
@@ -3857,13 +3876,11 @@ class DynHaloExchangeEnd(DynHaloExchange):
                  vector_index=None, parent=None):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
                                  vector_index=vector_index, parent=parent)
-        if field:
-            # Update fields values appropriately. Here "gh_readwrite"
-            # specifies that the end of a halo exchange writes to the
-            # data but also preserves any existing data. This is
-            # probably officially a write but readwrite is needed for
-            # the halo exchange logic to work correctly in any case.
-            self._field.access = "gh_readwrite"
+        # Update fields values appropriately. The associated field is
+        # written to. However, a readwrite field access needs to be
+        # specified as this required for the halo exchange logic to
+        # work correctly.
+        self._field.access = "gh_readwrite"
         # override appropriate parent class names
         self._halo_exchange_name = "halo_exchange_finish"
         self._text_name = "HaloExchangeEnd"

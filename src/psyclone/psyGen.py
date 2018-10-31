@@ -2204,8 +2204,8 @@ class HaloExchange(Node):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        name = ("{0}({1})_".format(self._dag_name, self._field.name) +
-                str(self.position))
+        name = ("{0}({1})_{2}".format(self._dag_name, self._field.name,
+                                      self.position))
         if self._check_dirty:
             name = "check" + name
         return name

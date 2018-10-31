@@ -65,7 +65,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def test_colour_trans_declarations(tmpdir, f90, f90flags, dist_mem):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
-    is both off and on '''
+    is both off and on. '''
     # test of the colouring transformation of a single loop
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -105,7 +105,7 @@ def test_colour_trans_declarations(tmpdir, f90, f90flags, dist_mem):
 
 def test_colour_trans(tmpdir, f90, f90flags, dist_mem):
     '''test of the colouring transformation of a single loop. We test
-    when distributed memory is both off and on'''
+    when distributed memory is both off and on. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -271,7 +271,7 @@ def test_colour_trans_cma_operator(tmpdir, f90, f90flags, dist_mem):
 def test_colour_trans_stencil():
     '''test of the colouring transformation of a single loop with a
     stencil access. We test when distributed memory is both off and
-    on    '''
+    on. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "19.1_single_stencil.f90"),
@@ -311,7 +311,7 @@ def test_colour_trans_stencil():
 def test_colouring_not_a_loop():
     '''Test that we raise an appropriate error if we attempt to colour
     something that is not a loop. We test when distributed memory is
-    on or off '''
+    on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -351,14 +351,14 @@ def test_no_colour_dofs():
 
 
 def test_omp_name():
-    ''' Test the name property of the Dynamo0p3OMPLoopTrans class '''
+    ''' Test the name property of the Dynamo0p3OMPLoopTrans class. '''
     olooptrans = Dynamo0p3OMPLoopTrans()
     oname = olooptrans.name
     assert oname == "Dynamo0p3OMPLoopTrans"
 
 
 def test_omp_str():
-    ''' Test the str method of the Dynamo0p3OMPLoopTrans class '''
+    ''' Test the str method of the Dynamo0p3OMPLoopTrans class. '''
     olooptrans = Dynamo0p3OMPLoopTrans()
     oname = str(olooptrans)
     assert oname == "Add an OpenMP DO directive to a Dynamo 0.3 loop"
@@ -367,7 +367,7 @@ def test_omp_str():
 def test_omp_not_a_loop():
     '''Test that we raise an appropriate error if we attempt to apply an
     OpenMP DO transformation to something that is not a loop. We test
-    when distributed memory is on or off '''
+    when distributed memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -390,7 +390,7 @@ def test_omp_not_a_loop():
 def test_omp_parallel_not_a_loop():
     '''Test that we raise an appropriate error if we attempt to apply an
     OpenMP PARALLEL DO transformation to something that is not a
-    loop. We test when distributed memory is on or off '''
+    loop. We test when distributed memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -410,14 +410,14 @@ def test_omp_parallel_not_a_loop():
 
 
 def test_colour_name():
-    ''' Test the name property of the Dynamo0p3ColourTrans class '''
+    ''' Test the name property of the Dynamo0p3ColourTrans class. '''
     ctrans = Dynamo0p3ColourTrans()
     cname = ctrans.name
     assert cname == "Dynamo0p3LoopColourTrans"
 
 
 def test_colour_str():
-    ''' Test the str method of the Dynamo0p3ColourTrans class '''
+    ''' Test the str method of the Dynamo0p3ColourTrans class. '''
     ctrans = Dynamo0p3ColourTrans()
     cstr = str(ctrans)
     assert cstr == "Split a Dynamo 0.3 loop over cells into colours"
@@ -425,7 +425,7 @@ def test_colour_str():
 
 def test_omp_colour_trans(tmpdir, f90, f90flags, dist_mem):
     '''Test the OpenMP transformation applied to a coloured loop. We test
-    when distributed memory is on or off '''
+    when distributed memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -473,7 +473,7 @@ def test_omp_colour_trans(tmpdir, f90, f90flags, dist_mem):
 def test_omp_colour_orient_trans():
     '''Test the OpenMP transformation applied to a coloured loop when the
     kernel expects orientation information. We test when distributed
-    memory is on or off '''
+    memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9.1_orientation2.f90"),
@@ -511,7 +511,7 @@ def test_omp_parallel_colouring_needed():
     '''Test that we raise an error when applying an OpenMP PARALLEL DO
     transformation to a loop that requires colouring (i.e. has a field
     with 'INC' access) but is not coloured. We test when distributed
-    memory is on or off '''
+    memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
@@ -537,7 +537,7 @@ def test_omp_colouring_needed():
     '''Test that we raise an error when applying an OpenMP DO
     transformation to a loop that requires colouring (i.e. has a field
     with 'INC' access) but is not coloured. We test when distributed
-    memory is on or off '''
+    memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
@@ -564,7 +564,7 @@ def test_check_seq_colours_omp_parallel_do():
     '''Test that we raise an error if the user attempts to apply an OpenMP
     PARALLEL DO transformation to a loop over colours (since any such
     loop must be sequential). We test when distributed memory is on or
-    off '''
+    off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9.1_orientation2.f90"),
@@ -596,7 +596,7 @@ def test_check_seq_colours_omp_parallel_do():
 def test_check_seq_colours_omp_do(tmpdir, f90, f90flags):
     '''Test that we raise an error if the user attempts to apply an OpenMP
     DO transformation to a loop over colours (since any such loop must
-    be sequential). We test when distributed memory is on or off '''
+    be sequential). We test when distributed memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9.1_orientation2.f90"),
@@ -635,7 +635,7 @@ def test_check_seq_colours_omp_do(tmpdir, f90, f90flags):
 def test_colouring_after_openmp():
     '''Test that we raise an error if the user attempts to colour a loop
     that is already within an OpenMP parallel region. We test when
-    distributed memory is on or off '''
+    distributed memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -666,7 +666,7 @@ def test_colouring_after_openmp():
 def test_colouring_multi_kernel(dist_mem):
     '''Test that we correctly generate all the map-lookups etc.  when an
     invoke contains more than one kernel. We test when distributed
-    memory is on or off '''
+    memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -706,7 +706,7 @@ def test_colouring_multi_kernel(dist_mem):
 def test_omp_region_omp_do():
     '''Test that we correctly generate code for the case of a single OMP
     DO within an OMP PARALLEL region without colouring. We test when
-    distributed memory is on or off '''
+    distributed memory is on or off. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -834,7 +834,7 @@ def test_omp_region_omp_do_rwdisc(monkeypatch, annexed):
 def test_multi_kernel_single_omp_region():
     ''' Test that we correctly generate all the map-lookups etc.
     when an invoke contains more than one kernel that are all contained
-    within a single OMP region'''
+    within a single OMP region. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -933,7 +933,7 @@ def test_multi_different_kernel_omp():
 
 def test_loop_fuse_different_spaces():
     ''' Test that we raise an appropriate error if the user attempts
-    to fuse loops that are on different spaces '''
+    to fuse loops that are on different spaces. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
@@ -977,7 +977,7 @@ def test_loop_fuse_different_spaces():
 
 
 def test_loop_fuse_unexpected_error():
-    ''' Test that we catch an unexpected error when loop fusing '''
+    ''' Test that we catch an unexpected error when loop fusing. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -1004,7 +1004,7 @@ def test_loop_fuse_unexpected_error():
 
 
 def test_loop_fuse():
-    ''' Test that we are able to fuse two loops together '''
+    ''' Test that we are able to fuse two loops together. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -1054,7 +1054,7 @@ def test_loop_fuse():
 
 def test_loop_fuse_set_dirty():
     ''' Test that we are able to fuse two loops together and produce
-    the expected set_dirty() calls '''
+    the expected set_dirty() calls. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -1074,7 +1074,7 @@ def test_loop_fuse_set_dirty():
 
 def test_loop_fuse_omp():
     '''Test that we can loop-fuse two loop nests and enclose them in an
-       OpenMP parallel region'''
+       OpenMP parallel region. '''
     # pylint: disable=too-many-branches
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
@@ -1214,7 +1214,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
 def test_fuse_colour_loops(tmpdir, f90, f90flags, dist_mem):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP PARALLEL DO for
-    both sequential and distributed-memory code '''
+    both sequential and distributed-memory code. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -1312,7 +1312,7 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags, dist_mem):
 
 def test_loop_fuse_cma():
     ''' Test that we can loop fuse two loops when one contains a
-    call to a CMA-related kernel '''
+    call to a CMA-related kernel. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "20.6_multi_invoke_with_cma.f90"),
@@ -1381,7 +1381,7 @@ def test_omp_par_and_halo_exchange_error():
     '''Tests that we raise an error if we try to apply an omp parallel
     transformation to a list containing halo_exchange calls. If this is
     allowed then it is likely that we will get incorrect results, or that
-    the code will fail. Fixing this problem is the subject of ticket #526'''
+    the code will fail. Fixing this problem is the subject of ticket #526. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -1407,7 +1407,7 @@ def test_omp_par_and_halo_exchange_error():
 def test_module_inline():
     '''Tests that correct results are obtained when a kernel is inlined
     into the psy-layer in the dynamo0.3 API. More in-depth tests can be
-    found in the gocean1p0_transformations.py file'''
+    found in the gocean1p0_transformations.py file. '''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -1841,7 +1841,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed):
 
 def test_reduction_real_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for a
-    real scalar summed in a builtin. We use inner product in this case'''
+    real scalar summed in a builtin. We use inner product in this case. '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1881,7 +1881,7 @@ def test_reduction_real_pdo():
 
 def test_reduction_real_do():
     '''test that we generate a correct OpenMP do reduction for a real
-    scalar summed in a builtin. We use inner product in this case '''
+    scalar summed in a builtin. We use inner product in this case. '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1925,7 +1925,7 @@ def test_reduction_real_do():
 
 def test_multi_reduction_real_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for a
-    real scalar summed in a builtin. We use inner product in this case'''
+    real scalar summed in a builtin. We use inner product in this case. '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -2191,7 +2191,7 @@ def test_two_reductions_real_do():
     '''test that we produce correct code when we have more than one
     builtin with a reduction, with each reduction using a different
     variable, and we use OpenMP DO loops for parallelisation with a
-    single parallel region over all calls '''
+    single parallel region over all calls. '''
     file_name = "15.16.1_two_different_builtin_reductions.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2270,7 +2270,7 @@ def test_two_reprod_reductions_real_do():
     '''test that we produce correct code when we have more than one
     builtin with a reproducible reduction, with each reduction using a
     different variable, and we use OpenMP DO loops for parallelisation
-    with a single parallel region over all calls'''
+    with a single parallel region over all calls. '''
     file_name = "15.16.1_two_different_builtin_reductions.f90"
     for distmem in [False, True]:
         _, invoke_info = parse(
@@ -2454,7 +2454,7 @@ def test_multi_reduction_real_fuse():
 
 def test_multi_different_reduction_real_pdo():
     '''test that we generate a correct OpenMP parallel do reduction for
-    two different builtins. We use inner product and sum_X'''
+    two different builtins. We use inner product and sum_X. '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3120,7 +3120,7 @@ def test_multi_builtins_fuse_error():
 
 def test_loop_fuse_error():
     '''Test that we raise an exception in loop fusion if one or more of
-    the loops has an any_space iteration space'''
+    the loops has an any_space iteration space.'''
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
@@ -3141,7 +3141,7 @@ def test_loop_fuse_error():
 
 def test_reprod_reduction_real_pdo():
     '''Test that we raise an exception if we try to use the reprod flag
-    for an OpenMP Parallel Do'''
+    for an OpenMP Parallel Do. '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3163,7 +3163,7 @@ def test_reprod_reduction_real_pdo():
 def test_reprod_reduction_real_do():
     '''test that we generate a correct reproducible OpenMP do reduction
     for a real scalar summed in a builtin. We use inner product in
-    this case '''
+    this case. '''
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3249,7 +3249,7 @@ def test_reprod_reduction_real_do():
 
 def test_no_global_sum_in_parallel_region():
     '''test that we raise an error if we try to put a parallel region
-    around loops with a global sum'''
+    around loops with a global sum. '''
     for distmem in [True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3806,7 +3806,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
 
 def test_reductions_reprod():
     '''Check that the optional reprod argument to reductions() method
-    works as expected'''
+    works as expected. '''
     for reprod in [False, True]:
         for distmem in [True, False]:
             _, invoke_info = parse(
@@ -3838,7 +3838,7 @@ def test_list_multiple_reductions():
     than one reduction in a OpenMP parallel directive. As only one
     reduction per OpenMP parallel region is currently supported we
     need to modify the internal representation after the
-    transformations have been performed to enable this test'''
+    transformations have been performed to enable this test. '''
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -3866,14 +3866,14 @@ def test_list_multiple_reductions():
 
 
 def test_move_name():
-    ''' Test the name property of the MoveTrans class '''
+    ''' Test the name property of the MoveTrans class. '''
     move_trans = MoveTrans()
     name = move_trans.name
     assert name == "Move"
 
 
 def test_move_str():
-    ''' Test the str method of the MoveTrans class '''
+    ''' Test the str method of the MoveTrans class. '''
     move_trans = MoveTrans()
     name = str(move_trans)
     assert name == "Move a node to a different location"
@@ -3881,7 +3881,7 @@ def test_move_str():
 
 def test_move_valid_node():
     '''Test that MoveTrans raises an exception if an invalid node
-    argument is passed'''
+    argument is passed. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.2_multikernel_invokes.f90"),
                     api=TEST_API)
@@ -3897,7 +3897,7 @@ def test_move_valid_node():
 
 def test_move_back():
     '''Test that MoveTrans moves the node backwards to the expected
-    location'''
+    location. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
@@ -3920,7 +3920,7 @@ def test_move_back():
 
 def test_move_back_after():
     '''Test that MoveTrans moves the node backwards to the expected
-    location when location="after" '''
+    location when location="after". '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
@@ -3944,7 +3944,7 @@ def test_move_back_after():
 
 def test_move_forward():
     '''Test that MoveTrans moves the node forwards to the expected
-    location'''
+    location. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
@@ -3969,7 +3969,7 @@ def test_move_forward():
 
 def test_move_forward_after():
     '''Test that MoveTrans moves the node forwards to the expected
-    location when location="after" '''
+    location when location="after". '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.14.2_multiple_set_kernels.f90"),
                     api=TEST_API)
@@ -4021,7 +4021,7 @@ def test_move_fail():
 
 def test_rc_str():
     '''Test the str method and name property of the
-    Dynamo0p3RedundantComputationTrans class'''
+    Dynamo0p3RedundantComputationTrans class. '''
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_name = str(rc_trans)
     assert rc_name == "Change iteration space to perform redundant computation"
@@ -4031,7 +4031,7 @@ def test_rc_str():
 
 def test_rc_node_not_loop():
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
-    node argument is not a loop'''
+    node argument is not a loop. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -4047,7 +4047,7 @@ def test_rc_node_not_loop():
 
 def test_rc_invalid_loop(monkeypatch):
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
-    supplied loop does not iterate over cells or dofs'''
+    supplied loop does not iterate over cells or dofs. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -4067,7 +4067,7 @@ def test_rc_invalid_loop(monkeypatch):
 
 def test_rc_nodm():
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if
-    distributed memory is not set'''
+    distributed memory is not set. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -4084,7 +4084,7 @@ def test_rc_nodm():
 
 def test_rc_invalid_depth():
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
-    supplied depth is less than 1 '''
+    supplied depth is less than 1. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -4101,7 +4101,7 @@ def test_rc_invalid_depth():
 
 def test_rc_invalid_depth_continuous():
     '''Test that Dynamo0p3RedundantComputationTrans raises an exception if the
-    supplied depth equals 1 when modifying a continuous field '''
+    supplied depth equals 1 when modifying a continuous field. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -4122,7 +4122,7 @@ def test_rc_continuous_depth():
     cells) are modified appropriately, that set_clean() is added
     correctly and halo_exchange modified appropriately after applying
     the redundant computation transformation with a fixed value for
-    halo depth'''
+    halo depth. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -4150,7 +4150,7 @@ def test_rc_continuous_no_depth():
     cells) are modified appropriately, that set_clean() is added
     correctly and halo_exchange modified appropriately after applying
     the redundant computation transformation with no value for halo
-    depth'''
+    depth. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -4261,7 +4261,7 @@ def test_rc_all_discontinuous_depth(tmpdir, f90, f90flags):
     (iterating over cells) with discontinuous reads are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
-    transformation with a fixed value for halo depth '''
+    transformation with a fixed value for halo depth. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_wtheta.f90"),
                     api=TEST_API)
@@ -4291,7 +4291,7 @@ def test_rc_all_discontinuous_no_depth(tmpdir, f90, f90flags):
     (iterating over cells) with discontinuous reads are modified
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
-    transformation with no halo depth value '''
+    transformation with no halo depth value. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w2v.f90"),
                     api=TEST_API)
@@ -4322,7 +4322,7 @@ def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
     after applying the redundant computation transformation with a
-    fixed value for halo depth '''
+    fixed value for halo depth. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3_only_vector.f90"),
                     api=TEST_API)
@@ -4356,7 +4356,7 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
     over cells) are modified appropriately and set_clean() added
     correctly and halo_exchange added appropriately for vector fields
     after applying the redundant computation transformation with no
-    halo depth value '''
+    halo depth value. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_wtheta_only_vector.f90"),
                     api=TEST_API)
@@ -4392,7 +4392,7 @@ def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
     added appropriately in the case where the field requiring a halo
     exchange has a previous non-halo dependence, after applying the
     redundant computation transformation with a fixed value for halo
-    depth '''
+    depth. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.12_multikernel_invokes_w2v.f90"),
                     api=TEST_API)
@@ -4425,7 +4425,7 @@ def test_rc_all_disc_prev_depend_no_depth():
     added correctly and halo_exchange added appropriately in the case
     where the field now requiring a halo exchange has a previous
     non-halo dependence after applying the redundant computation
-    transformation with no halo depth value '''
+    transformation with no halo depth value. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.12_multikernel_invokes_w2v.f90"),
                     api=TEST_API)
@@ -4454,7 +4454,7 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir, f90, f90flags):
     appropriately in the case where the vector field requiring a halo
     exchange has a previous non-halo dependence, after applying the
     redundant computation transformation with a fixed value for halo
-    depth '''
+    depth. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "8.2.1_multikernel_invokes_w3_vector.f90"),
                     api=TEST_API)
@@ -4490,7 +4490,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
     correctly and halo_exchange added appropriately in the case where
     the vector field now requiring a halo exchange has a previous non-halo
     dependence after applying the redundant computation transformation
-    with no halo depth value '''
+    with no halo depth value. '''
     _, info = parse(
         os.path.join(BASE_PATH,
                      "8.2.1_multikernel_invokes_w3_vector.f90"),
@@ -4526,7 +4526,7 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir, f90, f90flags):
     correctly and halo_exchange added appropriately in the case where
     the vector field now requiring a halo exchange has a previous halo
     dependence (readwrite access) after applying the redundant computation
-    transformation with no halo depth value '''
+    transformation with no halo depth value. '''
     _, info = parse(
         os.path.join(BASE_PATH,
                      "8.2.2_multikernel_invokes_wtheta_vector.f90"),
@@ -4567,7 +4567,7 @@ def test_rc_dofs_depth():
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with a fixed value for halo depth where the halo
-    fields have no previous dependence'''
+    fields have no previous dependence. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_inc_X_plus_Y_builtin.f90"),
                     api=TEST_API)
@@ -4595,7 +4595,7 @@ def test_rc_dofs_no_depth():
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value where the halo fields have
-    no previous dependence'''
+    no previous dependence. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_inc_X_plus_Y_builtin.f90"),
                     api=TEST_API)
@@ -4675,7 +4675,7 @@ def test_rc_dofs_no_depth_prev_dep():
     appropriately and set_clean() added correctly and halo_exchange
     added appropriately after applying the redundant computation
     transformation with no halo depth value where the halo
-    fields have a previous (non-halo-exchange) dependence'''
+    fields have a previous (non-halo-exchange) dependence. '''
     _, info = parse(os.path.join(
         BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
                     api=TEST_API)
@@ -4711,7 +4711,7 @@ def test_rc_dofs_no_depth_prev_dep():
 def test_continuous_no_set_clean():
     '''Test that set_clean is not added for the default iteration space of
     a continuous loop. This is probably covered from tests in
-    dynamo0p3_test.py but it is good to have a specific test'''
+    dynamo0p3_test.py but it is good to have a specific test. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke.f90"),
                     api=TEST_API)
@@ -4726,7 +4726,7 @@ def test_continuous_no_set_clean():
 def test_discontinuous_no_set_clean():
     ''' Test that set_clean is not added for the default iteration
     space of a discontinuous loop. This is probably covered from tests
-    in dynamo0p3_test.py but it is good to have a specific test '''
+    in dynamo0p3_test.py but it is good to have a specific test. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -4767,7 +4767,7 @@ def test_rc_vector_depth():
     '''Test that the loop bounds for a (continuous) vector are modified
     appropriately and set_clean() added correctly and halo_exchange
     added/modified appropriately after applying the redundant
-    computation transformation with a fixed value for halo depth'''
+    computation transformation with a fixed value for halo depth. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "8_vector_field.f90"),
                     api=TEST_API)
@@ -4793,7 +4793,7 @@ def test_rc_vector_no_depth():
     '''Test that the loop bounds for a (continuous) vector are modified
     appropriately and set_clean() added correctly and halo_exchange
     added/modified appropriately after applying the redundant
-    computation transformation with no halo depth value'''
+    computation transformation with no halo depth value. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "8_vector_field.f90"),
                     api=TEST_API)
@@ -4822,7 +4822,7 @@ def test_rc_no_halo_decrease():
     '''Test that we do not decrease an existing halo size when setting it
     to a particular value. This situation may happen when the
     redundant computation affects the same field in two different
-    loops and both depend on the same halo exchange'''
+    loops and both depend on the same halo exchange. '''
     _, info = parse(os.path.join(
         BASE_PATH, "15.1.1_builtin_and_normal_kernel_invoke_2.f90"),
                     api=TEST_API)
@@ -4872,7 +4872,7 @@ def test_rc_no_halo_decrease():
 
 def test_rc_updated_dependence_analysis():
     ''' Test that the dependence analysis updates when new halo exchanges
-    are added to the schedule '''
+    are added to the schedule. '''
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_wtheta.f90"),
                     api=TEST_API)
@@ -4905,7 +4905,7 @@ def test_rc_no_loop_decrease():
     loop halo when using the redundant computation transformation. This is
     not allowed partly for simplicity but also because, in the current
     implementation we might not decrease the size of the relevant halo
-    exchange as these can only be increased with the current logic '''
+    exchange as these can only be increased with the current logic. '''
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w2v.f90"),
                     api=TEST_API)
@@ -5045,7 +5045,7 @@ def test_rc_continuous_halo_remove():
     halo access depth. The reason for this is that the outer halo
     remains invalid when written to for a continuous field. Also check
     that we do remove the halo exchange when the redundant computation
-    depth is one more than the required halo access depth '''
+    depth is one more than the required halo access depth. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
@@ -5076,7 +5076,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     discontinuous and the redundant computation depth equals the
     required halo access depth. Also check that we do not remove the
     halo exchange when the redundant computation depth is one less
-    than the required halo access depth '''
+    than the required halo access depth. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.1.2_builtin_and_normal_kernel_"
                                  "invoke.f90"),
@@ -5153,7 +5153,7 @@ def test_rc_vector_reader_halo_remove():
     ''' Check that we do not add unnecessary halo exchanges for a vector
     field when we increase the depth of halo that a loop computes but
     the previous loop still computes deep enough into the halo to
-    avoid needing halo exchanges '''
+    avoid needing halo exchanges. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "8.2.1_multikernel_invokes_w3_vector.f90"),
                     api=TEST_API)
@@ -5187,7 +5187,7 @@ def test_rc_vector_reader_halo_remove():
 def test_rc_vector_reader_halo_readwrite():
     ''' When we increase the depth of halo that a loop computes but the
     previous loop still computes deep enough into the halo the added
-    halo exchanges stem from the vector readwrite access '''
+    halo exchanges stem from the vector readwrite access. '''
     _, info = parse(os.path.join(
         BASE_PATH, "8.2.2_multikernel_invokes_wtheta_vector.f90"),
                     api=TEST_API)
@@ -5245,7 +5245,7 @@ def test_stencil_rc_max_depth_1(monkeypatch):
     therefore not allowed and exceptions are raised in the
     Dynamo0p3RedundantComputationTrans transformation and in
     _compute_single_halo_info. This test checks these exceptions are
-    raised correctly'''
+    raised correctly. '''
     _, info = parse(os.path.join(BASE_PATH,
                                  "19.1_single_stencil.f90"),
                     api="dynamo0.3")
@@ -5510,7 +5510,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     colour. If this is not the case then an exception is raised.
 
     This test checks that the appropriate exceptions are correctly
-    raised for these three situations
+    raised for these three situations.
 
     '''
 
@@ -5605,7 +5605,7 @@ def test_rc_colour_no_loop_decrease():
     transformation. This is not allowed partly for simplicity but also
     because, in the current implementation we might not decrease the
     size of the relevant halo exchange as these can only be increased
-    with the current logic
+    with the current logic.
 
     '''
     _, info = parse(os.path.join(
@@ -5647,7 +5647,8 @@ def test_rc_colour_no_loop_decrease():
 
 
 def test_rc_colour(tmpdir, f90, f90flags):
-    '''Test that we can redundantly compute over a colour in a coloured loop'''
+    '''Test that we can redundantly compute over a colour in a coloured
+    loop.'''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -5700,7 +5701,7 @@ def test_rc_colour(tmpdir, f90, f90flags):
 
 def test_rc_max_colour(tmpdir, f90, f90flags):
     '''Test that we can redundantly compute over a colour to the maximum
-    depth in a coloured loop'''
+    depth in a coloured loop.'''
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -5773,7 +5774,7 @@ def test_colour_discontinuous():
 
 def test_rc_then_colour(tmpdir, f90, f90flags):
     '''Test that we generate correct code when we first perform redundant
-    computation to a fixed depth then colour the loop
+    computation to a fixed depth then colour the loop.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -5834,7 +5835,7 @@ def test_rc_then_colour(tmpdir, f90, f90flags):
 
 def test_rc_then_colour2(tmpdir, f90, f90flags):
     '''Test that we generate correct code when we first perform redundant
-    computation to the full depth then colour the loop
+    computation to the full depth then colour the loop.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -5890,7 +5891,7 @@ def test_rc_then_colour2(tmpdir, f90, f90flags):
 
 def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
     '''Test that we are able to fuse two loops together, perform
-    redundant computation and then colour'''
+    redundant computation and then colour.'''
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -5951,12 +5952,12 @@ def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
 
 def test_haloex_colouring(tmpdir, f90, f90flags):
     '''Check that the halo exchange logic for halo exchanges between
-    loops works when we colour the loops'''
+    loops works when we colour the loops.'''
 
     def check_halo_exchange(halo_exchange):
         '''internal function to check the validity of a halo exchange for
         field f1 which is guaranteed (has no runtime logic to
-        determine whether it is needed or not) and is of depth 1
+        determine whether it is needed or not) and is of depth 1.
 
         '''
         # check halo exchange has the expected values
@@ -6033,7 +6034,7 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
         '''Internal method to check the validity of a halo exchange for field
         f1 which is guaranteed (has no runtime logic to determine
         whether it is needed or not) and is to the full depth of the
-        halo
+        halo.
 
         '''
         # check halo exchange has the expected values
@@ -6118,7 +6119,7 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
 
     def check_halo_exchange(halo_exchange):
         '''Internal method to check the validity of a potential (has a runtime
-        check) halo exchange for field f1 of depth 1
+        check) halo exchange for field f1 of depth 1.
 
         '''
         # check halo exchange has the expected values
@@ -6202,7 +6203,7 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
         '''internal method to check the validity of a halo exchange for field
         f1 which is guaranteed (has no runtime logic to determine
         whether it is needed or not) and is to the full depth of the
-        halo
+        halo.
 
         '''
         # check halo exchange has the expected values
@@ -6509,7 +6510,7 @@ def test_no_acc():
 def test_async_hex_wrong_node():
     '''Test that we raise the expected exception if an asynchronous halo
     exchange transformation is applied to a node that is not a halo
-    exchange
+    exchange.
 
     '''
     from psyclone.psyGen import Loop
@@ -6521,13 +6522,13 @@ def test_async_hex_wrong_node():
 
 
 def test_async_hex_name():
-    ''' Name test for the Dynamo0p3AsyncHaloExchangeTrans class '''
+    ''' Name test for the Dynamo0p3AsyncHaloExchangeTrans class. '''
     ahex = Dynamo0p3AsyncHaloExchangeTrans()
     assert ahex.name == "Dynamo0p3AsyncHaloExchangeTrans"
 
 
 def test_async_hex_str():
-    ''' String test for the Dynamo0p3AsyncHaloExchangeTrans class '''
+    ''' String test for the Dynamo0p3AsyncHaloExchangeTrans class. '''
     ahex = Dynamo0p3AsyncHaloExchangeTrans()
     assert (str(ahex) == "Changes a synchronous halo exchange into an "
             "asynchronous one.")
@@ -6535,7 +6536,7 @@ def test_async_hex_str():
 
 def test_async_hex(tmpdir, f90, f90flags):
     '''Test that we can convert a synchronous halo exchange to an
-    asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans transformation
+    asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans transformation.
 
     '''
     _, invoke_info = parse(os.path.join(
@@ -6628,14 +6629,14 @@ def test_async_hex_preserve_properties():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    
+
     # We don't need this halo exchange
     f2_hex = schedule.children[0]
     _, known = f2_hex.required()
     field_name = f2_hex.field.name
     stencil_type = f2_hex._compute_stencil_type()
     halo_depth = f2_hex._compute_halo_depth()
-    
+
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
     f2_async_hex_start = schedule.children[0]
@@ -6645,7 +6646,7 @@ def test_async_hex_preserve_properties():
     assert f2_async_hex_start.field.name == field_name
     assert f2_async_hex_start._compute_stencil_type() == stencil_type
     assert f2_async_hex_start._compute_halo_depth() == halo_depth
-    
+
     f2_async_hex_end = schedule.children[1]
     _, f2_async_end_known = f2_async_hex_end.required()
     assert f2_async_end_known == known
@@ -6719,7 +6720,7 @@ def test_async_hex_move_2(tmpdir, f90, f90flags):
 
 def test_async_hex_move_error_1():
     '''Test that an asynchronous halo exchange start can not be moved
-    after its end and its end cannot be moved before its start
+    after its end and its end cannot be moved before its start.
 
     '''
     _, invoke_info = parse(os.path.join(
@@ -6752,7 +6753,7 @@ def test_async_hex_move_error_1():
 def test_async_hex_move_error_2():
     '''Test that an asynchronous halo exchange start can not be moved
     before a kernel that modifies the field and its end cannot be
-    moved after a kernel that reads the field
+    moved after a kernel that reads the field.
 
     '''
     _, invoke_info = parse(os.path.join(
@@ -6784,10 +6785,11 @@ def test_async_hex_move_error_2():
 
 
 def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
-    '''Test that a halo exchange is removed if redundant computation means
-    that it is no longer required. Halo exchanges are not required in
-    this example when we compute annexed dofs. Therefore we ensure we
-    compute over owned dofs (via monkeypatch) to perform the test.
+    '''Test that an asynchronous halo exchange is removed if redundant
+    computation means that it is no longer required. Halo exchanges
+    are not required in this example when we compute annexed
+    dofs. Therefore we ensure we compute over owned dofs (via
+    monkeypatch) to perform the test.
 
     '''
     api_config = Config.get().api_conf(TEST_API)
@@ -6812,11 +6814,7 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
     assert "CALL f2_proxy%halo_exchange_finish(depth=1)" in result
     assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
     assert "CALL m1_proxy%halo_exchange(depth=1)" in result
-    #
 
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    #
     rc_trans = Dynamo0p3RedundantComputationTrans()
     loop = schedule.children[0]
     rc_trans.apply(loop, depth=1)
@@ -6940,7 +6938,7 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
 def test_move_vector_halo_exchange():
     '''Test that halo exchanges for different vectors for the same field
     are independent of each other, i.e. they do not depend on
-    eachother
+    each other.
 
     '''
     _, info = parse(os.path.join(
@@ -6962,7 +6960,7 @@ def test_move_vector_halo_exchange():
 @pytest.mark.xfail(reason="removal of vector halo exchanges is broken")
 def test_vector_halo_exchange_remove():
     '''test that we remove vector halo exchanges when they are no longer
-    required
+    required.
 
     '''
     _, info = parse(os.path.join(
@@ -6973,7 +6971,7 @@ def test_vector_halo_exchange_remove():
 
     # remove second set of halo exchanges via redundant
     # computation. If they are removed correctly then the two loops
-    # will be adjacent to eachother and will follow 3 haloexchange
+    # will be adjacent to each other and will follow 3 haloexchange
     # calls.
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[3], depth=2)
@@ -7023,15 +7021,15 @@ def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
 
     # we are not able to test re-ordering of vector halo exchanges as
     # the dependence analysis does not currently support it
-    #mtrans = MoveTrans()
-    #schedule, _ = mtrans.apply(schedule.children[2],
-    #                           schedule.children[1])
-    #schedule, _ = mtrans.apply(schedule.children[4],
-    #                           schedule.children[2])
+    # mtrans = MoveTrans()
+    # schedule, _ = mtrans.apply(schedule.children[2],
+    #                            schedule.children[1])
+    # schedule, _ = mtrans.apply(schedule.children[4],
+    #                            schedule.children[2])
 
     # remove second set of halo exchanges via redundant
     # computation. If they are removed correctly then the two loops
-    # will be adjacent to eachother and will follow 6 haloexchange
+    # will be adjacent to each other and will follow 6 haloexchange
     # start and end calls.
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[6], depth=2)
