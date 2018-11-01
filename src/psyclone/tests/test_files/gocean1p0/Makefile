@@ -9,11 +9,13 @@ TEST_FILES = continuity_mod.f90 model_mod.f90 momentum_mod.f90     \
 TEST_OBJ = $(patsubst %.f90, %.o, ${TEST_FILES})
 
 F90 = gfortran
+INFRA_NAME=dl_esm_inf
+INFRASTRUCTURE=../../../../../external/$(INFRA_NAME)/finite_difference/src
 
 .PHONY: tests default
 
 default:
-	make -C infrastructure
+	make F90=$(F90) API_LIB=lib$(INFRA_NAME).a -C $(INFRASTRUCTURE)
 	make tests
 
 tests: $(TEST_OBJ)
@@ -22,11 +24,11 @@ clean:
 	rm -f *.o *.mod
 
 allclean:
-	make -C infrastructure clean
+	make -C $(INFRASTRUCTURE) clean
 	make clean
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I infrastructure -c $<
+	$(F90) $(F90FLAGS) -I $(INFRASTRUCTURE) -c $<
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) -I infrastructure -c $<
+	$(F90) $(F90FLAGS) -I $(INFRASTRUCTURE) -c $<
