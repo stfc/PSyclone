@@ -2342,19 +2342,21 @@ def test_dataaccess_same_vector_indices(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    # d from vector 2 has vector size 3
+    # d for this halo exchange is for vector component 2
     halo_exchange_d_v2 = schedule.children[4]
     field_d_v2 = halo_exchange_d_v2.field
-    # modify d from vector 3 to have vector size 2
+    # modify d from vector component 3 to be component 2
     halo_exchange_d_v3 = schedule.children[5]
     field_d_v3 = halo_exchange_d_v3.field
-    monkeypatch.setattr(field_d_v3, "_vector_size", 2)
+    monkeypatch.setattr(halo_exchange_d_v3, "_vector_index", 2)
 
-    # now raise an exception with our erroneous vector sizes
+    # Now raise an exception with our erroneous vector indices (which
+    # are the same but should notbe_, but first make sure that the
+    # overlaps() method returns True otherwise an earlier exception
+    # will be raised.
     access = DataAccess(field_d_v2)
-    # make sure that overlaps returns true so we can trip our
-    # exception
     monkeypatch.setattr(access, "overlaps", lambda arg: True)
+
     with pytest.raises(InternalError) as excinfo:
         access.update_coverage(field_d_v3)
     assert (

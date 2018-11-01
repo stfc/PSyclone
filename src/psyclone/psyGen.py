@@ -3202,7 +3202,8 @@ class DataAccess(object):
                 # components. This results in partial coverage
                 # (i.e. the overlap in accesses is partial). Therefore
                 # record the index that is accessed and check whether
-                # all indices are now covered (which would mean `full` coverage).
+                # all indices are now covered (which would mean `full`
+                # coverage).
                 if arg.call.vector_index in self._vector_index_access:
                     raise InternalError(
                         "DataAccess:update_coverage() Found more than one "
@@ -3210,7 +3211,7 @@ class DataAccess(object):
                 self._vector_index_access.append(arg.call.vector_index)
                 if len(self._vector_index_access) != self._arg.vector_size:
                     return
-        # This argument is fully covered i.e. all accesses by the
+        # This argument is covered i.e. all accesses by the
         # internal argument have a corresponding access in one of the
         # supplied arguments.
         self._covered = True
