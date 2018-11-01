@@ -3084,36 +3084,45 @@ class Arguments(object):
 
 
 class DataAccess(object):
-    '''A helper class to handle dependencies due to overlapping data
-    accesses between fields
+    '''A helper class to simplify the determination of dependencies due to
+    overlapping accesses to data associated with instances of the
+    Argument class.
 
     '''
 
     def __init__(self, arg):
-        '''store the source argument and its parent call. Also set any
-        internal coverage data.
+        '''Store the argument associated with the instance of this class and
+        the Call, HaloExchange or GlobalSum (or a subclass thereof)
+        instance to which the argument is associated.
 
-        :param arg: the argument that we are concerned with
+        :param arg: the argument that we are concerned with. An \
+        argument can be found in a `Call` a `HaloExchange` or a \
+        `GlobalSum` (or a subclass thereof)
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
+        # the `psyclone.psyGen.Argument` we are concerned with
         self._arg = arg
+        # the call (Call, HaloExchange, or GlobalSum (or subclass)
+        # instance to which the argument is associated
         self._call = arg.call
         self.reset_coverage()
 
     def overlaps(self, arg):
-        '''Determine whether the accesses to the provided field overlap
-        with the accesses of the source argument
+        '''Determine whether the accesses to the provided argument overlap
+        with the accesses of the source argument. Overlap means that
+        the accesses share at least one memory location. For example,
+        the arguments both access the 1st index of the same field.
 
-        We do not currently deal with accesses to a subset of a field
-        (unless it is a vector). This distinction will need to be
-        added once loop splitting is supported and would be useful for
-        boundary condition kernels
+        We do not currently deal with accesses to a subset of an
+        argument (unless it is a vector). This distinction will need
+        to be added once loop splitting is supported.
 
         :param arg: the argument to compare with our internal argument
         :type arg: :py:class:`psyclone.psyGen.Argument`
-        :return Bool: True is there are overlapping accesses between \
-                      arguments and False if not.
+        :return bool: True is there are overlapping accesses between \
+                      arguments i.e. accesses share at least one memory \
+                      location and False if not.
 
         '''
         if self._arg.name != arg.name:
@@ -3142,18 +3151,26 @@ class DataAccess(object):
         situation.
 
         '''
+        # False unless all data accessed by our local argument has
+        # also been accessed by other arguments.
         self._covered = False
+        # Used to store individual vector component accesses when
+        # checking that all vector components have been accessed.
         self._vector_index_access = []
 
     def update_coverage(self, arg):
         '''Record any overlap between accesses to the supplied argument and
-        the source argument. If the overlap results in all of the
-        accesses to the source argument being covered (either directly
-        or as a combination with previous arguments) then ensure that
-        the covered() method returns True.
+        the internal argument. Overlap means that the accesses to the
+        two arguments share at least one memory location. If the
+        overlap results in all of the accesses to the internal
+        argument being covered (either directly or as a combination
+        with previous arguments) then ensure that the covered() method
+        returns True. Covered means that all memory accesses by the
+        internal argument have at least one corresponding access by
+        the supplied arguments.
 
         :param arg: the argument to compare with our internal argument \
-                    and update coverage information
+                    and use to update coverage information
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -3172,18 +3189,20 @@ class DataAccess(object):
                 # I am also a halo exchange so only access one of the
                 # vectors. At this point the vector indices of the two
                 # halo exchange fields must be the same, which should
-                # never happen.
+                # never happen due to checks in the `overlaps()`
+                # method earlier
                 raise InternalError(
                     "DataAccess:update_coverage() The halo exchange vector "
                     "indices for '{0}' are the same. This should never "
                     "happen".format(self._arg.name))
             else:
-                # I am not a halo exchange so access all
-                # vectors. However, the supplied argument is a halo
-                # exchange so only accesses one of the vectors. This
-                # results in partial coverage. Therefore record the
-                # index that is accessed and check whether all indices
-                # are now covered
+                # I am not a halo exchange so access all components of
+                # the vector. However, the supplied argument is a halo
+                # exchange so only accesses one of the
+                # components. This results in partial coverage
+                # (i.e. the overlap in accesses is partial). Therefore
+                # record the index that is accessed and check whether
+                # all indices are now covered (which would mean `full` coverage).
                 if arg.call.vector_index in self._vector_index_access:
                     raise InternalError(
                         "DataAccess:update_coverage() Found more than one "
@@ -3191,15 +3210,17 @@ class DataAccess(object):
                 self._vector_index_access.append(arg.call.vector_index)
                 if len(self._vector_index_access) != self._arg.vector_size:
                     return
-        # This argument is fully covered
+        # This argument is fully covered i.e. all accesses by the
+        # internal argument have a corresponding access in one of the
+        # supplied arguments.
         self._covered = True
 
     @property
     def covered(self):
-        '''Returns true if all of this arguments data has been covered by the
-        arguments provided in update_coverage
+        '''Returns true if all of the data associated with this argument has
+        been covered by the arguments provided in update_coverage
 
-        :return Bool: True if all of an argument is covered by \
+        :return bool: True if all of an argument is covered by \
         previous accesses and False if not.
 
         '''
@@ -3402,14 +3423,14 @@ class Argument(object):
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.access in self._read_access_types:
-                    if not access.overlaps(argument):
-                        # Accesses are independent of each other
-                        continue
+                if argument.access in self._read_access_types and \
+                   access.overlaps(argument):
                     arguments.append(argument)
                 if argument.access in self._write_access_types:
                     access.update_coverage(argument)
                     if access.covered:
+                        # We have now found all arguments upon which
+                        # this argument depends so return the list.
                         return arguments
 
         # we did not find a terminating write dependence in the list
@@ -3457,6 +3478,8 @@ class Argument(object):
                         raise InternalError(
                             "Found a writer dependence but there are already "
                             "dependencies. This should not happen.")
+                    # We have now found all arguments upon which this
+                    # argument depends so return the list.
                     return arguments
         if arguments:
             raise InternalError(

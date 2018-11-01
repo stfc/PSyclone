@@ -62,9 +62,10 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def test_vector_halo_exchange_remove():
-    '''test that we remove vector halo exchanges when they are no longer
-    required
-     '''
+    '''Test that we remove halo exchanges for all components of a vector
+    field when they are no longer required.
+
+    '''
     _, info = parse(os.path.join(
         BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
                     api=TEST_API)
@@ -72,7 +73,7 @@ def test_vector_halo_exchange_remove():
     schedule = psy.invokes.invoke_list[0].schedule
     # remove second set of halo exchanges via redundant
     # computation. If they are removed correctly then the two loops
-    # will be adjacent to eachother and will follow 3 haloexchange
+    # will be adjacent to each other and will follow 3 haloexchange
     # calls.
     schedule.view()
     rc_trans = Dynamo0p3RedundantComputationTrans()

@@ -2279,7 +2279,8 @@ def test_kern_ast():
 def test_dataaccess_vector():
     '''Test that the DataAccess class works as expected when we have a
     vector field argument that depends on more than one halo exchange
-    (due to halo exchanges working separately on vectors)
+    (due to halo exchanges working separately on components of
+    vectors).
 
     '''
     _, invoke_info = parse(
@@ -2326,11 +2327,12 @@ def test_dataaccess_vector():
     assert not access._vector_index_access
 
 
-def test_dataaccess_vector_size_differs(monkeypatch):
+def test_dataaccess_same_vector_indices(monkeypatch):
     '''If update_coverage() is called from DataAccess and the arguments
-    are the same vector field, then the field vector sizes should be
-    the same. This test checks that an exception is raised if they
-    differ.
+    are the same vector field, and the field vector indices are the
+    same then check that an exception is raised. This particular
+    exception is difficult to raise as it is caught by an earlier
+    method (overlaps()).
 
     '''
     _, invoke_info = parse(
