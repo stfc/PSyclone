@@ -81,8 +81,8 @@ def test_psyfactory_valid_return_object():
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from psyclone.configuration import ConfigFactory
-    _config = ConfigFactory().create()
+    from psyclone.configuration import Config
+    _config = Config.get()
     apis = _config.supported_apis[:]
     apis.insert(0, "")
     for api in apis:
@@ -1024,8 +1024,8 @@ def test_invalid_reprod_pad_size(monkeypatch):
     '''Check that we raise an exception if the pad size in psyclone.cfg is
     set to an invalid value '''
     # Make sure we monkey patch the correct Config object
-    from psyclone import psyGen
-    monkeypatch.setattr(psyGen._CONFIG, "_reprod_pad_size", 0)
+    from psyclone.configuration import Config
+    monkeypatch.setattr(Config._instance, "_reprod_pad_size", 0)
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -1049,7 +1049,7 @@ def test_invalid_reprod_pad_size(monkeypatch):
             _ = str(psy.gen)
         assert (
             "REPROD_PAD_SIZE in {0} should be a positive "
-            "integer".format(psyGen._CONFIG.filename) in str(excinfo.value))
+            "integer".format(Config.get().filename) in str(excinfo.value))
 
 
 def test_argument_depends_on():

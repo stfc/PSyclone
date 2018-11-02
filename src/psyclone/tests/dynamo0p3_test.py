@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -44,7 +45,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
@@ -52,7 +53,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     VALID_ANY_SPACE_NAMES
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
-from psyclone.configuration import ConfigFactory
+from psyclone.configuration import Config
 from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
@@ -65,10 +66,6 @@ ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
 DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 
 TEST_API = "dynamo0.3"
-
-# Our configuration objects
-_CONFIG = ConfigFactory().create()
-_API_CONFIG = _CONFIG.api(TEST_API)
 
 
 # tests
@@ -2667,7 +2664,7 @@ def test_loopfuse():
     generated_code = psy.gen
     # only one loop
     assert str(generated_code).count("DO cell") == 1
-# only one map for each space
+    # only one map for each space
     assert str(generated_code).count("map_w1 =>") == 1
     assert str(generated_code).count("map_w2 =>") == 1
     assert str(generated_code).count("map_w3 =>") == 1
@@ -2685,6 +2682,40 @@ def test_loopfuse():
     # both kernel calls are within the loop
     for kern_id in kern_idxs:
         assert kern_id > do_idx and kern_id < enddo_idx
+
+
+def test_kern_colourmap(monkeypatch):
+    ''' Tests for error conditions in the colourmap getter of DynKern. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    kern = psy.invokes.invoke_list[0].schedule.children[3].children[0]
+    with pytest.raises(InternalError) as err:
+        _ = kern.colourmap
+    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err)
+    monkeypatch.setattr(kern, "is_coloured", lambda: True)
+    monkeypatch.setattr(kern, "_is_intergrid", True)
+    with pytest.raises(InternalError) as err:
+        _ = kern.colourmap
+    assert ("Colourmap information for kernel 'testkern_code' has not yet "
+            "been initialised" in str(err))
+
+
+def test_kern_ncolours(monkeypatch):
+    ''' Tests for error conditions in the ncolours getter of DynKern. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    kern = psy.invokes.invoke_list[0].schedule.children[3].children[0]
+    with pytest.raises(InternalError) as err:
+        _ = kern.ncolours_var
+    assert "Kernel 'testkern_code' is not inside a coloured loop" in str(err)
+    monkeypatch.setattr(kern, "is_coloured", lambda: True)
+    monkeypatch.setattr(kern, "_is_intergrid", True)
+    with pytest.raises(InternalError) as err:
+        _ = kern.ncolours_var
+    assert ("Colourmap information for kernel 'testkern_code' has not yet "
+            "been initialised" in str(err))
 
 
 def test_named_psy_routine():
@@ -4082,9 +4113,10 @@ def test_dynkern_arg_for_fs():
 
 def test_dist_memory_true():
     ''' Test that the distributed memory flag is on by default. '''
-    from psyclone import configuration
-    _config = configuration.Config(config_file=DEFAULT_CFG_FILE)
-    assert _config.distributed_memory
+    Config._instance = None
+    config = Config()
+    config.load(config_file=DEFAULT_CFG_FILE)
+    assert config.distributed_memory
 
 
 def test_halo_dirty_1():
@@ -4599,6 +4631,24 @@ def test_upper_bound_fortran_2(monkeypatch):
         _ = my_loop._upper_bound_fortran()
     assert (
         "Unsupported upper bound name 'invalid' found" in str(excinfo.value))
+    # Pretend the loop is over colours and does not contain a kernel
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="ncolours")
+    monkeypatch.setattr(my_loop, "walk", lambda x, y: [])
+    with pytest.raises(InternalError) as excinfo:
+        _ = my_loop._upper_bound_fortran()
+    assert "Failed to find a kernel within a loop over colours" in str(excinfo)
+
+
+def test_upper_bound_inner(monkeypatch):
+    ''' Check that we get the correct Fortran generated if a loop's upper
+    bound is "inner" '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    my_loop = psy.invokes.invoke_list[0].schedule.children[3]
+    monkeypatch.setattr(my_loop, "_upper_bound_name", value="inner")
+    ubound = my_loop._upper_bound_fortran()
+    assert ubound == "mesh%get_last_inner_cell(1)"
 
 
 def test_intent_multi_kern():
@@ -6681,15 +6731,16 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
     assume that it may have been over dofs. If so, we could have dirty
     annexed dofs so need to add a halo exchange (for the three
     continuous fields being read (f1, f2 and m1). This is the case
-    when _API_CONFIG.compute_annexed_dofs is False.
+    when api_config.compute_annexed_dofs is False.
 
     If we always iterate over annexed dofs by default, our annexed
     dofs will always be clean. Therefore we do not need to add a halo
     exchange. This is the case when
-    _API_CONFIG.compute_annexed_dofs is True.
+    api_config.compute_annexed_dofs is True.
 
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -6719,14 +6770,15 @@ def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
 
     When the previous writer iterates over ndofs we have dirty annexed
     dofs so need to add a halo exchange. This is the case when
-    _API_CONFIG.compute_annexed_dofs is False.
+    api_config.compute_annexed_dofs is False.
 
     When the previous writer iterates over nannexed we have clean
     annexed dofs so do not need to add a halo exchange. This is the
-    case when _API_CONFIG.compute_annexed_dofs is True
+    case when api_config.compute_annexed_dofs is True
 
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.7_halo_annexed.f90"),
                     api=TEST_API)
@@ -6759,7 +6811,8 @@ def test_arg_discontinuous(monkeypatch, annexed):
 
     # 1 discontinuous field returns true
     # Check w3, wtheta and w2v in turn
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     if annexed:
         # no halo exchanges produced for the w3 example
         idchld_list = [0, 0, 0]
@@ -7028,7 +7081,8 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
     halo exchanges produced.
 
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -7179,7 +7233,8 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
     fewer halo exchange call generated.
 
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", annexed)
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.7.1_halo_annexed.f90"),
                            api=TEST_API)
@@ -7201,9 +7256,10 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
 def test_annexed_default():
     ''' Test that we do not compute annexed dofs by default (i.e. when
     using the default configuration file). '''
-    from psyclone import configuration
-    _config = configuration.Config(config_file=DEFAULT_CFG_FILE)
-    assert not _config.api(TEST_API).compute_annexed_dofs
+    Config._instance = None
+    config = Config()
+    config.load(config_file=DEFAULT_CFG_FILE)
+    assert not config.api_conf(TEST_API).compute_annexed_dofs
 
 
 def test_haloex_not_required(monkeypatch):
@@ -7219,7 +7275,8 @@ def test_haloex_not_required(monkeypatch):
     former case should currently never happen in real code as a halo
     exchange would not be added in the first place.
     '''
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", False)
+    api_config = Config.get().api_conf(TEST_API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(
         BASE_PATH, "1_single_invoke_w3.f90"),
                     api=TEST_API)
@@ -7229,7 +7286,7 @@ def test_haloex_not_required(monkeypatch):
     for index in range(3):
         haloex = schedule.children[index]
         assert haloex.required() == (True, False)
-    monkeypatch.setattr(_API_CONFIG, "_compute_annexed_dofs", True)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", True)
     for index in range(3):
         haloex = schedule.children[index]
         assert haloex.required() == (False, True)
