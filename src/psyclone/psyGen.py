@@ -416,7 +416,7 @@ class Invokes(object):
                                  rhs='"{0}"'.format(kern)))
         ifthen.add(CommentGen(ifthen,
                               " Create the OpenCL kernel objects. Expects "
-                              "to find all of the compiled "))
+                              "to find all of the compiled"))
         ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
         ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 

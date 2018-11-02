@@ -32,16 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-from __future__ import print_function, absolute_import
 
 '''Tests for OpenCL PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
 
-import os
+from __future__ import print_function, absolute_import
 import pytest
-from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.generator import GenerationError, ParseError
 from psyclone.transformations import OCLTrans
 from psyclone_test_utils import get_invoke
 
@@ -76,24 +72,25 @@ def test_psy_init():
     otrans.apply(sched)
     generated_code = str(psy.gen)
     print(generated_code)
-    expected = '''\
-    SUBROUTINE psy_init()
-      USE fortcl, ONLY: ocl_env_init, add_kernels
-      CHARACTER(LEN=30) kernel_names(1)
-      LOGICAL, save :: initialised=.False.
-      ! Check to make sure we only execute this routine once
-      IF (.not. initialised) THEN
-        initialised = .True.
-        ! Initialise the OpenCL environment/device
-        CALL ocl_env_init
-        ! The kernels this PSy layer module requires
-        kernel_names(1) = "compute_cu_code"
-        ! Create the OpenCL kernel objects. Expects to find all of the compiled 
-        ! kernels in PSYCLONE_KERNELS_FILE.
-        CALL add_kernels(1, kernel_names)
-      END IF 
-    END SUBROUTINE psy_init
-'''
+    expected = (
+        "    SUBROUTINE psy_init()\n"
+        "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
+        "      CHARACTER(LEN=30) kernel_names(1)\n"
+        "      LOGICAL, save :: initialised=.False.\n"
+        "      ! Check to make sure we only execute this routine once\n"
+        "      IF (.not. initialised) THEN\n"
+        "        initialised = .True.\n"
+        "        ! Initialise the OpenCL environment/device\n"
+        "        CALL ocl_env_init\n"
+        "        ! The kernels this PSy layer module requires\n"
+        "        kernel_names(1) = \"compute_cu_code\"\n"
+        "        ! Create the OpenCL kernel objects. Expects to find all of "
+        "the compiled\n"
+        "        ! kernels in PSYCLONE_KERNELS_FILE.\n"
+        "        CALL add_kernels(1, kernel_names)\n"
+        "      END IF \n"
+        "    END SUBROUTINE psy_init\n")
+
     assert expected in generated_code
 
 
@@ -101,7 +98,6 @@ def test_set_kern_args():
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
-    from psyclone.transformations import OCLTrans
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
