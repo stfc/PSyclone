@@ -215,8 +215,8 @@ TBD
 .. ---------
 .. 
 .. The names of the supported API's and the default API are specified in
-.. `config.py`. When adding a new API you must add the name you would like
-.. to use to the `SUPPORTEDAPIS` list (and change the `DEFAULTAPI` if
+.. `configuration.py`. When adding a new API you must add the name you would like
+.. to use to the ``_supported_api_list`` (and change the ``_default_api`` if
 .. required).
 .. 
 .. parse.py
@@ -976,8 +976,8 @@ Modules
 This section describes the functionality of the various Python modules
 that make up PSyclone.
 
-f2pygen
-=======
+Module: f2pygen
+===============
 
 `f2pygen` provides functionality for generating Fortran code from
 scratch (i.e. when not modifying existing source).
@@ -1023,25 +1023,31 @@ The full interface to each of these classes is detailed below:
     :members:
     :noindex:
 
-configuration
-=============
+Module: configuration
+======================
 
 PSyclone uses the Python ``ConfigParser`` class
 (https://docs.python.org/3/library/configparser.html) for reading the
 configuration file. This is managed by the ``psyclone.configuration``
-module which provides the ``ConfigFactory`` and ``Config``
-classes. The former's constructor creates a singleton ``Config`` instance
-and stores it for return by any future calls to ``create``:
+module which provides a ``Config``
+class. This class is a singleton, which can be (created and) accessed
+using  ``Config.get()``. Only one such instance will ever exist:
 
-.. autoclass:: psyclone.configuration.ConfigFactory
+.. autoclass:: psyclone.configuration.Config
     :members:
 
 The ``Config`` class is responsible for finding the configuration file
 (if no filename is passed to the constructor), parsing it and then storing
-the various configuration options. It also performs some basic consistency
+the various configuration options. It also stores the list of supported
+APIs (``Config._supported_api_list``) and the default API to use if none
+is specified in either a config file or the command line
+(``Config._default_api``.)
+
+
+It also performs some basic consistency
 checks on the values it obtains from the configuration file.
 
-Since the default PSyclone API to use is read from the configuration
+Since the PSyclone API to use can be read from the configuration
 file, it is not possible to have API-specifc sub-classes of ``Config``
 as we don't know which API is in use before we read the file. However, the
 configuration file can contain API-specific settings. These are placed in
@@ -1060,15 +1066,15 @@ corresponding section. The resulting object is stored in the
 dictionary under the appropriate key. The API-specific values may then
 be accessed as, e.g.::
 
-  config.api("dynamo0.3").compute_annexed_dofs
+  Config.get().api_conf("dynamo0.3").compute_annexed_dofs
 
 The API-specific sub-classes exist to provide validation/type-checking and
 encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
 
-transformations
-===============
+Module: transformations
+=======================
 
 As one might expect, the transformations module holds the various
 transformation classes that may be used to modify the Schedule of an

@@ -387,8 +387,8 @@ These are illustrated in the code below:
 These four metadata elements are discussed in order in the following
 sections.
 
-meta_args
-#########
+Argument Metadata: meta_args
+############################
 
 The ``meta_args`` array specifies information about data that the
 kernel code expects to be passed to it via its argument list. There is
@@ -420,6 +420,7 @@ the corresponding argument. As an example, the following ``meta_args``
 metadata describes four entries, the first one is written to by the
 kernel while the remaining three are only read.
 
+
 ::
 
   type(arg) :: meta_args(4) = (/                            &
@@ -428,6 +429,9 @@ kernel while the remaining three are only read.
        arg(READ, ... ),                                     &
        arg(READ, ...)                                       &
        /)
+
+
+.. _gocean1.0-grid_point_type:
 
 The second entry to argument-metadata (information contained within
 the brackets of an ``arg`` type) describes the type of data
@@ -463,24 +467,28 @@ The full list of supported grid properties in the GOcean 1.0 API is:
 
 .. _gocean1.0-grid-props:
 
-=============   =============================  ====================
-Name            Description                    Type
-=============   =============================  ====================
-grid_area_t     Cell area at T point           Real array, rank=2
-grid_area_u     Cell area at U point           Real array, rank=2
-grid_area_v     Cell area at V point           Real array, rank=2
-grid_mask_t     T-point mask (1=wet, 0=dry)    Integer array, rank=2
-grid_dx_t       Grid spacing in x at T points  Real array, rank=2
-grid_dx_u       Grid spacing in x at U points  Real array, rank=2
-grid_dx_v       Grid spacing in x at V points  Real array, rank=2
-grid_dy_t       Grid spacing in y at T points  Real array, rank=2
-grid_dy_u       Grid spacing in y at U points  Real array, rank=2
-grid_dy_v       Grid spacing in y at V points  Real array, rank=2
-grid_lat_u      Latitude of U points (gphiu)   Real array, rank=2
-grid_lat_v      Latitude of V points (gphiv)   Real array, rank=2
-grid_dx_const   Grid spacing in x if constant  Real, scalar
-grid_dy_const   Grid spacing in y if constant  Real, scalar
-=============   =============================  ====================
+================ =============================  ====================
+Name             Description                    Type
+================ =============================  ====================
+grid_area_t      Cell area at T point           Real array, rank=2
+grid_area_u      Cell area at U point           Real array, rank=2
+grid_area_v      Cell area at V point           Real array, rank=2
+grid_mask_t      T-point mask (1=wet, 0=dry)    Integer array, rank=2
+grid_dx_t        Grid spacing in x at T points  Real array, rank=2
+grid_dx_u        Grid spacing in x at U points  Real array, rank=2
+grid_dx_v        Grid spacing in x at V points  Real array, rank=2
+grid_dy_t        Grid spacing in y at T points  Real array, rank=2
+grid_dy_u        Grid spacing in y at U points  Real array, rank=2
+grid_dy_v        Grid spacing in y at V points  Real array, rank=2
+grid_lat_u       Latitude of U points (gphiu)   Real array, rank=2
+grid_lat_v       Latitude of V points (gphiv)   Real array, rank=2
+grid_dx_const    Grid spacing in x if constant  Real, scalar
+grid_dy_const    Grid spacing in y if constant  Real, scalar
+grid_x_min_index Minimum X index                Integer, scalar
+grid_x_max_index Maximum X index                Integer, scalar
+grid_y_min_index Minimum Y index                Integer, scalar
+grid_y_max_index Maximum Y index                Integer, scalar
+================ =============================  ====================
 
 These are stored in a dictionary named ``GRID_PROPERTY_DICT`` at the
 top of the ``gocean1p0.py`` file. All of the rank-two arrays have the
@@ -574,12 +582,14 @@ partitions must communicate with which for the purposes of placing
 halo exchange calls. In this case, it is the depth and direction
 information that is most important.
 
+.. _gocean1.0-iterates_over:
+
 Iterates Over
 #############
 
 The second element of kernel metadata is ``ITERATES_OVER``. This
 specifies that the Kernel has been written with the assumption that it
-is iterating over grid points of the specified type. The supported
+is iterating over grid points of the specified type. By default the supported
 values are: ``INTERNAL_PTS``, ``EXTERNAL_PTS`` and ``ALL_PTS``. These
 may be understood by considering the following diagram of an example
 model configuration:
@@ -594,6 +604,11 @@ is specified in the kernel-meta data like so:
 ::
 
   integer :: iterates_over = INTERNAL_PTS
+
+A user can use a config file (see :ref:`configuration`) to add
+additional iteration spaces to PSyclone.
+
+.. _gocean1.0-index_offset:
 
 Index Offset
 ############
@@ -726,6 +741,71 @@ does not affect PSyclone.
 Finally, the ``procedure`` metadata (located within the kernel
 metadata) usually has ``nopass`` specified but again this is ignored
 by PSyclone.
+
+.. _gocean1.0-configuration:
+
+Configuration
+-------------
+The configuration file (see :ref:`configuration`) used by PSyclone
+can contain GOcean 1.0 specific options. For example, after the
+default section the GOcean 1.0 specific section looks like this:
+
+.. highlight:: none
+
+::
+
+    [gocean1.0]
+    iteration-spaces=offset_sw:ct:test_only:1:2:3:4
+                     offset_sw:ct:internal_ns_halo:{start}-1:{stop}+1:{start}:{stop}
+
+The supported keys are listed in the next section.
+
+.. highlight:: fortran
+
+Iteration-spaces
++++++++++++++++++
+This section lists additional iteration spaces that can be used in a kernel
+metadata declaration to allow PSyclone to create a loop with different
+loop boundaries. Each line of the ``iteration-spaces`` declaration
+contains 7 values, separated by ':'. The fields are:
+
+================ =============================  =====================================
+Field            Description                    Details
+================ =============================  =====================================
+1                Index Offset                   See :ref:`gocean1.0-index_offset`.
+2                grid-point types               See :ref:`Grid point types<gocean1.0-grid_point_type>`.
+3                Iterates Over                  See :ref:`gocean1.0-iterates_over`.
+4                Start index of outer loop      Start index of North-South loop.
+5                End index of outer loop        End index of North-South loop.
+6                Start index of inner loop      Start index of East-West loop.
+7                End index of inner loop        End index of East-West loop.
+================ =============================  =====================================
+
+Two special variables can be used in an iteration space: ``{start}`` and ``{stop}``.
+These values will be replaced by PSyclone with the correct loop boundaries for the
+inner points of a grid (i.e. the non-halo area). This means that the depth-1 halo
+region can be specified using ``{start}-1`` and ``{stop}+1``.
+
+For example, given the iteration-spaces declaration above, a kernel declared with
+``iterates_over=internal_ns_halo`` for a field type ``ct`` and index offset
+``offset_sw`` would create the following loop boundaries:
+::
+
+    DO j=2-1,jstop+1
+      DO i=2,istop
+        CALL (i, j, ...)
+      END DO
+    END DO
+
+.. warning::
+
+    With user defined iteration spaces it is possible that PSyclone will create code
+    that does not compile: if you specify syntactically correct, but semantically
+    incorrect boundary definitions, the PSyclone internal tests will accept the new
+    iteration space, but the compiler will not. For example
+    if one of the loop boundaries contains the name of a variable that is not defined,
+    compilation will fail. It is the responsibility of the user to make sure that
+    valid loop boundaries are specified in a new iteration space definition.
 
 Transformations
 ---------------

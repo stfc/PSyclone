@@ -110,8 +110,8 @@ def test_kerneltypefactory_default_api():
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
     from psyclone.parse import KernelTypeFactory
-    from psyclone import configuration
-    _config = configuration.ConfigFactory().create()
+    from psyclone.configuration import Config
+    _config = Config.get()
     factory = KernelTypeFactory(api="")
     assert factory._type == _config.default_api
 
