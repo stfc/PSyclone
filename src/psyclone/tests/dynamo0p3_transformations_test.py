@@ -6503,3 +6503,20 @@ def test_no_acc():
         _ = acclt.apply(sched.children[0])
     assert ("OpenACC loop transformations are currently only supported for "
             "the gocean 1.0 API" in str(err))
+
+
+def test_no_ocl():
+    ''' Check that attempting to apply an OpenCL transformation to a Dynamo
+    Schedule raises the expected error. '''
+    from psyclone.transformations import OCLTrans
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    sched = psy.invokes.get('invoke_0_testkern_type').schedule
+    trans = OCLTrans()
+    with pytest.raises(TransformationError) as err:
+        _ = trans.apply(sched)
+    assert ("OpenCL generation is currently only supported for the GOcean "
+            "API but got a Schedule of type:" in str(err))
