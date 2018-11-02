@@ -1025,11 +1025,10 @@ class GOKern(Kern):
         '''
         from psyclone.f2pygen import SubroutineGen, UseGen, DeclGen, \
             AssignGen, CommentGen
-        # TODO take care with literal arguments. Currently these are
-        # checked for and rejected by the OpenCL transformation.
+        # Currently literal arguments are checked for and rejected by
+        # the OpenCL transformation.
         kobj = self._name_space_manager.create_name(
-            root_name="kernel_obj", context="ArgSetter",
-            label="kernel_obj")
+            root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
         arguments = [kobj, "nx"] + [arg.name for arg in self._arguments.args]
         sub = SubroutineGen(parent, name=self.name+"_set_args",
                             args=arguments)

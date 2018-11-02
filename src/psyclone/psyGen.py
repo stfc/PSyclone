@@ -273,12 +273,10 @@ class PSy(object):
         function :func:`parse.parse` as its input and stores this in a
         way suitable for optimisation and code generation.
 
-        :param FileInfo invoke_info: An object containing the required
-                                     invocation information for code
-                                     optimisation and generation. Produced
+        :param FileInfo invoke_info: An object containing the required \
+                                     invocation information for code \
+                                     optimisation and generation. Produced \
                                      by the function :func:`parse.parse`.
-        :param bool opencl: #TODO
-
         For example:
 
         >>> import psyclone
@@ -378,9 +376,18 @@ class Invokes(object):
 
     def gen_ocl_init(self, parent, kernels):
         '''
+        Generates a subroutine to initialise the OpenCL environment and
+        construct the list of OpenCL kernel objects used by this PSy layer.
+
+        :param parent: the node in the f2pygen AST representing the module \
+                       that will contain the generated subroutine.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        :param kernels: List of kernel names called by the PSy layer.
+        :type kernels: list of str
         '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
             CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
+
         sub = SubroutineGen(parent, "psy_init")
         parent.add(sub)
         sub.add(UseGen(sub, name="fortcl", only=True,
@@ -1509,7 +1516,10 @@ class Schedule(Node):
     @opencl.setter
     def opencl(self, value):
         '''
-        :param bool value: whether or not to generate OpenCL for this schedule
+        Setter for whether or not to generate the OpenCL version of this
+        schedule.
+
+        :param bool value: whether or not to generate OpenCL.
         '''
         if not isinstance(value, bool):
             raise ValueError("Schedule.opencl must be a bool but got {0}".
@@ -3085,8 +3095,8 @@ class Kern(Call):
         Creates a Fortran routine to set the arguments of the OpenCL
         version of this kernel.
 
-        :param parent: Parent node of the set-kernel-arguments routine
-        :type parent: :py:class:`psyclone.f2pygen.moduleGen`
+        :param parent: Parent node of the set-kernel-arguments routine.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
         raise NotImplementedError("gen_arg_setter_code must be implemented "
                                   "by sub-class.")
@@ -3095,11 +3105,11 @@ class Kern(Call):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
 
-        :param mapping: dictionary of access types (here INC) associated
+        :param mapping: dictionary of access types (here INC) associated \
                         with arguments with their metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
-        :rtype: string
+        :return: a Fortran argument name.
+        :rtype: str
         :raises FieldNotFoundError: if none is found.
 
         '''
@@ -3362,18 +3372,20 @@ class Argument(object):
         Generate the code to set this argument for an OpenCL kernel.
 
         :param parent: the node in the Schedule to which to add the code.
-        :param int index: the (zero-based) index of this argument in the
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int index: the (zero-based) index of this argument in the \
                           list of kernel arguments.
+        :param str kname: the name of the OpenCL kernel.
         '''
         from psyclone.f2pygen import AssignGen, CallGen
+        # TODO fix hardwired names of "ierr" and "kernel_obj"
         parent.add(AssignGen(
             parent, lhs="ierr",
             rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
             format("kernel_obj", index, self.name)))
         parent.add(CallGen(
             parent, "check_status",
-            ["'clSetKernelArg: arg {0} of {1}'".format(index,
-                                                       kname),
+            ["'clSetKernelArg: arg {0} of {1}'".format(index, kname),
              "ierr"]))
 
     def backward_dependence(self):
