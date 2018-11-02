@@ -844,7 +844,8 @@ class GOKern(Kern):
                                                       context="PSyVars",
                                                       label=base)
         # Generate code to ensure data is on device
-        self.gen_data_on_ocl_device()
+        self.gen_data_on_ocl_device(parent)
+
         # Then we set the kernel arguments
         arguments = [kernel, garg.name+"%grid%nx"]
         for arg in self._arguments.args:
@@ -860,6 +861,13 @@ class GOKern(Kern):
         parent.add(CallGen(
             parent, "{0}_set_args".format(self.name), arguments))
 
+        # Get the name of the list of command queues (set in
+        # psyGen.Schedule)
+        qlist = self._name_space_manager.create_name(
+            root_name="cmd_queues", context="PSyVars", label="cmd_queues")
+        flag = self._name_space_manager.create_name(
+            root_name="ierr", context="PSyVars", label="ierr")
+
         # Then we call clEnqueueNDRangeKernel
         parent.add(CommentGen(parent, " Launch the kernel"))
         cnull = "C_NULL_PTR"
@@ -868,9 +876,8 @@ class GOKern(Kern):
         args = ", ".join([cmd_queue, kernel, "2", cnull,
                           "C_LOC({0})".format(glob_size),
                           cnull, "0", cnull, cnull])
-        parent.add(
-            AssignGen(parent, lhs=flag,
-                      rhs="clEnqueueNDRangeKernel({0})".format(args)))
+        parent.add(AssignGen(parent, lhs=flag,
+                             rhs="clEnqueueNDRangeKernel({0})".format(args)))
         parent.add(CommentGen(parent, ""))
 
     @property
@@ -946,7 +953,16 @@ class GOKern(Kern):
             index += 1
             arg.set_kernel_arg(sub, index, self.name)
 
-    def gen_data_on_ocl_device(self):
+    def gen_data_on_ocl_device(self, parent):
+        '''
+        Generate code to create data buffers on OpenCL device.
+
+        :param parent: Parent subroutine in f2pygen AST of generated code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import UseGen, CommentGen, IfThenGen, DeclGen, \
+            AssignGen
+        grid_arg = self.find_grid_access()
         # Ensure the fields required by this kernel are on device. We must
         # create the buffers for them if they're not.
         parent.add(UseGen(parent, name="fortcl", only=True,
@@ -965,10 +981,10 @@ class GOKern(Kern):
                     # grid properties do not have such an attribute (because
                     # they are just arrays) so we check whether the device
                     # pointer is NULL.
-                    device_buff = "{0}%grid%{1}_device".format(garg.name,
+                    device_buff = "{0}%grid%{1}_device".format(grid_arg.name,
                                                                arg.name)
                     condition = device_buff + " == 0"
-                    host_buff = "{0}%grid%{1}".format(garg.name, arg.name)
+                    host_buff = "{0}%grid%{1}".format(grid_arg.name, arg.name)
                 # Name of variable to hold no. of bytes of storage required
                 nbytes = self._name_space_manager.create_name(
                     root_name="size_in_bytes", context="PSyVars",
@@ -987,8 +1003,8 @@ class GOKern(Kern):
                 # Use c_sizeof() on first element of array to be copied over in
                 # order to cope with the fact that some grid properties are
                 # integer.
-                size_expr = ("int({0}%grid%nx*{0}%grid%ny, 8)*"
-                             "c_sizeof({1}(1,1))".format(garg.name, host_buff))
+                size_expr = ("int({0}%grid%nx*{0}%grid%ny, 8)*c_sizeof("
+                             "{1}(1,1))".format(grid_arg.name, host_buff))
                 ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
                 # Get the name of the list of command queues (set in
