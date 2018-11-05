@@ -3540,7 +3540,7 @@ class DynHaloExchange(HaloExchange):
 
         :return: Returns (x, y) where x specifies whether this halo \
         exchange is (or might be) required - True, or is not required \
-        - False. If the first argument is True then the second \
+        - False. If the first tuple item is True then the second \
         argument specifies whether we definitely know that we need the \
         HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
@@ -3737,12 +3737,12 @@ class DynHaloExchangeStart(DynHaloExchange):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicating \
+    :param check_dirty: optional argument (default True) indicating \
     whether this halo exchange should be subject to a run-time check \
     for clean/dirty halos.
     :type check_dirty: bool
     :param vector_index: optional vector index (default None) to \
-    identify which index of a vector field this halo exchange is \
+    identify which component of a vector field this halo exchange is \
     responsible for
     :type vector_index: int
     :param parent: optional PSyIRe parent node (default None) of this \
@@ -3797,7 +3797,7 @@ class DynHaloExchangeStart(DynHaloExchange):
 
         :return: Returns (x, y) where x specifies whether this halo \
         exchange is (or might be) required - True, or is not required \
-        - False. If the first argument is True then the second \
+        - False. If the first tuple item is True then the second \
         argument specifies whether we definitely know that we need the \
         HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
@@ -3838,11 +3838,10 @@ class DynHaloExchangeStart(DynHaloExchange):
                     # transformation).
                     if isinstance(node, DynHaloExchangeEnd):
                         return node
-                    else:
-                        raise GenerationError(
-                            "Halo exchange start for field '{0}' should "
-                            "match with a halo exchange end, but found "
-                            "{1}".format(self.field.name, type(node)))
+                    raise GenerationError(
+                        "Halo exchange start for field '{0}' should match "
+                        "with a halo exchange end, but found {1}".format(
+                            self.field.name, type(node)))
         # no match has been found which is an error as a halo exchange
         # start should always have a matching halo exchange end that
         # follows it in schedule (PSyIRe sibling) order
@@ -3859,7 +3858,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param check_dirty: optional argument default True indicating \
+    :param check_dirty: optional argument (default True) indicating \
     whether this halo exchange should be subject to a run-time check \
     for clean/dirty halos.
     :type check_dirty: bool
@@ -3876,9 +3875,9 @@ class DynHaloExchangeEnd(DynHaloExchange):
                  vector_index=None, parent=None):
         DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
                                  vector_index=vector_index, parent=parent)
-        # Update fields values appropriately. The associated field is
+        # Update field properties appropriately. The associated field is
         # written to. However, a readwrite field access needs to be
-        # specified as this required for the halo exchange logic to
+        # specified as this is required for the halo exchange logic to
         # work correctly.
         self._field.access = "gh_readwrite"
         # override appropriate parent class names

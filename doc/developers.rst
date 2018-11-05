@@ -601,7 +601,7 @@ that any fields being read by the kernel must have their level-1 halo
 clean (up-to-date), which can result in halo exchanges. Note that this
 is not the case for the modified field, it does not need its halo to
 be clean, however, at the moment a halo exchange is added in this
-case. This unecessary halo exchange will be removed in a future
+case. This unnecessary halo exchange will be removed in a future
 release of PSyclone.
 
 Cell iterators: Discontinuous
@@ -883,7 +883,7 @@ and this could probably be removed at the expense of returning
 appropriate names for the dag, colourmap, declaration etc.
 
 .. note:: There is currently a problem with halo-exchanges for field
-   vectors: when an existing set of halo exchanges associated with a
+   vectors when an existing set of halo exchanges associated with a
    vector need to be removed due to redundant computation being
    applied. At the moment not all of them are removed. This is also
    the case for asynchronous halo exchanges. See issue #219.
@@ -891,9 +891,9 @@ appropriate names for the dag, colourmap, declaration etc.
 .. note:: The dependence analysis for halo exchanges for field vectors
    is currently over zealous. It does not allow halo exchanges for
    independent vector components to be moved past one another. For
-   example, a halo exchange for vector 2, if placed after a halo
-   exchange for vector 1 could not be moved before the halo exchange
-   for vector 1, even though the accesses are independent of each
+   example, a halo exchange for vector component 2, if placed after a halo
+   exchange for component 1 could not be moved before the halo exchange
+   for component 1, even though the accesses are independent of each
    other. This is also the case for asynchronous halo exchanges. See
    issue #220.
 

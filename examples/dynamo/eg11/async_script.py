@@ -57,7 +57,7 @@ def trans(psy):
     schedule.view()
 
     # This transformation removes the halo exchange associated with
-    # the grad_p field. This transformation is unecessary if
+    # the grad_p field. This transformation is unnecessary if
     # annexed_dofs is set to True in the config file (although the
     # transformation still works).
     rc_trans = Dynamo0p3RedundantComputationTrans()
