@@ -215,9 +215,8 @@ The `Argument` class is used to specify the data being passed into and
 out of instances of the `Call` class, `HaloExchange` Class and
 `GlobalSum` class (and their subclasses).
 
-As an illustration consider the following invoke:
+As an illustration consider the following invoke::
 
-::
    invoke(           &
        kernel1(a,b), &
        kernel2(b,c))
@@ -251,7 +250,7 @@ The `DataAccess` class is at the core of PSyclone data dependence
 analysis. It takes an instance of the `Argument` class on
 initialisation and provides methods to compare this instance with
 other instances of the `Argument` class. The class is used to
-determine 2 main things called `overlap` and `covered`.
+determine 2 main things, called `overlap` and `covered`.
 
 Overlap
 +++++++
@@ -289,9 +288,8 @@ If there is a field vector associated with an instance of an
 assumed to be accessed when the argument is part of a `Call` or a
 `GlobalSum`. However, in contrast, a `HaloExchange` only acts on a
 single index of a field vector. Therefore there is one halo exchange
-per field vector index. For example:
+per field vector index. For example::
 
-::
     Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
@@ -306,7 +304,7 @@ for each component. This means that halo exchanges accessing the
 same field but different components do not `overlap`, but each halo
 exchange does overlap with the loop node. The current implementation
 of the `overlaps()` method deals with field vectors correctly.
-   
+
 Coverage
 ++++++++
 
@@ -327,9 +325,8 @@ would now be `covered` so the `source argument` would be deemed to be
 covered.
 
 In PSyclone the above situation occurs when a vector field is accessed
-in a kernel and also requires halo exchanges e.g.
+in a kernel and also requires halo exchanges e.g.::
 
-::
    Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
@@ -365,10 +362,11 @@ possible for two halo exchange with the same index to depend on each
 other in a schedule. As a result an exception is raised if this
 situation is found.
 
-Notice there is no concept of read or write dependencies here, that is
-handled by the classes that make use of the DataAccess class
-i.e. `_field_write_arguments()` and `_field_read_arguments()` methods,
-both in the `Arguments` class.
+Notice there is no concept of read or write dependencies here. Read or
+write dependencies are handled by classes that make use of the
+DataAccess class i.e. the `_field_write_arguments()` and
+`_field_read_arguments()` methods, both of which are found in the
+`Arguments` class.
 
 
 New APIs

@@ -3093,7 +3093,7 @@ class DataAccess(object):
     def __init__(self, arg):
         '''Store the argument associated with the instance of this class and
         the Call, HaloExchange or GlobalSum (or a subclass thereof)
-        instance to which the argument is associated.
+        instance with which the argument is associated.
 
         :param arg: the argument that we are concerned with. An \
         argument can be found in a `Call` a `HaloExchange` or a \
@@ -3106,6 +3106,11 @@ class DataAccess(object):
         # the call (Call, HaloExchange, or GlobalSum (or subclass)
         # instance to which the argument is associated
         self._call = arg.call
+        # initialise _covered and _vector_index_access to keep pylint
+        # happy
+        self._covered = None
+        self._vector_index_access = None
+        # Now actually set them to the required initial values
         self.reset_coverage()
 
     def overlaps(self, arg):
@@ -3120,9 +3125,9 @@ class DataAccess(object):
 
         :param arg: the argument to compare with our internal argument
         :type arg: :py:class:`psyclone.psyGen.Argument`
-        :return bool: True is there are overlapping accesses between \
-                      arguments i.e. accesses share at least one memory \
-                      location and False if not.
+        :return bool: True if there are overlapping accesses between \
+                      arguments (i.e. accesses share at least one memory \
+                      location) and False if not.
 
         '''
         if self._arg.name != arg.name:
@@ -3169,14 +3174,14 @@ class DataAccess(object):
         internal argument have at least one corresponding access by
         the supplied arguments.
 
-        :param arg: the argument to compare with our internal argument \
-                    and use to update coverage information
+        :param arg: the argument used to compare with our internal \
+                    argument in order to update coverage information
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
 
         if not self.overlaps(arg):
-            ''' there is no overlap so there is nothing to update '''
+            # There is no overlap so there is nothing to update.
             return
 
         if isinstance(arg.call, HaloExchange) and \

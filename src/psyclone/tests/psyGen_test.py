@@ -2351,7 +2351,7 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     monkeypatch.setattr(halo_exchange_d_v3, "_vector_index", 2)
 
     # Now raise an exception with our erroneous vector indices (which
-    # are the same but should notbe_, but first make sure that the
+    # are the same but should not be), but first make sure that the
     # overlaps() method returns True otherwise an earlier exception
     # will be raised.
     access = DataAccess(field_d_v2)
