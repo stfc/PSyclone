@@ -62,32 +62,6 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 
-def test_vector_halo_exchange_remove():
-    '''Test that we remove halo exchanges for all components of a vector
-    field when they are no longer required.
-
-    '''
-    _, info = parse(os.path.join(
-        BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    # remove second set of halo exchanges via redundant
-    # computation. If they are removed correctly then the two loops
-    # will be adjacent to each other and will follow 3 haloexchange
-    # calls.
-    schedule.view()
-    rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[3], depth=2)
-    schedule.view()
-    assert len(schedule.children) == 5
-    from psyclone.dynamo0p3 import DynHaloExchange, DynLoop
-    for index in [0, 1, 2]:
-        assert isinstance(schedule.children[index], DynHaloExchange)
-    assert isinstance(schedule.children[3], DynLoop)
-    assert isinstance(schedule.children[4], DynLoop)
-
-
 def test_colour_trans_declarations(tmpdir, f90, f90flags, dist_mem):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
@@ -6983,7 +6957,6 @@ def test_move_vector_halo_exchange():
     # When the test is fixed, add a check for re-ordered output here
 
 
-@pytest.mark.xfail(reason="removal of vector halo exchanges is broken")
 def test_vector_halo_exchange_remove():
     '''test that we remove vector halo exchanges when they are no longer
     required.
@@ -7002,13 +6975,13 @@ def test_vector_halo_exchange_remove():
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[3], depth=2)
     assert len(schedule.children) == 5
+    from psyclone.dynamo0p3 import DynHaloExchange, DynLoop
     for index in [0, 1, 2]:
         assert isinstance(schedule.children[index], DynHaloExchange)
     assert isinstance(schedule.children[3], DynLoop)
     assert isinstance(schedule.children[4], DynLoop)
 
 
-@pytest.mark.xfail(reason="removal of vector halo exchanges is broken")
 def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
     '''Test that an asynchronous halo exchange works correctly with
     vector fields.
@@ -7073,3 +7046,66 @@ def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
         # If compilation testing has been enabled (--compile flag
         # to py.test)
         assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
+def test_async_halo_exchange_nomatch1():
+    '''Test that an exception is raised if an asynchronous halo exchange
+    start matches with something other than the expected halo exchange
+    end.
+
+    '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # make the first vector component of the halo exchange for f1
+    # asynchronous before the first loop.
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    hex = schedule.children[0]
+    schedule, _ = ahex_trans.apply(hex)
+
+    # now remove the generated halo exchange end. This will mean that
+    # the halo exchange start will now match with the halo exchange
+    # for the first vector component after the loop (which is a
+    # standard halo exchange). This should cause an exception to be
+    # raised.
+    del(schedule.children[1])
+
+    hex_start = schedule.children[0]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = hex_start._get_hex_end()
+    assert ("Halo exchange start for field 'f1' should match with a halo "
+            "exchange end, but found <class 'psyclone.dynamo0p3."
+            "DynHaloExchange'>") in str(excinfo.value)
+
+
+def test_async_halo_exchange_nomatch2():
+    '''Test that an exception is raised if an asynchronous halo exchange
+    start matches with no other halo exchange with the same name.
+
+    '''
+    _, info = parse(os.path.join(
+        BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+
+    # make the last vector component of the halo exchange for f1
+    # asynchronous after the first loop.
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    hex = schedule.children[6]
+    schedule, _ = ahex_trans.apply(hex)
+
+    # now remove the generated halo exchange end. This will mean that
+    # the halo exchange start will now match with nothing as it is the
+    # last halo exchange in the schedule. This should cause an
+    # exception to be raised.
+    del(schedule.children[7])
+
+    hex_start = schedule.children[6]
+    with pytest.raises(GenerationError) as excinfo:
+        _ = hex_start._get_hex_end()
+    assert ("Halo exchange start for field 'f1' has no matching halo "
+            "exchange end") in str(excinfo.value)

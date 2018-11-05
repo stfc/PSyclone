@@ -3145,12 +3145,16 @@ class DataAccess(object):
            (self._arg.vector_size > 1 or arg.vector_size > 1):
             # This is a vector field and both accesses come from halo
             # exchanges. As halo exchanges only access a particular
-            # vector the accesses do not overlap if the vector indices
+            # vector, the accesses do not overlap if the vector indices
             # being accessed differ.
 
             # sanity check
-            self._call.check_vector_halos_differ(arg.call)
-
+            if self._arg.vector_size != arg.vector_size:
+                raise InternalError(
+                    "DataAccess.overlaps(): vector sizes differ for field "
+                    "'{0}' in two halo exchange calls. Found '{1}' and "
+                    "'{2}'".format(arg.name, self._arg.vector_size,
+                                   arg.vector_size))
             if self._call.vector_index != arg.call.vector_index:
                 # accesses are to different vector indices so do not overlap
                 return False

@@ -53,7 +53,7 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES
+    FORTRAN_INTENT_NAMES, DataAccess
 
 # First section : Parser specialisations and classes
 
@@ -3825,17 +3825,8 @@ class DynHaloExchangeStart(DynHaloExchange):
                 # `haloexchangestart` or `haloexchangeend` PSyIRe node
                 # that is at the same calling hierarchy level as this
                 # haloexchangestart
-
-                # TBD: support matching fields with the same vector
-                # index and skipping ones with different indices. This
-                # can be added simply once PR #225 is on master as
-                # that adds the concept of matching overlapping
-                # accesses. Note, we still get correct results if no
-                # move transformations are applied.
-                if node.field.name == self.field.name:
-                    # the names match so it should be the associated
-                    # haloexchangeend (unless it has been moved by a
-                    # transformation).
+                access = DataAccess(self.field)
+                if access.overlaps(node.field):
                     if isinstance(node, DynHaloExchangeEnd):
                         return node
                     raise GenerationError(

@@ -1053,12 +1053,6 @@ halo exhange start really benefits from inheriting from halo exchange
 and this could probably be removed at the expense of returning
 appropriate names for the dag, colourmap, declaration etc.
 
-.. note:: There is currently a problem with halo-exchanges for field
-   vectors when an existing set of halo exchanges associated with a
-   vector need to be removed due to redundant computation being
-   applied. At the moment not all of them are removed. This is also
-   the case for asynchronous halo exchanges. See issue #219.
-
 .. note:: The dependence analysis for halo exchanges for field vectors
    is currently over zealous. It does not allow halo exchanges for
    independent vector components to be moved past one another. For
