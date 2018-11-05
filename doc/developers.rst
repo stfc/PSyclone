@@ -198,6 +198,177 @@ guidelines for performing a review (i.e. what is expected from the
 developer) are available on the GitHub PSyclone wiki pages:
 https://github.com/stfc/PSyclone/wiki.
 
+Generic Code
+############
+
+PSyclone is designed to be configurable so that new front-ends (called
+API's) can be built, re-using as much existing code as possible. The
+generic code is kept in the `psyGen.py` file for psy-code generation.
+
+Dependence Analysis
+===================
+
+Dependence Analysis in PSyclone produces ordering constraints between
+instances of the `Argument` class within a PSyIRe.
+
+The `Argument` class is used to specify the data being passed into and
+out of instances of the `Call` class, `HaloExchange` Class and
+`GlobalSum` class (and their subclasses).
+
+As an illustration consider the following invoke::
+
+   invoke(           &
+       kernel1(a,b), &
+       kernel2(b,c))
+
+where the metadata for `kernel1` specifies that the 2nd argument is
+written to and the metadata for `kernel2` specifies that the 1st
+argument is read.
+
+In this case the PSyclone dependence analysis will determine that
+there is a flow dependence between the second argument of `Kernel1`
+and the first argument of `Kernel2` (a read after a write).
+
+Information about arguments is aggregated to the PSyIRe node level
+(`kernel1` and `kernel2` in this case) and then on to the parent
+`loop` node resulting in a flow dependence (a read after a write)
+between a loop containing `kernel1` and a loop containing
+`kernel2`. This dependence is used to ensure that a transformation is
+not able to move one loop before or after the other in the PSyIRe
+schedule (as this would cause incorrect results).
+
+Dependence analysis is implemented in PSyclone to support
+functionality such as adding and removing halo exchanges,
+parallelisation and moving nodes in a PSyIRe schedule. Dependencies
+between nodes in a PSyIRe schedule can be viewed as a DAG using the
+`dag()` method within the `Node` base class.
+
+DataAccess Class
+----------------
+
+The `DataAccess` class is at the core of PSyclone data dependence
+analysis. It takes an instance of the `Argument` class on
+initialisation and provides methods to compare this instance with
+other instances of the `Argument` class. The class is used to
+determine 2 main things, called `overlap` and `covered`.
+
+Overlap
++++++++
+
+`Overlap` specifies whether accesses specified by two instances of the
+`Argument` class access the same data or not. If they do access the
+same data their accesses are deemed to `overlap`. The best way to
+explain the meaning of `overlap` is with an example:
+
+Consider a one dimensional array called `A` of size 4 (`A(4)`). If one
+instance of the `Argument` class accessed the first two elements of
+array `A` and another instance of the `Argument` class accessed the
+last two elements of array `A` then they would both be accessing array
+`A` but their accesses would *not* `overlap`. However, if one instance
+of the `Argument` class accessed the first three elements of array `A`
+and another instance of the `Argument` class accessed the last two
+elements of array `A` then their accesses would `overlap` as they are
+both accessing element `A(3)`.
+
+Having explained the idea of `overlap` in its general sense, in
+practice PSyclone currently assumes that *any* two instances of the
+`Argument` class that access data with the same name will always
+`overlap` and does no further analysis (apart from halo exchanges and
+vectors, which are discussed below). The reason for this is that
+nearly all accesses to data, associated with an instance of the
+`Argument` class, start at index 1 and end at the number of elements,
+dofs or some halo depth. The exceptions to this are halo exchanges,
+which only access the halo and boundary conditions, which only access
+a subset of the data. However these subset accesses are currently not
+captured in metadata so PSyclone must assume subset accesses do not
+exist.
+
+If there is a field vector associated with an instance of an
+`Argument` class then all of the data in its vector indices are
+assumed to be accessed when the argument is part of a `Call` or a
+`GlobalSum`. However, in contrast, a `HaloExchange` only acts on a
+single index of a field vector. Therefore there is one halo exchange
+per field vector index. For example::
+
+    Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
+    ... ... KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+
+In the above PSyIRe schedule, the field `f1` is a vector field and the
+`Call` `testkern\_stencil\_vector\_code` is assumed to access data in
+all of the vector components. However, there is a separate `HaloExchange`
+for each component. This means that halo exchanges accessing the
+same field but different components do not `overlap`, but each halo
+exchange does overlap with the loop node. The current implementation
+of the `overlaps()` method deals with field vectors correctly.
+
+Coverage
+++++++++
+
+The concept of `coverage` naturally follows from the discussion in the
+previous section.
+
+Again consider a one dimensional array called `A` of size 4
+(`A(4)`). If one instance (that we will call the `source`) of the
+`Argument` class accessed the first 3 elements of array `A`
+(i.e. elements 1 to 3) and another instance of the `Argument` class
+accessed the first two elements of array `A` then their accesses would
+`overlap` as they are both accessing elements `A(1) and A(2)` and
+elements `A(1) and A(2)` would be `covered`. However, access `A(3)`
+for the `source Argument` class would not yet be `covered`. If a
+subsequent instance of the `Argument` class accessed the 2nd and 3rd
+elements of array `A` then all of the accesses (`A(1), A(2) and A(3)`)
+would now be `covered` so the `source argument` would be deemed to be
+covered.
+
+In PSyclone the above situation occurs when a vector field is accessed
+in a kernel and also requires halo exchanges e.g.::
+
+   Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
+         KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+
+In this case the PSyIRe loop node needs to know about all 3 halo
+exchanges before its access is fully `covered`. This functionality is
+implemented by passing instances of the `Argument` class to the
+`DataAccess` class `update_coverage()` method and testing the
+access.covered property until it returns `True`.
+
+::
+
+   # this example is for a field vector 'f1' of size 3
+   # f1_index[1,2,3] are halo exchange accesses to vector indices [1,2,3] respectively
+   access = DataAccess(f1_loop)
+   access.update_coverage(f1_index1)
+   result = access.covered  # will be False
+   access.update_coverage(f1_index2)
+   result = access.covered  # will be False
+   access.update_coverage(f1_index3)
+   result = access.covered  # will be True
+   access.reset_coverage()
+
+Note the `reset_coverage()` method can be used to reset internal state
+so the instance can be re-used (but this is not used by PSyclone at
+the moment).
+
+The way in which halo exchanges are placed means that it is not
+possible for two halo exchange with the same index to depend on each
+other in a schedule. As a result an exception is raised if this
+situation is found.
+
+Notice there is no concept of read or write dependencies here. Read or
+write dependencies are handled by classes that make use of the
+DataAccess class i.e. the `_field_write_arguments()` and
+`_field_read_arguments()` methods, both of which are found in the
+`Arguments` class.
+
+
 New APIs
 ########
 
