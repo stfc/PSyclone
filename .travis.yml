@@ -56,8 +56,10 @@ install:
 script:
   # We specify the tests directory to avoid pytest running the fparser test
   # suite (pulled in with the fparser submodule)
-  #- coverage run --source=psyclone -m py.test src/psyclone/tests
-  #- coverage report -m
+  - coverage run --source=psyclone -m py.test src/psyclone/tests
+  - coverage report -m
+  # Invoke the directory change and check_examples script as a single command
+  # so that Travis is returned the error code from the script
   - ( cd examples && ./check_examples )
 after_success:
   - coveralls
