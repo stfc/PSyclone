@@ -6,8 +6,13 @@ module inc_field_mod
   implicit none
 
   type, extends(kernel_type) :: inc_field
-     type(arg), dimension(2) :: meta_args =    &
+     type(arg), dimension(4) :: meta_args =    &
           (/ arg(WRITE, CT, POINTWISE),        & ! field
+             ! We have to pass in the extend of the field array as PGI
+             ! does not support assumed-size arguments in accelerator
+             ! regions. Ultimately PSyclone will do this for us.
+             arg(READ,  I_SCALAR, POINTWISE),  & ! nx
+             arg(READ,  I_SCALAR, POINTWISE),  & ! ny
              arg(READ,  I_SCALAR, POINTWISE)   & ! istp
            /)
      !> This kernel writes only to internal points of the
@@ -29,9 +34,9 @@ module inc_field_mod
 
 contains
 
-  subroutine inc_field_code(ji, jj, fld1, istp)
-    integer, intent(in) :: ji, jj
-    real(wp), allocatable, dimension(:,:), intent(inout) :: fld1
+  subroutine inc_field_code(ji, jj, fld1, nx, ny, istp)
+    integer, intent(in) :: ji, jj, nx, ny
+    real(wp), dimension(nx,ny), intent(inout) :: fld1
     integer, intent(in) :: istp
 
     fld1(ji,jj) = fld1(ji,jj) + real(istp, wp)
