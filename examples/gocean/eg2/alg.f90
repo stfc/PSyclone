@@ -46,6 +46,7 @@ program alg
      call invoke( inc_field(fld1, nx, ny, this_step) )
   end do
 
+  ! Manually pull the data back from the GPU and do some "IO"
   !$acc update self(fld1%data)
   write (*,*) "nsteps = ", nsteps, "field(2,2) = ", fld1%data(2,2)
 
