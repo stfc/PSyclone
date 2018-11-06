@@ -8,6 +8,7 @@
 
    introduction
    getting_going
+   examples
    psyclone_script
    kernel_layer
    algorithm_layer
