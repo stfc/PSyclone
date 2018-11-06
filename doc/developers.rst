@@ -160,7 +160,8 @@ for continuous integration. GitHub triggers Travis to execute the test
 suite whenever there is a push to the repository. The work performed
 by Travis is configured by the ``.travis.yml`` file in the root
 directory of the repository. Currently Travis is configured to run the
-test suite for both Python 2.7 and 3.6.
+test suite for both Python 2.7 and 3.6. It also runs all of the examples
+using the ``check_examples`` script in the ``examples`` directory.
 
 By default, the Travis configuration uses ``pip`` to install the
 dependencies required by PSyclone before running the test suite. This

@@ -64,7 +64,10 @@
 	19) #191 and PR #215. Add ability to specify iteration space
 	definitions to the configuration file.
 
-        20) #219 and PR #225. Refactor dependence analysis and fix bug
+	20) #228 and PR #232. Fix for examples and travis now checks
+	examples at the same time as coverage and code style.
+
+        21) #219 and PR #225. Refactor dependence analysis and fix bug
         that meant that unnecessary halo exchanges of vector components
         were not being removed (following a redundant computation
         transformation).
