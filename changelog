@@ -64,6 +64,9 @@
 	19) #191 and PR #215. Add ability to specify iteration space
 	definitions to the configuration file.
 
+	20) #228 and PR #232. Fix for examples and travis now checks
+	examples at the same time as coverage and code style.
+
 release 1.6.0 18th May 2018
 
         1) #91 and PR #111 Remove unnecessary __init__.py files.
