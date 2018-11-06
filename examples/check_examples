@@ -47,6 +47,8 @@ set -e
 export PSYCLONE=${PWD}/../bin/psyclone
 export KSTUBGEN=${PWD}/../bin/genkernelstub
 
+python does_not_exist
+
 echo "Running examples dynamo/eg1"
 cd dynamo/eg1
 python runme.py

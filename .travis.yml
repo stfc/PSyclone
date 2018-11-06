@@ -56,8 +56,8 @@ install:
 script:
   # We specify the tests directory to avoid pytest running the fparser test
   # suite (pulled in with the fparser submodule)
-  - coverage run --source=psyclone -m py.test src/psyclone/tests
-  - coverage report -m
+  #- coverage run --source=psyclone -m py.test src/psyclone/tests
+  #- coverage report -m
   - cd examples; ./check_examples; cd -
 after_success:
   - coveralls
