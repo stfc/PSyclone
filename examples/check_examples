@@ -108,13 +108,20 @@ cd dynamo/eg10
 ${PSYCLONE} intergrid_3levels.x90
 cd -
 
-echo "Running gocean examples"
-cd gocean
+echo "Running gocean/eg1"
+cd gocean/eg1
 python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
 python runme_dag.py
 python runme_openacc.py
+cd -
+
+echo "Running gocean/eg2"
+cd gocean/eg2
+# We don't do the full compile because that requires a Fortran compiler
+# and the dl_esm_inf library
+${PSYCLONE} -s ./acc_transform.py alg.f90
 cd -
 
 echo "Running transformation examples"
