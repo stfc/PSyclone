@@ -58,7 +58,7 @@ script:
   # suite (pulled in with the fparser submodule)
   #- coverage run --source=psyclone -m py.test src/psyclone/tests
   #- coverage report -m
-  - cd examples; ./check_examples; cd -
+  - ( cd examples && ./check_examples )
 after_success:
   - coveralls
   - codecov
