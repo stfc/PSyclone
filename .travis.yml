@@ -45,9 +45,9 @@ env:
     - WITH_TERMCOLOR=1
 # command to install dependencies
 before_install:
-  # Specify "fparser" (without quotes) as an argument to install_optional.sh
-  # in order to run the tests with the version of fparser pointed to by
-  # the git submodule.
+  # Specify "fparser_submodule" (without quotes) as an argument to
+  # install_optional.sh in order to run the tests with the version of
+  # fparser pointed to by the git submodule.
   - ./bin/install_optional.sh fparser_submodule
   - pip install coveralls
   - pip install codecov
@@ -58,6 +58,7 @@ script:
   # suite (pulled in with the fparser submodule)
   - coverage run --source=psyclone -m py.test src/psyclone/tests
   - coverage report -m
+  - cd examples; ./check_examples; cd -
 after_success:
   - coveralls
   - codecov
