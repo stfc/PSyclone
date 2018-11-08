@@ -901,8 +901,6 @@ def test_goschedule_str():
         "EndLoop\n"
         "EndLoop\n"
         "End Schedule\n")
-    print(sched_str)
-    print(expected_sched)
     assert sched_str in expected_sched
 
 
