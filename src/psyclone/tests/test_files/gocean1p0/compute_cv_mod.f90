@@ -53,7 +53,7 @@ contains
     ! Note that we do not loop over the full extent of the field.
     ! Fields are allocated with extents (M+1,N+1).
     ! Presumably the extra row and column are needed for periodic BCs.
-    ! We are updating a quantity on GO_CV.
+    ! We are updating a quantity on CV.
     ! This loop writes to cv(1:M,2:N+1) so this looks like
     ! (using x to indicate a location that is written):
     !
@@ -63,21 +63,21 @@ contains
     !  x  x  x  o
     !  o  o  o  o   j=1
 
-    ! Quantity GO_CV is mass flux in y direction.
+    ! Quantity CV is mass flux in y direction.
 
     ! Original code looked like:
     !
     !    DO J=1,N
     !      DO I=1,M
-    !           GO_CV(I,J+1) = .5*(P(I,J+1)+P(I,J))*V(I,J+1)
+    !           CV(I,J+1) = .5*(P(I,J+1)+P(I,J))*V(I,J+1)
     !      END DO
     !    END DO
 
     ! cv(i,j) depends upon:
-    !   p(i,j-1), p(i,j) : GO_CT
-    !    => vertical GO_CT neighbours of the GO_CV pt being updated
-    !   v(i,j)           : GO_CV
-    !    => the velocity component at the GO_CV pt being updated
+    !   p(i,j-1), p(i,j) : CT
+    !    => vertical CT neighbours of the CV pt being updated
+    !   v(i,j)           : CV
+    !    => the velocity component at the CV pt being updated
 
     !   vi-1j+1--fij+1---vij+1---fi+1j+1
     !   |        |       |       |

@@ -51,7 +51,7 @@ contains
     ! Note that we do not loop over the full extent of the field.
     ! Fields are allocated with extents (M+1,N+1).
     ! Presumably the extra row and column are needed for periodic BCs.
-    ! We are updating a quantity on GO_CU.
+    ! We are updating a quantity on CU.
     ! This loop writes to cu(2:M+1,1:N) so this looks like
     ! (using x to indicate a location that is written):
     !
@@ -61,21 +61,21 @@ contains
     !  o  x  x  x
     !  o  x  x  x   j=1
 
-    ! Quantity GO_CU is mass flux in x direction.
+    ! Quantity CU is mass flux in x direction.
 
     ! Original code looked like:
     !
     !    DO J=1,N
     !      DO I=1,M
-    !           GO_CU(I+1,J) = .5*(P(I+1,J)+P(I,J))*U(I+1,J)
+    !           CU(I+1,J) = .5*(P(I+1,J)+P(I,J))*U(I+1,J)
     !      END DO
     !    END DO
 
     ! cu(i,j) depends upon:
-    !   p(i-1,j), p(i,j) : GO_CT
-    !    => lateral GO_CT neighbours of the GO_CU pt being updated
-    !   u(i,j)           : GO_CU
-    !    => the horiz. vel. component at the GO_CU pt being updated
+    !   p(i-1,j), p(i,j) : CT
+    !    => lateral CT neighbours of the CU pt being updated
+    !   u(i,j)           : CU
+    !    => the horiz. vel. component at the CU pt being updated
 
     !   vi-1j+1--fij+1---vij+1---fi+1j+1
     !   |        |       |       |

@@ -53,7 +53,7 @@ contains
     ! Note that we do not loop over the full extent of the field.
     ! Fields are allocated with extents (M+1,N+1).
     ! Presumably the extra row and column are needed for periodic BCs.
-    ! We are updating a quantity on GO_CV.
+    ! We are updating a quantity on CV.
     ! This loop writes to cv(1:M,2:N+1) so this looks like
     ! (using x to indicate a location that is written):
     !

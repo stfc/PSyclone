@@ -44,7 +44,7 @@ contains
     ! Note that we do not loop over the full extent of the field.
     ! Fields are allocated with extents (M+1,N+1).
     ! Presumably the extra row and column are needed for periodic BCs.
-    ! We are updating a quantity on GO_CU.
+    ! We are updating a quantity on CU.
     ! This loop writes to cu(2:M+1,1:N) so this looks like
     ! (using x to indicate a location that is written):
     !
