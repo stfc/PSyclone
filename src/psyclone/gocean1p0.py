@@ -503,7 +503,8 @@ class GOLoop(Loop):
         bound_info = offset-type:field-type:iteration-space:outer-start:
                       outer-stop:inner-start:inner-stop
         Example:
-        bound_info = go_offset_ne:go_ct:go_all_pts:{start}-1:{stop}+1:{start}:{stop}
+        bound_info = go_offset_ne:go_ct:go_all_pts\
+                     :{start}-1:{stop}+1:{start}:{stop}
 
         The expressions {start} and {stop} will be replaced with the loop
         indices that correspond to the inner points (i.e. non-halo or
