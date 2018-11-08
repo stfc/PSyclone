@@ -1,12 +1,12 @@
 !> \brief Compute the mass flux in the y direction, cv
 !! \detail Given the current pressure and velocity fields,
 !! computes the mass flux in the y direction.
-module compute_cv_mod
-  !use kind_params_mod
-  !use kernel_mod
-  !use argument_mod
-  !use grid_mod
-  !use field_mod
+module kernel_ne_offset_mod
+  use kind_params_mod
+  use kernel_mod
+  use argument_mod
+  use grid_mod
+  use field_mod
   implicit none
 
   private
@@ -63,21 +63,21 @@ contains
     !  x  x  x  o
     !  o  o  o  o   j=1
 
-    ! Quantity GO_CV is mass flux in y direction.
+    ! Quantity CV is mass flux in y direction.
 
     ! Original code looked like:
     !
     !    DO J=1,N
     !      DO I=1,M
-    !           GO_CV(I,J+1) = .5*(P(I,J+1)+P(I,J))*V(I,J+1)
+    !           CV(I,J+1) = .5*(P(I,J+1)+P(I,J))*V(I,J+1)
     !      END DO
     !    END DO
 
     ! cv(i,j) depends upon:
-    !   p(i,j-1), p(i,j) : GO_CT
-    !    => vertical GO_CT neighbours of the GO_CV pt being updated
-    !   v(i,j)           : GO_CV
-    !    => the velocity component at the GO_CV pt being updated
+    !   p(i,j-1), p(i,j) : CT
+    !    => vertical CT neighbours of the CV pt being updated
+    !   v(i,j)           : CV
+    !    => the velocity component at the CV pt being updated
 
     !   vi-1j+1--fij+1---vij+1---fi+1j+1
     !   |        |       |       |
@@ -106,11 +106,11 @@ contains
   subroutine compute_cv_code(i, j, cv, p, v)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(out), dimension(:,:) :: cv
-    real(wp), intent(in),  dimension(:,:) :: p, v
+    real(go_wp), intent(out), dimension(:,:) :: cv
+    real(go_wp), intent(in),  dimension(:,:) :: p, v
 
-    GO_CV(I,J) = .5d0*(P(I,J+1)+P(I,J))*V(I,J)
+    CV(I,J) = .5d0*(P(I,J+1)+P(I,J))*V(I,J)
 
   end subroutine compute_cv_code
 
-end module compute_cv_mod
+end module kernel_ne_offset_mod

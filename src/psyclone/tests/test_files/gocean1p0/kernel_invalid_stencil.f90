@@ -1,9 +1,9 @@
 module kernel_invalid_stencil
-  !use kind_params_mod
-  !use kernel_mod
-  !use argument_mod
-  !use field_mod
-  !use grid_mod
+  use kind_params_mod
+  use kernel_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
   implicit none
 
   private
@@ -15,7 +15,7 @@ module kernel_invalid_stencil
           ! We deliberately specify an incorrect stencil value
           ! for the first kernel argument in order to test the 
           ! parser...
-          (/ go_arg(GO_WRITE, GO_CU, POINTS),        & ! cu
+          (/ go_arg(GO_WRITE, GO_CU, INVALID),        & ! cu
              go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
              go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
              go_arg(GO_READ,  GO_GRID_AREA_T)       &
@@ -36,10 +36,10 @@ contains
   subroutine compute_cu_code(i, j, cu, p, u)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(out), dimension(:,:) :: cu
-    real(wp), intent(in),  dimension(:,:) :: p, u
+    real(go_wp), intent(out), dimension(:,:) :: cu
+    real(go_wp), intent(in),  dimension(:,:) :: p, u
 
-    GO_CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
+    CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 
   end subroutine compute_cu_code
 

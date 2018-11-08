@@ -1,9 +1,9 @@
-module compute_cu_mod
-  !use kind_params_mod
-  !use kernel_mod
-  !use argument_mod
-  !use field_mod
-  !use grid_mod
+module kernel_missing_iterates_over
+  use kind_params_mod
+  use kernel_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
   implicit none
 
   private
@@ -99,11 +99,11 @@ contains
   subroutine compute_cu_code(i, j, cu, p, u)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(out), dimension(:,:) :: cu
-    real(wp), intent(in),  dimension(:,:) :: p, u
+    real(go_wp), intent(out), dimension(:,:) :: cu
+    real(go_wp), intent(in),  dimension(:,:) :: p, u
 
-    GO_CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
+    CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 
   end subroutine compute_cu_code
 
-end module compute_cu_mod
+end module kernel_missing_iterates_over

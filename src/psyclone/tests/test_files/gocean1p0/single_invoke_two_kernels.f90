@@ -47,7 +47,7 @@ PROGRAM single_invoke_two_kernels
   DO ncycle=1,100
     
     call invoke( compute_cu(cu_fld, p_fld, u_fld),      &
-                 time_smooth(u_fld, unew_fld, uold_fld) )
+                 time_smooth(u_fld, unew_fld, uold_fld))
 
   END DO
 

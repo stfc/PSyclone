@@ -32,6 +32,11 @@
 ! Author A. R. Porter, STFC Daresbury Lab
 
 module kernel_sw_offset_cv_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
   private
@@ -91,8 +96,8 @@ contains
   SUBROUTINE compute_v_code(i, j, v, u, h)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(inout), DIMENSION(:,:) :: v
-    REAL(wp), INTENT(in),    DIMENSION(:,:) :: u, h
+    REAL(go_wp), INTENT(inout), DIMENSION(:,:) :: v
+    REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: u, h
 
     v(I,J) = h(I,J)+.25d0*(U(I+1,J)*U(I+1,J)+U(I,J)*U(I,J) + & 
                            V(I,J+1)*V(I,J+1)+V(I,J)*V(I,J))
@@ -104,8 +109,8 @@ contains
   SUBROUTINE apply_bcs_v_code(i, j, v, u)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(inout), DIMENSION(:,:) :: v
-    REAL(wp), INTENT(in),    DIMENSION(:,:) :: u
+    REAL(go_wp), INTENT(inout), DIMENSION(:,:) :: v
+    REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: u
 
     v(I,J) = .25d0*(U(I,J)*U(I,J)+U(I,J)*U(I,J) + & 
               V(I,J)*V(I,J)+V(I,J)*V(I,J))

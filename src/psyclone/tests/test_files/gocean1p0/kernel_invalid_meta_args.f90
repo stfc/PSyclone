@@ -1,5 +1,5 @@
 module kernel_invalid_meta_args
-  use go_argument_mod
+  use argument_mod
   use field_mod
   use grid_mod
   use kernel_mod
@@ -53,7 +53,7 @@ contains
 
     amp_tide   = 0.2_go_wp
     omega_tide = 2.0_go_wp * 3.14159_go_wp / (12.42_go_wp * 3600._go_wp)
-    rtime = real(istep,wp) * rdt
+    rtime = real(istep,go_wp) * rdt
 
     if(tmask(ji,jj) > 0) ua(ji,jj) = ua(ji,jj) + rtime
 

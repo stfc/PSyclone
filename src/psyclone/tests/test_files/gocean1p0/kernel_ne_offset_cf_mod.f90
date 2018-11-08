@@ -1,6 +1,11 @@
 !> \brief A fake kernel that assumes a NE offset and 
 !! updates a field on F points
-module compute_vort_mod
+module kernel_ne_offset_cf_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
   private
@@ -46,4 +51,4 @@ contains
 
   end subroutine compute_vort_code
 
-end module compute_vort_mod
+end module kernel_ne_offset_cf_mod

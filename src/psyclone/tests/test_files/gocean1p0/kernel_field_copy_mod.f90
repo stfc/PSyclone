@@ -1,4 +1,9 @@
 module kernel_field_copy_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
   !> This module is for kernels that implement what will one
@@ -29,8 +34,8 @@ contains
                              output, input)
     implicit none
     integer,                  intent(in)  :: ji, jj
-    real(wp), dimension(:,:), intent(in)  :: input
-    real(wp), dimension(:,:), intent(out) :: output
+    real(go_wp), dimension(:,:), intent(in)  :: input
+    real(go_wp), dimension(:,:), intent(out) :: output
 
     output(ji,jj) = input(ji,jj)
 

@@ -23,9 +23,9 @@ PROGRAM two_invokes_two_offsets
   !> Pressure at current time step
   type(r2d_field) :: p_fld
   !> Velocity in x direction at current time step
-  type(r2d_field) :: u_fld
+  type(r2d_field) :: u_fld, v_fld
   !> Mass flux in x direction at current time step
-  type(r2d_field) :: cu_fld
+  type(r2d_field) :: cu_fld, cv_fld
 
   !> Loop counter for time-stepping loop
   INTEGER :: ncycle

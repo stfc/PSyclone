@@ -23,7 +23,7 @@ PROGRAM single_invoke_test
   !> Pressure at current time step
   type(r2d_field) :: p_fld
   !> Velocity in x direction at current time step
-  type(r2d_field) :: u_fld
+  type(r2d_field) :: u_fld, v_fld, cv_fld
   !> Mass flux in x direction at current time step
   type(r2d_field) :: cu_fld
 

@@ -13,7 +13,7 @@ PROGRAM single_invoke_scalar_int_test
   ! the PSyclone code generation system.
 
   use field_mod
-  use grid_modo
+  use grid_mod
   use kernel_scalar_int, only: bc_ssh
   use kind_params_mod
   implicit none

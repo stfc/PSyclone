@@ -107,7 +107,7 @@ contains
     real(go_wp), intent(out), dimension(:,:) :: cu
     real(go_wp), intent(in),  dimension(:,:) :: p, u
 
-    GO_CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
+    CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 
   end subroutine compute_cu_code
 

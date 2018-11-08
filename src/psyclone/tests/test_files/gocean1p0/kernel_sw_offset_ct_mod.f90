@@ -1,4 +1,9 @@
 module kernel_sw_offset_ct_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
   private
@@ -62,8 +67,8 @@ contains
   SUBROUTINE compute_h_code(i, j, h, p, u, v)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(out), DIMENSION(:,:) :: h
-    REAL(wp), INTENT(in),  DIMENSION(:,:) :: p, u, v
+    REAL(go_wp), INTENT(out), DIMENSION(:,:) :: h
+    REAL(go_wp), INTENT(in),  DIMENSION(:,:) :: p, u, v
 
     H(I,J) = P(I,J)+.25d0*(U(I+1,J)*U(I+1,J)+U(I,J)*U(I,J) + & 
                            V(I,J+1)*V(I,J+1)+V(I,J)*V(I,J))
@@ -75,8 +80,8 @@ contains
   SUBROUTINE apply_bcs_h_code(i, j, h, p, u, v)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(out), DIMENSION(:,:) :: h
-    REAL(wp), INTENT(in),  DIMENSION(:,:) :: p, u, v
+    REAL(go_wp), INTENT(out), DIMENSION(:,:) :: h
+    REAL(go_wp), INTENT(in),  DIMENSION(:,:) :: p, u, v
 
     H(I,J) = P(I,J)+.25d0*(U(I,J)*U(I,J)+U(I,J)*U(I,J) + & 
                            V(I,J)*V(I,J)+V(I,J)*V(I,J))

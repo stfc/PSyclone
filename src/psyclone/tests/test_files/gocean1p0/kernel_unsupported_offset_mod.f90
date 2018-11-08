@@ -7,6 +7,11 @@
 ! Author A. Porter STFC Daresbury Lab
 ! Funded by the NERC GOcean project
 module kernel_unsupported_offset_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
   private
@@ -72,9 +77,9 @@ contains
   subroutine compute_z_code(i, j, z, p, u, v, dx, dy)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(in) :: dx, dy
-    real(wp), intent(inout), dimension(:,:) :: z
-    real(wp), intent(in),  dimension(:,:) :: p, u, v
+    real(go_wp), intent(in) :: dx, dy
+    real(go_wp), intent(inout), dimension(:,:) :: z
+    real(go_wp), intent(in),  dimension(:,:) :: p, u, v
 
     Z(I,J) =( (4.0d0/dx)*( V(I,J)-V(I-1,J))-    &
               (4.0d0/dy)*( U(I,J)-U(I,J-1)) ) / &
@@ -85,8 +90,8 @@ contains
   subroutine apply_bcs_f_code(i, j, z, p, u, v)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(inout), dimension(:,:) :: z
-    real(wp), intent(in),  dimension(:,:) :: p, u, v
+    real(go_wp), intent(inout), dimension(:,:) :: z
+    real(go_wp), intent(in),  dimension(:,:) :: p, u, v
 
     Z(I,J) =(( V(I,J)-V(I-1,J))-    &
              ( U(I,J)-U(I,J-1)) ) / &

@@ -1,6 +1,11 @@
 !> \brief A fake kernel that assumes a NE offset and 
 !! updates a field on T points
-module compute_vort_mod
+module kernel_ne_offset_ct_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
   private
@@ -37,12 +42,12 @@ contains
   subroutine compute_vort_code(i, j, p, cu, cv)
     implicit none
     integer,  intent(in) :: I, J
-    real(go_wp), intent(out), dimension(:,:) :: vort
-    real(go_wp), intent(in),  dimension(:,:) :: p, cu, cv
+    real(go_wp), intent(out),  dimension(:,:) :: p
+    real(go_wp), intent(in),  dimension(:,:) :: cu, cv
 
     ! This is a FAKE kernel - it doesn't do anything!
     p(I,J) = .5d0**cu(I,J)*cv(i,j)
 
   end subroutine compute_vort_code
 
-end module compute_vort_mod
+end module kernel_ne_offset_ct_mod

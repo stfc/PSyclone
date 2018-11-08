@@ -22,7 +22,7 @@ PROGRAM single_invoke_test
   !> Pressure at current time step
   type(r2d_field) :: p_fld
   !> Velocity in x direction at current time step
-  type(r2d_field) :: u_fld
+  type(r2d_field) :: u_fld, h_fld, v_fld
   !> Mass flux in x direction at current time step
   type(r2d_field) :: cu_fld
 
@@ -34,15 +34,15 @@ PROGRAM single_invoke_test
                          (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
 
   ! Create fields on this grid
-  pfld    = r2d_field(model_grid, GO_T_POINTS)
-  hfld    = r2d_field(model_grid, GO_T_POINTS)
-  ufld    = r2d_field(model_grid, GO_U_POINTS)
-  vfld    = r2d_field(model_grid, GO_V_POINTS)
+  p_fld    = r2d_field(model_grid, GO_T_POINTS)
+  h_fld    = r2d_field(model_grid, GO_T_POINTS)
+  u_fld    = r2d_field(model_grid, GO_U_POINTS)
+  v_fld    = r2d_field(model_grid, GO_V_POINTS)
 
   !  ** Start of time loop ** 
   DO ncycle=1,100
     
-    call invoke( compute_h(hfld, pfld, ufld, vfld) )
+    call invoke( compute_h(h_fld, p_fld, u_fld, v_fld) )
 
   END DO
 

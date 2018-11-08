@@ -1,9 +1,9 @@
 module compute_cu_mod
-  !use kind_params_mod
-  !use kernel_mod
-  !use argument_mod
-  !use field_mod
-  !use grid_mod
+  use kind_params_mod
+  use kernel_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
   implicit none
 
   private
@@ -54,21 +54,21 @@ contains
     !  o  x  x  x
     !  o  x  x  x   j=1
 
-    ! Quantity GO_CU is mass flux in x direction.
+    ! Quantity CU is mass flux in x direction.
 
     ! Original code looked like:
     !
     !    DO J=1,N
     !      DO I=1,M
-    !           GO_CU(I+1,J) = .5*(P(I+1,J)+P(I,J))*U(I+1,J)
+    !           CU(I+1,J) = .5*(P(I+1,J)+P(I,J))*U(I+1,J)
     !      END DO
     !    END DO
 
     ! cu(i,j) depends upon:
-    !   p(i-1,j), p(i,j) : GO_CT
-    !    => lateral GO_CT neighbours of the GO_CU pt being updated
-    !   u(i,j)           : GO_CU
-    !    => the horiz. vel. component at the GO_CU pt being updated
+    !   p(i-1,j), p(i,j) : CT
+    !    => lateral CT neighbours of the CU pt being updated
+    !   u(i,j)           : CU
+    !    => the horiz. vel. component at the CU pt being updated
 
     !   vi-1j+1--fij+1---vij+1---fi+1j+1
     !   |        |       |       |
@@ -97,10 +97,10 @@ contains
   subroutine compute_cu_code(i, j, cu, p, u)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(out), dimension(:,:) :: cu
-    real(wp), intent(in),  dimension(:,:) :: p, u
+    real(go_wp), intent(out), dimension(:,:) :: cu
+    real(go_wp), intent(in),  dimension(:,:) :: p, u
 
-    GO_CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
+    CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 
   end subroutine compute_cu_code
 

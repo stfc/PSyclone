@@ -21,7 +21,7 @@ PROGRAM kernel_wrong_meta_arg_count_test
   type(grid_type), target :: model_grid
   !> Pressure at current time step
   type(r2d_field) :: p_fld
-  real(wp) :: a_scalar
+  real(go_wp) :: a_scalar
 
   !> Loop counter for time-stepping loop
   INTEGER :: ncycle

@@ -7,6 +7,11 @@
 ! Author A. Porter STFC Daresbury Lab
 ! Funded by the NERC GOcean project
 module kernel_sw_offset_cu_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
   private
@@ -66,8 +71,8 @@ contains
   SUBROUTINE compute_u_code(i, j, u, v, h)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(inout), DIMENSION(:,:) :: u
-    REAL(wp), INTENT(in),    DIMENSION(:,:) :: h, v
+    REAL(go_wp), INTENT(inout), DIMENSION(:,:) :: u
+    REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: h, v
 
     u(I,J) = h(I,J)+.25d0*(U(I+1,J)*U(I+1,J)+U(I,J)*U(I,J) + & 
                            V(I,J+1)*V(I,J+1)+V(I,J)*V(I,J))
@@ -79,8 +84,8 @@ contains
   SUBROUTINE apply_bcs_u_code(i, j, u, v)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(inout), DIMENSION(:,:) :: u
-    REAL(wp), INTENT(in),    DIMENSION(:,:) :: v
+    REAL(go_wp), INTENT(inout), DIMENSION(:,:) :: u
+    REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: v
 
     U(I,J) = .25d0*(U(I,J)*U(I,J)+U(I,J)*U(I,J) + & 
               V(I,J)*V(I,J)+V(I,J)*V(I,J))
