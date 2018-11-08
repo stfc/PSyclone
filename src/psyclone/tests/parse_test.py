@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,9 @@ function. '''
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
+from psyclone.psyGen import InternalError
 
 
 def test_default_api():
@@ -108,8 +110,8 @@ def test_kerneltypefactory_default_api():
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
     from psyclone.parse import KernelTypeFactory
-    from psyclone import configuration
-    _config = configuration.ConfigFactory().create()
+    from psyclone.configuration import Config
+    _config = Config.get()
     factory = KernelTypeFactory(api="")
     assert factory._type == _config.default_api
 
@@ -258,14 +260,13 @@ def test_duplicate_named_invoke():
 def test_duplicate_named_invoke_case():
     ''' Test that we raise the expected error when an algorithm file
     contains two invokes that are given the same name but with different
-    case '''
+    case. '''
     with pytest.raises(ParseError) as err:
         _, _ = parse(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3",
                          "3.4_multi_invoke_name_clash_case_insensitive.f90"),
             api="dynamo0.3")
-    print(str(err))
     assert ("Found multiple named invoke()'s with the same name ('jack') "
             "when parsing " in str(err))
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
@@ -273,7 +274,7 @@ def test_duplicate_named_invoke_case():
 
 def test_get_stencil():
     ''' Check that parse.get_stencil() raises the correct errors when
-    passed various incorrect inputs '''
+    passed various incorrect inputs. '''
     from psyclone.parse import get_stencil
     from psyclone.expression import ExpressionNode, FunctionVar
     enode = ExpressionNode(["1"])
@@ -294,3 +295,132 @@ def test_get_stencil():
         _ = get_stencil(node, ["cross"])
     assert ("expecting either FunctionVar or str from the expression analyser"
             in str(excinfo))
+
+
+MDATA = '''
+module testkern_eval_mod
+  type, extends(kernel_type) :: testkern_eval_type
+    type(arg_type) :: meta_args(2) = (/       &
+         arg_type(GH_FIELD,   GH_WRITE,  W0), &
+         arg_type(GH_FIELD,   GH_READ, W1)    &
+         /)
+    type(func_type) :: meta_funcs(2) = (/     &
+         func_type(W0, GH_BASIS),             &
+         func_type(W1, GH_DIFF_BASIS)         &
+         /)
+    integer :: gh_shape = gh_evaluator
+    integer :: gh_evaluator_targets(2) = [W0, W1]
+    integer :: iterates_over = cells
+  contains
+    procedure, nopass :: code => testkern_eval_code
+  end type testkern_eval_type
+contains
+  subroutine testkern_eval_code()
+  end subroutine testkern_eval_code
+end module testkern_eval_mod
+'''
+
+
+def test_get_int():
+    ''' Tests for the KernelType.get_integer(). method '''
+    from psyclone.parse import KernelType
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    iter_val = ktype.get_integer_variable("iterates_over")
+    assert iter_val == "cells"
+
+
+def test_get_int_err():
+    ''' Tests that we raise the expected error if the meta-data contains
+    an integer literal instead of a name. '''
+    from psyclone.parse import KernelType
+    mdata = MDATA.replace("= cells", "= 1")
+    ast = fpapi.parse(mdata, ignore_comments=False)
+    with pytest.raises(ParseError) as err:
+        _ = KernelType(ast)
+    assert ("RHS of assignment is not a variable name: 'iterates_over = 1'" in
+            str(err))
+
+
+def test_get_int_array():
+    ''' Tests for the KernelType.get_integer_array() method. '''
+    from psyclone.parse import KernelType
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    targets = ktype.get_integer_array("gh_evaluator_targets")
+    assert targets == ["w0", "w1"]
+    mdata = MDATA.replace("[W0, W1]", "(/W0, W1/)")
+    ast = fpapi.parse(mdata, ignore_comments=False)
+    ktype = KernelType(ast)
+    targets = ktype.get_integer_array("gh_evaluator_targets")
+    assert targets == ["w0", "w1"]
+
+
+# the monkeypatching of the Assignment_Stmt class (combined with its
+# use in 'get_integer_array()' breaks subsequent fparser2 tests (in
+# the NEMO subdirectory). Change 'if 0' to 'if 1' and try 'pytest
+# parser_test.py nemo' to see.
+if 0:
+    def test_get_int_array_err1(monkeypatch):
+        ''' Tests that we raise the correct error if there is something wrong
+        with the assignment statement obtained from fparser2. '''
+        from psyclone.parse import KernelType
+        from fparser.two import Fortran2003
+        # This is difficult as we have to break the result returned by fparser2.
+        # We therefore create a valid KernelType object
+        ast = fpapi.parse(MDATA, ignore_comments=False)
+        ktype = KernelType(ast)
+        # Next we create a valid fparser2 result
+        assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
+        # Break it by replacing the Name object with a string (tuples are
+        # immutable so make a new one)
+        new_list = ["invalid"] + list(assign.items[1:])
+        assign.items = tuple(new_list)
+        # Use monkeypatch to ensure that that's the result that is returned
+        # when we attempt to use fparser2 from within the routine under test
+        monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
+                            lambda arg: assign)
+        with pytest.raises(InternalError) as err:
+            _ = ktype.get_integer_array("gh_evaluator_targets")
+        assert "Unsupported assignment statement: 'invalid = [1, 2]'" in str(err)
+
+
+def test_get_int_array_not_array():
+    ''' Test that get_integer_array returns the expected error if the
+    requested variable is not an array. '''
+    from psyclone.parse import KernelType
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    # Erroneously call get_integer_array with the name of a scalar meta-data
+    # entry
+    with pytest.raises(ParseError) as err:
+        _ = ktype.get_integer_array("iterates_over")
+    assert ("RHS of assignment is not an array constructor: 'iterates_over = "
+            "cells'" in str(err))
+
+
+# As above in test *_err1, the monkeypatching of the Assignment_Stmt
+# class (combined with its use in get_integer_array() breaks
+# subsequent fparser2 tests (in the NEMO subdirectory). Change 'if 0'
+# to 'if 1' and try 'pytest parser_test.py nemo' to see.
+if 0:
+    def test_get_int_array_err2(monkeypatch):
+        ''' Check that we raise the appropriate error if we fail to parse the
+        array constructor expression. '''
+        from psyclone.parse import KernelType
+        from fparser.two import Fortran2003
+        # First create a valid KernelType object
+        ast = fpapi.parse(MDATA, ignore_comments=False)
+        ktype = KernelType(ast)
+        # Create a valid fparser2 result
+        assign = Fortran2003.Assignment_Stmt("gh_evaluator_targets(2) = [1, 2]")
+        # Break the array constructor expression (tuples are immutable so make a
+        # new one)
+        assign.items[2].items[1].items = tuple(["hello", "goodbye"])
+        # Use monkeypatch to ensure that that's the result that is returned
+        # when we attempt to use fparser2 from within the routine under test
+        monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
+                            lambda arg: assign)
+        with pytest.raises(InternalError) as err:
+            _ = ktype.get_integer_array("gh_evaluator_targets")
+        assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)

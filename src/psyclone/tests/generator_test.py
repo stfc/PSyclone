@@ -547,6 +547,53 @@ def test_main_invalid_api(capsys):
     assert output == expected_output
 
 
+def test_main_api():
+    '''Tests the three ways of specifying an API: command line, config file,
+    or relying on the default.'''
+
+    # 1) Make sure if no paramenters are given,
+    #   config will give us the default API
+    from psyclone.configuration import Config
+
+    # Make sure we get a default config instance
+    Config._instance = None
+    Config.get()
+
+    assert Config.get().api == Config.get().default_api
+
+    # 2) Check that a command line option will overwrite the default
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "gocean1p0",
+                             "single_invoke.f90"))
+
+    main([filename, "-api", "gocean1.0"])
+    assert Config.get().api == "gocean1.0"
+
+    # 3) Check that a config option will overwrite the default
+    Config._instance = None
+    Config.get()
+    # This config file specifies the gocean1.0 api
+    config_name = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "new_iteration_space.psyclone"))
+    main([filename, "--config", config_name])
+    assert Config.get().api == "gocean1.0"
+
+    # 4) Check that a command line option overwrites what is specified in
+    #    in the config file (and the default)
+    Config._instance = None
+    Config.get()
+
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p1",
+                             "1_kg_inline.f90"))
+
+    # This config file specifies the gocean1.0 api, but
+    # command line should take precedence
+    main([filename, "--config", config_name, "-api", "dynamo0.1"])
+    assert Config.get().api == "dynamo0.1"
+
+
 def test_main_expected_fatal_error(capsys):
     '''Tests that we get the expected output and the code exits with an
     error when an expected fatal error is returned from the generate

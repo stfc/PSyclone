@@ -50,7 +50,7 @@ from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
-    GenerationError, args_filter
+    GenerationError, InternalError, args_filter
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -93,7 +93,11 @@ GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
                       "grid_lat_u": "gphiu",
                       "grid_lat_v": "gphiv",
                       "grid_dx_const": "dx",
-                      "grid_dy_const": "dy"}
+                      "grid_dy_const": "dy",
+                      "grid_x_min_index": "simulation_domain%xstart",
+                      "grid_x_max_index": "simulation_domain%xstop",
+                      "grid_y_min_index": "simulation_domain%ystart",
+                      "grid_y_max_index": "simulation_domain%ystop"}
 
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
@@ -381,6 +385,9 @@ class GOLoop(Loop):
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
+
+    _bounds_lookup = {}
+
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
         '''Constructs a GOLoop instance.
@@ -404,86 +411,194 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
+        if not GOLoop._bounds_lookup:
+            GOLoop.setup_bounds()
 
-        # Create a dictionary to simplify the business of looking-up
-        # loop bounds
-        self._bounds_lookup = {}
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def setup_bounds():
+        '''Populates the GOLoop._bounds_lookup dictionary. This is
+        used by PSyclone to look up the loop boundaries for each loop
+        it creates.'''
+
         for grid_offset in SUPPORTED_OFFSETS:
-            self._bounds_lookup[grid_offset] = {}
+            GOLoop._bounds_lookup[grid_offset] = {}
             for gridpt_type in VALID_FIELD_GRID_TYPES:
-                self._bounds_lookup[grid_offset][gridpt_type] = {}
+                GOLoop._bounds_lookup[grid_offset][gridpt_type] = {}
                 for itspace in VALID_ITERATES_OVER:
-                    self._bounds_lookup[grid_offset][gridpt_type][itspace] = {}
+                    GOLoop._bounds_lookup[grid_offset][gridpt_type][
+                        itspace] = {}
 
         # Loop bounds for a mesh with NE offset
-        self._bounds_lookup['offset_ne']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}"},
-             'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}-1"},
-             'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}"},
-             'outer': {'start': "2", 'stop': "{stop}-1"}}
-        self._bounds_lookup['offset_ne']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}"},
-             'outer': {'start': "1", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}-1"},
-             'outer': {'start': "1", 'stop': "{stop}-1"}}
+        GOLoop._bounds_lookup['offset_ne']['ct']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_ne']['cu']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}-1"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_ne']['cv']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}-1"}}
+        GOLoop._bounds_lookup['offset_ne']['cf']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}-1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}-1"}}
         # Loop bounds for a mesh with SE offset
-        self._bounds_lookup['offset_sw']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}"},
-             'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_sw']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}+1"},
-             'outer': {'start': "2", 'stop': "{stop}"}}
-        self._bounds_lookup['offset_sw']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}"},
-             'outer': {'start': "2", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "{stop}+1"},
-             'outer': {'start': "1", 'stop': "{stop}+1"}}
-        self._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "{stop}+1"},
-             'outer': {'start': "2", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['ct']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_sw']['cu']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_sw']['cv']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['cf']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}", 'stop': "{stop}+1"}}
         # For offset 'any'
         for gridpt_type in VALID_FIELD_GRID_TYPES:
             for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup['offset_any'][gridpt_type][itspace] = \
-                    {'inner': {'start': "1", 'stop': "{stop}"},
-                     'outer': {'start': "1", 'stop': "{stop}"}}
+                GOLoop._bounds_lookup['offset_any'][gridpt_type][itspace] = \
+                    {'inner': {'start': "{start}-1", 'stop': "{stop}"},
+                     'outer': {'start': "{start}-1", 'stop': "{stop}"}}
         # For 'every' grid-point type
         for offset in SUPPORTED_OFFSETS:
             for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup[offset]['every'][itspace] = \
-                    {'inner': {'start': "1", 'stop': "{stop}+1"},
-                     'outer': {'start': "1", 'stop': "{stop}+1"}}
+                GOLoop._bounds_lookup[offset]['every'][itspace] = \
+                    {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+                     'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def add_bounds(bound_info):
+        '''
+        Adds a new iteration space to PSyclone. An iteration space in the
+        gocean1.0 API is for a certain offset type and field type. It defines
+        the loop boundaries for the outer and inner loop. The format is a
+        ":" separated tuple:
+        bound_info = offset-type:field-type:iteration-space:outer-start:
+                      outer-stop:inner-start:inner-stop
+        Example:
+        bound_info = offset_ne:ct:all_pts:{start}-1:{stop}+1:{start}:{stop}
+
+        The expressions {start} and {stop} will be replaced with the loop
+        indices that correspond to the inner points (i.e. non-halo or
+        boundary points) of the field. So the index {start}-1 is actually
+        on the halo / boundary.
+
+        :param str bound_info: A string that contains a ":" separated \
+               tuple with the iteration space definition.
+        :raises ValueError: if bound_info is not a string.
+        :raises ConfigurationError: if bound_info is not formatted correctly.
+        '''
+
+        if not isinstance(bound_info, str):
+            raise InternalError("The parameter 'bound_info' must be a string, "
+                                "got '{0}' (type {1})"
+                                .format(bound_info, type(bound_info)))
+
+        data = bound_info.split(":")
+        if len(data) != 7:
+            from psyclone.configuration import ConfigurationError
+            raise ConfigurationError("An iteration space must be in the form "
+                                     "\"offset-type:field-type:"
+                                     "iteration-space:outer-start:"
+                                     "outer-stop:inner-start:inner-stop\"\n"
+                                     "But got \"{0}\"".format(bound_info))
+
+        if not GOLoop._bounds_lookup:
+            GOLoop.setup_bounds()
+
+        # Check that all bound specifications (min and max index) are valid.
+        # ------------------------------------------------------------------
+        import re
+        # Regular expression that finds stings surrounded by {}
+        bracket_regex = re.compile("{[^}]+}")
+        for bound in data[3:7]:
+            all_expr = bracket_regex.findall(bound)
+            for bracket_expr in all_expr:
+                if bracket_expr not in ["{start}", "{stop}"]:
+                    from psyclone.configuration import ConfigurationError
+                    raise ConfigurationError("Only '{{start}}' and '{{stop}}' "
+                                             "are allowed as bracketed "
+                                             "expression in an iteration "
+                                             "space. But got "
+                                             "{0}".format(bracket_expr))
+
+        # Test if a loop with the given boundaries can actually be parsed.
+        from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+        from fparser.two.parser import ParserFactory
+        # Necessary to setup the parser
+        ParserFactory().create(std="f2003")
+
+        # Test both the outer loop indices (index 3 and 4) and inner
+        # indices (index 5 and 6):
+        for bound in data[3:7]:
+            do_string = "do i=1, {0}".format(bound)
+            # Now replace any {start}/{stop} expression in the loop
+            # with a valid integer value:
+            do_string = do_string.format(start='15', stop='25')
+            # Check if the do loop can be parsed as a nonlabel do loop
+            try:
+                _ = Nonlabel_Do_Stmt(do_string)
+            except NoMatchError as err:
+                from psyclone.configuration import ConfigurationError
+                raise ConfigurationError("Expression '{0}' is not a "
+                                         "valid do loop boundary. Error "
+                                         "message: '{1}'."
+                                         .format(bound, str(err)))
+
+        # All tests successful, so add the new bounds:
+        # --------------------------------------------
+        current_bounds = GOLoop._bounds_lookup   # Shortcut
+        # Check offset-type exists
+        if not data[0] in current_bounds:
+            current_bounds[data[0]] = {}
+
+        # Check field-type exists
+        if not data[1] in current_bounds[data[0]]:
+            current_bounds[data[0]][data[1]] = {}
+
+        # Check iteration space exists:
+        if not data[2] in current_bounds[data[0]][data[1]]:
+            current_bounds[data[0]][data[1]][data[2]] = {}
+            VALID_ITERATES_OVER.append(data[2])
+
+        current_bounds[data[0]][data[1]][data[2]] = \
+            {'outer': {'start': data[3], 'stop': data[4]},
+             'inner': {'start': data[5], 'stop': data[6]}}
+
+    # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
     def _upper_bound(self):
         ''' Returns the upper bound of this loop as a string.
         This takes the field type and usage of const_loop_bounds
         into account. In case of const_loop_bounds it will be
-        using the data in self._bounds_lookup to find the appropriate
+        using the data in GOLoop._bounds_lookup to find the appropriate
         indices depending on offset, field type, and iteration space.
         All occurences of {start} and {stop} in _bounds_loopup will
         be replaced with the constant loop boundary variable, e.g.
@@ -509,9 +624,15 @@ class GOLoop(Loop):
                 # This strange line splitting was the only way I could find
                 # to avoid pep8 warnings: using [..._space]\ keeps on
                 # complaining about a white space
-                bounds = self._bounds_lookup[index_offset][self.field_space][
+                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
                     self._iteration_space][self._loop_type]
-                stop = bounds["stop"].format(start='', stop=stop)
+                stop = bounds["stop"].format(start='2', stop=stop)
+                # Remove all white spaces
+                stop = "".join(stop.split())
+                # This common cases is a bit of compile-time computation
+                # but it helps fixing all test cases.
+                if stop == "2-1":
+                    stop = "1"
             else:
                 stop = "not yet set"
         else:
@@ -545,12 +666,13 @@ class GOLoop(Loop):
                     stop += "%ystop"
         return stop
 
+    # -------------------------------------------------------------------------
     # pylint: disable=too-many-branches
     def _lower_bound(self):
         ''' Returns the lower bound of this loop as a string.
         This takes the field type and usage of const_loop_bounds
         into account. In case of const_loop_bounds it will be
-        using the data in self._bounds_lookup to find the appropriate
+        using the data in GOLoop._bounds_lookup to find the appropriate
         indices depending on offset, field type, and iteration space.
         All occurences of {start} and {stop} in _bounds_loopup will
         be replaced with the constant loop boundary variable, e.g.
@@ -576,9 +698,15 @@ class GOLoop(Loop):
                 # This strange line splitting was the only way I could find
                 # to avoid pep8 warnings: using [..._space]\ keeps on
                 # complaining about a white space
-                bounds = self._bounds_lookup[index_offset][self.field_space][
+                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
                     self._iteration_space][self._loop_type]
-                start = bounds["start"].format(start='', stop=stop)
+                start = bounds["start"].format(start='2', stop=stop)
+                # Remove all white spaces
+                start = "".join(start.split())
+                # This common cases is a bit of compile-time computation
+                # but it helps fixing all test cases.
+                if start == "2-1":
+                    start = "1"
             else:
                 start = "not yet set"
         else:
@@ -604,6 +732,7 @@ class GOLoop(Loop):
                     start += "%ystart"
         return start
 
+    # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string describing this Loop object '''
         step = self._step
@@ -618,6 +747,7 @@ class GOLoop(Loop):
         result += "EndLoop"
         return result
 
+    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.

@@ -160,7 +160,8 @@ for continuous integration. GitHub triggers Travis to execute the test
 suite whenever there is a push to the repository. The work performed
 by Travis is configured by the ``.travis.yml`` file in the root
 directory of the repository. Currently Travis is configured to run the
-test suite for both Python 2.7 and 3.6.
+test suite for both Python 2.7 and 3.6. It also runs all of the examples
+using the ``check_examples`` script in the ``examples`` directory.
 
 By default, the Travis configuration uses ``pip`` to install the
 dependencies required by PSyclone before running the test suite. This
@@ -198,6 +199,177 @@ guidelines for performing a review (i.e. what is expected from the
 developer) are available on the GitHub PSyclone wiki pages:
 https://github.com/stfc/PSyclone/wiki.
 
+Generic Code
+############
+
+PSyclone is designed to be configurable so that new front-ends (called
+API's) can be built, re-using as much existing code as possible. The
+generic code is kept in the `psyGen.py` file for psy-code generation.
+
+Dependence Analysis
+===================
+
+Dependence Analysis in PSyclone produces ordering constraints between
+instances of the `Argument` class within a PSyIRe.
+
+The `Argument` class is used to specify the data being passed into and
+out of instances of the `Call` class, `HaloExchange` Class and
+`GlobalSum` class (and their subclasses).
+
+As an illustration consider the following invoke::
+
+   invoke(           &
+       kernel1(a,b), &
+       kernel2(b,c))
+
+where the metadata for `kernel1` specifies that the 2nd argument is
+written to and the metadata for `kernel2` specifies that the 1st
+argument is read.
+
+In this case the PSyclone dependence analysis will determine that
+there is a flow dependence between the second argument of `Kernel1`
+and the first argument of `Kernel2` (a read after a write).
+
+Information about arguments is aggregated to the PSyIRe node level
+(`kernel1` and `kernel2` in this case) and then on to the parent
+`loop` node resulting in a flow dependence (a read after a write)
+between a loop containing `kernel1` and a loop containing
+`kernel2`. This dependence is used to ensure that a transformation is
+not able to move one loop before or after the other in the PSyIRe
+schedule (as this would cause incorrect results).
+
+Dependence analysis is implemented in PSyclone to support
+functionality such as adding and removing halo exchanges,
+parallelisation and moving nodes in a PSyIRe schedule. Dependencies
+between nodes in a PSyIRe schedule can be viewed as a DAG using the
+`dag()` method within the `Node` base class.
+
+DataAccess Class
+----------------
+
+The `DataAccess` class is at the core of PSyclone data dependence
+analysis. It takes an instance of the `Argument` class on
+initialisation and provides methods to compare this instance with
+other instances of the `Argument` class. The class is used to
+determine 2 main things, called `overlap` and `covered`.
+
+Overlap
++++++++
+
+`Overlap` specifies whether accesses specified by two instances of the
+`Argument` class access the same data or not. If they do access the
+same data their accesses are deemed to `overlap`. The best way to
+explain the meaning of `overlap` is with an example:
+
+Consider a one dimensional array called `A` of size 4 (`A(4)`). If one
+instance of the `Argument` class accessed the first two elements of
+array `A` and another instance of the `Argument` class accessed the
+last two elements of array `A` then they would both be accessing array
+`A` but their accesses would *not* `overlap`. However, if one instance
+of the `Argument` class accessed the first three elements of array `A`
+and another instance of the `Argument` class accessed the last two
+elements of array `A` then their accesses would `overlap` as they are
+both accessing element `A(3)`.
+
+Having explained the idea of `overlap` in its general sense, in
+practice PSyclone currently assumes that *any* two instances of the
+`Argument` class that access data with the same name will always
+`overlap` and does no further analysis (apart from halo exchanges and
+vectors, which are discussed below). The reason for this is that
+nearly all accesses to data, associated with an instance of the
+`Argument` class, start at index 1 and end at the number of elements,
+dofs or some halo depth. The exceptions to this are halo exchanges,
+which only access the halo and boundary conditions, which only access
+a subset of the data. However these subset accesses are currently not
+captured in metadata so PSyclone must assume subset accesses do not
+exist.
+
+If there is a field vector associated with an instance of an
+`Argument` class then all of the data in its vector indices are
+assumed to be accessed when the argument is part of a `Call` or a
+`GlobalSum`. However, in contrast, a `HaloExchange` only acts on a
+single index of a field vector. Therefore there is one halo exchange
+per field vector index. For example::
+
+    Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
+    ... ... KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+
+In the above PSyIRe schedule, the field `f1` is a vector field and the
+`Call` `testkern\_stencil\_vector\_code` is assumed to access data in
+all of the vector components. However, there is a separate `HaloExchange`
+for each component. This means that halo exchanges accessing the
+same field but different components do not `overlap`, but each halo
+exchange does overlap with the loop node. The current implementation
+of the `overlaps()` method deals with field vectors correctly.
+
+Coverage
+++++++++
+
+The concept of `coverage` naturally follows from the discussion in the
+previous section.
+
+Again consider a one dimensional array called `A` of size 4
+(`A(4)`). If one instance (that we will call the `source`) of the
+`Argument` class accessed the first 3 elements of array `A`
+(i.e. elements 1 to 3) and another instance of the `Argument` class
+accessed the first two elements of array `A` then their accesses would
+`overlap` as they are both accessing elements `A(1) and A(2)` and
+elements `A(1) and A(2)` would be `covered`. However, access `A(3)`
+for the `source Argument` class would not yet be `covered`. If a
+subsequent instance of the `Argument` class accessed the 2nd and 3rd
+elements of array `A` then all of the accesses (`A(1), A(2) and A(3)`)
+would now be `covered` so the `source argument` would be deemed to be
+covered.
+
+In PSyclone the above situation occurs when a vector field is accessed
+in a kernel and also requires halo exchanges e.g.::
+
+   Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
+         KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+
+In this case the PSyIRe loop node needs to know about all 3 halo
+exchanges before its access is fully `covered`. This functionality is
+implemented by passing instances of the `Argument` class to the
+`DataAccess` class `update_coverage()` method and testing the
+access.covered property until it returns `True`.
+
+::
+
+   # this example is for a field vector 'f1' of size 3
+   # f1_index[1,2,3] are halo exchange accesses to vector indices [1,2,3] respectively
+   access = DataAccess(f1_loop)
+   access.update_coverage(f1_index1)
+   result = access.covered  # will be False
+   access.update_coverage(f1_index2)
+   result = access.covered  # will be False
+   access.update_coverage(f1_index3)
+   result = access.covered  # will be True
+   access.reset_coverage()
+
+Note the `reset_coverage()` method can be used to reset internal state
+so the instance can be re-used (but this is not used by PSyclone at
+the moment).
+
+The way in which halo exchanges are placed means that it is not
+possible for two halo exchange with the same index to depend on each
+other in a schedule. As a result an exception is raised if this
+situation is found.
+
+Notice there is no concept of read or write dependencies here. Read or
+write dependencies are handled by classes that make use of the
+DataAccess class i.e. the `_field_write_arguments()` and
+`_field_read_arguments()` methods, both of which are found in the
+`Arguments` class.
+
+
 New APIs
 ########
 
@@ -215,8 +387,8 @@ TBD
 .. ---------
 .. 
 .. The names of the supported API's and the default API are specified in
-.. `config.py`. When adding a new API you must add the name you would like
-.. to use to the `SUPPORTEDAPIS` list (and change the `DEFAULTAPI` if
+.. `configuration.py`. When adding a new API you must add the name you would like
+.. to use to the ``_supported_api_list`` (and change the ``_default_api`` if
 .. required).
 .. 
 .. parse.py
@@ -523,6 +695,38 @@ returns the index of the last owned dof, the index of the last annexed
 dof, the index of the last halo dof at a particular depth and the
 index of the last halo dof, to support PSyclone code generation.
 
+.. _multigrid:
+
+Multi-grid
+----------
+
+The Dynamo 0.3 API supports kernels that map fields between meshes of
+different horizontal resolutions; these are termed "inter-grid"
+kernels. As indicated in :numref:`fig-multigrid` below, the change in
+resolution between each level is always a factor of two in both the
+``x`` and ``y`` dimensions.
+
+.. _fig-multigrid:
+
+.. figure:: multigrid.png
+	   :width: 600
+	   :align: center
+
+	   The arrangement of cells in the multi-grid hierarchy used
+	   by LFRic. (Courtesy of R. Wong, Met Office.)
+
+Inter-grid kernels are only permitted to deal with fields on two,
+neighbouring levels of the mesh hierarchy. In the context of a single
+inter-grid kernel we term the coarser of these meshes the "coarse"
+mesh and the other the "fine" mesh.
+
+There are two types of inter-grid operation; the first is
+"prolongation" where a field on a coarse mesh is mapped onto a fine
+mesh. The second is "restriction" where a field on a fine mesh is
+mapped onto a coarse mesh.  Given the factor of two difference in
+resolution between the fine and coarse meshes, the depth of any halo
+accesses for the field on the fine mesh must automatically be double
+that of those on the coarse mesh.
 
 Loop iterators
 --------------
@@ -537,21 +741,26 @@ the case of builtin's there is kernel metadata but it is part of
 PSyclone and is specified in
 `src/psyclone/dynamo0p3_builtins_mod.f90`.
 
+For inter-grid kernels, it is the coarse mesh that provides the iteration
+space. (The kernel is passed a list of the cells in the fine mesh that are
+associated with the current coarse cell.)
+
 Cell iterators: Continuous
 --------------------------
 
 When a kernel is written to iterate over cells and modify a continuous
 field, PSyclone always computes dofs on owned cells and redundantly
-computes dofs in the level-1 halo. Users can apply a redundant
-computation transformation to increase the halo depth for additional
-redundant computation but it must always at least compute the level-1
-halo. The reason for this is to ensure that the shared dofs on cells
-on the edge of the partition (both owned and annexed) are always
-correctly computed. Note that the outermost halo dofs are not
-correctly computed and therefore the outermost halo of the modified
-field is dirty after redundant computation. Also note that if we do
-not know whether a modified field is discontinuous or continuous then
-we must assume it is continuous.
+computes dofs in the level-1 halo (or to depth 2 if the field is on
+the fine mesh of an inter-grid kernel - see :ref:`multigrid`). Users
+can apply a redundant computation transformation to increase the halo
+depth for additional redundant computation but it must always at least
+compute the level-1 halo. The reason for this is to ensure that the
+shared dofs on cells on the edge of the partition (both owned and
+annexed) are always correctly computed. Note that the outermost halo
+dofs are not correctly computed and therefore the outermost halo of
+the modified field is dirty after redundant computation. Also note
+that if we do not know whether a modified field is discontinuous or
+continuous then we must assume it is continuous.
 
 An alternative solution could have been adopted in Dynamo0.3 whereby
 no redundant computation is performed and partial-sum results are
@@ -850,6 +1059,45 @@ exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
 
+Colouring
++++++++++
+
+If a loop contains one or more kernels that write to a field on a
+continuous function space then it cannot be safely executed in
+parallel on a shared-memory device. This is because fields on a
+continuous function space share dofs between neighbouring cells. One
+solution to this is to 'colour' the cells in a mesh so that all cells
+of a given colour may be safely updated in parallel
+(:numref:`fig-colouring`).
+
+.. _fig-colouring:
+
+.. figure:: lfric_colouring.png
+	   :width: 300
+	   :align: center
+
+	   Example of the colouring of the horizontal cells used to
+	   ensure the thread-safe update of shared dofs (black
+	   circles).  (Courtesy of S. Mullerworth, Met Office.)
+	   
+The loop over colours must then be performed sequentially but the loop
+over cells of a given colour may be done in parallel. A loop that
+requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
+transformation.
+
+Each mesh in the multi-grid hierarchy is coloured separately
+(https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicInfrastructure/MeshColouring)
+and therefore we cannot assume any relationship between the colour
+maps of meshes of differing resolution.
+
+However, the iteration space for inter-grid kernels (that map a field
+from one mesh to another) is always determined by the coarser of the
+two meshes.  Consequently, it is always the colouring of this mesh
+that must be used.  Due to the set-up of the mesh hierarchy (see
+:numref:`fig-multigrid`), this guarantees that there will not be any
+race conditions when updating shared quantities on either the fine or
+coarse mesh.
+
 GOcean1.0
 =========
 
@@ -900,8 +1148,8 @@ Modules
 This section describes the functionality of the various Python modules
 that make up PSyclone.
 
-f2pygen
-=======
+Module: f2pygen
+===============
 
 `f2pygen` provides functionality for generating Fortran code from
 scratch (i.e. when not modifying existing source).
@@ -947,25 +1195,31 @@ The full interface to each of these classes is detailed below:
     :members:
     :noindex:
 
-configuration
-=============
+Module: configuration
+======================
 
 PSyclone uses the Python ``ConfigParser`` class
 (https://docs.python.org/3/library/configparser.html) for reading the
 configuration file. This is managed by the ``psyclone.configuration``
-module which provides the ``ConfigFactory`` and ``Config``
-classes. The former's constructor creates a singleton ``Config`` instance
-and stores it for return by any future calls to ``create``:
+module which provides a ``Config``
+class. This class is a singleton, which can be (created and) accessed
+using  ``Config.get()``. Only one such instance will ever exist:
 
-.. autoclass:: psyclone.configuration.ConfigFactory
+.. autoclass:: psyclone.configuration.Config
     :members:
 
 The ``Config`` class is responsible for finding the configuration file
 (if no filename is passed to the constructor), parsing it and then storing
-the various configuration options. It also performs some basic consistency
+the various configuration options. It also stores the list of supported
+APIs (``Config._supported_api_list``) and the default API to use if none
+is specified in either a config file or the command line
+(``Config._default_api``.)
+
+
+It also performs some basic consistency
 checks on the values it obtains from the configuration file.
 
-Since the default PSyclone API to use is read from the configuration
+Since the PSyclone API to use can be read from the configuration
 file, it is not possible to have API-specifc sub-classes of ``Config``
 as we don't know which API is in use before we read the file. However, the
 configuration file can contain API-specific settings. These are placed in
@@ -984,15 +1238,15 @@ corresponding section. The resulting object is stored in the
 dictionary under the appropriate key. The API-specific values may then
 be accessed as, e.g.::
 
-  config.api("dynamo0.3").compute_annexed_dofs
+  Config.get().api_conf("dynamo0.3").compute_annexed_dofs
 
 The API-specific sub-classes exist to provide validation/type-checking and
 encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
 
-transformations
-===============
+Module: transformations
+=======================
 
 As one might expect, the transformations module holds the various
 transformation classes that may be used to modify the Schedule of an
@@ -1079,4 +1333,3 @@ Of course, a given field may already be on the device (and have been
 updated) due to a previous Invoke. In this case, the fact that the
 OpenACC run-time does not copy over the now out-dated host version of
 the field is essential for correctness.
-

@@ -46,8 +46,8 @@ env:
 # command to install dependencies
 before_install:
   # Specify "fparser_submodule" (without quotes) as an argument to
-  # install_optional.sh in order to run the tests with the version of fparser
-  # pointed to by the git submodule.
+  # install_optional.sh in order to run the tests with the version of
+  # fparser pointed to by the git submodule.
   - ./bin/install_optional.sh fparser_submodule
   - pip install coveralls
   - pip install codecov
@@ -62,6 +62,9 @@ script:
   # suite (pulled in with the fparser submodule)
   - coverage run --source=psyclone -m py.test src/psyclone/tests
   - coverage report -m
+  # Invoke the directory change and check_examples script as a single command
+  # so that Travis is returned the error code from the script
+  - ( cd examples && ./check_examples )
 after_success:
   - coveralls
   - codecov

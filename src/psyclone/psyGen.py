@@ -42,7 +42,7 @@
 from __future__ import print_function
 import abc
 import six
-from psyclone import configuration
+from psyclone.configuration import Config
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -65,10 +65,6 @@ except ImportError:
         :rtype: string
         '''
         return text
-
-# Get our one-and-only Config object - this holds the global configuration
-# options read from the psyclone.cfg file.
-_CONFIG = configuration.ConfigFactory().create()
 
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
@@ -124,13 +120,13 @@ def get_api(api):
 
     '''
     if api == "":
-        api = _CONFIG.default_api
+        api = Config.get().default_api
     else:
-        if api not in _CONFIG.supported_apis:
+        if api not in Config.get().supported_apis:
             raise GenerationError("get_api: Unsupported API '{0}' "
                                   "specified. Supported types are "
                                   "{1}.".format(api,
-                                                _CONFIG.supported_apis))
+                                                Config.get().supported_apis))
     return api
 
 
@@ -230,7 +226,7 @@ class PSyFactory(object):
                                         supported.
         '''
         if distributed_memory is None:
-            _distributed_memory = _CONFIG.distributed_memory
+            _distributed_memory = Config.get().distributed_memory
         else:
             _distributed_memory = distributed_memory
 
@@ -238,7 +234,7 @@ class PSyFactory(object):
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
-        _CONFIG.distributed_memory = _distributed_memory
+        Config.get().distributed_memory = _distributed_memory
         self._type = get_api(api)
 
     def create(self, invoke_info):
@@ -1989,7 +1985,7 @@ class OMPDoDirective(OMPDirective):
             children = []
 
         if reprod is None:
-            self._reprod = _CONFIG.reproducible_reductions
+            self._reprod = Config.get().reproducible_reductions
         else:
             self._reprod = reprod
 
@@ -2460,6 +2456,7 @@ class Loop(Node):
         self._field_name = None       # name of the field
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
+        self._kern = None             # Kernel associated with this loop
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
@@ -2579,6 +2576,24 @@ class Loop(Node):
     @iteration_space.setter
     def iteration_space(self, it_space):
         self._iteration_space = it_space
+
+    @property
+    def kernel(self):
+        '''
+        :returns: the kernel object associated with this Loop (if any).
+        :rtype: :py:class:`psyclone.psyGen.Kern`
+        '''
+        return self._kern
+
+    @kernel.setter
+    def kernel(self, kern):
+        '''
+        Setter for kernel object associated with this loop.
+
+        :param kern: a kernel object.
+        :type kern: :py:class:`psyclone.psyGen.Kern`
+        '''
+        self._kern = kern
 
     def __str__(self):
         result = "Loop[" + self._id + "]: " + self._variable_name + "=" + \
@@ -2830,12 +2845,12 @@ class Call(Node):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
-            if _CONFIG.reprod_pad_size < 1:
+            if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
                     "REPROD_PAD_SIZE in {0} should be a positive "
                     "integer, but it is set to '{1}'.".format(
-                        _CONFIG.filename, _CONFIG.reprod_pad_size))
-            pad_size = str(_CONFIG.reprod_pad_size)
+                        Config.get().filename, Config.get().reprod_pad_size))
+            pad_size = str(Config.get().reprod_pad_size)
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
@@ -3185,6 +3200,156 @@ class Arguments(object):
             "Arguments.scalars must be implemented in sub-class")
 
 
+class DataAccess(object):
+    '''A helper class to simplify the determination of dependencies due to
+    overlapping accesses to data associated with instances of the
+    Argument class.
+
+    '''
+
+    def __init__(self, arg):
+        '''Store the argument associated with the instance of this class and
+        the Call, HaloExchange or GlobalSum (or a subclass thereof)
+        instance with which the argument is associated.
+
+        :param arg: the argument that we are concerned with. An \
+        argument can be found in a `Call` a `HaloExchange` or a \
+        `GlobalSum` (or a subclass thereof)
+        :type arg: :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        # the `psyclone.psyGen.Argument` we are concerned with
+        self._arg = arg
+        # the call (Call, HaloExchange, or GlobalSum (or subclass)
+        # instance to which the argument is associated
+        self._call = arg.call
+        # initialise _covered and _vector_index_access to keep pylint
+        # happy
+        self._covered = None
+        self._vector_index_access = None
+        # Now actually set them to the required initial values
+        self.reset_coverage()
+
+    def overlaps(self, arg):
+        '''Determine whether the accesses to the provided argument overlap
+        with the accesses of the source argument. Overlap means that
+        the accesses share at least one memory location. For example,
+        the arguments both access the 1st index of the same field.
+
+        We do not currently deal with accesses to a subset of an
+        argument (unless it is a vector). This distinction will need
+        to be added once loop splitting is supported.
+
+        :param arg: the argument to compare with our internal argument
+        :type arg: :py:class:`psyclone.psyGen.Argument`
+        :return bool: True if there are overlapping accesses between \
+                      arguments (i.e. accesses share at least one memory \
+                      location) and False if not.
+
+        '''
+        if self._arg.name != arg.name:
+            # the arguments are different args so do not overlap
+            return False
+
+        if isinstance(self._call, HaloExchange) and \
+           isinstance(arg.call, HaloExchange) and \
+           (self._arg.vector_size > 1 or arg.vector_size > 1):
+            # This is a vector field and both accesses come from halo
+            # exchanges. As halo exchanges only access a particular
+            # vector the accesses do not overlap if the vector indices
+            # being accessed differ.
+
+            # sanity check
+            self._call.check_vector_halos_differ(arg.call)
+
+            if self._call.vector_index != arg.call.vector_index:
+                # accesses are to different vector indices so do not overlap
+                return False
+        # accesses do overlap
+        return True
+
+    def reset_coverage(self):
+        '''Reset internal state to allow re-use of the object for a different
+        situation.
+
+        '''
+        # False unless all data accessed by our local argument has
+        # also been accessed by other arguments.
+        self._covered = False
+        # Used to store individual vector component accesses when
+        # checking that all vector components have been accessed.
+        self._vector_index_access = []
+
+    def update_coverage(self, arg):
+        '''Record any overlap between accesses to the supplied argument and
+        the internal argument. Overlap means that the accesses to the
+        two arguments share at least one memory location. If the
+        overlap results in all of the accesses to the internal
+        argument being covered (either directly or as a combination
+        with previous arguments) then ensure that the covered() method
+        returns True. Covered means that all memory accesses by the
+        internal argument have at least one corresponding access by
+        the supplied arguments.
+
+        :param arg: the argument used to compare with our internal \
+                    argument in order to update coverage information
+        :type arg: :py:class:`psyclone.psyGen.Argument`
+
+        '''
+
+        if not self.overlaps(arg):
+            # There is no overlap so there is nothing to update.
+            return
+
+        if isinstance(arg.call, HaloExchange) and \
+           self._arg.vector_size > 1:
+            # The supplied argument is a vector field coming from a
+            # halo exchange and therefore only accesses one of the
+            # vectors
+
+            if isinstance(self._call, HaloExchange):
+                # I am also a halo exchange so only access one of the
+                # vectors. At this point the vector indices of the two
+                # halo exchange fields must be the same, which should
+                # never happen due to checks in the `overlaps()`
+                # method earlier
+                raise InternalError(
+                    "DataAccess:update_coverage() The halo exchange vector "
+                    "indices for '{0}' are the same. This should never "
+                    "happen".format(self._arg.name))
+            else:
+                # I am not a halo exchange so access all components of
+                # the vector. However, the supplied argument is a halo
+                # exchange so only accesses one of the
+                # components. This results in partial coverage
+                # (i.e. the overlap in accesses is partial). Therefore
+                # record the index that is accessed and check whether
+                # all indices are now covered (which would mean `full`
+                # coverage).
+                if arg.call.vector_index in self._vector_index_access:
+                    raise InternalError(
+                        "DataAccess:update_coverage() Found more than one "
+                        "dependent halo exchange with the same vector index")
+                self._vector_index_access.append(arg.call.vector_index)
+                if len(self._vector_index_access) != self._arg.vector_size:
+                    return
+        # This argument is covered i.e. all accesses by the
+        # internal argument have a corresponding access in one of the
+        # supplied arguments.
+        self._covered = True
+
+    @property
+    def covered(self):
+        '''Returns true if all of the data associated with this argument has
+        been covered by the arguments provided in update_coverage
+
+        :return bool: True if all of an argument is covered by \
+        previous accesses and False if not.
+
+        '''
+        return self._covered
+
+
 class Argument(object):
     ''' Argument base class '''
 
@@ -3350,9 +3515,8 @@ class Argument(object):
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
-        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           isinstance(x, HaloExchange) or
-                           isinstance(x, GlobalSum)]
+        nodes_with_args = [x for x in nodes if
+                           isinstance(x, (Call, HaloExchange, GlobalSum))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -3375,28 +3539,22 @@ class Argument(object):
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           isinstance(x, HaloExchange) or
-                           isinstance(x, GlobalSum)]
+        nodes_with_args = [x for x in nodes if
+                           isinstance(x, (Call, HaloExchange, GlobalSum))]
+        access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.name != self.name:
-                    # different names so there is no dependence
-                    continue
-                if isinstance(node, HaloExchange) and \
-                   isinstance(self.call, HaloExchange):
-                    # no dependence if both nodes are halo exchanges
-                    # (as they act on different vector indices).
-                    self.call.check_vector_halos_differ(node)
-                    continue
-                if argument.access in self._read_access_types:
-                    # there is a read dependence so append to list
+                if argument.access in self._read_access_types and \
+                   access.overlaps(argument):
                     arguments.append(argument)
                 if argument.access in self._write_access_types:
-                    # there is a write dependence so finish our search
-                    return arguments
+                    access.update_coverage(argument)
+                    if access.covered:
+                        # We have now found all arguments upon which
+                        # this argument depends so return the list.
+                        return arguments
 
         # we did not find a terminating write dependence in the list
         # of nodes so we return any read dependencies that were found
@@ -3420,52 +3578,36 @@ class Argument(object):
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           (isinstance(x, HaloExchange) and
-                            not ignore_halos) or
-                           isinstance(x, GlobalSum)]
+        nodes_with_args = [x for x in nodes if
+                           isinstance(x, (Call, GlobalSum)) or
+                           (isinstance(x, HaloExchange) and not ignore_halos)]
+        access = DataAccess(self)
         arguments = []
-        vector_count = 0
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.name != self.name:
-                    # different names so there is no dependence
-                    continue
                 if argument.access not in self._write_access_types:
                     # no dependence if not a writer
                     continue
-                if isinstance(node, HaloExchange):
-                    if isinstance(self.call, HaloExchange):
-                        # no dependence if both nodes are halo
-                        # exchanges (as they act on different vector
-                        # indices).
-                        self.call.check_vector_halos_differ(node)
-                        continue
-                    else:
-                        # a vector read will depend on more than one
-                        # halo exchange (a dependence for each vector
-                        # index) as halo exchanges only act on a
-                        # single vector index
-                        vector_count += 1
-                        arguments.append(argument)
-                        if vector_count == self._vector_size:
-                            # found all of the halo exchange
-                            # dependencies. As they are writers
-                            # we now return
-                            return arguments
-                else:
-                    # this argument is a writer so add it and return
-                    if arguments:
-                        raise GenerationError(
-                            "Internal error, found a writer dependence but "
-                            "there are already dependencies. This should not "
-                            "happen.")
-                    return [argument]
+                if not access.overlaps(argument):
+                    # Accesses are independent of each other
+                    continue
+                arguments.append(argument)
+                access.update_coverage(argument)
+                if access.covered:
+                    # sanity check
+                    if not isinstance(node, HaloExchange) and \
+                       len(arguments) > 1:
+                        raise InternalError(
+                            "Found a writer dependence but there are already "
+                            "dependencies. This should not happen.")
+                    # We have now found all arguments upon which this
+                    # argument depends so return the list.
+                    return arguments
         if arguments:
-            raise GenerationError(
-                "Internal error, no more nodes but there are "
-                "already dependencies. This should not happen.")
+            raise InternalError(
+                "Argument()._field_write_arguments() There are no more nodes "
+                "but there are already dependencies. This should not happen.")
         # no dependencies have been found
         return []
 
