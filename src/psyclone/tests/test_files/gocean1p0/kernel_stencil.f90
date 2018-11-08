@@ -50,7 +50,7 @@ module kernel_stencil
           ! for the first kernel argument in order to test the 
           ! parser...
           (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),            & ! cu
-             go_arg(GO_READ,  GO_CT, STENCIL(000,011,000)),    & ! p
+             go_arg(GO_READ,  GO_CT, GO_STENCIL(000,011,000)), & ! p
              go_arg(GO_READ,  GO_CU, GO_POINTWISE),            & ! u
              go_arg(GO_READ,  GO_GRID_AREA_T)                  &
            /)
