@@ -1986,7 +1986,9 @@ class DynMeshes(object):
             # contains no inter-grid kernels
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
-            rhs = self._first_var.name_indexed + "%get_mesh()"
+#            rhs = self._first_var.name_indexed + "%get_mesh()"
+            rhs = "%".join([self._first_var.proxy_name_indexed,
+                            self._first_var.ref_name(), "get_mesh()"])
             parent.add(AssignGen(parent, pointer=True,
                                  lhs=self._mesh_names[0], rhs=rhs))
             return
