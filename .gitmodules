@@ -3,4 +3,4 @@
 	url = https://github.com/stfc/fparser.git
 [submodule "external/dl_esm_inf"]
 	path = external/dl_esm_inf
-	url = git@github.com:stfc/dl_esm_inf.git
+	url = https://github.com/stfc/dl_esm_inf.git
