@@ -360,29 +360,30 @@ def test_get_int_array():
 # use in 'get_integer_array()' breaks subsequent fparser2 tests (in
 # the NEMO subdirectory). Change 'if 0' to 'if 1' and try 'pytest
 # parser_test.py nemo' to see.
-if 0:
-    def test_get_int_array_err1(monkeypatch):
-        ''' Tests that we raise the correct error if there is something wrong
-        with the assignment statement obtained from fparser2. '''
-        from psyclone.parse import KernelType
-        from fparser.two import Fortran2003
-        # This is difficult as we have to break the result returned by fparser2.
-        # We therefore create a valid KernelType object
-        ast = fpapi.parse(MDATA, ignore_comments=False)
-        ktype = KernelType(ast)
-        # Next we create a valid fparser2 result
-        assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
-        # Break it by replacing the Name object with a string (tuples are
-        # immutable so make a new one)
-        new_list = ["invalid"] + list(assign.items[1:])
-        assign.items = tuple(new_list)
-        # Use monkeypatch to ensure that that's the result that is returned
-        # when we attempt to use fparser2 from within the routine under test
-        monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
-                            lambda arg: assign)
-        with pytest.raises(InternalError) as err:
-            _ = ktype.get_integer_array("gh_evaluator_targets")
-        assert "Unsupported assignment statement: 'invalid = [1, 2]'" in str(err)
+def test_get_int_array_err1(monkeypatch):
+    ''' Tests that we raise the correct error if there is something wrong
+    with the assignment statement obtained from fparser2. '''
+    from psyclone.parse import KernelType
+    from fparser.two import Fortran2003
+    # This is difficult as we have to break the result returned by fparser2.
+    # We therefore create a valid KernelType object
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    # Next we create a valid fparser2 result
+    my_assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
+    # Break its `items` property by replacing the Name object with a string
+    # (tuples are immutable so make a new one)
+    broken_items = tuple(["invalid"] + list(my_assign.items[1:]))
+    # Use monkeypatch to ensure that that the Assignment_Stmt that
+    # is returned when we attempt to use fparser2 from within the
+    # routine under test now has the broken tuple of items.
+    def my_init(self, _):
+        self.items = broken_items
+    monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
+
+    with pytest.raises(InternalError) as err:
+        _ = ktype.get_integer_array("gh_evaluator_targets")
+    assert "Unsupported assignment statement: 'invalid = [1, 2]'" in str(err)
 
 
 def test_get_int_array_not_array():
@@ -403,24 +404,24 @@ def test_get_int_array_not_array():
 # class (combined with its use in get_integer_array() breaks
 # subsequent fparser2 tests (in the NEMO subdirectory). Change 'if 0'
 # to 'if 1' and try 'pytest parser_test.py nemo' to see.
-if 0:
-    def test_get_int_array_err2(monkeypatch):
-        ''' Check that we raise the appropriate error if we fail to parse the
-        array constructor expression. '''
-        from psyclone.parse import KernelType
-        from fparser.two import Fortran2003
-        # First create a valid KernelType object
-        ast = fpapi.parse(MDATA, ignore_comments=False)
-        ktype = KernelType(ast)
-        # Create a valid fparser2 result
-        assign = Fortran2003.Assignment_Stmt("gh_evaluator_targets(2) = [1, 2]")
-        # Break the array constructor expression (tuples are immutable so make a
-        # new one)
-        assign.items[2].items[1].items = tuple(["hello", "goodbye"])
-        # Use monkeypatch to ensure that that's the result that is returned
-        # when we attempt to use fparser2 from within the routine under test
-        monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
-                            lambda arg: assign)
-        with pytest.raises(InternalError) as err:
-            _ = ktype.get_integer_array("gh_evaluator_targets")
-        assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)
+def test_get_int_array_err2(monkeypatch):
+    ''' Check that we raise the appropriate error if we fail to parse the
+    array constructor expression. '''
+    from psyclone.parse import KernelType
+    from fparser.two import Fortran2003
+    # First create a valid KernelType object
+    ast = fpapi.parse(MDATA, ignore_comments=False)
+    ktype = KernelType(ast)
+    # Create a valid fparser2 result
+    assign = Fortran2003.Assignment_Stmt("gh_evaluator_targets(2) = [1, 2]")
+    # Break the array constructor expression (tuples are immutable so make a
+    # new one)
+    assign.items[2].items[1].items = tuple(["hello", "goodbye"])
+    def my_init(self, _):
+        self.items = assign.items
+    # Use monkeypatch to ensure that that's the result that is returned
+    # when we attempt to use fparser2 from within the routine under test
+    monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
+    with pytest.raises(InternalError) as err:
+        _ = ktype.get_integer_array("gh_evaluator_targets")
+    assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)
