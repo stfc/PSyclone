@@ -436,7 +436,7 @@ class NemoKern(Kern):
         # Will point to the corresponding set of nodes in the fparser2 AST
         self._ast = []
         if loop:
-            self.load(loop, parent)
+            self.load(loop)
 
     @staticmethod
     def match(node):

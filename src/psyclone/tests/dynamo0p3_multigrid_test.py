@@ -541,7 +541,7 @@ def test_fine_halo_read():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.2_intergrid_3levels.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     hexch = schedule.children[3]
     assert isinstance(hexch, DynHaloExchange)

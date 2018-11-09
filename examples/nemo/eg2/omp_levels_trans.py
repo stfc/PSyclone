@@ -58,13 +58,17 @@ def trans(psy):
 
     '''
     from psyclone.psyGen import PSyFactory, TransInfo
+    from psyclone.nemo import NemoKern
     # Get the Schedule of the target routine
     sched = psy.invokes.get('tra_ldf_iso').schedule
     # Get the transformation we will apply
     ompt = TransInfo().get_trans_name('OMPParallelLoopTrans')
     # Apply it to each loop over levels containing a kernel
     for loop in sched.loops():
-        if loop.kernel and loop.loop_type == "levels":
+        # TODO loop.kernel method needs extending to cope with
+        # multiple kernels
+        kernels = loop.walk(loop.children, NemoKern)
+        if kernels and loop.loop_type == "levels":
             sched, _ = ompt.apply(loop)
     psy.invokes.get('tra_ldf_iso').schedule = sched
     # Return the modified psy object
