@@ -15,21 +15,21 @@ module compute_z_mod
   public compute_z, compute_z_code
 
   type, extends(kernel_type) :: compute_z
-     type(arg), dimension(6) :: meta_args =    &
-          (/ arg(WRITE, CF, POINTWISE),        & ! z
-             arg(READ,  CT, POINTWISE),        & ! p
-             arg(READ,  CU, POINTWISE),        & ! u
-             arg(READ,  CV, POINTWISE),        & ! v
-             arg(READ,  GRID_DX_CONST),        & ! dx
-             arg(READ,  GRID_DY_CONST)         & ! dy
+     type(go_arg), dimension(6) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CF, GO_POINTWISE),        & ! z
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
+             go_arg(GO_READ,  GO_CV, GO_POINTWISE),        & ! v
+             go_arg(GO_READ,  GO_GRID_DX_CONST),           & ! dx
+             go_arg(GO_READ,  GO_GRID_DY_CONST)            & ! dy
            /)
      !> This kernel operates on fields that live on an
      !! orthogonal, regular grid.
-     integer :: GRID_TYPE = ORTHOGONAL_REGULAR
+     integer :: GRID_TYPE = GO_ORTHOGONAL_REGULAR
 
      !> This kernel writes only to internal points of the
      !! simulation domain.
-     integer :: ITERATES_OVER = INTERNAL_PTS
+     integer :: ITERATES_OVER = GO_INTERNAL_PTS
   
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -38,7 +38,7 @@ module compute_z_mod
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
    contains
      procedure, nopass :: code => compute_z_code
@@ -56,7 +56,7 @@ contains
     type(r2d_field), intent(in)    :: pfld, ufld, vfld
     ! Locals
     integer :: I, J
-    real(wp) :: dx, dy
+    real(go_wp) :: dx, dy
 
     dx = zfld%grid%dx
     dy = zfld%grid%dy
@@ -82,9 +82,9 @@ contains
   subroutine compute_z_code(i, j, z, p, u, v, dx, dy)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(in) :: dx, dy
-    real(wp), intent(inout), dimension(:,:) :: z
-    real(wp), intent(in),  dimension(:,:) :: p, u, v
+    real(go_wp), intent(in) :: dx, dy
+    real(go_wp), intent(inout), dimension(:,:) :: z
+    real(go_wp), intent(in),  dimension(:,:) :: p, u, v
 
     ! Original code looked like:
     ! DO J=1,N
