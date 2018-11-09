@@ -164,7 +164,7 @@ class NemoInvoke(Invoke):
         self._ast = ast
         self._name_space_manager = NameSpaceFactory().create()
         # TODO move the get_child functionality out of habakkuk and into
-        # fparser
+        # fparser. This will be tackled in Issue #235.
         from habakkuk.parse2003 import get_child, ParseError as perror
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 

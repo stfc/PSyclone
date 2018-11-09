@@ -52,7 +52,7 @@ before_install:
   - pip install coveralls
   - pip install codecov
 # TODO remove following two lines (which install the master branch of
-# habakkuk) before final merge
+# habakkuk) before final merge. Issue #235 is dealing with this.
   - git clone https://github.com/arporter/habakkuk.git ~/habakkuk
   - cd ~/habakkuk; pip install .; cd -
 install:
