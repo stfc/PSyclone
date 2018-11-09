@@ -478,15 +478,13 @@ class NemoKern(Kern):
         '''
         return self._kernel_type
 
-    def load(self, loop, parent=None):
+    def load(self, loop):
         ''' Populate the state of this NemoKern object.
 
         :param loop: node in the fparser2 AST representing a loop (explicit \
                      or implicit).
         :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt` or \
                 :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-        :param parent: parent of this node in the PSyIRe.
-        :type parent: :py:class:`psyclone.psyGen.Node`
 
         :raises InternalError: if the supplied loop node is not recognised.
         '''
@@ -494,23 +492,21 @@ class NemoKern(Kern):
             Assignment_Stmt
 
         if isinstance(loop, Block_Nonlabel_Do_Construct):
-            self._load_from_loop(loop, parent=parent)
+            self._load_from_loop(loop)
         elif isinstance(loop, Assignment_Stmt):
-            self._load_from_implicit_loop(loop, parent=parent)
+            self._load_from_implicit_loop(loop)
         else:
             raise InternalError(
                 "Expecting either Block_Nonlabel_Do_Construct or "
                 "Assignment_Stmt but got {0}".format(str(type(loop))))
 
-    def _load_from_loop(self, loop, parent=None):
+    def _load_from_loop(self, loop):
         '''
         Populate the state of this NemoKern object from an fparser2
         AST for an explicit loop.
 
         :param loop: Node in the fparser2 AST representing an implicit loop.
         :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        :param parent: parent of this node in the PSyIRe.
-        :type parent: :py:class:`psyclone.psyGen.Node`
 
         :raises InternalError: if first child of supplied loop node is not a \
                            :py:class:`fparser.two.Fortran2003.Nonlabel_Do_Stmt`
@@ -570,18 +566,17 @@ class NemoKern(Kern):
         #     ",".join(self._first_private_vars)
         return
 
-    def _load_from_implicit_loop(self, loop, parent=None):
+    def _load_from_implicit_loop(self, loop):
         '''
         Populate the state of this NemoKern object from an fparser2
         AST for an implicit loop (Fortran array syntax).
 
         :param loop: Node in the fparser2 AST representing an implicit loop.
         :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        :param parent: parent of this node in the PSyIRe.
-        :type parent: :py:class:`psyclone.psyGen.Node`
         '''
         # TODO implement this method!
         self._kernel_type = "Implicit"
+        self._loop = loop
         return
 
     def local_vars(self):
