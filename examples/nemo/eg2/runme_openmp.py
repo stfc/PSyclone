@@ -52,6 +52,7 @@ from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
 if __name__ == "__main__":
+    from psyclone.nemo import NemoKern
     api = "nemo"
     _, invokeinfo = parse("traldf_iso.F90", api=api)
     psy = PSyFactory(api).create(invokeinfo)
@@ -68,7 +69,10 @@ if __name__ == "__main__":
     omp_trans = trans_info.get_trans_name('OMPParallelLoopTrans')
 
     for loop in sched.loops():
-        if loop.kernel and loop.loop_type == "levels":
+        # TODO loop.kernel method needs extending to cope with
+        # multiple kernels
+        kernels = loop.walk(loop.children, NemoKern)
+        if kernels and loop.loop_type == "levels":
             sched, _ = omp_trans.apply(loop)
 
     sched.view()
