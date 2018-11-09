@@ -46,6 +46,7 @@ import traceback
 from psyclone.f2pygen import ProgUnitGen, CallGen, TypeDeclGen, UseGen
 from psyclone.psyGen import colored, GenerationError, Kern, NameSpace, \
      NameSpaceFactory, Node, Schedule, SCHEDULE_COLOUR_MAP
+from psyclone.transformations import ExtractRegionTrans
 
 
 class ExtractNode(Node):
@@ -68,6 +69,12 @@ class ExtractNode(Node):
         for child in self.children:
             result += str(child)+"\n"
         return result+"End Extract"
+        #''' Returns a string representation of the subtree starting at
+        #this node. '''
+        #result = "ExtractStart[var={0}]\n".format(self._var_name)
+        #for child in self.children:
+            #result += str(child)+"\n"
+        #return result+"ExtractEnd"
 
     @property
     def coloured_text(self):
@@ -93,35 +100,32 @@ class ExtractNode(Node):
 
         :param int indent: Depth of indent for output text
         '''
-        extrstr = "[extract=" + str(self.abs_position) + "]"
+        # Find out the name of the first (or only) kernel to be extracted
+        kernels = self.walk(self.children, Kern)
+        extrstr = "[extract='" + kernels[0].name + "']"
         print(self.indent(indent) + self.coloured_text +
               extrstr)
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    # def gen(self):
-        # from psyclone.f2pygen import ProgramGen
-        # program = ProgramGen("kdriver")
-        # self.gen_code(program)
-        # return program.root
-
     def gen_code(self, parent):
-        # Add comment at the position of ExtractNode for now
-        # later this comment will be replaced by calls to write statements
+        # Add comment at the position of ExtractNode for now.
+        # This comment will later be replaced by calls to write statements.
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Placeholder for dump statements"))
-        parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
-        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " CALL write_extract_arguments(argument_list)"))
         for child in self.children:
             child.gen_code(parent)
-        parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
 
-# class Extractor(object):
-    # ''' This class wraps settings for code extraction. '''
+
+class Extractor(object):
+    ''' This class
+    1) wraps settings for code extraction,
+    2) provides view function about which kernel to extract
+    3) generates driver for the extracted code '''
 
     # KERNEL = "kernel"
     # NODES = "nodes"
@@ -178,12 +182,12 @@ class ExtractNode(Node):
         # Extractor._options = options
 
     # # -------------------------------------------------------------------------
-    # @staticmethod
-    # def extract_kernel():
-        # '''Returns true if kernel extraction is enabled.
-        # :return: True if a kernel code should be extracted.
-        # :rtype: bool'''
-        # return Extractor.KERNEL in Extractor._options
+    #@staticmethod
+    #def extract_kernel():
+        #'''Returns true if kernel extraction is enabled.
+        #:return: True if a kernel code should be extracted.
+        #:rtype: bool'''
+        #return Extractor.KERNEL in Extractor._options
 
     # # -------------------------------------------------------------------------
     # @staticmethod
@@ -201,3 +205,58 @@ class ExtractNode(Node):
         # :return: True if invokes should be extracted.
         # :rtype: bool'''
         # return Extractor.INVOKE in Extractor._options
+
+    @staticmethod
+    def extract_kernel(schedule, kernel_name):
+        ''' Extract function for a specific kernel and invoke '''
+        # Find the kernel and invoke to extract
+
+        etrans = ExtractRegionTrans()
+
+        for kernel in schedule.walk(schedule.children, Kern):
+            if kernel.name == kernel_name:
+                extract_parent = kernel.root_at_depth(1)
+
+        modified_schedule, _ = etrans.apply(extract_parent)
+
+        # 
+        print(type(extract_parent))
+        extract_schedule = extract_parent.parent
+        extract_schedule.view()
+
+        kdriver_instance = KernDriver(extract_schedule)
+        kdriver_prog = kdriver_instance.gen()
+        #print(str(kdriver_prog))
+
+        return modified_schedule
+
+
+class KernDriver(object):
+
+    def __init__(self, driver_schedule):
+        self.name = "kernel_driver"
+        self.schedule = driver_schedule
+
+    def gen(self):
+        ''' Output the kernel driver'''
+        from psyclone.f2pygen import ProgramGen, CommentGen
+        # Create the program
+        program = ProgramGen(name="kdriver", implicitnone=True)
+        # Placeholder for the declarations
+        program.add(CommentGen(program, ""))
+        program.add(CommentGen(program, " Argument declarations"))
+        # Placeholder for the read data statements
+        program.add(CommentGen(program, ""))
+        program.add(CommentGen(program, " CALL read_extract_arguments(argument_list)"))
+        # Create the kernel call loop
+        program.add(CommentGen(program, ""))
+        program.add(CommentGen(program, " Call the kernel(s)"))
+        for child in self.schedule.children:
+            child.gen_code(program)
+        return program.root
+
+
+
+
+
+

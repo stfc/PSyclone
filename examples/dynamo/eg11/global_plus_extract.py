@@ -43,6 +43,7 @@ from psyclone.transformations import Dynamo0p3ColourTrans, \
     DynamoOMPParallelLoopTrans, ExtractRegionTrans
 from psyclone.psyGen import Loop, Kern, Node
 from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
+from psyclone.extractor import Extractor
 
 invoke_extract_name = "1"
 invoke_name = "invoke_" + invoke_extract_name.lower()
@@ -79,24 +80,29 @@ def trans(psy):
                     schedule, _ = otrans.apply(child)
 
         if invoke.name == invoke_name:
-            schedule = extract(schedule, kernel_name, invoke_name)
+            #eobj = Extractor()
+            #schedule = extract(schedule, kernel_name, invoke_name)
+            schedule = Extractor.extract_kernel(schedule, kernel_name)
+            #print(type(eobj))
+            #print(type(eobj.extract_kernel))
+            #schedule = eobj.extract_kernel(schedule, kernel_name)
 
-        schedule.view()
+        #schedule.view()
         invoke.schedule = schedule
 
     return psy
 
 
-def extract(schedule, kernel_name, invoke_name):
-    ''' Extract function for a specific kernel and invoke '''
-    # Find the kernel and invoke to extract
+#def extract(schedule, kernel_name, invoke_name):
+    #''' Extract function for a specific kernel and invoke '''
+    ## Find the kernel and invoke to extract
 
-    etrans = ExtractRegionTrans()
+    #etrans = ExtractRegionTrans()
 
-    for kernel in schedule.walk(schedule.children, Kern):
-        if kernel.name == kernel_name:
-            extract_parent = kernel.root_at_depth(1)
+    #for kernel in schedule.walk(schedule.children, Kern):
+        #if kernel.name == kernel_name:
+            #extract_parent = kernel.root_at_depth(1)
 
-    modified_schedule, _ = etrans.apply(extract_parent)
+    #modified_schedule, _ = etrans.apply(extract_parent)
 
-    return modified_schedule
+    #return modified_schedule

@@ -47,26 +47,11 @@ set -e
 export PSYCLONE=${PWD}/../bin/psyclone
 export KSTUBGEN=${PWD}/../bin/genkernelstub
 
-echo "Running example dynamo/eg3"
-cd dynamo/eg3
+echo "Running example dynamo/eg11"
+cd dynamo/eg11
 #${PSYCLONE} solver_mod.x90
 # ${PSYCLONE} -s ./colouring_and_omp.py -nodm solver_mod.x90
-${PSYCLONE} -s ./global_plus_extract.py -nodm solver_mod.x90 -oalg algout.F90 -opsy psyout.F90
+####${PSYCLONE} gravity_wave_alg_mod.x90
+#${PSYCLONE} -s ./global_plus_extract.py -nodm gravity_wave_alg_mod.x90
+${PSYCLONE} -s ./global_plus_extract.py -nodm gravity_wave_alg_mod.x90 -oalg algout.F90 -opsy psyout.F90
 cd -
-
-# echo "Running example dynamo/eg9"
-# cd dynamo/eg9
-# ${PSYCLONE} advective_inc_alg_mod.x90
-# ${PSYCLONE} -s ./colouring_and_omp.py -nodm advective_inc_alg_mod.x90
-# cd -
-
-# echo "Testing dynamo scripts"
-# cd dynamo/scripts
-# for script in "colouring_and_omp.py" \
-		  # "loop_fuse.py" \
-		  # "redundant_dofs.py" \
-		  # "redundant_setval_c.py"; do
-    # echo "script" ${script} "..."
-    # ${PSYCLONE} -s ./${script} ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
-# done
-# cd -

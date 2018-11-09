@@ -1784,24 +1784,30 @@ class ExtractRegionTrans(RegionTrans):
 
         '''
 
-        ## Check that we do not extract parallel code
-        #if _CONFIG.distributed_memory:
-            #raise TransformationError("Extract transformation does not "
-                                      #"currently support distributed memory")
+        # First check constraints on nodes in the node_list common to
+        # all RegionTrans transformations
+        super(ExtractRegionTrans, self)._validate(node_list)
 
-        ## Check that the supplied node is not a HaloExchange
-        #from psyclone.psyGen import HaloExchange, GlobalSum
-        #for node in node_list:
-            #if isinstance(node, (HaloExchange, GlobalSum)):
-                #raise TransformationError(
-                    #"Extract transformation does not currently "
-                    #"support: {0}".format(type(node)))
+        # Check ExtractRegionTrans specific constraints
+        # Extracting distributed memory code is not supported
+        if Config.get().distributed_memory:
+            raise TransformationError("{0} transformation does not "
+                                      "currently support distributed memory.".
+                                      format(str(self.name)))
 
+        # Check that a supplied node is not a HaloExchange or a GlobalSum
+        from psyclone.psyGen import HaloExchange, GlobalSum
+        for node in node_list:
+            if isinstance(node, (HaloExchange, GlobalSum)):
+                raise TransformationError(
+                    "Nodes of type {0} are not currently supported "
+                    "in {1} transformation.".
+                    format(type(node), str(self.name)))
 
     def apply(self, nodes):
         ''' Extract the nodes represented by :py:obj:`node`. Exceptions
-        are raised if distributed memory is enabled or tranformation
-        tries to extract HaloExchange'''
+        are raised if distributed memory is enabled or transformation
+        tries to extract HaloExchange or GlobalSum nodes'''
 
         # Check whether we've been passed a list of nodes or just a
         # single node. If the latter then we create ourselves a
@@ -1813,46 +1819,49 @@ class ExtractRegionTrans(RegionTrans):
             node_list = [nodes]
         else:
             arg_type = str(type(nodes))
-            raise TransformationError("Error in Extract transformation. "
+            raise TransformationError("Error in {1}. "
                                       "Argument must be a single Node in a "
                                       "schedule or a list of Nodes in a "
                                       "schedule but have been passed an "
                                       "object of type: {0}".
-                                      format(arg_type))
+                                      format(arg_type, str(self)))
+
 
         # Validate transformation
         self._validate(node_list)
 
         # Keep a reference to the parent of the nodes that are to be
         # enclosed within an extract region. Also keep the index of
-        # the first and the last child to be enclosed
-        first_node = node_list[0]
-        node_parent = first_node.parent
-        first_node_position = first_node.position
-        last_node = node_list[-1]
-        last_node_position = last_node.position
-
-        # create a memento of the schedule and the proposed
-        # transformation
-        schedule = first_node.root
+        # the first child to be enclosed as that will be the position
+        # of the ExtractNode
+        node_parent = node_list[0].parent
+        node_position = node_list[0].position
 
         # Create a memento of the schedule and the proposed
         # transformation
+        schedule = node_list[0].root
+
         from .undoredo import Memento
         keep = Memento(schedule, self)
-
-        # keep a reference to the node's original parent and its index
-        parent = first_node.parent
 
         from psyclone.extractor import ExtractNode
         extract_node = ExtractNode(parent=node_parent, children=node_list[:])
 
+        # Change all of the affected children so that they have
+        # the ExtractNode as their parent. Use a slice
+        # of the list of nodes so that we're looping over a local
+        # copy of the list. Otherwise things get confused when
+        # we remove children from the list.
         for child in node_list[:]:
+            # Remove child from the parent's list of children
             node_parent.children.remove(child)
             child.parent = extract_node
 
+        # Add the ExtractNode as a child of the parent
+        # of the nodes being enclosed and at the original location
+        # of the first of these nodes
         node_parent.addchild(extract_node,
-                             index=first_node_position)
+                             index=node_position)
 
         return schedule, keep
 
