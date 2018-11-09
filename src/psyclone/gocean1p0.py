@@ -1154,9 +1154,9 @@ class GOStencil(object):
         indicating whether there is a stencil access in a particular
         direction and the depth of that access. For example:
 
-        stencil(010,  !   N
-                212,  !  W E
-                010)  !   S
+        go_stencil(010,  !   N
+                   212,  !  W E
+                   010)  !   S
 
         indicates that there is a stencil access of depth 1 in the
         "North" and "South" directions and stencil access of depth 2
@@ -1181,9 +1181,9 @@ class GOStencil(object):
 
         would be stored as:
 
-        stencil(000,
-                011,
-                010)
+        go_stencil(000,
+                   011,
+                   010)
 
         :param stencil_info: contains the appropriate part of the parser AST
         :type stencil_info: :py:class:`psyclone.expression.FunctionVar`
@@ -1199,7 +1199,8 @@ class GOStencil(object):
             raise ParseError(
                 "Meta-data error in kernel '{0}': 3rd descriptor (stencil) of "
                 "field argument is '{1}' but expected either a name or the "
-                "format 'stencil(...)'".format(kernel_name, str(stencil_info)))
+                "format 'go_stencil(...)'".format(kernel_name,
+                                                  str(stencil_info)))
 
         # Get the name
         name = stencil_info.name.lower()
@@ -1210,16 +1211,16 @@ class GOStencil(object):
             # arguments'
             self._has_stencil = True
             args = stencil_info.args
-            if name != "stencil":
+            if name != "go_stencil":
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument is '{1}' but must be "
-                    "'stencil(...)".format(kernel_name, name))
+                    "'go_stencil(...)".format(kernel_name, name))
             if len(args) != 3:
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument with format "
-                    "'stencil(...)', has {1} arguments but should have "
+                    "'go_stencil(...)', has {1} arguments but should have "
                     "3".format(kernel_name, len(args)))
             # Each of the 3 args should be of length 3 and each
             # character should be a digit from 0-9. Whilst we are
@@ -1232,14 +1233,14 @@ class GOStencil(object):
                     raise ParseError(
                         "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "
-                        "'stencil(...)'. Argument index {1} should be a "
+                        "'go_stencil(...)'. Argument index {1} should be a "
                         "number but found "
                         "'{2}'.".format(kernel_name, arg_idx, str(arg)))
                 if len(arg) != 3:
                     raise ParseError(
                         "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "
-                        "'stencil(...)'. Argument index {1} should "
+                        "'go_stencil(...)'. Argument index {1} should "
                         "consist of 3 digits but found "
                         "{2}.".format(kernel_name, arg_idx, len(arg)))
             # The central value is constrained to be 0 or 1
@@ -1247,7 +1248,7 @@ class GOStencil(object):
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument with format "
-                    "'stencil(...)'. Argument index 1 position 1 "
+                    "'go_stencil(...)'. Argument index 1 position 1 "
                     "should be a number from 0-1 "
                     "but found {1}.".format(kernel_name, args[1][1]))
             # It is not valid to specify a zero stencil. This is
@@ -1258,7 +1259,7 @@ class GOStencil(object):
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument with format "
-                    "'stencil(...)'. A zero sized stencil has been "
+                    "'go_stencil(...)'. A zero sized stencil has been "
                     "specified. This should be specified with the "
                     "'go_pointwise' keyword.".format(kernel_name))
             # store the values in an internal array as integers in i,j
@@ -1273,8 +1274,8 @@ class GOStencil(object):
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument is '{1}' but must be one "
-                    "of {2} or stencil(...)".format(kernel_name, name,
-                                                    VALID_STENCIL_NAMES))
+                    "of {2} or go_stencil(...)".format(kernel_name, name,
+                                                       VALID_STENCIL_NAMES))
             self._name = name
             # We currently only support one valid name ('pointwise')
             # which indicates that there is no stencil
