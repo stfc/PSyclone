@@ -928,9 +928,6 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         :py:class:`base class <OMPParallelLoopTrans>`. '''
         OMPParallelLoopTrans._validate(self, node)
 
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node)
-
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous then we don't
         # need to worry about colouring.
@@ -1028,9 +1025,6 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 "Error in {0} transformation. The kernel has an argument"
                 " with INC access. Colouring is required.".
                 format(self.name))
-
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node)
 
         return OMPLoopTrans.apply(self, node, reprod=reprod)
 

@@ -6450,8 +6450,47 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
             "but kernel 'restrict_kernel_code' has not" in str(err))
 
 
+def test_intergrid_omp_parado(dist_mem, tmpdir, f90, f90flags):
+    ''' Check that we can apply OpenMP to a loop containing an inter-grid
+    kernel call. '''
+    from psyclone import psyGen
+    # Use an example that contains both prolongation and restriction
+    # kernels
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # First two kernels are prolongation, last two are restriction
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    ctrans = Dynamo0p3ColourTrans()
+    # To a prolong kernel
+    _, _ = ctrans.apply(loops[1])
+    # To a restrict kernel
+    _, _ = ctrans.apply(loops[3])
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OMP to loops over coloured cells
+    _, _ = otrans.apply(loops[2])
+    _, _ = otrans.apply(loops[5])
+    gen = str(psy.gen)
+    if dist_mem:
+        assert ("      DO colour=1,ncolour_fld_c\n"
+                "        !$omp parallel do default(shared), private(cell), "
+                "schedule(static)\n"
+                "        DO cell=1,mesh_fld_c%get_last_halo_cell_per_colour("
+                "colour,1)\n" in gen)
+    else:
+        assert ("      DO colour=1,ncolour_fld_c\n"
+                "        !$omp parallel do default(shared), private(cell), "
+                "schedule(static)\n"
+                "        DO cell=1,mesh_fld_c%get_last_edge_cell_per_colour("
+                "colour)\n" in gen)        
+    if TEST_COMPILE:
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+
+
 def test_intergrid_err(dist_mem):
-    ''' Check that we cannot apply redundant computation, OpenMP or loop
+    ''' Check that we cannot apply redundant computation or loop
     fusion to loops containing inter-grid kernels. '''
     from psyclone import psyGen
     # Use an example that contains both prolongation and restriction
@@ -6467,28 +6506,12 @@ def test_intergrid_err(dist_mem):
         "cannot currently be applied to nodes which have inter-grid "
         "kernels as children and ")
 
-    if not dist_mem:
+    if dist_mem:
         # Cannot apply redundant computation unless DM is enabled
         rc_trans = Dynamo0p3RedundantComputationTrans()
         with pytest.raises(TransformationError) as excinfo:
             rc_trans.apply(loops[2], depth=2)
             assert expected_err in str(excinfo)
-
-    ctrans = Dynamo0p3ColourTrans()
-    omplooptrans = Dynamo0p3OMPLoopTrans()
-    # We have to colour before we can apply OMP to this loop...
-    # Keep a ref to the kernel as that makes it easy to find the correct
-    # loop to which to apply OMP
-    kern = loops[2]._kern
-    _, _ = ctrans.apply(loops[2])
-    with pytest.raises(TransformationError) as excinfo:
-        omplooptrans.apply(kern.parent)
-    assert expected_err in str(excinfo)
-
-    ompparatrans = DynamoOMPParallelLoopTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ompparatrans.apply(loops[2])
-    assert expected_err in str(excinfo)
 
     lftrans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
