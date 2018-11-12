@@ -43,9 +43,10 @@ TEST_FILES = continuity_mod.f90 model_mod.f90 momentum_mod.f90     \
              kernel_ne_offset_mod.f90  \
              compute_cu_mod.f90 compute_cv_mod.f90  time_smooth_mod.f90 \
              kernel_stencil.f90 kernel_sw_offset_cu_mod.f90 kernel_sw_offset_cv_mod.f90 \
-			 kernel_sw_offset_cf_mod.f90 kernel_ne_offset_cf_mod.f90 kernel_ne_offset_ct_mod.f90 \
+             kernel_sw_offset_cf_mod.f90 kernel_ne_offset_cf_mod.f90 kernel_ne_offset_ct_mod.f90 \
              kernel_any_offset_cu_mod.f90 kernel_sw_offset_ct_mod.f90 kernel_field_copy_mod.f90 \
-             kernel_unsupported_offset_mod.f90 kernel_missing_stencil.f90 \
+             kernel_unsupported_offset_mod.f90 kernel_missing_stencil.f90
+             
 
 # These files can not be compiled because of invoke statements, which causes errors
 # such as:
@@ -77,7 +78,7 @@ TEST_FILES = continuity_mod.f90 model_mod.f90 momentum_mod.f90     \
 # kernel_wrong_meta_arg_arg_count.f90 test00.1_invoke_kernel_wrong_meta_arg_count.f90
 # test00.2_invoke_kernel_invalid_meta_args.f90 kernel_invalid_grid_property.f90 
 # kernel_invalid_meta_arg_type.f90 test00.3_invoke_kernel_invalid_meta_arg_type.f90
-# kernel_invalid_iterates_over.f90 kernel_wrong_access.f90
+# kernel_invalid_iterates_over.f90 kernel_wrong_access.f90 kernel_invalid_fortran.f90
 # kernel_invalid_meta_args.f90 kernel_wrong_gridpt_type.f90
 # kernel_wrong_meta_arg_arg_count.f90 test03_invoke_kernel_missing_offset.f90
 # kernel_invalid_offset.f90 test04_invoke_kernel_invalid_offset.f90
