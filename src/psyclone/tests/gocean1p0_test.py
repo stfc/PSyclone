@@ -979,12 +979,16 @@ def test_goloop_unmatched_offsets():
     gokern2 = GOKern()
     # Set the index-offset of this kernel to a value that is not
     # supported when using constant loop bounds
-    gokern1._index_offset = "offset_ne"
-    gokern2._index_offset = "offset_sw"
+    gokern1._index_offset = "go_offset_ne"
+    gokern2._index_offset = "go_offset_sw"
     goiloop.addchild(gokern1)
     goiloop.addchild(gokern2)
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         goiloop.gen_code(None)
+    # Note that the kernels do not have a name, so there is a double space
+    assert "All Kernels must expect the same grid offset but kernel  " \
+        "has offset go_offset_sw which does not match go_offset_ne" \
+        in str(excinfo.value)
 
 
 def test_writetoread_dag(tmpdir, have_graphviz):
