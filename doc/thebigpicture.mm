@@ -352,8 +352,8 @@
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="iteration space splitting">
 <icon BUILTIN="button_cancel"/>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="asynchronous halo exchange">
-<icon BUILTIN="button_cancel"/>
+<node COLOR="#000000" CREATED="0" ID="ID_1006019795" MODIFIED="1541434096854" TEXT="asynchronous halo exchange">
+<icon BUILTIN="button_ok"/>
 </node>
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="other">
 <icon BUILTIN="idea"/>

@@ -77,6 +77,8 @@ def teardown_function():
 # Disable this pylint warning because otherwise it gets upset about the
 # use of these fixtures in the test code.
 # pylint:disable=redefined-outer-name
+
+
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
