@@ -947,7 +947,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                              error raised if not. The default is
                              False.
     :returns: 2-tuple consisting of the fparser1 AST of the Algorithm file \
-              and an object holding details of the invokes found. 
+              and an object holding details of the invokes found.
     :rtype: :py:class:`fparser.one.block_statements.BeginSource`, \
             :py:class:`psyclone.parse.FileInfo`
     :raises IOError: if the filename or search path does not exist.

@@ -61,6 +61,7 @@ from psyclone.configuration import Config
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
 
+
 def handle_script(script_name, psy):
     '''Loads and applies the specified script to the given psy layer.
     The 'trans' function of the script is called with psy as parameter.

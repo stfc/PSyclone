@@ -356,10 +356,6 @@ def test_get_int_array():
     assert targets == ["w0", "w1"]
 
 
-# the monkeypatching of the Assignment_Stmt class (combined with its
-# use in 'get_integer_array()' breaks subsequent fparser2 tests (in
-# the NEMO subdirectory). Change 'if 0' to 'if 1' and try 'pytest
-# parser_test.py nemo' to see.
 def test_get_int_array_err1(monkeypatch):
     ''' Tests that we raise the correct error if there is something wrong
     with the assignment statement obtained from fparser2. '''
@@ -374,9 +370,11 @@ def test_get_int_array_err1(monkeypatch):
     # Break its `items` property by replacing the Name object with a string
     # (tuples are immutable so make a new one)
     broken_items = tuple(["invalid"] + list(my_assign.items[1:]))
+
     # Use monkeypatch to ensure that that the Assignment_Stmt that
     # is returned when we attempt to use fparser2 from within the
     # routine under test now has the broken tuple of items.
+
     def my_init(self, _):
         self.items = broken_items
     monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
@@ -400,10 +398,6 @@ def test_get_int_array_not_array():
             "cells'" in str(err))
 
 
-# As above in test *_err1, the monkeypatching of the Assignment_Stmt
-# class (combined with its use in get_integer_array() breaks
-# subsequent fparser2 tests (in the NEMO subdirectory). Change 'if 0'
-# to 'if 1' and try 'pytest parser_test.py nemo' to see.
 def test_get_int_array_err2(monkeypatch):
     ''' Check that we raise the appropriate error if we fail to parse the
     array constructor expression. '''
@@ -417,11 +411,14 @@ def test_get_int_array_err2(monkeypatch):
     # Break the array constructor expression (tuples are immutable so make a
     # new one)
     assign.items[2].items[1].items = tuple(["hello", "goodbye"])
-    def my_init(self, _):
-        self.items = assign.items
+
     # Use monkeypatch to ensure that that's the result that is returned
     # when we attempt to use fparser2 from within the routine under test
+
+    def my_init(self, _):
+        self.items = assign.items
     monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
+
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
     assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)

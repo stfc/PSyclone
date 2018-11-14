@@ -1941,7 +1941,7 @@ class OMPParallelDirective(OMPDirective):
             #                       "not what you want.")
 
     def update(self):
-        ''' 
+        '''
         Updates the fparser2 AST by inserting nodes for this OpenMP
         parallel region.
 
@@ -1960,7 +1960,7 @@ class OMPParallelDirective(OMPDirective):
         try:
             start_idx = self._parent._ast.content.index(self._children[0]._ast)
             end_idx = self._parent._ast.content.index(self._children[-1]._ast)
-        except:
+        except (IndexError, ValueError):
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
         # Create the start directive
@@ -2148,7 +2148,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                    position=["after", position])
 
     def update(self):
-        ''' 
+        '''
         Updates the fparser2 AST by inserting nodes for this OpenMP
         parallel do.
 
@@ -3898,4 +3898,3 @@ class IfClause(IfBlock):
         :rtype: str
         '''
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
-

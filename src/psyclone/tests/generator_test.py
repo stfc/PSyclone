@@ -82,6 +82,7 @@ def test_invalid_api():
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
                               "1_single_function.f90"), api="invalid")
 
+
 def test_invalid_kernel_path():
     ''' checks that algGen raises appropriate error when an invalid
         search path for kernel source files is supplied '''

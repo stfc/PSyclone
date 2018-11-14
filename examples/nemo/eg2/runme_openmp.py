@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     print("Invokes found:")
     print(psy.invokes.names)
-    
+
     sched = psy.invokes.get('tra_ldf_iso').schedule
     sched.view()
 
