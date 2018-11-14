@@ -147,24 +147,26 @@ def generate(filename, api="", kernel_path="", script_name=None,
     modified algorithm code.
 
     :param str filename: The file containing the algorithm specification.
-    :param str kernel_path: The directory from which to recursively
-                            search for the files containing the kernel
-                            source (if different from the location of the
-                            algorithm specification)
-    :param str script_name: A script file that can apply optimisations
-                            to the PSy layer (can be a path to a file or
-                            a filename that relies on the PYTHONPATH to
+    :param str kernel_path: The directory from which to recursively \
+                            search for the files containing the kernel \
+                            source (if different from the location of the \
+                            algorithm specification).
+    :param str script_name: A script file that can apply optimisations \
+                            to the PSy layer (can be a path to a file or \
+                            a filename that relies on the PYTHONPATH to \
                             find the module).
-    :param bool line_length: A logical flag specifying whether we care
-                             about line lengths being longer than 132
-                             characters. If so, the input (algorithm
-                             and kernel) code is checked to make sure
+    :param bool line_length: A logical flag specifying whether we care \
+                             about line lengths being longer than 132 \
+                             characters. If so, the input (algorithm \
+                             and kernel) code is checked to make sure \
                              that it conforms. The default is False.
-    :param bool distributed_memory: A logical flag specifying whether to
-                                    generate distributed memory code. The
+    :param bool distributed_memory: A logical flag specifying whether to \
+                                    generate distributed memory code. The \
                                     default is set in the config.py file.
-    :return: The algorithm code and the psy code.
-    :rtype: ast
+    :return: 2-tuple containing fparser1 ASTs for the algorithm code and \
+             the psy code.
+    :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
+             :py:class:`fparser.one.block_statements.Module`)
     :raises IOError: if the filename or search path do not exist
 
     For example:

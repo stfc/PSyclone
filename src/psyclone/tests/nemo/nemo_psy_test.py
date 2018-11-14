@@ -386,7 +386,7 @@ def test_kern_load_errors(monkeypatch):
         kerns[0].load("Not an fparser2 AST node")
     assert ("internal error: Expecting either Block_Nonlabel_Do_Construct "
             "or Assignment_Stmt but got " in str(err))
-    # TODO why hasn't the Kernel or Loop objects got a valid _ast?
+    # TODO why haven't the Kernel or Loop objects got a valid _ast?
     loop = sched.children[0].children[0].children[0]._ast
     monkeypatch.setattr(loop, "content", ["not_a_loop"])
     with pytest.raises(InternalError) as err:

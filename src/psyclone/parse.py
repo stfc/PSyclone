@@ -1243,7 +1243,6 @@ def parse_fp2(filename):
     :returns: fparser2 AST for the source file.
     :rtype: :py:class:`fparser.two.Fortran2003.Program`
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranFileReader
 
     parser = ParserFactory().create()

@@ -564,7 +564,6 @@ class NemoKern(Kern):
         # print "OpenMP private vars: " + ",".join(self._private_vars)
         # print "OpenMP first-private vars: " + \
         #     ",".join(self._first_private_vars)
-        return
 
     def _load_from_implicit_loop(self, loop):
         '''
@@ -577,7 +576,6 @@ class NemoKern(Kern):
         # TODO implement this method!
         self._kernel_type = "Implicit"
         self._loop = loop
-        return
 
     def local_vars(self):
         '''
