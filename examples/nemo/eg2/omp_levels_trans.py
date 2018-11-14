@@ -58,7 +58,7 @@ def trans(psy):
     :rtype:  :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.psyGen import PSyFactory, TransInfo
+    from psyclone.psyGen import TransInfo
     from psyclone.nemo import NemoKern
     # Get the Schedule of the target routine
     sched = psy.invokes.get('tra_ldf_iso').schedule

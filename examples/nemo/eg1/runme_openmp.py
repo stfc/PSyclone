@@ -52,28 +52,28 @@ from psyclone.psyGen import PSyFactory, TransInfo
 
 if __name__ == "__main__":
     from psyclone.nemo import NemoKern
-    api = "nemo"
-    _, invokeinfo = parse("tra_adv.F90", api=api)
-    psy = PSyFactory(api).create(invokeinfo)
-    print(psy.gen)
+    API = "nemo"
+    _, INVOKEINFO = parse("tra_adv.F90", api=API)
+    PSY = PSyFactory(API).create(INVOKEINFO)
+    print(PSY.gen)
 
     print("Invokes found:")
-    print(psy.invokes.names)
+    print(PSY.invokes.names)
 
-    sched = psy.invokes.get('tra_adv').schedule
-    sched.view()
+    SCHED = PSY.invokes.get('tra_adv').schedule
+    SCHED.view()
 
-    trans_info = TransInfo()
-    omp_trans = trans_info.get_trans_name('OMPParallelLoopTrans')
+    TRANS_INFO = TransInfo()
+    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
 
-    for loop in sched.loops():
+    for loop in SCHED.loops():
         # TODO loop.kernel method needs extending to cope with
         # multiple kernels
         kernels = loop.walk(loop.children, NemoKern)
         if kernels and loop.loop_type == "levels":
-            sched, _ = omp_trans.apply(loop)
+            SCHED, _ = OMP_TRANS.apply(loop)
 
-    sched.view()
+    SCHED.view()
 
-    psy.invokes.get('tra_adv').schedule = sched
-    print(psy.gen)
+    PSY.invokes.get('tra_adv').schedule = SCHED
+    print(PSY.gen)
