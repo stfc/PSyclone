@@ -40,4 +40,8 @@
     * :ref:`modindex`
     * :ref:`search`
 
-.. bibliography:: refs.bib
+.. if the bib file is processed *before* any source files that
+   contain citations then those citations aren't handled correctly.
+   We therefore put a "zz" at the start of the filename to ensure
+   that it is processed last. 
+.. bibliography:: zz_references.bib
