@@ -290,6 +290,7 @@ class NemoPSy(PSy):
         Generate the (updated) fparser2 AST for the NEMO code represented
         by this NemoPSy object.
 
+        :returns: the fparser2 AST for the Fortran code.
         :rtype: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                 :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
                 :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
@@ -526,18 +527,16 @@ class NemoKern(Kern):
                 break
             self._body.append(content)
 
-        #  I could get this by walking back up the tree and counting how
-        #  many NemoLoops I have as ancestors before I come across
-        #  something that is not a loop...
-        # if len(self._loop_vars) == 2:
-        #     self._kernel_type = "2D"
-        # else:
-        #     self._kernel_type = "3D"
+        # Kernel is "explicit" since we have a coded loop nest rather than
+        # array notation
+        self._kernel_type = "Explicit"
 
         # TODO bring habakkuk up-to-date with changes to fparser and then
-        # uncomment this code.
+        # uncomment this code or remove use of habakkuk altogether. See
+        # issue #235.
 
         #  Analyse the loop body to identify private and shared variables
+        #  for use when parallelising with OpenMP.
         # from habakkuk.make_dag import dag_of_code_block
         #  Create a DAG of the kernel code block using Habakkuk
         # kernel_dag = dag_of_code_block(loop, "nemo_kernel")
@@ -549,7 +548,8 @@ class NemoKern(Kern):
         self._first_private_vars = set()
         self._private_vars = set()
         #  If there are scalar variables that are inputs to the DAG (other than
-        #  the loop counters) then they must be declared first-private.
+        #  the loop counters) then they must be declared first-private in an
+        #  OpenMP loop directive.
         # for node in inputs:
         #     if not node.node_type:
         #         if node.name not in NEMO_LOOP_TYPE_MAPPING:

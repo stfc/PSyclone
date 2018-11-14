@@ -285,7 +285,7 @@ def test_schedule_view(capsys):
         "it_space='None']\n"
         "            " + loop_str + "[type='lon',field_space='None',"
         "it_space='None']\n"
-        "                " + kern_str + "[]\n"
+        "                " + kern_str + "[Explicit]\n"
         "    " + loop_str + "[type='levels',field_space='None',"
         "it_space='None']\n"
         "        " + loop_str + "[type='lat',field_space='None',"
