@@ -238,7 +238,16 @@ class PSyFactory(object):
         self._type = get_api(api)
 
     def create(self, invoke_info):
-        ''' Return the API specific PSy instance. '''
+        '''
+        Create the API-specific PSy instance.
+
+        :param invoke_info: information on the invoke()s found by parsing
+                            the Algorithm layer.
+        :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+
+        :returns: an instance of the API-specifc sub-class of PSy.
+        :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+        '''
         if self._type == "gunghoproto":
             from psyclone.ghproto import GHProtoPSy
             return GHProtoPSy(invoke_info)
@@ -782,7 +791,25 @@ class Invoke(object):
 
 
 class Node(object):
-    ''' baseclass for a node in a schedule '''
+    '''
+    Base class for a node in the PSyIRe (schedule).
+
+    :param children: the PSyIRe nodes that are children of this node.
+    :type children: :py:class:`psyclone.psyGen.Node`
+    :param parent: that parent of this node in the PSyIRe tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
+    '''
+    def __init__(self, children=None, parent=None):
+        if not children:
+            self._children = []
+        else:
+            self._children = children
+        self._parent = parent
+        self._ast = None  # Reference into fparser2 AST (if any)
+
+    def __str__(self):
+        raise NotImplementedError("Please implement me")
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children'''
@@ -1057,17 +1084,6 @@ class Node(object):
             if idx < (len(my_list) - 1):
                 result += ","
         return result
-
-    def __init__(self, children=None, parent=None):
-        if not children:
-            self._children = []
-        else:
-            self._children = children
-        self._parent = parent
-        self._ast = None  # Reference into fparser2 AST (if any)
-
-    def __str__(self):
-        raise NotImplementedError("Please implement me")
 
     def addchild(self, child, index=None):
         if index is not None:
@@ -2436,6 +2452,13 @@ class Loop(Node):
 
     @loop_type.setter
     def loop_type(self, value):
+        '''
+        Set the type of this Loop.
+
+        :param str value: the type of this loop.
+        :raises GenerationError: if the specified value is not a recognised \
+                                 loop type.
+        '''
         if value not in self._valid_loop_types:
             raise GenerationError(
                 "Error, loop_type value ({0}) is invalid. Must be one of "
@@ -3795,7 +3818,7 @@ class Transformation(object):
         return schedule, momento
 
     def _validate(self, *args):
-        '''Method that alidates that the input data is correct.
+        '''Method that validates that the input data is correct.
         It will raise exceptions if the input data is incorrect. This function
         needs to be implemented by each transformation.
 
@@ -3818,7 +3841,10 @@ class DummyTransformation(Transformation):
 
 class IfBlock(Node):
     '''
-    Class representing an if-block within a Schedule.
+    Class representing an if-block within the PSyIRe.
+
+    :param parent: the parent of this node within the PSyIRe tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, parent=None):
         super(IfBlock, self).__init__(parent=parent)
@@ -3830,16 +3856,20 @@ class IfBlock(Node):
     @property
     def coloured_text(self):
         '''
-        Return text containing the (coloured) name of this node type
+        Return text containing the (coloured) name of this node type.
 
-        :return: the name of this node type, possibly with control codes
-                 for colour
-        :rtype: string
+        :return: the name of this node type, possibly with control codes \
+                 for colour.
+        :rtype: str
         '''
         return colored("If", SCHEDULE_COLOUR_MAP["If"])
 
     def view(self, indent=0):
-        ''' Print representation of this node to stdout '''
+        '''
+        Print representation of this node to stdout.
+
+        :param int indent: the level to which to indent the output.
+        '''
         print(self.indent(indent) + self.coloured_text + "[" +
               self._condition + "]")
         for entity in self._children:
@@ -3849,6 +3879,10 @@ class IfBlock(Node):
 class IfClause(IfBlock):
     '''
     Represents a sub-clause of an If block - e.g. an "else if()".
+
+    :param parent: the parent of this node in the PSyIRe tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`.
+
     '''
     def __init__(self, parent=None):
         super(IfClause, self).__init__(parent=parent)
@@ -3857,11 +3891,11 @@ class IfClause(IfBlock):
     @property
     def coloured_text(self):
         '''
-        Return text containing the (coloured) name of this node type
+        Return text containing the (coloured) name of this node type.
 
-        :return: the name of this node type, possibly with control codes
-                 for colour
-        :rtype: string
+        :return: the name of this node type, possibly with control codes \
+                 for colour.
+        :rtype: str
         '''
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
