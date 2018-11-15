@@ -40,13 +40,13 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory, InternalError, GenerationError
+from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk_ast
-from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, InternalError, GenerationError
-from psyclone import nemo
 
 # Constants
 API = "nemo"
