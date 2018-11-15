@@ -26,6 +26,7 @@
    configuration
    developers
    zz_bibliography
+
 ..   tutorial
 ..   examples
 ..   FAQS
