@@ -25,6 +25,7 @@
    system_specific_setup
    configuration
    developers
+   zz_bibliography
 ..   tutorial
 ..   examples
 ..   FAQS
@@ -39,9 +40,3 @@
     * :ref:`genindex`
     * :ref:`modindex`
     * :ref:`search`
-
-.. if the bib file is processed *before* any source files that
-   contain citations then those citations aren't handled correctly.
-   We therefore put a "zz" at the start of the filename to ensure
-   that it is processed last. 
-.. bibliography:: zz_references.bib
