@@ -94,10 +94,10 @@ GRID_PROPERTY_DICT = {"go_grid_area_t": "area_t",
                       "go_grid_lat_v": "gphiv",
                       "go_grid_dx_const": "dx",
                       "go_grid_dy_const": "dy",
-                      "go_grid_x_min_index": "simulation_domain%xstart",
-                      "go_grid_x_max_index": "simulation_domain%xstop",
-                      "go_grid_y_min_index": "simulation_domain%ystart",
-                      "go_grid_y_max_index": "simulation_domain%ystop"}
+                      "go_grid_x_min_index": "subdomain%internal%xstart",
+                      "go_grid_x_max_index": "subdomain%internal%xstop",
+                      "go_grid_y_min_index": "subdomain%internal%ystart",
+                      "go_grid_y_max_index": "subdomain%internal%ystop"}
 
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
@@ -263,7 +263,7 @@ class GOInvoke(Invoke):
         # add the subroutine argument declarations for real scalars
         if len(self.unique_args_rscalars) > 0:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
-                                       intent="inout", kind="wp",
+                                       intent="inout", kind="go_wp",
                                        entity_decls=self.unique_args_rscalars)
             invoke_sub.add(my_decl_rscalars)
         # add the subroutine argument declarations for integer scalars
@@ -279,7 +279,7 @@ class GOInvoke(Invoke):
             # Look-up the loop bounds using the first field object in the
             # list
             sim_domain = self.unique_args_arrays[0] +\
-                "%grid%simulation_domain%"
+                "%grid%subdomain%internal%"
             position = invoke_sub.last_declaration()
 
             invoke_sub.add(CommentGen(invoke_sub, ""),

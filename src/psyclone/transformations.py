@@ -1614,7 +1614,7 @@ class GOConstLoopBoundsTrans(Transformation):
     generates code like:
     ::
 
-      ny = my_field%grid%simulation_domain%ystop
+      ny = my_field%grid%subdomain%internal%ystop
       ...
       DO j = 1, ny-1
 
