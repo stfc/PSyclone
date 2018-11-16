@@ -72,6 +72,10 @@
         were not being removed (following a redundant computation
         transformation).
 
+        22) #198 and PR #223. Updates PSyclone to use the latest
+	version of dl_esm_inf which has "GO_" prefixed to all public
+	quantities. Adds dl_esm_inf as a git submodule.
+
 release 1.6.0 18th May 2018
 
         1) #91 and PR #111 Remove unnecessary __init__.py files.
