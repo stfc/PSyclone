@@ -16,9 +16,9 @@ def trans(psy):
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
-    from psyclone.configuration import ConfigFactory
-    config = ConfigFactory().create()
-    if config.api("dynamo0.3").compute_annexed_dofs and \
+    from psyclone.configuration import Config
+    config = Config.get()
+    if config.api_conf("dynamo0.3").compute_annexed_dofs and \
        config.distributed_memory:
         # We can't loop fuse as the loop bounds differ so add
         # OpenMP parallel do directives to the loops

@@ -2260,6 +2260,34 @@ def test_find_w_args_multiple_deps():
     assert len(indices) == vector_size
 
 
+def test_loop_props():
+    ''' Tests for the properties of a Loop object. '''
+    from psyclone.psyGen import Loop
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    loop = sched.children[0].children[0]
+    assert isinstance(loop, Loop)
+    with pytest.raises(GenerationError) as err:
+        loop.loop_type = "not_a_valid_type"
+    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
+            "['inner', 'outer']" in str(err))
+
+
+def test_node_abstract_methods():
+    ''' Tests that the abstract methods of the Node class raise appropriate
+    errors. '''
+    from psyclone.psyGen import Node
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    loop = sched.children[0].children[0]
+    with pytest.raises(NotImplementedError) as err:
+        Node.gen_code(loop)
+    assert ("Please implement me" in str(err))
+    with pytest.raises(NotImplementedError) as err:
+        Node.view(loop)
+    assert ("BaseClass of a Node must implement the view method" in str(err))
+
+
 def test_kern_ast():
     ''' Test that we can obtain the fparser2 AST of a kernel. '''
     from psyclone.gocean1p0 import GOKern

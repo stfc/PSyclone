@@ -1,6 +1,6 @@
 <map version="0.9.0">
 <!-- To view this file, download free mind mapping software FreeMind from http://freemind.sourceforge.net -->
-<node CREATED="1520353512861" ID="_" MODIFIED="1520353969339" TEXT="PSyclone">
+<node CREATED="1520353512861" ID="_" MODIFIED="1542412920781" TEXT="PSyclone">
 <node COLOR="#000000" CREATED="0" MODIFIED="0" POSITION="right" TEXT="builtin">
 <node COLOR="#000000" CREATED="0" ID="ID_1974326076" MODIFIED="0" TEXT="petsc">
 <icon BUILTIN="button_cancel"/>
@@ -18,18 +18,18 @@
 </node>
 </node>
 <node COLOR="#000000" CREATED="0" ID="ID_1286308559" MODIFIED="0" POSITION="right" TEXT="Algorithm">
-<node COLOR="#000000" CREATED="0" ID="ID_151016148" MODIFIED="0" TEXT="Language">
+<node COLOR="#000000" CREATED="0" ID="ID_151016148" MODIFIED="1542407559375" TEXT="Language">
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="C">
 <icon BUILTIN="button_cancel"/>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="python">
+<node COLOR="#000000" CREATED="0" ID="ID_1302427076" MODIFIED="0" TEXT="python">
 <icon BUILTIN="button_cancel"/>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="new language">
-<icon BUILTIN="idea"/>
-</node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="fortran">
+<node COLOR="#000000" CREATED="0" ID="ID_629096031" MODIFIED="0" TEXT="fortran">
 <icon BUILTIN="button_ok"/>
+</node>
+<node COLOR="#000000" CREATED="0" ID="ID_1118441469" MODIFIED="0" TEXT="new language">
+<icon BUILTIN="idea"/>
 </node>
 </node>
 <node CREATED="1533046427315" ID="ID_958734676" MODIFIED="1533046434010" TEXT="transformations"/>
@@ -74,7 +74,7 @@
 </node>
 </node>
 <node COLOR="#000000" CREATED="0" MODIFIED="0" POSITION="right" TEXT="correctness">
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="function space">
+<node COLOR="#000000" CREATED="0" ID="ID_401734374" MODIFIED="0" TEXT="function space">
 <icon BUILTIN="button_cancel"/>
 </node>
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="data">
@@ -103,11 +103,11 @@
 <node COLOR="#000000" CREATED="0" ID="ID_1999697939" MODIFIED="0" TEXT="c">
 <icon BUILTIN="button_cancel"/>
 </node>
-<node COLOR="#000000" CREATED="0" ID="ID_257257133" MODIFIED="0" TEXT="other">
-<icon BUILTIN="idea"/>
-</node>
 <node CREATED="1533045441787" ID="ID_1425310773" MODIFIED="1533046176591" TEXT="OpenCL">
 <icon BUILTIN="button_cancel"/>
+</node>
+<node COLOR="#000000" CREATED="0" ID="ID_257257133" MODIFIED="0" TEXT="other">
+<icon BUILTIN="idea"/>
 </node>
 </node>
 <node CREATED="1533045536134" ID="ID_1784707603" MODIFIED="1533045568328" TEXT="transformation">
@@ -134,15 +134,23 @@
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="ghproto">
 <icon BUILTIN="stop"/>
 </node>
-<node COLOR="#000000" CREATED="0" ID="ID_1788933211" MODIFIED="1533054203555" TEXT="nemo 0.1">
+<node COLOR="#000000" CREATED="0" ID="ID_1788933211" MODIFIED="1542407061229" TEXT="nemo">
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="code">
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="NEMO-DSL (traadv)"/>
+<node COLOR="#000000" CREATED="0" ID="ID_1925382168" MODIFIED="0" TEXT="NEMO-DSL (traadv)"/>
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="NEMO">
 <icon BUILTIN="button_cancel"/>
 </node>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="transformation">
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="new transformation">
+<node COLOR="#000000" CREATED="0" ID="ID_217822358" MODIFIED="1542407224394" TEXT="transformation">
+<node CREATED="1542407228301" ID="ID_984832149" MODIFIED="1542407243672" TEXT="OpenACC">
+<node CREATED="1542407250682" ID="ID_1133301292" MODIFIED="1542407261213" TEXT="Kernels">
+<icon BUILTIN="button_cancel"/>
+</node>
+</node>
+<node CREATED="1542407135239" ID="ID_969140954" MODIFIED="1542407213677" TEXT="OpenMP">
+<icon BUILTIN="button_cancel"/>
+</node>
+<node COLOR="#000000" CREATED="0" ID="ID_1245819165" MODIFIED="0" TEXT="new transformation">
 <icon BUILTIN="idea"/>
 </node>
 </node>
@@ -318,32 +326,32 @@
 </node>
 </node>
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="code">
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="lfric">
+<node COLOR="#000000" CREATED="0" ID="ID_1636891834" MODIFIED="0" TEXT="lfric">
 <node COLOR="#000000" CREATED="0" ID="ID_75500390" MODIFIED="0" TEXT="matvec">
 <icon BUILTIN="help"/>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="helmholtz lhs">
+<node COLOR="#000000" CREATED="0" ID="ID_181545193" MODIFIED="0" TEXT="helmholtz lhs">
 <icon BUILTIN="button_cancel"/>
 </node>
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="helmholtz2">
 <icon BUILTIN="button_cancel"/>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="new benchmark">
-<icon BUILTIN="idea"/>
-</node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="physics example">
+<node COLOR="#000000" CREATED="0" ID="ID_882200891" MODIFIED="0" TEXT="physics example">
 <icon BUILTIN="button_cancel"/>
+</node>
+<node COLOR="#000000" CREATED="0" ID="ID_530540582" MODIFIED="0" TEXT="new benchmark">
+<icon BUILTIN="idea"/>
 </node>
 </node>
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="other code">
 <icon BUILTIN="idea"/>
 </node>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="transformation">
+<node COLOR="#000000" CREATED="0" ID="ID_285254574" MODIFIED="0" TEXT="transformation">
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="colouring">
 <icon BUILTIN="button_ok"/>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="redundant computation">
+<node COLOR="#000000" CREATED="0" ID="ID_886228818" MODIFIED="1542408025782" TEXT="redundant computation">
 <icon BUILTIN="button_ok"/>
 </node>
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="mpi">
@@ -355,29 +363,33 @@
 <node COLOR="#000000" CREATED="0" ID="ID_1006019795" MODIFIED="1541434096854" TEXT="asynchronous halo exchange">
 <icon BUILTIN="button_ok"/>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="other">
-<icon BUILTIN="idea"/>
-</node>
-</node>
-</node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="new api">
-<icon BUILTIN="idea"/>
-</node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="skeleton">
+<node CREATED="1542407426187" ID="ID_171975675" MODIFIED="1542407448137" TEXT="halo exchange merging">
 <icon BUILTIN="button_cancel"/>
+</node>
+<node COLOR="#000000" CREATED="0" ID="ID_873330007" MODIFIED="0" TEXT="other">
+<icon BUILTIN="idea"/>
+</node>
+</node>
+</node>
+<node COLOR="#000000" CREATED="0" ID="ID_1332257888" MODIFIED="0" TEXT="skeleton">
+<icon BUILTIN="button_cancel"/>
+</node>
+<node COLOR="#000000" CREATED="0" ID="ID_406036211" MODIFIED="0" TEXT="new api">
+<icon BUILTIN="idea"/>
 </node>
 </node>
 <node COLOR="#000000" CREATED="0" ID="ID_416640778" MODIFIED="0" POSITION="right" TEXT="Parser">
 <node COLOR="#000000" CREATED="0" ID="ID_630818890" MODIFIED="0" TEXT="fparser">
 <icon BUILTIN="button_ok"/>
 </node>
-<node COLOR="#000000" CREATED="0" ID="ID_354234794" MODIFIED="1533046201503" TEXT="fparser2">
-<icon BUILTIN="prepare"/>
-<node CREATED="1533054524842" ID="ID_747130281" MODIFIED="1533054827484" TEXT="fortran2008 support">
-<icon BUILTIN="prepare"/>
+<node COLOR="#000000" CREATED="0" ID="ID_354234794" MODIFIED="1542407865772" TEXT="fparser2">
+<node CREATED="1533054524842" ID="ID_747130281" MODIFIED="1542407812403" TEXT="fortran2008 support">
+<node CREATED="1542407821601" ID="ID_1606874070" MODIFIED="1542407845170" TEXT="submodules">
+<icon BUILTIN="button_ok"/>
 </node>
-<node CREATED="1533054553378" ID="ID_263614894" MODIFIED="1533054816739" TEXT="Syntax error with line number">
-<icon BUILTIN="button_cancel"/>
+</node>
+<node CREATED="1533054553378" ID="ID_263614894" MODIFIED="1542407779406" TEXT="Syntax error with line number">
+<icon BUILTIN="button_ok"/>
 </node>
 <node CREATED="1533054869043" ID="ID_569592167" MODIFIED="1533054888570" TEXT="Support comments">
 <icon BUILTIN="button_ok"/>
@@ -392,6 +404,25 @@
 </node>
 <node CREATED="1533055404196" ID="ID_1521624301" MODIFIED="1533055486398" TEXT="api for creating/modifying ast">
 <node CREATED="1533055445052" ID="ID_614108886" MODIFIED="1533055474043" TEXT="link with f2pygen">
+<icon BUILTIN="button_cancel"/>
+</node>
+</node>
+<node CREATED="1542407897654" ID="ID_1220501587" MODIFIED="1542407902171" TEXT="parses">
+<node CREATED="1542407906073" ID="ID_1561909707" MODIFIED="1542407922768" TEXT="lfric">
+<node CREATED="1542407927829" ID="ID_1913067202" MODIFIED="1542407939532" TEXT="kernels">
+<icon BUILTIN="button_ok"/>
+</node>
+<node CREATED="1542407956685" ID="ID_949316415" MODIFIED="1542407976122" TEXT="algorithms">
+<icon BUILTIN="button_ok"/>
+</node>
+<node CREATED="1542407961178" ID="ID_825934251" MODIFIED="1542408007017" TEXT="infrastructure">
+<icon BUILTIN="help"/>
+</node>
+</node>
+<node CREATED="1542417048757" ID="ID_152438062" MODIFIED="1542417059889" TEXT="nemo">
+<icon BUILTIN="help"/>
+</node>
+<node CREATED="1542417070612" ID="ID_1555906855" MODIFIED="1542417086224" TEXT="UM">
 <icon BUILTIN="button_cancel"/>
 </node>
 </node>
@@ -480,6 +511,20 @@
 </node>
 <node COLOR="#000000" CREATED="0" ID="VYM__" MODIFIED="0" TEXT="Other">
 <icon BUILTIN="idea"/>
+</node>
+</node>
+</node>
+<node CREATED="1542407615384" ID="ID_704910193" MODIFIED="1542407629368" POSITION="right" TEXT="PSyIRe">
+<node CREATED="1542417171174" ID="ID_961998503" MODIFIED="1542417432585" TEXT="kernels">
+<node CREATED="1542417438469" ID="ID_642853369" MODIFIED="1542417454983" TEXT="to_IR">
+<node CREATED="1542417196671" ID="ID_1382106320" MODIFIED="1542417345488" TEXT="gocean1.0">
+<icon BUILTIN="button_cancel"/>
+</node>
+</node>
+<node CREATED="1542417763353" ID="ID_1932263047" MODIFIED="1542417777601" TEXT="from_IR">
+<node CREATED="1542417781045" ID="ID_839637841" MODIFIED="1542417868468" TEXT="C">
+<icon BUILTIN="button_cancel"/>
+</node>
 </node>
 </node>
 </node>

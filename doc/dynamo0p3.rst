@@ -43,10 +43,10 @@ This section describes the Dynamo0.3 application programming interface
 (API). This API explains what a user needs to write in order to make
 use of the Dynamo0.3 API in PSyclone.
 
-As with all PSyclone API's the Dynamo0.3 API specifies how a user
-needs to write the algorithm layer and the kernel layer to allow
-PSyclone to generate the PSy layer. These algorithm and kernel API's
-are discussed separately in the following sections.
+As with the majority of PSyclone API's, the Dynamo0.3 API specifies
+how a user needs to write the algorithm layer and the kernel layer to
+allow PSyclone to generate the PSy layer. These algorithm and kernel
+API's are discussed separately in the following sections.
 
 The Dynamo0.3 API supports the Met Office's finite element (hereafter FEM)
 based GungHo dynamical core (see :ref:`introduction`). The Met Office

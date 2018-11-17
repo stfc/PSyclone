@@ -99,7 +99,7 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser>=0.0.7', 'configparser',
-                          'six'],
+                          'six', 'habakkuk'],
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],
         data_files=[('share/psyclone', ['config/psyclone.cfg'])]
