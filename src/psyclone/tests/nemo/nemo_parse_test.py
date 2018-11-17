@@ -31,43 +31,29 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
 
-''' example showing the use of the module-inline transformation '''
-from __future__ import print_function
+''' Module containing py.test tests for the parsing of NEMO code. '''
 
+from __future__ import print_function, absolute_import
+import os
+from fparser.two.utils import walk_ast
+from psyclone.parse import parse
+from psyclone import nemo
 
-def inline():
-    ''' function exercising the module-inline transformation '''
-    from psyclone.parse import parse
-    from psyclone.psyGen import PSyFactory
-    import os
-    from psyclone.transformations import KernelModuleInlineTrans
-
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "psyclone", "tests",
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1")
-    psy = PSyFactory("dynamo0.1").create(info)
-    invokes = psy.invokes
-    print(psy.invokes.names)
-    invoke = invokes.get("invoke_0_testkern_type")
-    schedule = invoke.schedule
-    schedule.view()
-    kern = schedule.children[0].children[0]
-    # setting module inline directly
-    kern.module_inline = True
-    schedule.view()
-    # unsetting module inline via a transformation
-    trans = KernelModuleInlineTrans()
-    schedule, _ = trans.apply(kern, inline=False)
-    schedule.view()
-    # setting module inline via a transformation
-    schedule, _ = trans.apply(kern)
-    schedule.view()
-    print(str(psy.gen))
+# Constants
+API = "nemo"
+# Location of the Fortran files associated with these tests
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files")
 
 
-if __name__ == "__main__":
-    inline()
+def test_identify_implicit_loop():
+    ''' Check that we correctly identify implicit loops in the fparser2 AST '''
+    from fparser.two import Fortran2003
+    _, ast = parse(os.path.join(BASE_PATH, "code_block.f90"),
+                   api=API, line_length=False)
+    assert not nemo.NemoImplicitLoop.match(ast)
+    stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
+    assert not nemo.NemoImplicitLoop.match(stmts[1])
+    assert nemo.NemoImplicitLoop.match(stmts[0])

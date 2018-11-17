@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,43 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Author A. R. Porter, STFC Daresbury Lab
 
-''' example showing the use of the module-inline transformation '''
-from __future__ import print_function
+This directory contains tra_adv.F90 - a stand-alone version of one of
+the tracer- advection routines from the NEMO ocean model. It was
+originally extracted by Silvia Mocavero of CMCC. In addition, there is
+an example script, runme_openmp.py, that demonstrates the use of
+PSyclone to parallelise all loops over levels using OpenMP. Once you have
+installed PSyclone, this script may be run by doing:
 
+    $ ./runme_openmp.py
 
-def inline():
-    ''' function exercising the module-inline transformation '''
-    from psyclone.parse import parse
-    from psyclone.psyGen import PSyFactory
-    import os
-    from psyclone.transformations import KernelModuleInlineTrans
-
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "psyclone", "tests",
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1")
-    psy = PSyFactory("dynamo0.1").create(info)
-    invokes = psy.invokes
-    print(psy.invokes.names)
-    invoke = invokes.get("invoke_0_testkern_type")
-    schedule = invoke.schedule
-    schedule.view()
-    kern = schedule.children[0].children[0]
-    # setting module inline directly
-    kern.module_inline = True
-    schedule.view()
-    # unsetting module inline via a transformation
-    trans = KernelModuleInlineTrans()
-    schedule, _ = trans.apply(kern, inline=False)
-    schedule.view()
-    # setting module inline via a transformation
-    schedule, _ = trans.apply(kern)
-    schedule.view()
-    print(str(psy.gen))
-
-
-if __name__ == "__main__":
-    inline()
+This will output PSyclone's Schedule view of the Fortran routine followed by
+the generated Fortran code with the OpenMP directives added.

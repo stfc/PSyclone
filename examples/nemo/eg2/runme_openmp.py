@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,43 +32,50 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-''' example showing the use of the module-inline transformation '''
+'''A simple test script showing the introduction of OpenMP with PSyclone.
+In order to use it you must first install PSyclone. See README.md in the
+top-level psyclone directory.
+
+Once you have psyclone installed, this script may be run by doing (you may
+need to make it executable first with chmod u+x ./runme_openmp.py):
+
+ >>> ./runme_openmp.py
+
+This should generate a lot of output, ending with generated
+Fortran.
+'''
+
 from __future__ import print_function
-
-
-def inline():
-    ''' function exercising the module-inline transformation '''
-    from psyclone.parse import parse
-    from psyclone.psyGen import PSyFactory
-    import os
-    from psyclone.transformations import KernelModuleInlineTrans
-
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "psyclone", "tests",
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1")
-    psy = PSyFactory("dynamo0.1").create(info)
-    invokes = psy.invokes
-    print(psy.invokes.names)
-    invoke = invokes.get("invoke_0_testkern_type")
-    schedule = invoke.schedule
-    schedule.view()
-    kern = schedule.children[0].children[0]
-    # setting module inline directly
-    kern.module_inline = True
-    schedule.view()
-    # unsetting module inline via a transformation
-    trans = KernelModuleInlineTrans()
-    schedule, _ = trans.apply(kern, inline=False)
-    schedule.view()
-    # setting module inline via a transformation
-    schedule, _ = trans.apply(kern)
-    schedule.view()
-    print(str(psy.gen))
-
+from psyclone.parse import parse
+from psyclone.psyGen import PSyFactory, TransInfo
 
 if __name__ == "__main__":
-    inline()
+    from psyclone.nemo import NemoKern
+    API = "nemo"
+    _, INVOKEINFO = parse("traldf_iso.F90", api=API)
+    PSY = PSyFactory(API).create(INVOKEINFO)
+    print(PSY.gen)
+
+    print("Invokes found:")
+    print(PSY.invokes.names)
+
+    SCHED = PSY.invokes.get('tra_ldf_iso').schedule
+    SCHED.view()
+
+    TRANS_INFO = TransInfo()
+    print(TRANS_INFO.list)
+    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
+
+    for loop in SCHED.loops():
+        # TODO loop.kernel method needs extending to cope with
+        # multiple kernels
+        kernels = loop.walk(loop.children, NemoKern)
+        if kernels and loop.loop_type == "levels":
+            sched, _ = OMP_TRANS.apply(loop)
+
+    SCHED.view()
+
+    PSY.invokes.get('tra_ldf_iso').schedule = SCHED
+    print(PSY.gen)

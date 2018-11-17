@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,43 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-''' example showing the use of the module-inline transformation '''
-from __future__ import print_function
+''' Module containing py.test tests for the generation of Fortran from
+    the PSy representation of NEMO code. '''
 
+from __future__ import print_function, absolute_import
+import os
+import fparser
 
-def inline():
-    ''' function exercising the module-inline transformation '''
-    from psyclone.parse import parse
-    from psyclone.psyGen import PSyFactory
-    import os
-    from psyclone.transformations import KernelModuleInlineTrans
-
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "..", "..", "src", "psyclone", "tests",
-                                 "test_files", "dynamo0p1", "algorithm",
-                                 "1_single_function.f90"),
-                    api="dynamo0.1")
-    psy = PSyFactory("dynamo0.1").create(info)
-    invokes = psy.invokes
-    print(psy.invokes.names)
-    invoke = invokes.get("invoke_0_testkern_type")
-    schedule = invoke.schedule
-    schedule.view()
-    kern = schedule.children[0].children[0]
-    # setting module inline directly
-    kern.module_inline = True
-    schedule.view()
-    # unsetting module inline via a transformation
-    trans = KernelModuleInlineTrans()
-    schedule, _ = trans.apply(kern, inline=False)
-    schedule.view()
-    # setting module inline via a transformation
-    schedule, _ = trans.apply(kern)
-    schedule.view()
-    print(str(psy.gen))
+# Constants
+API = "nemo"
+# Location of the Fortran files associated with these tests
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files")
 
 
-if __name__ == "__main__":
-    inline()
+def test_api_no_alg():
+    ''' Checks that generate works OK for an API which doesn't have an
+    Algorithm layer '''
+    from psyclone.generator import generate
+    alg, psy = generate(os.path.join(BASE_PATH, "explicit_do.f90"),
+                        api="nemo")
+    assert alg is None
+    assert isinstance(psy, fparser.two.Fortran2003.Program)
