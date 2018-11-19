@@ -43,7 +43,8 @@ from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
-import utils
+from psyclone.configuration import Config
+import psyclone_test_utils as utils
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -58,8 +59,9 @@ def test_gh_inc_nohex_1(tmpdir, f90, f90flags, monkeypatch):
 
     '''
     # ensure that COMPUTE_ANNEXED_DOFS is True
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", True)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", True)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,
@@ -119,8 +121,9 @@ def test_gh_inc_nohex_2(tmpdir, f90, f90flags, monkeypatch):
 
     '''
     # ensure that COMPUTE_ANNEXED_DOFS is False
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,
@@ -198,8 +201,9 @@ def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
 
     '''
     # ensure that COMPUTE_ANNEXED_DOFS is True
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", True)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", True)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,
@@ -279,8 +283,9 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
 
     '''
     # ensure that COMPUTE_ANNEXED_DOFS is False
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,
@@ -346,8 +351,9 @@ def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
     generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,

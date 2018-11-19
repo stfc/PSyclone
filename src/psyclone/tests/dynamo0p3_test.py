@@ -2310,8 +2310,9 @@ def test_bc_kernel_field_only(monkeypatch, annexed):
 
     '''
 
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
@@ -4245,8 +4246,9 @@ def test_halo_exchange_inc(monkeypatch, annexed):
     number of halo exchanges are produced.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
                            api=TEST_API)
@@ -4341,8 +4343,9 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed):
     True as halo exchanges are only produced when annexed = False
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4.1_halo_vector.f90"),
@@ -4371,8 +4374,9 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
     of halo exchanges are produced.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -4432,8 +4436,9 @@ def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
 
     '''
 
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.6_halo_depth_2.f90"),
                            api=TEST_API)
@@ -7168,8 +7173,9 @@ def test_new_halo_exch_vect_field(monkeypatch):
     halo exchanges are not generated when annexed = True.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -7204,8 +7210,9 @@ def test_new_halo_exch_vect_deps(monkeypatch):
     halo exchanges are not generated when annexed = True.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -7241,8 +7248,9 @@ def test_new_halo_exch_vect_deps2(monkeypatch):
     halo exchanges are not generated when annexed = True.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)

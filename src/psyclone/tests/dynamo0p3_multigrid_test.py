@@ -49,6 +49,7 @@ from fparser import api as fpapi
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse import ParseError, parse
 from psyclone.psyGen import PSyFactory
+from psyclone.configuration import Config
 from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
@@ -308,8 +309,9 @@ def test_field_restrict(tmpdir, f90, f90flags, monkeypatch, annexed):
 
     '''
 
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),

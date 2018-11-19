@@ -477,8 +477,9 @@ def test_omp_colour_orient_trans(monkeypatch, annexed):
     as it affects how many halo exchanges are generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9.1_orientation2.f90"),
@@ -523,8 +524,9 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed):
     as it affects how many halo exchanges are generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
@@ -558,8 +560,9 @@ def test_omp_colouring_needed(monkeypatch, annexed):
     as it affects how many halo exchanges are generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
@@ -593,8 +596,9 @@ def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed):
     many halo exchanges are generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9.1_orientation2.f90"),
@@ -634,8 +638,9 @@ def test_check_seq_colours_omp_do(tmpdir, f90, f90flags, monkeypatch, annexed):
     halo exchanges are generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9.1_orientation2.f90"),
@@ -705,15 +710,16 @@ def test_colouring_after_openmp():
         assert "within an OpenMP parallel region" in str(excinfo.value)
 
 
-def test_colouring_multi_kernel(monkeypatch, annexed, distmem):
+def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
     '''Test that we correctly generate all the map-lookups etc.  when an
     invoke contains more than one kernel. We test when distributed
     memory is on or off. We also test when annexed is False and True
     as it affects how many halo exchanges are generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -951,8 +957,9 @@ def test_multi_different_kernel_omp(monkeypatch, annexed):
     many halo exchanges are generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
@@ -993,11 +1000,12 @@ def test_multi_different_kernel_omp(monkeypatch, annexed):
 def test_loop_fuse_different_spaces(monkeypatch):
     '''Test that we raise an appropriate error if the user attempts to
     fuse loops that are on different spaces. We test with annexed is
-    False as the this is how the test has been set up.
+    False as this is how the test has been set up.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", False)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
@@ -1276,7 +1284,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
 
 
 def test_fuse_colour_loops(tmpdir, f90, f90flags, monkeypatch, annexed,
-                           distmem):
+                           dist_mem):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP PARALLEL DO for both
     sequential and distributed-memory code. We also test when annexed
@@ -1284,8 +1292,9 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags, monkeypatch, annexed,
     generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -1486,8 +1495,9 @@ def test_module_inline(monkeypatch, annexed):
     exchanges are generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -5377,8 +5387,10 @@ def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.6_multikernel_invokes.f90"),
                     api="dynamo0.3")
@@ -5465,8 +5477,9 @@ def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
     how many halo exchanges are generated.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -6104,8 +6117,9 @@ def test_haloex_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert not depth_info.max_depth
         assert not depth_info.var_depth
 
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     if annexed:
         w_loop_idx = 1
         r_loop_idx = 3
@@ -6192,8 +6206,9 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     if annexed:
         w_loop_idx = 1
@@ -6292,8 +6307,9 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert not depth_info.max_depth
         assert not depth_info.var_depth
 
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     if annexed:
         w_loop_idx = 2
         r_loop_idx = 4
@@ -6391,8 +6407,9 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     r_loop_idx = 5
     ctrans = Dynamo0p3ColourTrans()
@@ -6456,8 +6473,9 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
 
     '''
 
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     # At the start we have two halo exchange calls for field f1, one
     # before the first loop and one between the two loops when annexed
     # is False, and just the latter halo exchange when annexed is True
@@ -6876,7 +6894,7 @@ def test_async_hex_preserve_properties():
     assert f1_async_hex_end._compute_halo_depth() == halo_depth
 
 
-def test_async_hex_move_2(tmpdir, f90, f90flags):
+def test_async_hex_move_2(tmpdir, f90, f90flags, monkeypatch):
     '''Test that we can convert a synchronous halo exchange to an
     asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
@@ -6890,13 +6908,13 @@ def test_async_hex_move_2(tmpdir, f90, f90flags):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    f2_hex = schedule.children[11]
+    f2_hex = schedule.children[10]
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
 
     mtrans = MoveTrans()
-    schedule, _ = mtrans.apply(schedule.children[11],
-                               schedule.children[10])
+    schedule, _ = mtrans.apply(schedule.children[10],
+                               schedule.children[9])
     result = str(psy.gen)
     assert (
         "      CALL f2_proxy%halo_exchange_start(depth=1)\n"
@@ -7189,6 +7207,10 @@ def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
+    # create vector halo exchanges after the first loop by performing
+    # redundant computation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[4], depth=2)
     # make all f1 vector halo exchanges asynchronous before the first
     # loop and one of them before the second loop, then check depths
     # and set clean are still generated correctly
@@ -7257,6 +7279,11 @@ def test_async_halo_exchange_nomatch1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
+    # create vector halo exchanges after the first loop by performing
+    # redundant computation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[4], depth=2)
+
     # make the first vector component of the halo exchange for f1
     # asynchronous before the first loop.
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
@@ -7292,16 +7319,16 @@ def test_async_halo_exchange_nomatch2():
     # make the last vector component of the halo exchange for f1
     # asynchronous after the first loop.
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
-    hex = schedule.children[6]
+    hex = schedule.children[0]
     schedule, _ = ahex_trans.apply(hex)
 
     # now remove the generated halo exchange end. This will mean that
     # the halo exchange start will now match with nothing as it is the
     # last halo exchange in the schedule. This should cause an
     # exception to be raised.
-    del(schedule.children[7])
+    del(schedule.children[1])
 
-    hex_start = schedule.children[6]
+    hex_start = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
         _ = hex_start._get_hex_end()
     assert ("Halo exchange start for field 'f1' has no matching halo "
