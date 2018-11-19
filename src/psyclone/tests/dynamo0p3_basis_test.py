@@ -1205,6 +1205,29 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
     assert expected_dealloc in gen_code
 
 
+def test_eval_2fs():
+    ''' Test that we generate correct code when a kernel requires that
+    a differential basis function be evaluated on two different FS. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "6.8_eval_2fs_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print(gen_code)
+    assert ("      REAL(KIND=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:)\n"
+            "      INTEGER ndf_nodal_w0, diff_dim_w1, ndf_nodal_w1\n") in gen_code
+    assert("      ! Allocate differential basis arrays\n"
+           "      !\n"
+           "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
+           "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
+           "ndf_nodal_w0), diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, "
+           "ndf_nodal_w1)\n" in gen_code)
+    assert ("CALL testkern_eval_code(nlayers, f0_proxy%data, f1_proxy%data, "
+            "ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
+            "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in gen_code)
+
+
 BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
