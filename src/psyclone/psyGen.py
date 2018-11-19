@@ -99,12 +99,14 @@ VALID_ACCESS_DESCRIPTOR_NAMES = []
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
 # coloured.) See https://pypi.python.org/pypi/termcolor for details.
-SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
-                       "Loop": "white",
+SCHEDULE_COLOUR_MAP = {"Schedule": "white",
+                       "Loop": "red",
                        "GlobalSum": "cyan",
                        "Directive": "green",
                        "HaloExchange": "blue",
-                       "Call": "red",
+                       "HaloExchangeStart": "yellow",
+                       "HaloExchangeEnd": "yellow",
+                       "Call": "magenta",
                        "KernCall": "magenta",
                        "Profile": "green",
                        "If": "red"}
@@ -2305,6 +2307,9 @@ class HaloExchange(Node):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
+        self._text_name = "HaloExchange"
+        self._colour_map_name = "HaloExchange"
+        self._dag_name = "haloexchange"
 
     @property
     def vector_index(self):
@@ -2330,8 +2335,8 @@ class HaloExchange(Node):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        name = ("haloexchange({0})_".format(self._field.name) +
-                str(self.position))
+        name = ("{0}({1})_{2}".format(self._dag_name, self._field.name,
+                                      self.position))
         if self._check_dirty:
             name = "check" + name
         return name
@@ -2426,7 +2431,8 @@ class HaloExchange(Node):
         :return: Name of this node type, possibly with colour control codes
         :rtype: string
         '''
-        return colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+        return colored(
+            self._text_name, SCHEDULE_COLOUR_MAP[self._colour_map_name])
 
 
 class Loop(Node):
@@ -3279,12 +3285,16 @@ class DataAccess(object):
            (self._arg.vector_size > 1 or arg.vector_size > 1):
             # This is a vector field and both accesses come from halo
             # exchanges. As halo exchanges only access a particular
-            # vector the accesses do not overlap if the vector indices
+            # vector, the accesses do not overlap if the vector indices
             # being accessed differ.
 
             # sanity check
-            self._call.check_vector_halos_differ(arg.call)
-
+            if self._arg.vector_size != arg.vector_size:
+                raise InternalError(
+                    "DataAccess.overlaps(): vector sizes differ for field "
+                    "'{0}' in two halo exchange calls. Found '{1}' and "
+                    "'{2}'".format(arg.name, self._arg.vector_size,
+                                   arg.vector_size))
             if self._call.vector_index != arg.call.vector_index:
                 # accesses are to different vector indices so do not overlap
                 return False

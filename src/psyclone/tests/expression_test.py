@@ -2,8 +2,8 @@
 ''' Module containing tests for the Fortran expression parser '''
 
 from __future__ import absolute_import
-from psyclone.expression import VAR_OR_FUNCTION, FORT_EXPRESSION, SLICING
 import six
+from psyclone.expression import VAR_OR_FUNCTION, FORT_EXPRESSION, SLICING
 
 
 def my_test(name, parser, test_string, names=None):
@@ -22,13 +22,13 @@ def my_test(name, parser, test_string, names=None):
     # Unlike Python2 Python3's exec requries an explicit context
     import psyclone.expression
     context = {
-            'BinaryOperator': psyclone.expression.BinaryOperator,
-            'FunctionVar': psyclone.expression.FunctionVar,
-            'Grouping': psyclone.expression.Grouping,
-            'LiteralArray': psyclone.expression.LiteralArray,
-            'NamedArg': psyclone.expression.NamedArg,
-            'Slicing': psyclone.expression.Slicing,
-            }
+        'BinaryOperator': psyclone.expression.BinaryOperator,
+        'FunctionVar': psyclone.expression.FunctionVar,
+        'Grouping': psyclone.expression.Grouping,
+        'LiteralArray': psyclone.expression.LiteralArray,
+        'NamedArg': psyclone.expression.NamedArg,
+        'Slicing': psyclone.expression.Slicing,
+    }
     # pylint: disable=exec-used
     six.exec_("pstr="+repr(pstr[0]), context)
     # pylint: enable=exec-used

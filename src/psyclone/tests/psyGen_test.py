@@ -2046,11 +2046,10 @@ def test_find_w_args_hes_no_vec(monkeypatch):
     halo_exchange_d_v3 = schedule.children[5]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 1)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert ("Internal error, HaloExchange.check_vector_halos_differ() a "
-            "halo exchange depends on another halo exchange "
-            "but the vector size of field 'd' is 1" in str(excinfo.value))
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+            "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_diff_vec(monkeypatch):
@@ -2071,12 +2070,10 @@ def test_find_w_args_hes_diff_vec(monkeypatch):
     halo_exchange_d_v3 = schedule.children[5]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 2)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert (
-        "Internal error, HaloExchange.check_vector_halos_differ() a halo "
-        "exchange depends on another halo exchange but the vector sizes for "
-        "field 'd' differ" in str(excinfo.value))
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+            "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch):
@@ -2098,12 +2095,11 @@ def test_find_w_args_hes_vec_idx(monkeypatch):
     field_d_v3 = halo_exchange_d_v3.field
     halo_exchange_d_v2 = schedule.children[4]
     monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert ("Internal error, HaloExchange.check_vector_halos_differ() "
-            "a halo exchange depends on another halo "
-            "exchange but both vector id's ('3') of field 'd' are the "
-            "same" in str(excinfo.value))
+    assert ("DataAccess:update_coverage() The halo exchange vector indices "
+            "for 'd' are the same. This should never happen"
+            in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_no_dep():
