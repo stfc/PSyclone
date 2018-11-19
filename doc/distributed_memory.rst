@@ -68,10 +68,10 @@ Control
 
 Support for distributed memory can be switched on or off with the
 default being on. The default can be changed permanently by modifying
-the ``DISTRIBUTED_MEMORY`` variable in the ``config.py`` file to
-``False``.
+the ``DISTRIBUTED_MEMORY`` variable in the ``psyclone.cfg`` configuration
+file to ``false`` (see :ref:`configuration`).
 
-Distributed memory can be switched on or off from the ``generator``
+Distributed memory can be switched on or off from the ``psyclone``
 script using the ``-dm``/``--dist_mem`` or ``-nodm``/``--no_dist_mem``
 flags, respectively.
 
@@ -81,7 +81,10 @@ interactively from the ``PSyFactory`` class by setting the optional
 
     psy = PSyFactory(api=api, distributed_memory=False)
 
-Similarly the distributed memory option can be changed interactively from the ``generate`` function by setting the optional ``distributed_memory`` flag, e.g.: ::
+Similarly the distributed memory option can be changed interactively
+from the ``generate`` function by setting the optional
+``distributed_memory`` flag, e.g.:
+::
 
     psy, alg = generate("file.f90", distributed_memory=False).
 

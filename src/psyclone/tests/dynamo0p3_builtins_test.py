@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -45,13 +46,16 @@ import os
 import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
-import utils
+from psyclone_test_utils import TEST_COMPILE, code_compiles
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
+# The PSyclone API under test
+API = "dynamo0.3"
 
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
@@ -64,7 +68,7 @@ def test_dynbuiltin_missing_defs():
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15.12.3_single_pointwise_builtin.f90"),
-                     api="dynamo0.3")
+                     api=API)
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     assert ("broken' containing the meta-data describing the "
             "Built-in operations" in str(excinfo.value))
@@ -79,12 +83,12 @@ def test_dynbuiltin_not_over_dofs():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
-        api="dynamo0.3")
+        api=API)
     # Restore the original file name before doing the assert in case
     # it fails
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
+        _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("built-in calls must iterate over DoFs but found cells for "
             "Built-in: Set field " in str(excinfo.value))
@@ -103,10 +107,10 @@ def test_builtin_multiple_writes():
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         test_builtin_file),
-                           api="dynamo0.3")
+                           api=API)
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
+        _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
             "one argument that is written to but found 2 for kernel " +
@@ -126,10 +130,10 @@ def test_builtin_write_and_inc():
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         test_builtin_file),
-                           api="dynamo0.3")
+                           api=API)
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
+        _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and only "
             "one argument that is written to but found 2 for kernel " +
@@ -149,10 +153,10 @@ def test_builtin_sum_and_inc():
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         test_builtin_file),
-                           api="dynamo0.3")
+                           api=API)
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
+        _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API must have one and "
             "only one argument that is written to but found 2 for kernel " +
@@ -175,7 +179,7 @@ def test_builtin_zero_writes(monkeypatch):
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
                                   test_builtin_file),
-                     api="dynamo0.3")
+                     api=API)
     assert ("A Dynamo 0.3 kernel must have at least one "
             "argument that is updated (written to) but "
             "found none for kernel " + test_builtin_name.lower()
@@ -193,10 +197,10 @@ def test_builtin_no_field_args():
         os.path.join(BASE_PATH, "invalid_builtins_mod.f90")
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         test_builtin_file),
-                           api="dynamo0.3")
+                           api=API)
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
+        _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("A built-in kernel in the Dynamo 0.3 API "
             "must have at least one field as an argument but "
@@ -218,10 +222,10 @@ def test_builtin_operator_arg():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      test_builtin_file),
-        api="dynamo0.3")
+        api=API)
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
+        _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("In the Dynamo 0.3 API an argument to a built-in kernel "
             "must be one of ['gh_field', 'gh_real', 'gh_integer'] but " +
@@ -244,10 +248,10 @@ def test_builtin_args_not_same_space():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      test_builtin_file),
-        api="dynamo0.3")
+        api=API)
     dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     with pytest.raises(ParseError) as excinfo:
-        _ = PSyFactory("dynamo0.3",
+        _ = PSyFactory(API,
                        distributed_memory=False).create(invoke_info)
     assert ("All field arguments to a built-in in the Dynamo 0.3 API "
             "must be on the same space. However, found spaces ['any_space_1', "
@@ -285,7 +289,7 @@ def test_invalid_builtin_kernel():
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15.12.1_invalid_builtin_kernel.f90"),
-                     api="dynamo0.3")
+                     api=API)
     assert ("kernel call 'setva_c' must either be named in a "
             "use statement or be a recognised built-in" in
             str(excinfo.value))
@@ -298,9 +302,9 @@ def test_dynbuiltin_str():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
-        api="dynamo0.3")
+        api=API)
     for distmem in [True, False]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(API,
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -316,9 +320,9 @@ def test_dynbuiltin_gen_code():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
-        api="dynamo0.3")
+        api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(API,
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -333,9 +337,9 @@ def test_dynbuiltin_cma():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
-        api="dynamo0.3")
+        api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
+        psy = PSyFactory(API,
                          distributed_memory=distmem).create(invoke_info)
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -354,77 +358,75 @@ def test_dynbuiltfactory_str():
 # ------------- Adding (scaled) fields ------------------------------------- #
 
 
-def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch):
+def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch, annexed):
     '''Test that 1) the str method of DynXPlusYKern returns the expected
     string and 2) we generate correct code for the built-in Z = X + Y
     where X and Y are fields. Also check that we generate correct
-    bounds when config.COMPUTE_ANNEXED_DOFS is False and True
+    bounds when Config.api_conf(API)._compute_annexed_dofs is False and True
 
     '''
-    import psyclone.config
-    for annexed in [False, True]:
-        monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
-        _, invoke_info = parse(os.path.join(BASE_PATH,
-                                            "15.1.1_X_plus_Y_builtin.f90"),
-                               api="dynamo0.3")
-        for distmem in [False, True]:
-            psy = PSyFactory("dynamo0.3",
-                             distributed_memory=distmem).create(invoke_info)
-            # Test string method
-            first_invoke = psy.invokes.invoke_list[0]
-            kern = first_invoke.schedule.children[0].children[0]
-            assert str(kern) == "Built-in: Add fields"
-            # Test code generation
-            code = str(psy.gen)
-            if not distmem:
-                # The value of COMPUTE_ANNEXED_DOFS should make no difference
-                output = (
-                    "      f3_proxy = f3%get_proxy()\n"
-                    "      f1_proxy = f1%get_proxy()\n"
-                    "      f2_proxy = f2%get_proxy()\n"
-                    "      !\n"
-                    "      ! Initialise number of layers\n"
-                    "      !\n"
-                    "      nlayers = f3_proxy%vspace%get_nlayers()\n"
-                    "      !\n"
-                    "      ! Initialise number of DoFs for any_space_1_f3\n"
-                    "      !\n"
-                    "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
-                    "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
-                    "      !\n"
-                    "      ! Call our kernels\n"
-                    "      !\n"
-                    "      DO df=1,undf_any_space_1_f3\n"
-                    "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                    "f2_proxy%data(df)\n"
-                    "      END DO")
-                assert output in code
-            else:
-                mesh_code_present("f3", code)
-                output_dm_2 = (
-                    "      !\n"
-                    "      ! Call kernels and communication routines\n"
-                    "      !\n"
-                    "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
-                    "        f3_proxy%data(df) = f1_proxy%data(df) + "
-                    "f2_proxy%data(df)\n"
-                    "      END DO \n"
-                    "      !\n"
-                    "      ! Set halos dirty/clean for fields modified in the "
-                    "above loop\n"
-                    "      !\n"
-                    "      CALL f3_proxy%set_dirty()\n"
-                    "      !\n")
-                if not annexed:
-                    # Only compute owned dofs if COMPUTE_ANNEXED_DOFS is False
-                    output_dm_2 = output_dm_2.replace("annexed", "owned")
-                assert output_dm_2 in code
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.1_X_plus_Y_builtin.f90"),
+                           api=API)
+    for distmem in [False, True]:
+        psy = PSyFactory(API,
+                         distributed_memory=distmem).create(invoke_info)
+        # Test string method
+        first_invoke = psy.invokes.invoke_list[0]
+        kern = first_invoke.schedule.children[0].children[0]
+        assert str(kern) == "Built-in: Add fields"
+        # Test code generation
+        code = str(psy.gen)
+        if not distmem:
+            # The value of _compute_annexed_dofs should make no difference
+            output = (
+                "      f3_proxy = f3%get_proxy()\n"
+                "      f1_proxy = f1%get_proxy()\n"
+                "      f2_proxy = f2%get_proxy()\n"
+                "      !\n"
+                "      ! Initialise number of layers\n"
+                "      !\n"
+                "      nlayers = f3_proxy%vspace%get_nlayers()\n"
+                "      !\n"
+                "      ! Initialise number of DoFs for any_space_1_f3\n"
+                "      !\n"
+                "      ndf_any_space_1_f3 = f3_proxy%vspace%get_ndf()\n"
+                "      undf_any_space_1_f3 = f3_proxy%vspace%get_undf()\n"
+                "      !\n"
+                "      ! Call our kernels\n"
+                "      !\n"
+                "      DO df=1,undf_any_space_1_f3\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO")
+            assert output in code
+        else:
+            mesh_code_present("f3", code)
+            output_dm_2 = (
+                "      !\n"
+                "      ! Call kernels and communication routines\n"
+                "      !\n"
+                "      DO df=1,f3_proxy%vspace%get_last_dof_annexed()\n"
+                "        f3_proxy%data(df) = f1_proxy%data(df) + "
+                "f2_proxy%data(df)\n"
+                "      END DO \n"
+                "      !\n"
+                "      ! Set halos dirty/clean for fields modified in the "
+                "above loop\n"
+                "      !\n"
+                "      CALL f3_proxy%set_dirty()\n"
+                "      !\n")
+            if not annexed:
+                # Only compute owned dofs if _compute_annexed_dofs is False
+                output_dm_2 = output_dm_2.replace("annexed", "owned")
+            assert output_dm_2 in code
 
-            if utils.TEST_COMPILE:
-                # If compilation testing has been enabled (--compile
-                # flag to py.test)
-                assert utils.code_compiles("dynamo0.3", psy, tmpdir,
-                                           f90, f90flags)
+        if TEST_COMPILE:
+            # If compilation testing has been enabled (--compile
+            # flag to py.test)
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
 
 def test_inc_X_plus_Y(monkeypatch, annexed):
@@ -434,15 +436,14 @@ def test_inc_X_plus_Y(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(os.path.join(BASE_PATH,
                                             "15.1.2_inc_X_plus_Y_builtin.f90"),
                                distributed_memory=distmem,
-                               api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+                               api=API)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -489,14 +490,13 @@ def test_aX_plus_Y(monkeypatch, annexed):
     generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.3_aX_plus_Y_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -569,14 +569,13 @@ def test_inc_aX_plus_Y(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.4_inc_aX_plus_Y_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -648,14 +647,13 @@ def test_inc_X_plus_bY(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.5_inc_X_plus_bY_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -727,14 +725,13 @@ def test_aX_plus_bY(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.6_aX_plus_bY_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -807,15 +804,14 @@ def test_inc_aX_plus_bY(monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.1.7_inc_aX_plus_bY_builtin.f90"),
-        api="dynamo0.3")
+        api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -890,14 +886,13 @@ def test_X_minus_Y(monkeypatch, annexed):
     code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.1_X_minus_Y_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -957,16 +952,15 @@ def test_inc_X_minus_Y(monkeypatch, annexed):
     code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.2.2_inc_X_minus_Y_builtin.f90"),
             distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+            api=API)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1022,14 +1016,13 @@ def test_aX_minus_Y(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.3_aX_minus_Y_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1102,14 +1095,13 @@ def test_X_minus_bY(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.4_X_minus_bY_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1182,14 +1174,13 @@ def test_inc_X_minus_bY(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.5_inc_X_minus_bY_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1263,16 +1254,14 @@ def test_X_times_Y(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.3.1_X_times_Y_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+            distributed_memory=distmem, api=API)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1339,15 +1328,14 @@ def test_inc_X_times_Y(monkeypatch, annexed):
     code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.3.2_inc_X_times_Y_builtin.f90"),
-        api="dynamo0.3")
+        api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1406,14 +1394,13 @@ def test_inc_aX_times_Y(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.3_inc_aX_times_Y_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1488,15 +1475,14 @@ def test_a_times_X(monkeypatch, annexed):
     generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.4.1_a_times_X_builtin.f90"),
-        api="dynamo0.3")
+        api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1553,16 +1539,14 @@ def test_inc_a_times_X(monkeypatch, annexed):
     generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.4.2_inc_a_times_X_builtin.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+            distributed_memory=distmem, api=API)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1631,14 +1615,13 @@ def test_X_divideby_Y(monkeypatch, annexed):
     code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.1_X_divideby_Y_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1697,14 +1680,13 @@ def test_inc_X_divideby_Y(monkeypatch, annexed):
     annexed dofs being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.2_inc_X_divideby_Y_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1766,16 +1748,15 @@ def test_inc_X_powreal_a(monkeypatch, annexed):
     affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.6.1_inc_X_powreal_a_builtin.f90"),
             distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+            api=API)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1820,16 +1801,15 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed):
     this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.6.2_inc_X_powint_n_builtin.f90"),
             distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+            api=API)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1838,10 +1818,10 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed):
         code = str(psy.gen)
         print(code)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
         if not distmem:
             output = (
@@ -1883,14 +1863,13 @@ def test_setval_c(monkeypatch, annexed):
     generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.1_setval_c_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -1955,14 +1934,13 @@ def test_setval_X(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.2_setval_X_builtin.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
         kern = first_invoke.schedule.children[0].children[0]
@@ -2034,8 +2012,8 @@ def test_X_innerproduct_Y():
             os.path.join(BASE_PATH,
                          "15.9.1_X_innerproduct_Y_builtin.f90"),
             distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
+            api=API)
+        psy = PSyFactory(API,
                          distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
@@ -2112,8 +2090,8 @@ def test_X_innerproduct_X():
             os.path.join(BASE_PATH,
                          "15.9.2_X_innerproduct_X_builtin.f90"),
             distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
+            api=API)
+        psy = PSyFactory(API,
                          distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
@@ -2191,8 +2169,8 @@ def test_sum_X():
             os.path.join(BASE_PATH,
                          "15.8.1_sum_X_builtin.f90"),
             distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
+            api=API)
+        psy = PSyFactory(API,
                          distributed_memory=distmem).create(invoke_info)
         # Test string method
         first_invoke = psy.invokes.invoke_list[0]
@@ -2264,8 +2242,8 @@ def test_X_times_Y_on_different_spaces():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.11.2_X_times_Y_different_spaces.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+        api=API)
+    psy = PSyFactory(API).create(invoke_info)
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert "some string" in str(excinfo.value)
@@ -2283,8 +2261,8 @@ def test_X_times_Y_deduce_space():
             os.path.join(BASE_PATH,
                          "15.11.1_X_times_Y_deduce_space.f90"),
             distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
+            api=API)
+        psy = PSyFactory(API,
                          distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print(code)
@@ -2303,22 +2281,21 @@ def test_builtin_set(tmpdir, f90, f90flags, monkeypatch, annexed):
     annexed dofs being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
-        api="dynamo0.3")
+        api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print(code)
 
-        if utils.TEST_COMPILE:
+        if TEST_COMPILE:
             # If compilation testing has been enabled
             # (--compile --f90="<compiler_name>" flags to py.test)
-            assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
         if not distmem:
             output_seq = (
@@ -2380,15 +2357,14 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed):
     code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.13.1_aX_plus_Y_builtin_set_by_value.f90"),
-        api="dynamo0.3")
+        api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print(code)
         if not distmem:
@@ -2454,15 +2430,14 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed):
     generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.13.2_aX_plus_bY_builtin_set_by_value.f90"),
-        api="dynamo0.3")
+        api=API)
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print(code)
         if not distmem:
@@ -2530,14 +2505,14 @@ def test_multiple_builtin_set(monkeypatch, annexed):
     dofs being computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.14.2_multiple_set_kernels.f90"),
-                           api="dynamo0.3")
+                           api=API)
     for distmem in [False, True]:
         psy = PSyFactory(
-            "dynamo0.3", distributed_memory=distmem).create(invoke_info)
+            API, distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print(code)
         if not distmem:
@@ -2634,16 +2609,15 @@ def test_builtin_set_plus_normal(monkeypatch, annexed):
     code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        api="dynamo0.3")
+        api=API)
 
     for distmem in [False, True]:
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print(code)
 
@@ -2737,16 +2711,14 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed):
     computed as this affects the generated code.
 
     '''
-    import psyclone.config
-    monkeypatch.setattr(psyclone.config, "COMPUTE_ANNEXED_DOFS", annexed)
+    api_config = Config.get().api_conf(API)
+    monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.18.1_builtins_reduction_fuse_error.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
+            distributed_memory=distmem, api=API)
+        psy = PSyFactory(API, distributed_memory=distmem).create(invoke_info)
         code = str(psy.gen)
         print(code)
         if distmem:
@@ -2861,7 +2833,7 @@ def test_scalar_int_builtin_error(monkeypatch):
         with pytest.raises(ParseError) as excinfo:
             _, _ = parse(os.path.join(BASE_PATH,
                                       "16.2_integer_scalar_sum.f90"),
-                         api="dynamo0.3", distributed_memory=dist_mem)
+                         api=API, distributed_memory=dist_mem)
         assert ("In the dynamo0.3 API a reduction access 'gh_sum' is "
                 "only valid with a real scalar argument, but 'gh_integer' "
                 "was found" in str(excinfo))

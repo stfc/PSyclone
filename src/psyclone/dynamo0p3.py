@@ -42,16 +42,18 @@
     Loop, Kern, Inf, Arguments and Argument). '''
 
 # Imports
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import os
+from collections import OrderedDict
 import fparser
 from psyclone.parse import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
-from psyclone import psyGen, config
+from psyclone import psyGen
+from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    FieldNotFoundError, HaloExchange, GlobalSum, FORTRAN_INTENT_NAMES
-from collections import OrderedDict
+    InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
+    FORTRAN_INTENT_NAMES, DataAccess
 
 # First section : Parser specialisations and classes
 
@@ -854,6 +856,10 @@ class DynKernMetadata(KernelType):
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
         self._eval_shape = self.get_integer_variable('gh_shape')
+        # Check to see whether the optional 'gh_evaluator_targets'
+        # has been supplied. This lists the function spaces for which
+        # any evaluators (gh_shape=gh_evaluator) should be provided.
+        self._eval_targets = self.get_integer_array('gh_evaluator_targets')
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
         # specified for each [field] argument). This property is
@@ -928,6 +934,7 @@ class DynKernMetadata(KernelType):
                             "kernel '{2}'".
                             format(VALID_EVALUATOR_SHAPES, self._eval_shape,
                                    self.name))
+
             self._func_descriptors.append(descriptor)
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
@@ -969,16 +976,33 @@ class DynKernMetadata(KernelType):
                 "Kernel '{0}' specifies a gh_shape ({1}) but does not "
                 "need an evaluator because no basis or differential basis "
                 "functions are required".format(self.name, self._eval_shape))
-
-        # Check that this kernel only updates a single argument if an
-        # evaluator is required
-        if self._eval_shape == "gh_evaluator" and write_count > 1:
-            raise ParseError(
-                "A Dynamo 0.3 kernel requiring quadrature/evaluator must "
-                "only write to one argument but kernel {0} requires {1} and "
-                "updates {2} arguments".format(self.name,
-                                               self._eval_shape, write_count))
-
+        # Check that gh_evaluator_targets is only present if required
+        if self._eval_targets:
+            if not need_evaluator:
+                raise ParseError(
+                    "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
+                    "does not need an evaluator because no basis or "
+                    "differential basis functions are required".
+                    format(self.name, self._eval_targets))
+            if self._eval_shape != "gh_evaluator":
+                raise ParseError(
+                    "Kernel '{0}' specifies gh_evaluator_targets ({1}) but "
+                    "does not need an evaluator because gh_shape={2}".
+                    format(self.name, self._eval_targets, self._eval_shape))
+            # Check that there is a kernel argument on each of the
+            # specified spaces...
+            # Create a list (set) of the function spaces associated with
+            # the kernel arguments
+            fs_list = set()
+            for arg in self._arg_descriptors:
+                fs_list.update(arg.function_spaces)
+            # Check each evaluator_target against this list
+            for eval_fs in self._eval_targets:
+                if eval_fs not in fs_list:
+                    raise ParseError(
+                        "Kernel '{0}' specifies that an evaluator is required "
+                        "on {1} but does not have an argument on this space."
+                        .format(self.name, eval_fs))
         # If we have a columnwise operator as argument then we need to
         # identify the operation that this kernel performs (one of
         # assemble, apply/apply-inverse and matrix-matrix)
@@ -1836,33 +1860,39 @@ class DynInvokeCMAOperators(object):
 
 
 class DynMeshes(object):
-    '''
-    Holds all mesh-related information. If there are no inter-grid
-    kernels then there is only one mesh object required (when doing
-    distributed memory). However, kernels performing inter-grid
-    operations require multiple mesh objects as well as mesh maps and
-    other quantities.
+    '''Holds all mesh-related information (including colour maps if
+    required).  If there are no inter-grid kernels then there is only
+    one mesh object required (when colouring or doing distributed memory).
+    However, kernels performing inter-grid operations require multiple mesh
+    objects as well as mesh maps and other quantities.
 
     There are two types of inter-grid operation; the first is "prolongation"
     where a field on a coarse mesh is mapped onto a fine mesh. The second
     is "restriction" where a field on a fine mesh is mapped onto a coarse
     mesh.
 
+    :param schedule: the schedule of the Invoke for which to extract \
+                     information on all required inter-grid operations.
+    :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+    :param unique_psy_vars: list of arguments to the PSy-layer routine.
+    :type unique_psy_vars: list of \
+                      :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects.
     '''
 
     def __init__(self, schedule, unique_psy_vars):
-        '''
-        :param schedule: the schedule of the Invoke for which to extract
-                         information on all required inter-grid operations
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
-        :param unique_psy_vars: list of arguments to the PSy-layer routine
-        :type unique_psy_vars: list of
-                   :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects
-        '''
         self._name_space_manager = NameSpaceFactory().create()
-
-        self._kern_calls = []
+        # Dict of DynInterGrid objects holding information on the mesh-related
+        # variables required by each inter-grid kernel. Keys are the kernel
+        # names.
+        self._ig_kernels = OrderedDict()
+        # List of names of unique mesh variables referenced in the Invoke
         self._mesh_names = []
+        # Whether or not the associated Invoke requires colourmap information
+        self._needs_colourmap = False
+        # Keep a reference to the Schedule so we can check for colouring
+        # later
+        self._schedule = schedule
+
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
 
@@ -1893,37 +1923,9 @@ class DynMeshes(object):
             fine_arg = fine_args[0]
             coarse_arg = coarse_args[0]
 
-            # Generate name for inter-mesh map
-            base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
-                                                   coarse_arg.name)
-            mmap = self._name_space_manager.create_name(
-                root_name=base_mmap_name,
-                context="PSyVars",
-                label=base_mmap_name)
-
-            # Generate name for ncell variables
-            ncell_fine = self._name_space_manager.create_name(
-                root_name="ncell_{0}".format(fine_arg.name),
-                context="PSyVars",
-                label="ncell_{0}".format(fine_arg.name))
-            ncellpercell = self._name_space_manager.create_name(
-                root_name="ncpc_{0}_{1}".format(fine_arg.name,
-                                                coarse_arg.name),
-                context="PSyVars",
-                label="ncpc_{0}_{1}".format(fine_arg.name,
-                                            coarse_arg.name))
-            # Name for cell map
-            base_name = "cell_map_" + coarse_arg.name
-            cell_map = self._name_space_manager.create_name(
-                root_name=base_name, context="PSyVars", label=base_name)
-
-            # Store this information in our list of dicts
-            self._kern_calls.append({"fine": fine_arg,
-                                     "ncell_fine": ncell_fine,
-                                     "coarse": coarse_arg,
-                                     "mmap": mmap,
-                                     "ncperc": ncellpercell,
-                                     "cellmap": cell_map})
+            # Create an object to capture info. on this inter-grid kernel
+            # and store in our dictionary
+            self._ig_kernels[call.name] = DynInterGrid(fine_arg, coarse_arg)
 
             # Create and store the names of the associated mesh objects
             _name_set.add(
@@ -1939,7 +1941,7 @@ class DynMeshes(object):
 
         # If we found a mixture of both inter-grid and non-inter-grid kernels
         # then we reject the invoke()
-        if non_intergrid_kernels and self._kern_calls:
+        if non_intergrid_kernels and self._ig_kernels:
             raise GenerationError(
                 "An invoke containing inter-grid kernels must contain no "
                 "other kernel types but kernels '{0}' in invoke '{1}' are "
@@ -1948,29 +1950,70 @@ class DynMeshes(object):
                     schedule.invoke.name))
 
         # If we didn't have any inter-grid kernels but distributed memory
-        # is enabled then we will still need a mesh object
-        if not _name_set and config.DISTRIBUTED_MEMORY:
-            mesh_name = "mesh"
-            _name_set.add(
-                self._name_space_manager.create_name(
-                    root_name=mesh_name, context="PSyVars", label=mesh_name))
+        # is enabled then we will still need a mesh object. (Colourmaps also
+        # require a mesh object but that is handled in _colourmap_init().)
+        if not _name_set and Config.get().distributed_memory:
+            _name_set.add(self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh"))
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
 
+    def _colourmap_init(self):
+        '''
+        Sets-up information on any required colourmaps. This cannot be done
+        in the constructor since colouring is applied by Transformations
+        and happens after the Schedule has already been constructed.
+        '''
+        for call in [call for call in self._schedule.kern_calls() if
+                     call.is_coloured()]:
+            # Keep a record of whether or not any kernels (loops) in this
+            # invoke have been coloured
+            self._needs_colourmap = True
+
+            if call.is_intergrid:
+                # This is an inter-grid kernel so look-up the names of
+                # the colourmap variables associated with the coarse
+                # mesh (since that determines the iteration space).
+                carg_name = self._ig_kernels[call.name].coarse.name
+                # Colour map
+                base_name = "cmap_" + carg_name
+                colour_map = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # No. of colours
+                base_name = "ncolour_" + carg_name
+                ncolours = self._name_space_manager.create_name(
+                    root_name=base_name, context="PSyVars", label=base_name)
+                # Add these names into the dictionary entry for this
+                # inter-grid kernel
+                self._ig_kernels[call.name].colourmap = colour_map
+                self._ig_kernels[call.name].ncolours_var = ncolours
+
+        if not self._mesh_names and self._needs_colourmap:
+            # There aren't any inter-grid kernels but we do need colourmap
+            # information and that means we'll need a mesh object
+            mesh_name = self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh")
+            self._mesh_names.append(mesh_name)
+
     def declarations(self, parent):
         '''
-        Declare variables specific to inter-grid kernels
+        Declare variables specific to mesh objects.
 
         :param parent: the parent node to which to add the declarations
         :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
         '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen, UseGen
+
+        # Since we're now generating code, any transformations must
+        # have been applied so we can set-up colourmap information
+        self._colourmap_init()
+
         # We'll need various typedefs from the mesh module
         if self._mesh_names:
             parent.add(UseGen(parent, name="mesh_mod", only=True,
                               funcnames=["mesh_type"]))
-        if self._kern_calls:
+        if self._ig_kernels:
             parent.add(UseGen(parent, name="mesh_map_mod", only=True,
                               funcnames=["mesh_map_type"]))
         # Declare the mesh object(s)
@@ -1978,19 +2021,43 @@ class DynMeshes(object):
             parent.add(TypeDeclGen(parent, pointer=True, datatype="mesh_type",
                                    entity_decls=[name + " => null()"]))
         # Declare the inter-mesh map(s) and cell map(s)
-        for kern in self._kern_calls:
+        for kern in self._ig_kernels.values():
             parent.add(TypeDeclGen(parent, pointer=True,
                                    datatype="mesh_map_type",
-                                   entity_decls=[kern["mmap"] + " => null()"]))
+                                   entity_decls=[kern.mmap + " => null()"]))
             parent.add(
                 DeclGen(parent, pointer=True, datatype="integer",
-                        entity_decls=[kern["cellmap"] + "(:,:) => null()"]))
+                        entity_decls=[kern.cell_map + "(:,:) => null()"]))
 
             # Declare the number of cells in the fine mesh and how many fine
             # cells there are per coarse cell
             parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[kern["ncell_fine"],
-                                             kern["ncperc"]]))
+                               entity_decls=[kern.ncell_fine,
+                                             kern.ncellpercell]))
+            # Declare variables to hold the colourmap information if required
+            if kern.colourmap:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   pointer=True,
+                                   entity_decls=[kern.colourmap+"(:,:)"]))
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=[kern.ncolours_var]))
+
+        if not self._ig_kernels and self._needs_colourmap:
+            # There aren't any inter-grid kernels but we do need
+            # colourmap information
+            base_name = "cmap"
+            colour_map = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            # No. of colours
+            base_name = "ncolour"
+            ncolours = self._name_space_manager.create_name(
+                root_name=base_name, context="PSyVars", label=base_name)
+            # Add declarations for these variables
+            parent.add(DeclGen(parent, datatype="integer",
+                               pointer=True,
+                               entity_decls=[colour_map+"(:,:)"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[ncolours]))
 
     def initialise(self, parent):
         '''
@@ -2010,12 +2077,30 @@ class DynMeshes(object):
 
         if len(self._mesh_names) == 1:
             # We only require one mesh object which means that this invoke
-            # contains no inter-grid kernels
+            # contains no inter-grid kernels (which would require at least 2)
             parent.add(CommentGen(parent, " Create a mesh object"))
             parent.add(CommentGen(parent, ""))
             rhs = self._first_var.name_indexed + "%get_mesh()"
             parent.add(AssignGen(parent, pointer=True,
                                  lhs=self._mesh_names[0], rhs=rhs))
+            if self._needs_colourmap:
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent, " Get the colourmap"))
+                parent.add(CommentGen(parent, ""))
+                # Look-up variable names for colourmap and number of colours
+                colour_map = self._name_space_manager.create_name(
+                    root_name="cmap", context="PSyVars", label="cmap")
+                ncolour = self._name_space_manager.create_name(
+                    root_name="ncolour", context="PSyVars",
+                    label="ncolour")
+                # Get the number of colours
+                parent.add(AssignGen(
+                    parent, lhs=ncolour,
+                    rhs="{0}%get_ncolours()".format(self._mesh_names[0])))
+                # Get the colour map
+                parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
+                                     rhs=self._mesh_names[0] +
+                                     "%get_colour_map()"))
             return
 
         parent.add(CommentGen(
@@ -2027,69 +2112,135 @@ class DynMeshes(object):
         # that we don't generate duplicate assignments
         initialised = []
 
-        for kern in self._kern_calls:
+        # Loop over the DynInterGrid objects in our dictionary
+        for dig in self._ig_kernels.values():
             # We need pointers to both the coarse and the fine mesh
             fine_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern["fine"].name),
+                root_name="mesh_{0}".format(dig.fine.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern["fine"].name))
+                label="mesh_{0}".format(dig.fine.name))
             coarse_mesh = self._name_space_manager.create_name(
-                root_name="mesh_{0}".format(kern["coarse"].name),
+                root_name="mesh_{0}".format(dig.coarse.name),
                 context="PSyVars",
-                label="mesh_{0}".format(kern["coarse"].name))
+                label="mesh_{0}".format(dig.coarse.name))
             if fine_mesh not in initialised:
                 initialised.append(fine_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=fine_mesh,
-                              rhs=kern["fine"].name_indexed + "%get_mesh()"))
+                              rhs=dig.fine.name_indexed + "%get_mesh()"))
             if coarse_mesh not in initialised:
                 initialised.append(coarse_mesh)
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=coarse_mesh,
-                              rhs=kern["coarse"].name_indexed + "%get_mesh()"))
+                              rhs=dig.coarse.name_indexed + "%get_mesh()"))
             # We also need a pointer to the mesh map which we get from
             # the coarse mesh
-            if kern["mmap"] not in initialised:
-                initialised.append(kern["mmap"])
+            if dig.mmap not in initialised:
+                initialised.append(dig.mmap)
                 parent.add(
                     AssignGen(parent, pointer=True,
-                              lhs=kern["mmap"],
+                              lhs=dig.mmap,
                               rhs="{0}%get_mesh_map({1})".format(coarse_mesh,
                                                                  fine_mesh)))
 
             # Cell map. This is obtained from the mesh map.
-            if kern["cellmap"] not in initialised:
-                initialised.append(kern["cellmap"])
+            if dig.cell_map not in initialised:
+                initialised.append(dig.cell_map)
                 parent.add(
-                    AssignGen(parent, pointer=True, lhs=kern["cellmap"],
-                              rhs=kern["mmap"]+"%get_whole_cell_map()"))
+                    AssignGen(parent, pointer=True, lhs=dig.cell_map,
+                              rhs=dig.mmap+"%get_whole_cell_map()"))
 
             # Number of cells in the fine mesh
-            if kern["ncell_fine"] not in initialised:
-                initialised.append(kern["ncell_fine"])
-                if config.DISTRIBUTED_MEMORY:
+            if dig.ncell_fine not in initialised:
+                initialised.append(dig.ncell_fine)
+                if Config.get().distributed_memory:
                     # TODO this hardwired depth of 2 will need changing in
                     # order to support redundant computation
                     parent.add(
-                        AssignGen(parent, lhs=kern["ncell_fine"],
+                        AssignGen(parent, lhs=dig.ncell_fine,
                                   rhs=(fine_mesh+"%get_last_halo_cell"
                                        "(depth=2)")))
                 else:
                     parent.add(
-                        AssignGen(parent, lhs=kern["ncell_fine"],
-                                  rhs="%".join([kern["fine"].proxy_name,
-                                                kern["fine"].ref_name(),
+                        AssignGen(parent, lhs=dig.ncell_fine,
+                                  rhs="%".join([dig.fine.proxy_name,
+                                                dig.fine.ref_name(),
                                                 "get_ncell()"])))
 
             # Number of fine cells per coarse cell.
-            if kern["ncperc"] not in initialised:
-                initialised.append(kern["ncperc"])
+            if dig.ncellpercell not in initialised:
+                initialised.append(dig.ncellpercell)
                 parent.add(
-                    AssignGen(parent, lhs=kern["ncperc"],
-                              rhs=kern["mmap"] +
+                    AssignGen(parent, lhs=dig.ncellpercell,
+                              rhs=dig.mmap +
                               "%get_ntarget_cells_per_source_cell()"))
+
+            # Colour map for the coarse mesh (if required)
+            if dig.colourmap:
+                # Number of colours
+                parent.add(AssignGen(parent, lhs=dig.ncolours_var,
+                                     rhs=coarse_mesh + "%get_ncolours()"))
+                # Colour map itself
+                parent.add(AssignGen(parent, lhs=dig.colourmap,
+                                     pointer=True,
+                                     rhs=coarse_mesh + "%get_colour_map()"))
+
+    @property
+    def intergrid_kernels(self):
+        ''' Getter for the dictionary of intergrid kernels.
+
+        :returns: Dictionary of intergrid kernels, indexed by name.
+        :rtype: :py:class:`collections.OrderedDict`
+        '''
+        return self._ig_kernels
+
+
+class DynInterGrid(object):
+    '''
+    Holds information on quantities required by an inter-grid kernel.
+
+    :param fine_arg: Kernel argument on the fine mesh.
+    :type fine_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param coarse_arg: Kernel argument on the coarse mesh.
+    :type coarse_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    '''
+    def __init__(self, fine_arg, coarse_arg):
+        self._name_space_manager = NameSpaceFactory().create()
+
+        # Arguments on the coarse and fine grids
+        self.coarse = coarse_arg
+        self.fine = fine_arg
+
+        # Generate name for inter-mesh map
+        base_mmap_name = "mmap_{0}_{1}".format(fine_arg.name,
+                                               coarse_arg.name)
+        self.mmap = self._name_space_manager.create_name(
+            root_name=base_mmap_name,
+            context="PSyVars",
+            label=base_mmap_name)
+
+        # Generate name for ncell variables
+        self.ncell_fine = self._name_space_manager.create_name(
+            root_name="ncell_{0}".format(fine_arg.name),
+            context="PSyVars",
+            label="ncell_{0}".format(fine_arg.name))
+        # No. of fine cells per coarse cell
+        self.ncellpercell = self._name_space_manager.create_name(
+            root_name="ncpc_{0}_{1}".format(fine_arg.name,
+                                            coarse_arg.name),
+            context="PSyVars",
+            label="ncpc_{0}_{1}".format(fine_arg.name,
+                                        coarse_arg.name))
+        # Name for cell map
+        base_name = "cell_map_" + coarse_arg.name
+        self.cell_map = self._name_space_manager.create_name(
+            root_name=base_name, context="PSyVars", label=base_name)
+        # We have no colourmap information when first created
+        self.colourmap = ""
+        # Name of the variable holding the number of colours
+        self.ncolours_var = ""
 
 
 class DynInvokeBasisFns(object):
@@ -2650,10 +2801,10 @@ class DynInvoke(Invoke):
         '''
         :param alg_invocation: node in the AST describing the invoke call
         :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
-        :param int idx: the position of the invoke in the list of invokes
+        :param int idx: the position of the invoke in the list of invokes \
                         contained in the Algorithm
-        :raises GenerationError: if integer reductions are required in the
-        psy-layer
+        :raises GenerationError: if integer reductions are required in the \
+                                 psy-layer
         '''
         if False:  # pylint: disable=using-constant-test
             self._schedule = DynSchedule(None)  # for pyreverse
@@ -2713,7 +2864,7 @@ class DynInvoke(Invoke):
         # since operators are assembled in place and scalars don't
         # have halos. We only need to add global sum calls for scalars
         # which have a gh_sum access.
-        if config.DISTRIBUTED_MEMORY:
+        if Config.get().distributed_memory:
             # halo exchange calls
             for loop in self.schedule.loops():
                 loop.create_halo_exchanges()
@@ -2803,9 +2954,9 @@ class DynInvoke(Invoke):
         called by the associated invoke call in the algorithm
         layer). This consists of the PSy invocation subroutine and the
         declaration of its arguments.
-        :param parent: The parent node in the AST (of the code to be generated)
-                       to which the node describing the PSy subroutine will be
-                       added
+        :param parent: The parent node in the AST (of the code to be \
+                       generated) to which the node describing the PSy \
+                       subroutine will be added
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
         from psyclone.f2pygen import SubroutineGen, TypeDeclGen, AssignGen, \
@@ -3065,31 +3216,11 @@ class DynInvoke(Invoke):
         # Initialise basis and/or differential-basis functions
         self.evaluators.initialise_basis_fns(invoke_sub)
 
-        if self.is_coloured():
-            # Declare the colour map
-            declns = ["cmap(:,:)"]
-            if not config.DISTRIBUTED_MEMORY:
-                # Declare the array holding the no. of cells of each
-                # colour. For distributed memory this variable is not
-                # used, as a function is called to determine the upper
-                # bound in a loop
-                declns.append("ncp_colour(:)")
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   pointer=True,
-                                   entity_decls=declns))
-            if not config.DISTRIBUTED_MEMORY:
-                # Declaration of variable to hold the number of
-                # colours. For distributed memory this variable is not
-                # used, as a function is called to determine loop
-                # colour information
-                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                       entity_decls=["ncolour"]))
-
         # add calls to compute the values of any basis arrays
         self.evaluators.compute_basis_fns(invoke_sub)
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
-        if config.DISTRIBUTED_MEMORY:
+        if Config.get().distributed_memory:
             invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
                                       "communication routines"))
         else:
@@ -3103,6 +3234,7 @@ class DynInvoke(Invoke):
         self.evaluators.deallocate(invoke_sub)
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
+
         # finally, add me to my parent
         parent.add(invoke_sub)
 
@@ -3117,20 +3249,31 @@ class DynSchedule(Schedule):
         Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
 
     def view(self, indent=0):
-        '''a method implemented by all classes in a schedule which display the
+        '''
+        A method implemented by all classes in a schedule which display the
         tree in a textual form. This method overrides the default view
-        method to include distributed memory information '''
+        method to include distributed memory information.
+        :param int indent: the amount by which to indent the output.
+        '''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "' dm="+str(config.DISTRIBUTED_MEMORY)+"]")
+              self.invoke.name + "' dm=" +
+              str(Config.get().distributed_memory)+"]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
 
 class DynGlobalSum(GlobalSum):
-    ''' Dynamo specific global sum class which can be added to and
-    manipulated in, a schedule '''
+    '''
+    Dynamo specific global sum class which can be added to and
+    manipulated in, a schedule.
+
+    :param scalar: the kernel argument for which to perform a global sum
+    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param parent: the parent node of this node in the Schedule
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
     def __init__(self, scalar, parent=None):
-        if not config.DISTRIBUTED_MEMORY:
+        if not Config.get().distributed_memory:
             raise GenerationError("It makes no sense to create a DynGlobalSum "
                                   "object when dm=False")
         # a list of scalar types that this class supports
@@ -3154,7 +3297,6 @@ class DynGlobalSum(GlobalSum):
                                entity_decls=[sum_name]))
         parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
-
 
 def _create_depth_list(halo_info_list):
     '''Halo exchanges may have more than one dependency. This method
@@ -3257,7 +3399,28 @@ class DynHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
     manipulated in, a schedule
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument default True indicating \
+    whether this halo exchange should be subject to a run-time check \
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to \
+    identify which index of a vector field this halo exchange is \
+    responsible for
+    :type vector_index: int
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
     '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        HaloExchange.__init__(self, field, check_dirty=check_dirty,
+                              vector_index=vector_index, parent=parent)
+        # set up some defaults for this class
+        self._halo_exchange_name = "halo_exchange"
 
     def _compute_stencil_type(self):
         '''Dynamically work out the type of stencil required for this halo
@@ -3266,8 +3429,8 @@ class DynHaloExchange(HaloExchange):
         return that stencil, otherwise we return the "region" stencil
         type (as it is safe for all stencils).
 
-        :return: Return the type of stencil required for this halo exchange
-        :rtype: string
+        :return: the type of stencil required for this halo exchange
+        :rtype: str
 
         '''
         # get information about stencil accesses from all read fields
@@ -3288,8 +3451,8 @@ class DynHaloExchange(HaloExchange):
         as the depth can change as transformations are applied to the
         schedule
 
-        :return: Return the halo exchange depth as a fortran string
-        :rtype: int
+        :return: the halo exchange depth as a Fortran string
+        :rtype: str
 
         '''
         # get information about reading from the halo from all read fields
@@ -3315,7 +3478,7 @@ class DynHaloExchange(HaloExchange):
         `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
         information e.g. depth=1 is not required if we have a depth=2
 
-        :return: a list containing halo depth information derived from
+        :return: a list containing halo depth information derived from \
         all fields dependent on this halo exchange
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
@@ -3347,10 +3510,10 @@ class DynHaloExchange(HaloExchange):
         '''Determines how much of the halo has been cleaned from any previous
         redundant computation
 
-        :return: a HaloWriteAccess object containing the required
+        :return: a HaloWriteAccess object containing the required \
         information, or None if no dependence information is found.
-        :rtype::py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
-        :raises GenerationError: if more than one write dependence is
+        :rtype: :py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
+        :raises GenerationError: if more than one write dependence is \
         found for this halo exchange as this should not be possible
 
         '''
@@ -3394,10 +3557,10 @@ class DynHaloExchange(HaloExchange):
         updated. Note, the routine would still be correct as is, it
         would just return more unknown results than it should).
 
-        :return: Returns (x, y) where x specifies whether this halo
-        exchange is (or might be) required - True, or is not required
-        - False. If the first argument is True then the second
-        argument specifies whether we definitely know that we need the
+        :return: Returns (x, y) where x specifies whether this halo \
+        exchange is (or might be) required - True, or is not required \
+        - False. If the first tuple item is True then the second \
+        argument specifies whether we definitely know that we need the \
         HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
 
@@ -3411,7 +3574,7 @@ class DynHaloExchange(HaloExchange):
         # dependency as _compute_halo_read_depth_info() raises an
         # exception if none are found
 
-        if config.COMPUTE_ANNEXED_DOFS and \
+        if Config.get().api_conf("dynamo0.3").compute_annexed_dofs and \
            len(required_clean_info) == 1 and \
            required_clean_info[0].annexed_only:
             # We definitely don't need the halo exchange as we
@@ -3537,15 +3700,24 @@ class DynHaloExchange(HaloExchange):
         ''' Class specific view  '''
         _, known = self.required()
         runtime_check = not known
+        field_id = self._field.name
+        if self.vector_index:
+            field_id += "({0})".format(self.vector_index)
         print(self.indent(indent) + (
             "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.coloured_text, self._field.name,
+            "check_dirty={4}]".format(self.coloured_text, field_id,
                                       self._compute_stencil_type(),
                                       self._compute_halo_depth(),
                                       runtime_check)))
 
     def gen_code(self, parent):
-        ''' Dynamo specific code generation for this class '''
+        '''Dynamo specific code generation for this class.
+
+        :param parent: an f2pygen object that will be the parent of \
+        f2pygen objects created in this method
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
         from psyclone.f2pygen import IfThenGen, CallGen, CommentGen
         if self.vector_index:
             ref = "(" + str(self.vector_index) + ")"
@@ -3563,8 +3735,166 @@ class DynHaloExchange(HaloExchange):
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +
-                "%halo_exchange(depth=" + self._compute_halo_depth() + ")"))
+                "%" + self._halo_exchange_name +
+                "(depth=" + self._compute_halo_depth() + ")"))
         parent.add(CommentGen(parent, ""))
+
+
+class DynHaloExchangeStart(DynHaloExchange):
+    '''The start of an asynchronous halo exchange. This is similar to a
+    regular halo exchange except that the Fortran name of the call is
+    different and the routine only reads the data being transferred
+    (the associated field is specified as having a read access). As a
+    result this class is not able to determine some important
+    properties (such as whether the halo exchange is known to be
+    required or not). This is solved by finding the corresponding
+    asynchronous halo exchange end (a halo exchange start always has a
+    corresponding halo exchange end and vice versa) and calling its
+    methods (a halo exchange end is specified as having readwrite
+    access to its associated field and therefore is able to determine
+    the required properties).
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument (default True) indicating \
+    whether this halo exchange should be subject to a run-time check \
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to \
+    identify which component of a vector field this halo exchange is \
+    responsible for
+    :type vector_index: int
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                 vector_index=vector_index, parent=parent)
+        # Update the field's access appropriately. Here "gh_read"
+        # specifies that the start of a halo exchange only reads
+        # the field's data.
+        self._field.access = "gh_read"
+        # override appropriate parent class names
+        self._halo_exchange_name = "halo_exchange_start"
+        self._text_name = "HaloExchangeStart"
+        self._colour_map_name = "HaloExchangeStart"
+        self._dag_name = "haloexchangestart"
+
+    def _compute_stencil_type(self):
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :return: Return the type of stencil required for this pair of \
+        halo exchanges
+        :rtype: str
+
+        '''
+        return self._get_hex_end()._compute_stencil_type()
+
+    def _compute_halo_depth(self):
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :return: Return the halo exchange depth as a Fortran string
+        :rtype: str
+
+        '''
+        return self._get_hex_end()._compute_halo_depth()
+
+    def required(self):
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :return: Returns (x, y) where x specifies whether this halo \
+        exchange is (or might be) required - True, or is not required \
+        - False. If the first tuple item is True then the second \
+        argument specifies whether we definitely know that we need the \
+        HaloExchange - True, or are not sure - False.
+        :rtype: (bool, bool)
+
+        '''
+        return self._get_hex_end().required()
+
+    def _get_hex_end(self):
+        '''An internal helper routine for this class which finds the halo
+        exchange end object corresponding to this halo exchange start
+        object or raises an exception if one is not found.
+
+        :return: The corresponding halo exchange end object
+        :rtype: :py:class:`psyclone.dynamo0p3.DynHaloExchangeEnd`
+        :raises GenerationError: If no matching HaloExchangeEnd is \
+        found, or if the first matching haloexchange that is found is \
+        not a HaloExchangeEnd
+
+        '''
+        # Look at all nodes following this one in schedule order
+        # (which is PSyIRe node order)
+        for node in self.following():
+            if self.sameParent(node) and isinstance(node, DynHaloExchange):
+                # Found a following `haloexchange`,
+                # `haloexchangestart` or `haloexchangeend` PSyIRe node
+                # that is at the same calling hierarchy level as this
+                # haloexchangestart
+                access = DataAccess(self.field)
+                if access.overlaps(node.field):
+                    if isinstance(node, DynHaloExchangeEnd):
+                        return node
+                    raise GenerationError(
+                        "Halo exchange start for field '{0}' should match "
+                        "with a halo exchange end, but found {1}".format(
+                            self.field.name, type(node)))
+        # no match has been found which is an error as a halo exchange
+        # start should always have a matching halo exchange end that
+        # follows it in schedule (PSyIRe sibling) order
+        raise GenerationError(
+            "Halo exchange start for field '{0}' has no matching halo "
+            "exchange end".format(self.field.name))
+
+
+class DynHaloExchangeEnd(DynHaloExchange):
+    '''The end of an asynchronous halo exchange. This is similar to a
+    regular halo exchange except that the Fortran name of the call is
+    different and the routine only writes to the data being
+    transferred.
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument (default True) indicating \
+    whether this halo exchange should be subject to a run-time check \
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to \
+    identify which index of a vector field this halo exchange is \
+    responsible for
+    :type vector_index: int
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                 vector_index=vector_index, parent=parent)
+        # Update field properties appropriately. The associated field is
+        # written to. However, a readwrite field access needs to be
+        # specified as this is required for the halo exchange logic to
+        # work correctly.
+        self._field.access = "gh_readwrite"
+        # override appropriate parent class names
+        self._halo_exchange_name = "halo_exchange_finish"
+        self._text_name = "HaloExchangeEnd"
+        self._colour_map_name = "HaloExchangeEnd"
+        self._dag_name = "haloexchangeend"
 
 
 class HaloDepth(object):
@@ -4000,7 +4330,6 @@ class DynLoop(Loop):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
-        self._kern = None
 
         # Get the namespace manager instance so we can look-up
         # the name of the nlayers and ndf variables
@@ -4074,13 +4403,14 @@ class DynLoop(Loop):
         if isinstance(kern, DynBuiltIn):
             # If the kernel is a built-in/pointwise operation
             # then this loop must be over DoFs
-            if config.COMPUTE_ANNEXED_DOFS and config.DISTRIBUTED_MEMORY \
+            if Config.get().api_conf("dynamo0.3").compute_annexed_dofs \
+               and Config.get().distributed_memory \
                and not kern.is_reduction:
                 self.set_upper_bound("nannexed")
             else:
                 self.set_upper_bound("ndofs")
         else:
-            if config.DISTRIBUTED_MEMORY:
+            if Config.get().distributed_memory:
                 if self._field.type in VALID_OPERATOR_NAMES:
                     # We always compute operators redundantly out to the L1
                     # halo
@@ -4165,8 +4495,16 @@ class DynLoop(Loop):
         return self._upper_bound_halo_depth
 
     def _lower_bound_fortran(self):
-        ''' Create the associated fortran code for the type of lower bound '''
-        if not config.DISTRIBUTED_MEMORY and self._lower_bound_name != "start":
+        '''
+        Create the associated Fortran code for the type of lower bound.
+        :returns: the Fortran code for the lower bound
+        :rtype: str
+        :raises GenerationError: if self._lower_bound_name is not "start"
+                                 for sequential code.
+        :raises GenerationError: if self._lower_bound_name is unrecognised
+        '''
+        if not Config.get().distributed_memory and \
+           self._lower_bound_name != "start":
             raise GenerationError(
                 "The lower bound must be 'start' if we are sequential but "
                 "found '{0}'".format(self._upper_bound_name))
@@ -4210,44 +4548,46 @@ class DynLoop(Loop):
         if self._upper_bound_halo_depth:
             halo_index = str(self._upper_bound_halo_depth)
 
-        # We only require a mesh object if distributed memory is enabled
-        # and the loop is over cells
-        if config.DISTRIBUTED_MEMORY and \
-           self._upper_bound_name in ["ncells", "cell_halo"]:
-            if self._kern.is_intergrid:
-                # We have more than one mesh object to choose from and we
-                # want the coarse one because that determines the iteration
-                # space. _field_name holds the name of the argument that
-                # determines the iteration space of this kernel and that
-                # is set-up to be the one on the coarse mesh (in
-                # DynKerelArguments.iteration_space_arg()).
-                mesh_name = "mesh_" + self._field_name
-            else:
-                # It's not an inter-grid kernel so there's only one mesh
-                mesh_name = "mesh"
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name=mesh_name, context="PSyVars", label=mesh_name)
+        # We must allow for self._kern being None (as it will be for
+        # a built-in).
+        if self._kern and self._kern.is_intergrid:
+            # We have more than one mesh object to choose from and we
+            # want the coarse one because that determines the iteration
+            # space. _field_name holds the name of the argument that
+            # determines the iteration space of this kernel and that
+            # is set-up to be the one on the coarse mesh (in
+            # DynKerelArguments.iteration_space_arg()).
+            mesh_name = "mesh_" + self._field_name
+        else:
+            # It's not an inter-grid kernel so there's only one mesh
+            mesh_name = "mesh"
+        mesh = self._name_space_manager.create_name(
+            root_name=mesh_name, context="PSyVars", label=mesh_name)
 
         if self._upper_bound_name == "ncolours":
-            if config.DISTRIBUTED_MEMORY:
-                # Extract the value in-place rather than extracting to
-                # a variable first. This is the way the manual
-                # reference examples were implemented so I copied these
-                mesh_obj_name = self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh")
-                return "{0}%get_ncolours()".format(mesh_obj_name)
-            else:
-                return "ncolour"
+            # Loop over colours
+            kernels = self.walk(self.children, DynKern)
+            if not kernels:
+                raise InternalError(
+                    "Failed to find a kernel within a loop over colours.")
+            # Check that all kernels have been coloured. We can't check the
+            # number of colours since that is only known at runtime.
+            ncolours = kernels[0].ncolours_var
+            for kern in kernels:
+                if not kern.ncolours_var:
+                    raise InternalError(
+                        "All kernels within a loop over colours must have been"
+                        " coloured but kernel '{0}' has not".format(kern.name))
+            return ncolours
         elif self._upper_bound_name == "ncolour":
-            return "ncp_colour(colour)"
+            # Loop over cells of a particular colour when DM is disabled.
+            # We use the same, DM API as that returns sensible values even
+            # when running without MPI.
+            return "{0}%get_last_edge_cell_per_colour(colour)".format(mesh)
         elif self._upper_bound_name == "colour_halo":
-            # the LFRic API used here allows for colouring with
-            # redundant computation. This API is now used when
-            # ditributed memory is switched on (the default for
-            # LFRic). THe original API (see previous elif) is now only
-            # used when distributed memory is switched off.
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
+            # Loop over cells of a particular colour when DM is enabled. The
+            # LFRic API used here allows for colouring with redundant
+            # computation.
             append = ""
             if halo_index:
                 # The colouring API support an additional optional
@@ -4258,9 +4598,9 @@ class DynLoop(Loop):
                 # may be).
                 append = ","+halo_index
             return ("{0}%get_last_halo_cell_per_colour(colour"
-                    "{1})".format(mesh_obj_name, append))
+                    "{1})".format(mesh, append))
         elif self._upper_bound_name in ["ndofs", "nannexed"]:
-            if config.DISTRIBUTED_MEMORY:
+            if Config.get().distributed_memory:
                 if self._upper_bound_name == "ndofs":
                     result = self.field.proxy_name_indexed + "%" + \
                              self.field.ref_name() + "%get_last_dof_owned()"
@@ -4271,22 +4611,22 @@ class DynLoop(Loop):
                 result = self._kern.undf_name
             return result
         elif self._upper_bound_name == "ncells":
-            if config.DISTRIBUTED_MEMORY:
-                result = mesh_obj_name + "%get_last_edge_cell()"
+            if Config.get().distributed_memory:
+                result = mesh + "%get_last_edge_cell()"
             else:
                 result = self.field.proxy_name_indexed + "%" + \
                     self.field.ref_name() + "%get_ncell()"
             return result
         elif self._upper_bound_name == "cell_halo":
-            if config.DISTRIBUTED_MEMORY:
-                return "{0}%get_last_halo_cell({1})".format(mesh_obj_name,
+            if Config.get().distributed_memory:
+                return "{0}%get_last_halo_cell({1})".format(mesh,
                                                             halo_index)
             else:
                 raise GenerationError(
                     "'cell_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "dof_halo":
-            if config.DISTRIBUTED_MEMORY:
+            if Config.get().distributed_memory:
                 return "{0}%{1}%get_last_dof_halo({2})".format(
                     self.field.proxy_name_indexed, self.field.ref_name(),
                     halo_index)
@@ -4295,8 +4635,8 @@ class DynLoop(Loop):
                     "'dof_halo' is not a valid loop upper bound for "
                     "sequential/shared-memory code")
         elif self._upper_bound_name == "inner":
-            if config.DISTRIBUTED_MEMORY:
-                return "{0}%get_last_inner_cell({1})".format(mesh_obj_name,
+            if Config.get().distributed_memory:
+                return "{0}%get_last_inner_cell({1})".format(mesh,
                                                              halo_index)
             else:
                 raise GenerationError(
@@ -4338,8 +4678,8 @@ class DynLoop(Loop):
 
         :param arg: an argument contained within this loop
         :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
-        :return: True if the argument reads, or might read from the
-        halo and False otherwise.
+        :return: True if the argument reads, or might read from the \
+                 halo and False otherwise.
         :rtype: bool
 
         '''
@@ -4372,7 +4712,8 @@ class DynLoop(Loop):
                 # we read annexed dofs. Return False if we always
                 # compute annexed dofs and True if we don't (as
                 # annexed dofs are part of the level 1 halo).
-                return not config.COMPUTE_ANNEXED_DOFS
+                return not Config.get()\
+                                 .api_conf("dynamo0.3").compute_annexed_dofs
             elif self._upper_bound_name in ["ndofs"]:
                 # argument does not read from the halo
                 return False
@@ -4519,10 +4860,10 @@ class DynLoop(Loop):
         depending on the loop type and then call the base class to
         generate the code.
 
-        :param parent: an f2pygen object that will be the parent of
+        :param parent: an f2pygen object that will be the parent of \
         f2pygen objects created in this method
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if a loop over colours is within an
+        :raises GenerationError: if a loop over colours is within an \
         OpenMP parallel region (as it must be serial)
 
         '''
@@ -4538,7 +4879,7 @@ class DynLoop(Loop):
         self._stop = self._upper_bound_fortran()
         Loop.gen_code(self, parent)
 
-        if config.DISTRIBUTED_MEMORY and self._loop_type != "colour":
+        if Config.get().distributed_memory and self._loop_type != "colour":
 
             # Set halo clean/dirty for all fields that are modified
             from psyclone.f2pygen import CallGen, CommentGen, DirectiveGen
@@ -4668,8 +5009,8 @@ class DynKern(Kern):
         self._qr_text = ""
         self._qr_name = None
         self._qr_args = None
-        # The function space on which to evaluate basis/diff-basis functions
-        # if any are required
+        # The function spaces on which to evaluate basis/diff-basis functions
+        # if any are required. TODO make this a list.
         self._nodal_fspace = None
         self._name_space_manager = NameSpaceFactory().create()
         self._cma_operation = None
@@ -4827,9 +5168,11 @@ class DynKern(Kern):
                     arg + "_" + self._qr_name for arg in self._qr_args]
 
         elif self._eval_shape == "gh_evaluator":
-            # Kernel has an evaluator. The FS of the updated argument tells
+            # Kernel has an evaluator. If gh_evaluator_targets is present
+            # then that specifies the function spaces for which the evaluator
+            # is required. Otherwise, the FS of the updated argument(s) tells
             # us upon which nodal points the evaluator will be required
-            arg = self.updated_arg
+            arg = self.updated_arg  # TODO allow for multiple, updated args
             if arg.is_operator:
                 self._nodal_fspace = arg.function_space_to
             else:
@@ -4856,6 +5199,58 @@ class DynKern(Kern):
         :rtype: bool
         '''
         return self._is_intergrid
+
+    @property
+    def colourmap(self):
+        '''
+        Getter for the name of the colourmap associated with this kernel call.
+
+        :return: name of the colourmap (Fortran array)
+        :rtype: str
+        :raises InternalError: if this kernel is not coloured or the \
+                               dictionary of inter-grid kernels and \
+                               colourmaps has not been constructed.
+        '''
+        if not self.is_coloured():
+            raise InternalError("Kernel '{0}' is not inside a coloured "
+                                "loop.".format(self.name))
+        if self._is_intergrid:
+            invoke = self.root.invoke
+            if self.name not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    "Colourmap information for kernel '{0}' has not yet "
+                    "been initialised".format(self.name))
+            cmap = invoke.meshes.intergrid_kernels[self.name].colourmap
+        else:
+            cmap = self._name_space_manager.create_name(
+                root_name="cmap", context="PSyVars", label="cmap")
+        return cmap
+
+    @property
+    def ncolours_var(self):
+        '''
+        Getter for the name of the variable holding the number of colours
+        associated with this kernel call.
+
+        :return: name of the variable holding the number of colours
+        :rtype: str
+        :raises InternalError: if this kernel is not coloured or the \
+                               colour-map information has not been initialised.
+        '''
+        if not self.is_coloured():
+            raise InternalError("Kernel '{0}' is not inside a coloured "
+                                "loop.".format(self.name))
+        if self._is_intergrid:
+            invoke = self.root.invoke
+            if self.name not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    "Colourmap information for kernel '{0}' has not yet "
+                    "been initialised".format(self.name))
+            ncols = invoke.meshes.intergrid_kernels[self.name].ncolours_var
+        else:
+            ncols = self._name_space_manager.create_name(
+                root_name="ncolour", context="PSyVars", label="ncolour")
+        return ncols
 
     @property
     def fs_descriptors(self):
@@ -5012,49 +5407,15 @@ class DynKern(Kern):
                     format(self._name, self.parent.upper_bound_halo_depth))
 
         # If this kernel is being called from within a coloured
-        # loop then we have to look-up the colour map
+        # loop then we have to look-up the name of the colour map
         if self.is_coloured():
-
-            # Find which argument object the kernel writes to (either GH_INC
-            # or GH_WRITE) in order to look-up the colour map
-            arg = self.updated_arg
             # TODO Check whether this arg is gh_inc and if not, Warn that
             # we're colouring a kernel that has no field object with INC access
 
-            new_parent, position = parent.start_parent_loop()
-            # Add the look-up of the colouring map for this kernel
-            # call
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-            new_parent.add(CommentGen(new_parent, " Look-up colour map"),
-                           position=["before", position])
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-            mesh_obj_name = self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh")
-            if config.DISTRIBUTED_MEMORY:
-                # the LFRic colouring API for ditributed memory
-                # differs from the API without distributed
-                # memory. This is to support and control redundant
-                # computation with coloured loops.
-                new_parent.add(AssignGen(new_parent, pointer=True, lhs="cmap",
-                                         rhs=mesh_obj_name +
-                                         "%get_colour_map()"),
-                               position=["before", position])
-            else:
-                name = arg.proxy_name_indexed + \
-                       "%" + arg.ref_name() + "%get_colours"
-                new_parent.add(CallGen(new_parent,
-                                       name=name,
-                                       args=["ncolour", "ncp_colour", "cmap"]),
-                               position=["before", position])
-
-            new_parent.add(CommentGen(new_parent, ""),
-                           position=["before", position])
-
             # We must look-up the cell index using the colour map rather than
-            # use the current cell index directly
-            cell_index = "cmap(colour, cell)"
+            # use the current cell index directly. We need to know the name
+            # of the variable holding the colour map for this kernel.
+            cell_index = self.colourmap + "(colour, cell)"
         else:
             # This kernel call has not been coloured
             #  - is it OpenMP parallel, i.e. are we a child of
@@ -5497,7 +5858,8 @@ class KernCallArgList(ArgOrdering):
         map_name = self._name_space_manager.create_name(
             root_name=base_name, context="PSyVars", label=base_name)
         # Add the cell map to our argument list
-        self._arglist.append(map_name+"(:,cell)")
+        self._arglist.append("{0}(:,{1})".format(map_name,
+                                                 self._cell_ref_name))
         # No. of fine cells per coarse cell
         base_name = "ncpc_{0}_{1}".format(farg.name, carg.name)
         ncellpercell = self._name_space_manager.create_name(
@@ -5741,12 +6103,16 @@ class KernCallArgList(ArgOrdering):
 
     @property
     def _cell_ref_name(self):
-        '''utility routine which determines whether to return the cell value
-        or the colourmap lookup value '''
+        '''
+        Utility routine which determines whether to return the cell value
+        or the colourmap lookup value.
+
+        :returns: the Fortran code needed to access the current cell index.
+        :rtype: str
+        '''
         if self._kern.is_coloured():
-            return "cmap(colour, cell)"
-        else:
-            return "cell"
+            return self._kern.colourmap + "(colour, cell)"
+        return "cell"
 
 
 class KernStubArgList(ArgOrdering):

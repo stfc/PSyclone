@@ -108,12 +108,29 @@ cd dynamo/eg10
 ${PSYCLONE} intergrid_3levels.x90
 cd -
 
+echo "Running example dynamo/eg11"
+cd dynamo/eg11
+${PSYCLONE} -s ./async_script.py helmholtz_solver_alg_mod.x90
+cd -
+
 echo "Running gocean examples"
 cd gocean
 python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
 python runme_dag.py
+python runme_openacc.py
+cd -
+
+echo "Running example nemo/eg1"
+cd nemo/eg1
+${PSYCLONE} -api "nemo" tra_adv.F90
+./runme_openmp.py
+cd -
+echo "Running example nemo/eg2"
+cd nemo/eg2
+./runme_openmp.py
+${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
 cd -
 
 echo "Running transformation examples"
@@ -129,4 +146,15 @@ cd -
 echo "Running stub generation examples"
 cd stub_generation
 ${KSTUBGEN} testkern_stencil_multi_mod.f90
+cd -
+
+echo "Testing dynamo scripts"
+cd dynamo/scripts
+for script in "colouring_and_omp.py" \
+		  "loop_fuse.py" \
+		  "redundant_dofs.py" \
+		  "redundant_setval_c.py"; do
+    echo "script" ${script} "..."
+    ${PSYCLONE} -s ./${script} ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
+done
 cd -

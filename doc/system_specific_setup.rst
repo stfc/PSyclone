@@ -9,7 +9,7 @@ some development, none of the required tools for testing or
 documentation creation will be installed.
 
 :ref:`dev_setup` describes the additional installation of
-all required tools to run tests, and create documentation.
+all required tools to run tests and create documentation.
 
 Both sections have detailed instructions for Ubuntu 16.04.2 and 
 OpenSUSE 42.2 - if you are working with a different Linux
@@ -165,17 +165,21 @@ Cloning PSyclone from git and setting up your environment is done as follows::
    > cd PSyclone
    > pip install --user -e .
 
-Note that the "-e" flag causes the project to be installed in 'editable' mode
-so that any changes to the PSyclone source take effect immediately. On OpenSUSE
-it is necessary to add $HOME/.local/bin to your $PATH.
+Note that the "-e" flag causes the project to be installed in
+'editable' mode so that any changes to the PSyclone source take effect
+immediately.
+
+.. warning::
+
+   On OpenSUSE it is necessary to add `$HOME/.local/bin` to
+   your `$PATH` if you have done a user-local install.
 
 
 Installing documentation tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Install Sphinx for creating PSyclone documentation
-::
+Install Sphinx along with bibtex support for creating PSyclone documentation::
 
-   > sudo pip install sphinx
+   > sudo pip install sphinx sphinxcontrib.bibtex
 
 You can now build html documentation::
 

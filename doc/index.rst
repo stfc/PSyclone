@@ -4,11 +4,11 @@
    contain the root `toctree` directive.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    introduction
    getting_going
-   generator_script
+   psyclone_script
    kernel_layer
    algorithm_layer
    psy_layer
@@ -17,18 +17,27 @@
    built_ins
    dynamo0p3
    gocean1p0
+   nemo
    stub_gen
    line_length
    api
+   profiling
    system_specific_setup
+   configuration
    developers
+   zz_bibliography
+
 ..   tutorial
 ..   examples
 ..   FAQS
 
-Indices and tables
-==================
+.. when generating latex the index and module index are generated
+   automatically and the entries below are rendered as plain text.
+.. only:: html
+	  
+    Indices and tables
+    ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+    * :ref:`genindex`
+    * :ref:`modindex`
+    * :ref:`search`

@@ -50,11 +50,12 @@ import os
 import re
 import pytest
 from fparser import api as fpapi
+from psyclone_test_utils import get_invoke
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
-     HaloExchange, Invoke
+     InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
 from psyclone.parse import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
@@ -63,9 +64,11 @@ from psyclone.generator import generate
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
-
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "test_files", "gocean1p0")
 
 # PSyFactory class unit tests
+
 
 def test_invalid_api():
     '''test that psyfactory raises appropriate error when an invalid api
@@ -79,8 +82,9 @@ def test_psyfactory_valid_return_object():
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from psyclone.config import SUPPORTEDAPIS
-    apis = SUPPORTEDAPIS
+    from psyclone.configuration import Config
+    _config = Config.get()
+    apis = _config.supported_apis[:]
     apis.insert(0, "")
     for api in apis:
         psy_factory = PSyFactory(api=api)
@@ -149,7 +153,8 @@ def test_new_baseclass():
     should be no transformations available as the default
     transformations module does not use the specified base
     class'''
-    from test_files.dummy_transformations import LocalTransformation
+    from test_files.dummy_transformations import \
+        LocalTransformation
     trans = TransInfo(base_class=LocalTransformation)
     assert trans.num_trans == 0
 
@@ -504,7 +509,7 @@ def test_derived_type_deref_naming():
     _, invoke = parse(
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke)
     generated_code = str(psy.gen)
     print(generated_code)
     output = (
@@ -547,7 +552,7 @@ def test_sched_view(capsys):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     super(dynamo0p3.DynSchedule, psy.invokes.invoke_list[0].schedule).view()
     output, _ = capsys.readouterr()
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
@@ -583,9 +588,9 @@ def test_kern_coloured_text():
     assert colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) in ret_str
 
 
-def test_call_local_vars():
-    ''' Check that calling the abstract local_vars() method of Call raises
-    the expected exception '''
+def test_call_abstract_methods():
+    ''' Check that calling the abstract methods of Call raises
+    the expected exceptions '''
     from psyclone.psyGen import Call, Arguments
     my_arguments = Arguments(None)
 
@@ -606,6 +611,27 @@ def test_call_local_vars():
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Call.local_vars should be implemented" in str(excinfo.value)
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.__str__()
+    assert "Call.__str__ should be implemented" in str(excinfo.value)
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        my_call.gen_code(None)
+    assert "Call.gen_code should be implemented" in str(excinfo.value)
+
+
+def test_arguments_abstract():
+    ''' Check that we raise NotImplementedError if any of the virtual methods
+    of the Arguments class are called. '''
+    from psyclone.psyGen import Arguments
+    my_arguments = Arguments(None)
+    with pytest.raises(NotImplementedError) as err:
+        _ = my_arguments.acc_args
+    assert "Arguments.acc_args must be implemented in sub-class" in str(err)
+    with pytest.raises(NotImplementedError) as err:
+        _ = my_arguments.scalars
+    assert "Arguments.scalars must be implemented in sub-class" in str(err)
 
 
 def test_incremented_arg():
@@ -660,6 +686,19 @@ def test_written_arg():
             "gh_readwrite access" in str(excinfo.value))
 
 
+def test_ompdo_constructor():
+    ''' Check that we can make an OMPDoDirective with and without
+    children '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    ompdo = OMPDoDirective(parent=schedule)
+    assert not ompdo.children
+    ompdo = OMPDoDirective(parent=schedule, children=[schedule.children[0]])
+    assert len(ompdo.children) == 1
+
+
 def test_ompdo_directive_class_view(capsys):
     '''tests the view method in the OMPDoDirective class. We create a
     sub-class object then call this method from it '''
@@ -675,13 +714,13 @@ def test_ompdo_directive_class_view(capsys):
          "current_string": "[OMP parallel]"},
         {"current_class": OMPDirective, "current_string": "[OMP]"},
         {"current_class": Directive, "current_string": ""}]
+    otrans = OMPParallelLoopTrans()
     for case in cases:
         for dist_mem in [False, True]:
 
             psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).\
                 create(invoke_info)
             schedule = psy.invokes.invoke_list[0].schedule
-            otrans = OMPParallelLoopTrans()
 
             if dist_mem:
                 idx = 3
@@ -710,28 +749,50 @@ def test_ompdo_directive_class_view(capsys):
             assert expected_output in out
 
 
-def test_call_abstract_methods():
-    ''' Check that calling __str__() and gen_code() on the base Call
-    class raises the expected exception '''
-    from psyclone.psyGen import Call
-    # Monkey-patch a GenerationError object to mock-up suitable
-    # arguments to create a Call
-    fake_call = GenerationError("msg")
-    fake_ktype = GenerationError("msg")
-    fake_ktype.iterates_over = "something"
-    fake_call.ktype = fake_ktype
-    fake_call.module_name = "a_name"
-    from psyclone.psyGen import Arguments
-    fake_arguments = Arguments(None)
-    my_call = Call(fake_call, fake_call, name="a_name",
-                   arguments=fake_arguments)
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.__str__()
-    assert "Call.__str__ should be implemented" in str(excinfo.value)
+def test_acc_dir_view(capsys):
+    ''' Test the view() method of OpenACC directives '''
+    from psyclone.transformations import ACCDataTrans, ACCLoopTrans, \
+        ACCParallelTrans
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.gen_code(None)
-    assert "Call.gen_code should be implemented" in str(excinfo.value)
+    acclt = ACCLoopTrans()
+    accdt = ACCDataTrans()
+    accpt = ACCParallelTrans()
+
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    colour = SCHEDULE_COLOUR_MAP["Directive"]
+    schedule = invoke.schedule
+    # Enter-data
+    new_sched, _ = accdt.apply(schedule)
+    # Artificially add a child to this directive so as to get full
+    # coverage of the associated view() method
+    new_sched.children[0].addchild(new_sched.children[1])
+    new_sched.children[0].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC enter data]")
+
+    # Parallel region
+    new_sched, _ = accpt.apply(new_sched.children[1])
+    new_sched.children[1].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC Parallel]")
+
+    # Loop directive
+    new_sched, _ = acclt.apply(new_sched.children[1].children[0])
+    new_sched.children[1].children[0].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC Loop, independent]")
+
+    # Loop directive with collapse
+    new_sched, _ = acclt.apply(new_sched.children[1].children[0].children[0],
+                               collapse=2)
+    new_sched.children[1].children[0].children[0].view()
+    out, _ = capsys.readouterr()
+    assert out.startswith(
+        colored("Directive", colour)+"[ACC Loop, collapse=2, independent]")
 
 
 def test_haloexchange_unknown_halo_depth():
@@ -750,7 +811,7 @@ def test_globalsum_view(capsys):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     psy.invokes.invoke_list[0].schedule.view()
     output, _ = capsys.readouterr()
     print(output)
@@ -799,7 +860,7 @@ def test_args_filter2():
     when one or both of the intent and type arguments are not specified.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
 
@@ -889,7 +950,7 @@ def test_invoke_name():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.0.1_single_named_invoke.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_important_invoke" in gen
@@ -901,7 +962,7 @@ def test_multi_kern_named_invoke():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.9_named_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_some_name" in gen
@@ -914,7 +975,7 @@ def test_named_multi_invokes():
         os.path.join(BASE_PATH,
                      "3.2_multi_functions_multi_named_invokes.f90"),
         api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_my_first(" in gen
@@ -928,19 +989,19 @@ def test_named_invoke_name_clash():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.11_named_invoke_name_clash.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
     assert "SUBROUTINE invoke_a(invoke_a_1, b, c, istp, rdt," in gen
     assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
 
 
-def test_invalid_reprod_pad_size():
-    '''Check that we raise an exception if the pad size in config.py is
+def test_invalid_reprod_pad_size(monkeypatch):
+    '''Check that we raise an exception if the pad size in psyclone.cfg is
     set to an invalid value '''
-    from psyclone import config
-    keep = config.REPROD_PAD_SIZE
-    config.REPROD_PAD_SIZE = 0
+    # Make sure we monkey patch the correct Config object
+    from psyclone.configuration import Config
+    monkeypatch.setattr(Config._instance, "_reprod_pad_size", 0)
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
@@ -963,9 +1024,8 @@ def test_invalid_reprod_pad_size():
         with pytest.raises(GenerationError) as excinfo:
             _ = str(psy.gen)
         assert (
-            "REPROD_PAD_SIZE in config.py should be a positive "
-            "integer") in str(excinfo.value)
-    config.REPROD_PAD_SIZE = keep
+            "REPROD_PAD_SIZE in {0} should be a positive "
+            "integer".format(Config.get().filename) in str(excinfo.value))
 
 
 def test_argument_depends_on():
@@ -1726,6 +1786,19 @@ def test_node_is_valid_location():
     assert not node.is_valid_location(schedule.children[3], position="after")
 
 
+def test_node_ancestor():
+    ''' Test the Node.ancestor() method '''
+    from psyclone.psyGen import Node, Loop
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    sched.view()
+    kern = sched.children[0].children[0].children[0]
+    node = kern.ancestor(Node)
+    assert isinstance(node, Loop)
+    node = kern.ancestor(Node, excluding=[Loop])
+    assert node is sched
+
+
 def test_dag_names():
     '''test that the dag_name method returns the correct value for the
     node class and its specialisations'''
@@ -1803,18 +1876,41 @@ def test_omp_dag_names():
     assert directive.dag_name == "directive_1"
 
 
-EXPECTED = (
-    "digraph {\n"
-    "	schedule_start\n"
-    "	schedule_end\n"
-    "	loop_0_start\n"
-    "	loop_0_end\n"
-    "		loop_0_end -> schedule_end [color=blue]\n"
-    "		schedule_start -> loop_0_start [color=blue]\n"
-    "	kernel_testkern_code_2\n"
-    "		kernel_testkern_code_2 -> loop_0_end [color=blue]\n"
-    "		loop_0_start -> kernel_testkern_code_2 [color=blue]\n"
-    "}")
+def test_acc_dag_names():
+    ''' Check that we generate the correct dag names for ACC parallel,
+    ACC enter-data and ACC loop directive Nodes '''
+    from psyclone.psyGen import ACCDataDirective
+    from psyclone.transformations import ACCDataTrans, ACCParallelTrans, \
+        ACCLoopTrans
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    schedule = invoke.schedule
+
+    acclt = ACCLoopTrans()
+    accdt = ACCDataTrans()
+    accpt = ACCParallelTrans()
+    # Enter-data
+    new_sched, _ = accdt.apply(schedule)
+    assert schedule.children[0].dag_name == "ACC_data_1"
+    # Parallel region
+    new_sched, _ = accpt.apply(new_sched.children[1])
+    assert schedule.children[1].dag_name == "ACC_parallel_2"
+    # Loop directive
+    new_sched, _ = acclt.apply(new_sched.children[1].children[0])
+    assert schedule.children[1].children[0].dag_name == "ACC_loop_3"
+    # Base class
+    name = super(ACCDataDirective, schedule.children[0]).dag_name
+    assert name == "ACC_directive_1"
+
+
+def test_acc_datadevice_virtual():
+    ''' Check that we can't instantiate an instance of ACCDataDirective. '''
+    from psyclone.psyGen import ACCDataDirective
+    # pylint:disable=abstract-class-instantiated
+    with pytest.raises(TypeError) as err:
+        ACCDataDirective()
+    # pylint:enable=abstract-class-instantiated
+    assert ("instantiate abstract class ACCDataDirective with abstract "
+            "methods data_on_device" in str(err))
 
 
 def test_node_dag_no_graphviz(tmpdir, monkeypatch):
@@ -1837,29 +1933,25 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
 
 # Use a regex to allow for whitespace differences between graphviz
 # versions. Need a raw-string (r"") to get new-lines handled nicely.
-# pylint fails to spot the 'r' at the beginning of the string (presumably
-# because it is split over several lines) so disable the (many)
-# warnings about anomalous backslashes.
-# pylint: disable=anomalous-backslash-in-string
 EXPECTED2 = re.compile(
     r"digraph {\n"
-    "\s*schedule_start\n"
-    "\s*schedule_end\n"
-    "\s*loop_1_start\n"
-    "\s*loop_1_end\n"
-    "\s*loop_1_end -> loop_3_start \[color=green\]\n"
-    "\s*schedule_start -> loop_1_start \[color=blue\]\n"
-    "\s*kernel_testkern_qr_code_2\n"
-    "\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
-    "\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
-    "\s*loop_3_start\n"
-    "\s*loop_3_end\n"
-    "\s*loop_3_end -> schedule_end \[color=blue\]\n"
-    "\s*loop_1_end -> loop_3_start \[color=red\]\n"
-    "\s*kernel_testkern_qr_code_4\n"
-    "\s*kernel_testkern_qr_code_4 -> loop_3_end \[color=blue\]\n"
-    "\s*loop_3_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
-    "}")
+    r"\s*schedule_start\n"
+    r"\s*schedule_end\n"
+    r"\s*loop_1_start\n"
+    r"\s*loop_1_end\n"
+    r"\s*loop_1_end -> loop_3_start \[color=green\]\n"
+    r"\s*schedule_start -> loop_1_start \[color=blue\]\n"
+    r"\s*kernel_testkern_qr_code_2\n"
+    r"\s*kernel_testkern_qr_code_2 -> loop_1_end \[color=blue\]\n"
+    r"\s*loop_1_start -> kernel_testkern_qr_code_2 \[color=blue\]\n"
+    r"\s*loop_3_start\n"
+    r"\s*loop_3_end\n"
+    r"\s*loop_3_end -> schedule_end \[color=blue\]\n"
+    r"\s*loop_1_end -> loop_3_start \[color=red\]\n"
+    r"\s*kernel_testkern_qr_code_4\n"
+    r"\s*kernel_testkern_qr_code_4 -> loop_3_end \[color=blue\]\n"
+    r"\s*loop_3_start -> kernel_testkern_qr_code_4 \[color=blue\]\n"
+    r"}")
 # pylint: enable=anomalous-backslash-in-string
 
 
@@ -1921,7 +2013,7 @@ def test_haloexchange_vector_index_depend():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.9_named_multikernel_invokes.f90"),
                            api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     first_d_field_halo_exchange = schedule.children[3]
@@ -1980,11 +2072,10 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
     halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 1)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert ("Internal error, HaloExchange.check_vector_halos_differ() a "
-            "halo exchange depends on another halo exchange "
-            "but the vector size of field 'd' is 1" in str(excinfo.value))
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+            "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
@@ -2013,12 +2104,10 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
     halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 2)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert (
-        "Internal error, HaloExchange.check_vector_halos_differ() a halo "
-        "exchange depends on another halo exchange but the vector sizes for "
-        "field 'd' differ" in str(excinfo.value))
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+            "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
@@ -2048,12 +2137,11 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
     field_d_v3 = halo_exchange_d_v3.field
     halo_exchange_d_v2 = schedule.children[index-1]
     monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert ("Internal error, HaloExchange.check_vector_halos_differ() "
-            "a halo exchange depends on another halo "
-            "exchange but both vector id's ('3') of field 'd' are the "
-            "same" in str(excinfo.value))
+    assert ("DataAccess:update_coverage() The halo exchange vector indices "
+            "for 'd' are the same. This should never happen"
+            in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_no_dep():
@@ -2159,10 +2247,10 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
     loop = schedule.children[index+2]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[0]
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         d_field.backward_write_dependencies()
     assert (
-        "found a writer dependence but there are already dependencies"
+        "Found a writer dependence but there are already dependencies"
         in str(excinfo.value))
 
 
@@ -2193,7 +2281,7 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
     loop = schedule.children[index+1]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[5]
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         d_field.backward_write_dependencies()
     assert (
         "no more nodes but there are already dependencies"
@@ -2246,3 +2334,131 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     # each of the indices are unique (otherwise the set would be
     # smaller)
     assert len(indices) == vector_size
+
+
+def test_loop_props():
+    ''' Tests for the properties of a Loop object. '''
+    from psyclone.psyGen import Loop
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    loop = sched.children[0].children[0]
+    assert isinstance(loop, Loop)
+    with pytest.raises(GenerationError) as err:
+        loop.loop_type = "not_a_valid_type"
+    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
+            "['inner', 'outer']" in str(err))
+
+
+def test_node_abstract_methods():
+    ''' Tests that the abstract methods of the Node class raise appropriate
+    errors. '''
+    from psyclone.psyGen import Node
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    loop = sched.children[0].children[0]
+    with pytest.raises(NotImplementedError) as err:
+        Node.gen_code(loop)
+    assert ("Please implement me" in str(err))
+    with pytest.raises(NotImplementedError) as err:
+        Node.view(loop)
+    assert ("BaseClass of a Node must implement the view method" in str(err))
+
+
+def test_kern_ast():
+    ''' Test that we can obtain the fparser2 AST of a kernel. '''
+    from psyclone.gocean1p0 import GOKern
+    from fparser.two import Fortran2003
+    _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    kern = sched.children[0].children[0].children[0]
+    assert isinstance(kern, GOKern)
+    assert kern.ast
+    assert isinstance(kern.ast, Fortran2003.Program)
+
+
+def test_dataaccess_vector():
+    '''Test that the DataAccess class works as expected when we have a
+    vector field argument that depends on more than one halo exchange
+    (due to halo exchanges working separately on components of
+    vectors).
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # d from halo exchange vector 1
+    halo_exchange_d_v1 = schedule.children[3]
+    field_d_v1 = halo_exchange_d_v1.field
+    # d from halo exchange vector 2
+    halo_exchange_d_v2 = schedule.children[4]
+    field_d_v2 = halo_exchange_d_v2.field
+    # d from halo exchange vector 3
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    # d from a kernel argument
+    loop = schedule.children[6]
+    kernel = loop.children[0]
+    d_arg = kernel.arguments.args[5]
+
+    access = DataAccess(d_arg)
+    assert not access.covered
+
+    access.update_coverage(field_d_v3)
+    assert not access.covered
+    access.update_coverage(field_d_v2)
+    assert not access.covered
+
+    with pytest.raises(InternalError) as excinfo:
+        access.update_coverage(field_d_v3)
+    assert (
+        "Found more than one dependent halo exchange with the same vector "
+        "index" in str(excinfo.value))
+
+    access.update_coverage(field_d_v1)
+    assert access.covered
+
+    access.reset_coverage()
+    assert not access.covered
+    assert not access._vector_index_access
+
+
+def test_dataaccess_same_vector_indices(monkeypatch):
+    '''If update_coverage() is called from DataAccess and the arguments
+    are the same vector field, and the field vector indices are the
+    same then check that an exception is raised. This particular
+    exception is difficult to raise as it is caught by an earlier
+    method (overlaps()).
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # d for this halo exchange is for vector component 2
+    halo_exchange_d_v2 = schedule.children[4]
+    field_d_v2 = halo_exchange_d_v2.field
+    # modify d from vector component 3 to be component 2
+    halo_exchange_d_v3 = schedule.children[5]
+    field_d_v3 = halo_exchange_d_v3.field
+    monkeypatch.setattr(halo_exchange_d_v3, "_vector_index", 2)
+
+    # Now raise an exception with our erroneous vector indices (which
+    # are the same but should not be), but first make sure that the
+    # overlaps() method returns True otherwise an earlier exception
+    # will be raised.
+    access = DataAccess(field_d_v2)
+    monkeypatch.setattr(access, "overlaps", lambda arg: True)
+
+    with pytest.raises(InternalError) as excinfo:
+        access.update_coverage(field_d_v3)
+    assert (
+        "The halo exchange vector indices for 'd' are the same. This should "
+        "never happen" in str(excinfo.value))

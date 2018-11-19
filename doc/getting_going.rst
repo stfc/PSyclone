@@ -6,8 +6,13 @@ Getting Going
 Download
 --------
 
+The following instructions are intended for a PSyclone user who wants
+to work with a released version of the code. If you are a developer or
+wish to test a specific branch of PSyclone from the GitHub repository
+please see :ref:`dev-installation` in the :ref:`developers-guide`.
+
 PSyclone is available on the Python Package Index (pypi.org) and is
-hosted on github:
+hosted on GitHub:
 
 ``https://github.com/stfc/PSyclone``
 
@@ -30,19 +35,8 @@ PSyclone directly, e.g.
    > ls
    PSyclone-\ |release|\ 
    
-
-Alternatively the PSyclone repository can be cloned:
-
-``> git clone https://github.com/stfc/PSyclone.git``
-
-By default you will have access to the master branch if you clone. To
-change to the latest release then subsequently do the following
-
-.. parsed-literal::
-    > git checkout tags/\ |release|\ 
-
 Hereon the location where you download or clone PSyclone (including the
-PSyclone directory itself) will be referred to as <PSYCLONEHOME>
+PSyclone directory itself) will be referred to as ``<PSYCLONEHOME>``.
 
 Dependencies
 ------------
@@ -52,10 +46,10 @@ target machine. PSyclone has been tested under Python 2.6.5, 2.7.3 and 3.6.
 
 .. warning:: As of version 1.6, PSyclone requires version 0.0.7 or greater of fparser.
 
-PSyclone immediately relies on two external Python packages;
-``fparser`` and ``pyparsing``. In order to run the test suite
-``py.test`` is required. The easiest way to satisfy the Python
-dependencies is to use the Python Package Index (pypi.org) and
+PSyclone immediately relies on four external Python packages; ``six``,
+``configparser``, ``fparser`` and ``pyparsing``. In order to run the
+test suite ``py.test`` is required. The easiest way to satisfy the
+Python dependencies is to use the Python Package Index (pypi.org) and
 ``pip``. See https://packaging.python.org/installing/ for more
 information.
 
@@ -225,20 +219,20 @@ If you do not have it then py.test can again be installed using
 ``pip`` or from here http://pytest.org/latest/ (or specifically here
 http://pytest.org/latest/getting-started.html).
 
+.. _getting_going_env:
+
 Environment
 -----------
 
 In order to use PSyclone (including running the test suite and
 building documentation) you will need to install it. The simplest way to
-do this is to use pip with the supplied ``setup.py`` file:
-::
+do this is to use pip with the supplied ``setup.py`` file::
 
    > cd <PSYCLONEHOME>
    > pip install .
 
 By default pip will attempt a system-wide install. If you wish to do
-a user-local install instead then supply the ``--user`` flag:
-::
+a user-local install instead then supply the ``--user`` flag::
    
    > pip install --user .
 
@@ -249,16 +243,56 @@ Python that you are using) and the 'psyclone' script in
 add the latter location to your $PATH.
 
 If for some reason you'd rather not use pip then you can run the setup
-manually:
-::
+manually::
 
    > python setup.py install
 
-or, if you don't have root access:
+or, if you don't have root access::
+
+   > python setup.py install --user
+
+or,
 ::
 
    > python setup.py install --prefix /my/install/path
 
+If using the latter method then it will be necessary to take
+further action to ensure PSyclone can find the
+configuration file installed as a part of this process - see below.
+
+.. _getting-going-configuration:
+
+Configuration
+-------------
+
+Various aspects of PSyclone are configured through a configuration
+file, ``psyclone.cfg``. The default version of this file is installed
+to ``<python-base-prefix>/shared/psyclone/`` during the installation
+process. If a system-wide installation is being performed then this
+will be something like ``/usr/share/psyclone/``. If a user-local
+installation is performed (``--user`` flag to ``pip install``) then
+the location will be something like ``~/.local/share/psyclone/``.
+
+.. warning::
+
+   if PSyclone is installed to a non-standard location (e.g. by
+   specifying the ``--prefix=/some/path`` option to ``pip install``)
+   then PSyclone will not be able to find the configuration file at
+   execution time. There are two solutions to this: 1. copy the
+   configuration file to a location where PSyclone will find it (see
+   :ref:`configuration`) or 2. set the ``PSYCLONE_CONFIG`` environment
+   variable to the full-path to the configuration file, e.g.::
+
+   > export PSYCLONE_CONFIG=/some/path/PSyclone/config/psyclone.cfg
+
+.. warning::
+
+   when installing in 'editable' mode (``-e`` flag to pip), pip does
+   *not* install the configuration file. You will have to take one of
+   the two actions described above.
+
+See :ref:`configuration` for details of the settings contained within
+the config file.
 
 Test
 ----
@@ -318,6 +352,8 @@ on your PATH:
    > psyclone
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
                    [-d DIRECTORY] [-l] [-dm] [-nodm]
+		   [--profile {invokes,kernels}]
+                   [--force-profile {invokes,kernels}] [-v]
                    filename
    psyclone: error: too few arguments
 
@@ -398,27 +434,27 @@ of runme.py (above) and is therefore omitted here:
 ::
 
    # List the various invokes that the PSy layer contains
-   print psy.invokes.names
+   print(psy.invokes.names)
 
    # Get the loop schedule associated with one of these
    # invokes
-   schedule=psy.invokes.get('invoke_v3_kernel_type').schedule
+   schedule = psy.invokes.get('invoke_v3_kernel_type').schedule
    schedule.view()
 
    # Get the list of possible loop transformations
    from psyclone.psyGen import TransInfo
-   t=TransInfo()
-   print t.list
+   t = TransInfo()
+   print(t.list)
 
    # Create an OpenMPLoop-transformation object
-   ol=t.get_trans_name('OMPLoopTrans')
+   ol = t.get_trans_name('OMPLoopTrans')
 
    # Apply it to the loop schedule of the selected invoke
-   new_schedule,memento=ol.apply(schedule.children[0])
+   new_schedule, memento = ol.apply(schedule.children[0])
    new_schedule.view()
 
    # Replace the original loop schedule of the selected invoke
    # with the new, transformed schedule 
-   psy.invokes.get('invoke_v3_kernel_type')._schedule=new_schedule
+   psy.invokes.get('invoke_v3_kernel_type')._schedule = new_schedule
    # Generate the Fortran code for the new PSy layer
-   print psy.gen
+   print(psy.gen)

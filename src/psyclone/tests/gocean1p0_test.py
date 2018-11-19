@@ -43,6 +43,7 @@ import pytest
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
+from psyclone.gocean1p0 import GOKern, GOLoop, GOSchedule
 
 
 API = "gocean1.0"
@@ -155,9 +156,10 @@ def test_grid_property():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_next_sshu(cu_fld, u_fld)\n"
+        "    SUBROUTINE invoke_0(cu_fld, u_fld, du_fld, d_fld)\n"
         "      USE kernel_requires_grid_props, ONLY: next_sshu_code\n"
-        "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld\n"
+        "      TYPE(r2d_field), intent(inout) :: cu_fld, u_fld, du_fld, "
+        "d_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
@@ -172,7 +174,13 @@ def test_grid_property():
         "u_fld%grid%tmask, u_fld%grid%area_t, u_fld%grid%area_u)\n"
         "        END DO \n"
         "      END DO \n"
-        "    END SUBROUTINE invoke_0_next_sshu\n"
+        "      DO j=2,jstop\n"
+        "        DO i=2,istop-1\n"
+        "          CALL next_sshu_code(i, j, du_fld%data, d_fld%data, "
+        "d_fld%grid%tmask, d_fld%grid%area_t, d_fld%grid%area_u)\n"
+        "        END DO \n"
+        "      END DO \n"
+        "    END SUBROUTINE invoke_0\n"
         "  END MODULE psy_single_invoke_with_grid_props_test")
 
     assert generated_code.find(expected_output) != -1
@@ -921,7 +929,6 @@ def test_gosched_ijstop():
 def test_goloop_no_parent():
     ''' Attempt to generate code for a loop that has no GOSchedule
     as a parent '''
-    from psyclone.gocean1p0 import GOLoop
     goloop = GOLoop(loop_type="inner")
     # Try and generate the code for this loop even though it
     # has no parent schedule and no children
@@ -932,7 +939,6 @@ def test_goloop_no_parent():
 def test_goloop_no_children():
     ''' Attempt to generate code for a loop that has no child
     kernel calls '''
-    from psyclone.gocean1p0 import GOLoop, GOSchedule
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
@@ -947,7 +953,6 @@ def test_goloop_no_children():
 def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
-    from psyclone.gocean1p0 import GOLoop, GOSchedule, GOKern
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
@@ -965,7 +970,6 @@ def test_goloop_unsupp_offset():
 def test_goloop_unmatched_offsets():
     ''' Attempt to generate code for a loop with constant bounds with
     two different index offsets '''
-    from psyclone.gocean1p0 import GOLoop, GOSchedule, GOKern
     gosched = GOSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
@@ -1167,6 +1171,33 @@ def test05p1_kernel_invalid_iterates_over():
                    "test_files", "gocean1p0",
                    "test05.1_invoke_kernel_invalid_iterates_over.f90"),
               api="gocean1.0")
+
+
+def test05p1_kernel_add_iteration_spaces():
+    '''Check that adding a new iteration space works
+    '''
+
+    # Add new iteration space 'dofs'
+    GOLoop.add_bounds("offset_sw:cu:dofs:1:2:3:{stop}")
+
+    _, invoke_info = \
+        parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "test_files", "gocean1p0",
+                           "test05.1_invoke_kernel_invalid_iterates_over.f90"),
+              api=API)
+    psy = PSyFactory(API).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    expected_sched = (
+        "GOSchedule(Constant loop bounds=True):\n"
+        "Loop[]: j= lower=1,2,1\n"
+        "Loop[]: i= lower=3,istop,1\n"
+        "kern call: compute_cu_code\n"
+        "EndLoop\n"
+        "EndLoop\n"
+        "End Schedule\n")
+    sched_str = str(schedule)
+    assert sched_str in expected_sched
 
 
 def test06_kernel_invalid_access():

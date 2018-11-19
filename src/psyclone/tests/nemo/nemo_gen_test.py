@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,27 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''PSyclone configuration file where system wide properties and
-defaults are set.'''
+''' Module containing py.test tests for the generation of Fortran from
+    the PSy representation of NEMO code. '''
 
-SUPPORTEDAPIS = ["gunghoproto", "dynamo0.1", "dynamo0.3", "gocean0.1",
-                 "gocean1.0"]
-DEFAULTAPI = "dynamo0.3"
-SUPPORTEDSTUBAPIS = ["dynamo0.3"]
-DEFAULTSTUBAPI = "dynamo0.3"
-DISTRIBUTED_MEMORY = True
-REPRODUCIBLE_REDUCTIONS = False
-# Ammount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is True
-REPROD_PAD_SIZE = 8
-# Specify whether we compute annexed dofs when a kernel is written so
-# that it iterates over dofs. This is currently only the case for
-# builtins. If annexed dofs are computed then in certain cases we
-# remove the need for a halo exchange call.
-COMPUTE_ANNEXED_DOFS = False
+from __future__ import print_function, absolute_import
+import os
+import fparser
+
+# Constants
+API = "nemo"
+# Location of the Fortran files associated with these tests
+BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "test_files")
+
+
+def test_api_no_alg():
+    ''' Checks that generate works OK for an API which doesn't have an
+    Algorithm layer '''
+    from psyclone.generator import generate
+    alg, psy = generate(os.path.join(BASE_PATH, "explicit_do.f90"),
+                        api="nemo")
+    assert alg is None
+    assert isinstance(psy, fparser.two.Fortran2003.Program)

@@ -1,5 +1,374 @@
+.. _developers-guide:
+
 Developers' guide
-****************
+*****************
+
+Working With PSyclone from GitHub
+#################################
+
+A PSyclone developer will, by definition, be working with the GitHub
+PSyclone repository rather than installing a released version from
+pypi (using e.g. ``pip install psyclone``).  This section describes
+the set-up necessary when using PSyclone in this way. It also
+describes some of the development practises of the PSyclone project.
+
+.. _dev-installation:
+
+Installation
+============
+
+Although PSyclone releases always work with a released version of
+fparser, the same is not always true of other versions (e.g. the HEAD
+of the master branch). For those versions of PSyclone requiring
+fparser functionality that is not yet in a release, we use the git
+submodule feature such that the PSyclone repository always has a link
+to the correct version of fparser. In order to obtain this version
+the PSyclone repository must be cloned with the ``--recursive`` flag::
+  
+   > git clone --recursive https://github.com/stfc/PSyclone.git
+
+Alternatively, if you already have a local clone of the PSyclone github
+repository then doing::
+
+  > cd <PSYCLONEHOME>
+  > git submodule init
+  > git submodule update
+
+will fetch the fparser submodule. (Failure to do this will mean that
+the ``<PSYCLONEHOME>/external/fparser`` directory will be empty.)
+
+Note that after cloning the repository from GitHub, the local copy
+will be on the master branch. If you are working with some other
+branch then this must be checked out by doing::
+
+  > cd <PSYCLONEHOME>
+  > git checkout <BRANCH_NAME>
+
+Once the above steps have been performed, the
+``<PSYCLONEHOME>/external/fparser`` directory will contain the correct
+version of the fparser code. This can then be installed using ``pip``::
+
+  > cd <PSYCLONEHOME>/external/fparser
+  > pip install --user .
+
+Once you have the correct version of fparser installed you are ready to
+install PSyclone itself. Again, the simplest way of doing this is to use
+``pip``::
+
+  > cd <PSYCLONEHOME>
+  > pip install -e --user .
+
+where ``-e`` requests an 'editable' installation so that changes to
+the PSyclone source are immediately reflected in the installed
+package.  (For alternatives to using pip please see the
+:ref:`getting-going` section.)
+
+Test Suite
+==========
+
+The PSyclone test suite is integral to the development process and all
+new code must be covered (i.e. executed) by one or more tests. As
+described in :ref:`getting-going`, the test suite is written for use
+with ``pytest``.
+
+Coverage
+--------
+
+The easiest and most user-friendly way of checking the coverage of any
+new code is to use CodeCov (https://codecov.io/gh/stfc/PSyclone) which
+is integrated with GitHub. Coverage for Pull Requests is automatically
+reported and will appear as a comment on the Pull Request. This
+comment is then automatically updated whenever new code is pushed to
+the associated branch.
+
+For checking test coverage on your local machine you will need to install
+the ``cov`` plugin (``pip install pytest-cov``). You can then
+request various types of coverage report when running the test suite. e.g.
+to ask for a terminal report of missed lines for the ``dynamo0p3`` module
+you would do::
+
+  > cd <PSYCLONEHOME>
+  > py.test --cov-report term-missing --cov psyclone.dynamo0p3
+
+This will produce output along the lines of::
+  
+  ----------- coverage: platform linux, python 3.5.4-final-0 -----------
+  Name                        Stmts   Miss  Cover   Missing
+  ---------------------------------------------------------
+  src/psyclone/dynamo0p3.py    2540     23    99%   558, 593, 777, 2731, 2972, 3865, 4132-4133, 4135-4136, 4139-4140, 4143-4144, 4149-4151, 4255, 4270, 4488, 5026, 6540, 6658, 6768
+
+showing the line numbers which are not covered.
+
+Parallel execution
+------------------
+
+The size of the test suite is such that running all of it in serial
+can take many minutes, especially if you have requested a coverage
+report. It is therefore very helpful to run it in parallel and pytest
+provides support for this via the ``xdist`` plugin (``pip install
+pytest-xdist``). Once you have this plugin, the test suite may be run
+in parallel simply by providing the number of cores to use via the
+``-n`` flag::
+
+  > cd <PSYCLONEHOME>
+  > py.test -n 4
+
+Running the test suite in parallel also changes the order in which
+tests are run which can reveal any problems resulting from tests not
+being sufficiently isolated from one another.
+
+Gotchas
+-------
+
+Note that pytest will not complain if two tests (within a module) have
+the same name - it will just silently ignore one of them! The best way
+of checking for this is to run pylint on any modified test modules.
+(This needs to be done anyway as one of the requirements of the
+:ref:`code-review` is that all new code be pylint-clean.)
+
+Compilation testing
+-------------------
+
+The test suite provides support for testing that the code generated by
+PSyclone is valid Fortran. This is performed by writing the generated
+code to file and then invoking a Fortran compiler. This testing is not
+performed by default since it requires a Fortran compiler and
+significantly increases the time taken to run the test suite.  Since
+configuration of these tests uses a pytest fixture, the tests must be
+run from the ``tests`` directory when requesting that compilation
+checks be performed::
+
+  > cd <PSYCLONEHOME>/src/psyclone/tests
+  > py.test --compile
+
+The Gnu Fortran compiler (gfortran) is used by default. If you wish to
+use a different compiler and/or supply specific flags then these are
+specified by further command-line flags::
+
+  > py.test --compile --f90=ifort --f90flags="-O3"
+
+Note that compilaton testing is currently only supported for the
+"dynamo0.3" API. Since the code generated by PSyclone makes calls to the
+LFRic infrastructure, we maintain a stub implementation of the necessary
+routines in ``tests/test_files/dynamo0p3/infrastructure``.
+
+Continuous Integration
+======================
+
+The PSyclone project uses Travis (https://travis-ci.org/stfc/PSyclone)
+for continuous integration. GitHub triggers Travis to execute the test
+suite whenever there is a push to the repository. The work performed
+by Travis is configured by the ``.travis.yml`` file in the root
+directory of the repository. Currently Travis is configured to run the
+test suite for both Python 2.7 and 3.6. It also runs all of the examples
+using the ``check_examples`` script in the ``examples`` directory.
+
+By default, the Travis configuration uses ``pip`` to install the
+dependencies required by PSyclone before running the test suite. This
+works well when PSyclone only depends upon released versions of other
+packages. However, PSyclone relies heavily upon fparser which is also
+under development. Occasionally it may be that a given branch of
+PSyclone requires a version of fparser that is not yet released. As
+described in :ref:`dev-installation`, PSyclone has fparser as a git
+submodule. In order to configure Travis to use that version of fparser
+instead of a release, the ``.travis.yml`` file must be edited and the
+line executing the "install_optional.sh" script (in the
+``before_install`` section) must be edited to pass in the
+"fparser_submodule" argument::
+
+    - ./bin/install_optional.sh fparser_submodule
+
+Note that this functionality is only for development purposes. Any
+release of PSyclone must work with a released version of fparser
+and therefore the "fparser_submodule" argument must be removed
+before making a release.
+
+Given that a run of the test-suite on Travis uses approximately 45
+minutes of CPU time, it is good practise to avoid triggering it
+unnecessarily (e.g. if you know that a certain commit won't
+pass). This can be achieved by appending "[skip ci]" (without the
+quotes) to the end of the associated git commit message.
+
+.. _code-review:
+
+Code Review
+===========
+
+Before a branch can be merged to master it must pass code review. The
+guidelines for performing a review (i.e. what is expected from the
+developer) are available on the GitHub PSyclone wiki pages:
+https://github.com/stfc/PSyclone/wiki.
+
+Generic Code
+############
+
+PSyclone is designed to be configurable so that new front-ends (called
+API's) can be built, re-using as much existing code as possible. The
+generic code is kept in the `psyGen.py` file for psy-code generation.
+
+Dependence Analysis
+===================
+
+Dependence Analysis in PSyclone produces ordering constraints between
+instances of the `Argument` class within a PSyIRe.
+
+The `Argument` class is used to specify the data being passed into and
+out of instances of the `Call` class, `HaloExchange` Class and
+`GlobalSum` class (and their subclasses).
+
+As an illustration consider the following invoke::
+
+   invoke(           &
+       kernel1(a,b), &
+       kernel2(b,c))
+
+where the metadata for `kernel1` specifies that the 2nd argument is
+written to and the metadata for `kernel2` specifies that the 1st
+argument is read.
+
+In this case the PSyclone dependence analysis will determine that
+there is a flow dependence between the second argument of `Kernel1`
+and the first argument of `Kernel2` (a read after a write).
+
+Information about arguments is aggregated to the PSyIRe node level
+(`kernel1` and `kernel2` in this case) and then on to the parent
+`loop` node resulting in a flow dependence (a read after a write)
+between a loop containing `kernel1` and a loop containing
+`kernel2`. This dependence is used to ensure that a transformation is
+not able to move one loop before or after the other in the PSyIRe
+schedule (as this would cause incorrect results).
+
+Dependence analysis is implemented in PSyclone to support
+functionality such as adding and removing halo exchanges,
+parallelisation and moving nodes in a PSyIRe schedule. Dependencies
+between nodes in a PSyIRe schedule can be viewed as a DAG using the
+`dag()` method within the `Node` base class.
+
+DataAccess Class
+----------------
+
+The `DataAccess` class is at the core of PSyclone data dependence
+analysis. It takes an instance of the `Argument` class on
+initialisation and provides methods to compare this instance with
+other instances of the `Argument` class. The class is used to
+determine 2 main things, called `overlap` and `covered`.
+
+Overlap
++++++++
+
+`Overlap` specifies whether accesses specified by two instances of the
+`Argument` class access the same data or not. If they do access the
+same data their accesses are deemed to `overlap`. The best way to
+explain the meaning of `overlap` is with an example:
+
+Consider a one dimensional array called `A` of size 4 (`A(4)`). If one
+instance of the `Argument` class accessed the first two elements of
+array `A` and another instance of the `Argument` class accessed the
+last two elements of array `A` then they would both be accessing array
+`A` but their accesses would *not* `overlap`. However, if one instance
+of the `Argument` class accessed the first three elements of array `A`
+and another instance of the `Argument` class accessed the last two
+elements of array `A` then their accesses would `overlap` as they are
+both accessing element `A(3)`.
+
+Having explained the idea of `overlap` in its general sense, in
+practice PSyclone currently assumes that *any* two instances of the
+`Argument` class that access data with the same name will always
+`overlap` and does no further analysis (apart from halo exchanges and
+vectors, which are discussed below). The reason for this is that
+nearly all accesses to data, associated with an instance of the
+`Argument` class, start at index 1 and end at the number of elements,
+dofs or some halo depth. The exceptions to this are halo exchanges,
+which only access the halo and boundary conditions, which only access
+a subset of the data. However these subset accesses are currently not
+captured in metadata so PSyclone must assume subset accesses do not
+exist.
+
+If there is a field vector associated with an instance of an
+`Argument` class then all of the data in its vector indices are
+assumed to be accessed when the argument is part of a `Call` or a
+`GlobalSum`. However, in contrast, a `HaloExchange` only acts on a
+single index of a field vector. Therefore there is one halo exchange
+per field vector index. For example::
+
+    Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
+    ... ... KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+
+In the above PSyIRe schedule, the field `f1` is a vector field and the
+`Call` `testkern\_stencil\_vector\_code` is assumed to access data in
+all of the vector components. However, there is a separate `HaloExchange`
+for each component. This means that halo exchanges accessing the
+same field but different components do not `overlap`, but each halo
+exchange does overlap with the loop node. The current implementation
+of the `overlaps()` method deals with field vectors correctly.
+
+Coverage
+++++++++
+
+The concept of `coverage` naturally follows from the discussion in the
+previous section.
+
+Again consider a one dimensional array called `A` of size 4
+(`A(4)`). If one instance (that we will call the `source`) of the
+`Argument` class accessed the first 3 elements of array `A`
+(i.e. elements 1 to 3) and another instance of the `Argument` class
+accessed the first two elements of array `A` then their accesses would
+`overlap` as they are both accessing elements `A(1) and A(2)` and
+elements `A(1) and A(2)` would be `covered`. However, access `A(3)`
+for the `source Argument` class would not yet be `covered`. If a
+subsequent instance of the `Argument` class accessed the 2nd and 3rd
+elements of array `A` then all of the accesses (`A(1), A(2) and A(3)`)
+would now be `covered` so the `source argument` would be deemed to be
+covered.
+
+In PSyclone the above situation occurs when a vector field is accessed
+in a kernel and also requires halo exchanges e.g.::
+
+   Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
+         KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+
+In this case the PSyIRe loop node needs to know about all 3 halo
+exchanges before its access is fully `covered`. This functionality is
+implemented by passing instances of the `Argument` class to the
+`DataAccess` class `update_coverage()` method and testing the
+access.covered property until it returns `True`.
+
+::
+
+   # this example is for a field vector 'f1' of size 3
+   # f1_index[1,2,3] are halo exchange accesses to vector indices [1,2,3] respectively
+   access = DataAccess(f1_loop)
+   access.update_coverage(f1_index1)
+   result = access.covered  # will be False
+   access.update_coverage(f1_index2)
+   result = access.covered  # will be False
+   access.update_coverage(f1_index3)
+   result = access.covered  # will be True
+   access.reset_coverage()
+
+Note the `reset_coverage()` method can be used to reset internal state
+so the instance can be re-used (but this is not used by PSyclone at
+the moment).
+
+The way in which halo exchanges are placed means that it is not
+possible for two halo exchange with the same index to depend on each
+other in a schedule. As a result an exception is raised if this
+situation is found.
+
+Notice there is no concept of read or write dependencies here. Read or
+write dependencies are handled by classes that make use of the
+DataAccess class i.e. the `_field_write_arguments()` and
+`_field_read_arguments()` methods, both of which are found in the
+`Arguments` class.
+
 
 New APIs
 ########
@@ -18,8 +387,8 @@ TBD
 .. ---------
 .. 
 .. The names of the supported API's and the default API are specified in
-.. `config.py`. When adding a new API you must add the name you would like
-.. to use to the `SUPPORTEDAPIS` list (and change the `DEFAULTAPI` if
+.. `configuration.py`. When adding a new API you must add the name you would like
+.. to use to the ``_supported_api_list`` (and change the ``_default_api`` if
 .. required).
 .. 
 .. parse.py
@@ -43,8 +412,8 @@ TBD
 .. the same as another existing API then the existing `KernelType`
 .. subclass can be used for the new API.
 .. 
-.. The `KernelType` subclass needs to specialise the `KernelType
-.. __init__` method and initialise the `KernelType` base class with the
+.. The `KernelType` subclass needs to specialise the class constructor
+.. and initialise the `KernelType` base class with the
 .. supplied arguments. The role of the `KernelType` subclass is to create
 .. a kernel-metadata-specific subclass of the `Descriptor` class and
 .. populate this with the relevant API-specific metadata. After doing
@@ -326,6 +695,38 @@ returns the index of the last owned dof, the index of the last annexed
 dof, the index of the last halo dof at a particular depth and the
 index of the last halo dof, to support PSyclone code generation.
 
+.. _multigrid:
+
+Multi-grid
+----------
+
+The Dynamo 0.3 API supports kernels that map fields between meshes of
+different horizontal resolutions; these are termed "inter-grid"
+kernels. As indicated in :numref:`fig-multigrid` below, the change in
+resolution between each level is always a factor of two in both the
+``x`` and ``y`` dimensions.
+
+.. _fig-multigrid:
+
+.. figure:: multigrid.png
+	   :width: 600
+	   :align: center
+
+	   The arrangement of cells in the multi-grid hierarchy used
+	   by LFRic. (Courtesy of R. Wong, Met Office.)
+
+Inter-grid kernels are only permitted to deal with fields on two,
+neighbouring levels of the mesh hierarchy. In the context of a single
+inter-grid kernel we term the coarser of these meshes the "coarse"
+mesh and the other the "fine" mesh.
+
+There are two types of inter-grid operation; the first is
+"prolongation" where a field on a coarse mesh is mapped onto a fine
+mesh. The second is "restriction" where a field on a fine mesh is
+mapped onto a coarse mesh.  Given the factor of two difference in
+resolution between the fine and coarse meshes, the depth of any halo
+accesses for the field on the fine mesh must automatically be double
+that of those on the coarse mesh.
 
 Loop iterators
 --------------
@@ -340,21 +741,26 @@ the case of builtin's there is kernel metadata but it is part of
 PSyclone and is specified in
 `src/psyclone/dynamo0p3_builtins_mod.f90`.
 
+For inter-grid kernels, it is the coarse mesh that provides the iteration
+space. (The kernel is passed a list of the cells in the fine mesh that are
+associated with the current coarse cell.)
+
 Cell iterators: Continuous
 --------------------------
 
 When a kernel is written to iterate over cells and modify a continuous
 field, PSyclone always computes dofs on owned cells and redundantly
-computes dofs in the level-1 halo. Users can apply a redundant
-computation transformation to increase the halo depth for additional
-redundant computation but it must always at least compute the level-1
-halo. The reason for this is to ensure that the shared dofs on cells
-on the edge of the partition (both owned and annexed) are always
-correctly computed. Note that the outermost halo dofs are not
-correctly computed and therefore the outermost halo of the modified
-field is dirty after redundant computation. Also note that if we do
-not know whether a modified field is discontinuous or continuous then
-we must assume it is continuous.
+computes dofs in the level-1 halo (or to depth 2 if the field is on
+the fine mesh of an inter-grid kernel - see :ref:`multigrid`). Users
+can apply a redundant computation transformation to increase the halo
+depth for additional redundant computation but it must always at least
+compute the level-1 halo. The reason for this is to ensure that the
+shared dofs on cells on the edge of the partition (both owned and
+annexed) are always correctly computed. Note that the outermost halo
+dofs are not correctly computed and therefore the outermost halo of
+the modified field is dirty after redundant computation. Also note
+that if we do not know whether a modified field is discontinuous or
+continuous then we must assume it is continuous.
 
 An alternative solution could have been adopted in Dynamo0.3 whereby
 no redundant computation is performed and partial-sum results are
@@ -376,23 +782,25 @@ discontinuous field, PSyclone only needs to compute dofs on owned
 cells. Users can apply a redundant computation transformation to
 redundantly compute into the halo but this is not done by default.
 
+.. _annexed_dofs:
+
 Dof iterators
 -------------
 
 When a kernel that is written to iterate over dofs modifies a field,
 PSyclone must ensure that all dofs in that field are updated. If the
-distributed memory flag is set to `False` then PSyclone must iterate
+distributed memory flag is set to ``false`` then PSyclone must iterate
 over all dofs. PSyclone simply needs to create a loop that iterates
 from 1 to the total number of dofs. The latter value is provided by
 the LFRic API.
 
-If the distributed memory flag is set to `True` then PSyclone must
+If the distributed memory flag is set to ``true`` then PSyclone must
 ensure that each partition only iterates over owned dofs. Again PSyclone
 just needs to create a loop that iterates from 1 to the total number
 of owned dofs on that partition. The latter value is provided by the
 LFRic API.
 
-When the distributed memory flag is set to `True` an aditional
+When the distributed memory flag is set to ``true`` an aditional
 configuration option can be set which makes PSyclone always create
 loops which iterate over both owned and annexed dofs. Whilst this is
 not necessary for correctness, it can improve performance by reducing
@@ -403,10 +811,11 @@ annexed dof. This iteration space will necessarily also include all
 owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called `COMPUTE_ANNEXED_DOFS` and is
-found in the the `config.py` configuration file. If it is `True` then
+found in the the `dynamo0.3` section of the `psyclone.cfg`
+configuration file (see :ref:`configuration`). If it is ``true`` then
 annexed dofs are always computed in loops that iterate over dofs and
-if it is `False` then annexed dofs are not computed. The default in
-PSyclone is `False`.
+if it is ``false`` then annexed dofs are not computed. The default in
+PSyclone is ``false``.
 
 The computation of annexed dofs could have been added as a
 transformation optimisation. The reason for using a configuration
@@ -416,7 +825,7 @@ always remove certain halo exchanges without needing to add any new
 ones.
 
 If we first take the situation where annexed dofs are not computed for
-loops that iterate over dofs i.e. (`COMPUTE_ANNEXED_DOFS` is `False`),
+loops that iterate over dofs i.e. (`COMPUTE_ANNEXED_DOFS` is ``false``),
 then a field's annexed dofs will be dirty (out-of-date) after the loop
 has completed. If a following kernel needs to read the field's
 annexed dofs, then PSyclone will need to add a halo exchange to make
@@ -439,7 +848,7 @@ halo exchange is required. In case 4) the annexed dofs will be read so
 a halo exchange will be required.
 
 If we now take the case where annexed dofs are computed for loops that
-iterate over dofs (`COMPUTE_ANNEXED_DOFS` is `True`) then a field's
+iterate over dofs (`COMPUTE_ANNEXED_DOFS` is ``true``) then a field's
 annexed dofs will be clean after the loop has completed. If a
 following kernel needs to read the field's annexed dofs, then
 PSyclone will no longer need a halo exchange.
@@ -470,7 +879,7 @@ the annexed dofs dirty. In contrast, when `COMPUTE_ANNEXED_DOFS` is
 annexed dofs are always clean.
 
 Therefore no additional halo exchanges are required when
-`COMPUTE_ANNEXED_DOFS` is changed from `False` to `True` i.e. case 1)
+`COMPUTE_ANNEXED_DOFS` is changed from ``false`` to ``true`` i.e. case 1)
 does not require a halo exchange in either situation and case 2)
 requires a halo exchange in both situations. We also remove halo
 exchanges for cases 3) and 4) so the number of halo exchanges may be
@@ -494,7 +903,7 @@ Halo Exchange Logic
 -------------------
 
 Halo exchanges are required when the `DISTRIBUTED_MEMORY` flag is set to
-`True` in order to make sure any accesses to a field's halo or to its
+``true`` in order to make sure any accesses to a field's halo or to its
 annexed dofs receive the correct value.
 
 Operators and Halo Exchanges
@@ -526,7 +935,7 @@ When first run, PSyclone creates a separate schedule for each of the
 invokes found in the algorithm layer. A schedule includes all required
 loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
-created then (if the `DISTRIBUTED_MEMORY` flag is set to `True`) PSyclone
+created then (if the `DISTRIBUTED_MEMORY` flag is set to ``true``) PSyclone
 adds any required halo exchanges and global sums. This work is all
 performed in the `DynInvoke` constructor (`__init__`) method.
 
@@ -550,9 +959,9 @@ initial schedule. There are three cases:
    cells and modify a discontinuous field must have their annexed dofs
    clean. Currently the only way to make annexed dofs clean is to
    perform a halo exchange. If the `COMPUTE_ANNEXED_DOFS`
-   configuration variable is set to `True` then no halo exchange is
+   configuration variable is set to ``true`` then no halo exchange is
    required as annexed dofs will always be clean. If the
-   `COMPUTE_ANNEXED_DOFS` configuration variable is set to `False`
+   `COMPUTE_ANNEXED_DOFS` configuration variable is set to ``false``
    then a halo exchange must be added if the previous modification of
    the field is known to be from within a loop over dofs, or if the
    previous modification of the field is unknown (i.e. outside the
@@ -616,7 +1025,57 @@ Note that we do not need to worry about halo depth or whether a halo
 is definitely required, or whether it might be required, as this is
 determined by the halo exchange itself at code generation time. The
 reason for deferring this information is that it can change as
-transformations are added.
+transformations are applied.
+
+Asynchronous Halo Exchanges
++++++++++++++++++++++++++++
+
+The Dynamo0p3AsynchronousHaloExchange transformation allows the
+default synchronous halo exchange to be split into a halo exchange
+start and a halo exhange end which are represented separately as nodes
+in the schedule. These can then be moved in the schedule to allow
+overlapping of communication and computation, as long as data
+dependencies are honoured.
+
+A halo exchange both reads and modifies a field so has a readwrite
+access for dependence analysis purposes. An asynchronous halo exchange
+start reads the field and an asynchronous halo exchange end writes to
+the field. Therefore the obvious thing to do would be to have the
+associated field set to read and write access respectively. However,
+the way the halo exchange logic works means that it is simplest to set
+the halo exchange end access to readwrite. The reason for this is that
+the logic to determine whether a halo exchange is required
+(`_required()`) needs information from all fields that read from the
+halo after the halo exchange has been called (and therefore must be
+treated as a write with following reads for dependence analysis) and
+it needs information from all fields that write to the field before
+the halo exchange has been called (and therefore must be treated as a
+read with previous writes for dependence analysis). An alternative
+would be to make the `_required()` method use the halo exchange start
+for previous writes and the halo exchange end for following
+reads. However, it was decided that this would be more complicated
+than the solution chosen.
+
+Both halo exchange start and halo exchange end inherit from halo
+exchange. However, the halo exchange start and end are really two
+parts of the same thing and need to have consistent properties
+including after transformations have been performed. This is achieved by
+having the halo exchange start find and use the methods from the halo
+exchange end, rather than implement them independently. The actual
+methods needed are `_compute_stencil_type()`,
+`_compute_halo_depth()` and `_required()`. It is unclear how much
+halo exhange start really benefits from inheriting from halo exchange
+and this could probably be removed at the expense of returning
+appropriate names for the dag, colourmap, declaration etc.
+
+.. note:: The dependence analysis for halo exchanges for field vectors
+   is currently over zealous. It does not allow halo exchanges for
+   independent vector components to be moved past one another. For
+   example, a halo exchange for vector component 2, if placed after a halo
+   exchange for component 1 could not be moved before the halo exchange
+   for component 1, even though the accesses are independent of each
+   other. This is also the case for asynchronous halo exchanges. See
+   issue #220.
 
 Modifying the Schedule
 ----------------------
@@ -664,6 +1123,45 @@ exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
 
+Colouring
++++++++++
+
+If a loop contains one or more kernels that write to a field on a
+continuous function space then it cannot be safely executed in
+parallel on a shared-memory device. This is because fields on a
+continuous function space share dofs between neighbouring cells. One
+solution to this is to 'colour' the cells in a mesh so that all cells
+of a given colour may be safely updated in parallel
+(:numref:`fig-colouring`).
+
+.. _fig-colouring:
+
+.. figure:: lfric_colouring.png
+	   :width: 300
+	   :align: center
+
+	   Example of the colouring of the horizontal cells used to
+	   ensure the thread-safe update of shared dofs (black
+	   circles).  (Courtesy of S. Mullerworth, Met Office.)
+	   
+The loop over colours must then be performed sequentially but the loop
+over cells of a given colour may be done in parallel. A loop that
+requires colouring may be transformed using the ``Dynamo0p3ColourTrans``
+transformation.
+
+Each mesh in the multi-grid hierarchy is coloured separately
+(https://code.metoffice.gov.uk/trac/lfric/wiki/LFRicInfrastructure/MeshColouring)
+and therefore we cannot assume any relationship between the colour
+maps of meshes of differing resolution.
+
+However, the iteration space for inter-grid kernels (that map a field
+from one mesh to another) is always determined by the coarser of the
+two meshes.  Consequently, it is always the colouring of this mesh
+that must be used.  Due to the set-up of the mesh hierarchy (see
+:numref:`fig-multigrid`), this guarantees that there will not be any
+race conditions when updating shared quantities on either the fine or
+coarse mesh.
+
 GOcean1.0
 =========
 
@@ -707,3 +1205,195 @@ TBD
 .. 
 .. Create third transformtion which goes over all loops in a schedule and
 .. applies the OpenMP loop transformation.
+
+Modules
+#######
+
+This section describes the functionality of the various Python modules
+that make up PSyclone.
+
+Module: f2pygen
+===============
+
+`f2pygen` provides functionality for generating Fortran code from
+scratch (i.e. when not modifying existing source).
+
+Variable Declarations
+---------------------
+
+Three different classes are provided to support the creation of
+variable declarations (for intrinsic, character and derived-type
+variables). An example of their use might be:
+
+>>> from psyclone.f2pygen import ModuleGen, SubroutineGen, DeclGen, \
+CharDeclGen, TypeDeclGen
+>>> module = ModuleGen(name="testmodule")
+>>> sub = SubroutineGen(module, name="testsubroutine")
+>>> module.add(sub)
+>>> sub.add(DeclGen(sub, datatype="integer", entity_decls=["my_int"]))
+>>> sub.add(CharDeclGen(sub, length="10", entity_decls=["my_char"]))
+>>> sub.add(TypeDeclGen(sub, datatype="field_type", entity_decls=["ufld"]))
+>>> gen = str(module.root)
+>>> print(gen)
+  MODULE testmodule
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE testsubroutine()
+      TYPE(field_type) ufld
+      CHARACTER(LEN=10) my_char
+      INTEGER my_int
+    END SUBROUTINE testsubroutine
+  END MODULE testmodule
+
+The full interface to each of these classes is detailed below:
+
+.. autoclass:: psyclone.f2pygen.DeclGen
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.f2pygen.CharDeclGen
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.f2pygen.TypeDeclGen
+    :members:
+    :noindex:
+
+Module: configuration
+======================
+
+PSyclone uses the Python ``ConfigParser`` class
+(https://docs.python.org/3/library/configparser.html) for reading the
+configuration file. This is managed by the ``psyclone.configuration``
+module which provides a ``Config``
+class. This class is a singleton, which can be (created and) accessed
+using  ``Config.get()``. Only one such instance will ever exist:
+
+.. autoclass:: psyclone.configuration.Config
+    :members:
+
+The ``Config`` class is responsible for finding the configuration file
+(if no filename is passed to the constructor), parsing it and then storing
+the various configuration options. It also stores the list of supported
+APIs (``Config._supported_api_list``) and the default API to use if none
+is specified in either a config file or the command line
+(``Config._default_api``.)
+
+
+It also performs some basic consistency
+checks on the values it obtains from the configuration file.
+
+Since the PSyclone API to use can be read from the configuration
+file, it is not possible to have API-specifc sub-classes of ``Config``
+as we don't know which API is in use before we read the file. However, the
+configuration file can contain API-specific settings. These are placed in
+separate sections, named for the API to which they apply, e.g.::
+
+  [dynamo0.3]
+  COMPUTE_ANNEXED_DOFS = false
+
+Having parsed and stored the options from the default section of the
+configuration file, the ``Config`` constructor then creates a
+dictionary using the list of supported APIs to provide the keys. The
+configuration file is then checked for API-specific sections (again
+using the API names from the default section) and, if any are found,
+an API-specifc sub-class is created using the parsed entries from the
+corresponding section. The resulting object is stored in the
+dictionary under the appropriate key. The API-specific values may then
+be accessed as, e.g.::
+
+  Config.get().api_conf("dynamo0.3").compute_annexed_dofs
+
+The API-specific sub-classes exist to provide validation/type-checking and
+encapsulation for API-specific options. They do not sub-class ``Config``
+directly but store a reference back to the ``Config`` object to which they
+belong.
+
+Module: transformations
+=======================
+
+As one might expect, the transformations module holds the various
+transformation classes that may be used to modify the Schedule of an
+Invoke and/or the kernels called from within it.
+
+The base class for any transformation must be the class ``Transformation``:
+
+.. autoclass:: psyclone.psyGen.Transformation
+    :members:
+    :private-members:
+
+Those transformations that work on a region of code (e.g. enclosing
+multiple kernel calls within an OpenMP region) must sub-class the
+``RegionTrans`` class:
+
+.. autoclass:: psyclone.transformations.RegionTrans
+    :members:
+    :private-members:
+    :noindex:
+
+Kernel Transformations
+----------------------
+
+Kernel transformations work on the fparser2 AST of the target kernel
+code.  This AST is obtained by converting the fparser1 AST (stored
+when the kernel code was originally parsed to process the meta-data)
+back into a Fortran string and then parsing that with fparser2. (Note
+that in future we intend to adopt fparser2 throughout PSyclone so that
+this translation between ASTs will be unnecessary.) The `ast` property
+of the `psyclone.psyGen.Kern` class is responsible for performing this
+translation the first time it is called. It also stores the resulting
+AST in `Kern._fp2_ast` for return by future calls.
+Transforming a kernel is then a matter of manipulating this AST.
+(See `psyclone.transformations.ACCRoutineTrans` for an example.)
+
+OpenACC Support
+---------------
+
+PSyclone is able to generate code for execution on a GPU through the
+use of OpenACC. Support for generating OpenACC code is implemented via
+:ref:`transformations`. The specification of parallel regions and
+loops is very similar to that in OpenMP and does not require any
+special treatment.  However, a key feature of GPUs is the fact that
+they have their own, on-board memory which is separate from that of
+the host. Managing (i.e. minimising) data movement between host and
+GPU is then a very important part of obtaining good performance.
+
+Since PSyclone operates at the level of Invokes it has no information
+about when an application starts and thus no single place in which to
+initiate data transfers to a GPU. (We assume that the host is
+responsible for model I/O and therefore for populating fields with
+initial values.) Fortunately OpenACC provides support for this kind of
+situation with the ``enter data`` directive. This may be used to
+"define scalars, arrays and subarrays to be allocated in the current
+device memory for the remaining duration of the program"
+:cite:`openacc_enterdata`. The ``ACCDataTrans`` transformation adds
+an ``enter data`` directive to an Invoke:
+
+.. autoclass:: psyclone.transformations.ACCDataTrans
+
+The resulting generated code will then contain an ``enter data``
+directive protected by an ``IF(this is the first time in this
+Invoke)`` block, e.g. (for the GOcean1.0 API):
+
+.. code-block:: fortran
+
+      ! Ensure all fields are on the device and
+      ! copy them over if not.
+      IF (first_time) THEN
+        !$acc enter data  &
+        !$acc& copyin(sshn_t,sshn_t%data,un%grid,un%grid%tmask,...)
+        first_time = .false.
+        ssha_t%data_on_device = .true.
+        ...
+
+Note that the ``IF`` block is not strictly required as the OpenACC
+run-time identifies when a reference is already on the device and does
+not copy it it over again. However, when profiling an application, it
+was seen that there was a small overhead associated with doing the
+``enter data``, even when the data was already on the device. The ``IF``
+block eliminates this.
+
+Of course, a given field may already be on the device (and have been
+updated) due to a previous Invoke. In this case, the fact that the
+OpenACC run-time does not copy over the now out-dated host version of
+the field is essential for correctness.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ from fparser import api as fpapi
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-import utils
+from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -63,8 +63,8 @@ def test_field_xyoz(tmpdir, f90, f90flags):
     generated_code = str(psy.gen)
     print(generated_code)
 
-    if utils.TEST_COMPILE:
-        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
@@ -221,8 +221,8 @@ def test_field_qr_deref(tmpdir, f90, f90flags):
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
 
-        if utils.TEST_COMPILE:
-            assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+        if TEST_COMPILE:
+            assert code_compiles(API, psy, tmpdir, f90, f90flags)
         gen = str(psy.gen)
         print(gen)
         assert (
@@ -284,7 +284,7 @@ def test_dynkern_setup(monkeypatch):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     # Get hold of a DynKern object
     schedule = psy.invokes.invoke_list[0].schedule
     kern = schedule.children[3].children[0]

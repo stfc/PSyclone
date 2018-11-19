@@ -1,8 +1,35 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
@@ -16,6 +43,7 @@ functions.
 
 from __future__ import absolute_import
 import os
+import re
 import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
@@ -276,6 +304,7 @@ def test_script_trans():
         transformation is provided as a script, i.e. it applies the
         transformations correctly. We use loop fusion as an
         example.'''
+    # pylint: disable=too-many-locals
     from psyclone.parse import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans
@@ -284,7 +313,7 @@ def test_script_trans():
     # first loop fuse explicitly (without using generator.py)
     parse_file = os.path.join(base_path, "4_multikernel_invokes.f90")
     _, invoke_info = parse(parse_file, api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(invoke_info)
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.get("invoke_0")
     schedule = invoke.schedule
     loop1 = schedule.children[3]
@@ -380,6 +409,128 @@ def test_main_version(capsys):
     assert "PSyclone version: {0}".format(__VERSION__) in output
 
 
+def test_main_profile(capsys):
+    '''Tests that the profiling command line flags are working as expected.
+    '''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test27_loop_swap.f90")
+
+    from psyclone.profiler import Profiler
+    options = ["-api", "gocean1.0"]
+
+    # Check for invokes only parameter:
+    main(options+["--profile", "invokes", filename])
+    assert not Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for kernels only parameter:
+    main(options+["--profile", "kernels", filename])
+    assert Profiler.profile_kernels()
+    assert not Profiler.profile_invokes()
+
+    # Check for invokes + kernels
+    main(options+["--profile", "kernels",
+                  '--profile', 'invokes', filename])
+    assert Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for missing parameter (argparse then
+    # takes the filename as parameter for profiler):
+    with pytest.raises(SystemExit):
+        main(options+["--profile", filename])
+    _, outerr = capsys.readouterr()
+
+    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for invalid parameter
+    with pytest.raises(SystemExit):
+        main(options+["--profile", "invalid", filename])
+    _, outerr = capsys.readouterr()
+
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for warning in case of script with profiling"
+    with pytest.raises(SystemExit):
+        main(options+["--profile", "kernels", "-s", "somescript", filename])
+    out, _ = capsys.readouterr()
+    out = out.replace("\n", " ")
+
+    warning = ("Error: use of automatic profiling in combination with an "
+               "optimisation script is not recommened since it may not work "
+               "as expected.")
+
+    assert warning in out
+
+    # Reset profile flags to avoid further failures in other tests
+    Profiler.set_options(None)
+
+
+def test_main_force_profile(capsys):
+    '''Tests that the profiling command line flags are working as expected.
+    '''
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "test_files", "gocean1p0",
+                            "test27_loop_swap.f90")
+
+    from psyclone.profiler import Profiler
+    options = ["-api", "gocean1.0"]
+
+    # Check for invokes only parameter:
+    main(options+["--force-profile", "invokes", filename])
+    assert not Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for kernels only parameter:
+    main(options+["--force-profile", "kernels", filename])
+    assert Profiler.profile_kernels()
+    assert not Profiler.profile_invokes()
+
+    # Check for invokes + kernels
+    main(options+["--force-profile", "kernels",
+                  '--force-profile', 'invokes', filename])
+    assert Profiler.profile_kernels()
+    assert Profiler.profile_invokes()
+
+    # Check for missing parameter (argparse then
+    # takes the filename as parameter for profiler):
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", filename])
+    _, outerr = capsys.readouterr()
+
+    correct_re = "invalid choice.*choose from 'invokes', 'kernels'"
+    assert re.search(correct_re, outerr) is not None
+
+    # Check for invalid parameter
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "invalid", filename])
+    _, outerr = capsys.readouterr()
+
+    assert re.search(correct_re, outerr) is not None
+
+    # Check that there is indeed no warning when using --force-profile
+    # with a script. Note that this will raise an error because the
+    # script does not exist, but the point of this test is to make sure
+    # the error about mixing --profile and -s does not happen
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "kernels", "-s", "invalid", filename])
+    out, outerr = capsys.readouterr()
+    error = "expected the script file 'invalid' to have the '.py' extension"
+    assert error in out
+
+    # Test that --profile and --force-profile can not be used together
+    with pytest.raises(SystemExit):
+        main(options+["--force-profile", "kernels", "--profile", "invokes",
+                      filename])
+    out, outerr = capsys.readouterr()
+    error = "Specify only one of --profile and --force-profile."
+    assert error in out
+
+    # Reset profile flags to avoid further failures in other tests
+    Profiler.set_options(None)
+
+
 def test_main_invalid_api(capsys):
     '''Tests that we get the expected output and the code exits
     with an error if the supplied API is not known'''
@@ -393,8 +544,55 @@ def test_main_invalid_api(capsys):
     output, _ = capsys.readouterr()
     expected_output = ("Unsupported API 'madeup' specified. Supported API's "
                        "are ['gunghoproto', 'dynamo0.1', 'dynamo0.3', "
-                       "'gocean0.1', 'gocean1.0'].\n")
+                       "'gocean0.1', 'gocean1.0', 'nemo'].\n")
     assert output == expected_output
+
+
+def test_main_api():
+    '''Tests the three ways of specifying an API: command line, config file,
+    or relying on the default.'''
+
+    # 1) Make sure if no paramenters are given,
+    #   config will give us the default API
+    from psyclone.configuration import Config
+
+    # Make sure we get a default config instance
+    Config._instance = None
+    Config.get()
+
+    assert Config.get().api == Config.get().default_api
+
+    # 2) Check that a command line option will overwrite the default
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "gocean1p0",
+                             "single_invoke.f90"))
+
+    main([filename, "-api", "gocean1.0"])
+    assert Config.get().api == "gocean1.0"
+
+    # 3) Check that a config option will overwrite the default
+    Config._instance = None
+    Config.get()
+    # This config file specifies the gocean1.0 api
+    config_name = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "test_files", "gocean1p0",
+                                "new_iteration_space.psyclone"))
+    main([filename, "--config", config_name])
+    assert Config.get().api == "gocean1.0"
+
+    # 4) Check that a command line option overwrites what is specified in
+    #    in the config file (and the default)
+    Config._instance = None
+    Config.get()
+
+    filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p1",
+                             "1_kg_inline.f90"))
+
+    # This config file specifies the gocean1.0 api, but
+    # command line should take precedence
+    main([filename, "--config", config_name, "-api", "dynamo0.1"])
+    assert Config.get().api == "dynamo0.1"
 
 
 def test_main_expected_fatal_error(capsys):

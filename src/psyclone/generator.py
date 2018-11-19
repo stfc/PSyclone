@@ -1,14 +1,40 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
-
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -27,9 +53,13 @@ import traceback
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.algGen import NoInvokesError
-from psyclone.config import SUPPORTEDAPIS, DEFAULTAPI, DISTRIBUTED_MEMORY
 from psyclone.line_length import FortLineLength
+from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
+from psyclone.configuration import Config
+
+# Those APIs that do not have a separate Algorithm layer
+API_WITHOUT_ALGORITHM = ["nemo"]
 
 
 def handle_script(script_name, psy):
@@ -106,7 +136,7 @@ def handle_script(script_name, psy):
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
-             distributed_memory=DISTRIBUTED_MEMORY):
+             distributed_memory=None):
     # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -117,29 +147,31 @@ def generate(filename, api="", kernel_path="", script_name=None,
     modified algorithm code.
 
     :param str filename: The file containing the algorithm specification.
-    :param str kernel_path: The directory from which to recursively
-                            search for the files containing the kernel
-                            source (if different from the location of the
-                            algorithm specification)
-    :param str script_name: A script file that can apply optimisations
-                            to the PSy layer (can be a path to a file or
-                            a filename that relies on the PYTHONPATH to
+    :param str kernel_path: The directory from which to recursively \
+                            search for the files containing the kernel \
+                            source (if different from the location of the \
+                            algorithm specification).
+    :param str script_name: A script file that can apply optimisations \
+                            to the PSy layer (can be a path to a file or \
+                            a filename that relies on the PYTHONPATH to \
                             find the module).
-    :param bool line_length: A logical flag specifying whether we care
-                             about line lengths being longer than 132
-                             characters. If so, the input (algorithm
-                             and kernel) code is checked to make sure
+    :param bool line_length: A logical flag specifying whether we care \
+                             about line lengths being longer than 132 \
+                             characters. If so, the input (algorithm \
+                             and kernel) code is checked to make sure \
                              that it conforms. The default is False.
-    :param bool distributed_memory: A logical flag specifying whether to
-                                    generate distributed memory code. The
+    :param bool distributed_memory: A logical flag specifying whether to \
+                                    generate distributed memory code. The \
                                     default is set in the config.py file.
-    :return: The algorithm code and the psy code.
-    :rtype: ast
+    :return: 2-tuple containing fparser1 ASTs for the algorithm code and \
+             the psy code.
+    :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
+             :py:class:`fparser.one.block_statements.Module`)
     :raises IOError: if the filename or search path do not exist
 
     For example:
 
-    >>> from generator import generate
+    >>> from psyclone.generator import generate
     >>> alg, psy = generate("algspec.f90")
     >>> alg, psy = generate("algspec.f90", kernel_path="src/kernels")
     >>> alg, psy = generate("algspec.f90", script_name="optimise.py")
@@ -148,13 +180,17 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     '''
 
+    if distributed_memory is None:
+        distributed_memory = Config.get().distributed_memory
+
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     if api == "":
-        api = DEFAULTAPI
+        api = Config.get().default_api
     else:
-        if api not in SUPPORTEDAPIS:
+        if api not in Config.get().supported_apis:
             raise GenerationError(
                 "generate: Unsupported API '{0}' specified. Supported "
-                "types are {1}.".format(api, SUPPORTEDAPIS))
+                "types are {1}.".format(api, Config.get().supported_apis))
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
@@ -165,31 +201,47 @@ def generate(filename, api="", kernel_path="", script_name=None,
         ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                                  kernel_path=kernel_path,
                                  line_length=line_length)
-        psy = PSyFactory(api, distributed_memory=distributed_memory).\
-            create(invoke_info)
+        psy = PSyFactory(api, distributed_memory=distributed_memory)\
+            .create(invoke_info)
+
         if script_name is not None:
             handle_script(script_name, psy)
-        alg = Alg(ast, psy)
+
+        if api not in API_WITHOUT_ALGORITHM:
+            alg_gen = Alg(ast, psy).gen
+        else:
+            alg_gen = None
     except Exception:
         raise
-    return alg.gen, psy.gen
+
+    return alg_gen, psy.gen
 
 
 def main(args):
-
-    ''' Parses and checks the command line arguments, calls the generate
-    function if all is well, catches any errors and outputs the
-    results
     '''
-    # pylint: disable=too-many-statements
+    Parses and checks the command line arguments, calls the generate
+    function if all is well, catches any errors and outputs the
+    results.
+    :param list args: the list of command-line arguments that PSyclone has \
+                      been invoked with.
+    '''
+    # pylint: disable=too-many-statements,too-many-branches
+
+    # Make sure we have the supported APIs defined in the Config singleton,
+    # but postpone loading the config file till the command line was parsed
+    # in case that the user specifies a different config file.
+    Config.get(do_not_load_file=True)
+
     parser = argparse.ArgumentParser(
         description='Run the PSyclone code generator on a particular file')
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
     parser.add_argument(
         '-opsy', help='filename of generated PSy code')
-    parser.add_argument(
-        '-api', default=DEFAULTAPI, help='choose a particular api from {0}, '
-        'default {1}'.format(str(SUPPORTEDAPIS), DEFAULTAPI))
+    parser.add_argument('-api',
+                        help='choose a particular api from {0}, '
+                             'default \'{1}\'.'
+                        .format(str(Config.get().supported_apis),
+                                Config.get().default_api))
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -205,25 +257,67 @@ def main(args):
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
-    parser.set_defaults(dist_mem=DISTRIBUTED_MEMORY)
+    parser.add_argument(
+        '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
+        help="Add profiling hooks for either 'kernels' or 'invokes'")
+    parser.add_argument(
+        '--force-profile', action="append",
+        choices=Profiler.SUPPORTED_OPTIONS,
+        help="Add profiling hooks for either 'kernels' or 'invokes' even if a "
+             "transformation script is used. Use at your own risk.")
+    parser.set_defaults(dist_mem=Config.get().distributed_memory)
 
+    parser.add_argument("--config", help="Config file with "
+                        "PSyclone specific options.")
     parser.add_argument(
         '-v', '--version', dest='version', action="store_true",
         help='Display version information ({0})'.format(__VERSION__))
 
     args = parser.parse_args(args)
 
-    if args.api not in SUPPORTEDAPIS:
-        print("Unsupported API '{0}' specified. Supported API's are "\
-            "{1}.".format(args.api, SUPPORTEDAPIS))
-        exit(1)
-
     if args.version:
         print("PSyclone version: {0}".format(__VERSION__))
 
-    # pylint: disable=broad-except
+    if args.script is not None and args.profile is not None:
+        print("Error: use of automatic profiling in combination with an")
+        print("optimisation script is not recommened since it may not work")
+        print("as expected.")
+        print("You can use --force-profile instead of --profile if you "
+              "really want to use both options")
+        print("at the same time.")
+        exit(1)
+
+    if args.profile is not None and args.force_profile is not None:
+        print("Specify only one of --profile and --force-profile.")
+        exit(1)
+
+    if args.profile:
+        Profiler.set_options(args.profile)
+    elif args.force_profile:
+        Profiler.set_options(args.force_profile)
+
+    # If no config file name is specified, args.config is none
+    # and config will load the default config file.
+    Config.get().load(args.config)
+
+    # Check API, if none is specified, take the setting from the config file
+    if args.api is None:
+        # No command line option, use the one specified in Config - which
+        # is either based on a parameter in the config file, or otherwise
+        # the default:
+        api = Config.get().api
+    elif args.api not in Config.get().supported_apis:
+        print("Unsupported API '{0}' specified. Supported API's are "
+              "{1}.".format(args.api, Config.get().supported_apis))
+        exit(1)
+    else:
+        # There is a valid API specified on the command line. Set it
+        # as API in the config object as well.
+        api = args.api
+        Config.get().api = api
+
     try:
-        alg, psy = generate(args.filename, api=args.api,
+        alg, psy = generate(args.filename, api=api,
                             kernel_path=args.directory,
                             script_name=args.script,
                             line_length=args.limit,
@@ -243,7 +337,7 @@ def main(args):
         _, exc_value, _ = sys.exc_info()
         print(exc_value)
         exit(1)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         print("Error, unexpected exception, please report to the authors:")
         exc_type, exc_value, exc_tb = sys.exc_info()
         print("Description ...")
@@ -265,7 +359,7 @@ def main(args):
         my_file.write(alg_str)
         my_file.close()
     else:
-        print("Transformed algorithm code:\n%s"%alg_str)
+        print("Transformed algorithm code:\n%s" % alg_str)
 
     if not psy_str:
         # empty file so do not output anything

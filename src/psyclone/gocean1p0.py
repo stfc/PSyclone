@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -32,6 +33,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
     the required base classes for both code generation (PSy, Invokes,
@@ -46,7 +49,8 @@
 from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, Argument, KernelArgument, GenerationError
+    Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
+    GenerationError, InternalError, args_filter
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -89,7 +93,11 @@ GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
                       "grid_lat_u": "gphiu",
                       "grid_lat_v": "gphiv",
                       "grid_dx_const": "dx",
-                      "grid_dy_const": "dy"}
+                      "grid_dy_const": "dy",
+                      "grid_x_min_index": "simulation_domain%xstart",
+                      "grid_x_max_index": "simulation_domain%xstop",
+                      "grid_y_min_index": "simulation_domain%ystart",
+                      "grid_y_max_index": "simulation_domain%ystop"}
 
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
@@ -173,7 +181,15 @@ class GOInvoke(Invoke):
         method so that we generate GOcean specific invocation code and
         provides three methods which separate arguments that are arrays from
         arguments that are {integer, real} scalars. '''
+
     def __init__(self, alg_invocation, idx):
+        '''Constructor for the GOcean-specific invoke class.
+        :param alg_invocation: Node in the AST describing the invoke call.
+        :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
+        :param int idx: The position of the invoke in the list of invokes
+                        contained in the Algorithm.
+        '''
+
         if False:  # pylint: disable=using-constant-test
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule)
@@ -296,10 +312,12 @@ class GOSchedule(Schedule):
         self._const_loop_bounds = True
 
     def view(self, indent=0):
-        ''' Print a representation of this GOSchedule '''
-        print(self.indent(indent) + self.coloured_text + "[invoke='" + \
-            self.invoke.name + "',Constant loop bounds=" + \
-            str(self._const_loop_bounds) + "]")
+        '''Print a representation of this GOSchedule.
+        :param int indent: optional argument indicating the level of
+        indentation to add before outputting the class information.'''
+        print(self.indent(indent) + self.coloured_text + "[invoke='" +
+              self.invoke.name + "',Constant loop bounds=" +
+              str(self._const_loop_bounds) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -360,14 +378,24 @@ class GOSchedule(Schedule):
         self._const_loop_bounds = obj
 
 
+# pylint: disable=too-many-instance-attributes
 class GOLoop(Loop):
     ''' The GOcean specific Loop class. This passes the GOcean specific
         single loop information to the base class so it creates the one we
         require. Adds a GOcean specific setBounds method which tells the loop
         what to iterate over. Need to harmonise with the topology_name method
         in the Dynamo api. '''
+
+    _bounds_lookup = {}
+
     def __init__(self, parent=None,
                  topology_name="", loop_type=""):
+        '''Constructs a GOLoop instance.
+        :param parent: Optional parent node (default None).
+        :type parent: :py:class:`psyclone.psyGen.node`
+        :param str topology_name: Optional opology of the loop (unused atm).
+        :param str loop_type: Loop type - must be 'inner' or 'outer'.'''
+
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         self.loop_type = loop_type
@@ -383,82 +411,199 @@ class GOLoop(Loop):
             raise GenerationError(
                 "Invalid loop type of '{0}'. Expected one of {1}".
                 format(self._loop_type, VALID_LOOP_TYPES))
+        if not GOLoop._bounds_lookup:
+            GOLoop.setup_bounds()
 
-        # Create a dictionary to simplify the business of looking-up
-        # loop bounds
-        self._bounds_lookup = {}
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def setup_bounds():
+        '''Populates the GOLoop._bounds_lookup dictionary. This is
+        used by PSyclone to look up the loop boundaries for each loop
+        it creates.'''
+
         for grid_offset in SUPPORTED_OFFSETS:
-            self._bounds_lookup[grid_offset] = {}
+            GOLoop._bounds_lookup[grid_offset] = {}
             for gridpt_type in VALID_FIELD_GRID_TYPES:
-                self._bounds_lookup[grid_offset][gridpt_type] = {}
+                GOLoop._bounds_lookup[grid_offset][gridpt_type] = {}
                 for itspace in VALID_ITERATES_OVER:
-                    self._bounds_lookup[grid_offset][gridpt_type][itspace] = {}
+                    GOLoop._bounds_lookup[grid_offset][gridpt_type][
+                        itspace] = {}
 
         # Loop bounds for a mesh with NE offset
-        self._bounds_lookup['offset_ne']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': ""}}
-        self._bounds_lookup['offset_ne']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': ""},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "-1"},
-             'outer': {'start': "2", 'stop': ""}}
-        self._bounds_lookup['offset_ne']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': ""}}
-        self._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': "-1"}}
-        self._bounds_lookup['offset_ne']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': ""},
-             'outer': {'start': "1", 'stop': ""}}
-        self._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
-            {'inner': {'start': "1", 'stop': "-1"},
-             'outer': {'start': "1", 'stop': "-1"}}
+        GOLoop._bounds_lookup['offset_ne']['ct']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_ne']['cu']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}-1"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_ne']['cv']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}-1"}}
+        GOLoop._bounds_lookup['offset_ne']['cf']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}-1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}-1"}}
         # Loop bounds for a mesh with SE offset
-        self._bounds_lookup['offset_sw']['ct']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': ""}}
-        self._bounds_lookup['offset_sw']['cu']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "+1"},
-             'outer': {'start': "2", 'stop': ""}}
-        self._bounds_lookup['offset_sw']['cv']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': ""},
-             'outer': {'start': "2", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['cf']['all_pts'] = \
-            {'inner': {'start': "1", 'stop': "+1"},
-             'outer': {'start': "1", 'stop': "+1"}}
-        self._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
-            {'inner': {'start': "2", 'stop': "+1"},
-             'outer': {'start': "2", 'stop': "+1"}}
+        GOLoop._bounds_lookup['offset_sw']['ct']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_sw']['cu']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}", 'stop': "{stop}"}}
+        GOLoop._bounds_lookup['offset_sw']['cv']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}"},
+             'outer': {'start': "{start}", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['cf']['all_pts'] = \
+            {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
+        GOLoop._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
+            {'inner': {'start': "{start}", 'stop': "{stop}+1"},
+             'outer': {'start': "{start}", 'stop': "{stop}+1"}}
         # For offset 'any'
         for gridpt_type in VALID_FIELD_GRID_TYPES:
             for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup['offset_any'][gridpt_type][itspace] = \
-                    {'inner': {'start': "1", 'stop': ""},
-                     'outer': {'start': "1", 'stop': ""}}
+                GOLoop._bounds_lookup['offset_any'][gridpt_type][itspace] = \
+                    {'inner': {'start': "{start}-1", 'stop': "{stop}"},
+                     'outer': {'start': "{start}-1", 'stop': "{stop}"}}
         # For 'every' grid-point type
         for offset in SUPPORTED_OFFSETS:
             for itspace in VALID_ITERATES_OVER:
-                self._bounds_lookup[offset]['every'][itspace] = \
-                    {'inner': {'start': "1", 'stop': "+1"},
-                     'outer': {'start': "1", 'stop': "+1"}}
+                GOLoop._bounds_lookup[offset]['every'][itspace] = \
+                    {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
+                     'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def add_bounds(bound_info):
+        '''
+        Adds a new iteration space to PSyclone. An iteration space in the
+        gocean1.0 API is for a certain offset type and field type. It defines
+        the loop boundaries for the outer and inner loop. The format is a
+        ":" separated tuple:
+        bound_info = offset-type:field-type:iteration-space:outer-start:
+                      outer-stop:inner-start:inner-stop
+        Example:
+        bound_info = offset_ne:ct:all_pts:{start}-1:{stop}+1:{start}:{stop}
+
+        The expressions {start} and {stop} will be replaced with the loop
+        indices that correspond to the inner points (i.e. non-halo or
+        boundary points) of the field. So the index {start}-1 is actually
+        on the halo / boundary.
+
+        :param str bound_info: A string that contains a ":" separated \
+               tuple with the iteration space definition.
+        :raises ValueError: if bound_info is not a string.
+        :raises ConfigurationError: if bound_info is not formatted correctly.
+        '''
+
+        if not isinstance(bound_info, str):
+            raise InternalError("The parameter 'bound_info' must be a string, "
+                                "got '{0}' (type {1})"
+                                .format(bound_info, type(bound_info)))
+
+        data = bound_info.split(":")
+        if len(data) != 7:
+            from psyclone.configuration import ConfigurationError
+            raise ConfigurationError("An iteration space must be in the form "
+                                     "\"offset-type:field-type:"
+                                     "iteration-space:outer-start:"
+                                     "outer-stop:inner-start:inner-stop\"\n"
+                                     "But got \"{0}\"".format(bound_info))
+
+        if not GOLoop._bounds_lookup:
+            GOLoop.setup_bounds()
+
+        # Check that all bound specifications (min and max index) are valid.
+        # ------------------------------------------------------------------
+        import re
+        # Regular expression that finds stings surrounded by {}
+        bracket_regex = re.compile("{[^}]+}")
+        for bound in data[3:7]:
+            all_expr = bracket_regex.findall(bound)
+            for bracket_expr in all_expr:
+                if bracket_expr not in ["{start}", "{stop}"]:
+                    from psyclone.configuration import ConfigurationError
+                    raise ConfigurationError("Only '{{start}}' and '{{stop}}' "
+                                             "are allowed as bracketed "
+                                             "expression in an iteration "
+                                             "space. But got "
+                                             "{0}".format(bracket_expr))
+
+        # Test if a loop with the given boundaries can actually be parsed.
+        from fparser.two.Fortran2003 import NoMatchError, Nonlabel_Do_Stmt
+        from fparser.two.parser import ParserFactory
+        # Necessary to setup the parser
+        ParserFactory().create(std="f2003")
+
+        # Test both the outer loop indices (index 3 and 4) and inner
+        # indices (index 5 and 6):
+        for bound in data[3:7]:
+            do_string = "do i=1, {0}".format(bound)
+            # Now replace any {start}/{stop} expression in the loop
+            # with a valid integer value:
+            do_string = do_string.format(start='15', stop='25')
+            # Check if the do loop can be parsed as a nonlabel do loop
+            try:
+                _ = Nonlabel_Do_Stmt(do_string)
+            except NoMatchError as err:
+                from psyclone.configuration import ConfigurationError
+                raise ConfigurationError("Expression '{0}' is not a "
+                                         "valid do loop boundary. Error "
+                                         "message: '{1}'."
+                                         .format(bound, str(err)))
+
+        # All tests successful, so add the new bounds:
+        # --------------------------------------------
+        current_bounds = GOLoop._bounds_lookup   # Shortcut
+        # Check offset-type exists
+        if not data[0] in current_bounds:
+            current_bounds[data[0]] = {}
+
+        # Check field-type exists
+        if not data[1] in current_bounds[data[0]]:
+            current_bounds[data[0]][data[1]] = {}
+
+        # Check iteration space exists:
+        if not data[2] in current_bounds[data[0]][data[1]]:
+            current_bounds[data[0]][data[1]][data[2]] = {}
+            VALID_ITERATES_OVER.append(data[2])
+
+        current_bounds[data[0]][data[1]][data[2]] = \
+            {'outer': {'start': data[3], 'stop': data[4]},
+             'inner': {'start': data[5], 'stop': data[6]}}
+
+    # -------------------------------------------------------------------------
+    # pylint: disable=too-many-branches
     def _upper_bound(self):
-        ''' Returns the upper bound of this loop as a string '''
+        ''' Returns the upper bound of this loop as a string.
+        This takes the field type and usage of const_loop_bounds
+        into account. In case of const_loop_bounds it will be
+        using the data in GOLoop._bounds_lookup to find the appropriate
+        indices depending on offset, field type, and iteration space.
+        All occurences of {start} and {stop} in _bounds_loopup will
+        be replaced with the constant loop boundary variable, e.g.
+        "{stop}+1" will become "istop+1" (or "jstop+1 depending on
+        loop type).'''
         schedule = self.ancestor(GOSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
@@ -476,8 +621,18 @@ class GOLoop(Loop):
                 stop = schedule.jloop_stop
 
             if index_offset:
-                stop += (self._bounds_lookup[index_offset][self.field_space]
-                         [self._iteration_space][self._loop_type]["stop"])
+                # This strange line splitting was the only way I could find
+                # to avoid pep8 warnings: using [..._space]\ keeps on
+                # complaining about a white space
+                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
+                    self._iteration_space][self._loop_type]
+                stop = bounds["stop"].format(start='2', stop=stop)
+                # Remove all white spaces
+                stop = "".join(stop.split())
+                # This common cases is a bit of compile-time computation
+                # but it helps fixing all test cases.
+                if stop == "2-1":
+                    stop = "1"
             else:
                 stop = "not yet set"
         else:
@@ -511,9 +666,19 @@ class GOLoop(Loop):
                     stop += "%ystop"
         return stop
 
+    # -------------------------------------------------------------------------
+    # pylint: disable=too-many-branches
     def _lower_bound(self):
-        ''' Returns a string containing the expression for the lower
-        bound of the loop '''
+        ''' Returns the lower bound of this loop as a string.
+        This takes the field type and usage of const_loop_bounds
+        into account. In case of const_loop_bounds it will be
+        using the data in GOLoop._bounds_lookup to find the appropriate
+        indices depending on offset, field type, and iteration space.
+        All occurences of {start} and {stop} in _bounds_loopup will
+        be replaced with the constant loop boundary variable, e.g.
+        "{stop}+1" will become "istop+1" (or "jstop+1" depending on
+        loop type).'''
+
         schedule = self.ancestor(GOSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
@@ -525,9 +690,23 @@ class GOLoop(Loop):
             if go_kernels:
                 index_offset = go_kernels[0].index_offset
 
+            if self._loop_type == "inner":
+                stop = schedule.iloop_stop
+            else:
+                stop = schedule.jloop_stop
             if index_offset:
-                start = (self._bounds_lookup[index_offset][self.field_space]
-                         [self._iteration_space][self._loop_type]["start"])
+                # This strange line splitting was the only way I could find
+                # to avoid pep8 warnings: using [..._space]\ keeps on
+                # complaining about a white space
+                bounds = GOLoop._bounds_lookup[index_offset][self.field_space][
+                    self._iteration_space][self._loop_type]
+                start = bounds["start"].format(start='2', stop=stop)
+                # Remove all white spaces
+                start = "".join(start.split())
+                # This common cases is a bit of compile-time computation
+                # but it helps fixing all test cases.
+                if start == "2-1":
+                    start = "1"
             else:
                 start = "not yet set"
         else:
@@ -553,6 +732,7 @@ class GOLoop(Loop):
                     start += "%ystart"
         return start
 
+    # -------------------------------------------------------------------------
     def __str__(self):
         ''' Returns a string describing this Loop object '''
         step = self._step
@@ -567,6 +747,7 @@ class GOLoop(Loop):
         result += "EndLoop"
         return result
 
+    # -------------------------------------------------------------------------
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
@@ -606,6 +787,7 @@ class GOLoop(Loop):
         Loop.gen_code(self, parent)
 
 
+# pylint: disable=too-few-public-methods
 class GOBuiltInCallFactory(object):
     ''' A GOcean-specific built-in call factory. No built-ins
         are supported in GOcean at the moment. '''
@@ -619,6 +801,7 @@ class GOBuiltInCallFactory(object):
             "Built-ins are not supported for the GOcean 1.0 API")
 
 
+# pylint: disable=too-few-public-methods
 class GOKernCallFactory(object):
     ''' A GOcean-specific kernel-call factory. A standard kernel call in
     GOcean consists of a doubly-nested loop (over i and j) and a call to
@@ -682,7 +865,7 @@ class GOKern(Kern):
         '''
         return []
 
-    def _find_grid_access(self):
+    def find_grid_access(self):
         '''Determine the best kernel argument from which to get properties of
             the grid. For this, an argument must be a field (i.e. not
             a scalar) and must be supplied by the algorithm layer
@@ -708,7 +891,7 @@ class GOKern(Kern):
 
         # Before we do anything else, go through the arguments and
         # determine the best one from which to obtain the grid properties.
-        grid_arg = self._find_grid_access()
+        grid_arg = self.find_grid_access()
 
         # A GOcean 1.0 kernel always requires the [i,j] indices of the
         # grid-point that is to be updated
@@ -800,6 +983,67 @@ class GOKernelArguments(Arguments):
                           "readwrite": "readwrite", "inc": ""}
         arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
+
+    @property
+    def acc_args(self):
+        '''
+        Provide the list of references (both objects and arrays) that must
+        be present on an OpenACC device before the kernel associated with
+        this Arguments object may be launched.
+
+        :returns: list of (Fortran) quantities
+        :rtype: list of str
+        '''
+        arg_list = []
+
+        # First off, specify the field object which we will de-reference in
+        # order to get any grid properties (if this kernel requires them).
+        # We do this as some compilers do less optimisation if we get (read-
+        # -only) grid properties from a field object that has read-write
+        # access.
+        grid_fld = self._parent_call.find_grid_access()
+        grid_ptr = grid_fld.name + "%grid"
+        arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
+
+        for arg in self._args:
+            if arg.type == "scalar":
+                arg_list.append(arg.name)
+            elif arg.type == "field" and arg != grid_fld:
+                # The remote device will need the reference to the field
+                # object *and* the reference to the array within that object.
+                arg_list.extend([arg.name, arg.name+"%data"])
+            elif arg.type == "grid_property":
+                if grid_ptr not in arg_list:
+                    # This kernel needs a grid property and therefore the
+                    # pointer to the grid object must be copied to the device.
+                    arg_list.append(grid_ptr)
+                arg_list.append(grid_ptr+"%"+arg.name)
+        return arg_list
+
+    @property
+    def fields(self):
+        '''
+        Provides the list of names of field objects that are required by
+        the kernel associated with this Arguments object.
+
+        :returns: List of names of (Fortran) field objects.
+        :rtype: list of str
+        '''
+        args = args_filter(self._args, arg_types=["field"])
+        return [arg.name for arg in args]
+
+    @property
+    def scalars(self):
+        '''
+        Provides the list of names of scalar arguments required by the
+        kernel associated with this Arguments object. If there are none
+        then the returned list is empty.
+
+        :returns: A list of the names of scalar arguments in this object.
+        :rtype: list of str
+        '''
+        args = args_filter(self._args, arg_types=["scalar"])
+        return [arg.name for arg in args]
 
 
 class GOKernelArgument(KernelArgument):
@@ -896,6 +1140,7 @@ class GOStencil(object):
         self._name = None
         self._initialised = False
 
+    # pylint: disable=too-many-branches
     def load(self, stencil_info, kernel_name):
         '''Take parsed stencil metadata information, check it is valid and
         store it in a convenient form. The kernel_name argument is
@@ -1157,7 +1402,6 @@ class GO1p0Descriptor(Descriptor):
             access = kernel_arg.args[0].name
             grid_var = kernel_arg.args[1].name
             funcspace = ""
-            stencil = ""
 
             self._grid_prop = grid_var
             self._type = "grid_property"
@@ -1294,3 +1538,31 @@ class GOKernelType1p0(KernelType):
     def index_offset(self):
         ''' Return the grid index-offset that this kernel expects '''
         return self._index_offset
+
+
+class GOACCDataDirective(ACCDataDirective):
+    '''
+    Sub-classes ACCDataDirective to provide an API-specific implementation
+    of data_on_device().
+
+    '''
+    def data_on_device(self, parent):
+        '''
+        Adds nodes into the f2pygen AST to flag that each of the
+        objects required by the kernels in the data region is now on the
+        device. We do this by setting the data_on_device attribute to .true.
+
+        :param parent: The node in the f2pygen AST to which to add the \
+                       assignment nodes.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import AssignGen
+        obj_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.fields:
+                if var not in obj_list:
+                    parent.add(AssignGen(parent,
+                                         lhs=var+"%data_on_device",
+                                         rhs=".true."))
+                    obj_list.append(var)
+        return

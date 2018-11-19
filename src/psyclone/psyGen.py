@@ -42,7 +42,7 @@
 from __future__ import print_function
 import abc
 import six
-from psyclone import config
+from psyclone.configuration import Config
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -99,28 +99,36 @@ VALID_ACCESS_DESCRIPTOR_NAMES = []
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
 # coloured.) See https://pypi.python.org/pypi/termcolor for details.
-SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
-                       "Loop": "white",
+SCHEDULE_COLOUR_MAP = {"Schedule": "white",
+                       "Loop": "red",
                        "GlobalSum": "cyan",
                        "Directive": "green",
                        "HaloExchange": "blue",
-                       "Call": "red",
-                       "KernCall": "magenta"}
+                       "HaloExchangeStart": "yellow",
+                       "HaloExchangeEnd": "yellow",
+                       "Call": "magenta",
+                       "KernCall": "magenta",
+                       "Profile": "green",
+                       "If": "red"}
 
 
 def get_api(api):
     ''' If no API is specified then return the default. Otherwise, check that
-    the supplied API is valid. '''
+    the supplied API is valid.
+    :param str api: The PSyclone API to check or an empty string.
+    :returns: The API that is in use.
+    :rtype: str
+    :raises GenerationError: if the specified API is not supported.
+
+    '''
     if api == "":
-        from psyclone.config import DEFAULTAPI
-        api = DEFAULTAPI
+        api = Config.get().default_api
     else:
-        from psyclone.config import SUPPORTEDAPIS as supported_types
-        if api not in supported_types:
+        if api not in Config.get().supported_apis:
             raise GenerationError("get_api: Unsupported API '{0}' "
                                   "specified. Supported types are "
                                   "{1}.".format(api,
-                                                supported_types))
+                                                Config.get().supported_apis))
     return api
 
 
@@ -192,24 +200,56 @@ class FieldNotFoundError(Exception):
         return repr(self.value)
 
 
-class PSyFactory(object):
-    '''Creates a specific version of the PSy. If a particular api is not
-        provided then the default api, as specified in the config.py
-        file, is chosen. Note, for pytest to work we need to set
-        distributed_memory to the same default as the value found in
-        config.DISTRIBUTED_MEMORY. If we set it to None and then test
-        the value, it then fails. I've no idea why. '''
+class InternalError(Exception):
+    '''
+    PSyclone-specific exception for use when an internal error occurs (i.e.
+    something that 'should not happen').
 
-    def __init__(self, api="", distributed_memory=config.DISTRIBUTED_MEMORY):
-        if distributed_memory not in [True, False]:
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = "PSyclone internal error: "+value
+
+    def __str__(self):
+        return repr(self.value)
+
+
+class PSyFactory(object):
+    '''
+    Creates a specific version of the PSy. If a particular api is not
+    provided then the default api, as specified in the psyclone.cfg
+    file, is chosen.
+    '''
+    def __init__(self, api="", distributed_memory=None):
+        '''Initialises a factory which can create API specific PSY objects.
+        :param str api: Name of the API to use.
+        :param bool distributed_memory: True if distributed memory should be \
+                                        supported.
+        '''
+        if distributed_memory is None:
+            _distributed_memory = Config.get().distributed_memory
+        else:
+            _distributed_memory = distributed_memory
+
+        if _distributed_memory not in [True, False]:
             raise GenerationError(
                 "The distributed_memory flag in PSyFactory must be set to"
                 " 'True' or 'False'")
-        config.DISTRIBUTED_MEMORY = distributed_memory
+        Config.get().distributed_memory = _distributed_memory
         self._type = get_api(api)
 
     def create(self, invoke_info):
-        ''' Return the specified version of PSy. '''
+        '''
+        Create the API-specific PSy instance.
+
+        :param invoke_info: information on the invoke()s found by parsing
+                            the Algorithm layer.
+        :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+
+        :returns: an instance of the API-specifc sub-class of PSy.
+        :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+        '''
         if self._type == "gunghoproto":
             from psyclone.ghproto import GHProtoPSy
             return GHProtoPSy(invoke_info)
@@ -225,6 +265,11 @@ class PSyFactory(object):
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOPSy
             return GOPSy(invoke_info)
+        elif self._type == "nemo":
+            from psyclone.nemo import NemoPSy
+            # For this API, the 'invoke_info' is actually the fparser2 AST
+            # of the Fortran file being processed
+            return NemoPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
@@ -255,7 +300,6 @@ class PSy(object):
 
     '''
     def __init__(self, invoke_info):
-
         self._name = invoke_info.name
         self._invokes = None
 
@@ -293,10 +337,14 @@ class Invokes(object):
     def __init__(self, alg_calls, Invoke):
         self.invoke_map = {}
         self.invoke_list = []
+        from psyclone.profiler import Profiler
         for idx, alg_invocation in enumerate(alg_calls.values()):
             my_invoke = Invoke(alg_invocation, idx)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
+            # Add profiling nodes to schedule if automatic profiling has been
+            # requested.
+            Profiler.add_profile_nodes(my_invoke.schedule, Loop)
 
     def __str__(self):
         return "Invokes object containing "+str(self.names)
@@ -745,7 +793,25 @@ class Invoke(object):
 
 
 class Node(object):
-    ''' baseclass for a node in a schedule '''
+    '''
+    Base class for a node in the PSyIRe (schedule).
+
+    :param children: the PSyIRe nodes that are children of this node.
+    :type children: :py:class:`psyclone.psyGen.Node`
+    :param parent: that parent of this node in the PSyIRe tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
+    '''
+    def __init__(self, children=None, parent=None):
+        if not children:
+            self._children = []
+        else:
+            self._children = children
+        self._parent = parent
+        self._ast = None  # Reference into fparser2 AST (if any)
+
+    def __str__(self):
+        raise NotImplementedError("Please implement me")
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children'''
@@ -1021,16 +1087,6 @@ class Node(object):
                 result += ","
         return result
 
-    def __init__(self, children=None, parent=None):
-        if not children:
-            self._children = []
-        else:
-            self._children = children
-        self._parent = parent
-
-    def __str__(self):
-        raise NotImplementedError("Please implement me")
-
     def addchild(self, child, index=None):
         if index is not None:
             self._children.insert(index, child)
@@ -1113,14 +1169,30 @@ class Node(object):
             local_list += self.walk(child.children, my_type)
         return local_list
 
-    def ancestor(self, my_type):
-        ''' Search back up tree and check whether we have an
-        ancestor of the supplied type. If we do then we return
-        it otherwise we return None '''
+    def ancestor(self, my_type, excluding=None):
+        '''
+        Search back up tree and check whether we have an ancestor that is
+        an instance of the supplied type. If we do then we return
+        it otherwise we return None. A list of (sub-) classes to ignore
+        may be provided via the `excluding` argument.
+
+        :param type my_type: Class to search for.
+        :param list excluding: list of (sub-)classes to ignore or None.
+        :returns: First ancestor Node that is an instance of the requested \
+                  class or None if not found.
+        '''
         myparent = self.parent
         while myparent is not None:
             if isinstance(myparent, my_type):
-                return myparent
+                matched = True
+                if excluding:
+                    # We have one or more sub-classes we must exclude
+                    for etype in excluding:
+                        if isinstance(myparent, etype):
+                            matched = False
+                            break
+                if matched:
+                    return myparent
             myparent = myparent.parent
         return None
 
@@ -1212,6 +1284,13 @@ class Node(object):
 
     def gen_code(self):
         raise NotImplementedError("Please implement me")
+
+    def update(self):
+        ''' By default we assume there is no need to update the existing
+        fparser2 AST which this Node represents. We simply call the update()
+        method of any children. '''
+        for child in self._children:
+            child.update()
 
 
 class Schedule(Node):
@@ -1307,6 +1386,13 @@ class Schedule(Node):
 
 
 class Directive(Node):
+    '''
+    Base class for all Directive statments.
+
+    All classes that generate Directive statments (e.g. OpenMP,
+    OpenACC, compiler-specific) inherit from this class.
+
+    '''
 
     def view(self, indent=0):
         '''
@@ -1337,11 +1423,354 @@ class Directive(Node):
         return "directive_" + str(self.abs_position)
 
 
-class OMPDirective(Directive):
+class ACCDirective(Directive):
+    ''' Base class for all OpenACC directive statments. '''
+
+    @abc.abstractmethod
+    def view(self, indent=0):
+        '''
+        Print text representation of this node to stdout.
+
+        :param int indent: size of indent to use for output
+        '''
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        ''' Return the name to use in a dag for this node.
+
+        :returns: Name of corresponding node in DAG
+        :rtype: str
+        '''
+        return "ACC_directive_" + str(self.abs_position)
+
+
+@six.add_metaclass(abc.ABCMeta)
+class ACCDataDirective(ACCDirective):
+    '''
+    Abstract class representing a "!$ACC enter data" OpenACC directive in
+    a Schedule. Must be sub-classed for a particular API because the way
+    in which fields are marked as being on the remote device is API-
+    -dependent.
+
+    :param children: list of nodes which this directive should \
+                     have as children.
+    :type children: list of :py:class:`psyclone.psyGen.Node`.
+    :param parent: the node in the Schedule to which to add this \
+                   directive as a child.
+    :type parent: :py:class:`psyclone.psyGen.Node`.
+    '''
+    def __init__(self, children=None, parent=None):
+        super(ACCDataDirective, self).__init__(children, parent)
+        self._acc_dirs = None  # List of parallel directives
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this Node to stdout.
+
+        :param int indent: the amount by which to indent the output.
+        '''
+        print(self.indent(indent)+self.coloured_text+"[ACC enter data]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this Node in a DAG
+        :rtype: str
+        '''
+        return "ACC_data_" + str(self.abs_position)
+
+    def gen_code(self, parent):
+        '''
+        Generate the elements of the f2pygen AST for this Node in the Schedule.
+
+        :param parent: node in the f2pygen AST to which to add node(s).
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import DeclGen, DirectiveGen, CommentGen, \
+            IfThenGen, AssignGen, CallGen, UseGen
+
+        # We must generate a list of all of the fields accessed by
+        # OpenACC kernels (calls within an OpenACC parallel directive)
+        # 1. Find all parallel directives. We store this list for later
+        #    use in any sub-class.
+        self._acc_dirs = self.walk(self.root.children, ACCParallelDirective)
+        # 2. For each directive, loop over each of the fields used by
+        #    the kernels it contains (this list is given by var_list)
+        #    and add it to our list if we don't already have it
+        var_list = []
+        # TODO grid properties are effectively duplicated in this list (but
+        # the OpenACC deep-copy support should spot this).
+        for pdir in self._acc_dirs:
+            for var in pdir.ref_list:
+                if var not in var_list:
+                    var_list.append(var)
+        # 3. Convert this list of objects into a comma-delimited string
+        var_str = self.list_to_string(var_list)
+
+        # 4. Declare and initialise a logical variable to keep track of
+        #    whether this is the first time we've entered this Invoke
+        name_space_manager = NameSpaceFactory().create()
+        first_time = name_space_manager.create_name(
+            root_name="first_time", context="PSyVars", label="first_time")
+        parent.add(DeclGen(parent, datatype="logical",
+                           entity_decls=[first_time],
+                           initial_values=[".True."],
+                           save=True))
+        parent.add(CommentGen(parent,
+                              " Ensure all fields are on the device and"))
+        parent.add(CommentGen(parent, " copy them over if not."))
+        # 5. Put the enter data directive inside an if-block so that we
+        #    only ever do it once
+        ifthen = IfThenGen(parent, first_time)
+        parent.add(ifthen)
+        ifthen.add(DirectiveGen(ifthen, "acc", "begin", "enter data",
+                                "copyin("+var_str+")"))
+        # 6. Flag that we have now entered this routine at least once
+        ifthen.add(AssignGen(ifthen, lhs=first_time, rhs=".false."))
+        # 7. Flag that the data is now on the device. This calls down
+        #    into the API-specific subclass of this class.
+        self.data_on_device(ifthen)
+        parent.add(CommentGen(parent, ""))
+
+        # 8. Ensure that any scalars are up-to-date
+        var_list = []
+        for pdir in self._acc_dirs:
+            for var in pdir.scalars:
+                if var not in var_list:
+                    var_list.append(var)
+        if var_list:
+            # We need to 'use' the openacc module in order to access
+            # the OpenACC run-time library
+            parent.add(UseGen(parent, name="openacc", only=True,
+                              funcnames=["acc_update_device"]))
+            parent.add(
+                CommentGen(parent,
+                           " Ensure all scalars on the device are up-to-date"))
+            for var in var_list:
+                parent.add(CallGen(parent, "acc_update_device", [var, "1"]))
+            parent.add(CommentGen(parent, ""))
+
+    @abc.abstractmethod
+    def data_on_device(self, parent):
+        '''
+        Adds nodes into a Schedule to flag that the data required by the
+        kernels in the data region is now on the device.
+
+        :param parent: the node in the Schedule to which to add nodes
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+
+
+class ACCParallelDirective(ACCDirective):
+    ''' Class for the !$ACC PARALLEL directive of OpenACC. '''
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this Node to stdout.
+
+        :param int indent: the amount by which to indent the output.
+        '''
+        print(self.indent(indent)+self.coloured_text+"[ACC Parallel]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this Node in a DAG
+        :rtype: str
+        '''
+        return "ACC_parallel_" + str(self.abs_position)
+
+    def gen_code(self, parent):
+        '''
+        Generate the elements of the f2pygen AST for this Node in the Schedule.
+
+        :param parent: node in the f2pygen AST to which to add node(s).
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        from psyclone.f2pygen import DirectiveGen
+
+        # Since we use "default(present)" the Schedule must contain an
+        # 'enter data' directive. We don't mandate the order in which
+        # transformations are applied so we have to check for that here.
+        # We can't use Node.ancestor() because the data directive does
+        # not have children. Instead, we go back up to the Schedule and
+        # walk down from there.
+        nodes = self.root.walk(self.root.children, ACCDataDirective)
+        if len(nodes) != 1:
+            raise GenerationError(
+                "A Schedule containing an ACC parallel region must also "
+                "contain an ACC enter data directive but none was found for "
+                "{0}".format(self.root.invoke.name))
+        # Check that the enter-data directive comes before this parallel
+        # directive
+        if nodes[0].abs_position > self.abs_position:
+            raise GenerationError(
+                "An ACC parallel region must be preceeded by an ACC enter-"
+                "data directive but in {0} this is not the case.".
+                format(self.root.invoke.name))
+
+        # "default(present)" means that the compiler is to assume that
+        # all data required by the parallel region is already present
+        # on the device. If we've made a mistake and it isn't present
+        # then we'll get a run-time error.
+        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
+                                "default(present)"))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+        parent.add(DirectiveGen(parent, "acc", "end", "parallel", ""))
+
+    @property
+    def ref_list(self):
+        '''
+        Returns a list of the references (whether to arrays or objects)
+        required by the Kernel call(s) that are children of this
+        directive. This is the list of quantities that must be
+        available on the remote device (probably a GPU) before
+        the parallel region can be begun.
+
+        :returns: list of variable names
+        :rtype: list of str
+        '''
+        variables = []
+
+        # Look-up the calls that are children of this node
+        for call in self.calls():
+            for arg in call.arguments.acc_args:
+                if arg not in variables:
+                    variables.append(arg)
+        return variables
+
+    @property
+    def fields(self):
+        '''
+        Returns a list of the names of field objects required by the Kernel
+        call(s) that are children of this directive.
+
+        :returns: list of names of field arguments.
+        :rtype: list of str
+        '''
+        # Look-up the calls that are children of this node
+        fld_list = []
+        for call in self.calls():
+            for arg in call.arguments.fields:
+                if arg not in fld_list:
+                    fld_list.append(arg)
+        return fld_list
+
+    @property
+    def scalars(self):
+        '''
+        Returns a list of the scalar quantities required by the Calls in
+        this region.
+
+        :returns: list of names of scalar arguments.
+        :rtype: list of str
+        '''
+        scalars = []
+        for call in self.calls():
+            for arg in call.arguments.scalars:
+                if arg not in scalars:
+                    scalars.append(arg)
+        return scalars
+
+
+class ACCLoopDirective(ACCDirective):
+    '''
+    Class managing the creation of a '!$acc loop' OpenACC directive.
+
+    :param children: list of nodes that will be children of this directive.
+    :type children: list of :py:class:`psyclone.psyGen.Node`.
+    :param parent: the node in the Schedule to which to add this directive.
+    :type parent: :py:class:`psyclone.psyGen.Node`.
+    :param int collapse: Number of nested loops to collapse into a single \
+                         iteration space or None.
+    :param bool independent: Whether or not to add the `independent` clause \
+                             to the loop directive.
+    '''
+    def __init__(self, children=None, parent=None, collapse=None,
+                 independent=True):
+        self._collapse = collapse
+        self._independent = independent
+        super(ACCLoopDirective, self).__init__(children, parent)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this Node in a DAG
+        :rtype: str
+        '''
+        return "ACC_loop_" + str(self.abs_position)
+
+    def view(self, indent=0):
+        '''
+        Print a textual representation of this Node to stdout.
+
+        :param int indent: amount to indent output by
+        '''
+        text = self.indent(indent)+self.coloured_text+"[ACC Loop"
+        if self._collapse:
+            text += ", collapse={0}".format(self._collapse)
+        if self._independent:
+            text += ", independent"
+        text += "]"
+        print(text)
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenACC
+        loop directive.
+
+        :param parent: the parent Node in the Schedule to which to add our
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if this "!$acc loop" is not enclosed within \
+                                 an ACC Parallel region.
+        '''
+        from psyclone.f2pygen import DirectiveGen
+
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user can
+        # apply transformations to the code). As an orphaned loop directive,
+        # we must have an ACCParallelDirective as an ancestor somewhere
+        # back up the tree.
+        if not self.ancestor(ACCParallelDirective):
+            raise GenerationError(
+                "ACCLoopDirective must have an ACCParallelDirective as an "
+                "ancestor in the Schedule")
+
+        # Add any clauses to the directive
+        options = []
+        if self._collapse:
+            options.append("collapse({0})".format(self._collapse))
+        if self._independent:
+            options.append("independent")
+        options_str = " ".join(options)
+
+        parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
+
+        for child in self.children:
+            child.gen_code(parent)
+
+
+class OMPDirective(Directive):
+    '''
+    Base class for all OpenMP-related directives
+
+    '''
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in a dag for this node
+        :rtype: str
+        '''
         return "OMP_directive_" + str(self.abs_position)
 
     def view(self, indent=0):
@@ -1513,24 +1942,77 @@ class OMPParallelDirective(OMPDirective):
             #                       "any OpenMP directives. This is probably "
             #                       "not what you want.")
 
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenMP
+        parallel region.
+
+        :raises InternalError: if the existing AST doesn't have the \
+                               correct structure to permit the insertion \
+                               of the OpenMP parallel region.
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        # Check that we haven't already been called
+        if self._ast:
+            return
+        # Find the locations in which we must insert the begin/end
+        # directives...
+        # Find the children of this node in the AST of our parent node
+        try:
+            start_idx = self._parent._ast.content.index(self._children[0]._ast)
+            end_idx = self._parent._ast.content.index(self._children[-1]._ast)
+        except (IndexError, ValueError):
+            raise InternalError("Failed to find locations to insert "
+                                "begin/end directives.")
+        # Create the start directive
+        text = "!$omp parallel default(shared), private({0})".format(
+            ",".join(self._get_private_list()))
+        startdir = Comment(FortranStringReader(text,
+                                               ignore_comments=False))
+        # Create the end directive and insert it after the node in
+        # the AST representing our last child
+        enddir = Comment(FortranStringReader("!$omp end parallel",
+                                             ignore_comments=False))
+        # If end_idx+1 takes us beyond the range of the list then the
+        # element is appended to the list
+        self._parent._ast.content.insert(end_idx+1, enddir)
+
+        # Insert the start directive (do this second so we don't have
+        # to correct end_idx)
+        self._ast = startdir
+        self._parent._ast.content.insert(start_idx, self._ast)
+
 
 class OMPDoDirective(OMPDirective):
+    '''
+    Class representing an OpenMP DO directive in the PSyclone AST.
 
+    :param list children: list of Nodes that are children of this Node.
+    :param parent: the Node in the AST that has this directive as a child.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :param str omp_schedule: the OpenMP schedule to use.
+    :param bool reprod: whether or not to generate code for run-reproducible \
+                        OpenMP reductions.
+
+    '''
     def __init__(self, children=None, parent=None, omp_schedule="static",
                  reprod=None):
 
         if children is None:
             children = []
+
         if reprod is None:
-            reprod = config.REPRODUCIBLE_REDUCTIONS
+            self._reprod = Config.get().reproducible_reductions
+        else:
+            self._reprod = reprod
 
         self._omp_schedule = omp_schedule
-        self._reprod = reprod
+
         # Call the init method of the base class once we've stored
         # the OpenMP schedule
-        OMPDirective.__init__(self,
-                              children=children,
-                              parent=parent)
+        super(OMPDoDirective, self).__init__(children=children,
+                                             parent=parent)
 
     @property
     def dag_name(self):
@@ -1571,15 +2053,27 @@ class OMPDoDirective(OMPDirective):
         return self._reprod
 
     def gen_code(self, parent):
+        '''
+        Generate the f2pygen AST entries in the Schedule for this OpenMP do
+        directive.
+
+        :param parent: the parent Node in the Schedule to which to add our \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        :raises GenerationError: if this "!$omp do" is not enclosed within \
+                                 an OMP Parallel region.
+        '''
         from psyclone.f2pygen import DirectiveGen
 
-        # It is only at the point of code generation that
-        # we can check for correctness (given that we don't
-        # mandate the order that a user can apply transformations
-        # to the code). As an orphaned loop directive, we must
-        # have an OMPRegionDirective as a parent somewhere
-        # back up the tree.
-        self._within_omp_region()
+        # It is only at the point of code generation that we can check for
+        # correctness (given that we don't mandate the order that a user
+        # can apply transformations to the code). As an orphaned loop
+        # directive, we must have an OMPRegionDirective as an ancestor
+        # somewhere back up the tree.
+        if not self.ancestor(OMPParallelDirective,
+                             excluding=[OMPParallelDoDirective]):
+            raise GenerationError("OMPOrphanLoopDirective must have an "
+                                  "OMPRegionDirective as ancestor")
 
         if self._reprod:
             local_reduction_string = ""
@@ -1589,11 +2083,9 @@ class OMPDoDirective(OMPDirective):
         # As we're an orphaned loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
-        parent.add(DirectiveGen(parent,
-                                "omp", "begin", "do",
-                                "schedule({0})".
-                                format(self._omp_schedule) +
-                                local_reduction_string))
+        options = "schedule({0})".format(self._omp_schedule) + \
+                  local_reduction_string
+        parent.add(DirectiveGen(parent, "omp", "begin", "do", options))
 
         for child in self.children:
             child.gen_code(parent)
@@ -1602,18 +2094,6 @@ class OMPDoDirective(OMPDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, "omp", "end", "do", ""),
                    position=["after", position])
-
-    def _within_omp_region(self):
-        ''' Check that this orphaned OMP Loop Directive is actually
-            within an OpenMP Parallel Region '''
-        myparent = self.parent
-        while myparent is not None:
-            if isinstance(myparent, OMPParallelDirective) and\
-               not isinstance(myparent, OMPParallelDoDirective):
-                return
-            myparent = myparent.parent
-        raise GenerationError("OMPOrphanLoopDirective must have an "
-                              "OMPRegionDirective as ancestor")
 
 
 class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
@@ -1655,7 +2135,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
@@ -1669,6 +2148,67 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
                    position=["after", position])
+
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenMP
+        parallel do.
+
+        :raises GenerationError: if the existing AST doesn't have the \
+                                 correct structure to permit the insertion \
+                                 of the OpenMP parallel do.
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        # Check that we haven't already been called
+        if self._ast:
+            return
+        # Since this is an OpenMP (parallel) do, it can only be applied
+        # to a single loop.
+        if len(self._children) != 1:
+            raise GenerationError(
+                "An OpenMP PARALLEL DO can only be applied to a single loop "
+                "but this Node has {0} children: {1}".
+                format(len(self._children), self._children))
+
+        # Find the locations in which we must insert the begin/end
+        # directives...
+        # Find the child of this node in the AST of our parent node
+        # TODO make this robust by using the new 'children' method to
+        # be introduced in fparser#105
+        # We have to take care to find a parent node (in the fparser2 AST)
+        # that has 'content'. This is because If-else-if blocks have their
+        # 'content' as siblings of the If-then and else-if nodes.
+        parent = self._parent._ast
+        while parent:
+            if hasattr(parent, "content"):
+                break
+            parent = parent._parent
+        if not parent:
+            raise InternalError("Failed to find parent node in which to "
+                                "insert OpenMP parallel do directive")
+        start_idx = parent.content.index(self._children[0]._ast)
+
+        # Create the start directive
+        text = ("!$omp parallel do default(shared), private({0}), "
+                "schedule({1})".format(",".join(self._get_private_list()),
+                                       self._omp_schedule))
+        startdir = Comment(FortranStringReader(text,
+                                               ignore_comments=False))
+
+        # Create the end directive and insert it after the node in
+        # the AST representing our last child
+        enddir = Comment(FortranStringReader("!$omp end parallel do",
+                                             ignore_comments=False))
+        if start_idx == len(parent.content) - 1:
+            parent.content.append(enddir)
+        else:
+            parent.content.insert(start_idx+1, enddir)
+
+        # Insert the start directive (do this second so we don't have
+        # to correct the location)
+        self._ast = startdir
+        parent.content.insert(start_idx, self._ast)
 
 
 class GlobalSum(Node):
@@ -1767,6 +2307,9 @@ class HaloExchange(Node):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
+        self._text_name = "HaloExchange"
+        self._colour_map_name = "HaloExchange"
+        self._dag_name = "haloexchange"
 
     @property
     def vector_index(self):
@@ -1792,8 +2335,8 @@ class HaloExchange(Node):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        name = ("haloexchange({0})_".format(self._field.name) +
-                str(self.position))
+        name = ("{0}({1})_{2}".format(self._dag_name, self._field.name,
+                                      self.position))
         if self._check_dirty:
             name = "check" + name
         return name
@@ -1888,7 +2431,8 @@ class HaloExchange(Node):
         :return: Name of this node type, possibly with colour control codes
         :rtype: string
         '''
-        return colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+        return colored(
+            self._text_name, SCHEDULE_COLOUR_MAP[self._colour_map_name])
 
 
 class Loop(Node):
@@ -1914,8 +2458,17 @@ class Loop(Node):
 
     @loop_type.setter
     def loop_type(self, value):
-        assert value in self._valid_loop_types, \
-            "Error, loop_type value is invalid"
+        '''
+        Set the type of this Loop.
+
+        :param str value: the type of this loop.
+        :raises GenerationError: if the specified value is not a recognised \
+                                 loop type.
+        '''
+        if value not in self._valid_loop_types:
+            raise GenerationError(
+                "Error, loop_type value ({0}) is invalid. Must be one of "
+                "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
     def __init__(self, parent=None,
@@ -1932,6 +2485,7 @@ class Loop(Node):
         self._field_name = None       # name of the field
         self._field_space = None      # v0, v1, ...,     cu, cv, ...
         self._iteration_space = None  # cells, ...,      cu, cv, ...
+        self._kern = None             # Kernel associated with this loop
 
         # TODO replace iterates_over with iteration_space
         self._iterates_over = "unknown"
@@ -2051,6 +2605,24 @@ class Loop(Node):
     @iteration_space.setter
     def iteration_space(self, it_space):
         self._iteration_space = it_space
+
+    @property
+    def kernel(self):
+        '''
+        :returns: the kernel object associated with this Loop (if any).
+        :rtype: :py:class:`psyclone.psyGen.Kern`
+        '''
+        return self._kern
+
+    @kernel.setter
+    def kernel(self, kern):
+        '''
+        Setter for kernel object associated with this loop.
+
+        :param kern: a kernel object.
+        :type kern: :py:class:`psyclone.psyGen.Kern`
+        '''
+        self._kern = kern
 
     def __str__(self):
         result = "Loop[" + self._id + "]: " + self._variable_name + "=" + \
@@ -2260,9 +2832,20 @@ class Call(Node):
                         label=var_name)
 
     def zero_reduction_variable(self, parent, position=None):
-        '''Generate code to zero the reduction variable and to zero the local
+        '''
+        Generate code to zero the reduction variable and to zero the local
         reduction variable if one exists. The latter is used for reproducible
-        reductions, if specified.'''
+        reductions, if specified.
+
+        :param parent: the Node in the AST to which to add new code.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param str position: where to position the new code in the AST.
+        :raises GenerationError: if the variable to zero is not of type \
+                                 gh_real or gh_integer.
+        :raises GenerationError: if the reprod_pad_size (read from the \
+                                 configuration file) is less than 1.
+
+        '''
         from psyclone.f2pygen import AssignGen, DeclGen, AllocateGen
         if not position:
             position = ["auto"]
@@ -2291,12 +2874,12 @@ class Call(Node):
                                dimension=":,:"))
             nthreads = self._name_space_manager.create_name(
                 root_name="nthreads", context="PSyVars", label="nthreads")
-            if config.REPROD_PAD_SIZE < 1:
+            if Config.get().reprod_pad_size < 1:
                 raise GenerationError(
-                    "REPROD_PAD_SIZE in config.py should be a positive "
-                    "integer, but it is set to '{0}'.".format(
-                        config.REPROD_PAD_SIZE))
-            pad_size = str(config.REPROD_PAD_SIZE)
+                    "REPROD_PAD_SIZE in {0} should be a positive "
+                    "integer, but it is set to '{1}'.".format(
+                        Config.get().filename, Config.get().reprod_pad_size))
+            pad_size = str(Config.get().reprod_pad_size)
             parent.add(AllocateGen(parent, local_var_name + "(" + pad_size +
                                    "," + nthreads + ")"), position=position)
             parent.add(AssignGen(parent, lhs=local_var_name,
@@ -2306,6 +2889,8 @@ class Call(Node):
         '''generate the appropriate code to place after the end parallel
         region'''
         from psyclone.f2pygen import DoGen, AssignGen, DeallocateGen
+        # TODO we should initialise self._name_space_manager in the
+        # constructor!
         self._name_space_manager = NameSpaceFactory().create()
         thread_idx = self._name_space_manager.create_name(
             root_name="th_idx", context="PSyVars", label="thread_index")
@@ -2379,12 +2964,29 @@ class Call(Node):
 
 
 class Kern(Call):
+    '''
+    Class representing a Kernel call within the Schedule (AST) of an Invoke.
+
+    :param type KernelArguments: the API-specific sub-class of \
+                                 :py:class:`psyclone.psyGen.Arguments` to \
+                                 create.
+    :param call: Details of the call to this kernel in the Algorithm layer.
+    :type call: :py:class:`psyclone.parse.KernelCall`.
+    :param parent: the parent of this Node (kernel call) in the Schedule.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`.
+    :param bool check: Whether or not to check that the number of arguments \
+                       specified in the kernel meta-data matches the number \
+                       provided by the call in the Algorithm layer.
+    :raises GenerationError: if(check) and the number of arguments in the \
+                             call does not match that in the meta-data.
+    '''
     def __init__(self, KernelArguments, call, parent=None, check=True):
         Call.__init__(self, parent, call, call.ktype.procedure.name,
                       KernelArguments(call, self))
         self._module_name = call.module_name
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
+        self._fp2_ast = None  # The fparser2 AST for the kernel
         self._module_inline = False
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
@@ -2510,6 +3112,28 @@ class Kern(Call):
         coloured loop '''
         return self.parent.loop_type == "colour"
 
+    @property
+    def ast(self):
+        '''
+        Generate and return the fparser2 AST of the kernel source.
+
+        :returns: fparser2 AST of the Fortran file containing this kernel.
+        :rtype: :py:class:`fparser.two.Fortran2003.Program`
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two import parser
+        # If we've already got the AST then just return it
+        if self._fp2_ast:
+            return self._fp2_ast
+        # Use the fparser1 AST to generate Fortran source
+        fortran = self._module_code.tofortran()
+        # Create an fparser2 Fortran2003 parser
+        my_parser = parser.ParserFactory().create()
+        # Parse that Fortran using our parser
+        reader = FortranStringReader(fortran)
+        self._fp2_ast = my_parser(reader)
+        return self._fp2_ast
+
 
 class BuiltIn(Call):
     ''' Parent class for all built-ins (field operations for which the user
@@ -2584,6 +3208,179 @@ class Arguments(object):
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
                               "reader/writer, or increment as an argument")
+
+    @property
+    def acc_args(self):
+        '''
+        :returns: the list of quantities that must be available on an \
+                  OpenACC device before the associated kernel can be launched
+        :rtype: list of str
+        '''
+        raise NotImplementedError(
+            "Arguments.acc_args must be implemented in sub-class")
+
+    @property
+    def scalars(self):
+        '''
+        :returns: the list of scalar quantities belonging to this object
+        :rtype: list of str
+        '''
+        raise NotImplementedError(
+            "Arguments.scalars must be implemented in sub-class")
+
+
+class DataAccess(object):
+    '''A helper class to simplify the determination of dependencies due to
+    overlapping accesses to data associated with instances of the
+    Argument class.
+
+    '''
+
+    def __init__(self, arg):
+        '''Store the argument associated with the instance of this class and
+        the Call, HaloExchange or GlobalSum (or a subclass thereof)
+        instance with which the argument is associated.
+
+        :param arg: the argument that we are concerned with. An \
+        argument can be found in a `Call` a `HaloExchange` or a \
+        `GlobalSum` (or a subclass thereof)
+        :type arg: :py:class:`psyclone.psyGen.Argument`
+
+        '''
+        # the `psyclone.psyGen.Argument` we are concerned with
+        self._arg = arg
+        # the call (Call, HaloExchange, or GlobalSum (or subclass)
+        # instance to which the argument is associated
+        self._call = arg.call
+        # initialise _covered and _vector_index_access to keep pylint
+        # happy
+        self._covered = None
+        self._vector_index_access = None
+        # Now actually set them to the required initial values
+        self.reset_coverage()
+
+    def overlaps(self, arg):
+        '''Determine whether the accesses to the provided argument overlap
+        with the accesses of the source argument. Overlap means that
+        the accesses share at least one memory location. For example,
+        the arguments both access the 1st index of the same field.
+
+        We do not currently deal with accesses to a subset of an
+        argument (unless it is a vector). This distinction will need
+        to be added once loop splitting is supported.
+
+        :param arg: the argument to compare with our internal argument
+        :type arg: :py:class:`psyclone.psyGen.Argument`
+        :return bool: True if there are overlapping accesses between \
+                      arguments (i.e. accesses share at least one memory \
+                      location) and False if not.
+
+        '''
+        if self._arg.name != arg.name:
+            # the arguments are different args so do not overlap
+            return False
+
+        if isinstance(self._call, HaloExchange) and \
+           isinstance(arg.call, HaloExchange) and \
+           (self._arg.vector_size > 1 or arg.vector_size > 1):
+            # This is a vector field and both accesses come from halo
+            # exchanges. As halo exchanges only access a particular
+            # vector, the accesses do not overlap if the vector indices
+            # being accessed differ.
+
+            # sanity check
+            if self._arg.vector_size != arg.vector_size:
+                raise InternalError(
+                    "DataAccess.overlaps(): vector sizes differ for field "
+                    "'{0}' in two halo exchange calls. Found '{1}' and "
+                    "'{2}'".format(arg.name, self._arg.vector_size,
+                                   arg.vector_size))
+            if self._call.vector_index != arg.call.vector_index:
+                # accesses are to different vector indices so do not overlap
+                return False
+        # accesses do overlap
+        return True
+
+    def reset_coverage(self):
+        '''Reset internal state to allow re-use of the object for a different
+        situation.
+
+        '''
+        # False unless all data accessed by our local argument has
+        # also been accessed by other arguments.
+        self._covered = False
+        # Used to store individual vector component accesses when
+        # checking that all vector components have been accessed.
+        self._vector_index_access = []
+
+    def update_coverage(self, arg):
+        '''Record any overlap between accesses to the supplied argument and
+        the internal argument. Overlap means that the accesses to the
+        two arguments share at least one memory location. If the
+        overlap results in all of the accesses to the internal
+        argument being covered (either directly or as a combination
+        with previous arguments) then ensure that the covered() method
+        returns True. Covered means that all memory accesses by the
+        internal argument have at least one corresponding access by
+        the supplied arguments.
+
+        :param arg: the argument used to compare with our internal \
+                    argument in order to update coverage information
+        :type arg: :py:class:`psyclone.psyGen.Argument`
+
+        '''
+
+        if not self.overlaps(arg):
+            # There is no overlap so there is nothing to update.
+            return
+
+        if isinstance(arg.call, HaloExchange) and \
+           self._arg.vector_size > 1:
+            # The supplied argument is a vector field coming from a
+            # halo exchange and therefore only accesses one of the
+            # vectors
+
+            if isinstance(self._call, HaloExchange):
+                # I am also a halo exchange so only access one of the
+                # vectors. At this point the vector indices of the two
+                # halo exchange fields must be the same, which should
+                # never happen due to checks in the `overlaps()`
+                # method earlier
+                raise InternalError(
+                    "DataAccess:update_coverage() The halo exchange vector "
+                    "indices for '{0}' are the same. This should never "
+                    "happen".format(self._arg.name))
+            else:
+                # I am not a halo exchange so access all components of
+                # the vector. However, the supplied argument is a halo
+                # exchange so only accesses one of the
+                # components. This results in partial coverage
+                # (i.e. the overlap in accesses is partial). Therefore
+                # record the index that is accessed and check whether
+                # all indices are now covered (which would mean `full`
+                # coverage).
+                if arg.call.vector_index in self._vector_index_access:
+                    raise InternalError(
+                        "DataAccess:update_coverage() Found more than one "
+                        "dependent halo exchange with the same vector index")
+                self._vector_index_access.append(arg.call.vector_index)
+                if len(self._vector_index_access) != self._arg.vector_size:
+                    return
+        # This argument is covered i.e. all accesses by the
+        # internal argument have a corresponding access in one of the
+        # supplied arguments.
+        self._covered = True
+
+    @property
+    def covered(self):
+        '''Returns true if all of the data associated with this argument has
+        been covered by the arguments provided in update_coverage
+
+        :return bool: True if all of an argument is covered by \
+        previous accesses and False if not.
+
+        '''
+        return self._covered
 
 
 class Argument(object):
@@ -2751,9 +3548,8 @@ class Argument(object):
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
-        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           isinstance(x, HaloExchange) or
-                           isinstance(x, GlobalSum)]
+        nodes_with_args = [x for x in nodes if
+                           isinstance(x, (Call, HaloExchange, GlobalSum))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -2776,28 +3572,22 @@ class Argument(object):
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           isinstance(x, HaloExchange) or
-                           isinstance(x, GlobalSum)]
+        nodes_with_args = [x for x in nodes if
+                           isinstance(x, (Call, HaloExchange, GlobalSum))]
+        access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.name != self.name:
-                    # different names so there is no dependence
-                    continue
-                if isinstance(node, HaloExchange) and \
-                   isinstance(self.call, HaloExchange):
-                    # no dependence if both nodes are halo exchanges
-                    # (as they act on different vector indices).
-                    self.call.check_vector_halos_differ(node)
-                    continue
-                if argument.access in self._read_access_types:
-                    # there is a read dependence so append to list
+                if argument.access in self._read_access_types and \
+                   access.overlaps(argument):
                     arguments.append(argument)
                 if argument.access in self._write_access_types:
-                    # there is a write dependence so finish our search
-                    return arguments
+                    access.update_coverage(argument)
+                    if access.covered:
+                        # We have now found all arguments upon which
+                        # this argument depends so return the list.
+                        return arguments
 
         # we did not find a terminating write dependence in the list
         # of nodes so we return any read dependencies that were found
@@ -2821,52 +3611,36 @@ class Argument(object):
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = [x for x in nodes if isinstance(x, Call) or
-                           (isinstance(x, HaloExchange) and
-                            not ignore_halos) or
-                           isinstance(x, GlobalSum)]
+        nodes_with_args = [x for x in nodes if
+                           isinstance(x, (Call, GlobalSum)) or
+                           (isinstance(x, HaloExchange) and not ignore_halos)]
+        access = DataAccess(self)
         arguments = []
-        vector_count = 0
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.name != self.name:
-                    # different names so there is no dependence
-                    continue
                 if argument.access not in self._write_access_types:
                     # no dependence if not a writer
                     continue
-                if isinstance(node, HaloExchange):
-                    if isinstance(self.call, HaloExchange):
-                        # no dependence if both nodes are halo
-                        # exchanges (as they act on different vector
-                        # indices).
-                        self.call.check_vector_halos_differ(node)
-                        continue
-                    else:
-                        # a vector read will depend on more than one
-                        # halo exchange (a dependence for each vector
-                        # index) as halo exchanges only act on a
-                        # single vector index
-                        vector_count += 1
-                        arguments.append(argument)
-                        if vector_count == self._vector_size:
-                            # found all of the halo exchange
-                            # dependencies. As they are writers
-                            # we now return
-                            return arguments
-                else:
-                    # this argument is a writer so add it and return
-                    if arguments:
-                        raise GenerationError(
-                            "Internal error, found a writer dependence but "
-                            "there are already dependencies. This should not "
-                            "happen.")
-                    return [argument]
+                if not access.overlaps(argument):
+                    # Accesses are independent of each other
+                    continue
+                arguments.append(argument)
+                access.update_coverage(argument)
+                if access.covered:
+                    # sanity check
+                    if not isinstance(node, HaloExchange) and \
+                       len(arguments) > 1:
+                        raise InternalError(
+                            "Found a writer dependence but there are already "
+                            "dependencies. This should not happen.")
+                    # We have now found all arguments upon which this
+                    # argument depends so return the list.
+                    return arguments
         if arguments:
-            raise GenerationError(
-                "Internal error, no more nodes but there are "
-                "already dependencies. This should not happen.")
+            raise InternalError(
+                "Argument()._field_write_arguments() There are no more nodes "
+                "but there are already dependencies. This should not happen.")
         # no dependencies have been found
         return []
 
@@ -3023,29 +3797,114 @@ class TransInfo(object):
             are a subclass of the specified baseclass. '''
         import inspect
         return [cls for name, cls in inspect.getmembers(module)
-                if inspect.isclass(cls) and
+                if inspect.isclass(cls) and not inspect.isabstract(cls) and
                 issubclass(cls, base_class) and cls is not base_class]
 
 
 @six.add_metaclass(abc.ABCMeta)
 class Transformation(object):
-    ''' abstract baseclass for a transformation. Uses the abc module so it
+    '''Abstract baseclass for a transformation. Uses the abc module so it
         can not be instantiated. '''
 
     @abc.abstractproperty
     def name(self):
+        '''Returns the name of the transformation.'''
         return
 
     @abc.abstractmethod
-    def apply(self):
+    def apply(self, *args):
+        '''Abstract method that applies the transformation. This function
+        must be implemented by each transform.
+
+        :param args: Arguments for the transformation - specific to\
+                    the actual transform used.
+        :type args: Type depends on actual transformation.
+        :returns: A tuple of the new schedule, and a momento.
+        :rtype: Tuple.
+        '''
+        # pylint: disable=no-self-use
         schedule = None
         momento = None
         return schedule, momento
 
+    def _validate(self, *args):
+        '''Method that validates that the input data is correct.
+        It will raise exceptions if the input data is incorrect. This function
+        needs to be implemented by each transformation.
+
+        :param args: Arguments for the applying the transformation - specific\
+                    to the actual transform used.
+        :type args: Type depends on actual transformation.
+        '''
+        # pylint: disable=no-self-use, unused-argument
+        return
+
 
 class DummyTransformation(Transformation):
+    '''Dummy transformation use elsewhere to keep pyreverse happy.'''
     def name(self):
         return
 
     def apply(self):
         return None, None
+
+
+class IfBlock(Node):
+    '''
+    Class representing an if-block within the PSyIRe.
+
+    :param parent: the parent of this node within the PSyIRe tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, parent=None):
+        super(IfBlock, self).__init__(parent=parent)
+        self._condition = ""
+
+    def __str__(self):
+        return "If-block: "+self._condition
+
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type.
+
+        :return: the name of this node type, possibly with control codes \
+                 for colour.
+        :rtype: str
+        '''
+        return colored("If", SCHEDULE_COLOUR_MAP["If"])
+
+    def view(self, indent=0):
+        '''
+        Print representation of this node to stdout.
+
+        :param int indent: the level to which to indent the output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[" +
+              self._condition + "]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+
+class IfClause(IfBlock):
+    '''
+    Represents a sub-clause of an If block - e.g. an "else if()".
+
+    :param parent: the parent of this node in the PSyIRe tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`.
+
+    '''
+    def __init__(self, parent=None):
+        super(IfClause, self).__init__(parent=parent)
+        self._clause_type = ""  # Whether this is an else, else-if etc.
+
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type.
+
+        :return: the name of this node type, possibly with control codes \
+                 for colour.
+        :rtype: str
+        '''
+        return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
