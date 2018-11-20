@@ -1215,17 +1215,21 @@ def test_eval_2fs():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
     print(gen_code)
-    assert ("      REAL(KIND=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:)\n"
-            "      INTEGER ndf_nodal_w0, diff_dim_w1, ndf_nodal_w1\n") in gen_code
+    assert ("      REAL(KIND=r_def), allocatable :: "
+            "diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:)\n"
+            "      INTEGER ndf_nodal_w0, ndf_nodal_w1, diff_dim_w1\n" in
+            gen_code)
     assert("      ! Allocate differential basis arrays\n"
            "      !\n"
            "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
            "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
-           "ndf_nodal_w0), diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, "
-           "ndf_nodal_w1)\n" in gen_code)
+           "ndf_nodal_w0))\n"
+           "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, "
+           "ndf_nodal_w1))\n" in gen_code)
     assert ("CALL testkern_eval_code(nlayers, f0_proxy%data, f1_proxy%data, "
             "ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
-            "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in gen_code)
+            "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
+            gen_code)
 
 
 BASIS_EVAL = '''
