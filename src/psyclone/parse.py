@@ -553,7 +553,7 @@ class KernelType(object):
         self._iterates_over = self.get_integer_variable("iterates_over")
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits = self.getkerneldescriptors(self._ktype)
-        self._arg_descriptors = None  # this is set up by the subclasses
+        self._arg_descriptors = []  # this is set up by the subclasses
 
     def getkerneldescriptors(self, ast, var_name='meta_args'):
         descs = ast.get_variable(var_name)

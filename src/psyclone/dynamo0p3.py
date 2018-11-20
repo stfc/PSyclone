@@ -855,16 +855,6 @@ class DynKernMetadata(KernelType):
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
         self._eval_shape = self.get_integer_variable('gh_shape')
-        # Check to see whether the optional 'gh_evaluator_targets'
-        # has been supplied. This lists the function spaces for which
-        # any evaluators (gh_shape=gh_evaluator) should be provided.
-        self._eval_targets = self.get_integer_array('gh_evaluator_targets')
-        if not self._eval_targets:
-            # Use the FS of the kernel arguments that are updated
-            write_args = psyGen.args_filter(self._arg_descriptors,
-                                            arg_accesses=GH_WRITE_ACCESSES)
-            self._eval_targets = [arg.function_space for arg in write_args]
-            # TODO ensure that _eval_targets entries are not duplicated
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
         # specified for each [field] argument). This property is
@@ -941,6 +931,19 @@ class DynKernMetadata(KernelType):
                                    self.name))
 
             self._func_descriptors.append(descriptor)
+
+        # Check to see whether the optional 'gh_evaluator_targets'
+        # has been supplied. This lists the function spaces for which
+        # any evaluators (gh_shape=gh_evaluator) should be provided.
+        #import pdb; pdb.set_trace()
+        self._eval_targets = self.get_integer_array('gh_evaluator_targets')
+        if not self._eval_targets and self._eval_shape == "gh_evaluator":
+            # Use the FS of the kernel arguments that are updated
+            write_args = psyGen.args_filter(self._arg_descriptors,
+                                            arg_accesses=GH_WRITE_ACCESSES)
+            self._eval_targets = [arg.function_space for arg in write_args]
+            # TODO ensure that _eval_targets entries are not duplicated
+
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
         self._validate(need_evaluator)
@@ -2352,14 +2355,15 @@ class DynInvokeBasisFns(object):
                         entry["qr_var"] = call.qr_name
                         # Quadrature are evaluated at pre-determined
                         # points rather than at the nodes of another FS
-                        entry["nodal_fspaces"] = None
+                        entry["nodal_fspaces"] = []
                     else:
                         entry["qr_var"] = None
                         # Store the function spaces upon which these basis
                         # functions are to be evaluated
                         entry["nodal_fspaces"] = []
                         for name in call.eval_targets:
-                            entry["nodal_fspaces"].append(call.arguments.get_fs_by_name(name))
+                            entry["nodal_fspaces"].append(
+                                call.arguments.get_fs_by_name(name))
                     if fsd.requires_basis:
                         self._basis_fns.append(entry)
                     if fsd.requires_diff_basis:
@@ -2484,36 +2488,48 @@ class DynInvokeBasisFns(object):
                                 basis_fn["arg"].ref_name(basis_fn["fspace"]),
                                 "get_dim_space()"])
                 parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
-            for target_space in basis_fn["nodal_fspaces"]:
+                
+            if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
                 op_name = get_fs_operator_name("gh_basis", basis_fn["fspace"],
-                                               qr_var=basis_fn["qr_var"],
-                                               on_space=target_space)
+                                               qr_var=basis_fn["qr_var"])
                 if op_name not in op_name_list:
                     # We haven't seen a basis with this name before so
                     # need to declare it and add allocate statement
                     op_name_list.append(op_name)
-                    if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                        # Dimensionality of the basis arrays depends on the
-                        # type of quadrature...
-                        alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
-                        parent.add(
-                            AllocateGen(parent,
-                                        op_name+"("+", ".join(alloc_args)+")"))
-                        # Add basis function variable to list to declare later.
-                        # We use the length of alloc_args to determine how
-                        # many dimensions this array has.
-                        basis_declarations.append(
-                            op_name+"("+",".join([":"]*len(alloc_args))+")")
-                    else:
-                        # This is an evaluator
-                        ndf_nodal_name = "ndf_nodal_" + target_space
-                        alloc_args_str = ", ".join(
-                            [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                             ndf_nodal_name])
-                        parent.add(AllocateGen(parent,
-                                               op_name+"("+alloc_args_str+")"))
-                        # add basis function variable to list to declare later
-                        basis_declarations.append(op_name+"(:,:,:)")
+
+                    # Dimensionality of the basis arrays depends on the
+                    # type of quadrature...
+                    alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
+                    parent.add(
+                        AllocateGen(parent,
+                                    op_name+"("+", ".join(alloc_args)+")"))
+                    # Add basis function variable to list to declare later.
+                    # We use the length of alloc_args to determine how
+                    # many dimensions this array has.
+                    basis_declarations.append(
+                        op_name+"("+",".join([":"]*len(alloc_args))+")")
+            else:
+                # This is an evaluator and thus may be required on more than
+                # one function space
+                for target_space in basis_fn["nodal_fspaces"]:
+                    op_name = get_fs_operator_name("gh_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"],
+                                                   on_space=target_space)
+                    if op_name in op_name_list:
+                        continue
+                    # We haven't seen a basis with this name before so
+                    # need to declare it and add allocate statement
+                    op_name_list.append(op_name)
+
+                    ndf_nodal_name = "ndf_nodal_" + target_space.mangled_name
+                    alloc_args_str = ", ".join(
+                        [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
+                         ndf_nodal_name])
+                    parent.add(AllocateGen(parent,
+                                           op_name+"("+alloc_args_str+")"))
+                    # add basis function variable to list to declare later
+                    basis_declarations.append(op_name+"(:,:,:)")
 
         if self._diff_basis_fns:
             parent.add(CommentGen(parent, ""))
@@ -2531,39 +2547,46 @@ class DynInvokeBasisFns(object):
                                 basis_fn["arg"].ref_name(basis_fn["fspace"]),
                                 "get_dim_space_diff()"])
                 parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
-            for target_space in basis_fn["nodal_fspaces"]:
+            if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
                 op_name = get_fs_operator_name("gh_diff_basis",
                                                basis_fn["fspace"],
-                                               qr_var=basis_fn["qr_var"],
-                                               on_space=target_space)
+                                               qr_var=basis_fn["qr_var"])
                 if op_name not in op_name_list:
                     # We haven't seen a differential basis with this name before
                     # so need to declare it and add allocate statement
                     op_name_list.append(op_name)
-                    if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                        # Dimensionality of the differential-basis arrays
-                        # depends on the type of quadrature...
-                        alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
-                        parent.add(
-                            AllocateGen(parent,
-                                        op_name+"("+", ".join(alloc_args)+")"))
-                        # Add diff-basis function variable to list to
-                        # declare later.  We use the length of alloc_args
-                        # to determine how many dimensions this array has.
-                        basis_declarations.append(
-                            op_name+"("+",".join([":"]*len(alloc_args))+")")
-                    else:
-                        # This is an evaluator.
-                        # Need the number of dofs in the field being written by
-                        # the kernel that requires this evaluator
-                        ndf_nodal_name = "ndf_nodal_" + target_space.mangled_name
-                        alloc_str = ", ".join(
-                            [diff_basis_first_dim_name(basis_fn["fspace"]),
-                             get_fs_ndf_name(basis_fn["fspace"]),
-                             ndf_nodal_name])
-                        parent.add(AllocateGen(parent, op_name+"("+alloc_str+")"))
-                        # Add diff-basis function variable to list to declare later
-                        basis_declarations.append(op_name+"(:,:,:)")
+
+                    # Dimensionality of the differential-basis arrays
+                    # depends on the type of quadrature...
+                    alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
+                    parent.add(
+                        AllocateGen(parent,
+                                    op_name+"("+", ".join(alloc_args)+")"))
+                    # Add diff-basis function variable to list to
+                    # declare later.  We use the length of alloc_args
+                    # to determine how many dimensions this array has.
+                    basis_declarations.append(
+                        op_name+"("+",".join([":"]*len(alloc_args))+")")
+            else:
+                # This is an evaluator and thus may be required on more than
+                # one function space.
+                for target_space in basis_fn["nodal_fspaces"]:
+                    op_name = get_fs_operator_name("gh_diff_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"],
+                                                   on_space=target_space)
+                    if op_name in op_name_list:
+                        continue
+                    # Need the number of dofs in the field being written by
+                    # the kernel that requires this evaluator
+                    ndf_nodal_name = "ndf_nodal_" + target_space.mangled_name
+                    alloc_str = ", ".join(
+                        [diff_basis_first_dim_name(basis_fn["fspace"]),
+                         get_fs_ndf_name(basis_fn["fspace"]),
+                         ndf_nodal_name])
+                    parent.add(AllocateGen(parent, op_name+"("+alloc_str+")"))
+                    # Add diff-basis function variable to list to declare later
+                    basis_declarations.append(op_name+"(:,:,:)")
 
         if var_dim_list:
             # declare dim and diff_dim for all function spaces
@@ -5999,14 +6022,17 @@ class KernCallArgList(ArgOrdering):
         Add basis function information for this function space to the
         argument list.
 
-        :param function_space: the function space for which the basis
-                               function is required
+        :param function_space: the function space for which the basis \
+                               function is required.
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         '''
-        basis_name = get_fs_basis_name(function_space,
-                                       qr_var=self._kern.qr_name,
-                                       on_space=self._kern.eval_fspace)
-        self._arglist.append(basis_name)
+        for fs_name in self._kern.eval_targets:
+            # Must get a full FunctionSpace object from its name
+            fspace = self._kern.arguments.get_fs_by_name(fs_name)
+            basis_name = get_fs_basis_name(function_space,
+                                           qr_var=self._kern.qr_name,
+                                           on_space=fspace)
+            self._arglist.append(basis_name)
 
     def diff_basis(self, function_space):
         '''
