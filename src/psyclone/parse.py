@@ -711,7 +711,7 @@ class KernelType(object):
                     raise InternalError("Failed to parse array constructor: "
                                         "'{0}'".format(str(assign.items[2])))
                 return [str(name) for name in names]
-        return None
+        return []
 
 
 class DynKernelType(KernelType):
