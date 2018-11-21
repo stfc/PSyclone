@@ -1112,8 +1112,8 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
     expected_alloc = (
         "      ndf_nodal_w3 = f1_proxy%vspace%get_ndf()\n"
         "      nodes_w3 => f1_proxy%vspace%get_nodes()\n"
-        "      ndf_nodal_w0 = f2_proxy%vspace%get_ndf()\n"
-        "      nodes_w0 => f2_proxy%vspace%get_nodes()\n"
+        "      ndf_nodal_w0 = op1_proxy%fs_from%get_ndf()\n"
+        "      nodes_w0 => op1_proxy%fs_from%get_nodes()\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
@@ -1278,10 +1278,10 @@ def test_basis_evaluator():
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
-        "basis_w0, ndf_w1, basis_w1, ndf_w2, undf_w2, map_w2, basis_w2, "
-        "ndf_w3, basis_w3, ndf_wtheta, undf_wtheta, map_wtheta, "
-        "basis_wtheta, ndf_w2h, basis_w2h, ndf_w2v, undf_w2v, map_w2v, "
-        "basis_w2v)\n")
+        "basis_w0_on_w0, ndf_w1, basis_w1_on_w0, ndf_w2, undf_w2, map_w2, "
+        "basis_w2_on_w0, ndf_w3, basis_w3_on_w0, ndf_wtheta, undf_wtheta, "
+        "map_wtheta, basis_wtheta_on_w0, ndf_w2h, basis_w2h_on_w0, ndf_w2v, "
+        "undf_w2v, map_w2v, basis_w2v_on_w0)\n")
     assert output_arg_list in generated_code
     output_declns = (
         "      INTEGER, intent(in) :: cell\n"
@@ -1316,22 +1316,22 @@ def test_basis_evaluator():
         "field_7_w2v\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,ndf_w0) :: "
-        "basis_w0\n"
+        "basis_w0_on_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w0) :: "
-        "basis_w1\n"
+        "basis_w1_on_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,ndf_w0) :: "
-        "basis_w2\n"
+        "basis_w2_on_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,ndf_w0) :: "
-        "basis_w3\n"
+        "basis_w3_on_w0\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,ndf_w0) ::"
-        " basis_wtheta\n"
+        " basis_wtheta_on_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,ndf_w0) :: "
-        "basis_w2h\n"
+        "basis_w2h_on_w0\n"
         "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,ndf_w0) :: "
-        "basis_w2v\n"
+        "basis_w2v_on_w0\n"
     )
     assert output_declns in generated_code
 
@@ -1410,7 +1410,7 @@ def test_diff_basis():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
+    generated_code = str(kernel.gen_stub)
     output = (
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
@@ -1479,8 +1479,8 @@ def test_diff_basis():
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print(output)
-    print(str(generated_code))
-    assert str(generated_code).find(output) != -1
+    print(generated_code)
+    assert output in generated_code
 
 
 DIFF_BASIS_EVAL = '''
@@ -1532,10 +1532,10 @@ def test_diff_basis_eval():
         "    SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, "
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
-        "diff_basis_w0, ndf_w2, undf_w2, map_w2, diff_basis_w2, "
-        "ndf_w1, diff_basis_w1, ndf_w3, diff_basis_w3, ndf_wtheta, "
-        "undf_wtheta, map_wtheta, diff_basis_wtheta, ndf_w2h, diff_basis_w2h,"
-        " ndf_w2v, undf_w2v, map_w2v, diff_basis_w2v)\n"
+        "diff_basis_w0_on_w2, ndf_w2, undf_w2, map_w2, diff_basis_w2_on_w2, "
+        "ndf_w1, diff_basis_w1_on_w2, ndf_w3, diff_basis_w3_on_w2, ndf_wtheta, "
+        "undf_wtheta, map_wtheta, diff_basis_wtheta_on_w2, ndf_w2h, diff_basis_w2h_on_w2,"
+        " ndf_w2v, undf_w2v, map_w2v, diff_basis_w2v_on_w2)\n"
     )
     assert output_args in generated_code
     output_declns = (
@@ -1571,22 +1571,22 @@ def test_diff_basis_eval():
         "field_7_w2v\n"
         "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,ndf_w2) "
-        ":: diff_basis_w0\n"
+        ":: diff_basis_w0_on_w2\n"
         "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,ndf_w2) "
-        ":: diff_basis_w2\n"
+        ":: diff_basis_w2_on_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_w2) "
-        ":: diff_basis_w1\n"
+        ":: diff_basis_w1_on_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,ndf_w2) "
-        ":: diff_basis_w3\n"
+        ":: diff_basis_w3_on_w2\n"
         "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,ndf_w2) "
-        ":: diff_basis_wtheta\n"
+        ":: diff_basis_wtheta_on_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,ndf_w2) "
-        ":: diff_basis_w2h\n"
+        ":: diff_basis_w2h_on_w2\n"
         "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,ndf_w2) "
-        ":: diff_basis_w2v\n"
+        ":: diff_basis_w2v_on_w2\n"
         "    END SUBROUTINE dummy_code\n"
     )
     assert output_declns in generated_code

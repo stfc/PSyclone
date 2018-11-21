@@ -939,13 +939,19 @@ class DynKernMetadata(KernelType):
         # Check to see whether the optional 'gh_evaluator_targets'
         # has been supplied. This lists the function spaces for which
         # any evaluators (gh_shape=gh_evaluator) should be provided.
-        self._eval_targets = self.get_integer_array('gh_evaluator_targets')
-        if not self._eval_targets and self._eval_shape == "gh_evaluator":
+        _targets = self.get_integer_array('gh_evaluator_targets')
+        if not _targets and self._eval_shape == "gh_evaluator":
             # Use the FS of the kernel arguments that are updated
             write_args = psyGen.args_filter(self._arg_descriptors,
                                             arg_accesses=GH_WRITE_ACCESSES)
-            self._eval_targets = [arg.function_space for arg in write_args]
-            # TODO ensure that _eval_targets entries are not duplicated
+            # We want the 'to' space of any operator arguments so get
+            # the first FS associated with the kernel argument.
+            _targets = [arg.function_spaces[0] for arg in write_args]
+        # Ensure that _eval_targets entries are not duplicated
+        self._eval_targets = []
+        for target in _targets:
+            if target not in self._eval_targets:
+                self._eval_targets.append(target)
 
         # Perform further checks that the meta-data we've parsed
         # conforms to the rules for this API
@@ -2273,20 +2279,19 @@ class DynInterGrid(object):
 class DynInvokeBasisFns(object):
     ''' Holds all information on the basis and differential basis
     functions required by an invoke. This covers both those required for
-    quadrature and for evaluators. '''
+    quadrature and for evaluators.
 
+    :param schedule: the schedule of the Invoke for which to extract \
+                     information on all required basis/diff-basis functions.
+    :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+
+    '''
     def __init__(self, schedule):
-        '''
-        :param schedule: the schedule of the Invoke for which to extract
-                         information on all required basis/diff-basis
-                         functions
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
-        '''
         self._name_space_manager = NameSpaceFactory().create()
         # Construct a list of all the basis/diff-basis functions required
         # by this invoke. Each entry in the list is a dictionary holding
-        # the shape, the function space and the function space
-        # of the corresponding kernel argument that is being updated.
+        # the shape, the function space and the 'target' function space
+        # (upon which the basis functions are evaluated).
         self._basis_fns = []
         self._diff_basis_fns = []
         # The dictionary of quadrature objects passed to this invoke. Keys
@@ -5188,10 +5193,9 @@ class DynKern(Kern):
             # us upon which nodal points the evaluator will be required
             for fs_name in ktype.eval_targets:
                 arg = self.arguments.get_arg_on_space_name(fs_name)
-                if arg.is_operator:
-                    fspace = arg.function_space_to
-                else:
-                    fspace = arg.function_space
+                for fspace in arg.function_spaces:
+                    if fspace.orig_name == fs_name:
+                        break
                 # Set up our dict of evaluator targets, one entry per
                 # target FS.
                 if fspace.mangled_name not in self._eval_targets:
@@ -6440,17 +6444,14 @@ class KernStubArgList(ArgOrdering):
 
     def basis(self, function_space):
         '''
-        Add the necessary declarations for a basis function on the supplied
-        function space.
+        Add the necessary declarations for basis function(s) on the supplied
+        function space. There can be more than one if this is an evaluator.
 
         :param function_space: the function space for which to provide
                                the basis functions
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         '''
         from psyclone.f2pygen import DeclGen
-        basis_name = get_fs_basis_name(function_space)
-        ndf_name = get_fs_ndf_name(function_space)
-        self._arglist.append(basis_name)
         # the size of the first dimension for a
         # basis array depends on the
         # function space. The values are
@@ -6468,7 +6469,12 @@ class KernStubArgList(ArgOrdering):
                 "expecting one of {0} but found "
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
+        ndf_name = get_fs_ndf_name(function_space)
+
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
+            basis_name = get_fs_basis_name(function_space)
+            self._arglist.append(basis_name)
+
             if self._kern.eval_shape == "gh_quadrature_xyoz":
                 dim_list = ",".join([first_dim, ndf_name,
                                      "np_xy", "np_z"])
@@ -6476,20 +6482,30 @@ class KernStubArgList(ArgOrdering):
                 raise GenerationError(
                     "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
                     "yet supported")
+            self._parent.add(DeclGen(self._parent, datatype="real",
+                                     kind="r_def", intent="in",
+                                     dimension=dim_list,
+                                     entity_decls=[basis_name]))
         elif self._kern.eval_shape in VALID_EVALUATOR_SHAPES:
-            # Need the ndf for the space on which the basis functions
-            # have been evaluated
-            nodal_ndf_name = get_fs_ndf_name(self._kern.eval_fspace)
-            dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
+            # Need a basis array for each target space upon which the basis
+            # functions have been evaluated. _kern.eval_targets is a dict
+            # where the values are 2-tuples of (FunctionSpace, argument).
+            for space, target in self._kern.eval_targets.items():
+                basis_name = get_fs_basis_name(function_space,
+                                               on_space=target[0])
+                self._arglist.append(basis_name)
+
+                nodal_ndf_name = get_fs_ndf_name(target[0])
+                dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
+                self._parent.add(DeclGen(self._parent, datatype="real",
+                                         kind="r_def", intent="in",
+                                         dimension=dim_list,
+                                         entity_decls=[basis_name]))
         else:
             raise GenerationError(
                 "Internal error: unrecognised evaluator shape ({0}). Expected "
                 "one of: {1}".format(self._kern.eval_shape,
                                      VALID_EVALUATOR_SHAPES))
-        self._parent.add(DeclGen(self._parent, datatype="real",
-                                 kind="r_def", intent="in",
-                                 dimension=dim_list,
-                                 entity_decls=[basis_name]))
 
     def diff_basis(self, function_space):
         '''
@@ -6501,9 +6517,6 @@ class KernStubArgList(ArgOrdering):
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         '''
         from psyclone.f2pygen import DeclGen
-        ndf_name = get_fs_ndf_name(function_space)
-        diff_basis_name = get_fs_diff_basis_name(function_space)
-        self._arglist.append(diff_basis_name)
         # the size of the first dimension for a
         # differential basis array depends on the
         # function space. The values are
@@ -6521,8 +6534,13 @@ class KernStubArgList(ArgOrdering):
                 "function, expecting one of {0} but found "
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
+        ndf_name = get_fs_ndf_name(function_space)
+
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
             # We need differential basis functions for quadrature
+            diff_basis_name = get_fs_diff_basis_name(function_space)
+            self._arglist.append(diff_basis_name)
+            
             if self._kern.eval_shape == "gh_quadrature_xyoz":
                 dim_list = ",".join([first_dim, ndf_name,
                                      "np_xy", "np_z"])
@@ -6530,18 +6548,32 @@ class KernStubArgList(ArgOrdering):
                 raise NotImplementedError(
                     "Internal error: diff-basis for quadrature shape '{0}' "
                     "not yet implemented".format(self._kern.eval_shape))
+
+            self._parent.add(DeclGen(self._parent, datatype="real",
+                                     kind="r_def",
+                                     intent="in", dimension=dim_list,
+                                     entity_decls=[diff_basis_name]))
+
         elif self._kern.eval_shape in VALID_EVALUATOR_SHAPES:
-            # We need differential basis functions for an evaluator
-            nodal_ndf_name = get_fs_ndf_name(self._kern.eval_fspace)
-            dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
+            # We need differential basis functions for an evaluator,
+            # potentially for multiple target spaces. _kern.eval_targets is
+            # a dict where the values are 2-tuples of
+            # (FunctionSpace, argument).
+            for space, target in self._kern.eval_targets.items():
+                diff_basis_name = get_fs_diff_basis_name(function_space,
+                                                         on_space=target[0])
+                self._arglist.append(diff_basis_name)
+                nodal_ndf_name = get_fs_ndf_name(target[0])
+                dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
+                self._parent.add(DeclGen(self._parent, datatype="real",
+                                         kind="r_def",
+                                         intent="in", dimension=dim_list,
+                                         entity_decls=[diff_basis_name]))
         else:
             raise GenerationError(
                 "Internal error: unrecognised evaluator shape ({0}). Expected "
                 "one of: {1}".format(self._kern.eval_shape,
                                      VALID_EVALUATOR_SHAPES))
-        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                                 intent="in", dimension=dim_list,
-                                 entity_decls=[diff_basis_name]))
 
     def orientation(self, function_space):
         ''' provide orientation information for the function space '''
@@ -7357,11 +7389,11 @@ class DynKernelArgument(KernelArgument):
     def evaluator_function_space(self):
         '''
         Returns the function space on which any basis/diff-basis functions
-        required for an evaluator are to be calculated. (Kernels requiring an
-        evaluator are only permitted to write to a single arg and that
-        determines the space on which the basis/diff-basis functions are
-        required.) For an operator this is the to-space, otherwise it is
-        just the function space.
+        required for an evaluator are to be calculated. This is used when
+        kernel meta-data does not specify GH_EVALUATOR_TARGETS and therefore
+        we use the function-space of the updated kernel arguments. For an
+        operator this is the to-space, otherwise it is just the function space.
+
         :return: the Function Space on which basis/diff basis functions must
                  be evaluated
         :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
