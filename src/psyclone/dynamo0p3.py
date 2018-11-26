@@ -2495,7 +2495,7 @@ class DynInvokeBasisFns(object):
                                 basis_fn["arg"].ref_name(basis_fn["fspace"]),
                                 "get_dim_space()"])
                 parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
-                
+
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
                 op_name = get_fs_operator_name("gh_basis", basis_fn["fspace"],
                                                qr_var=basis_fn["qr_var"])
@@ -2559,8 +2559,8 @@ class DynInvokeBasisFns(object):
                                                basis_fn["fspace"],
                                                qr_var=basis_fn["qr_var"])
                 if op_name not in op_name_list:
-                    # We haven't seen a differential basis with this name before
-                    # so need to declare it and add allocate statement
+                    # We haven't seen a differential basis with this name
+                    # before so need to declare it and add allocate statement
                     op_name_list.append(op_name)
 
                     # Dimensionality of the differential-basis arrays
@@ -2742,7 +2742,6 @@ class DynInvokeBasisFns(object):
                         "ndf_nodal_"+space.mangled_name)
                     parent.add(nodal_dof_loop)
 
-                    
                     dof_loop_var = "df_" + basis_fn["fspace"].mangled_name
                     loop_var_list.add(dof_loop_var)
 
@@ -2756,7 +2755,7 @@ class DynInvokeBasisFns(object):
                          basis_fn["arg"].ref_name(basis_fn["fspace"]),
                          "call_function(BASIS," + dof_loop_var +
                          ",nodes_" + space.mangled_name +
-                        "(:," + nodal_loop_var + "))"])
+                         "(:," + nodal_loop_var + "))"])
                     dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
 
         if self._diff_basis_fns:
@@ -2776,7 +2775,7 @@ class DynInvokeBasisFns(object):
                 if op_name in op_name_list:
                     # Jump over any differential basis arrays we've seen before
                     continue
-                
+
                 op_name_list.append(op_name)
                 # Create the argument list
                 args = ["DIFF_BASIS",
@@ -3379,6 +3378,7 @@ class DynGlobalSum(GlobalSum):
                                entity_decls=[sum_name]))
         parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
+
 
 def _create_depth_list(halo_info_list):
     '''Halo's may have more than one dependency. This method simplifies
@@ -6531,7 +6531,7 @@ class KernStubArgList(ArgOrdering):
             # We need differential basis functions for quadrature
             diff_basis_name = get_fs_diff_basis_name(function_space)
             self._arglist.append(diff_basis_name)
-            
+
             if self._kern.eval_shape == "gh_quadrature_xyoz":
                 dim_list = ",".join([first_dim, ndf_name,
                                      "np_xy", "np_z"])
