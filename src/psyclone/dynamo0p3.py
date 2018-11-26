@@ -2301,7 +2301,7 @@ class DynInvokeBasisFns(object):
         self._qr_vars = {}
         # The dict of kernel args for which we require evaluators. Keys are
         # the FS names.
-        self._unique_evaluator_args = {}
+        self._unique_evaluator_args = OrderedDict()
 
         for call in schedule.kern_calls():
 
@@ -2375,7 +2375,8 @@ class DynInvokeBasisFns(object):
                     entry["nodal_fspaces"] = []
                     for name in call.eval_targets:
                         # Make a list of the FunctionSpace objects
-                        entry["nodal_fspaces"].append(call.eval_targets[name][0])
+                        entry["nodal_fspaces"].append(
+                            call.eval_targets[name][0])
                 if fsd.requires_basis:
                     self._basis_fns.append(entry)
                 if fsd.requires_diff_basis:
@@ -5027,7 +5028,7 @@ class DynKern(Kern):
         # The function spaces on which to *evaluate* basis/diff-basis
         # functions if any are required for this kernel. Is a dict with
         # FS names as keys and associated kernel argument as value.
-        self._eval_targets = {}
+        self._eval_targets = OrderedDict()
         self._qr_text = ""
         self._qr_name = None
         self._qr_args = None
