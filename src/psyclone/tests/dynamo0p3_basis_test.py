@@ -51,6 +51,8 @@ from psyclone_test_utils import code_compiles, print_diffs, TEST_COMPILE
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
+API = "dynamo0.3"
+
 CODE = '''
 module testkern_eval
   type, extends(kernel_type) :: testkern_eval_type
@@ -1262,6 +1264,87 @@ def test_2eval_2fs():
             "call_function(DIFF_BASIS,df_w1,nodes_w{0}(:,df_nodal))".
             format(idx)) == 1
 
+
+def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
+    ''' Test that we generate correct code for an invoke requiring multiple,
+    different evaluators *and* quadrature. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "6.10_2eval_2fs_qr_invoke.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    assert gen_code.count("REAL(KIND=r_def), allocatable :: basis_w2_on_w0(:,:,:), basis_w1_qr_data(:,:,:,:), basis_w3_qr_data(:,:,:,:), diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:), diff_basis_w3_on_w0(:,:,:), diff_basis_w2_qr_data(:,:,:,:), diff_basis_w3_qr_data(:,:,:,:)\n") == 1
+
+    # 1st kernel requires diff basis on W1, evaluated at W0 and W1
+    # 2nd kernel requires diff basis on W3, evaluated at W0
+    assert gen_code.count(
+        "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_nodal_w0))\n"
+        "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, ndf_nodal_w1))\n"
+        "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, ndf_nodal_w0))\n") == 1
+
+    assert gen_code.count(
+        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "        DO df_w1=1,ndf_w1\n"
+        "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = "
+        "f1_proxy%vspace%call_function(DIFF_BASIS,df_w1,nodes_w0(:,"
+        "df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n") == 1
+    assert gen_code.count(
+        "      DO df_nodal=1,ndf_nodal_w1\n"
+        "        DO df_w1=1,ndf_w1\n"
+        "          diff_basis_w1_on_w1(:,df_w1,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS,df_w1,nodes_w1(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n") == 1
+    assert gen_code.count(
+        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "        DO df_w3=1,ndf_w3\n"
+        "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = m2_proxy%vspace%"
+        "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n") == 1
+
+    # 2nd kernel requires basis on W2 and diff-basis on W3, both evaluated
+    # on W0 (the to-space of the operator that is written to)
+    assert gen_code.count(
+        "      dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
+        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_nodal_w0))\n") == 1
+
+    assert gen_code.count(
+        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "        DO df_w2=1,ndf_w2\n"
+        "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
+        "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n") == 1
+
+    # 3rd kernel requires XYoZ quadrature: basis on W1, diff basis on W2 and
+    # basis+diff basis on W3.
+    assert gen_code.count(
+        "      CALL qr_data%compute_function(DIFF_BASIS, f2_proxy%vspace, diff_dim_w2, ndf_w2, diff_basis_w2_qr_data)\n"
+        "      CALL qr_data%compute_function(DIFF_BASIS, m2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_w3_qr_data)\n") == 1
+
+    assert ("      DO cell=1,f0_proxy%vspace%get_ncell()\n"
+            "        !\n"
+            "        CALL testkern_eval_code(nlayers, f0_proxy%data, f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)\n"
+            "      END DO \n"
+            "      DO cell=1,op1_proxy%fs_from%get_ncell()\n"
+            "        !\n"
+            "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d, op1_proxy%local_stencil, m2_proxy%data, ndf_w0, ndf_w2, basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), diff_basis_w3_on_w0)\n"
+            "      END DO \n"
+            "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+            "        !\n"
+            "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr_data, ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr_data, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr_data, diff_basis_w3_qr_data, np_xy_qr_data, np_z_qr_data, weights_xy_qr_data, weights_z_qr_data)\n"
+"      END DO \n" in gen_code)
+
+    assert gen_code.count(
+        "DEALLOCATE (basis_w1_qr_data, basis_w2_on_w0, basis_w3_qr_data, diff_basis_w1_on_w0, diff_basis_w1_on_w1, diff_basis_w2_qr_data, diff_basis_w3_on_w0, diff_basis_w3_qr_data)\n") == 1
+
+    if TEST_COMPILE:
+        assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
 BASIS_EVAL = '''
 module dummy_mod
