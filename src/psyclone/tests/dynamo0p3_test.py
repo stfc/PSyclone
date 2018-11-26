@@ -3851,8 +3851,9 @@ def test_no_arg_on_space(monkeypatch):
     first_kernel = first_invoke.schedule.kern_calls()[0]
     kernel_args = first_kernel.arguments
     # Test getting the argument by the meta-data name for the function space
-    arg = kernel_args.get_arg_on_space_name("w2")
+    arg, fspace = kernel_args.get_arg_on_space_name("w2")
     assert arg.name == "f2"
+    assert fspace.orig_name == "w2"
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = kernel_args.get_arg_on_space_name("not_a_space")
     assert ("there is no field or operator with function space not_a_space" in

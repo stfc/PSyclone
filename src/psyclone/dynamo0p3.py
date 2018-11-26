@@ -2340,26 +2340,16 @@ class DynInvokeBasisFns(object):
                 # We need the full FS object, not just the name. Therefore
                 # we first have to get a kernel argument that is on this
                 # space...
-#                fspace = call.arguments.get_fs_by_name(fsd.fs_name)
-                arg = call.arguments.get_arg_on_space_name(fsd.fs_name)
-                # ...and then use that to get the appropriate function
-                # space object. We have to take care that we get the
-                # right object if this argument is an operator
-                if arg.type in VALID_OPERATOR_NAMES:
-                    if fsd.fs_name == arg.function_space_to.orig_name:
-                        fspace = arg.function_space_to
-                    else:
-                        fspace = arg.function_space_from
-                else:
-                    fspace = arg.function_space
+                arg, fspace = call.arguments.get_arg_on_space_name(fsd.fs_name)
 
-                # Which FS is this on and is it a basis or diff-basis
-                # function that is required?
+                # Populate a dict with the shape, updated (written) kernel
+                # argument, function space and associated kernel argument.
                 entry = {"shape": call.eval_shape,
                          "write_arg": call.updated_arg,
                          "fspace": fspace,
                          "arg": arg}
                 if call.eval_shape in VALID_QUADRATURE_SHAPES:
+                    # This is for quadrature
                     entry["qr_var"] = call.qr_name
                     # Quadrature are evaluated at pre-determined
                     # points rather than at the nodes of another FS.
@@ -2369,6 +2359,7 @@ class DynInvokeBasisFns(object):
                     # TODO is there a better approach?
                     entry["nodal_fspaces"] = [None]
                 else:
+                    # This is an evaluator
                     entry["qr_var"] = None
                     # Store the function spaces upon which these basis
                     # functions are to be evaluated
@@ -2377,6 +2368,9 @@ class DynInvokeBasisFns(object):
                         # Make a list of the FunctionSpace objects
                         entry["nodal_fspaces"].append(
                             call.eval_targets[name][0])
+                # Add our newly-constructed dict object to the list describing
+                # the required basis and/or differential basis functions for
+                # this Invoke.
                 if fsd.requires_basis:
                     self._basis_fns.append(entry)
                 if fsd.requires_diff_basis:
@@ -2468,8 +2462,6 @@ class DynInvokeBasisFns(object):
         for (fspace, arg) in self._unique_evaluator_args.values():
             # We need an 'ndf_nodal' for each unique FS upon which we need
             # to evaluate basis/diff-basis functions
-
-            #fspace = arg.evaluator_function_space
             ndf_nodal_name = "ndf_nodal_" + fspace.mangled_name
 
             rhs = "%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
@@ -2492,6 +2484,8 @@ class DynInvokeBasisFns(object):
             parent.add(CommentGen(parent, " Allocate basis arrays"))
             parent.add(CommentGen(parent, ""))
 
+        # Loop over the list of dicts describing each basis function
+        # required by this Invoke.
         for basis_fn in self._basis_fns:
             # Get the extent of the first dimension of the basis array
             first_dim = basis_first_dim_name(basis_fn["fspace"])
@@ -2708,8 +2702,7 @@ class DynInvokeBasisFns(object):
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
                 op_name = get_fs_operator_name("gh_basis",
                                                basis_fn["fspace"],
-                                               qr_var=basis_fn["qr_var"],
-                                               on_space=None)
+                                               qr_var=basis_fn["qr_var"])
                 if op_name in op_name_list:
                     # Jump over any basis arrays we've seen before
                     continue
@@ -5027,7 +5020,7 @@ class DynKern(Kern):
         self._eval_shape = ""
         # The function spaces on which to *evaluate* basis/diff-basis
         # functions if any are required for this kernel. Is a dict with
-        # FS names as keys and associated kernel argument as value.
+        # (mangled) FS names as keys and associated kernel argument as value.
         self._eval_targets = OrderedDict()
         self._qr_text = ""
         self._qr_name = None
@@ -5193,10 +5186,7 @@ class DynKern(Kern):
             # is required. Otherwise, the FS of the updated argument(s) tells
             # us upon which nodal points the evaluator will be required
             for fs_name in ktype.eval_targets:
-                arg = self.arguments.get_arg_on_space_name(fs_name)
-                for fspace in arg.function_spaces:
-                    if fspace.orig_name == fs_name:
-                        break
+                arg, fspace = self.arguments.get_arg_on_space_name(fs_name)
                 # Set up our dict of evaluator targets, one entry per
                 # target FS.
                 if fspace.mangled_name not in self._eval_targets:
@@ -7012,22 +7002,24 @@ class DynKernelArguments(Arguments):
     def get_arg_on_space_name(self, func_space_name):
         '''
         Returns the first argument (field or operator) found that is on
-        the named function space, as specified in the kernel metadata.
+        the named function space, as specified in the kernel metadata. Also
+        returns the associated FunctionSpace object.
 
-        :param str func_space_name: Name of the function space (as specified
-                                    in kernel meta-data) for which
-                                    to find an argument.
-        :return: the first kernel argument that is on the named function
-                 space
-        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :raises: FieldNotFoundError if no field or operator argument is found
+        :param str func_space_name: Name of the function space (as specified \
+                                    in kernel meta-data) for which to \
+                                    find an argument.
+        :return: the first kernel argument that is on the named function \
+                 space and the associated FunctionSpace object.
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynKernelArgument`,
+                 :py:class:`psyclone.dynamo0p3.FunctionSpace`)
+        :raises: FieldNotFoundError if no field or operator argument is found \
                  for the named function space.
         '''
         for arg in self._args:
             for function_space in arg.function_spaces:
                 if function_space:
                     if func_space_name == function_space.orig_name:
-                        return arg
+                        return arg, function_space
         raise FieldNotFoundError("DynKernelArguments:get_arg_on_space_name: "
                                  "there is no field or operator with function "
                                  "space {0}".format(func_space_name))
@@ -7056,18 +7048,6 @@ class DynKernelArguments(Arguments):
                                  "{0} (mangled name = '{1}')".format(
                                      func_space.orig_name,
                                      func_space.mangled_name))
-
-    def get_fs_by_name(self, fs_name):
-        ''' Returns a function-space object associated with a kernel argument
-        that is on the named function space.
-        :param str fs_name: TODO
-        '''
-        arg = self.get_arg_on_space_name(fs_name)
-        for function_space in arg.function_spaces:
-            if fs_name == function_space.orig_name:
-                return function_space
-        raise FieldNotFoundError("No kernel argument found for function "
-                                 "space {0}".format(fs_name))
 
     def has_operator(self, op_type=None):
         ''' Returns true if at least one of the arguments is an operator
