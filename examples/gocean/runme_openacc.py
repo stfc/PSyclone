@@ -30,7 +30,7 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-#------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''A simple test script showing the introduction of OpenACC with PSyclone.
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
     # Apply an OpenACC loop directive to the loop
     sched, _ = ltrans.apply(lf6_schedule.children[0], collapse=2)
-    
+
     # Create an OpenACC parallel region around the loop
     ol_schedule, _ = ptrans.apply(sched.children[0])
     ol_schedule.view()

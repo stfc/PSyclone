@@ -110,8 +110,12 @@ cd -
 
 echo "Running example dynamo/eg11"
 cd dynamo/eg11
-${PSYCLONE} gravity_wave_alg_mod.x90
-${PSYCLONE} -s ./global_plus_extract.py -nodm gravity_wave_alg_mod.x90
+${PSYCLONE} -s ./async_script.py helmholtz_solver_alg_mod.x90
+cd -
+
+echo "Running example dynamo/eg12"
+cd dynamo/eg12
+${PSYCLONE} -nodm -s ./global_plus_extract.py rk_transport_mod.x90
 cd -
 
 echo "Running gocean examples"
@@ -121,6 +125,17 @@ python runme_openmp.py
 python runme_loop_fuse.py
 python runme_dag.py
 python runme_openacc.py
+cd -
+
+echo "Running example nemo/eg1"
+cd nemo/eg1
+${PSYCLONE} -api "nemo" tra_adv.F90
+./runme_openmp.py
+cd -
+echo "Running example nemo/eg2"
+cd nemo/eg2
+./runme_openmp.py
+${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
 cd -
 
 echo "Running transformation examples"

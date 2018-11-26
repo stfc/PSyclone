@@ -187,6 +187,15 @@ that by prolonging it twice:
     cd eg10/
     psyclone intergrid_3levels.x90
 
+Example 11: Asynchronous halo exchanges
+---------------------------------------
+
+This example shows how asynchronous halo exchange calls can be created
+and manipulated:
+::
+    cd eg11/
+    psyclone -s ./async_script.py helmholtz_solver_alg_mod.x90
+
 scripts
 -------
 
