@@ -2342,32 +2342,28 @@ class DynInvokeBasisFns(object):
                 # space...
                 arg, fspace = call.arguments.get_arg_on_space_name(fsd.fs_name)
 
-                # Populate a dict with the shape, updated (written) kernel
-                # argument, function space and associated kernel argument.
+                # Populate a dict with the shape, function space and
+                # associated kernel argument for this basis/diff-basis function.
                 entry = {"shape": call.eval_shape,
-                         "write_arg": call.updated_arg,
                          "fspace": fspace,
                          "arg": arg}
                 if call.eval_shape in VALID_QUADRATURE_SHAPES:
-                    # This is for quadrature
+                    # This is for quadrature - store the name of the
+                    # qr variable
                     entry["qr_var"] = call.qr_name
                     # Quadrature are evaluated at pre-determined
                     # points rather than at the nodes of another FS.
                     # We put one entry of None in the list of target
                     # spaces to facilitate cases where we loop over
                     # this list.
-                    # TODO is there a better approach?
                     entry["nodal_fspaces"] = [None]
                 else:
                     # This is an evaluator
                     entry["qr_var"] = None
-                    # Store the function spaces upon which these basis
-                    # functions are to be evaluated
-                    entry["nodal_fspaces"] = []
-                    for name in call.eval_targets:
-                        # Make a list of the FunctionSpace objects
-                        entry["nodal_fspaces"].append(
-                            call.eval_targets[name][0])
+                    # Store a list of the FunctionSpace objects for which
+                    # these basis functions are to be evaluated
+                    entry["nodal_fspaces"] = [items[0] for items in
+                                              call.eval_targets.values()]
                 # Add our newly-constructed dict object to the list describing
                 # the required basis and/or differential basis functions for
                 # this Invoke.
