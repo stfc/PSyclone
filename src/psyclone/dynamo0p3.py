@@ -2580,6 +2580,7 @@ class DynInvokeBasisFns(object):
                                                    on_space=target_space)
                     if op_name in op_name_list:
                         continue
+                    op_name_list.append(op_name)
                     # Need the number of dofs in the field being written by
                     # the kernel that requires this evaluator
                     ndf_nodal_name = "ndf_nodal_" + target_space.mangled_name

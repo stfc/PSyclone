@@ -1232,6 +1232,37 @@ def test_eval_2fs():
             gen_code)
 
 
+def test_2eval_2fs():
+    ''' Test that we generate correct code when we have an invoke with two
+    kernels that both require a differential basis function that is evaluated
+    on the same two FSs. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "6.9_2eval_2fs_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    print(gen_code)
+    assert ("REAL(KIND=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), "
+            "diff_basis_w1_on_w1(:,:,:)\n" in gen_code)
+    # Check for duplication
+    for idx in range(2):
+        assert gen_code.count("REAL(KIND=r_def), pointer :: nodes_w{0}(:,:) "
+                              "=> null()".format(idx)) == 1
+        assert gen_code.count(
+            "      ndf_nodal_w{0} = f{0}_proxy%vspace%get_ndf()\n"
+            "      nodes_w{0} => f{0}_proxy%vspace%get_nodes()\n".
+            format(idx)) == 1
+
+        assert gen_code.count("ALLOCATE (diff_basis_w1_on_w{0}(diff_dim_w1, "
+                              "ndf_w1, ndf_nodal_w{0}))".format(idx)) == 1
+
+        assert gen_code.count(
+            "diff_basis_w1_on_w{0}(:,df_w1,df_nodal) = f1_proxy%vspace%"
+            "call_function(DIFF_BASIS,df_w1,nodes_w{0}(:,df_nodal))".
+            format(idx)) == 1
+
+
 BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
