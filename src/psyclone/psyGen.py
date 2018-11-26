@@ -61,7 +61,7 @@ except ImportError:
         :type text: string
         :param _: Fake argument, only required to match interface
                   provided by termcolor.colored
-        :return: The supplied text, unchanged
+        :returns: The supplied text, unchanged
         :returns: The supplied text, unchanged
         :rtype: string
         '''
@@ -633,9 +633,9 @@ class Invoke(object):
         :param string datatype: the type of the kernel argument for the
                                 particular API for which the intent is
                                 required
-        :return: dictionary containing 'intent' keys holding the kernel
-                 argument intent and declarations of all kernel arguments
-                 for each type of intent
+        :returns: dictionary containing 'intent' keys holding the kernel
+                  argument intent and declarations of all kernel arguments
+                  for each type of intent
         :rtype: dict
         :raises GenerationError: if the kernel argument is not a valid
                                  datatype for the particular API.
@@ -1277,7 +1277,7 @@ class Node(object):
         '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
         schedule. Ordering is depth first.
 
-        :return: a list of nodes
+        :returns: a list of nodes
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -1293,7 +1293,7 @@ class Node(object):
 
         :param: reverse: An optional, default `False`, boolean flag
         :type: reverse: bool
-        :return: A list of nodes
+        :returns: A list of nodes
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -1441,7 +1441,7 @@ class Schedule(Node):
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
 
-        :return: Text containing the name of this node, possibly coloured
+        :returns: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -1485,7 +1485,7 @@ class Directive(Node):
         Returns a string containing the name of this element with
         control codes for colouring in terminals that support it.
 
-        :return: Text containing the name of this node, possibly coloured
+        :returns: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
         return colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
@@ -2339,8 +2339,8 @@ class GlobalSum(Node):
         Return a string containing the (coloured) name of this node
         type
 
-        :return: A string containing the name of this node, possibly with
-                 control codes for colour
+        :returns: A string containing the name of this node, possibly with
+                  control codes for colour
         :rtype: string
         '''
         return colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
@@ -2501,7 +2501,7 @@ class HaloExchange(Node):
         '''
         Return a string containing the (coloured) name of this node type
 
-        :return: Name of this node type, possibly with colour control codes
+        :returns: Name of this node type, possibly with colour control codes
         :rtype: string
         '''
         return colored(
@@ -2514,7 +2514,7 @@ class Loop(Node):
     def dag_name(self):
         ''' Return the name to use in a dag for this node
 
-        :return: Return the dag name for this loop
+        :returns: Return the dag name for this loop
         :rtype: string
 
         '''
@@ -2599,7 +2599,7 @@ class Loop(Node):
         Returns a string containing the name of this node along with
         control characters for colouring in terminals that support it.
 
-        :return: The name of this node, possibly with control codes for
+        :returns: The name of this node, possibly with control codes for
                  colouring
         :rtype: string
         '''
@@ -3077,7 +3077,7 @@ class Kern(Call):
     @property
     def module_name(self):
         '''
-        :return: The name of the Fortran module that contains this kernel
+        :returns: The name of the Fortran module that contains this kernel
         :rtype: string
         '''
         return self._module_name
@@ -3122,7 +3122,7 @@ class Kern(Call):
         '''
         Return text containing the (coloured) name of this node type
 
-        :return: the name of this node type, possibly with control codes
+        :returns: the name of this node type, possibly with control codes
                  for colour
         :rtype: string
         '''
@@ -3141,7 +3141,7 @@ class Kern(Call):
         :param mapping: dictionary of access types (here INC) associated
                         with arguments with their metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
+        :returns: a Fortran argument name
         :rtype: string
         :raises FieldNotFoundError: if none is found.
 
@@ -3164,7 +3164,7 @@ class Kern(Call):
                         READWRITE) associated with arguments with their
                         metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
+        :returns: a Fortran argument name
         :rtype: string
         :raises FieldNotFoundError: if none is found.
 
@@ -3266,7 +3266,7 @@ class Arguments(object):
         :param mapping: dictionary of access types associated with arguments
                         with their metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
+        :returns: a Fortran argument name
         :rtype: string
         :raises GenerationError: if none such argument is found.
 
@@ -3559,7 +3559,7 @@ class Argument(object):
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :return: the first preceding argument this argument has a
+        :returns: the first preceding argument this argument has a
         dependence with
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
@@ -3576,7 +3576,7 @@ class Argument(object):
 
         :param: ignore_halos: An optional, default `False`, boolean flag
         :type: ignore_halos: bool
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -3589,7 +3589,7 @@ class Argument(object):
         dependence with, or `None` if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :return: the first following argument this argument has a
+        :returns: the first following argument this argument has a
         dependence with
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
@@ -3604,7 +3604,7 @@ class Argument(object):
         return an empty list. If self is not a writer then return an
         empty list.
 
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -3636,7 +3636,7 @@ class Argument(object):
 
         :param: the list of nodes that this method examines
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -3675,7 +3675,7 @@ class Argument(object):
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
         :param: ignore_halos: An optional, default `False`, boolean flag
         :type: ignore_halos: bool
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -3749,7 +3749,7 @@ class Argument(object):
         :param argument: the argument we will check to see whether
         there is a dependence with this argument instance (self)
         :type argument: :py:class:`psyclone.psyGen.Argument`
-        :return: True if there is a dependence and False if not
+        :returns: True if there is a dependence and False if not
         :rtype: bool
 
         '''
@@ -3941,8 +3941,8 @@ class IfBlock(Node):
         '''
         Return text containing the (coloured) name of this node type.
 
-        :return: the name of this node type, possibly with control codes \
-                 for colour.
+        :returns: the name of this node type, possibly with control codes \
+                  for colour.
         :rtype: str
         '''
         return colored("If", SCHEDULE_COLOUR_MAP["If"])
@@ -3976,8 +3976,8 @@ class IfClause(IfBlock):
         '''
         Return text containing the (coloured) name of this node type.
 
-        :return: the name of this node type, possibly with control codes \
-                 for colour.
+        :returns: the name of this node type, possibly with control codes \
+                  for colour.
         :rtype: str
         '''
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
