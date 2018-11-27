@@ -32,12 +32,12 @@ program eval_invoke
 
   ! Test program containing a single invoke of two kernels, each
   ! requiring an evaluator on the same two function spaces.
-  use testkern_eval_2fs, only: testkern_eval_type
+  use testkern_eval_2fs, only: testkern_eval_2fs_type
   implicit none
   type(field_type)      :: f0, f1
 
-  call invoke( testkern_eval_type(f0,f1), &
-               testkern_eval_type(g0,g1))
+  call invoke( testkern_eval_2fs_type(f0,f1), &
+               testkern_eval_2fs_type(g0,g1))
 
 
 end program eval_invoke

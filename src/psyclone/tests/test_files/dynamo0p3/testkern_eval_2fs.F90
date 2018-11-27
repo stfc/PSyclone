@@ -32,7 +32,7 @@
 module testkern_eval_2fs
   use argument_mod
   use kernel_mod
-  type, extends(kernel_type) :: testkern_eval_type
+  type, extends(kernel_type) :: testkern_eval_2fs_type
      type(arg_type)  :: meta_args(2) =  (/    &
        arg_type(GH_FIELD,   GH_INC,  W0),     &
        arg_type(GH_FIELD,   GH_READ, W1)      &
@@ -44,11 +44,11 @@ module testkern_eval_2fs
      integer :: gh_shape = gh_evaluator
      integer :: gh_evaluator_targets(2) = (/W0, W1/)
    contains
-     procedure, nopass :: code => testkern_eval_code
-  end type testkern_eval_type
+     procedure, nopass :: code => testkern_eval_2fs_code
+  end type testkern_eval_2fs_type
 contains
 
-  subroutine testkern_eval_code(nlayers, f0, f1, ndf_w0, undf_w0, map_w0,  &
+  subroutine testkern_eval_2fs_code(nlayers, f0, f1, ndf_w0, undf_w0, map_w0,  &
                                 ndf_w1, undf_w1, map_w1, diff_basis_w1_w0, &
                                 diff_basis_w1_w1)
     use constants_mod, only: r_def
@@ -58,5 +58,5 @@ contains
     real(kind=r_def), dimension(:) :: f0, f1
     real(kind=r_def), dimension(3,ndf_w1,ndf_w0) :: diff_basis_w1_w0
     real(kind=r_def), dimension(3,ndf_w1,ndf_w1) :: diff_basis_w1_w1
-  end subroutine testkern_eval_code
+  end subroutine testkern_eval_2fs_code
 end module testkern_eval_2fs

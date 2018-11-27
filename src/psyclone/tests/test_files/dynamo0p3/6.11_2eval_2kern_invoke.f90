@@ -30,26 +30,16 @@
 !-------------------------------------------------------------------------------
 program eval_invoke
 
-  ! Test program containing a single invoke of two kernels that
-  ! require evaluators and one that requires quadrature
+  ! Test program containing a single invoke of two kernels, each
+  ! requiring an evaluator on W1 but with different target spaces.
+  use testkern_eval, only: testkern_eval_type
   use testkern_eval_2fs, only: testkern_eval_2fs_type
-  use testkern_eval_op, only: testkern_eval_op_type
-  use testkern_qr, only: testkern_qr_type
   implicit none
-  type(field_type) :: f0, f1, f2, m1, m2
-  type(operator_type) :: op1
-  type(quadrature_rule) :: qr
-  real(kind=r_def) :: a
-  integer :: istp
+  type(field_type)      :: f0, f1, g0, g1
 
-  call invoke(                         &
-       ! Requires diff basis on W1, evaluated at W0 and W1
-       testkern_eval_2fs_type(f0,f1),      &
-       ! Requires basis on W2 and diff-basis on W3, both evaluated
-       ! on W0 (the to-space of the operator that is written to)
-       testkern_eval_op_type(op1, m2), &
-       ! Requires XYoZ quadrature: basis on W1, diff basis on W2 and
-       ! basis+diff basis on W3.
-       testkern_qr_type(f1,f2,m1,a,m2,istp,qr%data))
+  call invoke(  & ! Requires an evaluator (diff basis) on W1 evaluated at W0
+               testkern_eval_type(f0,f1), &
+               ! Requires an evaluator (diff basis) on W1 evaluated at W0 and W1
+               testkern_eval_2fs_type(g0,g1))
 
 end program eval_invoke

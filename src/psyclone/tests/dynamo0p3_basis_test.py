@@ -1228,8 +1228,8 @@ def test_eval_2fs(tmpdir, f90, f90flags):
            "ndf_nodal_w0))\n"
            "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, "
            "ndf_nodal_w1))\n" in gen_code)
-    assert ("CALL testkern_eval_code(nlayers, f0_proxy%data, f1_proxy%data, "
-            "ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
+    assert ("CALL testkern_eval_2fs_code(nlayers, f0_proxy%data, f1_proxy%data,"
+            " ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
             "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
             gen_code)
     if TEST_COMPILE:
@@ -1343,7 +1343,7 @@ def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
 
     assert ("      DO cell=1,f0_proxy%vspace%get_ncell()\n"
             "        !\n"
-            "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
+            "        CALL testkern_eval_2fs_code(nlayers, f0_proxy%data, "
             "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, "
             "undf_w1, map_w1(:,cell), diff_basis_w1_on_w0, "
             "diff_basis_w1_on_w1)\n"
@@ -1373,6 +1373,33 @@ def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
 
     if TEST_COMPILE:
         assert code_compiles(API, psy, tmpdir, f90, f90flags)
+
+
+def test_eval_agglomerate(tmpdir, f90, f90flags):
+    ''' Check that we aglomerate evaluators when different kernels require
+    the same function on the same space but evaluated on different spaces. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "6.11_2eval_2kern_invoke.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    gen_code = str(psy.gen)
+    # We should compute differential basis functions for W1 evaluated on both
+    # W0 and W1.
+    assert gen_code.count(
+        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "        DO df_w1=1,ndf_w1\n"
+        "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = "
+        "f1_proxy%vspace%call_function(DIFF_BASIS,df_w1,nodes_w0(:,"
+        "df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n") == 1
+    assert gen_code.count(
+        "      DO df_nodal=1,ndf_nodal_w1\n"
+        "        DO df_w1=1,ndf_w1\n"
+        "          diff_basis_w1_on_w1(:,df_w1,df_nodal) = f1_proxy%vspace%"
+        "call_function(DIFF_BASIS,df_w1,nodes_w1(:,df_nodal))\n"
+        "        END DO \n"
+        "      END DO \n") == 1
 
 
 BASIS_EVAL = '''
