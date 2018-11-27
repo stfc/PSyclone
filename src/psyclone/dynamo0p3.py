@@ -2298,9 +2298,10 @@ class DynInvokeBasisFns(object):
         # associated quadrature variables. (i.e. we have a list of
         # quadrature arguments for each shape.)
         self._qr_vars = {}
-        # The dict of kernel args for which we require evaluators. Keys are
-        # the FS names.
-        self._unique_evaluator_args = OrderedDict()
+        # The dict of target function spaces upon which we must provide
+        # evaluators. Keys are the FS names, values are (FunctionSpace,
+        # DynKernelArgument) tuples.
+        self._eval_targets = OrderedDict()
 
         for call in schedule.kern_calls():
 
@@ -2330,18 +2331,11 @@ class DynInvokeBasisFns(object):
                 # Loop over the target FS for evaluators required by this
                 # kernel
                 for fs_name in call.eval_targets:
-                    if fs_name not in self._unique_evaluator_args:
-                        # We don't already have an evaluator on this space
-                        # so copy in the list of target spaces
-                        self._unique_evaluator_args[fs_name] = \
+                    if fs_name not in self._eval_targets:
+                        # We don't already have this space in our list so
+                        # add it to the list of target spaces
+                        self._eval_targets[fs_name] = \
                             call.eval_targets[fs_name]
-                    else:
-                        # We do have an evaluator on this space. Update the
-                        # associated list of target spaces:
-                        import pdb; pdb.set_trace()
-                        for target in call.eval_targets[fs_name]:
-                            print(str(target[0]))
-                            
 
             # Both quadrature and evaluators require basis and/or differential
             # basis functions. We need a full FunctionSpace object for
@@ -2437,7 +2431,7 @@ class DynInvokeBasisFns(object):
 
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
-        if self._qr_vars or self._unique_evaluator_args:
+        if self._qr_vars or self._eval_targets:
             parent.add(UseGen(parent, name="function_space_mod",
                               only=True,
                               funcnames=["BASIS", "DIFF_BASIS"]))
@@ -2459,23 +2453,16 @@ class DynInvokeBasisFns(object):
             self._initialise_xyoz_qr(parent)
             self._initialise_xoyoz_qr(parent)
 
-        if self._unique_evaluator_args:
+        if self._eval_targets:
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent,
                                   " Initialise evaluator-related quantities "
                                   "using the field(s) that are written to"))
             parent.add(CommentGen(parent, ""))
 
-        for (fspace, arg) in self._unique_evaluator_args.values():
-            # We need an 'ndf_nodal' for each unique FS upon which we need
+        for (fspace, arg) in self._eval_targets.values():
+            # We need the list of nodes for each unique FS upon which we need
             # to evaluate basis/diff-basis functions
-            ndf_nodal_name = "ndf_nodal_" + fspace.mangled_name
-
-            rhs = "%".join([arg.proxy_name_indexed, arg.ref_name(fspace),
-                            "get_ndf()"])
-            parent.add(AssignGen(parent, lhs=ndf_nodal_name, rhs=rhs))
-            var_dim_list.append(ndf_nodal_name)
-            # ...and the list of nodes for that field
             nodes_name = "nodes_" + fspace.mangled_name
             parent.add(AssignGen(
                 parent, lhs=nodes_name,
@@ -2536,7 +2523,7 @@ class DynInvokeBasisFns(object):
                     # need to declare it and add allocate statement
                     op_name_list.append(op_name)
 
-                    ndf_nodal_name = "ndf_nodal_" + target_space.mangled_name
+                    ndf_nodal_name = get_fs_ndf_name(target_space)
                     alloc_args_str = ", ".join(
                         [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
                          ndf_nodal_name])
@@ -2594,7 +2581,7 @@ class DynInvokeBasisFns(object):
                     op_name_list.append(op_name)
                     # Need the number of dofs in the field being written by
                     # the kernel that requires this evaluator
-                    ndf_nodal_name = "ndf_nodal_" + target_space.mangled_name
+                    ndf_nodal_name = get_fs_ndf_name(target_space)
                     alloc_str = ", ".join(
                         [diff_basis_first_dim_name(basis_fn["fspace"]),
                          get_fs_ndf_name(basis_fn["fspace"]),
@@ -2746,8 +2733,7 @@ class DynInvokeBasisFns(object):
 
                     # Loop over dofs of target function space
                     nodal_dof_loop = DoGen(
-                        parent, nodal_loop_var, "1",
-                        "ndf_nodal_"+space.mangled_name)
+                        parent, nodal_loop_var, "1", get_fs_ndf_name(space))
                     parent.add(nodal_dof_loop)
 
                     dof_loop_var = "df_" + basis_fn["fspace"].mangled_name
@@ -2815,8 +2801,7 @@ class DynInvokeBasisFns(object):
                     loop_var_list.add(nodal_loop_var)
 
                     nodal_dof_loop = DoGen(
-                        parent, "df_nodal", "1",
-                        "ndf_nodal_"+space.mangled_name)
+                        parent, "df_nodal", "1", get_fs_ndf_name(space))
                     parent.add(nodal_dof_loop)
 
                     df_loop_var = "df_"+dbasis_fn["fspace"].mangled_name

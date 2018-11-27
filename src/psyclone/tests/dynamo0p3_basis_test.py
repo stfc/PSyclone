@@ -192,7 +192,7 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
         "      INTEGER df_nodal, df_w0, df_w1\n"
         "      REAL(KIND=r_def), allocatable :: basis_w0_on_w0(:,:,:), "
         "diff_basis_w1_on_w0(:,:,:)\n"
-        "      INTEGER ndf_nodal_w0, dim_w0, diff_dim_w1\n"
+        "      INTEGER dim_w0, diff_dim_w1\n"
         "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
         "      INTEGER ndf_w0, undf_w0, ndf_w1, undf_w1\n"
         "      INTEGER nlayers\n"
@@ -230,23 +230,21 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
         "      ! Initialise evaluator-related quantities using the field(s) "
         "that are written to\n"
         "      !\n"
-        "      ndf_nodal_w0 = f0_proxy%vspace%get_ndf()\n"
         "      nodes_w0 => f0_proxy%vspace%get_nodes()\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
         "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_nodal_w0))\n"
+        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
         "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
-        "ndf_nodal_w0))\n"
+        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_w0))\n"
         "      !\n"
         "      ! Compute basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = "
         "f0_proxy%vspace%call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
@@ -255,7 +253,7 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Compute differential basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
@@ -306,29 +304,27 @@ def test_single_kern_eval_op(tmpdir, f90, f90flags):
         "      INTEGER df_nodal, df_w2, df_w3\n"
         "      REAL(KIND=r_def), allocatable :: basis_w2_on_w0(:,:,:), "
         "diff_basis_w3_on_w0(:,:,:)\n"
-        "      INTEGER ndf_nodal_w0, dim_w2, diff_dim_w3\n"
+        "      INTEGER dim_w2, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
         "      INTEGER ndf_w0, ndf_w2, ndf_w3, undf_w3\n"
         )
     assert decln_output in gen_code
     init_output = (
-        "      ndf_nodal_w0 = op1_proxy%fs_to%get_ndf()\n"
         "      nodes_w0 => op1_proxy%fs_to%get_nodes()\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
         "      dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
-        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_nodal_w0))\n"
+        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_w0))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
         "      diff_dim_w3 = f1_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, "
-        "ndf_nodal_w0))\n"
+        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, ndf_w0))\n"
         "      !\n"
         "      ! Compute basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
@@ -337,7 +333,7 @@ def test_single_kern_eval_op(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Compute differential basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
@@ -667,7 +663,7 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
         "basis_w1_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w1_on_w0(:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), diff_basis_w3_qr(:,:,:,:)\n"
-        "      INTEGER ndf_nodal_w0, dim_w0, dim_w1, dim_w3, diff_dim_w1, "
+        "      INTEGER dim_w0, dim_w1, dim_w3, diff_dim_w1, "
         "diff_dim_w2, diff_dim_w3\n"
         "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
@@ -698,13 +694,12 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
         "      ! Initialise evaluator-related quantities using the "
         "field(s) that are written to\n"
         "      !\n"
-        "      ndf_nodal_w0 = f0_proxy%vspace%get_ndf()\n"
         "      nodes_w0 => f0_proxy%vspace%get_nodes()\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
         "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_nodal_w0))\n"
+        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
         "      dim_w1 = f1_proxy%vspace%get_dim_space()\n"
         "      ALLOCATE (basis_w1_qr(dim_w1, ndf_w1, np_xy_qr, np_z_qr))\n"
         "      dim_w3 = m2_proxy%vspace%get_dim_space()\n"
@@ -714,7 +709,7 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
         "      !\n"
         "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
-        "ndf_nodal_w0))\n"
+        "ndf_w0))\n"
         "      diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, np_xy_qr, "
         "np_z_qr))\n"
@@ -724,7 +719,7 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Compute basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
@@ -737,7 +732,7 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Compute differential basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
@@ -789,25 +784,23 @@ def test_two_eval_same_space(tmpdir, f90, f90flags):
         "      ! Initialise evaluator-related quantities using the field(s) "
         "that are written to\n"
         "      !\n"
-        "      ndf_nodal_w0 = f0_proxy%vspace%get_ndf()\n"
         "      nodes_w0 => f0_proxy%vspace%get_nodes()\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
         "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_nodal_w0))\n"
+        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
         "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
-        "ndf_nodal_w0))\n")
+        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_w0))\n")
     assert output_init in gen_code
     output_code = (
         "      !\n"
         "      ! Compute basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
@@ -816,7 +809,7 @@ def test_two_eval_same_space(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Compute differential basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
@@ -868,35 +861,32 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
         "      ! Initialise evaluator-related quantities using the field(s) "
         "that are written to\n"
         "      !\n"
-        "      ndf_nodal_w0 = f0_proxy%vspace%get_ndf()\n"
         "      nodes_w0 => f0_proxy%vspace%get_nodes()\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
         "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_nodal_w0))\n"
+        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
         "      dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
-        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_nodal_w0))\n"
+        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_w0))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
         "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
-        "ndf_nodal_w0))\n"
+        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_w0))\n"
         "      diff_dim_w3 = f2_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, "
-        "ndf_nodal_w0))\n")
+        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, ndf_w0))\n")
     assert expected_init in gen_code
     expected_code = (
         "      ! Compute basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
@@ -905,13 +895,13 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Compute differential basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f2_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
@@ -957,9 +947,7 @@ def test_two_eval_same_var_same_space(
     assert gen_code.count(
         "ndf_any_space_1_f0 = f0_proxy%vspace%get_ndf()") == 1
     assert gen_code.count(
-        "ndf_nodal_any_space_1_f0 = f0_proxy%vspace%get_ndf()") == 1
-    assert gen_code.count(
-        "      DO df_nodal=1,ndf_nodal_any_space_1_f0\n"
+        "      DO df_nodal=1,ndf_any_space_1_f0\n"
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_any_space_1_f0(:,df_w0,df_nodal) = "
         "f1_proxy%vspace%call_function(BASIS,df_w0,"
@@ -967,7 +955,7 @@ def test_two_eval_same_var_same_space(
         "        END DO \n"
         "      END DO \n") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_nodal_any_space_1_f0\n"
+        "      DO df_nodal=1,ndf_any_space_1_f0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_any_space_1_f0(:,df_w1,df_nodal) = "
         "f2_proxy%vspace%call_function(DIFF_BASIS,df_w1,"
@@ -1008,39 +996,37 @@ def test_two_eval_op_to_space(tmpdir, f90, f90flags):
         "      ! Initialise evaluator-related quantities using the field(s)"
         " that are written to\n"
         "      !\n"
-        "      ndf_nodal_w0 = f0_proxy%vspace%get_ndf()\n"
         "      nodes_w0 => f0_proxy%vspace%get_nodes()\n"
-        "      ndf_nodal_w3 = f2_proxy%vspace%get_ndf()\n"
         "      nodes_w3 => f2_proxy%vspace%get_nodes()\n"
     )
     assert init_code in gen_code
     alloc_code = (
         "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_nodal_w0))\n"
+        "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
         "      dim_w2 = op1_proxy%fs_to%get_dim_space()\n"
-        "      ALLOCATE (basis_w2_on_w3(dim_w2, ndf_w2, ndf_nodal_w3))\n"
+        "      ALLOCATE (basis_w2_on_w3(dim_w2, ndf_w2, ndf_w3))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
         "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
-        "ndf_nodal_w0))\n"
+        "ndf_w0))\n"
         "      diff_dim_w2 = op1_proxy%fs_to%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w2_on_w3(diff_dim_w2, ndf_w2, "
-        "ndf_nodal_w3))\n"
+        "ndf_w3))\n"
         "      diff_dim_w3 = f2_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w3_on_w3(diff_dim_w3, ndf_w3, "
-        "ndf_nodal_w3))\n"
+        "ndf_w3))\n"
     )
     assert alloc_code in gen_code
     basis_comp = (
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w0=1,ndf_w0\n"
         "          basis_w0_on_w0(:,df_w0,df_nodal) = f0_proxy%vspace%"
         "call_function(BASIS,df_w0,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w3\n"
+        "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w3(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(BASIS,df_w2,nodes_w3(:,df_nodal))\n"
@@ -1050,19 +1036,19 @@ def test_two_eval_op_to_space(tmpdir, f90, f90flags):
     # testkern_eval requires diff-basis fns on W1 and testkern_eval_op_to
     # requires them on W2 and W3.
     diff_basis_comp = (
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w3\n"
+        "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w2=1,ndf_w2\n"
         "          diff_basis_w2_on_w3(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(DIFF_BASIS,df_w2,nodes_w3(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w3\n"
+        "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w3(:,df_w3,df_nodal) = f2_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w3(:,df_nodal))\n"
@@ -1112,39 +1098,33 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
         assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     expected_alloc = (
-        "      ndf_nodal_w3 = f1_proxy%vspace%get_ndf()\n"
         "      nodes_w3 => f1_proxy%vspace%get_nodes()\n"
-        "      ndf_nodal_w0 = op1_proxy%fs_from%get_ndf()\n"
         "      nodes_w0 => op1_proxy%fs_from%get_nodes()\n"
         "      !\n"
         "      ! Allocate basis arrays\n"
         "      !\n"
         "      dim_w2 = op2_proxy%fs_to%get_dim_space()\n"
-        "      ALLOCATE (basis_w2_on_w3(dim_w2, ndf_w2, ndf_nodal_w3))\n"
-        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_nodal_w0))\n"
+        "      ALLOCATE (basis_w2_on_w3(dim_w2, ndf_w2, ndf_w3))\n"
+        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_w0))\n"
         "      !\n"
         "      ! Allocate differential basis arrays\n"
         "      !\n"
         "      diff_dim_w2 = op2_proxy%fs_to%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w2_on_w3(diff_dim_w2, ndf_w2, "
-        "ndf_nodal_w3))\n"
+        "      ALLOCATE (diff_basis_w2_on_w3(diff_dim_w2, ndf_w2, ndf_w3))\n"
         "      diff_dim_w3 = f1_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w3_on_w3(diff_dim_w3, ndf_w3, "
-        "ndf_nodal_w3))\n"
-        "      ALLOCATE (diff_basis_w2_on_w0(diff_dim_w2, ndf_w2, "
-        "ndf_nodal_w0))\n"
-        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, "
-        "ndf_nodal_w0))\n"
+        "      ALLOCATE (diff_basis_w3_on_w3(diff_dim_w3, ndf_w3, ndf_w3))\n"
+        "      ALLOCATE (diff_basis_w2_on_w0(diff_dim_w2, ndf_w2, ndf_w0))\n"
+        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, ndf_w0))\n"
     )
     assert expected_alloc in gen_code
     expected_compute = (
-        "      DO df_nodal=1,ndf_nodal_w3\n"
+        "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w3(:,df_w2,df_nodal) = op2_proxy%fs_to%"
         "call_function(BASIS,df_w2,nodes_w3(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
@@ -1153,25 +1133,25 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
         "      !\n"
         "      ! Compute differential basis arrays\n"
         "      !\n"
-        "      DO df_nodal=1,ndf_nodal_w3\n"
+        "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w2=1,ndf_w2\n"
         "          diff_basis_w2_on_w3(:,df_w2,df_nodal) = op2_proxy%fs_to%"
         "call_function(DIFF_BASIS,df_w2,nodes_w3(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w3\n"
+        "      DO df_nodal=1,ndf_w3\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w3(:,df_w3,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w3(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w2=1,ndf_w2\n"
         "          diff_basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_to%"
         "call_function(DIFF_BASIS,df_w2,nodes_w0(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n"
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = f0_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
@@ -1219,15 +1199,15 @@ def test_eval_2fs(tmpdir, f90, f90flags):
 
     assert ("      REAL(KIND=r_def), allocatable :: "
             "diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:)\n"
-            "      INTEGER ndf_nodal_w0, ndf_nodal_w1, diff_dim_w1\n" in
+            "      INTEGER diff_dim_w1\n" in
             gen_code)
     assert("      ! Allocate differential basis arrays\n"
            "      !\n"
            "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
            "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
-           "ndf_nodal_w0))\n"
+           "ndf_w0))\n"
            "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, "
-           "ndf_nodal_w1))\n" in gen_code)
+           "ndf_w1))\n" in gen_code)
     assert ("CALL testkern_eval_2fs_code(nlayers, f0_proxy%data, f1_proxy%data,"
             " ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
             "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
@@ -1253,12 +1233,11 @@ def test_2eval_2fs(tmpdir, f90, f90flags):
         assert gen_code.count("REAL(KIND=r_def), pointer :: nodes_w{0}(:,:) "
                               "=> null()".format(idx)) == 1
         assert gen_code.count(
-            "      ndf_nodal_w{0} = f{0}_proxy%vspace%get_ndf()\n"
             "      nodes_w{0} => f{0}_proxy%vspace%get_nodes()\n".
             format(idx)) == 1
 
         assert gen_code.count("ALLOCATE (diff_basis_w1_on_w{0}(diff_dim_w1, "
-                              "ndf_w1, ndf_nodal_w{0}))".format(idx)) == 1
+                              "ndf_w1, ndf_w{0}))".format(idx)) == 1
 
         assert gen_code.count(
             "diff_basis_w1_on_w{0}(:,df_w1,df_nodal) = f1_proxy%vspace%"
@@ -1288,16 +1267,14 @@ def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
     # 2nd kernel requires diff basis on W3, evaluated at W0
     assert gen_code.count(
         "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
-        "ndf_nodal_w0))\n"
-        "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, "
-        "ndf_nodal_w1))\n"
+        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_w0))\n"
+        "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, ndf_w1))\n"
         "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, "
-        "ndf_nodal_w0))\n") == 1
+        "ndf_w0))\n") == 1
 
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = "
         "f1_proxy%vspace%call_function(DIFF_BASIS,df_w1,nodes_w0(:,"
@@ -1305,14 +1282,14 @@ def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
         "        END DO \n"
         "      END DO \n") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_nodal_w1\n"
+        "      DO df_nodal=1,ndf_w1\n"
         "        DO df_w1=1,ndf_w1\n"
         "          diff_basis_w1_on_w1(:,df_w1,df_nodal) = f1_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w1(:,df_nodal))\n"
         "        END DO \n"
         "      END DO \n") == 1
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w3=1,ndf_w3\n"
         "          diff_basis_w3_on_w0(:,df_w3,df_nodal) = m2_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w3,nodes_w0(:,df_nodal))\n"
@@ -1323,10 +1300,10 @@ def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
     # on W0 (the to-space of the operator that is written to)
     assert gen_code.count(
         "      dim_w2 = op1_proxy%fs_from%get_dim_space()\n"
-        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_nodal_w0))\n") == 1
+        "      ALLOCATE (basis_w2_on_w0(dim_w2, ndf_w2, ndf_w0))\n") == 1
 
     assert gen_code.count(
-        "      DO df_nodal=1,ndf_nodal_w0\n"
+        "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w2=1,ndf_w2\n"
         "          basis_w2_on_w0(:,df_w2,df_nodal) = op1_proxy%fs_from%"
         "call_function(BASIS,df_w2,nodes_w0(:,df_nodal))\n"
@@ -1385,21 +1362,8 @@ def test_eval_agglomerate(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     # We should compute differential basis functions for W1 evaluated on both
     # W0 and W1.
-    assert gen_code.count(
-        "      DO df_nodal=1,ndf_nodal_w0\n"
-        "        DO df_w1=1,ndf_w1\n"
-        "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = "
-        "f1_proxy%vspace%call_function(DIFF_BASIS,df_w1,nodes_w0(:,"
-        "df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n") == 1
-    assert gen_code.count(
-        "      DO df_nodal=1,ndf_nodal_w1\n"
-        "        DO df_w1=1,ndf_w1\n"
-        "          diff_basis_w1_on_w1(:,df_w1,df_nodal) = f1_proxy%vspace%"
-        "call_function(DIFF_BASIS,df_w1,nodes_w1(:,df_nodal))\n"
-        "        END DO \n"
-        "      END DO \n") == 1
+    assert gen_code.count("diff_basis_w1_on_w0(:,df_w1,df_nodal) = ") == 1
+    assert gen_code.count("diff_basis_w1_on_w1(:,df_w1,df_nodal) = ") == 1
 
 
 BASIS_EVAL = '''
