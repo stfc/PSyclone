@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 import copy
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
-    NameSpaceFactory, SCHEDULE_COLOUR_MAP as _BASE_CMAP
+    NameSpaceFactory, F2PSyASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 
@@ -70,81 +70,21 @@ NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
 # layout.
 NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
 
-
-class ASTProcessor(object):
+class NemoASTProcessor(F2PSyASTProcessor):
     '''
-    Mixin class to provide functionality for processing the fparser2 AST.
+    Specialization of F2PSyASTProcessor for Nemo API
     '''
-    @staticmethod
-    def nodes_to_code_block(parent, statements):
-        '''
-        Create a NemoCodeBlock for the supplied list of statements
-        and then wipe the list of statements. A NemoCodeBlock is a node
-        in the PSyIRe (Schedule) that represents a sequence of one or more
-        Fortran statements which PSyclone does not attempt to handle.
 
-        :param parent: Node in the PSyclone AST to which to add this code \
-                       block.
-        :type parent: :py:class:`psyclone.psyGen.Node`
-        :param list statements: List of fparser2 AST nodes consituting the \
-                                code block.
-        :rtype: :py:class:`psyclone.nemo.NemoCodeBlock`
-        '''
-        if not statements:
-            return None
+    def _match_child(self,child, parent=None):
+        if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
+            return NemoLoop(child, parent=parent)
+        elif NemoImplicitLoop.match(child):
+            return NemoImplicitLoop(child, parent=parent)
+        elif NemoIfBlock.match(child):
+            return NemoIfBlock(child, parent=parent)
+        else:
+            return super()._match_child(child)
 
-        code_block = NemoCodeBlock(statements,
-                                   parent=parent)
-        parent.addchild(code_block)
-        del statements[:]
-        return code_block
-
-    # TODO remove nodes_parent argument once fparser2 AST contains
-    # parent information (fparser/#102).
-    def process_nodes(self, parent, nodes, nodes_parent):
-        '''
-        Create the PSyclone IR of the supplied list of nodes in the
-        fparser2 AST. Currently also inserts parent information back
-        into the fparser2 AST. This is a workaround until fparser2
-        itself generates and stores this information.
-
-        :param parent: Parent node in the PSyclone IR we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
-        :param nodes: List of sibling nodes in fparser2 AST.
-        :type nodes: list of :py:class:`fparser.two.utils.Base` or \
-                     :py:class:`fparser.two.utils.BlockBase`
-        :param nodes_parent: the parent of the supplied list of nodes in \
-                             the fparser2 AST.
-        :type nodes_parent: :py:class:`fparser.two.utils.Base` or \
-                            :py:class:`fparser.two.utils.BlockBase`
-
-        '''
-        code_block_nodes = []
-        for child in nodes:
-            # TODO remove this line once fparser2 contains parent
-            # information (fparser/#102)
-            child._parent = nodes_parent  # Retro-fit parent info
-            if isinstance(child,
-                          Fortran2003.Block_Nonlabel_Do_Construct):
-                # The start of a loop is taken as the end of any
-                # existing code block so we create that now
-                self.nodes_to_code_block(parent, code_block_nodes)
-                parent.addchild(NemoLoop(child, parent=parent))
-            elif NemoImplicitLoop.match(child):
-                # An implicit loop marks the end of any current
-                # code block
-                self.nodes_to_code_block(parent, code_block_nodes)
-                parent.addchild(NemoImplicitLoop(child, parent=parent))
-            elif NemoIfBlock.match(child):
-                self.nodes_to_code_block(parent, code_block_nodes)
-                parent.addchild(NemoIfBlock(child, parent=parent))
-            elif not isinstance(child, (Fortran2003.End_Do_Stmt,
-                                        Fortran2003.Nonlabel_Do_Stmt)):
-                # Don't include the do or end-do in a code block
-                code_block_nodes.append(child)
-
-        # Complete any unfinished code-block
-        self.nodes_to_code_block(parent, code_block_nodes)
 
 
 class NemoInvoke(Invoke):
@@ -296,7 +236,7 @@ class NemoPSy(PSy):
         return self._ast
 
 
-class NemoSchedule(Schedule, ASTProcessor):
+class NemoSchedule(Schedule, NemoASTProcessor):
     '''
     The NEMO-specific schedule class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
@@ -585,7 +525,7 @@ class NemoKern(Kern):
               self.ktype + "]")
 
 
-class NemoLoop(Loop, ASTProcessor):
+class NemoLoop(Loop, NemoASTProcessor):
     '''
     Class representing a Loop in NEMO.
 
@@ -810,7 +750,7 @@ class NemoImplicitLoop(NemoLoop):
         return False
 
 
-class NemoIfBlock(IfBlock, ASTProcessor):
+class NemoIfBlock(IfBlock, NemoASTProcessor):
     '''
     Represents an if-block within a NEMO Schedule.
     Within the fparser2 AST, an if-block is represented as:
@@ -903,7 +843,7 @@ class NemoIfBlock(IfBlock, ASTProcessor):
         return False
 
 
-class NemoIfClause(IfClause, ASTProcessor):
+class NemoIfClause(IfClause, NemoASTProcessor):
     '''
     Represents a sub-clause of an if-block (else-if or else).
 

@@ -53,7 +53,7 @@ from fparser import api as fpapi
 from psyclone_test_utils import get_invoke
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
-    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive
+    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
@@ -2386,3 +2386,14 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     assert (
         "The halo exchange vector indices for 'd' are the same. This should "
         "never happen" in str(excinfo.value))
+
+
+def test_codeblock_gencode_error():
+    ''' Check that calling CodeBlock.gen_code() results in an internal
+    error. '''
+    cblock = CodeBlock([])
+    with pytest.raises(InternalError) as err:
+        cblock.gen_code()
+    assert "CodeBlock.gen_code() should not be called" in str(err)
+
+

@@ -109,7 +109,8 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Call": "magenta",
                        "KernCall": "magenta",
                        "Profile": "green",
-                       "If": "red"}
+                       "If": "red",
+                       "CodeBlock": "red"}
 
 
 def get_api(api):
@@ -3908,3 +3909,137 @@ class IfClause(IfBlock):
         :rtype: str
         '''
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
+
+
+
+class F2PSyASTProcessor(object):
+    '''
+    Mixin class to provide functionality for processing the fparser2 AST.
+    '''
+    @staticmethod
+    def nodes_to_code_block(parent, statements):
+        '''
+        Create a CodeBlock for the supplied list of statements
+        and then wipe the list of statements. A CodeBlock is a node
+        in the PSyIRe (Schedule) that represents a sequence of one or more
+        Fortran statements which PSyclone does not attempt to handle.
+
+        :param parent: Node in the PSyclone AST to which to add this code \
+                       block.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param list statements: List of fparser2 AST nodes consituting the \
+                                code block.
+        :rtype: :py:class:`psyclone.CodeBlock`
+        '''
+        if not statements:
+            return None
+
+        code_block = CodeBlock(statements, parent=parent)
+        parent.addchild(code_block)
+        del statements[:]
+        return code_block
+
+    # TODO remove nodes_parent argument once fparser2 AST contains
+    # parent information (fparser/#102).
+    def process_nodes(self, parent, nodes, nodes_parent):
+        '''
+        Create the PSyclone IR of the supplied list of nodes in the
+        fparser2 AST. Currently also inserts parent information back
+        into the fparser2 AST. This is a workaround until fparser2
+        itself generates and stores this information.
+
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :param nodes: List of sibling nodes in fparser2 AST.
+        :type nodes: list of :py:class:`fparser.two.utils.Base` or \
+                     :py:class:`fparser.two.utils.BlockBase`
+        :param nodes_parent: the parent of the supplied list of nodes in \
+                             the fparser2 AST.
+        :type nodes_parent: :py:class:`fparser.two.utils.Base` or \
+                            :py:class:`fparser.two.utils.BlockBase`
+
+        '''
+        from fparser.two import Fortran2003
+        code_block_nodes = []
+        for child in nodes:
+            # TODO remove this line once fparser2 contains parent
+            # information (fparser/#102)
+            child._parent = nodes_parent  # Retro-fit parent info
+
+            psy_child = self._match_child(child, parent)
+
+            if psy_child != None:
+                # Finish ongoing code block
+                self.nodes_to_code_block(parent, code_block_nodes)
+                # Connect child to AST
+                parent.addchild(psy_child)
+            elif isinstance(child, (Fortran2003.End_Do_Stmt,
+                                    Fortran2003.Nonlabel_Do_Stmt)):
+                # Don't include the do or end-do in a code block
+                pass
+            else:
+                code_block_nodes.append(child)
+
+                   # Complete any unfinished code-block
+        self.nodes_to_code_block(parent, code_block_nodes)
+
+
+    def _match_child(self, child, parent=None):
+        from fparser.two import Fortran2003
+        return None
+
+
+class CodeBlock(Node):
+    '''
+    Node representing some generic Fortran code that PSyclone
+    does not attempt to manipulate. As such it is a leaf in the PSyclone
+    IR and therefore has no children.
+
+    :param statements: list of fparser2 AST nodes representing the Fortran \
+                       code constituting the code block.
+    :type statements: list of :py:class:`fparser.two.utils.Base` or \
+                      :py:class:`fparser.two.utils.BlockBase` objects.
+    :param parent: the parent node of this code block in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, statements, parent=None):
+        Node.__init__(self, parent=parent)
+        # Store a list of the parser objects holding the code associated
+        # with this block. We make a copy of the contents of the list because
+        # the list itself is a temporary product of the process of converting
+        # from the fparser2 AST to the PSyIRe.
+        self._statements = statements[:]
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[" +
+              str(list(map(type,self._statements))) + "]")
+
+    def __str__(self):
+        return "CodeBlock[{0} statements]".format(len(self._statements))
+
+    def gen_code(self):
+        '''
+        Override abstract method from base class.
+
+        :raises InternalError: because it is not relevant to the PSyIR API and \
+                               should never be called.
+        '''
+        raise InternalError("CodeBlock.gen_code() should not be called.")
+
+
