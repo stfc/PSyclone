@@ -858,7 +858,7 @@ class DynKernMetadata(KernelType):
         # The list of function space names for which an evaluator is
         # required. We set this up below once we've processed the meta-
         # -data describing the kernel arguments.
-        self._eval_targets = None
+        self._eval_targets = []
 
         # Whether or not this is an inter-grid kernel (i.e. has a mesh
         # specified for each [field] argument). This property is
@@ -948,7 +948,6 @@ class DynKernMetadata(KernelType):
             # the first FS associated with the kernel argument.
             _targets = [arg.function_spaces[0] for arg in write_args]
         # Ensure that _eval_targets entries are not duplicated
-        self._eval_targets = []
         for target in _targets:
             if target not in self._eval_targets:
                 self._eval_targets.append(target)
@@ -1298,8 +1297,8 @@ class DynKernMetadata(KernelType):
         we default to providing evaluators on all of the function spaces
         associated with the arguments which this kernel updates.
 
-        :return: list of the names of the function spaces upon which any \
-                 evaluator must be provided.
+        :return: list of the names of the function spaces (as they appear in \
+                 kernel metadata) upon which any evaluator must be provided.
         :rtype: list of str
         '''
         return self._eval_targets
@@ -2290,7 +2289,7 @@ class DynInvokeBasisFns(object):
         self._name_space_manager = NameSpaceFactory().create()
         # Construct a list of all the basis/diff-basis functions required
         # by this invoke. Each entry in the list is a dictionary holding
-        # the shape, the function space and the 'target' function space
+        # the shape, the function space and the 'target' function spaces
         # (upon which the basis functions are evaluated).
         self._basis_fns = []
         self._diff_basis_fns = []
@@ -2324,13 +2323,25 @@ class DynInvokeBasisFns(object):
 
             elif call.eval_shape == "gh_evaluator":
                 # An evaluator consists of basis or diff basis functions
-                # for one FS evaluated on the nodes of another FS. Make a
-                # dict of 2-tuples, each containing the FunctionSpace and
-                # associated kernel argument for the target FSs.
+                # for one FS evaluated on the nodes of another 'target' FS.
+                # Make a dict of 2-tuples, each containing the FunctionSpace
+                # and associated kernel argument for the target FSs.
+
+                # Loop over the target FS for evaluators required by this
+                # kernel
                 for fs_name in call.eval_targets:
                     if fs_name not in self._unique_evaluator_args:
+                        # We don't already have an evaluator on this space
+                        # so copy in the list of target spaces
                         self._unique_evaluator_args[fs_name] = \
                             call.eval_targets[fs_name]
+                    else:
+                        # We do have an evaluator on this space. Update the
+                        # associated list of target spaces:
+                        import pdb; pdb.set_trace()
+                        for target in call.eval_targets[fs_name]:
+                            print(str(target[0]))
+                            
 
             # Both quadrature and evaluators require basis and/or differential
             # basis functions. We need a full FunctionSpace object for
