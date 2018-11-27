@@ -1626,6 +1626,9 @@ def test_diff_basis():
     assert output in generated_code
 
 
+# Meta-data for a kernel that requires differential basis functions
+# evaluated only on W2 (the to-space of the operator that this kernel
+# writes to).
 DIFF_BASIS_EVAL = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -1762,7 +1765,24 @@ def test_2eval_stubgen():
         "undf_wtheta, map_wtheta, diff_basis_wtheta_on_w2h, "
         "diff_basis_wtheta_on_wtheta, ndf_w2h, diff_basis_w2h_on_w2h, "
         "diff_basis_w2h_on_wtheta, ndf_w2v, undf_w2v, map_w2v, "
-        "diff_basis_w2v_on_w2h, diff_basis_w2v_on_wtheta)" in generated_code)
+        "diff_basis_w2v_on_w2h, diff_basis_w2v_on_wtheta)" in
+        generated_code)
+
+    assert (
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: nlayers\n"
+        "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in) :: ndf_w2\n"
+        "      INTEGER, intent(in) :: undf_w2\n"
+        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
+        "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      INTEGER, intent(in) :: ndf_w2v\n"
+        "      INTEGER, intent(in) :: undf_w2v\n" in generated_code)
+
     for space in ["w2h", "wtheta"]:
         assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,ndf_{0}) "
                 ":: diff_basis_w0_on_{0}".format(space) in generated_code)

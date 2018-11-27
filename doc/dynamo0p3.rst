@@ -1202,11 +1202,6 @@ rules, along with PSyclone's naming conventions, are:
 
        1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``
 
-6) If evaluators are required (``gh_shape = gh_evaluator``) then, for each target function
-   space which is *not* associated with a field argument,  pass ``ndf_<space>``. (This
-   is because we do not pass this information for function spaces associated with
-   operators.)
-
 Examples
 ^^^^^^^^
 
@@ -1217,7 +1212,7 @@ evaluator then its metadata might be::
   
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w0, w0), &
+          (/ arg_type(gh_operator, gh_write, w0, w1), &
              arg_type(gh_field*3, gh_read, w0) /)
      type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
@@ -1233,7 +1228,7 @@ be::
 
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       basis_w0_on_w0)    
+       basis_w0_on_w0, ndf_w1)    
 
 where ``local_stencil`` is the operator, ``xdata``, ``ydata``
 etc\. are the three components of the field vector and ``map_w0`` is
@@ -1259,11 +1254,7 @@ and at W1)::
   
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       basis_w0_on_w0, basis_w0_on_w1, ndf_w1)    
-
-Note that we also pass in ``ndf_w1`` since ``W1`` is associated with
-an operator argument and the kernel would not otherwise have this
-information (which is needed for declaring the ``basis_w0_on_w1`` array).
+       basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
 
 Rules for CMA Kernels
 #####################
