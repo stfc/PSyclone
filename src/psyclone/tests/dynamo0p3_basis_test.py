@@ -1207,7 +1207,7 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
     assert expected_dealloc in gen_code
 
 
-def test_eval_2fs():
+def test_eval_2fs(tmpdir, f90, f90flags):
     ''' Test that we generate correct code when a kernel requires that
     a differential basis function be evaluated on two different FS. '''
     _, invoke_info = parse(
@@ -1216,7 +1216,7 @@ def test_eval_2fs():
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
+
     assert ("      REAL(KIND=r_def), allocatable :: "
             "diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:)\n"
             "      INTEGER ndf_nodal_w0, ndf_nodal_w1, diff_dim_w1\n" in
@@ -1232,19 +1232,20 @@ def test_eval_2fs():
             "ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
             "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
             gen_code)
+    if TEST_COMPILE:
+        assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
 
-def test_2eval_2fs():
+def test_2eval_2fs(tmpdir, f90, f90flags):
     ''' Test that we generate correct code when we have an invoke with two
     kernels that both require a differential basis function that is evaluated
     on the same two FSs. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "6.9_2eval_2fs_invoke.f90"),
-        api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+                     "6.9_2eval_2fs_invoke.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
+
     assert ("REAL(KIND=r_def), allocatable :: diff_basis_w1_on_w0(:,:,:), "
             "diff_basis_w1_on_w1(:,:,:)\n" in gen_code)
     # Check for duplication
@@ -1263,6 +1264,8 @@ def test_2eval_2fs():
             "diff_basis_w1_on_w{0}(:,df_w1,df_nodal) = f1_proxy%vspace%"
             "call_function(DIFF_BASIS,df_w1,nodes_w{0}(:,df_nodal))".
             format(idx)) == 1
+    if TEST_COMPILE:
+        assert code_compiles(API, psy, tmpdir, f90, f90flags)
 
 
 def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
@@ -1273,16 +1276,25 @@ def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
                      "6.10_2eval_2fs_qr_invoke.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     gen_code = str(psy.gen)
-    assert gen_code.count("REAL(KIND=r_def), allocatable :: basis_w2_on_w0(:,:,:), basis_w1_qr_data(:,:,:,:), basis_w3_qr_data(:,:,:,:), diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:), diff_basis_w3_on_w0(:,:,:), diff_basis_w2_qr_data(:,:,:,:), diff_basis_w3_qr_data(:,:,:,:)\n") == 1
+
+    assert gen_code.count(
+        "REAL(KIND=r_def), allocatable :: basis_w2_on_w0(:,:,:), "
+        "basis_w1_qr_data(:,:,:,:), basis_w3_qr_data(:,:,:,:), "
+        "diff_basis_w1_on_w0(:,:,:), diff_basis_w1_on_w1(:,:,:), "
+        "diff_basis_w3_on_w0(:,:,:), diff_basis_w2_qr_data(:,:,:,:), "
+        "diff_basis_w3_qr_data(:,:,:,:)\n") == 1
 
     # 1st kernel requires diff basis on W1, evaluated at W0 and W1
     # 2nd kernel requires diff basis on W3, evaluated at W0
     assert gen_code.count(
         "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_nodal_w0))\n"
-        "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, ndf_nodal_w1))\n"
+        "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, "
+        "ndf_nodal_w0))\n"
+        "      ALLOCATE (diff_basis_w1_on_w1(diff_dim_w1, ndf_w1, "
+        "ndf_nodal_w1))\n"
         "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
-        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, ndf_nodal_w0))\n") == 1
+        "      ALLOCATE (diff_basis_w3_on_w0(diff_dim_w3, ndf_w3, "
+        "ndf_nodal_w0))\n") == 1
 
     assert gen_code.count(
         "      DO df_nodal=1,ndf_nodal_w0\n"
@@ -1324,27 +1336,44 @@ def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
     # 3rd kernel requires XYoZ quadrature: basis on W1, diff basis on W2 and
     # basis+diff basis on W3.
     assert gen_code.count(
-        "      CALL qr_data%compute_function(DIFF_BASIS, f2_proxy%vspace, diff_dim_w2, ndf_w2, diff_basis_w2_qr_data)\n"
-        "      CALL qr_data%compute_function(DIFF_BASIS, m2_proxy%vspace, diff_dim_w3, ndf_w3, diff_basis_w3_qr_data)\n") == 1
+        "      CALL qr_data%compute_function(DIFF_BASIS, f2_proxy%vspace, "
+        "diff_dim_w2, ndf_w2, diff_basis_w2_qr_data)\n"
+        "      CALL qr_data%compute_function(DIFF_BASIS, m2_proxy%vspace, "
+        "diff_dim_w3, ndf_w3, diff_basis_w3_qr_data)\n") == 1
 
     assert ("      DO cell=1,f0_proxy%vspace%get_ncell()\n"
             "        !\n"
-            "        CALL testkern_eval_code(nlayers, f0_proxy%data, f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)\n"
+            "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
+            "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, "
+            "undf_w1, map_w1(:,cell), diff_basis_w1_on_w0, "
+            "diff_basis_w1_on_w1)\n"
             "      END DO \n"
             "      DO cell=1,op1_proxy%fs_from%get_ncell()\n"
             "        !\n"
-            "        CALL testkern_eval_op_code(cell, nlayers, op1_proxy%ncell_3d, op1_proxy%local_stencil, m2_proxy%data, ndf_w0, ndf_w2, basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell), diff_basis_w3_on_w0)\n"
+            "        CALL testkern_eval_op_code(cell, nlayers, "
+            "op1_proxy%ncell_3d, op1_proxy%local_stencil, m2_proxy%data, "
+            "ndf_w0, ndf_w2, basis_w2_on_w0, ndf_w3, undf_w3, map_w3(:,cell),"
+            " diff_basis_w3_on_w0)\n"
             "      END DO \n"
             "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
             "        !\n"
-            "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr_data, ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr_data, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr_data, diff_basis_w3_qr_data, np_xy_qr_data, np_z_qr_data, weights_xy_qr_data, weights_z_qr_data)\n"
-"      END DO \n" in gen_code)
+            "        CALL testkern_qr_code(nlayers, f1_proxy%data, "
+            "f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, "
+            "undf_w1, map_w1(:,cell), basis_w1_qr_data, ndf_w2, undf_w2, "
+            "map_w2(:,cell), diff_basis_w2_qr_data, ndf_w3, undf_w3, "
+            "map_w3(:,cell), basis_w3_qr_data, diff_basis_w3_qr_data, "
+            "np_xy_qr_data, np_z_qr_data, weights_xy_qr_data, "
+            "weights_z_qr_data)\n"
+            "      END DO \n" in gen_code)
 
     assert gen_code.count(
-        "DEALLOCATE (basis_w1_qr_data, basis_w2_on_w0, basis_w3_qr_data, diff_basis_w1_on_w0, diff_basis_w1_on_w1, diff_basis_w2_qr_data, diff_basis_w3_on_w0, diff_basis_w3_qr_data)\n") == 1
+        "DEALLOCATE (basis_w1_qr_data, basis_w2_on_w0, basis_w3_qr_data, "
+        "diff_basis_w1_on_w0, diff_basis_w1_on_w1, diff_basis_w2_qr_data, "
+        "diff_basis_w3_on_w0, diff_basis_w3_qr_data)\n") == 1
 
     if TEST_COMPILE:
         assert code_compiles(API, psy, tmpdir, f90, f90flags)
+
 
 BASIS_EVAL = '''
 module dummy_mod
@@ -1647,10 +1676,10 @@ def test_diff_basis_eval():
         "op_2, field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, "
         "op_6_ncell_3d, op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, "
         "diff_basis_w0_on_w2, ndf_w2, undf_w2, map_w2, diff_basis_w2_on_w2, "
-        "ndf_w1, diff_basis_w1_on_w2, ndf_w3, diff_basis_w3_on_w2, ndf_wtheta, "
-        "undf_wtheta, map_wtheta, diff_basis_wtheta_on_w2, ndf_w2h, diff_basis_w2h_on_w2,"
-        " ndf_w2v, undf_w2v, map_w2v, diff_basis_w2v_on_w2)\n"
-    )
+        "ndf_w1, diff_basis_w1_on_w2, ndf_w3, diff_basis_w3_on_w2, "
+        "ndf_wtheta, undf_wtheta, map_wtheta, diff_basis_wtheta_on_w2, "
+        "ndf_w2h, diff_basis_w2h_on_w2, ndf_w2v, undf_w2v, map_w2v, "
+        "diff_basis_w2v_on_w2)\n")
     assert output_args in generated_code
     output_declns = (
         "      INTEGER, intent(in) :: cell\n"
@@ -1704,6 +1733,51 @@ def test_diff_basis_eval():
         "    END SUBROUTINE dummy_code\n"
     )
     assert output_declns in generated_code
+
+
+def test_2eval_stubgen():
+    ''' Check that we generate the correct kernel stub when an evaluator is
+    required on more than one space. '''
+    # Modify the meta-data so that it specifies that evaluators be provided
+    # on two function spaces
+    twoeval_meta = DIFF_BASIS_EVAL.replace(
+        "     integer :: gh_shape = gh_evaluator\n",
+        "     integer :: gh_shape = gh_evaluator\n"
+        "     integer :: gh_evaluator_targets(2) = (/w2h, wtheta/)\n")
+    ast = fpapi.parse(twoeval_meta, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    generated_code = str(kernel.gen_stub)
+    print(generated_code)
+
+    assert (
+        "SUBROUTINE dummy_code(cell, nlayers, field_1_w0, op_2_ncell_3d, op_2,"
+        " field_3_w2, op_4_ncell_3d, op_4, field_5_wtheta, op_6_ncell_3d, "
+        "op_6, field_7_w2v, ndf_w0, undf_w0, map_w0, diff_basis_w0_on_w2h, "
+        "diff_basis_w0_on_wtheta, ndf_w2, undf_w2, map_w2, "
+        "diff_basis_w2_on_w2h, diff_basis_w2_on_wtheta, ndf_w1, "
+        "diff_basis_w1_on_w2h, diff_basis_w1_on_wtheta, ndf_w3, "
+        "diff_basis_w3_on_w2h, diff_basis_w3_on_wtheta, ndf_wtheta, "
+        "undf_wtheta, map_wtheta, diff_basis_wtheta_on_w2h, "
+        "diff_basis_wtheta_on_wtheta, ndf_w2h, diff_basis_w2h_on_w2h, "
+        "diff_basis_w2h_on_wtheta, ndf_w2v, undf_w2v, map_w2v, "
+        "diff_basis_w2v_on_w2h, diff_basis_w2v_on_wtheta)" in generated_code)
+    for space in ["w2h", "wtheta"]:
+        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w0,ndf_{0}) "
+                ":: diff_basis_w0_on_{0}".format(space) in generated_code)
+        assert ("REAL(KIND=r_def), intent(in), dimension(1,ndf_w2,ndf_{0}) "
+                ":: diff_basis_w2_on_{0}".format(space) in generated_code)
+        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,ndf_{0}) "
+                ":: diff_basis_w1_on_{0}".format(space) in generated_code)
+        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_w3,ndf_{0}) "
+                ":: diff_basis_w3_on_{0}".format(space) in generated_code)
+        assert ("REAL(KIND=r_def), intent(in), dimension(3,ndf_wtheta,ndf_{0})"
+                " :: diff_basis_wtheta_on_{0}".format(space) in generated_code)
+        assert ("REAL(KIND=r_def), intent(in), dimension(1,ndf_w2h,ndf_{0}) "
+                ":: diff_basis_w2h_on_{0}".format(space) in generated_code)
+        assert ("REAL(KIND=r_def), intent(in), dimension(1,ndf_w2v,ndf_{0}) "
+                ":: diff_basis_w2v_on_{0}".format(space) in generated_code)
 
 
 DIFF_BASIS_UNSUPPORTED_SPACE = '''
