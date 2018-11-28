@@ -78,6 +78,8 @@
         23) #214 and PR #221. Adds a transformation to convert a
         synchronous halo exchange into an asynchronous halo exchange.
 
+	24) #235 and PR #243. Removes dependency on Habakkuk in NEMO API.
+
 release 1.6.0 18th May 2018
 
         1) #91 and PR #111 Remove unnecessary __init__.py files.
