@@ -2486,3 +2486,190 @@ class ACCRoutineTrans(Transformation):
 
         # Return the now modified kernel
         return kern, keep
+
+
+class NemoExplicitLoopTrans(Transformation):
+    '''
+    Transform an implicit loop in a NEMO Schedule into an explicit
+    loop nest. For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "nemo"
+    >>> filename = "traldf_iso.f90"
+    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import NemoExplicitLoopTrans
+    >>> rtrans = NemoExplicitLoopTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> loop = schedule.children[0].children[0].children[0]
+    >>> # Transform the loop
+    >>> newloop, _ = rtrans.apply(loop)
+
+    '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation class.
+        :rtype: str
+        '''
+        return "NemoExplicitLoopTrans"
+
+    def apply(self, loop):
+        '''
+
+        :raises NotImplementedError: if the array slice has explicit bounds.
+        :raises GenerationError: if an array slice is not in dimensions 1-3 \
+                                 of the array.
+        '''
+        from fparser.two import Fortran2003
+        from fparser.two.utils import walk_ast
+
+        self.validate(loop)
+
+        # Get a reference to the name-space manager
+        name_space_manager = NameSpaceFactory().create()
+
+        # Find all uses of array syntax in the statement
+        subsections = walk_ast(self._ast.items,
+                               [Fortran2003.Section_Subscript_List])
+        # Create a list identifying which dimensions contain a range
+        sliced_dimensions = []
+        # A Section_Subscript_List is a tuple with each item the
+        # array-index expressions for the corresponding dimension of the array.
+        for idx, item in enumerate(subsections[0].items):
+            if isinstance(item, Fortran2003.Subscript_Triplet):
+                # A Subscript_Triplet has a 3-tuple containing the expressions
+                # for the start, end and increment of the slice. If any of
+                # these are not None then we have an explicit range of some
+                # sort and we do not yet support that.
+                # TODO allow for implicit loops with specified bounds
+                # (e.g. 2:jpjm1)
+                if [part for part in item.items if part]:
+                    raise NotImplementedError(
+                        "Support for implicit loops with specified bounds is "
+                        "not yet implemented: '{0}'".format(str(self._ast)))
+                # If an array index is a Subscript_Triplet then it is a range
+                # and thus we need to create an explicit loop for this
+                # dimension.
+                outermost_dim = idx
+                # Store the fact that this array index is a range.
+                sliced_dimensions.append(idx)
+
+        if outermost_dim < 0 or outermost_dim > 2:
+            raise GenerationError(
+                "Array section in unsupported dimension ({0}) for code "
+                "'{1}'".format(outermost_dim+1, str(self._ast)))
+
+        self._step = 1
+        # TODO ensure no name clash is possible with variables that
+        # already exist in the NEMO source.
+        self.loop_type = NEMO_INDEX_ORDERING[outermost_dim]
+        self._start = VALID_LOOP_TYPES[self.loop_type]["start"]
+        self._stop = VALID_LOOP_TYPES[self.loop_type]["stop"]
+        var_name = "psy_" + VALID_LOOP_TYPES[self.loop_type]["var"]
+        self._variable_name = name_space_manager.create_name(
+            root_name=var_name, context="PSyVars", label=var_name)
+
+        # TODO Since the fparser2 AST does not have parent
+        # information (and no other way of getting to the root node), it is
+        # currently not possible to insert a declaration in the correct
+        # location.
+        # For the moment, we can work around the fparser2 AST limitation
+        # by using the fact that we *can* get hold of the PSyclone Invoke
+        # object and that contains a reference to the root of the fparser2
+        # AST...
+
+        # Get a reference to the Invoke to which this loop belongs
+        # TODO this breaks some tests because it assumes we're in a full
+        # PSyIRe tree with an Invoke at its root.
+        invoke = self.root.invoke
+
+        name = Fortran2003.Name(FortranStringReader(self._variable_name))
+        if self._variable_name not in invoke._loop_vars:
+            invoke._loop_vars.append(self._variable_name)
+
+            prog_unit = self.root.invoke._ast
+            spec_list = walk_ast(prog_unit.content,
+                                 [Fortran2003.Specification_Part])
+            if not spec_list:
+                # Routine has no specification part so create one and add it
+                # in to the AST
+                spec = Fortran2003.Specification_Part(
+                    FortranStringReader(
+                        "integer :: {0}".format(self._variable_name)))
+                spec._parent = prog_unit
+                for idx, child in enumerate(prog_unit.content):
+                    if isinstance(child, Fortran2003.Execution_Part):
+                        prog_unit.content.insert(idx, spec)
+                        break
+            else:
+                spec = spec_list[0]
+                decln = Fortran2003.Type_Declaration_Stmt(
+                    FortranStringReader(
+                        "integer :: {0}".format(self._variable_name)))
+                spec.content.append(decln)
+
+        for subsec in subsections:
+            # A tuple is immutable so work with a list
+            indices = list(subsec.items)
+            if outermost_dim >= len(indices):
+                raise InternalError(
+                    "Expecting a colon for index {0} but array only has {1} "
+                    "dimensions".format(outermost_dim+1, len(indices)))
+            if not isinstance(indices[outermost_dim],
+                              Fortran2003.Subscript_Triplet):
+                raise NotImplementedError(
+                    "Currently implicit loops are restricted to cases where "
+                    "all array range specifications occur in the same "
+                    "dimension(s) of each array in an assignment.")
+            # Replace the colon with our new variable name
+            indices[outermost_dim] = name
+            # Replace the original tuple with a new one
+            subsec.items = tuple(indices)
+
+        # Create an explicit loop
+        text = ("do {0}=1,{1},{2}\n"
+                "  replace = me\n"
+                "end do\n".format(self._variable_name, self._stop, self._step))
+        loop = Fortran2003.Block_Nonlabel_Do_Construct(
+            FortranStringReader(text))
+        parent_index = self._ast._parent.content.index(self._ast)
+        # Insert it in the fparser2 AST at the location of the implicit
+        # loop
+        self._ast._parent.content.insert(parent_index, loop)
+        # Replace the content of the loop with the (modified) implicit
+        # loop
+        loop.content[1] = self._ast
+        # Remove the implicit loop from its original parent in the AST
+        self._ast._parent.content.remove(self._ast)
+        # Update the parent of the AST
+        self._ast._parent = loop
+        # Update our own pointer into the AST to now point to the explicit
+        # loop we've just created
+        self._ast = loop
+
+        if not NemoImplicitLoop.match(self._ast):
+            # We still have an implicit loop so recurse
+            # self.addchild(NemoImplicitLoop(ast, parent=self))
+
+            # We must be left with a kernel
+            self.addchild(NemoKern(self._ast, parent=self))
+
+    def validate(loop):
+        '''
+        Check that the supplied loop is a valid target for this transformation.
+
+        :param loop: the loop node to validate.
+        :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`
+
+        :raises TransformationError: if the supplied loop is not a \
+                                     NemoImplicitLoop.
+        '''
+        if not isinstance(loop, NemoImplicitLoop):
+            raise TransformationError(
+                "Cannot apply NemoExplicitLoopTrans to something that is "
+                "not a NemoImplicitLoop (got {0})".format(type(loop)))
