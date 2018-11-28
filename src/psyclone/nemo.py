@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 import copy
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
-    NameSpaceFactory, F2PSyASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
+    NameSpaceFactory, fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 
@@ -70,9 +70,9 @@ NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
 # layout.
 NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
 
-class NemoASTProcessor(F2PSyASTProcessor):
+class NemoASTProcessor(fparser2ASTProcessor):
     '''
-    Specialization of F2PSyASTProcessor for Nemo API
+    Specialization of fparser2ASTProcessor for Nemo API
     '''
 
     def _match_child(self,child, parent=None):
@@ -83,7 +83,7 @@ class NemoASTProcessor(F2PSyASTProcessor):
         elif NemoIfBlock.match(child):
             return NemoIfBlock(child, parent=parent)
         else:
-            return super()._match_child(child)
+            return super(NemoASTProcessor, self)._match_child(child)
 
 
 

@@ -251,7 +251,6 @@ def test_schedule_view(capsys):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     sched_str = str(sched)
-    assert "CodeBlock[2 statements]" in sched_str
     assert "NemoLoop[levels]: jk=1,jpk,1" in sched_str
     assert "NemoLoop[lat]: jj=1,jpj,1" in sched_str
     assert "NemoLoop[lon]: ji=1,jpi,1" in sched_str

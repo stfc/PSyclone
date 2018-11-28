@@ -110,6 +110,10 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "KernCall": "magenta",
                        "Profile": "green",
                        "If": "red",
+                       "Assignment": "red",
+                       "Reference": "red",
+                       "BinaryOperation": "red",
+                       "Literal": "red",
                        "CodeBlock": "red"}
 
 
@@ -3912,7 +3916,7 @@ class IfClause(IfBlock):
 
 
 
-class F2PSyASTProcessor(object):
+class fparser2ASTProcessor(object):
     '''
     Mixin class to provide functionality for processing the fparser2 AST.
     '''
@@ -3974,19 +3978,51 @@ class F2PSyASTProcessor(object):
                 # Connect child to AST
                 parent.addchild(psy_child)
             elif isinstance(child, (Fortran2003.End_Do_Stmt,
-                                    Fortran2003.Nonlabel_Do_Stmt)):
+                                    Fortran2003.Nonlabel_Do_Stmt,
+                                    Fortran2003.End_Subroutine_Stmt)):
                 # Don't include the do or end-do in a code block
                 pass
             else:
                 code_block_nodes.append(child)
 
-                   # Complete any unfinished code-block
+        # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes)
 
 
     def _match_child(self, child, parent=None):
-        from fparser.two import Fortran2003
-        return None
+        '''
+        Create the PSyclone IR of the supplied node in the
+        fparser2 AST.
+
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.utils.Base` or \
+                     :py:class:`fparser.two.utils.BlockBase`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+        from fparser.two import Fortran2003, utils
+
+        if isinstance(child, Fortran2003.Assignment_Stmt):
+            return Assignment(child, parent=parent)
+        elif isinstance(child, Fortran2003.Name):
+            return Reference(child, parent=parent)
+        elif isinstance(child, Fortran2003.Parenthesis):
+            # Parenthesis are discarted and it continues with the single child
+            # TODO: Check items[0] and items[2] are the parenthesis characters
+            return self._match_child(child.items[1],parent)
+        elif isinstance(child, Fortran2003.Part_Ref):
+            return Array(child, parent=parent)
+
+        # Comparison with generic BinaryOpBase and NumberBase should be at the end
+        # as other fparser nodes may be specializations of these
+        elif issubclass(type(child), utils.NumberBase):
+            return Literal(child, parent=parent)
+        elif issubclass(type(child), utils.BinaryOpBase):
+            return BinaryOperation(child, parent=parent)
+
+        # If is not recognized returns None to continue the CodeBlock
+        else:
+            return None
 
 
 class CodeBlock(Node):
@@ -4037,9 +4073,270 @@ class CodeBlock(Node):
         '''
         Override abstract method from base class.
 
-        :raises InternalError: because it is not relevant to the PSyIR API and \
+        :raises InternalError: because it is not relevant to the NEMO API and \
                                should never be called.
         '''
         raise InternalError("CodeBlock.gen_code() should not be called.")
+
+
+class Assignment(Node, fparser2ASTProcessor):
+    '''
+    Node representing an Assignment statement. As such it has a LHS and RHS
+    as children 0 and 1 respectively.
+
+    :param ast: node in the fparser2 AST representing the assignment.
+    :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt.
+    :param parent: the parent node of this Assignment in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :raises InternalError: if the fparser2 AST does not have the expected \
+                           structure.
+    '''
+    def __init__(self, ast, parent=None):
+        Node.__init__(self, parent=parent)
+
+        if len(ast.items) != 3:
+            raise InternalError("Failed to find LHS and RHS children"\
+                    "in assignment statement: {0}".format(ast))
+
+        # Walk down the LHS
+        self.process_nodes(parent=self, nodes=[ast.items[0]], nodes_parent=ast)
+
+        # The second fparser item is always the '=' operator
+        if ast.items[1] != "=":
+            raise InternalError("Failed to find = operation"\
+                    "in assignment statement: {0}".format(ast))
+
+        # Walk down the RHS
+        self.process_nodes(parent=self, nodes=[ast.items[2]], nodes_parent=ast)
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "Assignment[]\n"
+        for entity in self._children:
+            result += str(entity)
+            
+        return result
+
+
+class Reference(Node, fparser2ASTProcessor):
+    '''
+    Node representing a Reference Expression. 
+
+    :param ast: node in the fparser2 AST representing the reference.
+    :type ast: :py:class:`fparser.two.Fortran2003.Name.
+    :param parent: the parent node of this Reference in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :raises InternalError: if the fparser2 AST does not have the expected \
+                           structure.
+    '''
+    def __init__(self, ast, parent=None):
+        Node.__init__(self, parent=parent)
+
+        if hasattr(ast,"items") or hasattr(ast,"contents"):
+            raise InternalError("Reference statement are expected to "\
+                    "be AST leaft, this is not: {0}".format(ast))
+
+        self._reference = ast.string
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[name:'" \
+                + self._reference + "']")
+
+    def __str__(self):
+        return "Reference[name:'" + self._reference + "']\n"
+
+class BinaryOperation(Node, fparser2ASTProcessor):
+    '''
+    Node representing a BinaryOperator expression. As such it has two operants
+    as children 0 and 1, and a attribute with the operator type.
+
+    :param ast: node in the fparser2 AST representing the binary operator.
+    :type ast: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
+    :param parent: the parent node of this BinaryOperator in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :raises InternalError: if the fparser2 AST does not have the expected \
+                           structure.
+    '''
+    def __init__(self, ast, parent=None):
+        Node.__init__(self, parent=parent)
+
+        if len(ast.items) != 3:
+            raise InternalError("Failed to find 2 operants and a operator"
+                    "children in assignment statement: {0}".format(ast))
+
+        # Walk down the Operant 1
+        self.process_nodes(parent=self, nodes=[ast.items[0]], nodes_parent=ast)
+
+        # Get the operator
+        if type(ast.items[1]) != str:
+            raise InternalError("Expecting string operant in BinaryOperation" \
+                    "statement: {0}".format(ast))
+        self._operator = ast.items[1]
+
+        # Walk down the Operant 2
+        self.process_nodes(parent=self, nodes=[ast.items[2]], nodes_parent=ast)
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("BinaryOperation", SCHEDULE_COLOUR_MAP["BinaryOperation"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'"+
+            self._operator + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "BinaryOperator[operator:'" + self._operator + "']\n"
+        for entity in self._children:
+            result += str(entity)
+            
+        return result
+
+class Array(Reference, fparser2ASTProcessor):
+    '''
+    Node representing an Array reference. As such it has a reference and a
+    subscript list as children 0 and 1, respectively.
+
+    :param ast: node in the fparser2 AST representing array.
+    :type ast: :py:class:`fparser.two.Fortran2003.Part_Ref.
+    :param parent: the parent node of this Array in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :raises InternalError: if the fparser2 AST does not have the expected \
+                           structure.
+    '''
+    def __init__(self, ast, parent=None):
+        from fparser.two import Fortran2003
+        Node.__init__(self, parent=parent)
+
+        if len(ast.items) != 2:
+            raise InternalError("Failed to find 2 childrens, the reference"
+                    "and the array subscript in the array: {0}".format(ast))
+        
+        self._reference = ast.items[0].string
+
+        if not(isinstance(ast.items[1], Fortran2003.Section_Subscript_List)):
+            raise InternalError("Failed")
+        
+        subscript_list = ast.items[1].items
+
+        self.process_nodes(parent=self, nodes=subscript_list, \
+                nodes_parent=ast.items[1])
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        super(Array, self).view(indent)
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = super(Array, self).__str__()
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+
+
+class Literal(Node, fparser2ASTProcessor):
+    '''
+    Node representing a Literal
+
+    :param ast: node in the fparser2 AST representing the literal.
+    :type ast: :py:class:`fparser.two.Fortran2003.NumberBase.
+    :param parent: the parent node of this Literal in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    :raises InternalError: if the fparser2 AST does not have the expected \
+                           structure.
+    '''
+    def __init__(self, ast, parent=None):
+        Node.__init__(self, parent=parent)
+
+        self._value = ast.items[0]
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[" \
+                + "value:'"+self._value + "']")
+
+    def __str__(self):
+        return "Literal[value:'" + self._value + "']\n"
 
 
