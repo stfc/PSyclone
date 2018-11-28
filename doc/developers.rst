@@ -1090,21 +1090,19 @@ evaluators required by all of the kernels called from an Invoke.
 function spaces from the `DynKern._eval_targets` of each kernel.
 
 `DynInvokeBasisFunctions._basis_fns` is a list holding information on
-each basis function required by a kernel within the invoke. Each entry
-in this list is a `dict` with keys:
+each basis/differential basis function required by a kernel within the
+invoke. Each entry in this list is a `dict` with keys:
 
-============= ========================== ===================
-Key           Entry                      Type
-============= ========================== ===================
-shape         Shape of the evaluator     `str`
-fspace        Function space             `FunctionSpace`
-arg           Associated kernel argument `DynKernelArgument`
-qr_var        Quadrature argument name   `str`
-nodal_fspaces Target function spaces     list of `(FunctionSpace, DynKernelArgument)`
-============= ========================== ===================
-
-Similarly, `DynInvokeBasisFunctions._diff_basis_fns` holds information on each
-differential basis function required by a kernel within the invoke.
+============= =================================== ===================
+Key           Entry                      	  Type
+============= =================================== ===================
+shape         Shape of the evaluator              `str`
+type          Whether basis or differential basis `str`
+fspace        Function space             	  `FunctionSpace`
+arg           Associated kernel argument 	  `DynKernelArgument`
+qr_var        Quadrature argument name   	  `str`
+nodal_fspaces Target function spaces     	  list of `(FunctionSpace, DynKernelArgument)`
+============= =================================== ===================
 
 Modifying the Schedule
 ----------------------
