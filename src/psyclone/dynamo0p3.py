@@ -2292,7 +2292,6 @@ class DynInvokeBasisFns(object):
         # the shape, the function space and the 'target' function spaces
         # (upon which the basis functions are evaluated).
         self._basis_fns = []
-        self._diff_basis_fns = []
         # The dictionary of quadrature objects passed to this invoke. Keys
         # are the various VALID_QUADRATURE_SHAPES, values are a list of
         # associated quadrature variables. (i.e. we have a list of
@@ -2348,7 +2347,7 @@ class DynInvokeBasisFns(object):
                 arg, fspace = call.arguments.get_arg_on_space_name(fsd.fs_name)
 
                 # Populate a dict with the shape, function space and
-                # associated kernel argument for this basis/diff-basis function.
+                # associated kernel argument for this basis/diff-basis f'n.
                 entry = {"shape": call.eval_shape,
                          "fspace": fspace,
                          "arg": arg}
@@ -2373,9 +2372,15 @@ class DynInvokeBasisFns(object):
                 # the required basis and/or differential basis functions for
                 # this Invoke.
                 if fsd.requires_basis:
+                    entry["type"] = "basis"
                     self._basis_fns.append(entry)
                 if fsd.requires_diff_basis:
-                    self._diff_basis_fns.append(entry)
+                    # Take a shallow copy of the dict and just modify the
+                    # 'type' of the basis function it describes (this works
+                    # because the 'type' entry is a primitive type [str]).
+                    diff_entry = entry.copy()
+                    diff_entry["type"] = "diff-basis"
+                    self._basis_fns.append(diff_entry)
 
     def declare_qr(self, parent):
         '''
@@ -2457,7 +2462,7 @@ class DynInvokeBasisFns(object):
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent,
                                   " Initialise evaluator-related quantities "
-                                  "using the field(s) that are written to"))
+                                  "for the target function spaces"))
             parent.add(CommentGen(parent, ""))
 
         for (fspace, arg) in self._eval_targets.values():
@@ -2475,48 +2480,65 @@ class DynInvokeBasisFns(object):
 
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Allocate basis arrays"))
+            parent.add(CommentGen(parent, " Allocate basis/diff-basis arrays"))
             parent.add(CommentGen(parent, ""))
 
         # Loop over the list of dicts describing each basis function
         # required by this Invoke.
         for basis_fn in self._basis_fns:
             # Get the extent of the first dimension of the basis array
-            first_dim = basis_first_dim_name(basis_fn["fspace"])
+            if basis_fn['type'] == "basis":
+                first_dim = basis_first_dim_name(basis_fn["fspace"])
+                dim_space = "get_dim_space()"
+            else:
+                first_dim = diff_basis_first_dim_name(basis_fn["fspace"])
+                dim_space = "get_dim_space_diff()"
             if first_dim not in var_dim_list:
                 var_dim_list.append(first_dim)
                 rhs = "%".join([basis_fn["arg"].proxy_name_indexed,
                                 basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                                "get_dim_space()"])
+                                dim_space])
                 parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
 
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                op_name = get_fs_operator_name("gh_basis", basis_fn["fspace"],
-                                               qr_var=basis_fn["qr_var"])
-                if op_name not in op_name_list:
-                    # We haven't seen a basis with this name before so
-                    # need to declare it and add allocate statement
-                    op_name_list.append(op_name)
+                if basis_fn["type"] == "basis":
+                    op_name = get_fs_operator_name("gh_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"])
+                else:
+                    op_name = get_fs_operator_name("gh_diff_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"])
+                if op_name in op_name_list:
+                    continue
+                # We haven't seen a basis with this name before so
+                # need to declare it and add allocate statement
+                op_name_list.append(op_name)
 
-                    # Dimensionality of the basis arrays depends on the
-                    # type of quadrature...
-                    alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
-                    parent.add(
-                        AllocateGen(parent,
-                                    op_name+"("+", ".join(alloc_args)+")"))
-                    # Add basis function variable to list to declare later.
-                    # We use the length of alloc_args to determine how
-                    # many dimensions this array has.
-                    basis_declarations.append(
-                        op_name+"("+",".join([":"]*len(alloc_args))+")")
+                # Dimensionality of the basis arrays depends on the
+                # type of quadrature...
+                alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
+                parent.add(
+                    AllocateGen(parent, op_name+"("+", ".join(alloc_args)+")"))
+                # Add basis function variable to list to declare later.
+                # We use the length of alloc_args to determine how
+                # many dimensions this array has.
+                basis_declarations.append(
+                    op_name+"("+",".join([":"]*len(alloc_args))+")")
             else:
                 # This is an evaluator and thus may be required on more than
                 # one function space
                 for target_space in basis_fn["nodal_fspaces"]:
-                    op_name = get_fs_operator_name("gh_basis",
-                                                   basis_fn["fspace"],
-                                                   qr_var=basis_fn["qr_var"],
-                                                   on_space=target_space)
+                    if basis_fn["type"] == "basis":
+                        op_name = get_fs_operator_name(
+                            "gh_basis", basis_fn["fspace"],
+                            qr_var=basis_fn["qr_var"],
+                            on_space=target_space)
+                    else:
+                        op_name = get_fs_operator_name(
+                            "gh_diff_basis", basis_fn["fspace"],
+                            qr_var=basis_fn["qr_var"],
+                            on_space=target_space)
                     if op_name in op_name_list:
                         continue
                     # We haven't seen a basis with this name before so
@@ -2530,64 +2552,6 @@ class DynInvokeBasisFns(object):
                     parent.add(AllocateGen(parent,
                                            op_name+"("+alloc_args_str+")"))
                     # add basis function variable to list to declare later
-                    basis_declarations.append(op_name+"(:,:,:)")
-
-        if self._diff_basis_fns:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Allocate differential basis arrays"))
-            parent.add(CommentGen(parent, ""))
-
-        for basis_fn in self._diff_basis_fns:
-            # initialise 'diff_dim' variable for this function
-            # space and add name to list to declare later
-            first_dim = diff_basis_first_dim_name(basis_fn["fspace"])
-            if first_dim not in var_dim_list:
-                var_dim_list.append(first_dim)
-                rhs = "%".join([basis_fn["arg"].proxy_name_indexed,
-                                basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                                "get_dim_space_diff()"])
-                parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
-            if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                op_name = get_fs_operator_name("gh_diff_basis",
-                                               basis_fn["fspace"],
-                                               qr_var=basis_fn["qr_var"])
-                if op_name not in op_name_list:
-                    # We haven't seen a differential basis with this name
-                    # before so need to declare it and add allocate statement
-                    op_name_list.append(op_name)
-
-                    # Dimensionality of the differential-basis arrays
-                    # depends on the type of quadrature...
-                    alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
-                    parent.add(
-                        AllocateGen(parent,
-                                    op_name+"("+", ".join(alloc_args)+")"))
-                    # Add diff-basis function variable to list to
-                    # declare later.  We use the length of alloc_args
-                    # to determine how many dimensions this array has.
-                    basis_declarations.append(
-                        op_name+"("+",".join([":"]*len(alloc_args))+")")
-            else:
-                # This is an evaluator and thus may be required on more than
-                # one function space.
-                for target_space in basis_fn["nodal_fspaces"]:
-                    op_name = get_fs_operator_name("gh_diff_basis",
-                                                   basis_fn["fspace"],
-                                                   qr_var=basis_fn["qr_var"],
-                                                   on_space=target_space)
-                    if op_name in op_name_list:
-                        continue
-                    op_name_list.append(op_name)
-                    # Need the number of dofs in the field being written by
-                    # the kernel that requires this evaluator
-                    ndf_nodal_name = get_fs_ndf_name(target_space)
-                    alloc_str = ", ".join(
-                        [diff_basis_first_dim_name(basis_fn["fspace"]),
-                         get_fs_ndf_name(basis_fn["fspace"]),
-                         ndf_nodal_name])
-                    parent.add(AllocateGen(parent, op_name+"("+alloc_str+")"))
-                    # Add diff-basis function variable to list to declare later
                     basis_declarations.append(op_name+"(:,:,:)")
 
         if var_dim_list:
@@ -2689,27 +2653,38 @@ class DynInvokeBasisFns(object):
         # add calls to compute the values of any basis arrays
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent, " Compute basis arrays"))
+            parent.add(CommentGen(parent, " Compute basis/diff-basis arrays"))
             parent.add(CommentGen(parent, ""))
 
         for basis_fn in self._basis_fns:
 
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                op_name = get_fs_operator_name("gh_basis",
-                                               basis_fn["fspace"],
-                                               qr_var=basis_fn["qr_var"])
+                if basis_fn["type"] == "basis":
+                    op_name = get_fs_operator_name("gh_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"])
+                else:
+                    op_name = get_fs_operator_name("gh_diff_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"])
                 if op_name in op_name_list:
                     # Jump over any basis arrays we've seen before
                     continue
                 op_name_list.append(op_name)
 
                 # Create the argument list
-                args = ["BASIS",
-                        basis_fn["arg"].proxy_name_indexed + "%" +
-                        basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                        basis_first_dim_name(basis_fn["fspace"]),
-                        get_fs_ndf_name(basis_fn["fspace"]),
-                        op_name]
+                if basis_fn["type"] == "basis":
+                    args = ["BASIS",
+                            basis_fn["arg"].proxy_name_indexed + "%" +
+                            basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                            basis_first_dim_name(basis_fn["fspace"]),
+                            get_fs_ndf_name(basis_fn["fspace"]), op_name]
+                else:
+                    args = ["DIFF_BASIS",
+                            basis_fn["arg"].proxy_name_indexed + "%" +
+                            basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                            diff_basis_first_dim_name(basis_fn["fspace"]),
+                            get_fs_ndf_name(basis_fn["fspace"]), op_name]
                 # insert the basis array call
                 parent.add(
                     CallGen(parent,
@@ -2719,10 +2694,14 @@ class DynInvokeBasisFns(object):
                 # We have an evaluator. We may need this on more than one
                 # function space.
                 for space in basis_fn["nodal_fspaces"]:
-                    op_name = get_fs_operator_name("gh_basis",
-                                                   basis_fn["fspace"],
-                                                   qr_var=basis_fn["qr_var"],
-                                                   on_space=space)
+                    if basis_fn["type"] == "basis":
+                        op_name = get_fs_operator_name("gh_basis",
+                                                       basis_fn["fspace"],
+                                                       on_space=space)
+                    else:
+                        op_name = get_fs_operator_name("gh_diff_basis",
+                                                       basis_fn["fspace"],
+                                                       on_space=space)
                     if op_name in op_name_list:
                         # Jump over any basis arrays we've seen before
                         continue
@@ -2744,80 +2723,20 @@ class DynInvokeBasisFns(object):
                     nodal_dof_loop.add(dof_loop)
                     lhs = op_name + "(:," + "df_" + \
                         basis_fn["fspace"].mangled_name + "," + "df_nodal)"
-                    rhs = "%".join(
-                        [basis_fn["arg"].proxy_name_indexed,
-                         basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                         "call_function(BASIS," + dof_loop_var +
-                         ",nodes_" + space.mangled_name +
-                         "(:," + nodal_loop_var + "))"])
-                    dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
-
-        if self._diff_basis_fns:
-            parent.add(CommentGen(parent, ""))
-            parent.add(CommentGen(parent,
-                                  " Compute differential basis arrays"))
-            parent.add(CommentGen(parent, ""))
-
-        for dbasis_fn in self._diff_basis_fns:
-
-            if dbasis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-
-                op_name = get_fs_operator_name("gh_diff_basis",
-                                               dbasis_fn["fspace"],
-                                               qr_var=dbasis_fn["qr_var"],
-                                               on_space=None)
-                if op_name in op_name_list:
-                    # Jump over any differential basis arrays we've seen before
-                    continue
-
-                op_name_list.append(op_name)
-                # Create the argument list
-                args = ["DIFF_BASIS",
-                        dbasis_fn["arg"].proxy_name_indexed + "%" +
-                        dbasis_fn["arg"].ref_name(dbasis_fn["fspace"]),
-                        diff_basis_first_dim_name(dbasis_fn["fspace"]),
-                        get_fs_ndf_name(dbasis_fn["fspace"]),
-                        op_name]
-                # Insert the call to compute the diff basis array
-                parent.add(
-                    CallGen(parent,
-                            name=dbasis_fn["qr_var"]+"%compute_function",
-                            args=args))
-            else:
-                # Have an evaluator which may need to be evaluated on multiple
-                # function spaces
-                for space in dbasis_fn["nodal_fspaces"]:
-                    op_name = get_fs_operator_name("gh_diff_basis",
-                                                   dbasis_fn["fspace"],
-                                                   qr_var=dbasis_fn["qr_var"],
-                                                   on_space=space)
-                    if op_name in op_name_list:
-                        # Jump over any differential basis arrays we've seen
-                        # before
-                        continue
-                    op_name_list.append(op_name)
-
-                    nodal_loop_var = "df_nodal"
-                    loop_var_list.add(nodal_loop_var)
-
-                    nodal_dof_loop = DoGen(
-                        parent, "df_nodal", "1", get_fs_ndf_name(space))
-                    parent.add(nodal_dof_loop)
-
-                    df_loop_var = "df_"+dbasis_fn["fspace"].mangled_name
-                    loop_var_list.add(df_loop_var)
-
-                    dof_loop = DoGen(nodal_dof_loop, df_loop_var,
-                                     "1", get_fs_ndf_name(dbasis_fn["fspace"]))
-                    nodal_dof_loop.add(dof_loop)
-                    lhs = op_name + "(:," + "df_" + \
-                        dbasis_fn["fspace"].mangled_name + "," + "df_nodal)"
-                    rhs = "%".join(
-                        [dbasis_fn["arg"].proxy_name_indexed,
-                         dbasis_fn["arg"].ref_name(dbasis_fn["fspace"]),
-                         "call_function(DIFF_BASIS," + df_loop_var +
-                         ",nodes_" + space.mangled_name +
-                         "(:," + nodal_loop_var + "))"])
+                    if basis_fn["type"] == "basis":
+                        rhs = "%".join(
+                            [basis_fn["arg"].proxy_name_indexed,
+                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                             "call_function(BASIS," + dof_loop_var +
+                             ",nodes_" + space.mangled_name +
+                             "(:," + nodal_loop_var + "))"])
+                    else:
+                        rhs = "%".join(
+                            [basis_fn["arg"].proxy_name_indexed,
+                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                             "call_function(DIFF_BASIS," + dof_loop_var +
+                             ",nodes_" + space.mangled_name +
+                             "(:," + nodal_loop_var + "))"])
                     dof_loop.add(AssignGen(dof_loop, lhs=lhs, rhs=rhs))
 
         if loop_var_list:
@@ -2835,7 +2754,7 @@ class DynInvokeBasisFns(object):
         '''
         from psyclone.f2pygen import CommentGen, DeallocateGen
 
-        if self._basis_fns or self._diff_basis_fns:
+        if self._basis_fns:
             # deallocate all allocated basis function arrays
             parent.add(CommentGen(parent, ""))
             parent.add(CommentGen(parent, " Deallocate basis arrays"))
@@ -2844,20 +2763,20 @@ class DynInvokeBasisFns(object):
         func_space_var_names = set()
         for basis_fn in self._basis_fns:
             # add the basis array name to the list to use later
-            for fspace in basis_fn["nodal_fspaces"]:
-                op_name = get_fs_operator_name("gh_basis",
-                                               basis_fn["fspace"],
-                                               qr_var=basis_fn["qr_var"],
-                                               on_space=fspace)
-                func_space_var_names.add(op_name)
-        for basis_fn in self._diff_basis_fns:
-            # add the diff_basis array name to the list to use later
-            for fspace in basis_fn["nodal_fspaces"]:
-                op_name = get_fs_operator_name("gh_diff_basis",
-                                               basis_fn["fspace"],
-                                               qr_var=basis_fn["qr_var"],
-                                               on_space=fspace)
-                func_space_var_names.add(op_name)
+            if basis_fn["type"] == "basis":
+                for fspace in basis_fn["nodal_fspaces"]:
+                    op_name = get_fs_operator_name("gh_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"],
+                                                   on_space=fspace)
+                    func_space_var_names.add(op_name)
+            else:
+                for fspace in basis_fn["nodal_fspaces"]:
+                    op_name = get_fs_operator_name("gh_diff_basis",
+                                                   basis_fn["fspace"],
+                                                   qr_var=basis_fn["qr_var"],
+                                                   on_space=fspace)
+                    func_space_var_names.add(op_name)
 
         if func_space_var_names:
             # add the required deallocate call
