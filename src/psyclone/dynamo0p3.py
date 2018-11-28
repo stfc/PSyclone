@@ -5210,9 +5210,10 @@ class DynKern(Kern):
     def eval_targets(self):
         '''
         :return: the function spaces upon which basis/diff-basis functions \
-                 are to be evaluated.
-        :rtype: list of :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        :rtype: dict of #TODO of :py:class:`psyclone.dynamo0p3.FunctionSpace`
+                 are to be evaluated for this kernel.
+        :rtype: dict of (:py:class:`psyclone.dynamo0p3.FunctionSpace`, \
+                :py:class`psyclone.dynamo0p3.DynKernelArgument`), indexed by \
+                the names of the target function spaces.
         '''
         return self._eval_targets
 
@@ -5948,6 +5949,9 @@ class KernCallArgList(ArgOrdering):
             # We are dealing with an evaluator and therefore need as many
             # basis functions as there are target function spaces.
             for fs_name in self._kern.eval_targets:
+                # The associated FunctionSpace object is the first item in
+                # the tuple dict entry associated with the name of the target
+                # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 basis_name = get_fs_basis_name(function_space,
                                                qr_var=self._kern.qr_name,
@@ -5971,6 +5975,9 @@ class KernCallArgList(ArgOrdering):
             # We are dealing with an evaluator and therefore need as many
             # basis functions as there are target function spaces.
             for fs_name in self._kern.eval_targets:
+                # The associated FunctionSpace object is the first item in
+                # the tuple dict entry associated with the name of the target
+                # function space
                 fspace = self._kern.eval_targets[fs_name][0]
                 diff_basis_name = get_fs_diff_basis_name(
                     function_space, qr_var=self._kern.qr_name, on_space=fspace)
@@ -7277,21 +7284,6 @@ class DynKernelArgument(KernelArgument):
             if fspace:
                 fs_names.append(fspace.orig_name)
         return fs_names
-
-    @property
-    def evaluator_function_space(self):
-        '''
-        Returns the function space on which any basis/diff-basis functions
-        required for an evaluator are to be calculated. This is used when
-        kernel meta-data does not specify GH_EVALUATOR_TARGETS and therefore
-        we use the function-space of the updated kernel arguments. For an
-        operator this is the to-space, otherwise it is just the function space.
-
-        :return: the Function Space on which basis/diff basis functions must
-                 be evaluated
-        :rtype: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-        '''
-        return self._function_spaces[0]
 
     @property
     def intent(self):
