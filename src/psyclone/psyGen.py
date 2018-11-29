@@ -3908,3 +3908,76 @@ class IfClause(IfBlock):
         :rtype: str
         '''
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
+
+# was OMPParallelDoDirective
+class ACCKernelsDirective(ACCDirective):
+    ''' Class for the !$OMP PARALLEL DO directive. This inherits from
+        both OMPParallelDirective (because it creates a new OpenMP
+        thread-parallel region) and OMPDoDirective (because it
+        causes a loop to be parallelised). '''
+
+    def __init__(self, children=[], parent=None):
+        Node.__init__(self,
+                      children=children,
+                      parent=parent)
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "ACC_kernels_" + str(self.abs_position)
+
+    def view(self, indent=0):
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print(self.indent(indent) + self.coloured_text +
+              "[ACC kernels]")
+
+    def gen_code(self, parent):
+        from psyclone.f2pygen import DirectiveGen
+
+        # We're not doing nested parallelism so make sure that this
+        # omp parallel do is not already within some parallel region
+
+        exit(1)
+        self._not_within_omp_parallel_region()
+
+        calls = self.reductions()
+        zero_reduction_variables(calls, parent)
+        private_str = self.list_to_string(self._get_private_list())
+        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
+                                "default(shared), private({0}), "
+                                "schedule({1})".
+                                format(private_str, self._omp_schedule) +
+                                self._reduction_string()))
+        for child in self.children:
+            child.gen_code(parent)
+
+        # make sure the directive occurs straight after the loop body
+        position = parent.previous_loop()
+        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
+                   position=["after", position])
+
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenMP
+        parallel do.
+
+        :raises GenerationError: if the existing AST doesn't have the \
+                                 correct structure to permit the insertion \
+                                 of the OpenMP parallel do.
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        # Check that we haven't already been called
+        if self._ast:
+            return
+        parent = self._parent._ast
+        text = ("!$ACC KERNELS")
+        directive = Comment(FortranStringReader(text,
+                                                ignore_comments=False))
+        parent.content.insert(0,directive)

@@ -2482,3 +2482,72 @@ class ACCRoutineTrans(Transformation):
 
         # Return the now modified kernel
         return kern, keep
+
+
+class ACCKernelsTrans(Transformation):
+    '''
+    Add a "!$acc kernels" directive to the start of a NEMO schedule
+    (causing it to be compiled for the OpenACC accelerator device).
+    For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "NEMO"
+****************** TBD ************************
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import ACCRoutineTrans
+    >>> rtrans = ACCRoutineTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> kern = schedule.children[0].children[0].children[0]
+    >>> # Transform the kernel
+    >>> newkern, _ = rtrans.apply(kern)
+    '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation class.
+        :rtype: str
+        '''
+        return "ACCKernelsTrans"
+
+    def apply(self, schedule):
+        '''
+        Add an 
+        '!$acc kernels' OpenACC directive to the start of a NEMO api schedule
+
+        :param kern: The kernel object to transform.
+        :type kern: :py:class:`psyclone.psyGen.Call`
+        :returns: (transformed kernel, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
+                :py:class:`psyclone.undoredo.Memento`).
+        :raises TransformationError: if we fail to find the subroutine \
+                                     corresponding to the kernel object.
+        '''
+        from fparser.two.Fortran2003 import Subroutine_Subprogram, \
+            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
+            Implicit_Part, Comment
+        from fparser.two.utils import walk_ast
+        from fparser.common.readfortran import FortranStringReader
+
+        # Keep a record of this transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(schedule, self)
+
+        # Create the directive and insert it
+        from psyclone.psyGen import ACCKernelsDirective
+        directive = ACCKernelsDirective(parent=schedule,
+                                           children=[])
+        #from psyclone.psyGen import OMPParallelDoDirective
+        #directive = OMPParallelDoDirective(parent=schedule,
+        #                                   children=[])
+
+        # add the OpenMP loop directive as a child of the node's parent
+        schedule.addchild(directive, index=0)
+
+        # Return the now modified kernel
+        return schedule, keep

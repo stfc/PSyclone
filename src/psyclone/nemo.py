@@ -941,3 +941,7 @@ class NemoIfClause(IfClause, ASTProcessor):
         # If we get here it's an error as the NEMO API does not generate
         # code (we manipulate existing code instead).
         raise InternalError("This method should not have been called!")
+
+class NemoACCKernelsDirective(Node):
+    def __init__(self, schedule, parent=None):
+        super(NemoACCKernelsDirective, self).__init__(parent=parent)
