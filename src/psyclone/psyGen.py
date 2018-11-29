@@ -4002,28 +4002,96 @@ class fparser2ASTProcessor(object):
         '''
         from fparser.two import Fortran2003, utils
 
-        if isinstance(child, Fortran2003.Assignment_Stmt):
-            return Assignment(child, parent=parent)
-        elif isinstance(child, Fortran2003.Name):
-            return Reference(child, parent=parent)
-        elif isinstance(child, Fortran2003.Parenthesis):
-            # Parenthesis are discarted and it continues with the single child
-            # TODO: Check items[0] and items[2] are the parenthesis characters
-            return self._match_child(child.items[1],parent)
-        elif isinstance(child, Fortran2003.Part_Ref):
-            return Array(child, parent=parent)
+        self.handlers = {
+            Fortran2003.Assignment_Stmt : self._assignment_handler,
+            Fortran2003.Name : self._name_handler,
+            utils.BinaryOpBase: self._binaryOp_handler,
+            Fortran2003.Parenthesis: self._parenthesis_handler,
+            Fortran2003.Part_Ref: self._part_ref_handler,
+            utils.NumberBase: self._number_handler
+        }
 
-        # Comparison with generic BinaryOpBase and NumberBase should be at the end
-        # as other fparser nodes may be specializations of these
-        elif issubclass(type(child), utils.NumberBase):
-            return Literal(child, parent=parent)
-        elif issubclass(type(child), utils.BinaryOpBase):
-            return BinaryOperation(child, parent=parent)
+        handler = self._get_handler(child)
+        return handler(child, parent)
 
-        # If is not recognized returns None to continue the CodeBlock
-        else:
-            return None
 
+    def _get_handler(self, node):
+        handler = self.handlers.get(type(node))
+        if handler == None:
+            print(type(node).__bases__[0])
+            handler = self.handlers.get(type(node).__bases__[0])
+            if handler == None:
+                handler = lambda x,y : None
+        return handler
+
+
+
+    def _assignment_handler(self, node, parent):
+
+        if len(node.items) != 3:
+            raise InternalError("Failed to find LHS and RHS children"\
+                    "in assignment statement: {0}".format(node))
+        
+        # The second fparser item is always the '=' operator
+        if node.items[1] != "=":
+            raise InternalError("Failed to find = operation"\
+                    "in assignment statement: {0}".format(node))
+        
+        assignment = Assignment()
+        self.process_nodes(parent=assignment, nodes=[node.items[0]], nodes_parent=node)
+        self.process_nodes(parent=assignment, nodes=[node.items[2]], nodes_parent=node)
+
+        return assignment
+
+
+    def _binaryOp_handler(self, node, parent):
+        if len(node.items) != 3:
+            raise InternalError("Failed to find 2 operants and a operator"
+                    "children in assignment statement: {0}".format(node))
+        if type(node.items[1]) != str:
+            raise InternalError("Expecting string operant in BinaryOperation" \
+                    "statement: {0}".format(node))
+    
+        # Get the operator
+        operator = node.items[1]
+
+        binaryOp = BinaryOperation(operator)
+        self.process_nodes(parent=binaryOp, nodes=[node.items[0]], nodes_parent=node)
+        self.process_nodes(parent=binaryOp, nodes=[node.items[2]], nodes_parent=node)
+
+        return binaryOp
+
+
+    def _name_handler(self, node, parent):
+        return Reference(node.string, parent)
+
+
+    def _parenthesis_handler(self, node, parent):
+        # Parenthesis are discarted and it continues with the single child
+        # TODO: Check items[0] and items[2] are the parenthesis characters
+        return self._match_child(node.items[1],parent)
+
+    def _part_ref_handler(self, node, parent):
+        from fparser.two import Fortran2003
+
+        if len(node.items) != 2:
+            raise InternalError("Failed to find 2 childrens, the reference"
+                    "and the array subscript in the array: {0}".format(node))
+        
+        if not(isinstance(node.items[1], Fortran2003.Section_Subscript_List)):
+            raise InternalError("Failed")
+
+        reference_name = node.items[0].string
+        subscript_list = node.items[1].items
+
+        array = Array(reference_name, parent)
+        self.process_nodes(parent=array, nodes=subscript_list, \
+                nodes_parent=node.items[1])
+
+        return array
+
+    def _number_handler(self, node, parent):
+        return Literal(node.items[0])
 
 class CodeBlock(Node):
     '''
@@ -4039,7 +4107,7 @@ class CodeBlock(Node):
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, statements, parent=None):
-        Node.__init__(self, parent=parent)
+        super(CodeBlock,self).__init__(parent=parent)
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
@@ -4079,7 +4147,7 @@ class CodeBlock(Node):
         raise InternalError("CodeBlock.gen_code() should not be called.")
 
 
-class Assignment(Node, fparser2ASTProcessor):
+class Assignment(Node):
     '''
     Node representing an Assignment statement. As such it has a LHS and RHS
     as children 0 and 1 respectively.
@@ -4091,23 +4159,8 @@ class Assignment(Node, fparser2ASTProcessor):
     :raises InternalError: if the fparser2 AST does not have the expected \
                            structure.
     '''
-    def __init__(self, ast, parent=None):
-        Node.__init__(self, parent=parent)
-
-        if len(ast.items) != 3:
-            raise InternalError("Failed to find LHS and RHS children"\
-                    "in assignment statement: {0}".format(ast))
-
-        # Walk down the LHS
-        self.process_nodes(parent=self, nodes=[ast.items[0]], nodes_parent=ast)
-
-        # The second fparser item is always the '=' operator
-        if ast.items[1] != "=":
-            raise InternalError("Failed to find = operation"\
-                    "in assignment statement: {0}".format(ast))
-
-        # Walk down the RHS
-        self.process_nodes(parent=self, nodes=[ast.items[2]], nodes_parent=ast)
+    def __init__(self, parent=None):
+        super(Assignment, self).__init__(parent=parent)
 
     @property
     def coloured_text(self):
@@ -4138,7 +4191,7 @@ class Assignment(Node, fparser2ASTProcessor):
         return result
 
 
-class Reference(Node, fparser2ASTProcessor):
+class Reference(Node):
     '''
     Node representing a Reference Expression. 
 
@@ -4149,14 +4202,9 @@ class Reference(Node, fparser2ASTProcessor):
     :raises InternalError: if the fparser2 AST does not have the expected \
                            structure.
     '''
-    def __init__(self, ast, parent=None):
-        Node.__init__(self, parent=parent)
-
-        if hasattr(ast,"items") or hasattr(ast,"contents"):
-            raise InternalError("Reference statement are expected to "\
-                    "be AST leaft, this is not: {0}".format(ast))
-
-        self._reference = ast.string
+    def __init__(self, reference_name, parent=None):
+        super(Reference, self).__init__(parent=parent)
+        self._reference = reference_name
 
     @property
     def coloured_text(self):
@@ -4181,7 +4229,7 @@ class Reference(Node, fparser2ASTProcessor):
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
 
-class BinaryOperation(Node, fparser2ASTProcessor):
+class BinaryOperation(Node):
     '''
     Node representing a BinaryOperator expression. As such it has two operants
     as children 0 and 1, and a attribute with the operator type.
@@ -4193,24 +4241,9 @@ class BinaryOperation(Node, fparser2ASTProcessor):
     :raises InternalError: if the fparser2 AST does not have the expected \
                            structure.
     '''
-    def __init__(self, ast, parent=None):
-        Node.__init__(self, parent=parent)
-
-        if len(ast.items) != 3:
-            raise InternalError("Failed to find 2 operants and a operator"
-                    "children in assignment statement: {0}".format(ast))
-
-        # Walk down the Operant 1
-        self.process_nodes(parent=self, nodes=[ast.items[0]], nodes_parent=ast)
-
-        # Get the operator
-        if type(ast.items[1]) != str:
-            raise InternalError("Expecting string operant in BinaryOperation" \
-                    "statement: {0}".format(ast))
-        self._operator = ast.items[1]
-
-        # Walk down the Operant 2
-        self.process_nodes(parent=self, nodes=[ast.items[2]], nodes_parent=ast)
+    def __init__(self, operator, parent=None):
+        super(BinaryOperation, self).__init__(parent=parent)
+        self._operator = operator
 
     @property
     def coloured_text(self):
@@ -4235,13 +4268,13 @@ class BinaryOperation(Node, fparser2ASTProcessor):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = "BinaryOperator[operator:'" + self._operator + "']\n"
+        result = "BinaryOperation[operator:'" + self._operator + "']\n"
         for entity in self._children:
             result += str(entity)
             
         return result
 
-class Array(Reference, fparser2ASTProcessor):
+class Array(Reference):
     '''
     Node representing an Array reference. As such it has a reference and a
     subscript list as children 0 and 1, respectively.
@@ -4253,24 +4286,10 @@ class Array(Reference, fparser2ASTProcessor):
     :raises InternalError: if the fparser2 AST does not have the expected \
                            structure.
     '''
-    def __init__(self, ast, parent=None):
-        from fparser.two import Fortran2003
-        Node.__init__(self, parent=parent)
+    def __init__(self, reference_name, parent=None):
+        super(Array, self).__init__(reference_name, parent=parent)
 
-        if len(ast.items) != 2:
-            raise InternalError("Failed to find 2 childrens, the reference"
-                    "and the array subscript in the array: {0}".format(ast))
         
-        self._reference = ast.items[0].string
-
-        if not(isinstance(ast.items[1], Fortran2003.Section_Subscript_List)):
-            raise InternalError("Failed")
-        
-        subscript_list = ast.items[1].items
-
-        self.process_nodes(parent=self, nodes=subscript_list, \
-                nodes_parent=ast.items[1])
-
     @property
     def coloured_text(self):
         '''
@@ -4300,7 +4319,7 @@ class Array(Reference, fparser2ASTProcessor):
 
 
 
-class Literal(Node, fparser2ASTProcessor):
+class Literal(Node):
     '''
     Node representing a Literal
 
@@ -4311,10 +4330,9 @@ class Literal(Node, fparser2ASTProcessor):
     :raises InternalError: if the fparser2 AST does not have the expected \
                            structure.
     '''
-    def __init__(self, ast, parent=None):
-        Node.__init__(self, parent=parent)
-
-        self._value = ast.items[0]
+    def __init__(self, value, parent=None):
+        super(Literal, self).__init__(self, parent=parent)
+        self._value = value
 
     @property
     def coloured_text(self):
