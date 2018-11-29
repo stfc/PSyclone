@@ -946,15 +946,18 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                              to make sure that it conforms and an
                              error raised if not. The default is
                              False.
-    :rtype: ast,invoke_info
-    :raises IOError: if the filename or search path does not exist
-    :raises ParseError: if there is an error in the parsing
-    :raises RuntimeError: if there is an error in the parsing
+    :returns: 2-tuple consisting of the fparser1 AST of the Algorithm file \
+              and an object holding details of the invokes found.
+    :rtype: :py:class:`fparser.one.block_statements.BeginSource`, \
+            :py:class:`psyclone.parse.FileInfo`
+    :raises IOError: if the filename or search path does not exist.
+    :raises ParseError: if there is an error in the parsing.
+    :raises RuntimeError: if there is an error in the parsing.
 
     For example:
 
     >>> from parse import parse
-    >>> ast,info=parse("argspec.F90")
+    >>> ast, info = parse("argspec.F90")
 
     '''
     _config = Config.get()
@@ -974,6 +977,12 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         api = _config.default_api
     else:
         check_api(api)
+
+    if api == "nemo":
+        # For this API we just parse the NEMO code and return the resulting
+        # fparser2 AST with None for the Algorithm AST.
+        ast = parse_fp2(alg_filename)
+        return None, ast
 
     # Get the names of the supported Built-in operations for this API
     builtin_names, builtin_defs_file = get_builtin_defs(api)
@@ -1224,3 +1233,19 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             invokecalls[statement] = InvokeCall(statement_kcalls,
                                                 name=invoke_label)
     return ast, FileInfo(container_name, invokecalls)
+
+
+def parse_fp2(filename):
+    '''
+    Parse a Fortran source file using fparser2.
+
+    :param str filename: source file (including path) to read.
+    :returns: fparser2 AST for the source file.
+    :rtype: :py:class:`fparser.two.Fortran2003.Program`
+    '''
+    from fparser.common.readfortran import FortranFileReader
+
+    parser = ParserFactory().create()
+    reader = FortranFileReader(filename)
+    ast = parser(reader)
+    return ast

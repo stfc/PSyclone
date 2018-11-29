@@ -2046,11 +2046,10 @@ def test_find_w_args_hes_no_vec(monkeypatch):
     halo_exchange_d_v3 = schedule.children[5]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 1)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert ("Internal error, HaloExchange.check_vector_halos_differ() a "
-            "halo exchange depends on another halo exchange "
-            "but the vector size of field 'd' is 1" in str(excinfo.value))
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+            "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_diff_vec(monkeypatch):
@@ -2071,12 +2070,10 @@ def test_find_w_args_hes_diff_vec(monkeypatch):
     halo_exchange_d_v3 = schedule.children[5]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 2)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert (
-        "Internal error, HaloExchange.check_vector_halos_differ() a halo "
-        "exchange depends on another halo exchange but the vector sizes for "
-        "field 'd' differ" in str(excinfo.value))
+    assert ("DataAccess.overlaps(): vector sizes differ for field 'd' in two "
+            "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_idx(monkeypatch):
@@ -2098,12 +2095,11 @@ def test_find_w_args_hes_vec_idx(monkeypatch):
     field_d_v3 = halo_exchange_d_v3.field
     halo_exchange_d_v2 = schedule.children[4]
     monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
-    assert ("Internal error, HaloExchange.check_vector_halos_differ() "
-            "a halo exchange depends on another halo "
-            "exchange but both vector id's ('3') of field 'd' are the "
-            "same" in str(excinfo.value))
+    assert ("DataAccess:update_coverage() The halo exchange vector indices "
+            "for 'd' are the same. This should never happen"
+            in str(excinfo.value))
 
 
 def test_find_w_args_hes_vec_no_dep():
@@ -2262,6 +2258,34 @@ def test_find_w_args_multiple_deps():
     # each of the indices are unique (otherwise the set would be
     # smaller)
     assert len(indices) == vector_size
+
+
+def test_loop_props():
+    ''' Tests for the properties of a Loop object. '''
+    from psyclone.psyGen import Loop
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    loop = sched.children[0].children[0]
+    assert isinstance(loop, Loop)
+    with pytest.raises(GenerationError) as err:
+        loop.loop_type = "not_a_valid_type"
+    assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
+            "['inner', 'outer']" in str(err))
+
+
+def test_node_abstract_methods():
+    ''' Tests that the abstract methods of the Node class raise appropriate
+    errors. '''
+    from psyclone.psyGen import Node
+    _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
+    sched = invoke.schedule
+    loop = sched.children[0].children[0]
+    with pytest.raises(NotImplementedError) as err:
+        Node.gen_code(loop)
+    assert ("Please implement me" in str(err))
+    with pytest.raises(NotImplementedError) as err:
+        Node.view(loop)
+    assert ("BaseClass of a Node must implement the view method" in str(err))
 
 
 def test_kern_ast():

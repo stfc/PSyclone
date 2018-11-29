@@ -72,9 +72,17 @@
         were not being removed (following a redundant computation
         transformation).
 
-        22) #198 and PR #223. Updates PSyclone to use the latest
-	version of dl_esm_inf which has "GO_" prefixed to all public
-	quantities. Adds dl_esm_inf as a git submodule.
+	22) #27 and PR #209. Created initial NEMO api. Needs lots of work
+	but it provides a starting point.
+
+        23) #214 and PR #221. Adds a transformation to convert a
+        synchronous halo exchange into an asynchronous halo exchange.
+
+	24) #235 and PR #243. Removes dependency on Habakkuk in NEMO API.
+
+        25) #198 and PR #223. Updates PSyclone to use the latest
+        version of dl_esm_inf which has "GO_" prefixed to all public
+        quantities. Adds dl_esm_inf as a git submodule.
 
 release 1.6.0 18th May 2018
 
