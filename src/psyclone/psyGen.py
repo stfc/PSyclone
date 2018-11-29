@@ -4005,10 +4005,16 @@ class fparser2ASTProcessor(object):
         self.handlers = {
             Fortran2003.Assignment_Stmt : self._assignment_handler,
             Fortran2003.Name : self._name_handler,
-            utils.BinaryOpBase: self._binaryOp_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
             Fortran2003.Part_Ref: self._part_ref_handler,
-            utils.NumberBase: self._number_handler
+            Fortran2003.If_Stmt: self._if_stmt_handler,
+            utils.NumberBase: self._number_handler,
+            utils.BinaryOpBase: self._binaryOp_handler,
+            # TODO: To cover all nemolite2D kernels we need:
+            # Fortran2003.If_Construct: self._if_construct_handler,
+            # Fortran2003.Return_Stmt: self._return_handler,
+            # Fortran2003.UnaryOpBase: self._unaryOp_handler,
+            # ... (some already partially implemented in nemo.py)
         }
 
         handler = self._get_handler(child)
@@ -4018,13 +4024,17 @@ class fparser2ASTProcessor(object):
     def _get_handler(self, node):
         handler = self.handlers.get(type(node))
         if handler == None:
-            print(type(node).__bases__[0])
             handler = self.handlers.get(type(node).__bases__[0])
             if handler == None:
                 handler = lambda x,y : None
         return handler
 
 
+    def _if_stmt_handler(self,node,parent):
+        ifblock = IfBlock()
+        self.process_nodes(parent=ifblock, nodes=[node.items[0]], nodes_parent=node)
+        self.process_nodes(parent=ifblock, nodes=[node.items[1]], nodes_parent=node)
+        return ifblock
 
     def _assignment_handler(self, node, parent):
 
