@@ -3978,8 +3978,20 @@ class ACCKernelsDirective(ACCDirective):
         # Check that we haven't already been called
         if self._ast:
             return
-        parent = self._parent._ast
+
+        parent_ast = self.parent._ast
+
+        ast_start_index = parent_ast.content.index(self.children[0]._ast)
+        ast_end_index = parent_ast.content.index(self.children[-1]._ast)
+
+        text = ("!$ACC END KERNELS")
+        directive = Comment(FortranStringReader(text,
+                                                ignore_comments=False))
+        parent_ast.content.insert(ast_end_index+1, directive)
+
         text = ("!$ACC KERNELS")
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
-        parent.content.insert(0,directive)
+        parent_ast.content.insert(ast_start_index, directive)
+
+        self._ast = directive
