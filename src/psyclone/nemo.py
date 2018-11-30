@@ -356,6 +356,7 @@ class NemoCodeBlock(Node):
         # the list itself is a temporary product of the process of converting
         # from the fparser2 AST to the PSyIRe.
         self._statements = statements[:]
+        self._ast = self._statements[0]
 
     @property
     def coloured_text(self):

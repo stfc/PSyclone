@@ -56,10 +56,10 @@ if __name__ == "__main__":
     API = "nemo"
     _, INVOKEINFO = parse("tra_adv.F90", api=API)
     PSY = PSyFactory(API).create(INVOKEINFO)
-    #print(PSY.gen)
+    print(PSY.gen)
 
-    #print("Invokes found:")
-    #print(PSY.invokes.names)
+    print("Invokes found:")
+    print(PSY.invokes.names)
 
     SCHED = PSY.invokes.get('tra_adv').schedule
     SCHED.view()
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     ACC_TRANS = TRANS_INFO.get_trans_name('ACCKernelsTrans')
 
-    SCHED, _ = ACC_TRANS.apply(SCHED.children[1:-1])
+    SCHED, _ = ACC_TRANS.apply(SCHED.children)
 
     SCHED.view()
 
