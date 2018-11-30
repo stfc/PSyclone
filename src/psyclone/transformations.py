@@ -2515,7 +2515,7 @@ class ACCKernelsTrans(Transformation):
         '''
         return "ACCKernelsTrans"
 
-    def apply(self, schedule):
+    def apply(self, node_list):
         '''
         Add an 
         '!$acc kernels' OpenACC directive to the start of a NEMO api schedule
@@ -2536,18 +2536,24 @@ class ACCKernelsTrans(Transformation):
 
         # Keep a record of this transformation
         from psyclone.undoredo import Memento
-        keep = Memento(schedule, self)
+        keep = Memento(node_list[:], self)
 
-        # Create the directive and insert it
+        parent = node_list[0].parent
+        schedule = node_list[0].root
+
+        # Create the directive and insert it. Take a copy of the list
+        # as it may just be a reference to the parent.children list
+        # that we are about to modify.
         from psyclone.psyGen import ACCKernelsDirective
-        directive = ACCKernelsDirective(parent=schedule,
-                                           children=[])
-        #from psyclone.psyGen import OMPParallelDoDirective
-        #directive = OMPParallelDoDirective(parent=schedule,
-        #                                   children=[])
+        directive = ACCKernelsDirective(parent=parent,
+                                           children=node_list[:])
+        start_index = parent.children.index(node_list[0])
 
-        # add the OpenMP loop directive as a child of the node's parent
-        schedule.addchild(directive, index=0)
+        for child in directive.children:
+            parent.children.remove(child)
+            child.parent = directive
+
+        parent.children.insert(start_index,directive)
 
         # Return the now modified kernel
         return schedule, keep

@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     ACC_TRANS = TRANS_INFO.get_trans_name('ACCKernelsTrans')
 
-    SCHED, _ = ACC_TRANS.apply(SCHED)
+    SCHED, _ = ACC_TRANS.apply(SCHED.children)
 
     SCHED.view()
 

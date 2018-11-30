@@ -3936,6 +3936,8 @@ class ACCKernelsDirective(ACCDirective):
         '''
         print(self.indent(indent) + self.coloured_text +
               "[ACC kernels]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
         from psyclone.f2pygen import DirectiveGen
