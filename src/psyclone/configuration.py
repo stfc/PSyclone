@@ -144,6 +144,9 @@ class Config(object):
         # reproducible reductions are created.
         self._reprod_pad_size = None
 
+        # The list of directories to search for Fortran include files
+        self._include_paths = []
+
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
         '''Loads a configuration file.
@@ -458,6 +461,36 @@ class Config(object):
         :rtype: str
         '''
         return self._config_file
+
+    @property
+    def include_paths(self):
+        '''
+        :returns: the list of paths to search for Fortran include files.
+        :rtype: list of str.
+        '''
+        return self._include_paths
+
+    @include_paths.setter
+    def include_paths(self, path_list):
+        '''
+        Sets the list of paths to search for Fortran include files.
+
+        :param path_list: list of directories to search.
+        :type path_list: list of str.
+
+        :raises ValueError: if `path_list` is not a list.
+        :raises ConfigurationError: if any of the paths in the list do \
+                                    not exist.
+        '''
+        self._include_paths = []
+        if not isinstance(path_list, list):
+            raise ValueError("include_paths must be a list but got: {0}".
+                             format(type(value)))
+        for path in path_list:
+            if not os.path.exists(path):
+                raise ConfigurationError("Include path '{0}' does not exist".
+                                         format(path))
+            self._include_paths.append(path)
 
     def get_default_keys(self):
         '''Returns all keys from the default section.

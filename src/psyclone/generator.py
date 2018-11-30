@@ -249,6 +249,9 @@ def main(args):
         '-d', '--directory', default="", help='path to root of directory '
         'structure containing kernel source code')
     parser.add_argument(
+        '-I', '--include', default=["./"], action="append",
+        help='path to Fortran INCLUDE files')
+    parser.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
         help='limit the fortran line length to 132 characters')
     parser.add_argument(
@@ -315,6 +318,10 @@ def main(args):
         # as API in the config object as well.
         api = args.api
         Config.get().api = api
+
+    # Store the search path(s) for include files
+    if args.include:
+        Config.get().include_paths = args.include
 
     try:
         alg, psy = generate(args.filename, api=api,
