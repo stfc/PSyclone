@@ -769,11 +769,12 @@ class ACCLoopTrans(ParallelLoopTrans):
                                      being used.
         '''
         from psyclone.gocean1p0 import GOSchedule
+        from psyclone.nemo import NemoSchedule
         sched = node.root
-        if not isinstance(sched, GOSchedule):
+        if not isinstance(sched, (GOSchedule, NemoSchedule)):
             raise NotImplementedError(
                 "OpenACC loop transformations are currently only supported "
-                "for the gocean 1.0 API")
+                "for the gocean 1.0 and nemo API's")
         super(ACCLoopTrans, self)._validate(node, collapse)
 
     def apply(self, node, collapse=None, independent=True):

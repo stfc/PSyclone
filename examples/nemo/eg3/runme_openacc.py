@@ -51,6 +51,7 @@ Fortran.
 from __future__ import print_function
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.nemo import NemoKern, NemoLoop
 
 if __name__ == "__main__":
     API = "nemo"
@@ -70,6 +71,27 @@ if __name__ == "__main__":
     ACC_TRANS = TRANS_INFO.get_trans_name('ACCKernelsTrans')
 
     SCHED, _ = ACC_TRANS.apply(SCHED.children)
+
+    SCHED.view()
+
+    ACC_TRANS = TRANS_INFO.get_trans_name('ACCLoopTrans')
+
+    # Add loop directives over latitude and collapse when they are
+    # doubly nested with longitude inner. Default to independent. We
+    # need to extend our dependence analysis to perform checks.
+    count = 0
+    for loop in SCHED.loops():
+        kernels = loop.walk(loop.children, NemoKern)
+        if kernels and loop.loop_type == "lat":
+            count += 1
+            if count == 14:
+                # puts ACC declation in the wrong place as the loop structures are the same.
+                continue
+            child = loop.children[0]
+            if isinstance(child, NemoLoop) and child.loop_type == "lon":
+                SCHED, _ = ACC_TRANS.apply(loop, collapse=2)
+            else:
+                SCHED, _ = ACC_TRANS.apply(loop)
 
     SCHED.view()
 

@@ -1759,6 +1759,28 @@ class ACCLoopDirective(ACCDirective):
         for child in self.children:
             child.gen_code(parent)
 
+    def update(self):
+
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+
+        text = "!$ACC LOOP"
+        if self._independent:
+            text += ", INDEPENDENT"
+        if self._collapse:
+            text += ", COLLAPSE({0})".format(self._collapse)
+        directive = Comment(FortranStringReader(text,
+                                                ignore_comments=False))
+        parent = self._parent
+        while parent:
+            if hasattr(parent._ast, "content"):
+                break
+            parent = parent._parent
+        parent_ast = parent._ast
+        index = parent_ast.content.index(self.children[0]._ast)
+        parent_ast.content.insert(index, directive)
+
+        Node.update(self)
 
 class OMPDirective(Directive):
     '''
@@ -1955,6 +1977,7 @@ class OMPParallelDirective(OMPDirective):
         from fparser.two.Fortran2003 import Comment
         # Check that we haven't already been called
         if self._ast:
+            Node.update(self)
             return
         # Find the locations in which we must insert the begin/end
         # directives...
@@ -1982,6 +2005,8 @@ class OMPParallelDirective(OMPDirective):
         # to correct end_idx)
         self._ast = startdir
         self._parent._ast.content.insert(start_idx, self._ast)
+
+        Node.update(self)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2162,6 +2187,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         from fparser.two.Fortran2003 import Comment
         # Check that we haven't already been called
         if self._ast:
+            Node.update(self)
             return
         # Since this is an OpenMP (parallel) do, it can only be applied
         # to a single loop.
@@ -2209,6 +2235,9 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # to correct the location)
         self._ast = startdir
         parent.content.insert(start_idx, self._ast)
+
+        Node.update(self)
+
 
 
 class GlobalSum(Node):
@@ -3977,6 +4006,7 @@ class ACCKernelsDirective(ACCDirective):
         from fparser.two.Fortran2003 import Comment
         # Check that we haven't already been called
         if self._ast:
+            Node.update(self)
             return
 
         parent_ast = self.parent._ast
@@ -3995,3 +4025,5 @@ class ACCKernelsDirective(ACCDirective):
         parent_ast.content.insert(ast_start_index, directive)
 
         self._ast = directive
+
+        Node.update(self)
