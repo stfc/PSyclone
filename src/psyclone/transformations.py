@@ -1592,11 +1592,12 @@ class ACCParallelTrans(ParallelRegionTrans):
                                      being used.
         '''
         from psyclone.gocean1p0 import GOSchedule
+        from psyclone.nemo import NemoSchedule
         sched = node_list[0].root
-        if not isinstance(sched, GOSchedule):
+        if not isinstance(sched, (GOSchedule, NemoSchedule)):
             raise NotImplementedError(
                 "OpenACC parallel regions are currently only "
-                "supported for the gocean 1.0 API")
+                "supported for the gocean 1.0 and nemo APIs")
         super(ACCParallelTrans, self)._validate(node_list)
 
 

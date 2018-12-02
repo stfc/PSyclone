@@ -79,7 +79,7 @@ if __name__ == "__main__":
     # Add loop directives over latitude and collapse when they are
     # doubly nested with longitude inner. Default to independent. We
     # need to extend our dependence analysis to perform checks.
-    count = 0
+    count = 0 
     for loop in SCHED.loops():
         kernels = loop.walk(loop.children, NemoKern)
         if kernels and loop.loop_type == "lat":
@@ -92,6 +92,15 @@ if __name__ == "__main__":
                 SCHED, _ = ACC_TRANS.apply(loop, collapse=2)
             else:
                 SCHED, _ = ACC_TRANS.apply(loop)
+
+    SCHED.view()
+
+    ACC_TRANS = TRANS_INFO.get_trans_name('ACCParallelTrans')
+
+    for loop in SCHED.loops():
+        kernels = loop.walk(loop.children, NemoKern)
+        if kernels and loop.loop_type == "levels":
+            SCHED, _ = ACC_TRANS.apply(loop)
 
     SCHED.view()
 

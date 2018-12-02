@@ -1679,6 +1679,38 @@ class ACCParallelDirective(ACCDirective):
                     scalars.append(arg)
         return scalars
 
+    def update(self):
+
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        # Check that we haven't already been called
+        if self._ast:
+            Node.update(self)
+            return
+
+        parent = self._parent
+        while parent:
+            if hasattr(parent._ast, "content"):
+                break
+            parent = parent._parent
+        parent_ast = parent._ast
+
+        ast_start_index = parent_ast.content.index(self.children[0]._ast)
+        ast_end_index = parent_ast.content.index(self.children[-1]._ast)
+
+        text = ("!$ACC END PARALLEL")
+        directive = Comment(FortranStringReader(text,
+                                                ignore_comments=False))
+        parent_ast.content.insert(ast_end_index+1, directive)
+
+        text = ("!$ACC PARALLEL")
+        directive = Comment(FortranStringReader(text,
+                                                ignore_comments=False))
+        parent_ast.content.insert(ast_start_index, directive)
+
+        self._ast = directive
+
+        Node.update(self)
 
 class ACCLoopDirective(ACCDirective):
     '''
@@ -3938,7 +3970,7 @@ class IfClause(IfBlock):
         '''
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
-# was OMPParallelDoDirective
+
 class ACCKernelsDirective(ACCDirective):
     ''' Class for the !$OMP PARALLEL DO directive. This inherits from
         both OMPParallelDirective (because it creates a new OpenMP
@@ -3964,7 +3996,7 @@ class ACCKernelsDirective(ACCDirective):
         :type indent: integer
         '''
         print(self.indent(indent) + self.coloured_text +
-              "[ACC kernels]")
+              "[ACC Kernels]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
