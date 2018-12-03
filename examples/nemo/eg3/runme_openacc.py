@@ -54,56 +54,62 @@ from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 from psyclone.nemo import NemoKern, NemoLoop
 
-def trans(PSY):
-    
+
+def trans(psy):
+    '''A PSyclone-script compliant function. Demonstrates the application
+    of the Kernels, Parallel and Loop OpenACC directives to the
+    'tra_adv' code.
+
+    '''
     print("Invokes found:")
-    print(PSY.invokes.names)
+    print(psy.invokes.names)
 
-    SCHED = PSY.invokes.get('tra_adv').schedule
-    SCHED.view()
+    sched = psy.invokes.get('tra_adv').schedule
+    sched.view()
 
-    TRANS_INFO = TransInfo()
-    print(TRANS_INFO.list)
+    trans_info = TransInfo()
+    print(trans_info.list)
 
-    ACC_TRANS = TRANS_INFO.get_trans_name('ACCKernelsTrans')
+    acc_trans = trans_info.get_trans_name('ACCKernelsTrans')
 
-    SCHED, _ = ACC_TRANS.apply(SCHED.children)
+    sched, _ = acc_trans.apply(sched.children)
 
-    SCHED.view()
+    sched.view()
 
-    ACC_TRANS = TRANS_INFO.get_trans_name('ACCLoopTrans')
+    acc_trans = trans_info.get_trans_name('ACCLoopTrans')
 
     # Add loop directives over latitude and collapse when they are
     # doubly nested with longitude inner. Default to independent. We
     # need to extend our dependence analysis to perform checks.
-    COUNT = 0
-    for loop in SCHED.loops():
+    count = 0
+    for loop in sched.loops():
         kernels = loop.walk(loop.children, NemoKern)
         if kernels and loop.loop_type == "lat":
-            COUNT += 1
-            if COUNT == 14:
+            count += 1
+            if count == 14:
                 # BUG: puts ACC declaration in the wrong place as the
                 # loop structures are the same.
                 continue
             child = loop.children[0]
             if isinstance(child, NemoLoop) and child.loop_type == "lon":
-                SCHED, _ = ACC_TRANS.apply(loop, collapse=2)
+                sched, _ = acc_trans.apply(loop, collapse=2)
             else:
-                SCHED, _ = ACC_TRANS.apply(loop)
+                sched, _ = acc_trans.apply(loop)
 
-    SCHED.view()
+    sched.view()
 
-    ACC_TRANS = TRANS_INFO.get_trans_name('ACCParallelTrans')
+    acc_trans = trans_info.get_trans_name('ACCParallelTrans')
 
-    for loop in SCHED.loops():
+    for loop in sched.loops():
         kernels = loop.walk(loop.children, NemoKern)
         if kernels and loop.loop_type == "levels":
-            SCHED, _ = ACC_TRANS.apply(loop)
+            sched, _ = acc_trans.apply(loop)
 
-    SCHED.view()
+    sched.view()
 
-    PSY.invokes.get('tra_adv').schedule = SCHED
-    print(PSY.gen)
+    psy.invokes.get('tra_adv').schedule = sched
+    print(psy.gen)
+
 
 if __name__ == "__main__":
     API = "nemo"
@@ -111,4 +117,3 @@ if __name__ == "__main__":
     PSY = PSyFactory(API).create(INVOKEINFO)
     print(PSY.gen)
     trans(PSY)
-
