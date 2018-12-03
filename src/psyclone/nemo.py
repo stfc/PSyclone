@@ -355,6 +355,8 @@ class NemoCodeBlock(Node):
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
         # from the fparser2 AST to the PSyIRe.
+        if not statements:
+            raise GenerationError("NemoCodeBlock must have content.")
         self._statements = statements[:]
         self._ast = self._statements[0]
 
@@ -942,7 +944,3 @@ class NemoIfClause(IfClause, ASTProcessor):
         # If we get here it's an error as the NEMO API does not generate
         # code (we manipulate existing code instead).
         raise InternalError("This method should not have been called!")
-
-class NemoACCKernelsDirective(Node):
-    def __init__(self, schedule, parent=None):
-        super(NemoACCKernelsDirective, self).__init__(parent=parent)

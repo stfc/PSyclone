@@ -1443,6 +1443,37 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
+    def add_region(self, start_text, end_text=None):
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        # Check that we haven't already been called
+        if self._ast:
+            Node.update(self)
+            return
+
+        parent = self._parent
+        while parent:
+            if hasattr(parent._ast, "content"):
+                break
+            parent = parent._parent
+        parent_ast = parent._ast
+
+        ast_start_index = parent_ast.content.index(self.children[0]._ast)
+
+        if end_text:
+            ast_end_index = parent_ast.content.index(self.children[-1]._ast)
+            directive = Comment(FortranStringReader(end_text,
+                                                    ignore_comments=False))
+            parent_ast.content.insert(ast_end_index+1, directive)
+
+        directive = Comment(FortranStringReader(start_text,
+                                                ignore_comments=False))
+        parent_ast.content.insert(ast_start_index, directive)
+
+        self._ast = directive
+
+        Node.update(self)
+
 
 @six.add_metaclass(abc.ABCMeta)
 class ACCDataDirective(ACCDirective):
@@ -1681,36 +1712,10 @@ class ACCParallelDirective(ACCDirective):
 
     def update(self):
 
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-        # Check that we haven't already been called
-        if self._ast:
-            Node.update(self)
-            return
+        start_text = "!$ACC PARALLEL"
+        end_text = "!$ACC END PARALLEL"
+        self.add_region(start_text, end_text)
 
-        parent = self._parent
-        while parent:
-            if hasattr(parent._ast, "content"):
-                break
-            parent = parent._parent
-        parent_ast = parent._ast
-
-        ast_start_index = parent_ast.content.index(self.children[0]._ast)
-        ast_end_index = parent_ast.content.index(self.children[-1]._ast)
-
-        text = ("!$ACC END PARALLEL")
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        parent_ast.content.insert(ast_end_index+1, directive)
-
-        text = ("!$ACC PARALLEL")
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        parent_ast.content.insert(ast_start_index, directive)
-
-        self._ast = directive
-
-        Node.update(self)
 
 class ACCLoopDirective(ACCDirective):
     '''
@@ -1801,18 +1806,8 @@ class ACCLoopDirective(ACCDirective):
             text += ", INDEPENDENT"
         if self._collapse:
             text += ", COLLAPSE({0})".format(self._collapse)
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        parent = self._parent
-        while parent:
-            if hasattr(parent._ast, "content"):
-                break
-            parent = parent._parent
-        parent_ast = parent._ast
-        index = parent_ast.content.index(self.children[0]._ast)
-        parent_ast.content.insert(index, directive)
+        self.add_region(text)
 
-        Node.update(self)
 
 class OMPDirective(Directive):
     '''

@@ -232,10 +232,21 @@ def test_codeblock():
     assert loops[-1].kernel is None
 
 
+def test_codeblock_empty_error():
+    '''Check that calling NemoCodeBlock with empty content results in a
+    generation error.
+
+    '''
+    for content in ["", None]:
+        with pytest.raises(GenerationError) as err:
+            cblock = nemo.NemoCodeBlock(content)
+        assert "NemoCodeBlock must have content." in str(err)
+
+
 def test_codeblock_gencode_error():
     ''' Check that calling NemoCodeBlock.gen_code() results in an internal
     error. '''
-    cblock = nemo.NemoCodeBlock([])
+    cblock = nemo.NemoCodeBlock(["DUMMY"])
     with pytest.raises(InternalError) as err:
         cblock.gen_code()
     assert "NemoCodeBlock.gen_code() should not be called" in str(err)
