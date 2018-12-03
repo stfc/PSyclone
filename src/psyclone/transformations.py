@@ -2520,21 +2520,19 @@ class NemoExplicitLoopTrans(Transformation):
 
     def apply(self, loop):
         '''
-
+        :param loop: the NemoImplicitLoop to transform.
+        :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`
         :raises NotImplementedError: if the array slice has explicit bounds.
-        :raises GenerationError: if an array slice is not in dimensions 1-3 \
-                                 of the array.
+        :raises TransformationError: if an array slice is not in dimensions \
+                                     1-3 of the array.
         '''
         from fparser.two import Fortran2003
         from fparser.two.utils import walk_ast
 
         self.validate(loop)
 
-        # Get a reference to the name-space manager
-        name_space_manager = NameSpaceFactory().create()
-
         # Find all uses of array syntax in the statement
-        subsections = walk_ast(self._ast.items,
+        subsections = walk_ast(loop._ast.items,
                                [Fortran2003.Section_Subscript_List])
         # Create a list identifying which dimensions contain a range
         sliced_dimensions = []
@@ -2551,7 +2549,7 @@ class NemoExplicitLoopTrans(Transformation):
                 if [part for part in item.items if part]:
                     raise NotImplementedError(
                         "Support for implicit loops with specified bounds is "
-                        "not yet implemented: '{0}'".format(str(self._ast)))
+                        "not yet implemented: '{0}'".format(str(loop._ast)))
                 # If an array index is a Subscript_Triplet then it is a range
                 # and thus we need to create an explicit loop for this
                 # dimension.
@@ -2560,17 +2558,21 @@ class NemoExplicitLoopTrans(Transformation):
                 sliced_dimensions.append(idx)
 
         if outermost_dim < 0 or outermost_dim > 2:
-            raise GenerationError(
+            raise TransformationError(
                 "Array section in unsupported dimension ({0}) for code "
-                "'{1}'".format(outermost_dim+1, str(self._ast)))
+                "'{1}'".format(outermost_dim+1, str(loop._ast)))
 
+        # Create a new, explicit loop
+        # TODO need to add a load() method to NemoExplicitLoop
+        new_loop = NemoExplicitLoop()
+        
         self._step = 1
         # TODO ensure no name clash is possible with variables that
         # already exist in the NEMO source.
         self.loop_type = NEMO_INDEX_ORDERING[outermost_dim]
-        self._start = VALID_LOOP_TYPES[self.loop_type]["start"]
-        self._stop = VALID_LOOP_TYPES[self.loop_type]["stop"]
-        var_name = "psy_" + VALID_LOOP_TYPES[self.loop_type]["var"]
+        self._start = VALID_LOOP_TYPES[loop.loop_type]["start"]
+        self._stop = VALID_LOOP_TYPES[loop.loop_type]["stop"]
+        var_name = "psy_" + VALID_LOOP_TYPES[loop.loop_type]["var"]
         self._variable_name = name_space_manager.create_name(
             root_name=var_name, context="PSyVars", label=var_name)
 
@@ -2586,13 +2588,13 @@ class NemoExplicitLoopTrans(Transformation):
         # Get a reference to the Invoke to which this loop belongs
         # TODO this breaks some tests because it assumes we're in a full
         # PSyIRe tree with an Invoke at its root.
-        invoke = self.root.invoke
+        invoke = loop.root.invoke
 
-        name = Fortran2003.Name(FortranStringReader(self._variable_name))
-        if self._variable_name not in invoke._loop_vars:
-            invoke._loop_vars.append(self._variable_name)
+        name = Fortran2003.Name(FortranStringReader(loop._variable_name))
+        if loop._variable_name not in invoke._loop_vars:
+            invoke._loop_vars.append(loop._variable_name)
 
-            prog_unit = self.root.invoke._ast
+            prog_unit = loop.root.invoke._ast
             spec_list = walk_ast(prog_unit.content,
                                  [Fortran2003.Specification_Part])
             if not spec_list:
@@ -2600,7 +2602,7 @@ class NemoExplicitLoopTrans(Transformation):
                 # in to the AST
                 spec = Fortran2003.Specification_Part(
                     FortranStringReader(
-                        "integer :: {0}".format(self._variable_name)))
+                        "integer :: {0}".format(loop._variable_name)))
                 spec._parent = prog_unit
                 for idx, child in enumerate(prog_unit.content):
                     if isinstance(child, Fortran2003.Execution_Part):
@@ -2610,7 +2612,7 @@ class NemoExplicitLoopTrans(Transformation):
                 spec = spec_list[0]
                 decln = Fortran2003.Type_Declaration_Stmt(
                     FortranStringReader(
-                        "integer :: {0}".format(self._variable_name)))
+                        "integer :: {0}".format(loop._variable_name)))
                 spec.content.append(decln)
 
         for subsec in subsections:
@@ -2634,32 +2636,32 @@ class NemoExplicitLoopTrans(Transformation):
         # Create an explicit loop
         text = ("do {0}=1,{1},{2}\n"
                 "  replace = me\n"
-                "end do\n".format(self._variable_name, self._stop, self._step))
+                "end do\n".format(loop._variable_name, loop._stop, loop._step))
         loop = Fortran2003.Block_Nonlabel_Do_Construct(
             FortranStringReader(text))
-        parent_index = self._ast._parent.content.index(self._ast)
+        parent_index = loop._ast._parent.content.index(loop._ast)
         # Insert it in the fparser2 AST at the location of the implicit
         # loop
-        self._ast._parent.content.insert(parent_index, loop)
+        loop._ast._parent.content.insert(parent_index, loop)
         # Replace the content of the loop with the (modified) implicit
         # loop
-        loop.content[1] = self._ast
+        loop.content[1] = loop._ast
         # Remove the implicit loop from its original parent in the AST
-        self._ast._parent.content.remove(self._ast)
+        loop._ast._parent.content.remove(loop._ast)
         # Update the parent of the AST
-        self._ast._parent = loop
-        # Update our own pointer into the AST to now point to the explicit
+        loop._ast._parent = loop
+        # Update the loop pointer into the AST to now point to the explicit
         # loop we've just created
-        self._ast = loop
+        loop._ast = loop
 
         if not NemoImplicitLoop.match(self._ast):
             # We still have an implicit loop so recurse
             # self.addchild(NemoImplicitLoop(ast, parent=self))
 
             # We must be left with a kernel
-            self.addchild(NemoKern(self._ast, parent=self))
+            loop.addchild(NemoKern(loop._ast, parent=loop))
 
-    def validate(loop):
+    def validate(self, loop):
         '''
         Check that the supplied loop is a valid target for this transformation.
 
@@ -2669,6 +2671,7 @@ class NemoExplicitLoopTrans(Transformation):
         :raises TransformationError: if the supplied loop is not a \
                                      NemoImplicitLoop.
         '''
+        from psyclone.nemo import NemoImplicitLoop
         if not isinstance(loop, NemoImplicitLoop):
             raise TransformationError(
                 "Cannot apply NemoExplicitLoopTrans to something that is "

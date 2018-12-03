@@ -38,6 +38,8 @@
 from __future__ import print_function, absolute_import
 import os
 from fparser.two.utils import walk_ast
+from fparser.two.parser import ParserFactory
+from fparser.two import Fortran2003
 from psyclone.parse import parse
 from psyclone import nemo
 
@@ -50,9 +52,14 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 def test_identify_implicit_loop():
     ''' Check that we correctly identify implicit loops in the fparser2 AST '''
-    from fparser.two import Fortran2003
-    _, ast = parse(os.path.join(BASE_PATH, "code_block.f90"),
-                   api=API, line_length=False)
+    parser = ParserFactory().create()
+    reader = FortranStringReader("program test_prog\n"
+                                 "umask(:, :, :, :) = 0.0D0\n"
+                                 "do jk = 1, jpk\n"
+                                 "  umask(1,1,jk) = -1.0d0\n"
+                                 "end do\n"
+                                 "end program test_prog\n")
+    ast = parser(reader)
     assert not nemo.NemoImplicitLoop.match(ast)
     stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
     assert not nemo.NemoImplicitLoop.match(stmts[1])

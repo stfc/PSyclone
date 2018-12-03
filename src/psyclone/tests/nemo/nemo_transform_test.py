@@ -39,9 +39,13 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
+from fparser.two import Fortran2003
+from fparser.common.readfortran import FortranStringReader
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo, InternalError, \
     GenerationError
+from psyclone.transformations import TransformationError
+from psyclone import nemo
 
 # Constants
 API = "nemo"
@@ -50,7 +54,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 
 
-def test_explicit_gen():
+def test_omp_explicit_gen():
     ''' Check code generation for a single explicit loop containing
     a kernel. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
@@ -70,6 +74,8 @@ def test_explicit_gen():
         "  integer :: ji, jj, jk\n"
         "  integer :: jpi, jpj, jpk\n"
         "  real, dimension(jpi, jpj, jpk) :: umask\n"
+        "\n"
+        "  ! test code with explicit nemo-style do loop\n"
         "  !$omp parallel do default(shared), private(jk,jj,ji), "
         "schedule(static)\n"
         "  do jk = 1, jpk\n"
@@ -80,6 +86,7 @@ def test_explicit_gen():
         "    end do\n"
         "  end do\n"
         "  !$omp end parallel do\n"
+        "\n"
         "end program explicit_do")
     assert expected in gen_code
     # Check that calling gen a second time gives the same code
@@ -226,14 +233,123 @@ def test_omp_do_within_if():
     gen = str(psy.gen)
     expected = (
         "    ELSE\n"
-        "      !$omp parallel do default(shared), private(psy_jj,psy_ji), "
+        "      !$omp parallel do default(shared), private(jj,ji), "
         "schedule(static)\n"
-        "      DO psy_jj = 1, jpj, 1\n"
-        "        DO psy_ji = 1, jpi, 1\n"
-        "          zdkt(psy_ji, psy_jj) = (ptb(psy_ji, psy_jj, jk - 1, jn) - "
-        "ptb(psy_ji, psy_jj, jk, jn)) * wmask(psy_ji, psy_jj, jk)\n"
+        "      DO jj = 1, jpj\n"
+        "        DO ji = 1, jpi\n"
+        "          zdkt(ji, jj) = (ptb(ji, jj, jk - 1, jn) - "
+        "ptb(ji, jj, jk, jn)) * wmask(ji, jj, jk)\n"
         "        END DO\n"
         "      END DO\n"
         "      !$omp end parallel do\n"
         "    END IF\n")
     assert expected in gen
+
+
+@pytest.mark.xfail(reason="Explicit loop transformation not implemented.")
+def test_implicit_loop_sched1():
+    ''' Check that we get the correct schedule for an implicit loop '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
+    assert isinstance(psy, nemo.NemoPSy)
+    sched = psy.invokes.invoke_list[0].schedule
+    assert isinstance(sched.children[0], nemo.NemoImplicitLoop)
+    sched.view()
+    new_sched, _ = exp_trans.apply(sched.children[0])
+    loops = sched.walk(sched.children, nemo.NemoLoop)
+    assert len(loops) == 3
+    kerns = sched.kern_calls()
+    assert len(kerns) == 1
+
+
+@pytest.mark.xfail(reason="Explicit loop transformation not implemented.")
+def test_implicit_loop_sched2():
+    ''' Check that we get the correct schedule for an explicit loop over
+    levels containing an implicit loop over the i-j slab '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "explicit_over_implicit.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
+    sched = psy.invokes.invoke_list[0].schedule
+    sched.view()
+    new_sched, _ = exp_trans.apply(sched.children[0])
+    # We should have 3 loops (one from the explicit loop over levels and
+    # the other two from the implicit loops over ji and jj).
+    loops = sched.walk(sched.children, nemo.NemoLoop)
+    assert len(loops) == 3
+    kerns = sched.kern_calls()
+    assert len(kerns) == 1
+
+
+@pytest.mark.xfail(reason="Test needs updating once transformation "
+                   "implemented")
+def test_unrecognised_implicit():
+    ''' Check that we raise the expected error if we encounter an
+    unrecognised form of implicit loop. '''
+    from psyclone.nemo import NemoImplicitLoop, NemoInvoke
+    from fparser.two.parser import ParserFactory
+    from fparser.two.utils import walk_ast
+    exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
+    # Array syntax used in an unsupported index location
+    parser = ParserFactory().create()
+    reader = FortranStringReader("program test_prog\n"
+                                 "real, dimension(3,3,3,3) :: umask\n"
+                                 "umask(:, :, :, :) = 0.0D0\n"
+                                 "end program test_prog\n")
+    prog = parser(reader)
+    psy = PSyFactory(API).create(prog)
+    sched = psy.invokes.invoke_list[0].schedule
+    with pytest.raises(TransformationError) as err:
+        exp_trans.apply(sched.children[0])
+    assert ("Array section in unsupported dimension (4) for code "
+            "'umask(:, :, :, :) = 0.0D0'" in str(err))
+    # and now for the case where the Program unit doesn't have a
+    # specification section to modify. This is hard to trigger
+    # so we manually construct some objects and put them together
+    # to create an artificial example...
+    reader = FortranStringReader("umask(:, :, :) = 0.0D0")
+    assign = Fortran2003.Assignment_Stmt(reader)
+    reader = FortranStringReader("program atest\nreal :: umask(1,1,1,1)\n"
+                                 "umask(:, :, :) = 0.0\nend program atest")
+    prog = Fortran2003.Program_Unit(reader)
+    invoke = NemoInvoke(prog, name="atest")
+    loop = NemoImplicitLoop.__new__(NemoImplicitLoop)
+    loop._parent = None
+    loop.invoke = invoke
+    loop.root.invoke._ast = prog
+    spec = walk_ast(prog.content, [Fortran2003.Specification_Part])
+    prog.content.remove(spec[0])
+    with pytest.raises(InternalError) as err:
+        loop.__init__(assign)
+    assert "No specification part found for routine atest" in str(err)
+
+
+@pytest.mark.xfail(reason="Error will be raised by new transformation")
+def test_implicit_range_err():
+    ''' Check that we raise the expected error if we encounter an implicit
+    loop with an explicit range (since we don't yet support that). '''
+    # Array syntax with an explicit range
+    reader = FortranStringReader("umask(1:jpi, 1, :) = 0.0D0")
+    assign = Fortran2003.Assignment_Stmt(reader)
+    with pytest.raises(NotImplementedError) as err:
+        nemo.NemoImplicitLoop(assign)
+    assert ("Support for implicit loops with specified bounds is not yet "
+            "implemented: 'umask(1 : jpi, 1, :) = 0.0D0'" in str(err))
+
+
+@pytest.mark.xfail(reason="Error will be raised by new transformation")
+def test_implicit_loop_different_rank():
+    ''' Test that we reject implicit loops if the index positions of the
+    colons differs. This is a restriction that could be lifted by
+    using e.g. SIZE(zvab, 1) as the upper loop limit or (with a lot more
+    work) by interrogating the parsed code to figure out the loop bound. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "array_section_index_mismatch.f90"),
+                           api=API, line_length=False)
+    with pytest.raises(NotImplementedError) as err:
+        _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
+        assert ("implicit loops are restricted to cases where all array "
+                "range specifications occur" in str(err))
