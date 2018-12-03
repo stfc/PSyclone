@@ -35,8 +35,9 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''A simple test script showing the introduction of the OpenACC
-kernels directive with PSyclone.  In order to use it you must first
-install PSyclone. See README.md in the top-level psyclone directory.
+kernels, loop and parallel directives with PSyclone.  In order to use
+it you must first install PSyclone. See README.md in the top-level
+psyclone directory.
 
 Once you have psyclone installed, this script may be run by doing (you may
 need to make it executable first with chmod u+x ./runme_openacc.py):
@@ -53,12 +54,8 @@ from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 from psyclone.nemo import NemoKern, NemoLoop
 
-if __name__ == "__main__":
-    API = "nemo"
-    _, INVOKEINFO = parse("tra_adv.F90", api=API)
-    PSY = PSyFactory(API).create(INVOKEINFO)
-    print(PSY.gen)
-
+def trans(PSY):
+    
     print("Invokes found:")
     print(PSY.invokes.names)
 
@@ -79,13 +76,14 @@ if __name__ == "__main__":
     # Add loop directives over latitude and collapse when they are
     # doubly nested with longitude inner. Default to independent. We
     # need to extend our dependence analysis to perform checks.
-    count = 0 
+    COUNT = 0
     for loop in SCHED.loops():
         kernels = loop.walk(loop.children, NemoKern)
         if kernels and loop.loop_type == "lat":
-            count += 1
-            if count == 14:
-                # puts ACC declation in the wrong place as the loop structures are the same.
+            COUNT += 1
+            if COUNT == 14:
+                # BUG: puts ACC declaration in the wrong place as the
+                # loop structures are the same.
                 continue
             child = loop.children[0]
             if isinstance(child, NemoLoop) and child.loop_type == "lon":
@@ -106,3 +104,11 @@ if __name__ == "__main__":
 
     PSY.invokes.get('tra_adv').schedule = SCHED
     print(PSY.gen)
+
+if __name__ == "__main__":
+    API = "nemo"
+    _, INVOKEINFO = parse("../code/tra_adv.F90", api=API)
+    PSY = PSyFactory(API).create(INVOKEINFO)
+    print(PSY.gen)
+    trans(PSY)
+

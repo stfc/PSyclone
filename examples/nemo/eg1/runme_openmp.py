@@ -53,7 +53,7 @@ from psyclone.psyGen import PSyFactory, TransInfo
 if __name__ == "__main__":
     from psyclone.nemo import NemoKern
     API = "nemo"
-    _, INVOKEINFO = parse("tra_adv.F90", api=API)
+    _, INVOKEINFO = parse("../code/tra_adv.F90", api=API)
     PSY = PSyFactory(API).create(INVOKEINFO)
     print(PSY.gen)
 

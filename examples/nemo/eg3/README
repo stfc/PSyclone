@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -32,50 +31,32 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Lab
 
-'''A simple test script showing the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
+This directory contains an example transformation script,
+runme_openacc.py, that demonstrates the use of PSyclone to add OpenACC
+Kernel, Parallel and Loop directives for the tra_adv.F90 code. Note,
+the transformations are indicitive of what could be done and do not
+produce correct parallel code.
 
-Once you have psyclone installed, this script may be run by doing (you may
-need to make it executable first with chmod u+x ./runme_openmp.py):
+Once you have installed PSyclone, this script may be run directly:
 
- >>> ./runme_openmp.py
+    $ ./runme_openacc.py
 
-This should generate a lot of output, ending with generated
-Fortran.
-'''
+or may be used as a PSyclone optimisation script:
 
-from __future__ import print_function
-from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, TransInfo
+    $ psyclone -api nemo -s ./runme_openacc.py ../code/tra_adv.F90
 
-if __name__ == "__main__":
-    from psyclone.nemo import NemoKern
-    API = "nemo"
-    _, INVOKEINFO = parse("../code/traldf_iso.F90", api=API)
-    PSY = PSyFactory(API).create(INVOKEINFO)
-    print(PSY.gen)
+In either case, the following will be output 1) the original code, 2)
+the PSyclone invokes found in the code, 3) PSyclone's Schedule view of
+the original code, 4) PSyclone's Schedule view of the code after
+adding OpenACC Kernels directives, 5) PSyclone's Schedule view of the
+code after adding OpenACC Kernels and Loop directives, 6) PSyclone's
+Schedule view of the code after adding OpenACC Kernels, Loop and
+Parallel directives, and 7) the transformed code with the OpenACC
+directives added.
 
-    print("Invokes found:")
-    print(PSY.invokes.names)
-
-    SCHED = PSY.invokes.get('tra_ldf_iso').schedule
-    SCHED.view()
-
-    TRANS_INFO = TransInfo()
-    print(TRANS_INFO.list)
-    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
-
-    for loop in SCHED.loops():
-        # TODO loop.kernel method needs extending to cope with
-        # multiple kernels
-        kernels = loop.walk(loop.children, NemoKern)
-        if kernels and loop.loop_type == "levels":
-            sched, _ = OMP_TRANS.apply(loop)
-
-    SCHED.view()
-
-    PSY.invokes.get('tra_ldf_iso').schedule = SCHED
-    print(PSY.gen)
+tra_adv.F90 is a stand-alone version of one of the tracer-advection
+routines from the NEMO ocean model. It was originally extracted by
+Silvia Mocavero of CMCC. The code can be found in the ../code
+directory.
