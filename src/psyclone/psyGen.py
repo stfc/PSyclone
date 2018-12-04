@@ -1443,7 +1443,7 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
-    def add_region(self, start_text, end_text=None):
+    def add_region(self, start_text, end_text=None, start_index=None):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
         # Check that we haven't already been called
@@ -1458,7 +1458,10 @@ class ACCDirective(Directive):
             parent = parent._parent
         parent_ast = parent._ast
 
-        ast_start_index = parent_ast.content.index(self.children[0]._ast)
+        if start_index is None:
+            ast_start_index = parent_ast.content.index(self.children[0]._ast)
+        else:
+            ast_start_index = start_index
 
         if end_text:
             ast_end_index = parent_ast.content.index(self.children[-1]._ast)

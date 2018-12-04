@@ -2374,9 +2374,12 @@ class ACCDataTrans(Transformation):
         # Check that the supplied node is a Schedule
         from psyclone.psyGen import Schedule
         from psyclone.gocean1p0 import GOSchedule
+        from psyclone.nemo import NemoSchedule
 
         if isinstance(sched, GOSchedule):
             from psyclone.gocean1p0 import GOACCDataDirective as AccDataDir
+        elif isinstance(sched, NemoSchedule):
+            from psyclone.nemo import NemoACCDataDirective as AccDataDir
         elif isinstance(sched, Schedule):
             raise NotImplementedError(
                 "ACCDataTrans: ACCDataDirective not implemented for a "

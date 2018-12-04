@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 import copy
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
-    NameSpaceFactory, SCHEDULE_COLOUR_MAP as _BASE_CMAP
+    NameSpaceFactory, SCHEDULE_COLOUR_MAP as _BASE_CMAP, ACCDataDirective
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 
@@ -944,3 +944,14 @@ class NemoIfClause(IfClause, ASTProcessor):
         # If we get here it's an error as the NEMO API does not generate
         # code (we manipulate existing code instead).
         raise InternalError("This method should not have been called!")
+
+class NemoACCDataDirective(ACCDataDirective):
+    ''' '''
+    def data_on_device(self, parent):
+        ''' '''
+        return
+
+    def update(self):
+        ''' '''
+        start_text = "!$ACC DATA"
+        self.add_region(start_text, start_index=0)

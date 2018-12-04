@@ -107,6 +107,12 @@ def trans(psy):
 
     sched.view()
 
+    acc_trans = trans_info.get_trans_name('ACCDataTrans')
+
+    sched, _ = acc_trans.apply(sched)
+
+    sched.view()
+
     psy.invokes.get('tra_adv').schedule = sched
     print(psy.gen)
 
