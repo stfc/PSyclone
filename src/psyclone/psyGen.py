@@ -4091,14 +4091,6 @@ class fparser2ASTProcessor(object):
 
         :rtype :py:class:`psyclone.psyGen.Assignment`
         '''
-        if len(node.items) != 3:
-            raise InternalError("Failed to find LHS and RHS children"\
-                    "in assignment statement: {0}".format(node))
-        
-        # The second fparser item is always the '=' operator
-        if node.items[1] != "=":
-            raise InternalError("Failed to find = operation"\
-                    "in assignment statement: {0}".format(node))
         
         assignment = Assignment()
         self.process_nodes(parent=assignment, nodes=[node.items[0]], nodes_parent=node)
@@ -4182,16 +4174,19 @@ class fparser2ASTProcessor(object):
         if len(node.items) != 2:
             raise InternalError("Failed to find 2 childrens, the reference"
                     "and the array subscript in the array: {0}".format(node))
-        
-        if not(isinstance(node.items[1], Fortran2003.Section_Subscript_List)):
-            raise InternalError("Failed")
 
         reference_name = node.items[0].string
-        subscript_list = node.items[1].items
-
         array = Array(reference_name, parent)
-        self.process_nodes(parent=array, nodes=subscript_list, \
+
+        if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
+            subscript_list = node.items[1].items
+
+            self.process_nodes(parent=array, nodes=subscript_list, \
                 nodes_parent=node.items[1])
+        else:
+            # When just 1 dimension fparser does not have a Subscript_List
+            self.process_nodes(parent=array, nodes=[node.items[1]], \
+                nodes_parent=node)
 
         return array
 

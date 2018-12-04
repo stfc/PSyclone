@@ -54,7 +54,9 @@ from psyclone_test_utils import get_invoke
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
-    Assignment, Reference, BinaryOperation, Array, Literal
+    Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
+    BinaryOperation
+from psyclone.psyGen import fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
@@ -66,9 +68,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
-
 # PSyFactory class unit tests
-
 
 def test_invalid_api():
     '''test that psyfactory raises appropriate error when an invalid api
@@ -2504,3 +2504,143 @@ def test_BinaryOperation_can_be_printed():
     assert  "BinaryOperation[operator:'+']\n" in binaryOp.__str__()
 
 # Test fparser2ASTProcessor
+
+def test_fparser2ASTProcessor_handling_assignments():
+    from fparser.two.parser import ParserFactory 
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader("x=1")
+    fparser2assignment = Execution_Part.match(reader)[0][0]
+    
+    fake_parent = Node()
+    processor = fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2assignment], None)
+    #Check a new node was generated a connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Assignment)
+    assert len(new_node.children) == 2
+
+def test_fparser2ASTProcessor_handling_Names():
+    from fparser.two.parser import ParserFactory 
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader("x=1")
+    fparser2name = Execution_Part.match(reader)[0][0].items[0]
+    
+    fake_parent = Node()
+    processor = fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2name], None)
+    #Check a new node was generated a connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Reference)
+    assert new_node._reference == "x"
+
+def test_fparser2ASTProcessor_handling_Parenthesis():
+    from fparser.two.parser import ParserFactory 
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader("x=(x+1)")
+    fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
+    
+    fake_parent = Node()
+    processor = fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2parenthesis], None)
+    #Check a new node was generated a connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    #Check parenthesis are ignored and process_nodes uses its child
+    assert isinstance(new_node, BinaryOperation)
+
+
+def test_fparser2ASTProcessor_handling_Part_Ref():
+    from fparser.two.parser import ParserFactory 
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader("x(i)=1")
+    fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
+    
+    fake_parent = Node()
+    processor = fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2part_ref], None)
+    #Check a new node was generated a connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Array)
+    assert new_node._reference == "x"
+    assert len(new_node.children) == 1 # Array dimensions
+
+    reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
+    fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
+    
+    fake_parent = Node()
+    processor = fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2part_ref], None)
+    #Check a new node was generated a connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Array)
+    assert new_node._reference == "x"
+    assert len(new_node.children) == 3 # Array dimensions
+
+
+def test_fparser2ASTProcessor_handling_If_Stmt():
+    from fparser.two.parser import ParserFactory 
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader("if(x==1)y=1")
+    fparser2if_stmt = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2if_stmt], None)
+    #Check a new node was generated a connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, IfBlock)
+    assert len(new_node.children) == 2
+
+
+def test_fparser2ASTProcessor_handling_NumberBase():
+    from fparser.two.parser import ParserFactory 
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader("x=1")
+    fparser2number = Execution_Part.match(reader)[0][0].items[2]
+    
+    fake_parent = Node()
+    processor = fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2number], None)
+    #Check a new node was generated a connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Literal)
+    assert new_node._value == "1"
+
+
+def test_fparser2ASTProcessor_handling_BinaryOpBase():
+    from fparser.two.parser import ParserFactory 
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader("x=1+4")
+    fparser2binaryOp = Execution_Part.match(reader)[0][0].items[2]
+    
+    fake_parent = Node()
+    processor = fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2binaryOp], None)
+    #Check a new node was generated a connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, BinaryOperation)
+    assert len(new_node.children) == 2
+    assert new_node._operator == '+'
+
+
