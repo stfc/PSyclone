@@ -75,7 +75,13 @@ class NemoASTProcessor(fparser2ASTProcessor):
     Specialization of fparser2ASTProcessor for Nemo API
     '''
 
-    def _match_child(self,child, parent=None):
+    def _create_child(self,child, parent=None):
+        # TODO: Call super initialization from here is not very nice
+        # but nemo API has to be updated to new fparser2ASTProcessor and for
+        # this first we need the base class to have handlers for Loops and
+        # IfBlocks implemented. 
+        super(NemoASTProcessor, self).__init__()
+
         if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
             return NemoLoop(child, parent=parent)
         elif NemoImplicitLoop.match(child):
@@ -83,7 +89,7 @@ class NemoASTProcessor(fparser2ASTProcessor):
         elif NemoIfBlock.match(child):
             return NemoIfBlock(child, parent=parent)
         else:
-            return super(NemoASTProcessor, self)._match_child(child)
+            return super(NemoASTProcessor, self)._create_child(child)
 
 
 

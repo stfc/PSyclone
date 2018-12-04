@@ -3915,11 +3915,47 @@ class IfClause(IfBlock):
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
 
+class IgnoredKeyError(Exception):
+    '''
+    ASTProcessor-specific exception for use when a AST node should be ignored
+
+    :param str value: the message associated with the error.
+    '''
+    def __init__(self, value="type not provided"):
+        Exception.__init__(self, value)
+        self.value = "ASTProcessor has no handler for: " + value
+
+    def __str__(self):
+        return repr(self.value)
+
+
 
 class fparser2ASTProcessor(object):
     '''
     Mixin class to provide functionality for processing the fparser2 AST.
     '''
+
+    def __init__(self):
+        from fparser.two import Fortran2003, utils
+        # Map of fparser2 node types to handlers(which are class methods)
+        self.handlers = {
+            Fortran2003.Assignment_Stmt : self._assignment_handler,
+            Fortran2003.Name : self._name_handler,
+            Fortran2003.Parenthesis: self._parenthesis_handler,
+            Fortran2003.Part_Ref: self._part_ref_handler,
+            Fortran2003.If_Stmt: self._if_stmt_handler,
+            utils.NumberBase: self._number_handler,
+            utils.BinaryOpBase: self._binaryOp_handler,
+            Fortran2003.End_Do_Stmt: self._ignore_handler,
+            Fortran2003.Nonlabel_Do_Stmt: self._ignore_handler,
+            Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
+            # TODO: To cover all nemolite2D kernels we need:
+            # Fortran2003.If_Construct: self._if_construct_handler,
+            # Fortran2003.Return_Stmt: self._return_handler,
+            # Fortran2003.UnaryOpBase: self._unaryOp_handler,
+            # ... (some already partially implemented in nemo.py)
+        }
+    
     @staticmethod
     def nodes_to_code_block(parent, statements):
         '''
@@ -3970,74 +4006,91 @@ class fparser2ASTProcessor(object):
             # information (fparser/#102)
             child._parent = nodes_parent  # Retro-fit parent info
 
-            psy_child = self._match_child(child, parent)
-
-            if psy_child != None:
-                # Finish ongoing code block
-                self.nodes_to_code_block(parent, code_block_nodes)
-                # Connect child to AST
-                parent.addchild(psy_child)
-            elif isinstance(child, (Fortran2003.End_Do_Stmt,
-                                    Fortran2003.Nonlabel_Do_Stmt,
-                                    Fortran2003.End_Subroutine_Stmt)):
-                # Don't include the do or end-do in a code block
+            try:
+                psy_child = self._create_child(child, parent)
+            except NotImplementedError:
+                # If child type implementation nor found add them on the
+                # ongoing code_block
+                code_block_nodes.append(child)
+            except IgnoredKeyError:
+                # If the key was recognized but no transformation to
+                # PSyIRe is provided, we can discard the current child
                 pass
             else:
-                code_block_nodes.append(child)
+                # If child is matched: first finish ongoing code block
+                self.nodes_to_code_block(parent, code_block_nodes)
+                # and then connect new PSyIRe child to AST
+                parent.addchild(psy_child)
 
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes)
 
 
-    def _match_child(self, child, parent=None):
+    def _create_child(self, child, parent=None):
         '''
-        Create the PSyclone IR of the supplied node in the
-        fparser2 AST.
+        Create a PSyIRe node representing the the supplied fparser 2 node.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base` or \
                      :py:class:`fparser.two.utils.BlockBase`
         :param parent: Parent node in the PSyclone IR we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+        :raises NotImplementedError: There isn't a handler for the provided \
+                child type.
+        :rtype :py:class:`psyclone.psyGen.Node`
         '''
-        from fparser.two import Fortran2003, utils
-
-        self.handlers = {
-            Fortran2003.Assignment_Stmt : self._assignment_handler,
-            Fortran2003.Name : self._name_handler,
-            Fortran2003.Parenthesis: self._parenthesis_handler,
-            Fortran2003.Part_Ref: self._part_ref_handler,
-            Fortran2003.If_Stmt: self._if_stmt_handler,
-            utils.NumberBase: self._number_handler,
-            utils.BinaryOpBase: self._binaryOp_handler,
-            # TODO: To cover all nemolite2D kernels we need:
-            # Fortran2003.If_Construct: self._if_construct_handler,
-            # Fortran2003.Return_Stmt: self._return_handler,
-            # Fortran2003.UnaryOpBase: self._unaryOp_handler,
-            # ... (some already partially implemented in nemo.py)
-        }
-
-        handler = self._get_handler(child)
+        handler = self.handlers.get(type(child))
+        if handler == None:
+            # if hanler not found direclty check with the base class
+            handler = self.handlers.get(type(child).__bases__[0])
+            if handler == None:
+                raise NotImplementedError()
+        
         return handler(child, parent)
 
+    def _ignore_handler(self, node, parent):
+        '''
+        This handler does not generate a new PSyIRe node, it just raises an IgnoredKeyError
+        to signal that the node can be safely ignored.
+        
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.utils.Base` or \
+                     :py:class:`fparser.two.utils.BlockBase`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
 
-    def _get_handler(self, node):
-        handler = self.handlers.get(type(node))
-        if handler == None:
-            handler = self.handlers.get(type(node).__bases__[0])
-            if handler == None:
-                handler = lambda x,y : None
-        return handler
-
+        :raises IgnoredKeyError: This node is purposefully ignored and no PSyIRe new node
+        is created.
+        '''
+        raise IgnoredKeyError(str(type(node)))
 
     def _if_stmt_handler(self,node,parent):
+        '''
+        Transforms an fparser2 If_Stmt to the PSyIRe representation.
+
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.Fortran2003.If_Stmt`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :rtype :py:class:`psyclone.psyGen.IfBlock`
+        '''
         ifblock = IfBlock()
         self.process_nodes(parent=ifblock, nodes=[node.items[0]], nodes_parent=node)
         self.process_nodes(parent=ifblock, nodes=[node.items[1]], nodes_parent=node)
         return ifblock
 
     def _assignment_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Assignment_Stmt to the PSyIRe representation.
 
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :rtype :py:class:`psyclone.psyGen.Assignment`
+        '''
         if len(node.items) != 3:
             raise InternalError("Failed to find LHS and RHS children"\
                     "in assignment statement: {0}".format(node))
@@ -4055,6 +4108,16 @@ class fparser2ASTProcessor(object):
 
 
     def _binaryOp_handler(self, node, parent):
+        '''
+        Transforms an fparser2 BinaryOp to the PSyIRe representation.
+
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.utils.BinaryOpBase`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :rtype :py:class:`psyclone.psyGen.BinaryOperation`
+        '''
         if len(node.items) != 3:
             raise InternalError("Failed to find 2 operants and a operator"
                     "children in assignment statement: {0}".format(node))
@@ -4073,15 +4136,47 @@ class fparser2ASTProcessor(object):
 
 
     def _name_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Name to the PSyIRe representation.
+
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.Fortran2003.Name`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :rtype :py:class:`psyclone.psyGen.Reference`
+        '''
         return Reference(node.string, parent)
 
 
     def _parenthesis_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Parenthesis to the PSyIRe representation.
+        This means ignoring the parentheis and process the fparser2 children
+        inside.
+
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.Fortran2003.Parenthesis`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :rtype :py:class:`psyclone.psyGen.Node`
+        '''
         # Parenthesis are discarted and it continues with the single child
         # TODO: Check items[0] and items[2] are the parenthesis characters
-        return self._match_child(node.items[1],parent)
+        return self._create_child(node.items[1],parent)
 
     def _part_ref_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Part_Ref to the PSyIRe representation.
+
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :rtype :py:class:`psyclone.psyGen.Array`
+        '''
         from fparser.two import Fortran2003
 
         if len(node.items) != 2:
@@ -4101,6 +4196,16 @@ class fparser2ASTProcessor(object):
         return array
 
     def _number_handler(self, node, parent):
+        '''
+        Transforms an fparser2 NumberBase to the PSyIRe representation.
+
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.utils.NumberBase`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+
+        :rtype :py:class:`psyclone.psyGen.Literal`
+        '''
         return Literal(node.items[0])
 
 class CodeBlock(Node):
@@ -4298,7 +4403,6 @@ class Array(Reference):
     '''
     def __init__(self, reference_name, parent=None):
         super(Array, self).__init__(reference_name, parent=parent)
-
         
     @property
     def coloured_text(self):
@@ -4322,12 +4426,10 @@ class Array(Reference):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = super(Array, self).__str__()
+        result = "Array"+super(Array, self).__str__()
         for entity in self._children:
             result += str(entity)
         return result
-
-
 
 class Literal(Node):
     '''
@@ -4341,7 +4443,7 @@ class Literal(Node):
                            structure.
     '''
     def __init__(self, value, parent=None):
-        super(Literal, self).__init__(self, parent=parent)
+        super(Literal, self).__init__(parent=parent)
         self._value = value
 
     @property
