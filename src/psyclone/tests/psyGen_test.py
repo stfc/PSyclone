@@ -53,7 +53,8 @@ from fparser import api as fpapi
 from psyclone_test_utils import get_invoke
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
-    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock
+    OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
+    Assignment, Reference, BinaryOperation, Array, Literal
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
@@ -2388,6 +2389,23 @@ def test_dataaccess_same_vector_indices(monkeypatch):
         "never happen" in str(excinfo.value))
 
 
+# Test CodeBlock class
+def test_reference_view(capsys):
+    ''' Check the view and colored_text methods of the Code Block class.'''
+    cblock = CodeBlock([])
+    coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
+    assignment.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[" in output
+    assert "]" in output
+
+def test_codeblock_can_be_printed():
+    '''Test that an CodeBlck instance can always be printed (i.e. is
+    initialised fully)'''
+    cblock = CodeBlock([])
+    assert  "CodeBlock[" in cblock.__str__()
+    assert  "]" in cblock.__str__()
+
 def test_codeblock_gencode_error():
     ''' Check that calling CodeBlock.gen_code() results in an internal
     error. '''
@@ -2397,3 +2415,92 @@ def test_codeblock_gencode_error():
     assert "CodeBlock.gen_code() should not be called" in str(err)
 
 
+# Test Assignment class
+def test_assignment_view(capsys):
+    ''' Check the view and colored_text methods of the Assignment class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    assignment = Assignment()
+    coloredtext = colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
+    assignment.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[]" in output
+
+def test_assignment_can_be_printed():
+    '''Test that an Assignment instance can always be printed (i.e. is
+    initialised fully)'''
+    assignment = Assignment()
+    assert  "Assignment[]\n" in assignment.__str__()
+
+
+# Test Reference class
+
+def test_reference_view(capsys):
+    ''' Check the view and colored_text methods of the Reference class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    ref = Reference("rname")
+    coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
+    ref.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[name:'rname']" in output
+
+def test_reference_can_be_printed():
+    '''Test that a Reference instance can always be printed (i.e. is
+    initialised fully)'''
+    ref = Reference("rname")
+    assert  "Reference[name:'rname']\n" in ref.__str__()
+
+# Test Array class
+
+def test_array_view(capsys):
+    ''' Check the view and colored_text methods of the Array class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    array = Array("aname")
+    coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
+    array.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[name:'aname']" in output
+
+
+def test_array_can_be_printed():
+    '''Test that an Array instance can always be printed (i.e. is
+    initialised fully)'''
+    array = Array("aname")
+    assert  "ArrayReference[name:'aname']\n" in array.__str__()
+
+# Test Literal class
+
+def test_literal_view(capsys):
+    ''' Check the view and colored_text methods of the Literal class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    literal = Literal("1")
+    coloredtext = colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
+    literal.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[value:'1']" in output
+
+def test_literal_can_be_printed():
+    '''Test that an Literal instance can always be printed (i.e. is
+    initialised fully)'''
+    literal = Literal("1")
+    assert  "Literal[value:'1']\n" in literal.__str__()
+
+# Test BinaryOperation class
+
+def test_BinaryOperation_view(capsys):
+    ''' Check the view and colored_text methods of the Binary Operation
+    class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    binaryOp = BinaryOperation("+")
+    coloredtext = colored("BinaryOperation", \
+            SCHEDULE_COLOUR_MAP["BinaryOperation"])
+    binaryOp.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[operator:'+']" in output
+
+def test_BinaryOperation_can_be_printed():
+    '''Test that a Binary Operation instance can always be printed (i.e. is
+    initialised fully)'''
+    binaryOp = BinaryOperation("+")
+    assert  "BinaryOperation[operator:'+']\n" in binaryOp.__str__()
+
+# Test fparser2ASTProcessor
