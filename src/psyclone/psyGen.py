@@ -1446,9 +1446,12 @@ class ACCDirective(Directive):
     def add_region(self, start_text, end_text=None, start_index=None):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
         # Check that we haven't already been called
         if self._ast:
-            Node.update(self)
             return
 
         parent = self._parent
@@ -1475,11 +1478,9 @@ class ACCDirective(Directive):
 
         self._ast = directive
 
-        Node.update(self)
-
 
 @six.add_metaclass(abc.ABCMeta)
-class ACCDataDirective(ACCDirective):
+class ACCEnterDataDirective(ACCDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
     a Schedule. Must be sub-classed for a particular API because the way
@@ -2015,10 +2016,14 @@ class OMPParallelDirective(OMPDirective):
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
         # Check that we haven't already been called
         if self._ast:
-            Node.update(self)
             return
+
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the children of this node in the AST of our parent node
@@ -2045,8 +2050,6 @@ class OMPParallelDirective(OMPDirective):
         # to correct end_idx)
         self._ast = startdir
         self._parent._ast.content.insert(start_idx, self._ast)
-
-        Node.update(self)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2225,10 +2228,14 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
         # Check that we haven't already been called
         if self._ast:
-            Node.update(self)
             return
+
         # Since this is an OpenMP (parallel) do, it can only be applied
         # to a single loop.
         if len(self._children) != 1:
@@ -2275,9 +2282,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # to correct the location)
         self._ast = startdir
         parent.content.insert(start_idx, self._ast)
-
-        Node.update(self)
-
 
 
 class GlobalSum(Node):
@@ -3980,10 +3984,7 @@ class IfClause(IfBlock):
 
 
 class ACCKernelsDirective(ACCDirective):
-    ''' Class for the !$OMP PARALLEL DO directive. This inherits from
-        both OMPParallelDirective (because it creates a new OpenMP
-        thread-parallel region) and OMPDoDirective (because it
-        causes a loop to be parallelised). '''
+    ''' Class for the !$ACC KERNELS directive. '''
 
     def __init__(self, children=[], parent=None):
         Node.__init__(self,
@@ -4009,29 +4010,7 @@ class ACCKernelsDirective(ACCDirective):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        from psyclone.f2pygen import DirectiveGen
-
-        # We're not doing nested parallelism so make sure that this
-        # omp parallel do is not already within some parallel region
-
         exit(1)
-        self._not_within_omp_parallel_region()
-
-        calls = self.reductions()
-        zero_reduction_variables(calls, parent)
-        private_str = self.list_to_string(self._get_private_list())
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                "default(shared), private({0}), "
-                                "schedule({1})".
-                                format(private_str, self._omp_schedule) +
-                                self._reduction_string()))
-        for child in self.children:
-            child.gen_code(parent)
-
-        # make sure the directive occurs straight after the loop body
-        position = parent.previous_loop()
-        parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
-                   position=["after", position])
 
     def update(self):
         '''
@@ -4052,7 +4031,11 @@ class ACCKernelsDirective(ACCDirective):
         if self._ast:
             return
 
-        parent_ast = self.parent._ast
+        # the parent might be a directive so we need to recurse up.
+        current = self.parent
+        while not current._ast:
+            current = current.parent
+        parent_ast = current._ast
 
         ast_start_index = parent_ast.content.index(self.children[0]._ast)
 
@@ -4117,4 +4100,124 @@ class ACCKernelsDirective(ACCDirective):
 
         self._ast = directive
 
+
+class ACCDataDirective(ACCDirective):
+    ''' Class for the !$ACC DATA ... !$ACC END DATA directive. '''
+
+    def __init__(self, children=[], parent=None):
+        Node.__init__(self,
+                      children=children,
+                      parent=parent)
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "ACC_data_" + str(self.abs_position)
+
+    def view(self, indent=0):
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print(self.indent(indent) + self.coloured_text +
+              "[ACC DATA]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def gen_code(self, parent):
+        exit(1)
+
+    def update(self):
+        '''Updates the fparser2 AST by inserting nodes for this OpenACC Data
+        directive.
+
+        :raises GenerationError: if the existing AST doesn't have the \
+        correct structure to permit the insertion \
+        of the OpenACC directive
+
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
         Node.update(self)
+
+        # Check that we haven't already been called
+        if self._ast:
+            return
+
+        parent_ast = self.parent._ast
+
+        # TODO: We should have an _ast_start and _ast_end but in the
+        # meantime we recurse down if the child is a directive.
+        #from psyclone.psyGen import Directive
+        base = self
+        while len(base.children) == 1 and \
+              isinstance(base.children[0], Directive):
+            base = base.children[0]
+
+        ast_start_index = parent_ast.content.index(base.children[0]._ast)
+        
+        ast_end_index = parent_ast.content.index(base.children[-1]._ast)
+
+        writers = set()
+        from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
+            Section_Subscript_List
+        from fparser.two.utils import walk_ast
+        for node in walk_ast(parent_ast.content[ast_start_index:ast_end_index]):
+            if isinstance(node, Assignment_Stmt):
+                lhs = node.items[0]
+                if isinstance(lhs, Name):
+                    writers.add(lhs.string)
+                elif isinstance(lhs, Part_Ref):
+                    name = lhs.items[0]
+                    writers.add(name.string)
+                    subscript_info = lhs.items[1]
+                    if isinstance(subscript_info, Name):
+                        num_subscripts = 1
+                    elif isinstance(subscript_info, Section_Subscript_List):
+                        num_subscripts = len(subscript_info.items)
+                    else:
+                        print ("1: Unexpected node '{0}".
+                               format(type(subscript_info)))
+                        exit(1)
+                else:
+                    print ("2: Unexpected node '{0}".format(type(lhs)))
+                    exit(1)
+                equals = node.items[1]
+                rhs = node.items[2]
+
+        # In the fparser2 AST, a directive is just a comment and does not
+        # have children. This means we can end up inserting the 'end kernels'
+        # directive between a previous directive and the loop to which it
+        # applies.
+        # Check whether the last node in the PSyIRe for this kernels region
+        # has children and, if so, whether their corresponding entries in
+        # the fparser2 AST are siblings of this directive and come after
+        # it in the AST.
+        for child in self.children[-1].children:
+            try:
+                idx = parent_ast.content.index(child._ast)
+                if idx > ast_end_index:
+                    ast_end_index = idx
+            except ValueError:
+                # The fparser2 AST for this child is not a sibling of
+                # this directive.
+                pass
+
+        text = ("!$ACC END DATA")
+        directive = Comment(FortranStringReader(text,
+                                                ignore_comments=False))
+        parent_ast.content.insert(ast_end_index+1, directive)
+
+        text = ("!$ACC DATA")
+        if writers:
+            text += " COPYIN({0})".format(" ".join(writers))
+        directive = Comment(FortranStringReader(text,
+                                                ignore_comments=False))
+        parent_ast.content.insert(ast_start_index, directive)
+
+        self._ast = directive

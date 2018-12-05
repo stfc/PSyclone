@@ -2324,7 +2324,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
                 .format(type(node)))
 
 
-class ACCDataTrans(Transformation):
+class ACCEnterDataTrans(Transformation):
     '''
     Adds an OpenACC "enter data" directive to a Schedule.
     For example:
@@ -2356,7 +2356,7 @@ class ACCDataTrans(Transformation):
         :returns: the name of this transformation.
         :rtype: str
         '''
-        return "ACCDataTrans"
+        return "ACCEnterDataTrans"
 
     def apply(self, sched):
         '''Adds an OpenACC "enter data" directive to the invoke associated
@@ -2380,12 +2380,12 @@ class ACCDataTrans(Transformation):
         from psyclone.nemo import NemoSchedule
 
         if isinstance(sched, GOSchedule):
-            from psyclone.gocean1p0 import GOACCDataDirective as AccDataDir
+            from psyclone.gocean1p0 import GOACCEnterDataDirective as AccDataDir
         elif isinstance(sched, NemoSchedule):
-            from psyclone.nemo import NemoACCDataDirective as AccDataDir
+            from psyclone.nemo import NemoACCEnterDataDirective as AccDataDir
         elif isinstance(sched, Schedule):
             raise NotImplementedError(
-                "ACCDataTrans: ACCDataDirective not implemented for a "
+                "ACCEnterDataTrans: ACCEnterDataDirective not implemented for a "
                 "schedule of type {0}".format(type(sched)))
         else:
             raise TransformationError("Cannot apply an OpenACC data "
@@ -2403,7 +2403,7 @@ class ACCDataTrans(Transformation):
         keep = Memento(schedule, self, [schedule])
 
         # Add the directive
-        data_dir = AccDataDir(parent=schedule, children=[])
+        data_dir = AccEnterDataDir(parent=schedule, children=[])
         schedule.addchild(data_dir, index=0)
 
         return schedule, keep
@@ -2554,6 +2554,81 @@ class ACCKernelsTrans(Transformation):
         # that we are about to modify.
         from psyclone.psyGen import ACCKernelsDirective
         directive = ACCKernelsDirective(parent=parent,
+                                           children=node_list[:])
+        start_index = parent.children.index(node_list[0])
+
+        for child in directive.children:
+            parent.children.remove(child)
+            child.parent = directive
+
+        parent.children.insert(start_index,directive)
+
+        # Return the now modified kernel
+        return schedule, keep
+
+
+class ACCDataTrans(Transformation):
+    '''
+    Add a "!$acc data" directive to the start of a NEMO schedule
+    (causing it to be compiled for the OpenACC accelerator device).
+    For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "NEMO"
+****************** TBD ************************
+    >>> filename = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import ACCRoutineTrans
+    >>> rtrans = ACCRoutineTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> kern = schedule.children[0].children[0].children[0]
+    >>> # Transform the kernel
+    >>> newkern, _ = rtrans.apply(kern)
+    '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation class.
+        :rtype: str
+        '''
+        return "ACCDataTrans"
+
+    def apply(self, node_list):
+        '''
+        Add an 
+        '!$acc data' OpenACC directive to the start of a NEMO api schedule
+
+        :param kern: The kernel object to transform.
+        :type kern: :py:class:`psyclone.psyGen.Call`
+        :returns: (transformed kernel, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
+                :py:class:`psyclone.undoredo.Memento`).
+        :raises TransformationError: if we fail to find the subroutine \
+                                     corresponding to the kernel object.
+        '''
+        from fparser.two.Fortran2003 import Subroutine_Subprogram, \
+            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
+            Implicit_Part, Comment
+        from fparser.two.utils import walk_ast
+        from fparser.common.readfortran import FortranStringReader
+
+        # Keep a record of this transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(node_list[:], self)
+
+        parent = node_list[0].parent
+        schedule = node_list[0].root
+
+        # Create the directive and insert it. Take a copy of the list
+        # as it may just be a reference to the parent.children list
+        # that we are about to modify.
+        from psyclone.psyGen import ACCDataDirective
+        directive = ACCDataDirective(parent=parent,
                                            children=node_list[:])
         start_index = parent.children.index(node_list[0])
 

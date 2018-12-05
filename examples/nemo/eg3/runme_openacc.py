@@ -109,7 +109,7 @@ def trans(psy):
 
     acc_trans = trans_info.get_trans_name('ACCDataTrans')
 
-    sched, _ = acc_trans.apply(sched)
+    sched, _ = acc_trans.apply(sched.children)
 
     sched.view()
 
