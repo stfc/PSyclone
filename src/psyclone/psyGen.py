@@ -3944,7 +3944,7 @@ class fparser2ASTProcessor(object):
             Fortran2003.Part_Ref: self._part_ref_handler,
             Fortran2003.If_Stmt: self._if_stmt_handler,
             utils.NumberBase: self._number_handler,
-            utils.BinaryOpBase: self._binaryOp_handler,
+            utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.Nonlabel_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
@@ -3998,7 +3998,6 @@ class fparser2ASTProcessor(object):
                             :py:class:`fparser.two.utils.BlockBase`
 
         '''
-        from fparser.two import Fortran2003
         code_block_nodes = []
         for child in nodes:
             # TODO remove this line once fparser2 contains parent
@@ -4072,7 +4071,7 @@ class fparser2ASTProcessor(object):
 
         :rtype :py:class:`psyclone.psyGen.IfBlock`
         '''
-        ifblock = IfBlock()
+        ifblock = IfBlock(parent=parent)
         self.process_nodes(parent=ifblock, nodes=[node.items[0]],
                            nodes_parent=node)
         self.process_nodes(parent=ifblock, nodes=[node.items[1]],
@@ -4090,7 +4089,7 @@ class fparser2ASTProcessor(object):
 
         :rtype :py:class:`psyclone.psyGen.Assignment`
         '''
-        assignment = Assignment()
+        assignment = Assignment(parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]],
                            nodes_parent=node)
         self.process_nodes(parent=assignment, nodes=[node.items[2]],
@@ -4098,7 +4097,7 @@ class fparser2ASTProcessor(object):
 
         return assignment
 
-    def _binaryOp_handler(self, node, parent):
+    def _binary_op_handler(self, node, parent):
         '''
         Transforms an fparser2 BinaryOp to the PSyIRe representation.
 
@@ -4112,13 +4111,13 @@ class fparser2ASTProcessor(object):
         # Get the operator
         operator = node.items[1]
 
-        binaryOp = BinaryOperation(operator)
-        self.process_nodes(parent=binaryOp, nodes=[node.items[0]],
+        binary_op = BinaryOperation(operator, parent=parent)
+        self.process_nodes(parent=binary_op, nodes=[node.items[0]],
                            nodes_parent=node)
-        self.process_nodes(parent=binaryOp, nodes=[node.items[2]],
+        self.process_nodes(parent=binary_op, nodes=[node.items[2]],
                            nodes_parent=node)
 
-        return binaryOp
+        return binary_op
 
     def _name_handler(self, node, parent):
         '''
@@ -4189,7 +4188,7 @@ class fparser2ASTProcessor(object):
 
         :rtype :py:class:`psyclone.psyGen.Literal`
         '''
-        return Literal(node.items[0])
+        return Literal(node.items[0], parent=parent)
 
 
 class CodeBlock(Node):
