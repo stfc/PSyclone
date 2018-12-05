@@ -72,7 +72,7 @@ def trans(psy):
 
     acc_trans = trans_info.get_trans_name('ACCKernelsTrans')
 
-    sched, _ = acc_trans.apply(sched.children)
+    sched, _ = acc_trans.apply(sched.children, default_present=True)
 
     sched.view()
 

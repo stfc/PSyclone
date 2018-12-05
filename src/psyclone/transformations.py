@@ -2523,7 +2523,7 @@ class ACCKernelsTrans(Transformation):
         '''
         return "ACCKernelsTrans"
 
-    def apply(self, node_list):
+    def apply(self, node_list, default_present=False):
         '''
         Add an 
         '!$acc kernels' OpenACC directive to the start of a NEMO api schedule
@@ -2554,7 +2554,8 @@ class ACCKernelsTrans(Transformation):
         # that we are about to modify.
         from psyclone.psyGen import ACCKernelsDirective
         directive = ACCKernelsDirective(parent=parent,
-                                           children=node_list[:])
+                                        children=node_list[:],
+                                        default_present=default_present)
         start_index = parent.children.index(node_list[0])
 
         for child in directive.children:

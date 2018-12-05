@@ -3986,10 +3986,11 @@ class IfClause(IfBlock):
 class ACCKernelsDirective(ACCDirective):
     ''' Class for the !$ACC KERNELS directive. '''
 
-    def __init__(self, children=[], parent=None):
+    def __init__(self, children=[], parent=None, default_present=False):
         Node.__init__(self,
                       children=children,
                       parent=parent)
+        self._default_present = default_present
 
     @property
     def dag_name(self):
@@ -4092,8 +4093,11 @@ class ACCKernelsDirective(ACCDirective):
         parent_ast.content.insert(ast_end_index+1, directive)
 
         text = ("!$ACC KERNELS")
-        if writers:
-            text += " COPYIN({0})".format(" ".join(writers))
+        if self._default_present:
+            text += " DEFAULT(PRESENT)"
+        else:
+            if writers:
+                text += " COPYIN({0})".format(" ".join(writers))
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
         parent_ast.content.insert(ast_start_index, directive)
