@@ -4039,29 +4039,33 @@ class ACCKernelsDirective(ACCDirective):
         parallel do.
 
         :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenMP parallel do.
+        correct structure to permit the insertion \
+        of the OpenMP parallel do.
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
         # Check that we haven't already been called
         if self._ast:
-            Node.update(self)
             return
 
         parent_ast = self.parent._ast
 
         ast_start_index = parent_ast.content.index(self.children[0]._ast)
+
         ast_end_index = parent_ast.content.index(self.children[-1]._ast)
 
         writers = set()
-        from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, Section_Subscript_List
+        from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
+            Section_Subscript_List
         from fparser.two.utils import walk_ast
         for node in walk_ast(parent_ast.content[ast_start_index:ast_end_index]):
             if isinstance(node, Assignment_Stmt):
                 lhs = node.items[0]
                 if isinstance(lhs, Name):
-                    #print ("{0} : write : {1}".format(lhs.string, "scalar or array syntax"))
                     writers.add(lhs.string)
                 elif isinstance(lhs, Part_Ref):
                     name = lhs.items[0]
@@ -4072,16 +4076,32 @@ class ACCKernelsDirective(ACCDirective):
                     elif isinstance(subscript_info, Section_Subscript_List):
                         num_subscripts = len(subscript_info.items)
                     else:
-                        print ("1: Unexpected node '{0}".format(type(subscript_info)))
+                        print ("1: Unexpected node '{0}".
+                               format(type(subscript_info)))
                         exit(1)
-                    #print ("{0} dims='{1}' : write".format(name.string, num_subscripts))
                 else:
                     print ("2: Unexpected node '{0}".format(type(lhs)))
                     exit(1)
                 equals = node.items[1]
                 rhs = node.items[2]
-        #print ("WRITERS ARE:")
-        #print (writers)
+
+        # In the fparser2 AST, a directive is just a comment and does not
+        # have children. This means we can end up inserting the 'end kernels'
+        # directive between a previous directive and the loop to which it
+        # applies.
+        # Check whether the last node in the PSyIRe for this kernels region
+        # has children and, if so, whether their corresponding entries in
+        # the fparser2 AST are siblings of this directive and come after
+        # it in the AST.
+        for child in self.children[-1].children:
+            try:
+                idx = parent_ast.content.index(child._ast)
+                if idx > ast_end_index:
+                    ast_end_index = idx
+            except ValueError:
+                # The fparser2 AST for this child is not a sibling of
+                # this directive.
+                pass
 
         text = ("!$ACC END KERNELS")
         directive = Comment(FortranStringReader(text,
