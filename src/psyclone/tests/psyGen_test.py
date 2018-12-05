@@ -56,7 +56,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     BinaryOperation
-from psyclone.psyGen import fparser2ASTProcessor
+from psyclone.psyGen import fparser2ASTProcessor, IgnoredKeyError
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
@@ -68,7 +68,9 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
+
 # PSyFactory class unit tests
+
 
 def test_invalid_api():
     '''test that psyfactory raises appropriate error when an invalid api
@@ -2399,12 +2401,14 @@ def test_reference_view(capsys):
     assert coloredtext+"[" in output
     assert "]" in output
 
+
 def test_codeblock_can_be_printed():
     '''Test that an CodeBlck instance can always be printed (i.e. is
     initialised fully)'''
     cblock = CodeBlock([])
-    assert  "CodeBlock[" in cblock.__str__()
-    assert  "]" in cblock.__str__()
+    assert "CodeBlock[" in cblock.__str__()
+    assert "]" in cblock.__str__()
+
 
 def test_codeblock_gencode_error():
     ''' Check that calling CodeBlock.gen_code() results in an internal
@@ -2416,23 +2420,35 @@ def test_codeblock_gencode_error():
 
 
 # Test Assignment class
+
+
 def test_assignment_view(capsys):
     ''' Check the view and colored_text methods of the Assignment class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     assignment = Assignment()
+    lhs = Reference("x", parent=assignment)
+    rhs = Literal("1", parent=assignment)
+    assignment.addchild(lhs)
+    assignment.addchild(rhs)
     coloredtext = colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
     assignment.view()
     output, _ = capsys.readouterr()
     assert coloredtext+"[]" in output
 
+
 def test_assignment_can_be_printed():
     '''Test that an Assignment instance can always be printed (i.e. is
     initialised fully)'''
     assignment = Assignment()
-    assert  "Assignment[]\n" in assignment.__str__()
+    lhs = Reference("x", parent=assignment)
+    rhs = Literal("1", parent=assignment)
+    assignment.addchild(lhs)
+    assignment.addchild(rhs)
+    assert "Assignment[]\n" in assignment.__str__()
 
 
 # Test Reference class
+
 
 def test_reference_view(capsys):
     ''' Check the view and colored_text methods of the Reference class.'''
@@ -2443,13 +2459,16 @@ def test_reference_view(capsys):
     output, _ = capsys.readouterr()
     assert coloredtext+"[name:'rname']" in output
 
+
 def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     ref = Reference("rname")
-    assert  "Reference[name:'rname']\n" in ref.__str__()
+    assert "Reference[name:'rname']\n" in ref.__str__()
+
 
 # Test Array class
+
 
 def test_array_view(capsys):
     ''' Check the view and colored_text methods of the Array class.'''
@@ -2465,9 +2484,11 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     array = Array("aname")
-    assert  "ArrayReference[name:'aname']\n" in array.__str__()
+    assert "ArrayReference[name:'aname']\n" in array.__str__()
+
 
 # Test Literal class
+
 
 def test_literal_view(capsys):
     ''' Check the view and colored_text methods of the Literal class.'''
@@ -2478,119 +2499,134 @@ def test_literal_view(capsys):
     output, _ = capsys.readouterr()
     assert coloredtext+"[value:'1']" in output
 
+
 def test_literal_can_be_printed():
     '''Test that an Literal instance can always be printed (i.e. is
     initialised fully)'''
     literal = Literal("1")
-    assert  "Literal[value:'1']\n" in literal.__str__()
+    assert "Literal[value:'1']\n" in literal.__str__()
+
 
 # Test BinaryOperation class
+
 
 def test_BinaryOperation_view(capsys):
     ''' Check the view and colored_text methods of the Binary Operation
     class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     binaryOp = BinaryOperation("+")
-    coloredtext = colored("BinaryOperation", \
-            SCHEDULE_COLOUR_MAP["BinaryOperation"])
+    op1 = Literal("1", parent=binaryOp)
+    op2 = Literal("1", parent=binaryOp)
+    binaryOp.addchild(op1)
+    binaryOp.addchild(op2)
+    coloredtext = colored("BinaryOperation",
+                          SCHEDULE_COLOUR_MAP["BinaryOperation"])
     binaryOp.view()
     output, _ = capsys.readouterr()
     assert coloredtext+"[operator:'+']" in output
+
 
 def test_BinaryOperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
     binaryOp = BinaryOperation("+")
-    assert  "BinaryOperation[operator:'+']\n" in binaryOp.__str__()
+    op1 = Literal("1", parent=binaryOp)
+    op2 = Literal("1", parent=binaryOp)
+    binaryOp.addchild(op1)
+    binaryOp.addchild(op2)
+    assert "BinaryOperation[operator:'+']\n" in binaryOp.__str__()
+
 
 # Test fparser2ASTProcessor
 
+
 def test_fparser2ASTProcessor_handling_assignments():
-    from fparser.two.parser import ParserFactory 
+    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=1")
     fparser2assignment = Execution_Part.match(reader)[0][0]
-    
+
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2assignment], None)
-    #Check a new node was generated a connected to parent
+    # Check a new node was generated a connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Assignment)
     assert len(new_node.children) == 2
 
+
 def test_fparser2ASTProcessor_handling_Names():
-    from fparser.two.parser import ParserFactory 
+    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
-    
+
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2name], None)
-    #Check a new node was generated a connected to parent
+    # Check a new node was generated a connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Reference)
     assert new_node._reference == "x"
 
+
 def test_fparser2ASTProcessor_handling_Parenthesis():
-    from fparser.two.parser import ParserFactory 
+    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=(x+1)")
     fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
-    
+
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2parenthesis], None)
-    #Check a new node was generated a connected to parent
+    # Check a new node was generated a connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
-    #Check parenthesis are ignored and process_nodes uses its child
+    # Check parenthesis are ignored and process_nodes uses its child
     assert isinstance(new_node, BinaryOperation)
 
 
 def test_fparser2ASTProcessor_handling_Part_Ref():
-    from fparser.two.parser import ParserFactory 
+    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     ParserFactory().create(std="f2008")
     reader = FortranStringReader("x(i)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
-    
+
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    #Check a new node was generated a connected to parent
+    # Check a new node was generated a connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
     assert new_node._reference == "x"
-    assert len(new_node.children) == 1 # Array dimensions
+    assert len(new_node.children) == 1  # Array dimensions
 
     reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
-    
+
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    #Check a new node was generated a connected to parent
+    # Check a new node was generated a connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
     assert new_node._reference == "x"
-    assert len(new_node.children) == 3 # Array dimensions
+    assert len(new_node.children) == 3  # Array dimensions
 
 
 def test_fparser2ASTProcessor_handling_If_Stmt():
-    from fparser.two.parser import ParserFactory 
+    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     ParserFactory().create(std="f2008")
@@ -2600,7 +2636,7 @@ def test_fparser2ASTProcessor_handling_If_Stmt():
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2if_stmt], None)
-    #Check a new node was generated a connected to parent
+    # Check a new node was generated a connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, IfBlock)
@@ -2608,17 +2644,17 @@ def test_fparser2ASTProcessor_handling_If_Stmt():
 
 
 def test_fparser2ASTProcessor_handling_NumberBase():
-    from fparser.two.parser import ParserFactory 
+    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=1")
     fparser2number = Execution_Part.match(reader)[0][0].items[2]
-    
+
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2number], None)
-    #Check a new node was generated a connected to parent
+    # Check a new node was generated a connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Literal)
@@ -2626,17 +2662,17 @@ def test_fparser2ASTProcessor_handling_NumberBase():
 
 
 def test_fparser2ASTProcessor_handling_BinaryOpBase():
-    from fparser.two.parser import ParserFactory 
+    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=1+4")
     fparser2binaryOp = Execution_Part.match(reader)[0][0].items[2]
-    
+
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2binaryOp], None)
-    #Check a new node was generated a connected to parent
+    # Check a new node was generated a connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, BinaryOperation)
@@ -2644,3 +2680,8 @@ def test_fparser2ASTProcessor_handling_BinaryOpBase():
     assert new_node._operator == '+'
 
 
+def test_ASTProcessor_ignorekey_err(monkeypatch):
+    processor = fparser2ASTProcessor()
+    with pytest.raises(IgnoredKeyError) as excinfo:
+        _ = processor._ignore_handler(None, None)
+    assert "ASTProcessor has no handler for:" in str(excinfo)

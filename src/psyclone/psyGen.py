@@ -3929,7 +3929,6 @@ class IgnoredKeyError(Exception):
         return repr(self.value)
 
 
-
 class fparser2ASTProcessor(object):
     '''
     Mixin class to provide functionality for processing the fparser2 AST.
@@ -3939,8 +3938,8 @@ class fparser2ASTProcessor(object):
         from fparser.two import Fortran2003, utils
         # Map of fparser2 node types to handlers(which are class methods)
         self.handlers = {
-            Fortran2003.Assignment_Stmt : self._assignment_handler,
-            Fortran2003.Name : self._name_handler,
+            Fortran2003.Assignment_Stmt: self._assignment_handler,
+            Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
             Fortran2003.Part_Ref: self._part_ref_handler,
             Fortran2003.If_Stmt: self._if_stmt_handler,
@@ -3955,7 +3954,7 @@ class fparser2ASTProcessor(object):
             # Fortran2003.UnaryOpBase: self._unaryOp_handler,
             # ... (some already partially implemented in nemo.py)
         }
-    
+
     @staticmethod
     def nodes_to_code_block(parent, statements):
         '''
@@ -4025,7 +4024,6 @@ class fparser2ASTProcessor(object):
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes)
 
-
     def _create_child(self, child, parent=None):
         '''
         Create a PSyIRe node representing the the supplied fparser 2 node.
@@ -4040,31 +4038,30 @@ class fparser2ASTProcessor(object):
         :rtype :py:class:`psyclone.psyGen.Node`
         '''
         handler = self.handlers.get(type(child))
-        if handler == None:
+        if handler is None:
             # if hanler not found direclty check with the base class
             handler = self.handlers.get(type(child).__bases__[0])
-            if handler == None:
+            if handler is None:
                 raise NotImplementedError()
-        
         return handler(child, parent)
 
     def _ignore_handler(self, node, parent):
         '''
-        This handler does not generate a new PSyIRe node, it just raises an IgnoredKeyError
-        to signal that the node can be safely ignored.
-        
+        This handler does not generate a new PSyIRe node, it just raises an \
+        IgnoredKeyError to signal that the node can be safely ignored.
+
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base` or \
                      :py:class:`fparser.two.utils.BlockBase`
         :param parent: Parent node in the PSyclone IR we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
 
-        :raises IgnoredKeyError: This node is purposefully ignored and no PSyIRe new node
-        is created.
+        :raises IgnoredKeyError: This node is purposefully ignored and no \
+        PSyIRe new node is created.
         '''
         raise IgnoredKeyError(str(type(node)))
 
-    def _if_stmt_handler(self,node,parent):
+    def _if_stmt_handler(self, node, parent):
         '''
         Transforms an fparser2 If_Stmt to the PSyIRe representation.
 
@@ -4076,8 +4073,10 @@ class fparser2ASTProcessor(object):
         :rtype :py:class:`psyclone.psyGen.IfBlock`
         '''
         ifblock = IfBlock()
-        self.process_nodes(parent=ifblock, nodes=[node.items[0]], nodes_parent=node)
-        self.process_nodes(parent=ifblock, nodes=[node.items[1]], nodes_parent=node)
+        self.process_nodes(parent=ifblock, nodes=[node.items[0]],
+                           nodes_parent=node)
+        self.process_nodes(parent=ifblock, nodes=[node.items[1]],
+                           nodes_parent=node)
         return ifblock
 
     def _assignment_handler(self, node, parent):
@@ -4091,13 +4090,13 @@ class fparser2ASTProcessor(object):
 
         :rtype :py:class:`psyclone.psyGen.Assignment`
         '''
-        
         assignment = Assignment()
-        self.process_nodes(parent=assignment, nodes=[node.items[0]], nodes_parent=node)
-        self.process_nodes(parent=assignment, nodes=[node.items[2]], nodes_parent=node)
+        self.process_nodes(parent=assignment, nodes=[node.items[0]],
+                           nodes_parent=node)
+        self.process_nodes(parent=assignment, nodes=[node.items[2]],
+                           nodes_parent=node)
 
         return assignment
-
 
     def _binaryOp_handler(self, node, parent):
         '''
@@ -4110,22 +4109,16 @@ class fparser2ASTProcessor(object):
 
         :rtype :py:class:`psyclone.psyGen.BinaryOperation`
         '''
-        if len(node.items) != 3:
-            raise InternalError("Failed to find 2 operants and a operator"
-                    "children in assignment statement: {0}".format(node))
-        if type(node.items[1]) != str:
-            raise InternalError("Expecting string operant in BinaryOperation" \
-                    "statement: {0}".format(node))
-    
         # Get the operator
         operator = node.items[1]
 
         binaryOp = BinaryOperation(operator)
-        self.process_nodes(parent=binaryOp, nodes=[node.items[0]], nodes_parent=node)
-        self.process_nodes(parent=binaryOp, nodes=[node.items[2]], nodes_parent=node)
+        self.process_nodes(parent=binaryOp, nodes=[node.items[0]],
+                           nodes_parent=node)
+        self.process_nodes(parent=binaryOp, nodes=[node.items[2]],
+                           nodes_parent=node)
 
         return binaryOp
-
 
     def _name_handler(self, node, parent):
         '''
@@ -4139,7 +4132,6 @@ class fparser2ASTProcessor(object):
         :rtype :py:class:`psyclone.psyGen.Reference`
         '''
         return Reference(node.string, parent)
-
 
     def _parenthesis_handler(self, node, parent):
         '''
@@ -4156,7 +4148,7 @@ class fparser2ASTProcessor(object):
         '''
         # Parenthesis are discarted and it continues with the single child
         # TODO: Check items[0] and items[2] are the parenthesis characters
-        return self._create_child(node.items[1],parent)
+        return self._create_child(node.items[1], parent)
 
     def _part_ref_handler(self, node, parent):
         '''
@@ -4171,22 +4163,18 @@ class fparser2ASTProcessor(object):
         '''
         from fparser.two import Fortran2003
 
-        if len(node.items) != 2:
-            raise InternalError("Failed to find 2 childrens, the reference"
-                    "and the array subscript in the array: {0}".format(node))
-
         reference_name = node.items[0].string
         array = Array(reference_name, parent)
 
         if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
             subscript_list = node.items[1].items
 
-            self.process_nodes(parent=array, nodes=subscript_list, \
-                nodes_parent=node.items[1])
+            self.process_nodes(parent=array, nodes=subscript_list,
+                               nodes_parent=node.items[1])
         else:
             # When just 1 dimension fparser does not have a Subscript_List
-            self.process_nodes(parent=array, nodes=[node.items[1]], \
-                nodes_parent=node)
+            self.process_nodes(parent=array, nodes=[node.items[1]],
+                               nodes_parent=node)
 
         return array
 
@@ -4203,6 +4191,7 @@ class fparser2ASTProcessor(object):
         '''
         return Literal(node.items[0])
 
+
 class CodeBlock(Node):
     '''
     Node representing some generic Fortran code that PSyclone
@@ -4217,7 +4206,7 @@ class CodeBlock(Node):
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, statements, parent=None):
-        super(CodeBlock,self).__init__(parent=parent)
+        super(CodeBlock, self).__init__(parent=parent)
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
@@ -4242,7 +4231,7 @@ class CodeBlock(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[" +
-              str(list(map(type,self._statements))) + "]")
+              str(list(map(type, self._statements))) + "]")
 
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
@@ -4297,13 +4286,12 @@ class Assignment(Node):
         result = "Assignment[]\n"
         for entity in self._children:
             result += str(entity)
-            
         return result
 
 
 class Reference(Node):
     '''
-    Node representing a Reference Expression. 
+    Node representing a Reference Expression.
 
     :param ast: node in the fparser2 AST representing the reference.
     :type ast: :py:class:`fparser.two.Fortran2003.Name.
@@ -4333,11 +4321,12 @@ class Reference(Node):
 
         :param int indent: level to which to indent output.
         '''
-        print(self.indent(indent) + self.coloured_text + "[name:'" \
-                + self._reference + "']")
+        print(self.indent(indent) + self.coloured_text + "[name:'"
+              + self._reference + "']")
 
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
+
 
 class BinaryOperation(Node):
     '''
@@ -4364,7 +4353,8 @@ class BinaryOperation(Node):
         return: Name of node + control chars for colour.
         :rtype: str
         '''
-        return colored("BinaryOperation", SCHEDULE_COLOUR_MAP["BinaryOperation"])
+        return colored("BinaryOperation",
+                       SCHEDULE_COLOUR_MAP["BinaryOperation"])
 
     def view(self, indent=0):
         '''
@@ -4372,8 +4362,8 @@ class BinaryOperation(Node):
 
         :param int indent: level to which to indent output.
         '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'"+
-            self._operator + "']")
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -4381,8 +4371,8 @@ class BinaryOperation(Node):
         result = "BinaryOperation[operator:'" + self._operator + "']\n"
         for entity in self._children:
             result += str(entity)
-            
         return result
+
 
 class Array(Reference):
     '''
@@ -4398,7 +4388,7 @@ class Array(Reference):
     '''
     def __init__(self, reference_name, parent=None):
         super(Array, self).__init__(reference_name, parent=parent)
-        
+
     @property
     def coloured_text(self):
         '''
@@ -4425,6 +4415,7 @@ class Array(Reference):
         for entity in self._children:
             result += str(entity)
         return result
+
 
 class Literal(Node):
     '''
@@ -4458,10 +4449,8 @@ class Literal(Node):
 
         :param int indent: level to which to indent output.
         '''
-        print(self.indent(indent) + self.coloured_text + "[" \
-                + "value:'"+self._value + "']")
+        print(self.indent(indent) + self.coloured_text + "["
+              + "value:'"+self._value + "']")
 
     def __str__(self):
         return "Literal[value:'" + self._value + "']\n"
-
-

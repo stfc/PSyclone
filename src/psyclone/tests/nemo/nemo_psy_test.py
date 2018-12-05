@@ -279,7 +279,8 @@ def test_schedule_view(capsys):
         "it_space='None']\n"
         "                ")
     assert expected_sched in output
-    expected_sched2 = (loop_str + "[type='levels',field_space='None',"
+    expected_sched2 = (
+        loop_str + "[type='levels',field_space='None',"
         "it_space='None']\n"
         "        " + loop_str + "[type='lat',field_space='None',"
         "it_space='None']\n"
@@ -412,4 +413,3 @@ def test_invoke_function():
     assert len(psy.invokes.invoke_list) == 1
     invoke = psy.invokes.invoke_list[0]
     assert invoke.name == "afunction"
-    #assert isinstance(invoke.schedule.children[0], nemo.NemoCodeBlock)

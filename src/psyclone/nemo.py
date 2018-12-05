@@ -70,16 +70,17 @@ NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
 # layout.
 NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
 
+
 class NemoASTProcessor(fparser2ASTProcessor):
     '''
     Specialization of fparser2ASTProcessor for Nemo API
     '''
 
-    def _create_child(self,child, parent=None):
-        # TODO: Call super initialization from here is not very nice
+    def _create_child(self, child, parent=None):
+        # TODO: Call super initialization every time from here is not very nice
         # but nemo API has to be updated to new fparser2ASTProcessor and for
         # this first we need the base class to have handlers for Loops and
-        # IfBlocks implemented. 
+        # IfBlocks implemented.
         super(NemoASTProcessor, self).__init__()
 
         if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
@@ -90,7 +91,6 @@ class NemoASTProcessor(fparser2ASTProcessor):
             return NemoIfBlock(child, parent=parent)
         else:
             return super(NemoASTProcessor, self)._create_child(child)
-
 
 
 class NemoInvoke(Invoke):
@@ -280,60 +280,6 @@ class NemoSchedule(Schedule, NemoASTProcessor):
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
-
-
-class NemoCodeBlock(Node):
-    '''
-    Node representing some generic Fortran code that PSyclone
-    does not attempt to manipulate. As such it is a leaf in the PSyclone
-    IR and therefore has no children.
-
-    :param statements: list of fparser2 AST nodes representing the Fortran \
-                       code constituting the code block.
-    :type statements: list of :py:class:`fparser.two.utils.Base` or \
-                      :py:class:`fparser.two.utils.BlockBase` objects.
-    :param parent: the parent node of this code block in the PSyIRe.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    def __init__(self, statements, parent=None):
-        Node.__init__(self, parent=parent)
-        # Store a list of the parser objects holding the code associated
-        # with this block. We make a copy of the contents of the list because
-        # the list itself is a temporary product of the process of converting
-        # from the fparser2 AST to the PSyIRe.
-        self._statements = statements[:]
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :return: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("NemoCodeBlock", NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[" +
-              str(type(self._statements[0])) + "]")
-
-    def __str__(self):
-        return "CodeBlock[{0} statements]".format(len(self._statements))
-
-    def gen_code(self):
-        '''
-        Override abstract method from base class.
-
-        :raises InternalError: because it is not relevant to the NEMO API and \
-                               should never be called.
-        '''
-        raise InternalError("NemoCodeBlock.gen_code() should not be called.")
 
 
 class NemoKern(Kern):
