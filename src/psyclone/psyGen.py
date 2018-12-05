@@ -4143,6 +4143,9 @@ class ACCDataDirective(ACCDirective):
         of the OpenACC directive
 
         '''
+
+        fortran_intrinsics = ["MIN", "MAX", "ABS", "SIGN"]
+
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
 
@@ -4167,6 +4170,7 @@ class ACCDataDirective(ACCDirective):
         
         ast_end_index = parent_ast.content.index(base.children[-1]._ast)
 
+        readers = set()
         writers = set()
         from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
             Section_Subscript_List
@@ -4193,6 +4197,11 @@ class ACCDataDirective(ACCDirective):
                     exit(1)
                 equals = node.items[1]
                 rhs = node.items[2]
+                for node in walk_ast([node.items[2]]):
+                    if isinstance(node, Name):
+                        name = node.string
+                        if name.upper() not in fortran_intrinsics:
+                            readers.add(node.string)
 
         # In the fparser2 AST, a directive is just a comment and does not
         # have children. This means we can end up inserting the 'end kernels'
@@ -4218,8 +4227,10 @@ class ACCDataDirective(ACCDirective):
         parent_ast.content.insert(ast_end_index+1, directive)
 
         text = ("!$ACC DATA")
+        if readers:
+            text += " COPYIN({0})".format(" ".join(readers))
         if writers:
-            text += " COPYIN({0})".format(" ".join(writers))
+            text += " COPYOUT({0})".format(" ".join(writers))
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
         parent_ast.content.insert(ast_start_index, directive)
