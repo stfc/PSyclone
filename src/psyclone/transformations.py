@@ -728,6 +728,7 @@ class ACCLoopTrans(ParallelLoopTrans):
         # Whether to add the "independent" clause
         # to the loop directive.
         self._independent = True
+        self._sequential = False
         super(ACCLoopTrans, self).__init__()
 
     def __str__(self):
@@ -754,7 +755,8 @@ class ACCLoopTrans(ParallelLoopTrans):
         directive = ACCLoopDirective(parent=parent,
                                      children=children,
                                      collapse=collapse,
-                                     independent=self._independent)
+                                     independent=self._independent,
+                                     sequential=self._sequential)
         return directive
 
     def _validate(self, node, collapse=None):
@@ -777,7 +779,7 @@ class ACCLoopTrans(ParallelLoopTrans):
                 "for the gocean 1.0 and nemo APIs")
         super(ACCLoopTrans, self)._validate(node, collapse)
 
-    def apply(self, node, collapse=None, independent=True):
+    def apply(self, node, collapse=None, independent=True, sequential=False):
         '''
         Apply the ACCLoop transformation to the specified node in a
         Schedule. This node must be a Loop since this transformation
@@ -809,6 +811,7 @@ class ACCLoopTrans(ParallelLoopTrans):
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
         self._independent = independent
+        self._sequential = sequential
         # Call the apply() method of the base class
         return super(ACCLoopTrans, self).apply(node, collapse)
 
