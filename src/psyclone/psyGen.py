@@ -4162,13 +4162,15 @@ class ACCDataDirective(ACCDirective):
         # meantime we recurse down if the child is a directive.
         #from psyclone.psyGen import Directive
         base = self
+        ndirectives = 0
         while len(base.children) == 1 and \
               isinstance(base.children[0], Directive):
+            ndirectives += 1
             base = base.children[0]
 
-        ast_start_index = parent_ast.content.index(base.children[0]._ast)
+        ast_start_index = parent_ast.content.index(base.children[0]._ast)-ndirectives
         
-        ast_end_index = parent_ast.content.index(base.children[-1]._ast)
+        ast_end_index = parent_ast.content.index(base.children[-1]._ast)+ndirectives
 
         readers = set()
         writers = set()
