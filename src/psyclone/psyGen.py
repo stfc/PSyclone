@@ -4177,7 +4177,7 @@ class ACCDataDirective(ACCDirective):
         from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
             Section_Subscript_List
         from fparser.two.utils import walk_ast
-        for node in walk_ast(parent_ast.content[ast_start_index:ast_end_index]):
+        for node in walk_ast(parent_ast.content[ast_start_index:ast_end_index+1]):
             if isinstance(node, Assignment_Stmt):
                 lhs = node.items[0]
                 if isinstance(lhs, Name):

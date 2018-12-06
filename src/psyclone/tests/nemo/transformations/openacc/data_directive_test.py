@@ -62,9 +62,8 @@ def test_explicit():
 
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    print (gen_code)
     assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
-            "  !$ACC DATA\n"
+            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
             "  DO jk = 1, jpk") in gen_code
     assert ("  END DO\n"
             "  !$ACC END DATA\n"
