@@ -52,25 +52,182 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../../test_files")
 
 def test_explicit():
-    ''' Check code generation for a single explicit loop containing
-    a kernel. '''
+    '''Check code generation for a single explicit loop containing a
+    kernel.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
+
     assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
             "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
             "  DO jk = 1, jpk") in gen_code
+
     assert ("  END DO\n"
             "  !$ACC END DATA\n"
             "END PROGRAM explicit_do") in gen_code
 
 
-# data directive correct location for directives round 1: single loop, multiple loops, not loops, ifs ...
-# data directive child is a) directive b) loop c) not loop
-# data directive parent is a) directive b) loop c) not loop
-# data directive correct data captured
+def test_explicit_directive():
+    '''Check code generation for a single explicit loop containing a
+    kernel with a pre-existing (openacc kernels) directive.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('explicit_do').schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    schedule, _ = acc_trans.apply(schedule.children, default_present=True)
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children)
+    gen_code = str(psy.gen)
+
+    assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
+            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
+            "  !$ACC KERNELS DEFAULT(PRESENT)\n"
+            "  DO jk = 1, jpk") in gen_code
+
+    assert ("  END DO\n"
+            "  !$ACC END KERNELS\n"
+            "  !$ACC END DATA\n"
+            "END PROGRAM explicit_do") in gen_code
+
+
+def test_code_block():
+    '''Check code generation for a mixture of loops and code blocks.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('code_block').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children)
+    gen_code = str(psy.gen)
+
+    assert ("  INTEGER :: psy_jk\n"
+            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
+            "  WRITE(*, FMT = *) \"Hello world\"") in gen_code
+
+    assert ("  DEALLOCATE(umask)\n"
+            "  !$ACC END DATA\n"
+            "END PROGRAM code_block") in gen_code
+
+def test_code_block_noalloc():
+    '''Check code generation for a mixture of loops and code blocks,
+    skipping allocate and deallocate statements.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('code_block').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children[1:5])
+    gen_code = str(psy.gen)
+
+    assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
+            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
+            "  DO psy_jk = 1, jpk, 1") in gen_code
+
+    assert ("  END DO\n"
+            "  !$ACC END DATA\n"
+            "  WRITE(*, FMT = *) \"Goodbye world\"") in gen_code
+
+
+def test_code_block_noalloc_kernels():
+    '''Check code generation for a mixture of loops and code blocks,
+    skipping allocate and deallocate statements and with a kernels
+    directive. Apply kernels transformations second in this example.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('code_block').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children[1:4])
+    #schedule.view()
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    schedule, _ = acc_trans.apply(schedule.children[1].children[0:3], default_present=True)
+    gen_code = str(psy.gen)
+    
+    assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
+            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
+            "  !$ACC KERNELS DEFAULT(PRESENT)\n"
+            "  DO psy_jk = 1, jpk, 1") in gen_code
+
+    assert ("  END DO\n"
+            "  !$ACC END KERNELS\n"
+            "  !$ACC END DATA\n"
+            "  DO iloop = 1, jpi") in gen_code
+
+
+def test_single_code_block():
+    '''Check code generation for a mixture of loops and code blocks.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "afunction.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('afunction').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children)
+    gen_code = str(psy.gen)
+
+    assert ("  INTEGER :: num\n"
+            "  !$ACC DATA COPYIN(iarg) COPYOUT(num)\n"
+            "  IF (iarg > 0) THEN") in gen_code
+
+    assert ("  END IF\n"
+            "  !$ACC END DATA\n"
+            "END FUNCTION afunction") in gen_code
+
+
+def test_array_syntax():
+    '''Check code generation for a mixture of loops and code blocks.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "array_syntax.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('tra_ldf_iso').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children)
+    gen_code = str(psy.gen)
+
+    assert ("  INTEGER :: psy_ji\n"
+            "  !$ACC DATA COPYOUT(zftu,zftv)\n"
+            "  DO psy_jk = 1, jpk, 1") in gen_code
+
+    assert ("  END DO\n"
+            "  !$ACC END DATA\n"
+            "END SUBROUTINE tra_ldf_iso") in gen_code
+
+
+def test_multi_data():
+    '''Check code generation with multiple data directives.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0].children[0:2])
+    schedule, _ = acc_trans.apply(schedule.children[0].children[1:3])
+    gen_code = str(psy.gen)
+
+    assert ("  DO jk = 1, jpkm1\n"
+            "    !$ACC DATA COPYIN(wmask,ptb,jn,ji,jj,jk,psy_jj,psy_ji) "
+            "COPYOUT(zdk1t,zdkt)\n"
+            "    DO jj = 1, jpj, 1") in gen_code
+
+    assert ("    END IF\n"
+            "    !$ACC END DATA\n"
+            "    !$ACC DATA COPYIN(pahu,e2_e1u,zftv,wmask,e2u,e3t_n,umask,"
+            "r1_e1e2t,uslp,zdkt,jn,ji,jj,jk,zdit,zdk1t,zsign,e3u_n) "
+            "COPYOUT(pta,zabe1,zftu,zcof1,zmsku)\n"
+            "    DO jj = 1, jpjm1") in gen_code
+
+    assert ("    END DO\n"
+            "    !$ACC END DATA\n"
+            "  END DO") in gen_code

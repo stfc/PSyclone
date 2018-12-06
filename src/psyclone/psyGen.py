@@ -1471,12 +1471,14 @@ class ACCDirective(Directive):
             directive = Comment(FortranStringReader(end_text,
                                                     ignore_comments=False))
             parent_ast.content.insert(ast_end_index+1, directive)
+            self._ast_end = directive
 
         directive = Comment(FortranStringReader(start_text,
                                                 ignore_comments=False))
         parent_ast.content.insert(ast_start_index, directive)
 
         self._ast = directive
+        self._ast_start = directive
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -2042,6 +2044,7 @@ class OMPParallelDirective(OMPDirective):
         # the AST representing our last child
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
+        self._ast_end = enddir
         # If end_idx+1 takes us beyond the range of the list then the
         # element is appended to the list
         self._parent._ast.content.insert(end_idx+1, enddir)
@@ -2049,6 +2052,7 @@ class OMPParallelDirective(OMPDirective):
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
         self._ast = startdir
+        self._ast_start = startdir
         self._parent._ast.content.insert(start_idx, self._ast)
 
 
@@ -2277,10 +2281,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             parent.content.append(enddir)
         else:
             parent.content.insert(start_idx+1, enddir)
+        self._ast_end = enddir
 
         # Insert the start directive (do this second so we don't have
         # to correct the location)
         self._ast = startdir
+        self._ast_start = startdir
         parent.content.insert(start_idx, self._ast)
 
 
@@ -4091,6 +4097,7 @@ class ACCKernelsDirective(ACCDirective):
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
         parent_ast.content.insert(ast_end_index+1, directive)
+        self._ast_end = directive
 
         text = ("!$ACC KERNELS")
         if self._default_present:
@@ -4103,6 +4110,7 @@ class ACCKernelsDirective(ACCDirective):
         parent_ast.content.insert(ast_start_index, directive)
 
         self._ast = directive
+        self._ast_start = directive
 
 
 class ACCDataDirective(ACCDirective):
@@ -4161,16 +4169,22 @@ class ACCDataDirective(ACCDirective):
         # TODO: We should have an _ast_start and _ast_end but in the
         # meantime we recurse down if the child is a directive.
         #from psyclone.psyGen import Directive
-        base = self
-        ndirectives = 0
-        while len(base.children) == 1 and \
-              isinstance(base.children[0], Directive):
-            ndirectives += 1
-            base = base.children[0]
+        #base = self
+        #ndirectives = 0
+        #while len(base.children) == 1 and \
+        #      isinstance(base.children[0], Directive):
+        #    ndirectives += 1
+        #    base = base.children[0]
 
-        ast_start_index = parent_ast.content.index(base.children[0]._ast)-ndirectives
+        #ast_start_index = parent_ast.content.index(base.children[0]._ast)-ndirectives
         
-        ast_end_index = parent_ast.content.index(base.children[-1]._ast)+ndirectives
+        #ast_end_index = parent_ast.content.index(base.children[-1]._ast)+ndirectives
+
+        ast_start_index = parent_ast.content.index(self.children[0]._ast)
+        try:
+            ast_end_index = parent_ast.content.index(self.children[-1]._ast_end)
+        except AttributeError:
+            ast_end_index = parent_ast.content.index(self.children[-1]._ast)
 
         readers = set()
         writers = set()
@@ -4209,7 +4223,7 @@ class ACCDataDirective(ACCDirective):
                                 readers.add(node.string)
 
         # In the fparser2 AST, a directive is just a comment and does not
-        # have children. This means we can end up inserting the 'end kernels'
+        # have children. This means we can end up inserting the 'end data'
         # directive between a previous directive and the loop to which it
         # applies.
         # Check whether the last node in the PSyIRe for this kernels region
@@ -4230,6 +4244,7 @@ class ACCDataDirective(ACCDirective):
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
         parent_ast.content.insert(ast_end_index+1, directive)
+        self._ast_end = directive
 
         text = ("!$ACC DATA")
         if readers:
@@ -4241,3 +4256,4 @@ class ACCDataDirective(ACCDirective):
         parent_ast.content.insert(ast_start_index, directive)
 
         self._ast = directive
+        self._ast_start = directive

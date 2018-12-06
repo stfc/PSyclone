@@ -359,6 +359,8 @@ class NemoCodeBlock(Node):
             raise GenerationError("NemoCodeBlock must have content.")
         self._statements = statements[:]
         self._ast = self._statements[0]
+        self._ast_start = self._statements[0]
+        self._ast_end = self._statements[-1]
 
     @property
     def coloured_text(self):
@@ -922,6 +924,8 @@ class NemoIfClause(IfClause, ASTProcessor):
         super(NemoIfClause, self).__init__(parent=parent)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast_nodes[0]
+        self._ast_start = ast_nodes[0]
+        self._ast_end = ast_nodes[-1]
         # Store what type of clause we are
         if isinstance(ast_nodes[0], Fortran2003.Else_Stmt):
             self._clause_type = "Else"
