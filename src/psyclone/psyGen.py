@@ -4201,7 +4201,10 @@ class ACCDataDirective(ACCDirective):
                     if isinstance(node, Name):
                         name = node.string
                         if name.upper() not in fortran_intrinsics:
-                            readers.add(node.string)
+                            if name not in writers:
+                                # It is read first so needs to be
+                                # copied in
+                                readers.add(node.string)
 
         # In the fparser2 AST, a directive is just a comment and does not
         # have children. This means we can end up inserting the 'end kernels'

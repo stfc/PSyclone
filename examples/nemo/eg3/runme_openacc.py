@@ -64,7 +64,9 @@ def trans(psy):
     print("Invokes found:")
     print(psy.invokes.names)
 
-    sched = psy.invokes.get('tra_adv').schedule
+    #sched = psy.invokes.get('tra_adv').schedule
+    #sched = psy.invokes.get('tra_ldf_iso').schedule
+    sched = psy.invokes.invoke_list[0].schedule
     sched.view()
 
     trans_info = TransInfo()
@@ -113,13 +115,17 @@ def trans(psy):
 
     sched.view()
 
-    psy.invokes.get('tra_adv').schedule = sched
+    #psy.invokes.get('tra_adv').schedule = sched
+    #psy.invokes.get('tra_ldf_iso').schedule = sched
+    sched = psy.invokes.invoke_list[0].schedule
     print(psy.gen)
 
 
 if __name__ == "__main__":
     API = "nemo"
+    # Choose the example by uncommenting the one you want to run
     _, INVOKEINFO = parse("../code/tra_adv.F90", api=API)
+    #_, INVOKEINFO = parse("../code/traldf_iso.F90", api=API)
     PSY = PSyFactory(API).create(INVOKEINFO)
     print(PSY.gen)
     trans(PSY)
