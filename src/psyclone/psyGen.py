@@ -4233,9 +4233,9 @@ class ACCDataDirective(ACCDirective):
 
         text = ("!$ACC DATA")
         if readers:
-            text += " COPYIN({0})".format(" ".join(readers))
+            text += " COPYIN({0})".format(",".join(readers))
         if writers:
-            text += " COPYOUT({0})".format(" ".join(writers))
+            text += " COPYOUT({0})".format(",".join(writers))
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
         parent_ast.content.insert(ast_start_index, directive)
