@@ -41,6 +41,8 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
+from fparser.two.parser import ParserFactory
+from fparser.common.readfortran import FortranStringReader
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo, \
     GenerationError
@@ -282,8 +284,6 @@ def test_data_ref():
 def test_kind_parameter():
     ''' Check that we don't attempt to put kind parameters into the list
     of variables to copyin/out. '''
-    from fparser.two.parser import ParserFactory
-    from fparser.common.readfortran import FortranStringReader
     parser = ParserFactory().create()
     reader = FortranStringReader("program kind_param\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
@@ -299,4 +299,24 @@ def test_kind_parameter():
     schedule.view()
     gen_code = str(psy.gen)
     assert "copyin(wp)" not in gen_code.lower()
+
+
+def test_fn_call():
+    ''' Check that we don't attempt to put function names into the list
+    of variables we copyin/out. '''
+    parser = ParserFactory().create()
+    reader = FortranStringReader("program fn_call\n"
+                                 "real(kind=wp) :: sto_tmp(5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "sto_tmp(ji) = my_func()\n"
+                                 "end do\n"
+                                 "end program fn_call\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0:1])
+    schedule.view()
+    gen_code = str(psy.gen)
+    assert "copyin(my_func)" not in gen_code.lower()
 
