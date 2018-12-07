@@ -112,6 +112,23 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "If": "red"}
 
 
+def object_index(alist, item):
+    '''
+    A version of the `list.index()` method that checks object identity
+    rather that the content of the object.
+
+    :param list alist: list of objects to search.
+    :param obj item: object to search for in the list.
+    :returns: index of the item in the list.
+    :rtype: int
+    :raises ValueError: if object is not in the list.
+    '''
+    for idx, entry in enumerate(alist):
+        if entry is item:
+            return idx
+    raise ValueError()
+
+
 def get_api(api):
     ''' If no API is specified then return the default. Otherwise, check that
     the supplied API is valid.
@@ -1462,12 +1479,14 @@ class ACCDirective(Directive):
         parent_ast = parent._ast
 
         if start_index is None:
-            ast_start_index = parent_ast.content.index(self.children[0]._ast)
+            ast_start_index = object_index(parent_ast.content,
+                                           self.children[0]._ast)
         else:
             ast_start_index = start_index
 
         if end_text:
-            ast_end_index = parent_ast.content.index(self.children[-1]._ast)
+            ast_end_index = object_index(parent_ast.content,
+                                         self.children[-1]._ast)
             directive = Comment(FortranStringReader(end_text,
                                                     ignore_comments=False))
             parent_ast.content.insert(ast_end_index+1, directive)
@@ -2030,8 +2049,10 @@ class OMPParallelDirective(OMPDirective):
         # directives...
         # Find the children of this node in the AST of our parent node
         try:
-            start_idx = self._parent._ast.content.index(self._children[0]._ast)
-            end_idx = self._parent._ast.content.index(self._children[-1]._ast)
+            start_idx = object_index(self._parent._ast.content,
+                                     self._children[0]._ast)
+            end_idx = object_index(self._parent._ast.content,
+                                   self._children[-1]._ast)
         except (IndexError, ValueError):
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
@@ -2264,7 +2285,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         if not parent:
             raise InternalError("Failed to find parent node in which to "
                                 "insert OpenMP parallel do directive")
-        start_idx = parent.content.index(self._children[0]._ast)
+        start_idx = object_index(parent.content,
+                                 self._children[0]._ast)
 
         # Create the start directive
         text = ("!$omp parallel do default(shared), private({0}), "
@@ -4040,13 +4062,14 @@ class ACCKernelsDirective(ACCDirective):
 
         # the parent might be a directive so we need to recurse up.
         current = self.parent
-        while not current._ast:
+        while not current._ast or not hasattr(current._ast, "content"):
             current = current.parent
         parent_ast = current._ast
 
-        ast_start_index = parent_ast.content.index(self.children[0]._ast)
-
-        ast_end_index = parent_ast.content.index(self.children[-1]._ast)
+        ast_start_index = object_index(parent_ast.content,
+                                       self.children[0]._ast)
+        ast_end_index = object_index(parent_ast.content,
+                                     self.children[-1]._ast)
 
         writers = set()
         from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
@@ -4060,17 +4083,19 @@ class ACCKernelsDirective(ACCDirective):
                 elif isinstance(lhs, Part_Ref):
                     name = lhs.items[0]
                     writers.add(name.string)
-                    subscript_info = lhs.items[1]
-                    if isinstance(subscript_info, Name):
-                        num_subscripts = 1
-                    elif isinstance(subscript_info, Section_Subscript_List):
-                        num_subscripts = len(subscript_info.items)
-                    else:
-                        print ("1: Unexpected node '{0}".
-                               format(type(subscript_info)))
-                        exit(1)
+                    #subscript_info = lhs.items[1]
+                    #if isinstance(subscript_info, Name):
+                    #    num_subscripts = 1
+                    #elif isinstance(subscript_info, Section_Subscript_List):
+                    #    num_subscripts = len(subscript_info.items)
+                    #else:
+                    #    print ("1: Unexpected node '{0}': '{1}'".
+                    #           format(type(subscript_info),
+                    #                  str(subscript_info)))
+                    #    exit(1)
                 else:
-                    print ("2: Unexpected node '{0}".format(type(lhs)))
+                    print ("2: Unexpected node '{0}': '{1}'".format(type(lhs),
+                                                                    str(lhs)))
                     exit(1)
                 equals = node.items[1]
                 rhs = node.items[2]
@@ -4085,7 +4110,7 @@ class ACCKernelsDirective(ACCDirective):
         # it in the AST.
         for child in self.children[-1].children:
             try:
-                idx = parent_ast.content.index(child._ast)
+                idx = object_index(parent_ast.content, child._ast)
                 if idx > ast_end_index:
                     ast_end_index = idx
             except ValueError:
@@ -4164,7 +4189,13 @@ class ACCDataDirective(ACCDirective):
         if self._ast:
             return
 
-        parent_ast = self.parent._ast
+        # Find the level in the fparser2 AST that has the current node
+        # as 'content' (we have to do this because nodes such as IF,
+        # ELSE IF etc. do not have 'content').
+        new_parent = self.parent
+        while not hasattr(new_parent._ast, "content"):
+            new_parent = new_parent.parent
+        parent_ast = new_parent._ast
 
         # TODO: We should have an _ast_start and _ast_end but in the
         # meantime we recurse down if the child is a directive.
@@ -4179,12 +4210,14 @@ class ACCDataDirective(ACCDirective):
         #ast_start_index = parent_ast.content.index(base.children[0]._ast)-ndirectives
         
         #ast_end_index = parent_ast.content.index(base.children[-1]._ast)+ndirectives
-
-        ast_start_index = parent_ast.content.index(self.children[0]._ast)
+        ast_start_index = object_index(parent_ast.content,
+                                       self.children[0]._ast)
         try:
-            ast_end_index = parent_ast.content.index(self.children[-1]._ast_end)
+            ast_end_index = object_index(parent_ast.content,
+                                         self.children[-1]._ast_end)
         except AttributeError:
-            ast_end_index = parent_ast.content.index(self.children[-1]._ast)
+            ast_end_index = object_index(parent_ast.content,
+                                         self.children[-1]._ast)
 
         readers = set()
         writers = set()
