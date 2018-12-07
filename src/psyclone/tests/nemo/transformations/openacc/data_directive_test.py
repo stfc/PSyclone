@@ -274,7 +274,23 @@ def test_data_ref():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
+
+    assert ("!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)") in gen_code
+
+
+def test_array_section():
+    '''Check code generation with a arrays accessed via an array section.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "array_section.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('array_section').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children)
+    gen_code = str(psy.gen)
     print (gen_code)
+    exit(1)
 
     assert ("!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)") in gen_code
 
