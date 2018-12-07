@@ -4177,7 +4177,7 @@ class ACCDataDirective(ACCDirective):
 
         '''
 
-        fortran_intrinsics = ["MIN", "MAX", "ABS", "SIGN"]
+        fortran_intrinsics = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM"]
 
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
