@@ -261,3 +261,19 @@ def test_replicated_loop():
             "    END DO\n"
             "  END DO\n"
             "  !$ACC END DATA") in gen_code
+
+
+def test_data_ref():
+    '''Check code generation with an array accessed via a derived type.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "data_ref.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('data_ref').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children)
+    gen_code = str(psy.gen)
+    print (gen_code)
+
+    assert ("!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)") in gen_code
