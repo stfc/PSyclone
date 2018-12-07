@@ -179,7 +179,7 @@ def test_single_code_block():
     gen_code = str(psy.gen)
 
     assert ("  INTEGER :: num\n"
-            "  !$ACC DATA COPYOUT(num)\n"
+            "  !$ACC DATA\n"
             "  IF (iarg > 0) THEN") in gen_code
 
     assert ("  END IF\n"
@@ -226,7 +226,7 @@ def test_multi_data():
             "    !$ACC END DATA\n"
             "    !$ACC DATA COPYIN(pahu,e2_e1u,e3t_n,wmask,e2u,umask,"
             "r1_e1e2t,uslp,pta,zdkt,zdit,zftv,zdk1t,e3u_n) "
-            "COPYOUT(pta,zabe1,zftu,zcof1,zmsku)\n"
+            "COPYOUT(zftu,pta)\n"
             "    DO jj = 1, jpjm1") in gen_code
 
     assert ("    END DO\n"
@@ -332,24 +332,3 @@ def test_fn_call():
     gen_code = str(psy.gen)
     assert "copyin(my_func)" not in gen_code.lower()
 
-
-def test_complex_assignments():
-    '''Check code generation with multiple data directives.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('imperfect_nest').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    from psyclone.nemo import NemoLoop
-    schedule, _ = acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen)
-
-    assert ("  INTEGER :: psy_ji\n"
-            "  !$ACC DATA COPYIN(pahu,e2_e1u,e3t_n,wmask,e2u,umask,r1_e1e2t,"
-            "uslp,ptb,pta,zdit,zftv,e3u_n) COPYOUT(pta,zabe1,zcof1,zdkt,zftu,"
-            "zdk1t,zmsku)\n"
-            "  DO jk = 1, jpkm1") in gen_code
-
-    assert ("  END DO\n"
-            "  !$ACC END DATA\n"
-            "END PROGRAM imperfect_nest") in gen_code
