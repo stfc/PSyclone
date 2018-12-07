@@ -261,3 +261,17 @@ def test_replicated_loop():
             "    END DO\n"
             "  END DO\n"
             "  !$ACC END DATA") in gen_code
+
+
+def test_kind_parameter():
+    ''' Check that we don't attempt to put kind parameters into the list
+    of variables to copyin/out. '''
+    from fparser.two.parser import ParserFactory
+    from fparser.common.readfortran import FortranStringReader
+    parser = ParserFactory.create()
+    reader = FortranStringReader("program kind_param\n"
+                                 "sto_tmp(:, :) = 0._wp\n"
+                                 "end program kind_param\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    
