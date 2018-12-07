@@ -231,3 +231,33 @@ def test_multi_data():
     assert ("    END DO\n"
             "    !$ACC END DATA\n"
             "  END DO") in gen_code
+
+
+def test_replicated_loop():
+    '''Check code generation with two loops that have the same
+    structure.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "replicated.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('replicate').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0:1])
+    schedule, _ = acc_trans.apply(schedule.children[1:2])
+    gen_code = str(psy.gen)
+
+    assert ("  !$ACC DATA COPYOUT(zwx)\n"
+            "  DO psy_jj = 1, jpj, 1\n"
+            "    DO psy_ji = 1, jpi, 1\n"
+            "      zwx(psy_ji, psy_jj) = 0.E0\n"
+            "    END DO\n"
+            "  END DO\n"
+            "  !$ACC END DATA\n"
+            "  !$ACC DATA COPYOUT(zwx)\n"
+            "  DO psy_jj = 1, jpj, 1\n"
+            "    DO psy_ji = 1, jpi, 1\n"
+            "      zwx(psy_ji, psy_jj) = 0.E0\n"
+            "    END DO\n"
+            "  END DO\n"
+            "  !$ACC END DATA") in gen_code
