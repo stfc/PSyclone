@@ -268,10 +268,18 @@ def test_kind_parameter():
     of variables to copyin/out. '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
-    parser = ParserFactory.create()
+    parser = ParserFactory().create()
     reader = FortranStringReader("program kind_param\n"
-                                 "sto_tmp(:, :) = 0._wp\n"
+                                 "real(kind=wp) :: sto_tmp(5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "sto_tmp(ji) = 0._wp\n"
+                                 "end do\n"
                                  "end program kind_param\n")
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
-    
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0:1])
+    schedule.view()
+    gen_code = str(psy.gen)
+    assert "copyin(wp)" not in gen_code.lower()
