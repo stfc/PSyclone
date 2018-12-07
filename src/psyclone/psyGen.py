@@ -4177,7 +4177,8 @@ class ACCDataDirective(ACCDirective):
 
         '''
 
-        fortran_intrinsics = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM"]
+        fortran_intrinsics = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM",
+                              "CEILING", "REAL", "KIND"]
 
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
@@ -4221,10 +4222,13 @@ class ACCDataDirective(ACCDirective):
 
         readers = set()
         writers = set()
+        loop_vars = []
         from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
-            Section_Subscript_List
+            Section_Subscript_List, Loop_Control
         from fparser.two.utils import walk_ast
         for node in walk_ast(parent_ast.content[ast_start_index:ast_end_index+1]):
+            if isinstance(node, Loop_Control):
+                loop_vars.append(node.items[1][0].string.upper())
             if isinstance(node, Assignment_Stmt):
                 lhs = node.items[0]
                 if isinstance(lhs, Name):
@@ -4249,7 +4253,8 @@ class ACCDataDirective(ACCDirective):
                 for node in walk_ast([node.items[2]]):
                     if isinstance(node, Name):
                         name = node.string
-                        if name.upper() not in fortran_intrinsics:
+                        if name.upper() not in fortran_intrinsics and \
+                           name.upper() not in loop_vars:
                             if name not in writers:
                                 # It is read first so needs to be
                                 # copied in

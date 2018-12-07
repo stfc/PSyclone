@@ -65,7 +65,7 @@ def test_explicit():
     gen_code = str(psy.gen)
 
     assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
-            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
             "  DO jk = 1, jpk") in gen_code
 
     assert ("  END DO\n"
@@ -89,7 +89,7 @@ def test_explicit_directive():
     gen_code = str(psy.gen)
 
     assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
-            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
             "  !$ACC KERNELS DEFAULT(PRESENT)\n"
             "  DO jk = 1, jpk") in gen_code
 
@@ -110,7 +110,7 @@ def test_code_block():
     gen_code = str(psy.gen)
 
     assert ("  INTEGER :: psy_jk\n"
-            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
             "  WRITE(*, FMT = *) \"Hello world\"") in gen_code
 
     assert ("  DEALLOCATE(umask)\n"
@@ -131,7 +131,7 @@ def test_code_block_noalloc():
     gen_code = str(psy.gen)
 
     assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
-            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
             "  DO psy_jk = 1, jpk, 1") in gen_code
 
     assert ("  END DO\n"
@@ -157,7 +157,7 @@ def test_code_block_noalloc_kernels():
     gen_code = str(psy.gen)
     
     assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
-            "  !$ACC DATA COPYIN(r,ji,jj,jk) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
             "  !$ACC KERNELS DEFAULT(PRESENT)\n"
             "  DO psy_jk = 1, jpk, 1") in gen_code
 
@@ -217,14 +217,14 @@ def test_multi_data():
     gen_code = str(psy.gen)
 
     assert ("  DO jk = 1, jpkm1\n"
-            "    !$ACC DATA COPYIN(wmask,ptb,jn,ji,jj,jk,psy_jj,psy_ji) "
+            "    !$ACC DATA COPYIN(jn,ptb,wmask,jk) "
             "COPYOUT(zdk1t,zdkt)\n"
             "    DO jj = 1, jpj, 1") in gen_code
 
     assert ("    END IF\n"
             "    !$ACC END DATA\n"
-            "    !$ACC DATA COPYIN(pahu,e2_e1u,zftv,wmask,e2u,e3t_n,umask,"
-            "r1_e1e2t,uslp,zdkt,jn,ji,jj,jk,zdit,zdk1t,zsign,e3u_n) "
+            "    !$ACC DATA COPYIN(pahu,e2_e1u,e3t_n,wmask,e2u,umask,"
+            "r1_e1e2t,uslp,zdkt,jn,zdit,zftv,jk,zdk1t,zsign,e3u_n) "
             "COPYOUT(pta,zabe1,zftu,zcof1,zmsku)\n"
             "    DO jj = 1, jpjm1") in gen_code
 
