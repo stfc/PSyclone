@@ -4226,12 +4226,38 @@ class ACCDataDirective(ACCDirective):
         loop_vars = []
         structure_name_str = None
         from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
-            Section_Subscript_List, Loop_Control, Data_Ref
+            Section_Subscript_List, Loop_Control, Data_Ref, Structure_Constructor
         from fparser.two.utils import walk_ast
         for node in walk_ast(parent_ast.content[ast_start_index:ast_end_index+1]):
             if isinstance(node, Loop_Control):
+                # keep a list of loop variables
                 loop_vars.append(node.items[1][0].string.upper())
             if isinstance(node, Assignment_Stmt):
+                # found lhs = rhs do RHS first as we cull readers
+                # after writers but want to keep a = a + ... as the
+                # RHS is computed before assigning to the LHS
+                rhs = node.items[2]
+                for node2 in walk_ast([node.items[2]]):
+                    if isinstance(node2, Part_Ref):
+                        name = node2.items[0].string
+                        if name.upper() not in fortran_intrinsics and \
+                           name.upper() not in loop_vars:
+                            if name not in writers:
+                                readers.add(name)
+                    #print (type(node))
+                    #if isinstance(node, Structure_Constructor):
+                    #    skip_name = True
+                    #if isinstance(node, Name):
+                    #    name = node.string
+                    #    if name.upper() not in fortran_intrinsics and \
+                    #       name.upper() not in loop_vars:
+                    #        if name not in writers:
+                    #            # It is read first so needs to be
+                    #            # copied in
+                    #            if skip_name:
+                    #                skip_name = False
+                    #            else:
+                    #                readers.add(node.string)
                 lhs = node.items[0]
                 if isinstance(lhs, Data_Ref):
                     # This is a structure which contains an array access.
@@ -4265,16 +4291,6 @@ class ACCDataDirective(ACCDirective):
                     print ("2: Unexpected node '{0}".format(type(lhs)))
                     exit(1)
                 equals = node.items[1]
-                rhs = node.items[2]
-                for node in walk_ast([node.items[2]]):
-                    if isinstance(node, Name):
-                        name = node.string
-                        if name.upper() not in fortran_intrinsics and \
-                           name.upper() not in loop_vars:
-                            if name not in writers:
-                                # It is read first so needs to be
-                                # copied in
-                                readers.add(node.string)
 
         # In the fparser2 AST, a directive is just a comment and does not
         # have children. This means we can end up inserting the 'end data'

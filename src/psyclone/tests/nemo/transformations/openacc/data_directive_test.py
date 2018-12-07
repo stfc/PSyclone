@@ -67,7 +67,7 @@ def test_explicit():
     gen_code = str(psy.gen)
 
     assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
-            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYOUT(umask)\n"
             "  DO jk = 1, jpk") in gen_code
 
     assert ("  END DO\n"
@@ -91,7 +91,7 @@ def test_explicit_directive():
     gen_code = str(psy.gen)
 
     assert ("  REAL, DIMENSION(jpi, jpj, jpk) :: umask\n"
-            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYOUT(umask)\n"
             "  !$ACC KERNELS DEFAULT(PRESENT)\n"
             "  DO jk = 1, jpk") in gen_code
 
@@ -112,7 +112,7 @@ def test_code_block():
     gen_code = str(psy.gen)
 
     assert ("  INTEGER :: psy_jk\n"
-            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYOUT(umask)\n"
             "  WRITE(*, FMT = *) \"Hello world\"") in gen_code
 
     assert ("  DEALLOCATE(umask)\n"
@@ -133,7 +133,7 @@ def test_code_block_noalloc():
     gen_code = str(psy.gen)
 
     assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
-            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYOUT(umask)\n"
             "  DO psy_jk = 1, jpk, 1") in gen_code
 
     assert ("  END DO\n"
@@ -153,13 +153,12 @@ def test_code_block_noalloc_kernels():
     schedule = psy.invokes.get('code_block').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children[1:4])
-    #schedule.view()
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     schedule, _ = acc_trans.apply(schedule.children[1].children[0:3], default_present=True)
     gen_code = str(psy.gen)
     
     assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
-            "  !$ACC DATA COPYIN(r) COPYOUT(umask)\n"
+            "  !$ACC DATA COPYOUT(umask)\n"
             "  !$ACC KERNELS DEFAULT(PRESENT)\n"
             "  DO psy_jk = 1, jpk, 1") in gen_code
 
@@ -180,7 +179,7 @@ def test_single_code_block():
     gen_code = str(psy.gen)
 
     assert ("  INTEGER :: num\n"
-            "  !$ACC DATA COPYIN(iarg) COPYOUT(num)\n"
+            "  !$ACC DATA COPYOUT(num)\n"
             "  IF (iarg > 0) THEN") in gen_code
 
     assert ("  END IF\n"
@@ -219,14 +218,14 @@ def test_multi_data():
     gen_code = str(psy.gen)
 
     assert ("  DO jk = 1, jpkm1\n"
-            "    !$ACC DATA COPYIN(jn,ptb,wmask,jk) "
+            "    !$ACC DATA COPYIN(ptb,wmask) "
             "COPYOUT(zdk1t,zdkt)\n"
             "    DO jj = 1, jpj, 1") in gen_code
 
     assert ("    END IF\n"
             "    !$ACC END DATA\n"
             "    !$ACC DATA COPYIN(pahu,e2_e1u,e3t_n,wmask,e2u,umask,"
-            "r1_e1e2t,uslp,zdkt,jn,zdit,zftv,jk,zdk1t,zsign,e3u_n) "
+            "r1_e1e2t,uslp,pta,zdkt,zdit,zftv,zdk1t,e3u_n) "
             "COPYOUT(pta,zabe1,zftu,zcof1,zmsku)\n"
             "    DO jj = 1, jpjm1") in gen_code
 
@@ -291,10 +290,8 @@ def test_array_section():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    print (gen_code)
-    exit(1)
 
-    assert ("!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)") in gen_code
+    assert ("!$ACC DATA COPYIN(c,b) COPYOUT(a)") in gen_code
 
 
 def test_kind_parameter():
@@ -312,8 +309,8 @@ def test_kind_parameter():
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children[0:1])
-    schedule.view()
     gen_code = str(psy.gen)
+
     assert "copyin(wp)" not in gen_code.lower()
 
 
@@ -332,7 +329,27 @@ def test_fn_call():
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children[0:1])
-    schedule.view()
     gen_code = str(psy.gen)
     assert "copyin(my_func)" not in gen_code.lower()
 
+
+def test_complex_assignments():
+    '''Check code generation with multiple data directives.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('imperfect_nest').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    from psyclone.nemo import NemoLoop
+    schedule, _ = acc_trans.apply(schedule.children)
+    gen_code = str(psy.gen)
+
+    assert ("  INTEGER :: psy_ji\n"
+            "  !$ACC DATA COPYIN(pahu,e2_e1u,e3t_n,wmask,e2u,umask,r1_e1e2t,"
+            "uslp,ptb,pta,zdit,zftv,e3u_n) COPYOUT(pta,zabe1,zcof1,zdkt,zftu,"
+            "zdk1t,zmsku)\n"
+            "  DO jk = 1, jpkm1") in gen_code
+
+    assert ("  END DO\n"
+            "  !$ACC END DATA\n"
+            "END PROGRAM imperfect_nest") in gen_code
