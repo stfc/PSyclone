@@ -1737,8 +1737,8 @@ class MoveTrans(Transformation):
 
         schedule = node.root
 
-        # create a memento of the schedule and the proposed transformation
-        from .undoredo import Memento
+        # Create a memento of the schedule and the proposed transformation
+        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [node, location])
 
         parent = node.parent
@@ -1841,7 +1841,7 @@ class ExtractRegionTrans(RegionTrans):
         # transformation
         schedule = node_list[0].root
 
-        from .undoredo import Memento
+        from psyclone.undoredo import Memento
         keep = Memento(schedule, self)
 
         from psyclone.extractor import ExtractNode
