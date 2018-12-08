@@ -6478,9 +6478,9 @@ def test_no_acc():
     dynamo0p3 Schedule causes an error.
 
     '''
-    from psyclone.transformations import ACCDataTrans, ACCLoopTrans, \
+    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
         ACCParallelTrans
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
     acclt = ACCLoopTrans()
 
@@ -6493,7 +6493,7 @@ def test_no_acc():
 
     with pytest.raises(NotImplementedError) as err:
         _ = accdt.apply(sched)
-    assert ("ACCDataDirective not implemented for a schedule of type "
+    assert ("ACCEnterDataDirective not implemented for a schedule of type "
             in str(err))
 
     with pytest.raises(NotImplementedError) as err:

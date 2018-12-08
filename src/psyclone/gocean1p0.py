@@ -49,7 +49,7 @@
 from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
-    Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
+    Loop, Kern, Arguments, Argument, KernelArgument, ACCEnterDataDirective, \
     GenerationError, InternalError, args_filter
 import psyclone.expression as expr
 
@@ -1540,9 +1540,9 @@ class GOKernelType1p0(KernelType):
         return self._index_offset
 
 
-class GOACCDataDirective(ACCDataDirective):
+class GOACCEnterDataDirective(ACCEnterDataDirective):
     '''
-    Sub-classes ACCDataDirective to provide an API-specific implementation
+    Sub-classes ACCEnterDataDirective to provide an API-specific implementation
     of data_on_device().
 
     '''

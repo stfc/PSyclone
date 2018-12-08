@@ -47,7 +47,7 @@ from psyclone.transformations import TransformationError, \
     GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \
     OMPParallelTrans, GOceanOMPParallelLoopTrans, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
-    ACCParallelTrans, ACCDataTrans, ACCLoopTrans
+    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
 from psyclone_test_utils import count_lines, get_invoke
 
@@ -1398,7 +1398,7 @@ def test_acc_parallel_trans():
     assert ("an ACC parallel region must also contain an ACC enter data "
             "directive but none was found for invoke_0" in str(err))
 
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     new_sched, _ = accdt.apply(schedule)
     invoke.schedule = new_sched
     code = str(psy.gen)
@@ -1447,7 +1447,7 @@ def test_acc_data_not_a_schedule():
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 
-    acct = ACCDataTrans()
+    acct = ACCEnterDataTrans()
     accpara = ACCParallelTrans()
 
     with pytest.raises(TransformationError) as err:
@@ -1473,7 +1473,7 @@ def test_acc_data_copyin():
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1510,7 +1510,7 @@ def test_acc_data_grid_copyin():
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1547,7 +1547,7 @@ def test_acc_rscalar_update():
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1580,7 +1580,7 @@ def test_acc_iscalar_update():
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1614,7 +1614,7 @@ def test_acc_update_two_scalars():
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1644,7 +1644,7 @@ def test_acc_data_parallel_commute():
     '''Test that we can apply the OpenACC parallel and data
     transformations in either order'''
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
@@ -1682,7 +1682,7 @@ def test_acc_data_parallel_commute():
 def test_accdata_duplicate():
     ''' Check that we raise an error if we attempt to add an OpenACC
     data directive to a schedule that already contains one '''
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
 
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1705,7 +1705,7 @@ def test_accloop():
     ''' Tests that we can apply a '!$acc loop' directive to a loop '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
-    accdata = ACCDataTrans()
+    accdata = ACCEnterDataTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
@@ -1757,7 +1757,7 @@ def test_acc_collapse():
     ''' Tests for the collapse clause to a loop directive '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
-    accdata = ACCDataTrans()
+    accdata = ACCEnterDataTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0")
@@ -1804,7 +1804,7 @@ def test_acc_indep(capsys):
     ''' Tests for the independent clause to a loop directive. '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
-    accdata = ACCDataTrans()
+    accdata = ACCEnterDataTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0")

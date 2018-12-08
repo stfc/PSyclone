@@ -62,11 +62,11 @@ def test_accparallel():
     assert acct.name == "ACCParallelTrans"
 
 
-def test_accdata():
-    ''' Generic tests for the ACCDataTrans class '''
-    from psyclone.transformations import ACCDataTrans
-    acct = ACCDataTrans()
-    assert acct.name == "ACCDataTrans"
+def test_accenterdata():
+    ''' Generic tests for the ACCEnterDataTrans class '''
+    from psyclone.transformations import ACCEnterDataTrans
+    acct = ACCEnterDataTrans()
+    assert acct.name == "ACCEnterDataTrans"
     assert str(acct) == "Adds an OpenACC 'enter data' directive"
 
 

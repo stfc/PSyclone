@@ -2380,9 +2380,9 @@ class ACCEnterDataTrans(Transformation):
         from psyclone.nemo import NemoSchedule
 
         if isinstance(sched, GOSchedule):
-            from psyclone.gocean1p0 import GOACCEnterDataDirective as AccDataDir
+            from psyclone.gocean1p0 import GOACCEnterDataDirective as AccEnterDataDir
         elif isinstance(sched, NemoSchedule):
-            from psyclone.nemo import NemoACCEnterDataDirective as AccDataDir
+            from psyclone.nemo import NemoACCEnterDataDirective as AccEnterDataDir
         elif isinstance(sched, Schedule):
             raise NotImplementedError(
                 "ACCEnterDataTrans: ACCEnterDataDirective not implemented for a "
@@ -2392,11 +2392,11 @@ class ACCEnterDataTrans(Transformation):
                                       "directive to something that is "
                                       "not a Schedule")
         schedule = sched
-        # Check that we don't already have a data region
-        data_dir = schedule.walk(schedule.children, AccDataDir)
+        # Check that we don't already have an enter data region
+        data_dir = schedule.walk(schedule.children, AccEnterDataDir)
         if len(data_dir) != 0:
             raise TransformationError("Schedule already has an OpenACC "
-                                      "data region - cannot add another.")
+                                      "enter data region - cannot add another.")
         # create a memento of the schedule and the proposed
         # transformation
         from psyclone.undoredo import Memento

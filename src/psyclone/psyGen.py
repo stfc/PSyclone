@@ -1516,7 +1516,7 @@ class ACCEnterDataDirective(ACCDirective):
     :type parent: :py:class:`psyclone.psyGen.Node`.
     '''
     def __init__(self, children=None, parent=None):
-        super(ACCDataDirective, self).__init__(children, parent)
+        super(ACCEnterDataDirective, self).__init__(children, parent)
         self._acc_dirs = None  # List of parallel directives
 
     def view(self, indent=0):
@@ -1655,7 +1655,7 @@ class ACCParallelDirective(ACCDirective):
         # We can't use Node.ancestor() because the data directive does
         # not have children. Instead, we go back up to the Schedule and
         # walk down from there.
-        nodes = self.root.walk(self.root.children, ACCDataDirective)
+        nodes = self.root.walk(self.root.children, ACCEnterDataDirective)
         if len(nodes) != 1:
             raise GenerationError(
                 "A Schedule containing an ACC parallel region must also "
