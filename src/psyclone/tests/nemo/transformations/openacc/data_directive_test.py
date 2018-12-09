@@ -198,7 +198,7 @@ def test_array_syntax():
     gen_code = str(psy.gen)
 
     assert ("  INTEGER :: psy_ji\n"
-            "  !$ACC DATA COPYOUT(zftu,zftv)\n"
+            "  !$ACC DATA COPYOUT(zftv,zftu)\n"
             "  DO psy_jk = 1, jpk, 1") in gen_code
 
     assert ("  END DO\n"
@@ -224,8 +224,8 @@ def test_multi_data():
 
     assert ("    END IF\n"
             "    !$ACC END DATA\n"
-            "    !$ACC DATA COPYIN(pahu,e2_e1u,e3t_n,wmask,e2u,umask,"
-            "r1_e1e2t,uslp,pta,zdkt,zdit,zftv,zdk1t,e3u_n) "
+            "    !$ACC DATA COPYIN(pahu,e2_e1u,e3u_n,wmask,e2u,uslp,zdit,"
+            "zdkt,zdk1t,umask,pta,zftv,r1_e1e2t,e3t_n) "
             "COPYOUT(zftu,pta)\n"
             "    DO jj = 1, jpjm1") in gen_code
 
@@ -291,7 +291,7 @@ def test_array_section():
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
 
-    assert ("!$ACC DATA COPYIN(c,b) COPYOUT(a)") in gen_code
+    assert ("!$ACC DATA COPYIN(b,c) COPYOUT(a)") in gen_code
 
 
 def test_kind_parameter():
