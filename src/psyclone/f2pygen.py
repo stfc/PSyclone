@@ -648,10 +648,10 @@ class ImplicitNoneGen(BaseGen):
 
         :raises Exception: if `parent` is not a ModuleGen or SubroutineGen
         '''
-        if not isinstance(parent, ModuleGen) and not insistance(parent,
+        if not isinstance(parent, ModuleGen) and not isinstance(parent,
                                                                 SubroutineGen):
             raise Exception(
-                "The parent of ImplicitNoneGen must be a module or a"
+                "The parent of ImplicitNoneGen must be a module or a "
                 "subroutine, but found {0}".format(type(parent)))
         reader = FortranStringReader("IMPLICIT NONE\n")
         reader.set_format(FortranFormat(True, True))  # free form, strict
