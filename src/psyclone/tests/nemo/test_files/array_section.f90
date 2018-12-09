@@ -8,6 +8,3 @@ subroutine array_section()
   end do
 
 END subroutine array_section
-
-
-**** nemo_merge

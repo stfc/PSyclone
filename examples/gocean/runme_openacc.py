@@ -89,7 +89,7 @@ if __name__ == "__main__":
     print(trans_info.list)
     fuse_trans = trans_info.get_trans_name('LoopFuse')
     ptrans = trans_info.get_trans_name('ACCParallelTrans')
-    dtrans = trans_info.get_trans_name('ACCDataTrans')
+    dtrans = trans_info.get_trans_name('ACCEnterDataTrans')
     ltrans = trans_info.get_trans_name('ACCLoopTrans')
 
     # invoke0
