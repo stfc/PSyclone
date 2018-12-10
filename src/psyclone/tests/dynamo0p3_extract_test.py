@@ -43,7 +43,7 @@ import pytest
 from psyclone.parse import parse, ParseError
 from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, GenerationError, Loop
-from psyclone.configuration import ConfigFactory
+from psyclone.configuration import Config
 from psyclone.transformations import ExtractRegionTrans, \
     MoveTrans, Dynamo0p3ColourTrans, DynamoOMPParallelLoopTrans
 from psyclone.dynamo0p3 import DynKern
@@ -61,8 +61,7 @@ DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 TEST_API = "dynamo0.3"
 
 # Our configuration objects
-_CONFIG = ConfigFactory().create()
-_API_CONFIG = _CONFIG.api(TEST_API)
+api_config = Config.get().api_conf(TEST_API)
 
 
 def test_move_extract_trans():

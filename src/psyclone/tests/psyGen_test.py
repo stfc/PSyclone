@@ -1326,10 +1326,39 @@ def test_argument_backward_dependence():
 
 
 def test_node_depth():
+    '''
+    Test that the Node class depth method returns the correct value for
+    a Node in a tree. The start depth for to determine a Node's depth is
+    set to 0. Depth of a Schedule is 1 and increases for its descendants.
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    # Assert that start_depth of any Node is 0
+    assert schedule.start_depth == 0
+    # Assert that Schedule depth is 1
+    assert schedule.depth == 1
+    # Depth increases by 1 for descendants at each level
+    for child in schedule.children:
+        assert child.depth == 2
+    for child in schedule.children[3].children:
+        assert child.depth == 3
+
+
+def test_node_position():
+    '''
+    Test that the Node class position and abs_position methods return
+    the correct value for a Node in a tree. The start depth for to determine a Node's depth is
+    set to 0. Depth of a Schedule is 1 and increases for its descendants.
+    '''
     '''Test that the Node class depth method returns the correct value
     for a Node in a tree '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        os.path.join(BASE_PATH, "3_multi_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1339,6 +1368,13 @@ def test_node_depth():
         assert child.depth == 2
     for child in schedule.children[3].children:
         assert child.depth == 3
+
+
+    from psyclone.transformations import DynamoOMPParallelLoopTrans
+    otrans = DynamoOMPParallelLoopTrans()
+    for child in schedule.children:
+        schedule, _ = otrans.apply(child)
+    read4 = schedule.children[4]
 
 
 def test_node_args():

@@ -62,7 +62,6 @@ except ImportError:
         :param _: Fake argument, only required to match interface
                   provided by termcolor.colored
         :returns: The supplied text, unchanged
-        :returns: The supplied text, unchanged
         :rtype: string
         '''
         return text
@@ -1058,8 +1057,8 @@ class Node(object):
     @property
     def depth(self):
         '''
-        Returns this Node's depth in the tree: 1 for the main nodes in
-        the Schedule and increasing for their descendants at each level.
+        Returns this Node's depth in the tree: 1 for the Schedule
+        and increasing for its descendants at each level.
         :returns: depth of the Node in the tree
         :rtype: int
         '''
