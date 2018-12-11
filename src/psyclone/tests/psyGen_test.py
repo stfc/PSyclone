@@ -1337,8 +1337,7 @@ def test_node_depth():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.view()
-    # Assert that start_depth of any Node is 0
+    # Assert that start_depth of any Node (including Schedule) is 0
     assert schedule.start_depth == 0
     # Assert that Schedule depth is 1
     assert schedule.depth == 1
@@ -1352,29 +1351,48 @@ def test_node_depth():
 def test_node_position():
     '''
     Test that the Node class position and abs_position methods return
-    the correct value for a Node in a tree. The start depth for to determine a Node's depth is
-    set to 0. Depth of a Schedule is 1 and increases for its descendants.
+    the correct value for a Node in a tree. The start position is
+    set to 0. Relative position starts from 0 and absolute from 1.
     '''
-    '''Test that the Node class depth method returns the correct value
-    for a Node in a tree '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "3_multi_invokes.f90"),
+        os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    assert schedule.depth == 1
-    for child in schedule.children:
-        assert child.depth == 2
-    for child in schedule.children[3].children:
-        assert child.depth == 3
+    child = schedule.children[6]
+    # Assert that start_position of any Node is 0
+    assert child.start_position == 0
+    # Assert that relative and absolute positions return correct values
+    assert child.position == 6
+    assert child.abs_position == 7
+    # Test InternalError for _find_position....
 
 
-    from psyclone.transformations import DynamoOMPParallelLoopTrans
-    otrans = DynamoOMPParallelLoopTrans()
-    for child in schedule.children:
-        schedule, _ = otrans.apply(child)
-    read4 = schedule.children[4]
+def test_node_root():
+    '''
+    Test that the Node class root and root_at_depth methods return
+    the correct instamces for a Node in a tree.
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # Select a loop and the kernel inside
+    ru_loop = schedule.children[1]
+    ru_kern = ru_loop.children[0]
+    # Assert that the absolute root is Schedule
+    from psyclone.psyGen import Schedule, Loop
+    assert isinstance(ru_kern.root, Schedule)
+    # and the root at depth 1 is Loop
+    assert isinstance(ru_kern.root_at_depth(1), Loop)
+    # Assert that specifying incorrect depth for root_at_depth method
+    # raises an InternalError (for both limits...)
+    with pytest.raises(InternalError) as excinfo:
+        root = ru_kern.root_at_depth(0)
+    assert "Parent depth must be greater than 0" in str(excinfo.value)
 
 
 def test_node_args():

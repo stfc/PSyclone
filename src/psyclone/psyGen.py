@@ -1140,8 +1140,8 @@ class Node(object):
     @property
     def start_position(self):
         '''
-        Returns starting position (0) to calculate position of all nodes
-        in the tree (absolute or relative to a parent).
+        Returns starting position (0) to calculate position of all
+        nodes in the tree (absolute or relative to a parent).
         :returns: starting position to determine a Node's position
         :rtype: int
         '''
@@ -1176,10 +1176,10 @@ class Node(object):
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: position of the Node in the tree
         :rtype: int
-        :raises Exception: if the starting position is < 0
+        :raises InternalError: if the starting position is < 0
         '''
         if position < self.start_position:
-            raise Exception(
+            raise InternalError(
                 "Search for Node position started from '{0}' "
                 "instead of {1}.".format(position, self.start_position))
         for child in children:
@@ -1220,11 +1220,11 @@ class Node(object):
         :type depth: int
         :returns: root node at the specified depth level
         :rtype: :py:class:`psyclone.psyGen.Node`
-        :raises Exception: if the starting depth is < 1 
-                           and >= node.depth
+        :raises InternalError: if the starting depth is < 1
+                               and >= node.depth
         '''
         if not (depth > self.start_depth and depth < self.depth):
-            raise Exception(
+            raise InternalError(
                 "Parent depth must be greater than {0} and less than the"
                 "Node's depth ({1})".format(self.start_depth, self.depth))
         node = self
