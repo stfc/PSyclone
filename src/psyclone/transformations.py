@@ -923,9 +923,17 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     def apply(self, node):
 
-        ''' Perform Dynamo specific loop validity checks then call the
+        '''Perform Dynamo specific loop validity checks then call the
         :py:meth:`~OMPParallelLoopTrans.apply` method of the
-        :py:class:`base class <OMPParallelLoopTrans>`. '''
+        :py:class:`base class <OMPParallelLoopTrans>`.
+
+        :param node: the Node in the Schedule to check
+        :type node: :py:class:`psyclone.psyGen.Node`
+
+        :raise TransformationError: if the associated loop requires \
+        colouring.
+
+        '''
         OMPParallelLoopTrans._validate(self, node)
 
         # If the loop is not already coloured then check whether or not
