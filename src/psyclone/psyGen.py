@@ -2992,6 +2992,7 @@ class Kern(Call):
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  # The fparser2 AST for the kernel
+        self._kern_schedule = None  # PSyIRe schedule for the kernel
         self._module_inline = False
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
@@ -3002,6 +3003,14 @@ class Kern(Call):
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
         self.arg_descriptors = call.ktype.arg_descriptors
+
+    def get_kernel_schedule(self):
+
+        if self._kern_schedule is None:
+            astp = fparser2ASTProcessor()
+            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+
+        return self._kern_schedule
 
     def __str__(self):
         return "kern call: "+self._name
@@ -3938,6 +3947,7 @@ class fparser2ASTProcessor(object):
         from fparser.two import Fortran2003, utils
         # Map of fparser2 node types to handlers(which are class methods)
         self.handlers = {
+            Fortran2003.Module: self._module_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
@@ -3977,6 +3987,35 @@ class fparser2ASTProcessor(object):
         parent.addchild(code_block)
         del statements[:]
         return code_block
+
+    def generate_schedule(self, name, module_ast):
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+
+        def get_type(nodelist, typekind):
+            return next(x for x in nodelist if type(x) is typekind)
+
+        def get_subroutine(nodelist, searchname):
+            return next(x for x in nodelist if
+                        (type(x) is Fortran2003.Subroutine_Subprogram) and
+                        (str(x.content[0].get_name()) == searchname))
+
+        try:
+            mod_content = module_ast.content[0].content
+            mod_spec = get_type(mod_content, Fortran2003.Specification_Part)
+            subroutines = get_type(mod_content,
+                                   Fortran2003.Module_Subprogram_Part)
+            subroutine = get_subroutine(subroutines.content, name)
+            sub_spec = get_type(subroutine.content,
+                                Fortran2003.Specification_Part)
+            sub_exec = get_type(subroutine.content, Fortran2003.Execution_Part)
+        except StopIteration:
+            raise InternalError("Unexpected module format")
+
+        new_schedule = KernelSchedule(name)
+        self.process_nodes(new_schedule, sub_exec.content, sub_exec)
+        return new_schedule
+
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).
@@ -4043,6 +4082,12 @@ class fparser2ASTProcessor(object):
             if handler is None:
                 raise NotImplementedError()
         return handler(child, parent)
+
+    def _module_handler(self, node, parent):
+        print(type(node))
+        print(node.content)
+        exit()
+        pass
 
     def _ignore_handler(self, node, parent):
         '''
@@ -4189,6 +4234,28 @@ class fparser2ASTProcessor(object):
         :rtype :py:class:`psyclone.psyGen.Literal`
         '''
         return Literal(node.items[0], parent=parent)
+
+
+class KernelSchedule(Schedule):
+    # Not sure if needs to be subclassed but the Schedule class has an
+    # initializer that does not fit with ASTProcessor needs
+
+    def __init__(self, name):
+        super(KernelSchedule, self).__init__(None, None)
+        self._name = name
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print(self.indent(indent) + self.coloured_text + "[name:" + self._name
+              + "]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
 
 
 class CodeBlock(Node):
