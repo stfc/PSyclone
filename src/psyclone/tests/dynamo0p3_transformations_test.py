@@ -6438,8 +6438,10 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
 
 
 def test_intergrid_omp_parado(dist_mem, tmpdir, f90, f90flags):
-    ''' Check that we can apply OpenMP to a loop containing an inter-grid
-    kernel call. '''
+    '''Check that we can add an OpenMP parallel loop to a loop containing
+    an inter-grid kernel call.
+
+    '''
     # Use an example that contains both prolongation and restriction
     # kernels
     _, invoke_info = parse(os.path.join(
@@ -6459,17 +6461,14 @@ def test_intergrid_omp_parado(dist_mem, tmpdir, f90, f90flags):
     _, _ = otrans.apply(loops[2])
     _, _ = otrans.apply(loops[5])
     gen = str(psy.gen)
+    assert ("      DO colour=1,ncolour_fld_c\n"
+            "        !$omp parallel do default(shared), private(cell), "
+            "schedule(static)\n" in gen)
     if dist_mem:
-        assert ("      DO colour=1,ncolour_fld_c\n"
-                "        !$omp parallel do default(shared), private(cell), "
-                "schedule(static)\n"
-                "        DO cell=1,mesh_fld_c%get_last_halo_cell_per_colour("
+        assert ("        DO cell=1,mesh_fld_c%get_last_halo_cell_per_colour("
                 "colour,1)\n" in gen)
     else:
-        assert ("      DO colour=1,ncolour_fld_c\n"
-                "        !$omp parallel do default(shared), private(cell), "
-                "schedule(static)\n"
-                "        DO cell=1,mesh_fld_c%get_last_edge_cell_per_colour("
+        assert ("        DO cell=1,mesh_fld_c%get_last_edge_cell_per_colour("
                 "colour)\n" in gen)
     if TEST_COMPILE:
         assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)

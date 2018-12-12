@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
 # pip requirements file specifying the packages required to build
 # the PSyclone documentation. Used by readthedocs.
