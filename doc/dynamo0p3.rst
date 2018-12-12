@@ -43,10 +43,10 @@ This section describes the Dynamo0.3 application programming interface
 (API). This API explains what a user needs to write in order to make
 use of the Dynamo0.3 API in PSyclone.
 
-As with all PSyclone API's the Dynamo0.3 API specifies how a user
-needs to write the algorithm layer and the kernel layer to allow
-PSyclone to generate the PSy layer. These algorithm and kernel API's
-are discussed separately in the following sections.
+As with the majority of PSyclone API's, the Dynamo0.3 API specifies
+how a user needs to write the algorithm layer and the kernel layer to
+allow PSyclone to generate the PSy layer. These algorithm and kernel
+API's are discussed separately in the following sections.
 
 The Dynamo0.3 API supports the Met Office's finite element (hereafter FEM)
 based GungHo dynamical core (see :ref:`introduction`). The Met Office
@@ -2084,13 +2084,14 @@ Transformations
 ---------------
 
 This section describes the dynamo-api-specific transformations. In all
-cases, excepting **Dynamo0p3RedundantComputationTrans**, these
-transformations are specialisations of generic transformations
-described in the :ref:`transformations` section. The difference
-between these transformations and the generic ones is that these
-perform dynamo-api-specific checks to make sure the transformations
-are valid. In practice these transformations perform the required
-checks then call the generic ones internally.
+cases, excepting **Dynamo0p3RedundantComputationTrans** and
+**Dynamo0p3AsyncHaloExchangeTrans**, these transformations are
+specialisations of generic transformations described in the
+:ref:`transformations` section. The difference between these
+transformations and the generic ones is that these perform
+dynamo-api-specific checks to make sure the transformations are
+valid. In practice these transformations perform the required checks
+then call the generic ones internally.
 
 The use of the dynamo-api-specific transformations is exactly the same
 as the equivalent generic ones in all cases excepting
@@ -2106,10 +2107,12 @@ the spaces are the same. This option should therefore be used with
 caution. Note, if PSyclone knows the spaces are different this option
 has no effect and the transformation will always raise an exception.
 
-The **Dynamo0p3RedundantComputationTrans** transformation is only valid
-for the "Dynamo0p3" API. This is because this API is currently the
-only one that supports distributed memory.
-An example of redundant computation can be found in ``examples/dynamo/eg8``.
+The **Dynamo0p3RedundantComputationTrans** and
+**Dynamo0p3AsyncHaloExchange** transformations are only valid for the
+"Dynamo0p3" API. This is because this API is currently the only one
+that supports distributed memory.  An example of redundant computation
+can be found in ``examples/dynamo/eg8`` and an example of asynchronous
+halo exchanges can be found in ``examples/dynamo/eg11``.
 
 The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
@@ -2130,11 +2133,15 @@ all versions of the Dynamo API.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.Dynamo0p3OMPLoopTrans
+.. autoclass:: psyclone.transformations.Dynamo0p3AsyncHaloExchangeTrans
     :members:
     :noindex:
 
 .. autoclass:: psyclone.transformations.Dynamo0p3ColourTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.transformations.Dynamo0p3OMPLoopTrans
     :members:
     :noindex:
 

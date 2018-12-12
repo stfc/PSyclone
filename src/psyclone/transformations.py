@@ -2221,6 +2221,98 @@ class ProfileRegionTrans(RegionTrans):
         return schedule, keep
 
 
+class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
+    '''Splits a synchronous halo exchange into a halo exchange start and
+    halo exchange end. For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "dynamo0.3"
+    >>> ast, invokeInfo = parse("file.f90", api=api)
+    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
+    >>> trans = Dynamo0p3AsyncHaloExchangeTrans()
+    >>> new_schedule, memento = trans.apply(schedule.children[0])
+    >>> new_schedule.view()
+
+    '''
+
+    def __str__(self):
+        return "Changes a synchronous halo exchange into an asynchronous one."
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+        return "Dynamo0p3AsyncHaloExchangeTrans"
+
+    def apply(self, node):
+        '''Transforms a synchronous halo exchange, represented by a
+        HaloExchange node, into an asynchronous halo exchange,
+        represented by HaloExchangeStart and HaloExchangeEnd nodes.
+
+        :param node: A synchronous haloexchange node
+        :type node: :py:obj:`psyclone.psygen.HaloExchange`
+        :returns: Tuple of the modified schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        self._validate(node)
+
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(schedule, self, [node])
+
+        from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
+        # add asynchronous start and end halo exchanges and initialise
+        # them using information from the existing synchronous halo
+        # exchange
+        node.parent.addchild(
+            DynHaloExchangeStart(
+                node.field, check_dirty=node._check_dirty,
+                vector_index=node.vector_index, parent=node.parent),
+            index=node.position)
+        node.parent.addchild(
+            DynHaloExchangeEnd(
+                node.field, check_dirty=node._check_dirty,
+                vector_index=node.vector_index, parent=node.parent),
+            index=node.position)
+
+        # remove the existing synchronous halo exchange
+        node.parent.children.remove(node)
+
+        return schedule, keep
+
+    def _validate(self, node):
+        '''Internal method to check whether the node is valid for this
+        transformation.
+
+        :param node: A synchronous Halo Exchange node
+        :type node: :py:obj:`psyclone.psygen.HaloExchange`
+        :raises TransformationError: if the node argument is not a
+                         HaloExchange (or subclass thereof)
+
+        '''
+        from psyclone.psyGen import HaloExchange
+        from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
+
+        if not isinstance(node, HaloExchange) or \
+           isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
+            raise TransformationError(
+                "Error in Dynamo0p3AsyncHaloExchange transformation. Supplied "
+                "node must be a synchronous halo exchange but found '{0}'."
+                .format(type(node)))
+
+
 class ACCDataTrans(Transformation):
     '''
     Adds an OpenACC "enter data" directive to a Schedule.

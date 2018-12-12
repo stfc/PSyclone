@@ -99,14 +99,17 @@ VALID_ACCESS_DESCRIPTOR_NAMES = []
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
 # coloured.) See https://pypi.python.org/pypi/termcolor for details.
-SCHEDULE_COLOUR_MAP = {"Schedule": "yellow",
-                       "Loop": "white",
+SCHEDULE_COLOUR_MAP = {"Schedule": "white",
+                       "Loop": "red",
                        "GlobalSum": "cyan",
                        "Directive": "green",
                        "HaloExchange": "blue",
-                       "Call": "red",
+                       "HaloExchangeStart": "yellow",
+                       "HaloExchangeEnd": "yellow",
+                       "Call": "magenta",
                        "KernCall": "magenta",
-                       "Profile": "green"}
+                       "Profile": "green",
+                       "If": "red"}
 
 
 def get_api(api):
@@ -237,7 +240,16 @@ class PSyFactory(object):
         self._type = get_api(api)
 
     def create(self, invoke_info):
-        ''' Return the API specific PSy instance. '''
+        '''
+        Create the API-specific PSy instance.
+
+        :param invoke_info: information on the invoke()s found by parsing
+                            the Algorithm layer.
+        :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+
+        :returns: an instance of the API-specifc sub-class of PSy.
+        :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
+        '''
         if self._type == "gunghoproto":
             from psyclone.ghproto import GHProtoPSy
             return GHProtoPSy(invoke_info)
@@ -253,6 +265,11 @@ class PSyFactory(object):
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOPSy
             return GOPSy(invoke_info)
+        elif self._type == "nemo":
+            from psyclone.nemo import NemoPSy
+            # For this API, the 'invoke_info' is actually the fparser2 AST
+            # of the Fortran file being processed
+            return NemoPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
@@ -776,7 +793,25 @@ class Invoke(object):
 
 
 class Node(object):
-    ''' baseclass for a node in a schedule '''
+    '''
+    Base class for a node in the PSyIRe (schedule).
+
+    :param children: the PSyIRe nodes that are children of this node.
+    :type children: :py:class:`psyclone.psyGen.Node`
+    :param parent: that parent of this node in the PSyIRe tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+
+    '''
+    def __init__(self, children=None, parent=None):
+        if not children:
+            self._children = []
+        else:
+            self._children = children
+        self._parent = parent
+        self._ast = None  # Reference into fparser2 AST (if any)
+
+    def __str__(self):
+        raise NotImplementedError("Please implement me")
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children'''
@@ -1052,16 +1087,6 @@ class Node(object):
                 result += ","
         return result
 
-    def __init__(self, children=None, parent=None):
-        if not children:
-            self._children = []
-        else:
-            self._children = children
-        self._parent = parent
-
-    def __str__(self):
-        raise NotImplementedError("Please implement me")
-
     def addchild(self, child, index=None):
         if index is not None:
             self._children.insert(index, child)
@@ -1259,6 +1284,13 @@ class Node(object):
 
     def gen_code(self):
         raise NotImplementedError("Please implement me")
+
+    def update(self):
+        ''' By default we assume there is no need to update the existing
+        fparser2 AST which this Node represents. We simply call the update()
+        method of any children. '''
+        for child in self._children:
+            child.update()
 
 
 class Schedule(Node):
@@ -1910,6 +1942,47 @@ class OMPParallelDirective(OMPDirective):
             #                       "any OpenMP directives. This is probably "
             #                       "not what you want.")
 
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenMP
+        parallel region.
+
+        :raises InternalError: if the existing AST doesn't have the \
+                               correct structure to permit the insertion \
+                               of the OpenMP parallel region.
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        # Check that we haven't already been called
+        if self._ast:
+            return
+        # Find the locations in which we must insert the begin/end
+        # directives...
+        # Find the children of this node in the AST of our parent node
+        try:
+            start_idx = self._parent._ast.content.index(self._children[0]._ast)
+            end_idx = self._parent._ast.content.index(self._children[-1]._ast)
+        except (IndexError, ValueError):
+            raise InternalError("Failed to find locations to insert "
+                                "begin/end directives.")
+        # Create the start directive
+        text = "!$omp parallel default(shared), private({0})".format(
+            ",".join(self._get_private_list()))
+        startdir = Comment(FortranStringReader(text,
+                                               ignore_comments=False))
+        # Create the end directive and insert it after the node in
+        # the AST representing our last child
+        enddir = Comment(FortranStringReader("!$omp end parallel",
+                                             ignore_comments=False))
+        # If end_idx+1 takes us beyond the range of the list then the
+        # element is appended to the list
+        self._parent._ast.content.insert(end_idx+1, enddir)
+
+        # Insert the start directive (do this second so we don't have
+        # to correct end_idx)
+        self._ast = startdir
+        self._parent._ast.content.insert(start_idx, self._ast)
+
 
 class OMPDoDirective(OMPDirective):
     '''
@@ -2062,7 +2135,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-
         private_str = self.list_to_string(self._get_private_list())
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
                                 "default(shared), private({0}), "
@@ -2076,6 +2148,67 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         position = parent.previous_loop()
         parent.add(DirectiveGen(parent, "omp", "end", "parallel do", ""),
                    position=["after", position])
+
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenMP
+        parallel do.
+
+        :raises GenerationError: if the existing AST doesn't have the \
+                                 correct structure to permit the insertion \
+                                 of the OpenMP parallel do.
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        # Check that we haven't already been called
+        if self._ast:
+            return
+        # Since this is an OpenMP (parallel) do, it can only be applied
+        # to a single loop.
+        if len(self._children) != 1:
+            raise GenerationError(
+                "An OpenMP PARALLEL DO can only be applied to a single loop "
+                "but this Node has {0} children: {1}".
+                format(len(self._children), self._children))
+
+        # Find the locations in which we must insert the begin/end
+        # directives...
+        # Find the child of this node in the AST of our parent node
+        # TODO make this robust by using the new 'children' method to
+        # be introduced in fparser#105
+        # We have to take care to find a parent node (in the fparser2 AST)
+        # that has 'content'. This is because If-else-if blocks have their
+        # 'content' as siblings of the If-then and else-if nodes.
+        parent = self._parent._ast
+        while parent:
+            if hasattr(parent, "content"):
+                break
+            parent = parent._parent
+        if not parent:
+            raise InternalError("Failed to find parent node in which to "
+                                "insert OpenMP parallel do directive")
+        start_idx = parent.content.index(self._children[0]._ast)
+
+        # Create the start directive
+        text = ("!$omp parallel do default(shared), private({0}), "
+                "schedule({1})".format(",".join(self._get_private_list()),
+                                       self._omp_schedule))
+        startdir = Comment(FortranStringReader(text,
+                                               ignore_comments=False))
+
+        # Create the end directive and insert it after the node in
+        # the AST representing our last child
+        enddir = Comment(FortranStringReader("!$omp end parallel do",
+                                             ignore_comments=False))
+        if start_idx == len(parent.content) - 1:
+            parent.content.append(enddir)
+        else:
+            parent.content.insert(start_idx+1, enddir)
+
+        # Insert the start directive (do this second so we don't have
+        # to correct the location)
+        self._ast = startdir
+        parent.content.insert(start_idx, self._ast)
 
 
 class GlobalSum(Node):
@@ -2174,6 +2307,9 @@ class HaloExchange(Node):
         self._halo_depth = None
         self._check_dirty = check_dirty
         self._vector_index = vector_index
+        self._text_name = "HaloExchange"
+        self._colour_map_name = "HaloExchange"
+        self._dag_name = "haloexchange"
 
     @property
     def vector_index(self):
@@ -2199,8 +2335,8 @@ class HaloExchange(Node):
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
-        name = ("haloexchange({0})_".format(self._field.name) +
-                str(self.position))
+        name = ("{0}({1})_{2}".format(self._dag_name, self._field.name,
+                                      self.position))
         if self._check_dirty:
             name = "check" + name
         return name
@@ -2295,7 +2431,8 @@ class HaloExchange(Node):
         :return: Name of this node type, possibly with colour control codes
         :rtype: string
         '''
-        return colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
+        return colored(
+            self._text_name, SCHEDULE_COLOUR_MAP[self._colour_map_name])
 
 
 class Loop(Node):
@@ -2321,8 +2458,17 @@ class Loop(Node):
 
     @loop_type.setter
     def loop_type(self, value):
-        assert value in self._valid_loop_types, \
-            "Error, loop_type value is invalid"
+        '''
+        Set the type of this Loop.
+
+        :param str value: the type of this loop.
+        :raises GenerationError: if the specified value is not a recognised \
+                                 loop type.
+        '''
+        if value not in self._valid_loop_types:
+            raise GenerationError(
+                "Error, loop_type value ({0}) is invalid. Must be one of "
+                "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
     def __init__(self, parent=None,
@@ -3139,12 +3285,16 @@ class DataAccess(object):
            (self._arg.vector_size > 1 or arg.vector_size > 1):
             # This is a vector field and both accesses come from halo
             # exchanges. As halo exchanges only access a particular
-            # vector the accesses do not overlap if the vector indices
+            # vector, the accesses do not overlap if the vector indices
             # being accessed differ.
 
             # sanity check
-            self._call.check_vector_halos_differ(arg.call)
-
+            if self._arg.vector_size != arg.vector_size:
+                raise InternalError(
+                    "DataAccess.overlaps(): vector sizes differ for field "
+                    "'{0}' in two halo exchange calls. Found '{1}' and "
+                    "'{2}'".format(arg.name, self._arg.vector_size,
+                                   arg.vector_size))
             if self._call.vector_index != arg.call.vector_index:
                 # accesses are to different vector indices so do not overlap
                 return False
@@ -3678,7 +3828,7 @@ class Transformation(object):
         return schedule, momento
 
     def _validate(self, *args):
-        '''Method that alidates that the input data is correct.
+        '''Method that validates that the input data is correct.
         It will raise exceptions if the input data is incorrect. This function
         needs to be implemented by each transformation.
 
@@ -3697,3 +3847,64 @@ class DummyTransformation(Transformation):
 
     def apply(self):
         return None, None
+
+
+class IfBlock(Node):
+    '''
+    Class representing an if-block within the PSyIRe.
+
+    :param parent: the parent of this node within the PSyIRe tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, parent=None):
+        super(IfBlock, self).__init__(parent=parent)
+        self._condition = ""
+
+    def __str__(self):
+        return "If-block: "+self._condition
+
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type.
+
+        :return: the name of this node type, possibly with control codes \
+                 for colour.
+        :rtype: str
+        '''
+        return colored("If", SCHEDULE_COLOUR_MAP["If"])
+
+    def view(self, indent=0):
+        '''
+        Print representation of this node to stdout.
+
+        :param int indent: the level to which to indent the output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[" +
+              self._condition + "]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+
+class IfClause(IfBlock):
+    '''
+    Represents a sub-clause of an If block - e.g. an "else if()".
+
+    :param parent: the parent of this node in the PSyIRe tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`.
+
+    '''
+    def __init__(self, parent=None):
+        super(IfClause, self).__init__(parent=parent)
+        self._clause_type = ""  # Whether this is an else, else-if etc.
+
+    @property
+    def coloured_text(self):
+        '''
+        Return text containing the (coloured) name of this node type.
+
+        :return: the name of this node type, possibly with control codes \
+                 for colour.
+        :rtype: str
+        '''
+        return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
