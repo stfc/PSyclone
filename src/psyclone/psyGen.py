@@ -3008,7 +3008,9 @@ class Kern(Call):
 
         if self._kern_schedule is None:
             astp = fparser2ASTProcessor()
-            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+            self._kern_schedule = astp.generate_schedule(self.name,
+                                                         self.ast,
+                                                         self.arg_descriptors)
 
         return self._kern_schedule
 
@@ -3988,8 +3990,7 @@ class fparser2ASTProcessor(object):
         del statements[:]
         return code_block
 
-    def generate_schedule(self, name, module_ast):
-        from fparser.two.utils import walk_ast
+    def generate_schedule(self, name, module_ast, arg_descriptors=None):
         from fparser.two import Fortran2003
 
         def get_type(nodelist, typekind):
@@ -4013,9 +4014,44 @@ class fparser2ASTProcessor(object):
             raise InternalError("Unexpected module format")
 
         new_schedule = KernelSchedule(name)
+
+        self.process_declarations(new_schedule, sub_spec.content)
+        # TODO: Populate arg_descripors information
         self.process_nodes(new_schedule, sub_exec.content, sub_exec)
         return new_schedule
 
+    def process_declarations(self, parent, nodes):
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+        for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
+            # Parse data type
+            datatype = 'unknown'
+            if str(decl.items[0]).lower().startswith('real'):
+                datatype = 'real'
+            elif str(decl.items[0]).lower().startswith('integer'):
+                datatype = 'integer'
+
+            # Parse number of dimensions if it is an array
+            dimensions = 0
+            for attr in walk_ast(decl.items, [Fortran2003.Assumed_Shape_Spec]):
+                dimensions = dimensions + 1
+
+            # Parse intent attributes
+            decltype = 'local'
+            for attr in walk_ast(decl.items, [Fortran2003.Attr_Spec]):
+                if "intent(in)" in str(attr).lower().strip():
+                    decltype = 'read_arg'
+                elif "intent(out)" in str(attr).lower().strip():
+                    decltype = 'write_arg'
+                elif "intent(inout)" in str(attr).lower().strip():
+                    decltype = 'rw_arg'
+
+            # Get name and insert into the parent symbol table
+            for entity in walk_ast(decl.items, [Fortran2003.Entity_Decl]):
+                (name, array_spec, char_len, initialization) = entity.items
+                if (array_spec is not None) or (initialization is not None):
+                    raise NotImplementedError()
+                parent.insert_symbol(str(name), datatype, dimensions, decltype)
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).
@@ -4237,12 +4273,18 @@ class fparser2ASTProcessor(object):
 
 
 class KernelSchedule(Schedule):
-    # Not sure if needs to be subclassed but the Schedule class has an
-    # initializer that does not fit with ASTProcessor needs
 
     def __init__(self, name):
         super(KernelSchedule, self).__init__(None, None)
         self._name = name
+        self._symbol_table = {}
+
+    def insert_symbol(self, name, datatype, dimensions, decltype):
+        if name in self._symbol_table:
+            raise InternalError("Multiple definition of variable {0} in "
+                                "{1}".format(name, self._name))
+        else:
+            self._symbol_table[name] = (datatype, dimensions, decltype)
 
     def view(self, indent=0):
         '''
@@ -4254,6 +4296,9 @@ class KernelSchedule(Schedule):
         '''
         print(self.indent(indent) + self.coloured_text + "[name:" + self._name
               + "]")
+        for symbol in self._symbol_table:
+            print(self.indent(indent + 1) + "Symbol: " + symbol + ", "
+                  + str(self._symbol_table[symbol]))
         for entity in self._children:
             entity.view(indent=indent + 1)
 
