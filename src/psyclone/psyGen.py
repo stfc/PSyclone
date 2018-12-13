@@ -4131,6 +4131,7 @@ class ACCKernelsDirective(ACCDirective):
                     #                  str(subscript_info)))
                     #    exit(1)
                 else:
+                    raise GenerationError("2: Unexpected node '{0}': '{1}'".format(type(lhs), str(lhs)))
                     print ("2: Unexpected node '{0}': '{1}'".format(type(lhs),
                                                                     str(lhs)))
                     exit(1)
@@ -4312,15 +4313,15 @@ class ACCDataDirective(ACCDirective):
                     #writers.add(name_str)
                     # ignore
                 #elif isinstance(lhs, Part_Ref):
-                if isinstance(lhs, Part_Ref):
+                if isinstance(lhs, (Part_Ref, Array_Section)):
                     name_str = lhs.items[0].string
                     if structure_name_str:
                         name_str = "{0}%{1}".format(structure_name_str, name_str)
                         structure_name_str = None
                     writers.add(name_str)
-                elif isinstance(lhs, Array_Section):
-                    print ("Array sections not supported")
-                    exit(1)
+                #elif isinstance(lhs, Array_Section):
+                    #print ("Array sections not supported")
+                    #exit(1)
                     #subscript_info = lhs.items[1]
                     #if isinstance(subscript_info, Name):
                     #    num_subscripts = 1
