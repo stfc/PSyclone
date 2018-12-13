@@ -45,7 +45,7 @@ import copy
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
     NameSpaceFactory, SCHEDULE_COLOUR_MAP as _BASE_CMAP
-from fparser.two.utils import walk_ast
+from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 
 # The base colour map doesn't have CodeBlock as that is currently
@@ -163,16 +163,12 @@ class NemoInvoke(Invoke):
         # Store the whole fparser2 AST
         self._ast = ast
         self._name_space_manager = NameSpaceFactory().create()
-        # TODO move the get_child functionality out of habakkuk and into
-        # fparser. This will be tackled in Issue #235.
-        from habakkuk.parse2003 import get_child, ParseError as perror
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
         # Find the section of the tree containing the execution part
         # of the code
-        try:
-            exe_part = get_child(ast, Execution_Part)
-        except perror:
+        exe_part = get_child(ast, Execution_Part)
+        if not exe_part:
             # This subroutine has no execution part so we skip it
             # TODO log this event
             return
@@ -204,7 +200,6 @@ class NemoInvokes(Invokes):
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program`
     '''
     def __init__(self, ast):
-        from habakkuk.parse2003 import get_child, ParseError as perror
         from fparser.two.Fortran2003 import Main_Program, Program_Stmt, \
             Subroutine_Subprogram, Function_Subprogram, Function_Stmt, \
             Subroutine_Stmt, Name
@@ -220,11 +215,9 @@ class NemoInvokes(Invokes):
         # Add the main program as a routine to analyse - take care
         # here as the Fortran source file might not contain a
         # main program (might just be a subroutine in a module)
-        try:
-            main_prog = get_child(ast, Main_Program)
+        main_prog = get_child(ast, Main_Program)
+        if main_prog:
             routines.append(main_prog)
-        except perror:
-            pass
 
         # Analyse each routine we've found
         for subroutine in routines:
@@ -531,10 +524,8 @@ class NemoKern(Kern):
         # array notation
         self._kernel_type = "Explicit"
 
-        # TODO bring habakkuk up-to-date with changes to fparser and then
-        # uncomment this code or remove use of habakkuk altogether. See
-        # issue #235.
-
+        # TODO decide how to provide this functionality. Do we use
+        # Habakkuk or something else?
         #  Analyse the loop body to identify private and shared variables
         #  for use when parallelising with OpenMP.
         # from habakkuk.make_dag import dag_of_code_block

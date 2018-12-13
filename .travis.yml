@@ -49,12 +49,7 @@ before_install:
   # install_optional.sh in order to run the tests with the version of
   # fparser pointed to by the git submodule.
   - ./bin/install_optional.sh fparser_submodule
-  - pip install coveralls
   - pip install codecov
-# TODO remove following two lines (which install the master branch of
-# habakkuk) before final merge. Issue #235 is dealing with this.
-  - git clone https://github.com/arporter/habakkuk.git ~/habakkuk
-  - cd ~/habakkuk; pip install .; cd -
 install:
   - "pip install ."
 script:
@@ -67,7 +62,6 @@ script:
   # a lot of output to stdout this is redirected to /dev/null.
   - ( cd examples && ./check_examples > /dev/null )
 after_success:
-  - coveralls
   - codecov
 # Configure travis to deploy to the pypi server when a new
 # version is tagged on master
