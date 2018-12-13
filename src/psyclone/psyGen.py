@@ -4108,36 +4108,6 @@ class ACCKernelsDirective(ACCDirective):
         ast_end_index = object_index(parent_ast.content,
                                      self.children[-1]._ast)
 
-        writers = set()
-        from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
-            Section_Subscript_List
-        from fparser.two.utils import walk_ast
-        for node in walk_ast(parent_ast.content[ast_start_index:ast_end_index]):
-            if isinstance(node, Assignment_Stmt):
-                lhs = node.items[0]
-                if isinstance(lhs, Name):
-                    writers.add(lhs.string)
-                elif isinstance(lhs, Part_Ref):
-                    name = lhs.items[0]
-                    writers.add(name.string)
-                    #subscript_info = lhs.items[1]
-                    #if isinstance(subscript_info, Name):
-                    #    num_subscripts = 1
-                    #elif isinstance(subscript_info, Section_Subscript_List):
-                    #    num_subscripts = len(subscript_info.items)
-                    #else:
-                    #    print ("1: Unexpected node '{0}': '{1}'".
-                    #           format(type(subscript_info),
-                    #                  str(subscript_info)))
-                    #    exit(1)
-                else:
-                    raise GenerationError("2: Unexpected node '{0}': '{1}'".format(type(lhs), str(lhs)))
-                    print ("2: Unexpected node '{0}': '{1}'".format(type(lhs),
-                                                                    str(lhs)))
-                    exit(1)
-                equals = node.items[1]
-                rhs = node.items[2]
-
         # In the fparser2 AST, a directive is just a comment and does not
         # have children. This means we can end up inserting the 'end kernels'
         # directive between a previous directive and the loop to which it
@@ -4167,7 +4137,7 @@ class ACCKernelsDirective(ACCDirective):
             text += " DEFAULT(PRESENT)"
         else:
             if writers:
-                text += " COPYIN({0})".format(" ".join(writers))
+                text += " COPYIN({0})".format(" ".join("TBD"))
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
         parent_ast.content.insert(ast_start_index, directive)
