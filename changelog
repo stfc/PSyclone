@@ -80,6 +80,9 @@
 
 	24) #235 and PR #243. Removes dependency on Habakkuk in NEMO API.
 
+	25) #134 and PR #236. Adds support for adding OpenMP to intergrid
+	kernels.
+
 release 1.6.0 18th May 2018
 
         1) #91 and PR #111 Remove unnecessary __init__.py files.
