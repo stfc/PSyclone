@@ -2300,7 +2300,9 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
     '''_find_write_arguments should return as many halo exchange
     dependencies as the vector size of the associated field. This test
     checks that this is the case and that the returned objects are
-    what is expected.
+    what is expected. We test with annexed dofs is True and False as
+    different numbers of halo exchanges are created.
+
     '''
 
     config = Config.get()

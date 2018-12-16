@@ -1,4 +1,3 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -32,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
@@ -2304,7 +2303,7 @@ def test_field_bc_kernel(tmpdir, f90, f90flags):
 
 def test_bc_kernel_field_only(monkeypatch, annexed):
     '''Tests that the recognised boundary-condition kernel is rejected if
-    it has an operator as argument instead of a field. change with and
+    it has an operator as argument instead of a field. Test with and
     without annexed as different numbers of halo exchanges are
     produced.
 
@@ -4338,9 +4337,9 @@ def test_halo_exchange_different_spaces():
 
 
 def test_halo_exchange_vectors_1(monkeypatch, annexed):
-    '''test that halo exchange produces correct code for vector
-    fields. Test a field with gh_inc. Test with annexed = False and
-    True as halo exchanges are only produced when annexed = False
+    '''Test that halo exchange produces correct code for vector fields
+    including a field with a gh_inc access. Test with annexed = False
+    and True as halo exchanges are only produced when annexed = False.
 
     '''
     config = Config.get()
@@ -4368,7 +4367,7 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed):
 
 
 def test_halo_exchange_vectors(monkeypatch, annexed):
-    '''test that halo exchange produces correct code for vector
+    '''Test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with
     gh_inc. Test with annexed = False and True as a different number
     of halo exchanges are produced.
@@ -7163,9 +7162,9 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
 
 
 def test_new_halo_exch_vect_field(monkeypatch):
-    '''if a field requires (or may require) a halo exchange before it is
-    called and it has more than one backward write dependencies then
-    it must be a vector (as a vector field requiring a halo exchange
+    '''If a field requires (or may require) a halo exchange before it is
+    called and it has more than one backward write dependency then it
+    must be a vector (as a vector field requiring a halo exchange
     should have a halo exchange for each vector). The method
     create_halo_exchanges raises an exception if this is not the
     case. This test checks that the exception is raised

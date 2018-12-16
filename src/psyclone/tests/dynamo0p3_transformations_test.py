@@ -543,7 +543,6 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed):
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0_testkern_any_space_1_type')
         schedule = invoke.schedule
-        schedule.view()
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP to the loop
         with pytest.raises(TransformationError) as excinfo:
@@ -7279,8 +7278,8 @@ def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    # create vector halo exchanges after the first loop by performing
-    # redundant computation
+    # Create vector halo exchanges after the first loop by performing
+    # redundant computation.
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(schedule.children[4], depth=2)
     # make all f1 vector halo exchanges asynchronous before the first

@@ -3307,7 +3307,7 @@ def _create_depth_list(halo_info_list):
     another for depth=extent+2 then we do not need the former as it is
     covered by the latter. It also takes into account clean_outer,
     which indicates whether the outermost halo needs to be clean (and
-    therefore whether there is dependence).
+    therefore whether there is a dependence).
 
     :param: a list containing halo access information derived from
     all read fields dependent on this halo exchange
@@ -3324,7 +3324,7 @@ def _create_depth_list(halo_info_list):
     for halo_info in halo_info_list:
         if not (halo_info.annexed_only or (halo_info.literal_depth ==
                                            1 and not halo_info.clean_outer)):
-            # There are two cases when we only care about access
+            # There are two cases when we only care about accesses to
             # annexed dofs. 1) when annexed_only is set and 2) when
             # the halo depth is 1 but we only depend on annexed dofs
             # being up-to-date (clean_outer is False)
@@ -3919,7 +3919,7 @@ class HaloDepth(object):
         # not know.
         self._max_depth = False
         # max_depth_m1 specifies whether the full depth of halo
-        # (whatever that might be) appart from the outermost level is
+        # (whatever that might be) apart from the outermost level is
         # accessed. If this is set then literal_depth, var_depth and
         # max_depth have no meaning.
         self._max_depth_m1 = False
