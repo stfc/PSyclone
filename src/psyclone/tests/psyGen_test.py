@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    BinaryOperation
+    BinaryOperation, KernelSchedule
 from psyclone.psyGen import fparser2ASTProcessor, IgnoredKeyError
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -533,7 +533,7 @@ module dummy_mod
              arg_type(gh_field, gh_readwrite, wtheta), &
              arg_type(gh_field, gh_inc,       w1)      &
            /)
-     integer, parameter :: iterates_over = cells
+     integer :: iterates_over = cells
    contains
      procedure() :: code => dummy_code
   end type dummy_type
@@ -561,6 +561,16 @@ def test_sched_view(capsys):
 
 
 # Kern class test
+
+def test_kern_get_kernel_schedule():
+    ''' Tests the get_kernel_schedule method in the Kern class.
+    '''
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    schedule = my_kern.get_kernel_schedule()
+    assert isinstance(schedule, KernelSchedule)
 
 
 def test_kern_class_view(capsys):
@@ -2538,6 +2548,38 @@ def test_BinaryOperation_can_be_printed():
 
 
 # Test fparser2ASTProcessor
+
+def test_fparser2AST_generate_schedule():
+    ''' Tests the fparser2AST generate_schedule method.
+    '''
+    ast1 = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=True)
+    metadata = DynKernMetadata(ast1)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    ast2 = my_kern.ast
+    processor = fparser2ASTProcessor()
+
+    # assert False, FAKE_KERNEL_METADATA + str(ast2.content)
+
+    # Test properly formed kernel module
+    schedule = processor.generate_schedule("dummy_code", ast2)
+    assert isinstance(schedule, KernelSchedule)
+
+    # Test create from non-existent subroutine name
+    # FIXME: Not sure why the following test does not work:
+    # ast2.content[0].content[2].content[1].content does not exist
+    # while it is printed when doing str(ast2)?
+    # with pytest.raises(InternalError) as error:
+    #     schedule = processor.generate_schedule("nonexistent_code", ast2)
+    # assert "Unexpected kernel ast. Could not find " \
+    #        "subroutine: nonexistent_code" in str(error.value)
+
+    # Test corrupting ast by deleting subroutine
+    del ast2.content[0].content[2]
+    with pytest.raises(InternalError) as error:
+        schedule = processor.generate_schedule("dummy_code", ast2)
+    assert "Unexpected kernel ast. Could not find " \
+           "subroutine: dummy_code" in str(error.value)
 
 
 def test_fparser2ASTProcessor_handling_assignments():

@@ -3005,13 +3005,20 @@ class Kern(Call):
         self.arg_descriptors = call.ktype.arg_descriptors
 
     def get_kernel_schedule(self):
+        '''
+        Returns a PSyIRe Schedule representing the kernel code.
 
+        NOTE: It assumes Kernel schedule is immutalbe, because self.ast is
+        also immutable (won't change afer the first self.ast invokation).
+
+        :return: Schedule representing the kernel code.
+        :rtype: :py:class:`psyclone.psyGen.KernSchedule`
+        '''
         if self._kern_schedule is None:
             astp = fparser2ASTProcessor()
             self._kern_schedule = astp.generate_schedule(self.name,
                                                          self.ast,
                                                          self.arg_descriptors)
-
         return self._kern_schedule
 
     def __str__(self):
@@ -3991,6 +3998,17 @@ class fparser2ASTProcessor(object):
         return code_block
 
     def generate_schedule(self, name, module_ast, arg_descriptors=None):
+        '''
+        Create a KernelSchedule from the supplied module fparser2 AST. 
+
+        :param name: Name of the subroutine respresenting the kernel.
+        :type name: string
+        :param module_ast: fparser2 AST of the full module where the kernel
+                           code is located.
+        :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+        :param arg_descriptors: PSyclone Metadata about the kernel
+        :rtype arg_descriptors: list
+        '''
         from fparser.two import Fortran2003
 
         def get_type(nodelist, typekind):
@@ -4001,23 +4019,31 @@ class fparser2ASTProcessor(object):
                         (type(x) is Fortran2003.Subroutine_Subprogram) and
                         (str(x.content[0].get_name()) == searchname))
 
+        new_schedule = KernelSchedule(name)
+
         try:
+            # Assume just 1 module definition in the file
             mod_content = module_ast.content[0].content
             mod_spec = get_type(mod_content, Fortran2003.Specification_Part)
             subroutines = get_type(mod_content,
                                    Fortran2003.Module_Subprogram_Part)
             subroutine = get_subroutine(subroutines.content, name)
+        except StopIteration:
+            raise InternalError("Unexpected kernel ast. Could not find "
+                                "subroutine: {0}".format(name))
+
+        try:
             sub_spec = get_type(subroutine.content,
                                 Fortran2003.Specification_Part)
             sub_exec = get_type(subroutine.content, Fortran2003.Execution_Part)
         except StopIteration:
-            raise InternalError("Unexpected module format")
+            # If the subroutine is not as expected, just create a code_block
+            self.nodes_to_code_block(new_schedule, subroutine.content)
+        else:
+            self.process_declarations(new_schedule, sub_spec.content)
+            # TODO: Populate arg_descripors information
+            self.process_nodes(new_schedule, sub_exec.content, sub_exec)
 
-        new_schedule = KernelSchedule(name)
-
-        self.process_declarations(new_schedule, sub_spec.content)
-        # TODO: Populate arg_descripors information
-        self.process_nodes(new_schedule, sub_exec.content, sub_exec)
         return new_schedule
 
     def process_declarations(self, parent, nodes):
