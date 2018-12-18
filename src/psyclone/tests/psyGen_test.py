@@ -69,6 +69,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
 
+
 # PSyFactory class unit tests
 
 
@@ -2559,20 +2560,14 @@ def test_fparser2AST_generate_schedule():
     ast2 = my_kern.ast
     processor = fparser2ASTProcessor()
 
-    # assert False, FAKE_KERNEL_METADATA + str(ast2.content)
-
     # Test properly formed kernel module
     schedule = processor.generate_schedule("dummy_code", ast2)
-    assert isinstance(schedule, KernelSchedule)
+    # assert isinstance(schedule, KernelSchedule)
 
-    # Test create from non-existent subroutine name
-    # FIXME: Not sure why the following test does not work:
-    # ast2.content[0].content[2].content[1].content does not exist
-    # while it is printed when doing str(ast2)?
-    # with pytest.raises(InternalError) as error:
-    #     schedule = processor.generate_schedule("nonexistent_code", ast2)
-    # assert "Unexpected kernel ast. Could not find " \
-    #        "subroutine: nonexistent_code" in str(error.value)
+    with pytest.raises(InternalError) as error:
+        schedule = processor.generate_schedule("nonexistent_code", ast2)
+    assert "Unexpected kernel ast. Could not find " \
+           "subroutine: nonexistent_code" in str(error.value)
 
     # Test corrupting ast by deleting subroutine
     del ast2.content[0].content[2]
@@ -2580,6 +2575,68 @@ def test_fparser2AST_generate_schedule():
         schedule = processor.generate_schedule("dummy_code", ast2)
     assert "Unexpected kernel ast. Could not find " \
            "subroutine: dummy_code" in str(error.value)
+
+
+def test_fparser2ASTProcessor_process_declarations():
+    from fparser.two.parser import ParserFactory
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    ParserFactory().create(std="f2008")
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = fparser2ASTProcessor()
+
+    # Test simple declarations
+    reader = FortranStringReader("integer :: local1")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("local1") == ('integer', 0, 'local')
+
+    reader = FortranStringReader("Real      ::      local2")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("local2") == ('real', 0, 'local')
+
+    # Test different intent specifications
+    reader = FortranStringReader("integer, intent(in) :: arg1")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("arg1") == ('integer', 0, 'read_arg')
+
+    reader = FortranStringReader("integer, intent( IN ) :: arg2")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("arg2") == ('integer', 0, 'read_arg')
+
+    reader = FortranStringReader("integer, intent( Out ) :: arg3")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("arg3") == ('integer', 0, 'write_arg')
+
+    reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("arg4") == ('integer', 0, 'rw_arg')
+
+    # Test different array dimensions
+    reader = FortranStringReader("integer, dimension(:,:,:) :: array1")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("array1") == ('integer', 3, 'local')
+
+    reader = FortranStringReader("real, dimension(:), intent(in) :: array2")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("array2") == ('real', 1, 'read_arg')
+
+    reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("array3") == ('real', 1, 'read_arg')
+
+    reader = FortranStringReader("integer, dimension(3,5) :: array4")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    processor.process_declarations(fake_parent, [fparser2specification])
+    assert fake_parent.get_symbol("array4") == ('integer', 2, 'local')
 
 
 def test_fparser2ASTProcessor_handling_assignments():

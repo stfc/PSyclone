@@ -3956,7 +3956,6 @@ class fparser2ASTProcessor(object):
         from fparser.two import Fortran2003, utils
         # Map of fparser2 node types to handlers(which are class methods)
         self.handlers = {
-            Fortran2003.Module: self._module_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Name: self._name_handler,
             Fortran2003.Parenthesis: self._parenthesis_handler,
@@ -3999,7 +3998,7 @@ class fparser2ASTProcessor(object):
 
     def generate_schedule(self, name, module_ast, arg_descriptors=None):
         '''
-        Create a KernelSchedule from the supplied module fparser2 AST. 
+        Create a KernelSchedule from the supplied module fparser2 AST.
 
         :param name: Name of the subroutine respresenting the kernel.
         :type name: string
@@ -4037,8 +4036,11 @@ class fparser2ASTProcessor(object):
                                 Fortran2003.Specification_Part)
             sub_exec = get_type(subroutine.content, Fortran2003.Execution_Part)
         except StopIteration:
-            # If the subroutine is not as expected, just create a code_block
-            self.nodes_to_code_block(new_schedule, subroutine.content)
+            # If the subroutine is not as expected, just create a code_block.
+            statements = subroutine.content[:]  # First, we need to copy the
+            # list structure as node_to_code_block deletes the consumed items
+            # from the list.
+            self.nodes_to_code_block(new_schedule, statements)
         else:
             self.process_declarations(new_schedule, sub_spec.content)
             # TODO: Populate arg_descripors information
@@ -4047,6 +4049,15 @@ class fparser2ASTProcessor(object):
         return new_schedule
 
     def process_declarations(self, parent, nodes):
+        '''
+        Transform the fparser2 AST Declarations to symbols into the PSyIRe
+        parent node.
+
+        :param parent: PSyIRe node to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :param nodes: fparser2 AST node to search for Declarations Statements
+        :type nodes: :py:class:`fparser.two.Fortran2003.Specification_Part`
+        '''
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
@@ -4061,15 +4072,19 @@ class fparser2ASTProcessor(object):
             dimensions = 0
             for attr in walk_ast(decl.items, [Fortran2003.Assumed_Shape_Spec]):
                 dimensions = dimensions + 1
+            for attr in walk_ast(decl.items,
+                                 [Fortran2003.Explicit_Shape_Spec]):
+                dimensions = dimensions + 1
+                # Maybe? raise NotImplemented("Explicit shape arrays")
 
             # Parse intent attributes
-            decltype = 'local'
+            decltype = 'local'  # If no intent attribute, it is a local var
             for attr in walk_ast(decl.items, [Fortran2003.Attr_Spec]):
-                if "intent(in)" in str(attr).lower().strip():
+                if "intent(in)" in str(attr).lower().replace(' ', ''):
                     decltype = 'read_arg'
-                elif "intent(out)" in str(attr).lower().strip():
+                elif "intent(out)" in str(attr).lower().replace(' ', ''):
                     decltype = 'write_arg'
-                elif "intent(inout)" in str(attr).lower().strip():
+                elif "intent(inout)" in str(attr).lower().replace(' ', ''):
                     decltype = 'rw_arg'
 
             # Get name and insert into the parent symbol table
@@ -4144,12 +4159,6 @@ class fparser2ASTProcessor(object):
             if handler is None:
                 raise NotImplementedError()
         return handler(child, parent)
-
-    def _module_handler(self, node, parent):
-        print(type(node))
-        print(node.content)
-        exit()
-        pass
 
     def _ignore_handler(self, node, parent):
         '''
@@ -4304,6 +4313,9 @@ class KernelSchedule(Schedule):
         super(KernelSchedule, self).__init__(None, None)
         self._name = name
         self._symbol_table = {}
+
+    def get_symbol(self, name):
+        return self._symbol_table[name]
 
     def insert_symbol(self, name, datatype, dimensions, decltype):
         if name in self._symbol_table:
