@@ -73,18 +73,28 @@ NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
 
 class NemoASTProcessor(fparser2ASTProcessor):
     '''
-    Specialization of fparser2ASTProcessor for Nemo API
+    Specialisation of fparser2ASTProcessor for the Nemo API. It is used
+    as a Mixin in the Nemo API.
     '''
-
-    def _create_child(self, child, parent=None):
-        # TODO: Call super initialization every time from here is not very nice
-        # but nemo API has to be updated to new fparser2ASTProcessor and for
-        # this first we need the base class to have handlers for Loops and
-        # IfBlocks implemented.
+    def __init__(self):
         super(NemoASTProcessor, self).__init__()
 
+    def _create_child(self, child, parent=None):
+        '''
+        Adds Nemo API specific processors for certain fparser2 types
+        before calling the parent _create_child.
+
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.utils.Base`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :return: Returns the PSyIRe representation of child.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        '''
         if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
             return NemoLoop(child, parent=parent)
+        elif isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
+            pass
         elif NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
         elif NemoIfBlock.match(child):
@@ -258,6 +268,7 @@ class NemoSchedule(Schedule, NemoASTProcessor):
     '''
     def __init__(self, invoke, ast):
         Node.__init__(self)
+        NemoASTProcessor.__init__(self)
 
         self._invoke = invoke
         self._ast = ast
@@ -490,6 +501,7 @@ class NemoLoop(Loop, NemoASTProcessor):
         from fparser.two.Fortran2003 import Loop_Control
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
+        NemoASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
@@ -724,6 +736,7 @@ class NemoIfBlock(IfBlock, NemoASTProcessor):
     '''
     def __init__(self, ast, parent=None):
         super(NemoIfBlock, self).__init__(parent=parent)
+        NemoASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
         # Check that the fparser2 AST has the expected structure
@@ -809,6 +822,7 @@ class NemoIfClause(IfClause, NemoASTProcessor):
     '''
     def __init__(self, ast_nodes, parent=None):
         super(NemoIfClause, self).__init__(parent=parent)
+        NemoASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast_nodes[0]
         # Store what type of clause we are

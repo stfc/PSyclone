@@ -56,7 +56,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     BinaryOperation
-from psyclone.psyGen import fparser2ASTProcessor, IgnoredKeyError
+from psyclone.psyGen import fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
@@ -2392,11 +2392,14 @@ def test_dataaccess_same_vector_indices(monkeypatch):
 
 
 # Test CodeBlock class
-def test_reference_view(capsys):
+
+
+def test_codeblock_view(capsys):
     ''' Check the view and colored_text methods of the Code Block class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     cblock = CodeBlock([])
     coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
-    assignment.view()
+    cblock.view()
     output, _ = capsys.readouterr()
     assert coloredtext+"[" in output
     assert "]" in output
@@ -2408,16 +2411,6 @@ def test_codeblock_can_be_printed():
     cblock = CodeBlock([])
     assert "CodeBlock[" in cblock.__str__()
     assert "]" in cblock.__str__()
-
-
-def test_codeblock_gencode_error():
-    ''' Check that calling CodeBlock.gen_code() results in an internal
-    error. '''
-    cblock = CodeBlock([])
-    with pytest.raises(InternalError) as err:
-        cblock.gen_code()
-    assert "CodeBlock.gen_code() should not be called" in str(err)
-
 
 # Test Assignment class
 
@@ -2510,7 +2503,7 @@ def test_literal_can_be_printed():
 # Test BinaryOperation class
 
 
-def test_BinaryOperation_view(capsys):
+def test_binaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the Binary Operation
     class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
@@ -2526,7 +2519,7 @@ def test_BinaryOperation_view(capsys):
     assert coloredtext+"[operator:'+']" in output
 
 
-def test_BinaryOperation_can_be_printed():
+def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
     binaryOp = BinaryOperation("+")
@@ -2540,7 +2533,10 @@ def test_BinaryOperation_can_be_printed():
 # Test fparser2ASTProcessor
 
 
-def test_fparser2ASTProcessor_handling_assignments():
+def test_fparser2astprocessor_handling_assignment_stmt():
+    ''' Test that fparser2 Assignment_Stmt are converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2558,7 +2554,10 @@ def test_fparser2ASTProcessor_handling_assignments():
     assert len(new_node.children) == 2
 
 
-def test_fparser2ASTProcessor_handling_Names():
+def test_fparser2astprocessor_handling_name():
+    ''' Test that fparser2 Name are converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2576,7 +2575,10 @@ def test_fparser2ASTProcessor_handling_Names():
     assert new_node._reference == "x"
 
 
-def test_fparser2ASTProcessor_handling_Parenthesis():
+def test_fparser2astprocessor_handling_parenthesis():
+    ''' Test that fparser2 Parenthesis are converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2594,7 +2596,10 @@ def test_fparser2ASTProcessor_handling_Parenthesis():
     assert isinstance(new_node, BinaryOperation)
 
 
-def test_fparser2ASTProcessor_handling_Part_Ref():
+def test_fparser2astprocessor_handling_part_ref():
+    ''' Test that fparser2 Part_Ref are converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2625,7 +2630,10 @@ def test_fparser2ASTProcessor_handling_Part_Ref():
     assert len(new_node.children) == 3  # Array dimensions
 
 
-def test_fparser2ASTProcessor_handling_If_Stmt():
+def test_fparser2astprocessor_handling_if_stmt():
+    ''' Test that fparser2 If_Stmt are converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2643,7 +2651,10 @@ def test_fparser2ASTProcessor_handling_If_Stmt():
     assert len(new_node.children) == 2
 
 
-def test_fparser2ASTProcessor_handling_NumberBase():
+def test_fparser2astprocessor_handling_numberbase():
+    ''' Test that fparser2 NumberBase are converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2661,7 +2672,10 @@ def test_fparser2ASTProcessor_handling_NumberBase():
     assert new_node._value == "1"
 
 
-def test_fparser2ASTProcessor_handling_BinaryOpBase():
+def test_fparser2astprocessor_handling_binaryopbase():
+    ''' Test that fparser2 BinaryOpBase are converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2680,8 +2694,38 @@ def test_fparser2ASTProcessor_handling_BinaryOpBase():
     assert new_node._operator == '+'
 
 
-def test_ASTProcessor_ignorekey_err(monkeypatch):
+def test_fparser2astprocessor_handling_end_do_stmt():
+    ''' Test that fparser2 End_Do_Stmt are ignored.'''
+    from fparser.two.parser import ParserFactory
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader('''
+        do i=1,10
+            a=a+1
+        end do
+        ''')
+    fparser2enddo = Execution_Part.match(reader)[0][0].content[-1]
+
+    fake_parent = Node()
     processor = fparser2ASTProcessor()
-    with pytest.raises(IgnoredKeyError) as excinfo:
-        _ = processor._ignore_handler(None, None)
-    assert "ASTProcessor has no handler for:" in str(excinfo)
+    processor.process_nodes(fake_parent, [fparser2enddo], None)
+    assert len(fake_parent.children) == 0  # No new children created
+
+
+def test_fparser2astprocessor_handling_end_subroutine_stmt():
+    ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
+    from fparser.two.parser import ParserFactory
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Subroutine_Subprogram
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader('''
+        subroutine dummy_code()
+        end subroutine dummy_code
+        ''')
+    fparser2endsub = Subroutine_Subprogram.match(reader)[0][-1]
+
+    fake_parent = Node()
+    processor = fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2endsub], None)
+    assert len(fake_parent.children) == 0  # No new children created
