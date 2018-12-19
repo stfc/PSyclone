@@ -80,7 +80,10 @@
 
 	24) #235 and PR #243. Removes dependency on Habakkuk in NEMO API.
 
-        25) #198 and PR #223. Updates PSyclone to use the latest
+	25) #134 and PR #236. Adds support for adding OpenMP to intergrid
+	kernels.
+
+        26) #198 and PR #223. Updates PSyclone to use the latest
         version of dl_esm_inf which has "GO_" prefixed to all public
         quantities. Adds dl_esm_inf as a git submodule.
 
