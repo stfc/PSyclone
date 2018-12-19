@@ -1,3 +1,4 @@
+
 module infrastructure_mod
   use kind_params_mod
   use kernel_mod
@@ -12,15 +13,15 @@ module infrastructure_mod
   !! in a standard invoke().
 
   type, extends(kernel_type) :: copy
-     type(arg), dimension(2) :: meta_args =    &
-          (/ arg(WRITE, EVERY, POINTWISE),     & ! output fld
-             arg(READ,  EVERY, POINTWISE)      & ! input fld
+     type(go_arg), dimension(2) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_EVERY, GO_POINTWISE),     & ! output fld
+             go_arg(GO_READ,  GO_EVERY, GO_POINTWISE)      & ! input fld
            /)
      !> This kernel copies a whole field
-     integer :: ITERATES_OVER = ALL_PTS
+     integer :: ITERATES_OVER = GO_ALL_PTS
 
      !> This kernel doesn't care about grids and offsets
-     integer :: index_offset = OFFSET_ANY
+     integer :: index_offset = GO_OFFSET_ANY
 
   contains
     procedure, nopass :: code => field_copy_code
@@ -34,8 +35,8 @@ contains
                              output, input)
     implicit none
     integer,                  intent(in)  :: ji, jj
-    real(wp), dimension(:,:), intent(in)  :: input
-    real(wp), dimension(:,:), intent(out) :: output
+    real(go_wp), dimension(:,:), intent(in)  :: input
+    real(go_wp), dimension(:,:), intent(out) :: output
 
     output(ji,jj) = input(ji,jj)
 

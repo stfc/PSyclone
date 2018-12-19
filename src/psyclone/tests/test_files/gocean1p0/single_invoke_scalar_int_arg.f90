@@ -12,10 +12,10 @@ PROGRAM single_invoke_scalar_int_test
   ! Fake Fortran program for testing aspects of
   ! the PSyclone code generation system.
 
-  use kind_params_mod
-  use grid_mod
   use field_mod
+  use grid_mod
   use kernel_scalar_int, only: bc_ssh
+  use kind_params_mod
   implicit none
 
   type(grid_type), target :: model_grid
@@ -26,11 +26,11 @@ PROGRAM single_invoke_scalar_int_test
   INTEGER :: ncycle
 
   ! Create the model grid
-  model_grid = grid_type(ARAKAWA_C,                        &
-                         (/BC_PERIODIC,BC_PERIODIC,BC_NONE/) )
+  model_grid = grid_type(GO_ARAKAWA_C,                        &
+                         (/GO_BC_PERIODIC,GO_BC_PERIODIC,GO_BC_NONE/) )
 
   ! Create fields on this grid
-  ssh_fld   = r2d_field(model_grid, T_POINTS)
+  ssh_fld   = r2d_field(model_grid, GO_T_POINTS)
 
   !  ** Start of time loop ** 
   DO ncycle=1,100

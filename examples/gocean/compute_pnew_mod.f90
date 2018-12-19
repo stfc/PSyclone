@@ -12,21 +12,21 @@ module compute_pnew_mod
   public compute_pnew, compute_pnew_code
 
   type, extends(kernel_type) :: compute_pnew
-     type(arg), dimension(7) :: meta_args =    &
-          (/ arg(WRITE, CT, POINTWISE),        & ! pnew
-             arg(READ,  CT, POINTWISE),        & ! pold
-             arg(READ,  CU, POINTWISE),        & ! cu
-             arg(READ,  CV, POINTWISE),        & ! cv
-             arg(READ,  R_SCALAR, POINTWISE),  & ! tdt
-             arg(READ,  GRID_DX_CONST),        & ! dx
-             arg(READ,  GRID_DY_CONST)         & ! dy
+     type(go_arg), dimension(7) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),        & ! pnew
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! pold
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! cu
+             go_arg(GO_READ,  GO_CV, GO_POINTWISE),        & ! cv
+             go_arg(GO_READ,  GO_R_SCALAR, GO_POINTWISE),  & ! tdt
+             go_arg(GO_READ,  GO_GRID_DX_CONST),        & ! dx
+             go_arg(GO_READ,  GO_GRID_DY_CONST)         & ! dy
            /)
      !> This kernel operates on fields that live on an
      !! orthogonal, regular grid.
-     integer :: GRID_TYPE = ORTHOGONAL_REGULAR
+     integer :: GRID_TYPE = GO_ORTHOGONAL_REGULAR
 
      !> This kernel writes only to internal grid points
-     INTEGER :: ITERATES_OVER = INTERNAL_PTS
+     INTEGER :: ITERATES_OVER = GO_INTERNAL_PTS
 
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -35,7 +35,7 @@ module compute_pnew_mod
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_pnew_code
@@ -49,10 +49,10 @@ contains
     implicit none
     type(r2d_field), intent(inout) :: pnew
     type(r2d_field), intent(in)    :: pold, cu, cv
-    real(wp), intent(in) :: tdt
+    real(go_wp), intent(in) :: tdt
     ! Locals
     integer :: I, J
-    real(wp) :: dx, dy
+    real(go_wp) :: dx, dy
 
     ! Note that we do not loop over the full extent of the field.
     ! Fields are allocated with extents (M+1,N+1).
@@ -115,12 +115,12 @@ contains
                                tdt, dx, dy)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(in) :: dx, dy
-    real(wp), intent(out), dimension(:,:) :: pnew
-    real(wp), intent(in),  dimension(:,:) :: pold, cu, cv
-    real(wp), intent(in) :: tdt
+    real(go_wp), intent(in) :: dx, dy
+    real(go_wp), intent(out), dimension(:,:) :: pnew
+    real(go_wp), intent(in),  dimension(:,:) :: pold, cu, cv
+    real(go_wp), intent(in) :: tdt
     ! Locals
-    real(wp) :: tdtsdx, tdtsdy
+    real(go_wp) :: tdtsdx, tdtsdy
 
     !> These quantities are computed here because tdt is not
     !! constant. (It is == dt for first time step, 2xdt for

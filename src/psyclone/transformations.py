@@ -1616,7 +1616,7 @@ class GOConstLoopBoundsTrans(Transformation):
     generates code like:
     ::
 
-      ny = my_field%grid%simulation_domain%ystop
+      ny = my_field%grid%subdomain%internal%ystop
       ...
       DO j = 1, ny-1
 
@@ -2446,6 +2446,8 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if we fail to find the subroutine \
                                      corresponding to the kernel object.
         '''
+        # pylint: disable=too-many-locals
+
         from fparser.two.Fortran2003 import Subroutine_Subprogram, \
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
@@ -2475,7 +2477,7 @@ class ACCRoutineTrans(Transformation):
         spec = walk_ast(kern_sub.content, [Specification_Part])[0]
         idx = 0
         for idx, node in enumerate(spec.content):
-            if not (isinstance(node, (Implicit_Part, Type_Declaration_Stmt))):
+            if not isinstance(node, (Implicit_Part, Type_Declaration_Stmt)):
                 break
         # Create the directive and insert it
         cmt = Comment(FortranStringReader("!$acc routine",

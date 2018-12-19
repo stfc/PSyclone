@@ -46,6 +46,9 @@ program single_invoke_two_kernels_scalars
   integer :: ncycle
   real :: a_scalar = 1.0
 
+  type(r2d_field) :: ssh_fld
+
+
   !  ** Start of time loop ** 
   do ncycle=1,100
     
