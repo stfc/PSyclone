@@ -2547,7 +2547,7 @@ def test_fparser2astprocessor_handling_assignment_stmt():
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2assignment], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Assignment)
@@ -2568,7 +2568,7 @@ def test_fparser2astprocessor_handling_name():
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2name], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Reference)
@@ -2589,7 +2589,7 @@ def test_fparser2astprocessor_handling_parenthesis():
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2parenthesis], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     # Check parenthesis are ignored and process_nodes uses its child
@@ -2610,7 +2610,7 @@ def test_fparser2astprocessor_handling_part_ref():
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
@@ -2622,7 +2622,7 @@ def test_fparser2astprocessor_handling_part_ref():
 
     fake_parent = Node()
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
@@ -2644,7 +2644,7 @@ def test_fparser2astprocessor_handling_if_stmt():
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2if_stmt], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, IfBlock)
@@ -2665,7 +2665,7 @@ def test_fparser2astprocessor_handling_numberbase():
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2number], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Literal)
@@ -2686,7 +2686,7 @@ def test_fparser2astprocessor_handling_binaryopbase():
     fake_parent = Node()
     processor = fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2binaryOp], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, BinaryOperation)
