@@ -4241,7 +4241,7 @@ def test_halo_exchange():
 def test_halo_exchange_inc(monkeypatch, annexed):
     '''test that appropriate halo exchange calls are added if we have a
     gh_inc operation and that the loop bounds included computation in
-    the l1 halo. Test with annexed is False and True as a different
+    the l1 halo. Test when annexed is False and True as a different
     number of halo exchanges are produced.
 
     '''
@@ -4338,7 +4338,7 @@ def test_halo_exchange_different_spaces():
 
 def test_halo_exchange_vectors_1(monkeypatch, annexed):
     '''Test that halo exchange produces correct code for vector fields
-    including a field with a gh_inc access. Test with annexed = False
+    including a field with a gh_inc access. Test when annexed = False
     and True as halo exchanges are only produced when annexed = False.
 
     '''
@@ -4369,7 +4369,7 @@ def test_halo_exchange_vectors_1(monkeypatch, annexed):
 def test_halo_exchange_vectors(monkeypatch, annexed):
     '''Test that halo exchange produces correct code for vector
     fields. Test both a field with a stencil and a field with
-    gh_inc. Test with annexed = False and True as a different number
+    gh_inc. Test when annexed = False and True as a different number
     of halo exchanges are produced.
 
     '''
@@ -4429,7 +4429,7 @@ def test_halo_exchange_depths():
 def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
     '''test that halo exchange includes the correct halo depth when we
     have a gh_inc as this increases the required depth by 1 (as
-    redundant computation is performed in the l1 halo). Test with
+    redundant computation is performed in the l1 halo). Test when
     annexed = False and True as a different number of halo exchanges
     are produced.
 

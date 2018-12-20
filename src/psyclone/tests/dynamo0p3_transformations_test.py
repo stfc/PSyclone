@@ -1286,7 +1286,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
 def test_fuse_colour_loops(tmpdir, f90, f90flags, monkeypatch, annexed,
                            dist_mem):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
-    parallel region and preceed each by an OpenMP PARALLEL DO for both
+    parallel region and preceed each by an OpenMP DO for both
     sequential and distributed-memory code. We also test when annexed
     is False and True as it affects how many halo exchanges are
     generated.
@@ -6298,11 +6298,10 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
     config = Config.get()
     dyn_config = config.api_conf("dynamo0.3")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    w_loop_idx = 2
     if annexed:
-        w_loop_idx = 2
         r_loop_idx = 4
     else:
-        w_loop_idx = 2
         r_loop_idx = 5
     ctrans = Dynamo0p3ColourTrans()
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -6972,6 +6971,10 @@ def test_async_hex_move_2(tmpdir, f90, f90flags, monkeypatch):
     case we move a haloexchangestart before a loop.
 
     '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "test_files", "dynamo0p3",
@@ -7358,8 +7361,8 @@ def test_async_halo_exchange_nomatch1():
     # make the first vector component of the halo exchange for f1
     # asynchronous before the first loop.
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
-    hex = schedule.children[0]
-    schedule, _ = ahex_trans.apply(hex)
+    my_hex = schedule.children[0]
+    schedule, _ = ahex_trans.apply(my_hex)
 
     # now remove the generated halo exchange end. This will mean that
     # the halo exchange start will now match with the halo exchange
@@ -7390,8 +7393,8 @@ def test_async_halo_exchange_nomatch2():
     # make the last vector component of the halo exchange for f1
     # asynchronous after the first loop.
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
-    hex = schedule.children[0]
-    schedule, _ = ahex_trans.apply(hex)
+    my_hex = schedule.children[0]
+    schedule, _ = ahex_trans.apply(my_hex)
 
     # now remove the generated halo exchange end. This will mean that
     # the halo exchange start will now match with nothing as it is the

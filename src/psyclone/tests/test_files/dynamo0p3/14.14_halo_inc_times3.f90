@@ -34,9 +34,11 @@
 
 program halo_inc_times3
 
-  ! Description: dependency between a field being incremented in one
-  ! loop and incrementedin a following loop, where the field is
-  ! continuous and both loops iterate over cells.
+  ! Description: three kernel calls where the associated loops iterate
+  ! over cells. Each kernel call increments a continuous field and
+  ! reads from a contrinuous field. Field f1 has gh_inc to gh_read and
+  ! gh_read to gh_inc dependencies. Field f3 has unknown to gh_inc and
+  ! gh_inc to unknown dependencies.
   
   use testkern_w0_mod, only: testkern_w0_type
   

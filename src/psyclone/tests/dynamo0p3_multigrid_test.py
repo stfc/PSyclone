@@ -303,8 +303,8 @@ def test_field_prolong(tmpdir, f90, f90flags):
 
 def test_field_restrict(tmpdir, f90, f90flags, monkeypatch, annexed):
     '''Test that we generate correct code for an invoke containing a
-    single restriction operation (read from find, write to
-    coarse). Check with annexed is False and True as we produce a
+    single restriction operation (read from fine, write to
+    coarse). Check when annexed is False and True as we produce a
     different number of halo exchanges.
 
     '''

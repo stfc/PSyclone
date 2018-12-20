@@ -3467,13 +3467,12 @@ class DynHaloExchange(HaloExchange):
         # the depth
         if len(depth_info_list) == 1:
             return str(depth_info_list[0])
-        else:
-            # the depth information can't be reduced to a single
-            # expression, therefore we need to determine the maximum
-            # of all expresssions
-            depth_str_list = [str(depth_info) for depth_info in
-                              depth_info_list]
-            return "max("+",".join(depth_str_list)+")"
+        # the depth information can't be reduced to a single
+        # expression, therefore we need to determine the maximum
+        # of all expresssions
+        depth_str_list = [str(depth_info) for depth_info in
+                          depth_info_list]
+        return "max("+",".join(depth_str_list)+")"
 
     def _compute_halo_read_depth_info(self):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
