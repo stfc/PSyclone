@@ -7163,7 +7163,7 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
 
 def test_new_halo_exch_vect_field(monkeypatch):
     '''If a field requires (or may require) a halo exchange before it is
-    called and it has more than one backward write dependency then it
+    accessed and it has more than one backward write dependency then it
     must be a vector (as a vector field requiring a halo exchange
     should have a halo exchange for each vector). The method
     create_halo_exchanges raises an exception if this is not the

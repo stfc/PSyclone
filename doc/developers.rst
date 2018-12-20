@@ -965,10 +965,10 @@ initial schedule. There are three cases:
    loop over dofs) or their status is unknown (because the previous
    modification to the field is outside of the current invoke) then a
    halo exchange will be required (As already mentioned, currently the
-   only way to make annexed dofs clean is to perform a halo. Note, if
-   the `COMPUTE_ANNEXED_DOFS` configuration variable is set to
-   ``true`` then no halo exchange is required as annexed dofs will
-   always be clean.
+   only way to make annexed dofs clean is to perform a halo
+   swap. Note, if the `COMPUTE_ANNEXED_DOFS` configuration variable is
+   set to ``true`` then no halo exchange is required as annexed dofs
+   will always be clean.
 
 3) fields that have a stencil access will access the halo and need
    halo exchange calls added.
