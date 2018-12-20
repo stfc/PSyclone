@@ -947,26 +947,28 @@ initial schedule. There are three cases:
 
 1) loops that iterate over cells and modify a continuous field will
    access the level-1 halo. This means that any field that is read
-   within such a loop must have its level-1 halo clean and therefore
-   requires a halo exchange. In the case of a modified field
-   (specified as `GH_INC` which involves a read before a write) will
-   require a halo exchange if its annexed dofs are not up-to-date, or
-   if this is unknown. This is because we only care about updating
-   owned and annexed dofs, therefore it does not matter what the
-   values of any halo dofs are.
+   within such a loop must have its level-1 halo clean (up-to-date)
+   and therefore requires a halo exchange. A modified field (specified
+   as `GH_INC` which involves a read before a write) will require a
+   halo exchange if its annexed dofs are not clean, or if their
+   status is unknown. Whilst it is only the annexed dofs that need to
+   be made clean in this case, the only way to acheive this is
+   via a halo exchange (which updates the halo i.e. more than is
+   required). Note, if the `COMPUTE_ANNEXED_DOFS` configuration
+   variable is set to ``true`` then no halo exchange is required as
+   annexed dofs will always be clean.
 
 2) continuous fields that are read from within loops that iterate over
-   cells and modify a discontinuous field must have their annexed dofs
-   clean. Currently the only way to make annexed dofs clean is to
-   perform a halo exchange. If the `COMPUTE_ANNEXED_DOFS`
-   configuration variable is set to ``true`` then no halo exchange is
-   required as annexed dofs will always be clean. If the
-   `COMPUTE_ANNEXED_DOFS` configuration variable is set to ``false``
-   then a halo exchange must be added if the previous modification of
-   the field is known to be from within a loop over dofs, or if the
-   previous modification of the field is unknown (i.e. outside the
-   invoke) as the previous modification may have been from within a
-   loop over dofs.
+   cells and modify a discontinuous field will access their annexed
+   dofs. If the annexed dofs are known to be dirty (because the
+   previous modification of the field is known to be from within a
+   loop over dofs) or their status is unknown (because the previous
+   modification to the field is outside of the current invoke) then a
+   halo exchange will be required (As already mentioned, currently the
+   only way to make annexed dofs clean is to perform a halo. Note, if
+   the `COMPUTE_ANNEXED_DOFS` configuration variable is set to
+   ``true`` then no halo exchange is required as annexed dofs will
+   always be clean.
 
 3) fields that have a stencil access will access the halo and need
    halo exchange calls added.
