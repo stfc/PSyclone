@@ -15,14 +15,14 @@ module compute_cv_mod
   public compute_cv, compute_cv_code
 
   type, extends(kernel_type) :: compute_cv
-     type(arg), dimension(3) :: meta_args =    &
-          (/ arg(WRITE, CV, POINTWISE),        & ! cv
-             arg(READ,  CT, POINTWISE),        & ! p
-             arg(READ,  CV, POINTWISE)         & ! v
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CV, GO_POINTWISE),        & ! cv
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
+             go_arg(GO_READ,  GO_CV, GO_POINTWISE)         & ! v
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.
-     integer :: ITERATES_OVER = INTERNAL_PTS
+     integer :: ITERATES_OVER = GO_INTERNAL_PTS
 
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -31,7 +31,7 @@ module compute_cv_mod
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_cv_code
@@ -106,8 +106,8 @@ contains
   subroutine compute_cv_code(i, j, cv, p, v)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(out), dimension(:,:) :: cv
-    real(wp), intent(in),  dimension(:,:) :: p, v
+    real(go_wp), intent(out), dimension(:,:) :: cv
+    real(go_wp), intent(in),  dimension(:,:) :: p, v
 
     CV(I,J) = .5d0*(P(I,J)+P(I,J-1))*V(I,J)
 
