@@ -3298,6 +3298,7 @@ class DynGlobalSum(GlobalSum):
         parent.add(AssignGen(parent, lhs=sum_name+"%value", rhs=name))
         parent.add(AssignGen(parent, lhs=name, rhs=sum_name+"%get_sum()"))
 
+
 def _create_depth_list(halo_info_list):
     '''Halo exchanges may have more than one dependency. This method
     simplifies multiple dependencies to remove duplicates and any
@@ -3305,9 +3306,9 @@ def _create_depth_list(halo_info_list):
     and another for depth=2 then we do not need the former as it is
     covered by the latter. Similarly, if we have a depth=extent+1 and
     another for depth=extent+2 then we do not need the former as it is
-    covered by the latter. It also takes into account clean_outer,
-    which indicates whether the outermost halo needs to be clean (and
-    therefore whether there is a dependence).
+    covered by the latter. It also takes into account
+    needs_clean_outer, which indicates whether the outermost halo
+    needs to be clean (and therefore whether there is a dependence).
 
     :param: a list containing halo access information derived from
     all read fields dependent on this halo exchange
@@ -3322,12 +3323,13 @@ def _create_depth_list(halo_info_list):
     # annexed_only. If so we only care about annexed dofs
     annexed_only = True
     for halo_info in halo_info_list:
-        if not (halo_info.annexed_only or (halo_info.literal_depth ==
-                                           1 and not halo_info.clean_outer)):
+        if not (halo_info.annexed_only or
+                (halo_info.literal_depth == 1
+                 and not halo_info.needs_clean_outer)):
             # There are two cases when we only care about accesses to
             # annexed dofs. 1) when annexed_only is set and 2) when
             # the halo depth is 1 but we only depend on annexed dofs
-            # being up-to-date (clean_outer is False)
+            # being up-to-date (needs_clean_outer is False)
             annexed_only = False
             break
     if annexed_only:
@@ -3342,7 +3344,7 @@ def _create_depth_list(halo_info_list):
     max_depth_m1 = False
     for halo_info in halo_info_list:
         if halo_info.max_depth:
-            if halo_info.clean_outer:
+            if halo_info.needs_clean_outer:
                 # found a max_depth access so we only need one
                 # HaloDepth entry
                 depth_info = HaloDepth()
@@ -3350,41 +3352,9 @@ def _create_depth_list(halo_info_list):
                                         literal_depth=0, annexed_only=False,
                                         max_depth_m1=False)
                 return [depth_info]
-            else:
-                # remember that we found a max_depth-1 access
-                max_depth_m1 = True
-    for halo_info in halo_info_list:
-        # go through the halo information associated with each
-        # read dependency, skipping any max_depth-1 accesses
-        if not (halo_info.max_depth and not halo_info.clean_outer):
-            var_depth = halo_info.var_depth
-            literal_depth = halo_info.literal_depth
-            if literal_depth and not halo_info.clean_outer:
-                # decrease depth by 1 if we don't care about the outermost
-                # access
-                literal_depth -= 1
-            match = False
-            # check whether we match with existing depth information
-            for depth_info in depth_info_list:
-                if depth_info.var_depth == var_depth and not match:
-                    # this dependence uses the same variable to
-                    # specify its depth as an existing one, or both do
-                    # not have a variable so we only have a
-                    # literal. Therefore we only need to update the
-                    # literal value with the maximum of the two
-                    # (e.g. var_name,1 and var_name,2 => var_name,2)
-                    depth_info.literal_depth = max(
-                        depth_info.literal_depth, literal_depth)
-                    match = True
-                    break
-            if not match:
-                # no matches were found with existing variables, or no
-                # variables so create a new halo depth entry
-                depth_info = HaloDepth()
-                depth_info.set_by_value(max_depth=False, var_depth=var_depth,
-                                        literal_depth=literal_depth,
-                                        annexed_only=False, max_depth_m1=False)
-                depth_info_list.append(depth_info)
+            # remember that we found a max_depth-1 access
+            max_depth_m1 = True
+
     if max_depth_m1:
         # we have at least one max_depth-1 access.
         depth_info = HaloDepth()
@@ -3392,6 +3362,40 @@ def _create_depth_list(halo_info_list):
                                 literal_depth=0, annexed_only=False,
                                 max_depth_m1=True)
         depth_info_list.append(depth_info)
+
+    for halo_info in halo_info_list:
+        # go through the halo information associated with each
+        # read dependency, skipping any max_depth-1 accesses
+        if halo_info.max_depth and not halo_info.needs_clean_outer:
+            continue
+        var_depth = halo_info.var_depth
+        literal_depth = halo_info.literal_depth
+        if literal_depth and not halo_info.needs_clean_outer:
+            # decrease depth by 1 if we don't care about the outermost
+            # access
+            literal_depth -= 1
+        match = False
+        # check whether we match with existing depth information
+        for depth_info in depth_info_list:
+            if depth_info.var_depth == var_depth and not match:
+                # this dependence uses the same variable to
+                # specify its depth as an existing one, or both do
+                # not have a variable so we only have a
+                # literal. Therefore we only need to update the
+                # literal value with the maximum of the two
+                # (e.g. var_name,1 and var_name,2 => var_name,2)
+                depth_info.literal_depth = max(
+                    depth_info.literal_depth, literal_depth)
+                match = True
+                break
+        if not match:
+            # no matches were found with existing entries so
+            # create a new one
+            depth_info = HaloDepth()
+            depth_info.set_by_value(max_depth=False, var_depth=var_depth,
+                                    literal_depth=literal_depth,
+                                    annexed_only=False, max_depth_m1=False)
+            depth_info_list.append(depth_info)
     return depth_info_list
 
 
@@ -3954,7 +3958,7 @@ class HaloDepth(object):
     @property
     def max_depth_m1(self):
         '''Returns whether the read to the field is known to access all of the
-        halo except the outermost level or not
+        halo except the outermost level or not.
 
         :return: Return True if the read to the field is known to
         access all of the halo except the outermost and False otherwise
@@ -4005,18 +4009,17 @@ class HaloDepth(object):
                      max_depth_m1):
         '''Set halo depth information directly
 
-        :param max_depth: True if the field accesses all of the halo
+        :param bool max_depth: True if the field accesses all of the \
+        halo and False otherwise
+        :param str var_depth: A variable name specifying the halo \
+        access depth, if one exists, and None if not
+        :param int literal_depth: The known fixed (literal) halo \
+        access depth
+        :param bool annexed_only: True if only the halo's annexed dofs \
+        are accessed and False otherwise
+        :param bool max_depth_m1: True if the field accesses all of \
+        the halo but does not require the outermost halo to be correct \
         and False otherwise
-        :type max_depth: bool
-        :param var_depth: A variable name specifying the halo access
-        depth, if one exists, and None if not
-        :type var_depth: String
-        :param literal_depth: The known fixed (literal) halo access
-        depth
-        :type literal_depth: integer
-        :param annexed_only: True if only the halo's annexed dofs are
-        accessed and False otherwise
-        :type max_depth: bool
 
         '''
         self._max_depth = max_depth
@@ -4178,21 +4181,22 @@ class HaloReadAccess(HaloDepth):
         '''
         HaloDepth.__init__(self)
         self._stencil_type = None
+        self._needs_clean_outer = None
         self._compute_from_field(field)
 
     @property
-    def clean_outer(self):
+    def needs_clean_outer(self):
         '''Returns False if the reader has a gh_inc access and accesses the
         halo. Otherwise returns True.  Indicates that the outer level
         of halo that has been read does not need to be clean (although
         any annexed dofs do).
 
-        :return: Returns False if the outer layer of halo that is read
+        :return: Returns False if the outer layer of halo that is read \
         does not need to be clean and True otherwise.
         :rtype: bool
 
         '''
-        return self._clean_outer
+        return self._needs_clean_outer
 
     @property
     def stencil_type(self):
@@ -4226,11 +4230,19 @@ class HaloReadAccess(HaloDepth):
         call = halo_check_arg(field, GH_READ_ACCESSES)
         # no test required here as all calls exist within a loop
         loop = call.parent
-        # the outermost halo level that is read does not need to be
-        # clean if the access is gh_inc as the values computed are
-        # incorrect (partial sums) and the outermost halo is
-        # subsequently set to dirty
-        self._clean_outer = (
+
+        # For GH_INC we accumulate contributions into the field being
+        # modified. In order to get correct results for owned and
+        # annexed dofs, this requires that the fields we are
+        # accumulating contributions from have up-to-date values in
+        # the halo cell(s). However, we do not need to be concerned
+        # with the values of the modified field in the last-level of
+        # the halo. This is because we only have enough information to
+        # partially compute the contributions in those cells
+        # anyway. (If the values of the field being modified are
+        # required, at some later point, in that level of the halo
+        # then we do a halo swap.)
+        self._needs_clean_outer = (
             not (field.access.lower() == "gh_inc"
                  and loop.upper_bound_name in ["cell_halo",
                                                "colour_halo"]))

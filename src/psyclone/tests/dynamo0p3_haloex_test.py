@@ -391,7 +391,7 @@ def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
     rc_trans.apply(schedule.children[loop2idx])
     # f1 halo exchange should be depth max(1,max-1)
     haloex = schedule.children[haloidx]
-    check(haloex, "max(1,mesh%get_halo_depth()-1)")
+    check(haloex, "max(mesh%get_halo_depth()-1,1)")
     # just check compilation here as it is the most
     # complicated. (Note, compilation of redundant computation is
     # checked separately)
