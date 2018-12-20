@@ -46,6 +46,7 @@ from psyclone.configuration import Config
 import psyclone_test_utils as utils
 
 # constants
+API = "dynamo0.3"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
@@ -59,23 +60,25 @@ def test_gh_inc_nohex_1(tmpdir, f90, f90flags, monkeypatch):
     '''
     # ensure that COMPUTE_ANNEXED_DOFS is True
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf(API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", True)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.12_halo_wdofs_to_inc.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=API)
+    psy = PSyFactory(API).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     def check_schedule(schedule):
-        '''check this schedule has expected structure (loop, haloexchange,
+        '''Check this schedule has expected structure (loop, haloexchange,
         loop). In paricular there should be no halo exchange for the
-        write-to-gh_inc dependence
+        write-to-gh_inc dependence.
+
+        :param schedule: a dynamo0.3 API schedule object
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`.
 
         '''
-        schedule.view()
         assert len(schedule.children) == 3
         loop1 = schedule.children[0]
         haloex = schedule.children[1]
@@ -95,7 +98,7 @@ def test_gh_inc_nohex_1(tmpdir, f90, f90flags, monkeypatch):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
     # make 1st loop iterate over dofs to the level 1 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -121,14 +124,14 @@ def test_gh_inc_nohex_2(tmpdir, f90, f90flags, monkeypatch):
     '''
     # ensure that COMPUTE_ANNEXED_DOFS is False
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf(API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.12_halo_wdofs_to_inc.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=API)
+    psy = PSyFactory(API).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     # 1st loop should iterate over dofs to ndofs. Check output
@@ -136,7 +139,6 @@ def test_gh_inc_nohex_2(tmpdir, f90, f90flags, monkeypatch):
     haloex1 = schedule.children[1]
     haloex2 = schedule.children[2]
     loop2 = schedule.children[3]
-    schedule.view()
     assert len(schedule.children) == 4
     assert isinstance(loop1, DynLoop)
     assert loop1.upper_bound_name == "ndofs"
@@ -153,7 +155,7 @@ def test_gh_inc_nohex_2(tmpdir, f90, f90flags, monkeypatch):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
     # make 1st loop iterate over dofs to the level 1 halo and check
     # output. There should be no halo exchange for field "f1"
@@ -201,14 +203,14 @@ def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
     '''
     # ensure that COMPUTE_ANNEXED_DOFS is True
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf(API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", True)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.13_halo_inc_to_inc.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=API)
+    psy = PSyFactory(API).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     # check we have no halo exchanges for field "f1"
@@ -228,7 +230,7 @@ def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -238,6 +240,13 @@ def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
         '''check that the schedule is modified in the expected way. In
         particular, check that the depth of the halo exchange for
         field 'f1' is what we are expecting
+
+        :param schedule: a dynamo0.3 API schedule object
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`.
+        :param int f1depth: The expected depth of the halo exchange \
+        associated with field f1
+        :param int f2depth: The expected depth of the halo exchange \
+        associated with field f2
 
         '''
         assert len(schedule.children) == 4
@@ -283,20 +292,27 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
     '''
     # ensure that COMPUTE_ANNEXED_DOFS is False
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf(API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.13_halo_inc_to_inc.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=API)
+    psy = PSyFactory(API).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     def check(schedule, f1depth, f2depth):
         '''check that the schedule is modified in the expected way. In
         particular, check that the depth of the halo exchange for
         field 'f1' is what we are expecting
+
+        :param schedule: a dynamo0.3 API schedule object
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`.
+        :param int f1depth: The expected depth of the halo exchange \
+        associated with field f1
+        :param int f2depth: The expected depth of the halo exchange \
+        associated with field f2
 
         '''
         assert len(schedule.children) == 4
@@ -324,7 +340,7 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -351,19 +367,27 @@ def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
 
     '''
     config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
+    dyn_config = config.api_conf(API)
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     # parse and get psy schedule
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.14_halo_inc_times3.f90"),
-                    api="dynamo0.3")
-    psy = PSyFactory("dynamo0.3").create(info)
+                    api=API)
+    psy = PSyFactory(API).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
     def check(haloex, depth):
-        '''check the halo exchange has the expected properties'''
+        '''check the halo exchange has the expected properties
+
+        :param haloex: a dynamo0.3 API halo-exchange object
+        :type haloex: :py:class:`psyclone.dynamo0p3.DynHaloExchange`.
+        :param int depth: The expected depth of the halo exchange \
+        passed in as the first argument
+
+        '''
+
         assert isinstance(haloex, DynHaloExchange)
         assert haloex.field.name == "f1"
         assert haloex.required() == (True, True)
@@ -398,7 +422,7 @@ def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
     if utils.TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
     rc_trans.apply(schedule.children[loop1idx])
     # f1 halo exchange should be depth max
     haloex = schedule.children[haloidx]
