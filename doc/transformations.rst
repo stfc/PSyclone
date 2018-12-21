@@ -91,6 +91,9 @@ can be found in the API-specific sections).
       :members:
       :noindex:
 
+.. note:: OpenCL support is still under development. See
+          :ref:`opencl_dev` for more details.
+
 ####
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
