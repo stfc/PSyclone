@@ -1,3 +1,36 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2018, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: A. R. Porter, STFC Daresbury Lab.
+
 !> \brief Compute the mass flux in the y direction, cv
 !! \detail Given the current pressure and velocity fields,
 !! computes the mass flux in the y direction.
@@ -11,7 +44,6 @@ module compute_cv_mod
 
   private
 
-  public invoke_compute_cv
   public compute_cv, compute_cv_code
 
   type, extends(kernel_type) :: compute_cv
@@ -38,69 +70,6 @@ module compute_cv_mod
   end type compute_cv
 
 contains
-
-  !===================================================
-
-  !> Manual implementation of the code needed to invoke
-  !! compute_cv_code().
-  subroutine invoke_compute_cv(cvfld, pfld, vfld)
-    implicit none
-    type(r2d_field), intent(inout) :: cvfld
-    type(r2d_field), intent(in)    :: pfld, vfld
-    ! Locals
-    integer :: I, J
-
-    ! Note that we do not loop over the full extent of the field.
-    ! Fields are allocated with extents (M+1,N+1).
-    ! Presumably the extra row and column are needed for periodic BCs.
-    ! We are updating a quantity on CV.
-    ! This loop writes to cv(1:M,2:N+1) so this looks like
-    ! (using x to indicate a location that is written):
-    !
-    ! i=1   i=M
-    !  x  x  x  o 
-    !  x  x  x  o   j=N
-    !  x  x  x  o
-    !  o  o  o  o   j=1
-
-    ! Quantity CV is mass flux in y direction.
-
-    ! Original code looked like:
-    !
-    !    DO J=1,N
-    !      DO I=1,M
-    !           CV(I,J+1) = .5*(P(I,J+1)+P(I,J))*V(I,J+1)
-    !      END DO
-    !    END DO
-
-    ! cv(i,j) depends upon:
-    !   p(i,j-1), p(i,j) : CT
-    !    => vertical CT neighbours of the CV pt being updated
-    !   v(i,j)           : CV
-    !    => the velocity component at the CV pt being updated
-
-    !   vi-1j+1--fij+1---vij+1---fi+1j+1
-    !   |        |       |       |
-    !   |        |       |       |
-    !   Ti-1j----uij-----Tij-----ui+1j
-    !   |        |       |       |
-    !   |        |       |       |
-    !   vi-1j----fij-----vij-----fi+1j
-    !   |        |       |       |
-    !   |        |       |       |
-    !   Ti-1j-1--uij-1---Tij-1---ui+1j-1
-    !
-
-    do J=cvfld%internal%ystart, cvfld%internal%ystop
-       do I=cvfld%internal%xstart, cvfld%internal%xstop
-
-          call compute_cv_code(i, j, cvfld%data, pfld%data, vfld%data)
-       end do
-    end do
-
-  end subroutine invoke_compute_cv
-
-  !===================================================
 
   !> Compute the mass flux in the y direction at point (i,j)
   subroutine compute_cv_code(i, j, cv, p, v)

@@ -1,3 +1,36 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2018, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: A. R. Porter, STFC Daresbury Lab.
+
 module compute_h_mod
   use kind_params_mod
   use kernel_mod
@@ -36,70 +69,6 @@ module compute_h_mod
   end type compute_h
 
 contains
-
-  !===================================================
-
-  subroutine invoke_compute_h(hfld, pfld, ufld, vfld)
-    implicit none
-    type(r2d_field), intent(inout) :: hfld
-    type(r2d_field), intent(in)    :: pfld, ufld,vfld
-    ! Locals
-    integer :: I, J
-
-    ! Note that we do not loop over the full extent of the field.
-    ! Fields are allocated with extents (M+1,N+1).
-    ! Presumably the extra row and column are needed for periodic BCs.
-    ! We are updating a quantity on CT.
-    ! This loop writes to h(1:M,1:N) so this looks like
-    ! (using x to indicate a location that is written):
-    !
-    ! i=1   i=M
-    !  o  o  o  o 
-    !  x  x  x  o   j=N
-    !  x  x  x  o
-    !  x  x  x  o   j=1
-
-    ! Quantity H is defined as:
-    !         H = P + 0.5(<u^2>_x + <v^2>_y)
-    ! where <d>_x indicates average over field d in x direction.
-
-    ! Original code looked like:
-    !
-    !     DO J=1,N
-    !        DO I=1,M
-    !           H(I,J) = P(I,J)+.25*(U(I+1,J)*U(I+1,J)+U(I,J)*U(I,J)     & 
-    !                               +V(I,J+1)*V(I,J+1)+V(I,J)*V(I,J))
-    !        END DO
-    !     END DO
-
-    ! h(i,j) depends upon:
-    !   p(i,j)                                : CT
-    !   u(i,j), u(i+1,j)                      : CU
-    !    => lateral CU neighbours of the CT pt being updated 
-    !   v(i,j), v(i,j+1)                      : CV
-    !    => vertical CV neighbours of the CT pt being updated
-
-    !   x-------vij+1---fi+1j+1
-    !   |       |       |
-    !   |       |       |
-    !   uij-----Tij-----ui+1j
-    !   |       |       |
-    !   |       |       |
-    !   fij-----vij-----fi+1j
-    !   |       |       |
-    !   |       |       |
-    !   uij-1- -Tij-1---ui+1j-1
-    !
-
-    DO J=hfld%internal%ystart, hfld%internal%ystop, 1
-       DO I=hfld%internal%xstart, hfld%internal%xstop, 1
-
-          CALL compute_h_code(i, j, hfld%data, &
-                              pfld%data, ufld%data, vfld%data)
-       END DO
-    END DO
-
-  end subroutine invoke_compute_h
 
   !===================================================
 

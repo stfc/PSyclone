@@ -1,3 +1,36 @@
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2018, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: A. R. Porter, STFC Daresbury Lab.
+
 !> \brief Compute the mass flux in the x direction, cu
 !! \detail Given the current pressure and velocity fields,
 !! computes the mass flux in the x direction.
@@ -38,69 +71,6 @@ module compute_cu_mod
   end type compute_cu
 
 contains
-
-  !===================================================
-
-  !> Manual implementation of the code needed to invoke
-  !! compute_cu_code().
-  subroutine invoke_compute_cu(cufld, pfld, ufld)
-    implicit none
-    type(r2d_field), intent(inout) :: cufld
-    type(r2d_field), intent(in)    :: pfld, ufld
-    ! Locals
-    integer :: I, J
-
-    ! Note that we do not loop over the full extent of the field.
-    ! Fields are allocated with extents (M+1,N+1).
-    ! Presumably the extra row and column are needed for periodic BCs.
-    ! We are updating a quantity on CU.
-    ! This loop writes to cu(2:M+1,1:N) so this looks like
-    ! (using x to indicate a location that is written):
-    !
-    ! i=1   i=M
-    !  o  o  o  o 
-    !  o  x  x  x   j=N
-    !  o  x  x  x
-    !  o  x  x  x   j=1
-
-    ! Quantity CU is mass flux in x direction.
-
-    ! Original code looked like:
-    !
-    !    DO J=1,N
-    !      DO I=1,M
-    !           CU(I+1,J) = .5*(P(I+1,J)+P(I,J))*U(I+1,J)
-    !      END DO
-    !    END DO
-
-    ! cu(i,j) depends upon:
-    !   p(i-1,j), p(i,j) : CT
-    !    => lateral CT neighbours of the CU pt being updated
-    !   u(i,j)           : CU
-    !    => the horiz. vel. component at the CU pt being updated
-
-    !   vi-1j+1--fij+1---vij+1---fi+1j+1
-    !   |        |       |       |
-    !   |        |       |       |
-    !   Ti-1j----uij-----Tij-----ui+1j
-    !   |        |       |       |
-    !   |        |       |       |
-    !   vi-1j----fij-----vij-----fi+1j
-    !   |        |       |       |
-    !   |        |       |       |
-    !   Ti-1j-1--uij-1---Tij-1---ui+1j-1
-    !
-
-    do J=cufld%internal%ystart, cufld%internal%ystop
-       do I=cufld%internal%xstart, cufld%internal%xstop
-
-          call compute_cu_code(i, j, cufld%data, pfld%data, ufld%data)
-       end do
-    end do
-
-  end subroutine invoke_compute_cu
-
-  !===================================================
 
   !> Compute the mass flux in the x direction at point (i,j)
   subroutine compute_cu_code(i, j, cu, p, u)
