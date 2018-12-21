@@ -1531,7 +1531,8 @@ class Schedule(Node):
             # Ensure we block at the end of the invoke to ensure all
             # kernels have completed before we return.
             # TODO can we lift this restriction?
-            # BUG this assumes only the first command queue is used
+            # This code ASSUMES only the first command queue is used for
+            # executing kernels.
             parent.add(CommentGen(parent,
                                   " Block until all kernels have finished"))
             parent.add(AssignGen(parent, lhs=flag,
