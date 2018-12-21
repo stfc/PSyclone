@@ -1,10 +1,9 @@
 module kernel_scalar_int
-  !use kind_params_mod
-  !use kernel_mod
-  !use argument_mod
-  !use physical_params_mod
-  !use grid_mod
-  !use field_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
   private
@@ -15,16 +14,16 @@ module kernel_scalar_int
   !=======================================
 
   type, extends(kernel_type) :: bc_ssh
-     type(arg), dimension(3) :: meta_args =        &
-          (/ arg(READ,      I_SCALAR, POINTWISE),  &
-             arg(READWRITE, CT,       POINTWISE),  &
-             arg(READ,      GRID_MASK_T)           &
+     type(go_arg), dimension(3) :: meta_args =        &
+          (/ go_arg(GO_READ,      GO_I_SCALAR, GO_POINTWISE),  &
+             go_arg(GO_READWRITE, GO_CT,       GO_POINTWISE),  &
+             go_arg(GO_READ,      GO_GRID_MASK_T)              &
            /)
 
      !> This is a boundary-conditions kernel and therefore
      !! acts on all points of the domain rather than just
      !! those that are internal
-     integer :: ITERATES_OVER = ALL_PTS
+     integer :: ITERATES_OVER = GO_ALL_PTS
 
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -33,7 +32,7 @@ module kernel_scalar_int
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the North and East of it.
-     integer :: index_offset = OFFSET_NE
+     integer :: index_offset = GO_OFFSET_NE
 
   contains
     procedure, nopass :: code => bc_ssh_code
@@ -47,13 +46,13 @@ contains
     integer, intent(in)  :: ji, jj
     integer, dimension(:,:),  intent(in)    :: tmask
     integer,                  intent(in)    :: istep
-    real(wp), dimension(:,:), intent(inout) :: ssha
+    real(go_wp), dimension(:,:), intent(inout) :: ssha
     ! Locals
-    real(wp) :: amp_tide, omega_tide, rtime
+    real(go_wp) :: amp_tide, omega_tide, rtime
 
-    amp_tide   = 0.2_wp
-    omega_tide = 2.0_wp * 3.14159_wp / (12.42_wp * 3600._wp)
-    rtime = real(istep,wp) * rdt
+    amp_tide   = 0.2_go_wp
+    omega_tide = 2.0_go_wp * 3.14159_go_wp / (12.42_go_wp * 3600._go_wp)
+    rtime = real(istep,go_wp) * rdt
 
     if(tmask(ji,jj) <= 0) return
     IF     (tmask(ji,jj-1) < 0) THEN

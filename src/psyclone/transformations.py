@@ -923,13 +923,18 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     def apply(self, node):
 
-        ''' Perform Dynamo specific loop validity checks then call the
+        '''Perform Dynamo specific loop validity checks then call the
         :py:meth:`~OMPParallelLoopTrans.apply` method of the
-        :py:class:`base class <OMPParallelLoopTrans>`. '''
-        OMPParallelLoopTrans._validate(self, node)
+        :py:class:`base class <OMPParallelLoopTrans>`.
 
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node)
+        :param node: the Node in the Schedule to check
+        :type node: :py:class:`psyclone.psyGen.Node`
+
+        :raise TransformationError: if the associated loop requires \
+        colouring.
+
+        '''
+        OMPParallelLoopTrans._validate(self, node)
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous then we don't
@@ -1028,9 +1033,6 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 "Error in {0} transformation. The kernel has an argument"
                 " with INC access. Colouring is required.".
                 format(self.name))
-
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node)
 
         return OMPLoopTrans.apply(self, node, reprod=reprod)
 
@@ -1614,7 +1616,7 @@ class GOConstLoopBoundsTrans(Transformation):
     generates code like:
     ::
 
-      ny = my_field%grid%simulation_domain%ystop
+      ny = my_field%grid%subdomain%internal%ystop
       ...
       DO j = 1, ny-1
 
@@ -2293,6 +2295,98 @@ class ProfileRegionTrans(RegionTrans):
         return schedule, keep
 
 
+class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
+    '''Splits a synchronous halo exchange into a halo exchange start and
+    halo exchange end. For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "dynamo0.3"
+    >>> ast, invokeInfo = parse("file.f90", api=api)
+    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
+    >>> trans = Dynamo0p3AsyncHaloExchangeTrans()
+    >>> new_schedule, memento = trans.apply(schedule.children[0])
+    >>> new_schedule.view()
+
+    '''
+
+    def __str__(self):
+        return "Changes a synchronous halo exchange into an asynchronous one."
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+        return "Dynamo0p3AsyncHaloExchangeTrans"
+
+    def apply(self, node):
+        '''Transforms a synchronous halo exchange, represented by a
+        HaloExchange node, into an asynchronous halo exchange,
+        represented by HaloExchangeStart and HaloExchangeEnd nodes.
+
+        :param node: A synchronous haloexchange node
+        :type node: :py:obj:`psyclone.psygen.HaloExchange`
+        :returns: Tuple of the modified schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        self._validate(node)
+
+        schedule = node.root
+
+        # create a memento of the schedule and the proposed transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(schedule, self, [node])
+
+        from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
+        # add asynchronous start and end halo exchanges and initialise
+        # them using information from the existing synchronous halo
+        # exchange
+        node.parent.addchild(
+            DynHaloExchangeStart(
+                node.field, check_dirty=node._check_dirty,
+                vector_index=node.vector_index, parent=node.parent),
+            index=node.position)
+        node.parent.addchild(
+            DynHaloExchangeEnd(
+                node.field, check_dirty=node._check_dirty,
+                vector_index=node.vector_index, parent=node.parent),
+            index=node.position)
+
+        # remove the existing synchronous halo exchange
+        node.parent.children.remove(node)
+
+        return schedule, keep
+
+    def _validate(self, node):
+        '''Internal method to check whether the node is valid for this
+        transformation.
+
+        :param node: A synchronous Halo Exchange node
+        :type node: :py:obj:`psyclone.psygen.HaloExchange`
+        :raises TransformationError: if the node argument is not a
+                         HaloExchange (or subclass thereof)
+
+        '''
+        from psyclone.psyGen import HaloExchange
+        from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
+
+        if not isinstance(node, HaloExchange) or \
+           isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
+            raise TransformationError(
+                "Error in Dynamo0p3AsyncHaloExchange transformation. Supplied "
+                "node must be a synchronous halo exchange but found '{0}'."
+                .format(type(node)))
+
+
 class ACCDataTrans(Transformation):
     '''
     Adds an OpenACC "enter data" directive to a Schedule.
@@ -2418,6 +2512,8 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if we fail to find the subroutine \
                                      corresponding to the kernel object.
         '''
+        # pylint: disable=too-many-locals
+
         from fparser.two.Fortran2003 import Subroutine_Subprogram, \
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
@@ -2447,7 +2543,7 @@ class ACCRoutineTrans(Transformation):
         spec = walk_ast(kern_sub.content, [Specification_Part])[0]
         idx = 0
         for idx, node in enumerate(spec.content):
-            if not (isinstance(node, (Implicit_Part, Type_Declaration_Stmt))):
+            if not isinstance(node, (Implicit_Part, Type_Declaration_Stmt)):
                 break
         # Create the directive and insert it
         cmt = Comment(FortranStringReader("!$acc routine",
