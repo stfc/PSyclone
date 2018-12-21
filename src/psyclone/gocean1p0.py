@@ -212,7 +212,7 @@ class GOInvoke(Invoke):
     @property
     def unique_args_rscalars(self):
         ''' find unique arguments that are scalars of type real (defined
-            as those that are r_scalar 'space'. '''
+            as those that are go_r_scalar 'space'. '''
         result = []
         for call in self._schedule.calls():
             for arg in args_filter(call.arguments.args, arg_types=["scalar"],
@@ -1060,9 +1060,9 @@ class GOKern(Kern):
                            arg_types=["scalar"],
                            is_literal=False)
         for arg in args:
-            if arg.space.lower() == "r_scalar":
+            if arg.space.lower() == "go_r_scalar":
                 sub.add(DeclGen(
-                    sub, datatype="REAL", intent="in", kind="wp",
+                    sub, datatype="REAL", intent="in", kind="go_wp",
                     target=True, entity_decls=[arg.name]))
             else:
                 sub.add(DeclGen(sub, datatype="INTEGER", intent="in",

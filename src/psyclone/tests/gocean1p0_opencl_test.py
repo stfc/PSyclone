@@ -147,7 +147,7 @@ def test_set_kern_float_arg():
       USE clfortran, ONLY: clSetKernelArg
       USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
       USE ocl_utils_mod, ONLY: check_status
-      REAL(KIND=wp), intent(in), target :: a_scalar
+      REAL(KIND=go_wp), intent(in), target :: a_scalar
       INTEGER ierr
       INTEGER(KIND=c_intptr_t), target :: ssh_fld, tmask
       INTEGER(KIND=c_intptr_t), target :: kernel_obj
