@@ -991,8 +991,10 @@ class GOKern(Kern):
                 # for grid properties in "grid-prop-name_device" which
                 # is a bit hacky but works for now.
                 arguments.append(garg.name+"%grid%"+arg.name+"_device")
-        parent.add(CallGen(
-            parent, "{0}_set_args".format(self.name), arguments))
+        sub_name = self._name_space_manager.create_name(
+            root_name=self.name+"_set_args", context=self.name+"ArgSetter",
+            label=self.name+"_set_args")
+        parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
         # psyGen.Schedule)
@@ -1032,9 +1034,14 @@ class GOKern(Kern):
         # the OpenCL transformation.
         kobj = self._name_space_manager.create_name(
             root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
-        arguments = [kobj, "nx"] + [arg.name for arg in self._arguments.args]
-        sub = SubroutineGen(parent, name=self.name+"_set_args",
-                            args=arguments)
+        nx_name = self._name_space_manager.create_name(
+            root_name="nx", context="ArgSetter", label="nx")
+        args = [kobj, nx_name] + [arg.name for arg in self._arguments.args]
+
+        sub_name = self._name_space_manager.create_name(
+            root_name=self.name+"_set_args", context=self.name+"ArgSetter",
+            label=self.name+"_set_args")
+        sub = SubroutineGen(parent, name=sub_name, args=args)
         parent.add(sub)
         sub.add(UseGen(sub, name="ocl_utils_mod", only=True,
                        funcnames=["check_status"]))
@@ -1044,7 +1051,7 @@ class GOKern(Kern):
                        funcnames=["clSetKernelArg"]))
         # Declare arguments
         sub.add(DeclGen(sub, datatype="integer", target=True,
-                        entity_decls=["nx"]))
+                        entity_decls=[nx_name]))
         sub.add(DeclGen(sub, datatype="integer", kind="c_intptr_t",
                         target=True, entity_decls=[kobj]))
 
@@ -1069,7 +1076,9 @@ class GOKern(Kern):
                                 target=True, entity_decls=[arg.name]))
 
         # Declare local variables
-        sub.add(DeclGen(sub, datatype="integer", entity_decls=["ierr"]))
+        err_name = self._name_space_manager.create_name(
+            root_name="ierr", context="PSyVars", label="ierr")
+        sub.add(DeclGen(sub, datatype="integer", entity_decls=[err_name]))
         sub.add(CommentGen(
             sub,
             " Set the arguments for the {0} OpenCL Kernel".format(self.name)))
@@ -1077,9 +1086,9 @@ class GOKern(Kern):
         # a kernel
         index = 0
         sub.add(AssignGen(
-            sub, lhs="ierr",
+            sub, lhs=err_name,
             rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-            format(kobj, index, "nx")))
+            format(kobj, index, nx_name)))
         # Now all of the 'standard' kernel arguments
         for arg in self.arguments.args:
             index += 1
@@ -1320,6 +1329,8 @@ class GOKernelGridArgument(Argument):
 
         # This object always represents an argument that is a grid_property
         self._type = "grid_property"
+        # Access to the name-space manager
+        self._name_space_manager = NameSpaceFactory().create()
 
     @property
     def name(self):

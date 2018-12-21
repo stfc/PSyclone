@@ -3592,6 +3592,8 @@ class Argument(object):
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access
+        self._name_space_manager = NameSpaceFactory().create()
+
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
             # we do not want an argument (_text=None) but we do want to
@@ -3599,7 +3601,6 @@ class Argument(object):
             self._name = arg_info.text
             self._text = None
         else:
-            self._name_space_manager = NameSpaceFactory().create()
             # Use our namespace manager to create a unique name unless
             # the context and label match in which case return the
             # previous name.
@@ -3679,15 +3680,19 @@ class Argument(object):
         :param str kname: the name of the OpenCL kernel.
         '''
         from psyclone.f2pygen import AssignGen, CallGen
-        # TODO fix hardwired names of "ierr" and "kernel_obj"
+        # Look up variable names from name-space manager
+        err_name = self._name_space_manager.create_name(
+            root_name="ierr", context="PSyVars", label="ierr")
+        kobj = self._name_space_manager.create_name(
+            root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
         parent.add(AssignGen(
-            parent, lhs="ierr",
+            parent, lhs=err_name,
             rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
-            format("kernel_obj", index, self.name)))
+            format(kobj, index, self.name)))
         parent.add(CallGen(
             parent, "check_status",
             ["'clSetKernelArg: arg {0} of {1}'".format(index, kname),
-             "ierr"]))
+             err_name]))
 
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
