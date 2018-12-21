@@ -2136,6 +2136,7 @@ class OCLTrans(Transformation):
     >>>
     >>> ocl_trans = OCLTrans()
     >>> new_sched, _ = ocl_trans.apply(schedule)
+
     '''
     @property
     def name(self):
@@ -2146,17 +2147,22 @@ class OCLTrans(Transformation):
         '''
         Apply the OpenCL transformation to the supplied Schedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
-        PSy-layer routine.
+        PSy-layer routine. The generated code makes use of the FortCL
+        library (https://github.com/stfc/FortCL) in order to manage the
+        OpenCL device directly from Fortran.
+
         :param sched: Schedule to transform.
         :type sched: :py:class:`psyclone.psyGen.Schedule`
         :param bool opencl: whether or not to enable OpenCL generation.
+
         '''
         if opencl:
             self._validate(sched)
         # create a memento of the schedule and the proposed transformation
         from psyclone.undoredo import Memento
         keep = Memento(sched, self, [sched])
-
+        # All we have to do here is set the flag in the Schedule. When this
+        # flag is True PSyclone produces OpenCL at code-generation time.
         sched.opencl = opencl
         return sched, keep
 

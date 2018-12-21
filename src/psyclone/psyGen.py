@@ -285,24 +285,25 @@ class PSyFactory(object):
 
 class PSy(object):
     '''
-        Base class to help manage and generate PSy code for a single
-        algorithm file. Takes the invocation information output from the
-        function :func:`parse.parse` as its input and stores this in a
-        way suitable for optimisation and code generation.
+    Base class to help manage and generate PSy code for a single
+    algorithm file. Takes the invocation information output from the
+    function :func:`parse.parse` as its input and stores this in a
+    way suitable for optimisation and code generation.
 
-        :param FileInfo invoke_info: An object containing the required \
-                                     invocation information for code \
-                                     optimisation and generation. Produced \
-                                     by the function :func:`parse.parse`.
-        For example:
+    :param FileInfo invoke_info: An object containing the required \
+                                 invocation information for code \
+                                 optimisation and generation. Produced \
+                                 by the function :func:`parse.parse`.
 
-        >>> import psyclone
-        >>> from psyclone.parse import parse
-        >>> ast, info = parse("argspec.F90")
-        >>> from psyclone.psyGen import PSyFactory
-        >>> api = "..."
-        >>> psy = PSyFactory(api).create(info)
-        >>> print(psy.gen)
+    For example:
+
+    >>> import psyclone
+    >>> from psyclone.parse import parse
+    >>> ast, info = parse("argspec.F90")
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "..."
+    >>> psy = PSyFactory(api).create(info)
+    >>> print(psy.gen)
 
     '''
     def __init__(self, invoke_info):

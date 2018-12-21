@@ -35,9 +35,9 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenACC transformations
-	  for the GOcean 1.0 API. Attempts to apply these
-	  transformations to (members of) Schedules from other
+.. note:: PSyclone currently only supports OpenACC and OpenCL
+	  transformations for the GOcean 1.0 API. Attempts to apply
+	  these transformations to (members of) Schedules from other
 	  APIs will be rejected.
 
 ####
@@ -87,9 +87,9 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ProfileRegionTrans
-    :members:
-    :noindex:
+.. autoclass:: psyclone.transformations.OCLTrans
+      :members:
+      :noindex:
 
 ####
 
@@ -118,6 +118,13 @@ can be found in the API-specific sections).
           performed outside the parallel region. The 
 	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
+
+####
+
+.. autoclass:: psyclone.transformations.ProfileRegionTrans
+    :members:
+    :noindex:
+
 
 Kernels
 -------
