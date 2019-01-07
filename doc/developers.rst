@@ -900,7 +900,7 @@ conventions (:ref:`fortran_naming`). This enables the reliable
 identification of transformed versions of any given kernel within the
 output directory.
 
-If the "unique" kernel-renaming scheme is in use, PSyclone simply
+If the "multiple" kernel-renaming scheme is in use, PSyclone simply
 appends an integer to the original kernel name, checks whether such a
 kernel is present in the output directory and if not, creates it. If a
 kernel with the generated name is present then the integer is

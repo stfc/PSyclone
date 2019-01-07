@@ -3120,7 +3120,7 @@ class Kern(Call):
                         "the kernel-renaming scheme is set to '{2}'. (If you "
                         "wish to generate a new, unique kernel for every "
                         "kernel that is transformed then use "
-                        "'--kernel-renaming unique'.)".
+                        "'--kernel-renaming multiple'.)".
                         format(self._module_name+".f90",
                                Config.get().kernel_output_dir,
                                Config.get().kernel_naming))

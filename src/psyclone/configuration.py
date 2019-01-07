@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,11 +47,12 @@ import os
 _FILE_NAME = "psyclone.cfg"
 
 # The different naming schemes supported when transforming kernels:
-# unique = Every transformed kernel is given a unique name.
-# single = If any given kernel is transformed more than once then it is
-#          assumed that the same transformation is always applied and only
+# multiple = Every transformed kernel is given a unique name. This permits
+#            multiple versions of the same kernel to be created.
+# single = If any given kernel is transformed more than once then the
+#          same transformation must always be applied and only
 #          one version of the transformed kernel is created.
-VALID_KERNEL_NAMING_SCHEMES = ["unique", "single"]
+VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
 
 class ConfigurationError(Exception):
@@ -277,7 +278,7 @@ class Config(object):
         # The scheme to use when re-naming transformed kernels.
         # By default we ensure that each transformed kernel is given a
         # unique name (within the specified kernel-output directory).
-        self._kernel_naming = "unique"
+        self._kernel_naming = "multiple"
 
     def api_conf(self, api):
         '''

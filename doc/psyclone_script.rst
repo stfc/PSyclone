@@ -29,7 +29,7 @@ by the script:
 
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-l] [-dm] [-nodm]
-                  [--kernel-renaming {unique,single}]
+                  [--kernel-renaming {multiple,single}]
 		  [--profile {invokes,kernels}]
 		  [--force-profile {invokes,kernels}] [-v] filename
 
@@ -54,7 +54,7 @@ by the script:
     -l, --limit           limit the fortran line length to 132 characters
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
-    --kernel-renaming {single,unique}
+    --kernel-renaming {single,multiple}
                           Naming scheme to use when re-naming transformed
 			  kernels.
     --profile {invokes,kernels}, -p {invokes,kernels}
@@ -283,7 +283,7 @@ When transforming kernels there are two use-cases to consider:
 
 Whenever PSyclone is used to transform a kernel, the new kernel must
 be re-named in order to avoid clashing with other possible calls to
-the original. By default (``--kernel-renaming unique``), PSyclone
+the original. By default (``--kernel-renaming multiple``), PSyclone
 generates a new, unique name for each kernel that is
 transformed. Since PSyclone is run on one Algorithm file at a time, it
 uses the chosen kernel output directory (``-okern``) to ensure that

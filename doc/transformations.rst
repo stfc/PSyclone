@@ -147,9 +147,9 @@ may specify the location to which to write the modified code via the
 ``-okern`` command-line flag.
 
 In order to support the two use cases given above, PSyclone supports
-two different kernel-renaming schemes: "unique" and "single"
+two different kernel-renaming schemes: "multiple" and "single"
 (specified via the ``--kernel-renaming`` command-line flag). In the
-default, "unique" scheme, PSyclone ensures that each transformed
+default, "multiple" scheme, PSyclone ensures that each transformed
 kernel is given a unique name (with reference to the contents of the
 kernel output directory). In the "single" scheme, it is assumed that
 any given kernel that is transformed is always transformed in the same

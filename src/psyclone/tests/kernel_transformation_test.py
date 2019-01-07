@@ -192,11 +192,11 @@ def test_new_kernel_dir(tmpdir, monkeypatch):
 
 def test_new_kern_no_clobber(tmpdir, monkeypatch):
     ''' Check that we create a new kernel with a new name when kernel-naming
-    is set to 'unique' and we would otherwise get a name clash. '''
+    is set to 'multiple' and we would otherwise get a name clash. '''
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
-    monkeypatch.setattr(config, "_kernel_naming", "unique")
+    monkeypatch.setattr(config, "_kernel_naming", "multiple")
     # Change to temp dir (so kernel written there)
     _ = tmpdir.chdir()
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)

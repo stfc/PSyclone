@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -136,7 +136,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
              distributed_memory=None,
              kern_out_path="",
-             kern_naming="unique"):
+             kern_naming="multiple"):
     # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -262,7 +262,7 @@ def main(args):
         help='do not generate distributed memory code')
     parser.add_argument(
         '--kernel-renaming', default="unique",
-        choices = configuration.VALID_KERNEL_NAMING_SCHEMES,
+        choices=configuration.VALID_KERNEL_NAMING_SCHEMES,
         help="Naming scheme to use when re-naming transformed kernels")
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
