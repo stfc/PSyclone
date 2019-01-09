@@ -49,9 +49,9 @@ _FILE_NAME = "psyclone.cfg"
 # The different naming schemes supported when transforming kernels:
 # multiple = Every transformed kernel is given a unique name. This permits
 #            multiple versions of the same kernel to be created.
-# single = If any given kernel is transformed more than once then the
-#          same transformation must always be applied and only
-#          one version of the transformed kernel is created.
+# single = If any given kernel (within a single Application) is transformed
+#          more than once then the same transformation must always be
+#          applied and only one version of the transformed kernel is created.
 VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
 
 

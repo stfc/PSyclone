@@ -758,3 +758,19 @@ def test_main_kern_output_dir(tmpdir):
     # The specified kernel output directory should have been stored in
     # the configuration object
     assert Config.get().kernel_output_dir == str(tmpdir)
+
+
+def test_invalid_kern_naming(capsys):
+    ''' Check that we raise the expected error if an invalid kernel-renaming
+    scheme is supplied. '''
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    # Simply supplying the wrong value on the command line is picked up
+    # by the argparse module so we call generate() directly with an
+    # incorrect value
+    with pytest.raises(GenerationError) as err:
+        _, _ = generate(alg_filename, api="dynamo0.3",
+                        kern_naming="not-a-scheme")
+    assert "Invalid kernel-renaming scheme supplied" in str(err)
+    assert "but got 'not-a-scheme'" in str(err)

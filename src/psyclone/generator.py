@@ -169,7 +169,9 @@ def generate(filename, api="", kernel_path="", script_name=None,
                              kernels.
     :return: The algorithm code and the psy code.
     :rtype: ast
-    :raises IOError: if the filename or search path do not exist
+    :raises IOError: if the filename or search path do not exist.
+    :raises GenerationError: if an invalid API is specified.
+    :raises GenerationError: if an invalid kernel-renaming scheme is specified.
 
     For example:
 
@@ -196,7 +198,11 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     # Store Kernel-output options in our Configuration object
     Config.get().kernel_output_dir = kern_out_path
-    Config.get().kernel_naming = kern_naming
+    try:
+        Config.get().kernel_naming = kern_naming
+    except ValueError as verr:
+        raise GenerationError("Invalid kernel-renaming scheme supplied: {0}".
+                              format(str(verr)))
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
@@ -261,7 +267,7 @@ def main(args):
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
     parser.add_argument(
-        '--kernel-renaming', default="unique",
+        '--kernel-renaming', default="multiple",
         choices=configuration.VALID_KERNEL_NAMING_SCHEMES,
         help="Naming scheme to use when re-naming transformed kernels")
     parser.add_argument(
