@@ -351,3 +351,52 @@ def test_builtin_no_trans():
         _ = rtrans.apply(kernels[0])
     assert ("ACCRoutineTrans to a built-in kernel is not yet supported and "
             "kernel 'x_plus_y' is of type " in str(err))
+
+
+def test_no_inline_before_trans(monkeypatch):
+    ''' Check that we reject attempts to transform kernels that have been
+    marked for module in-lining. Issue #229. '''
+    from psyclone.transformations import KernelModuleInlineTrans
+    psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
+                             idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    assert len(kernels) == 5
+    inline_trans = KernelModuleInlineTrans()
+    rtrans = ACCRoutineTrans()
+    _, _ = inline_trans.apply(kernels[1])
+    with pytest.raises(TransformationError) as err:
+        _, _ = rtrans.apply(kernels[1])
+    assert "because it will be module-inlined" in str(err)
+    # Monkeypatch the validate() routine so we can check that we catch
+    # the error at code-generation time
+    monkeypatch.setattr(rtrans, "validate", lambda kern: None)
+    _, _ = rtrans.apply(kernels[1])
+    with pytest.raises(NotImplementedError) as err:
+        _ = str(psy.gen).lower()
+    assert "Cannot module-inline a transformed kernel " in str(err)
+
+
+def test_no_inline_after_trans(monkeypatch):
+    ''' Check that we reject attempts to inline a previously transformed
+    kernel. Issue #229. '''
+    from psyclone.transformations import KernelModuleInlineTrans
+    _, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
+                           idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    assert len(kernels) == 5
+    # Transform the kernel first
+    inline_trans = KernelModuleInlineTrans()
+    rtrans = ACCRoutineTrans()
+    _, _ = rtrans.apply(kernels[1])
+    # Then attempt to inline it
+    with pytest.raises(TransformationError) as err:
+        _, _ = inline_trans.apply(kernels[1])
+    assert "because it has previously been transformed" in str(err)
+    # Monkeypatch the validate() routine so we can check that we catch
+    # the error at the psyGen level too.
+    monkeypatch.setattr(inline_trans, "validate", lambda node, inline: None)
+    with pytest.raises(NotImplementedError) as err:
+        _, _ = inline_trans.apply(kernels[1])
+    assert "Cannot module-inline a transformed kernel " in str(err)

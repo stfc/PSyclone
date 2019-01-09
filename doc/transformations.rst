@@ -71,6 +71,9 @@ can be found in the API-specific sections).
     :members:
     :noindex:
 
+.. note:: PSyclone does not currently permit module-inlining of
+	  transformed kernels (issue #229).
+
 ####
 
 .. autoclass:: psyclone.transformations.LoopFuseTrans
@@ -165,7 +168,10 @@ PSyclone currently provides just one kernel transformation:
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
    :noindex:
    :members:
-   
+
+.. note:: PSyclone does not currently permit transformed kernels to be
+	  module-inlined. (Issue #229.)
+
 Applying
 --------
 

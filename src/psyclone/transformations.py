@@ -1209,12 +1209,8 @@ class KernelModuleInlineTrans(Transformation):
         the Kernel to be inlined, or not, depending on the value of
         the inline argument. If the inline argument is not passed the
         Kernel is marked to be inlined.'''
-        # check node is a kernel
-        from psyclone.psyGen import Kern
-        if not isinstance(node, Kern):
-            raise TransformationError(
-                "Error in KernelModuleInline transformation. The node is not "
-                "a Kernel")
+
+        self.validate(node, inline)
 
         schedule = node.root
 
@@ -1231,6 +1227,29 @@ class KernelModuleInlineTrans(Transformation):
             node.module_inline = inline
 
         return schedule, keep
+
+    def validate(self, node, inline):
+        '''
+        Check that the supplied kernel is eligible to be module inlined.
+
+        :param node: the node in the PSyIR that is to be module inlined.
+        :type node: sub-class of :py:class:`psyclone.psyGen.Node`
+        :param bool inline: whether or not the kernel is to be inlined.
+
+        :raises TransformationError: if the supplied node is not a kernel.
+        :raises TransformationError: if the supplied kernel has itself been \
+                                     transformed (Issue #229).
+        '''
+        # check node is a kernel
+        from psyclone.psyGen import Kern
+        if not isinstance(node, Kern):
+            raise TransformationError(
+                "Error in KernelModuleInline transformation. The node is not "
+                "a Kernel")
+
+        if inline and node._fp2_ast:
+            raise TransformationError("Cannot inline kernel {0} because it "
+                                      "has previously been transformed.")
 
 
 class Dynamo0p3ColourTrans(ColourTrans):
@@ -2513,3 +2532,8 @@ class ACCRoutineTrans(Transformation):
                 "Applying ACCRoutineTrans to a built-in kernel is not yet "
                 "supported and kernel '{0}' is of type '{1}'".
                 format(kern.name, type(kern)))
+
+        if kern.module_inline:
+            raise TransformationError("Cannot transform kernel {0} because "
+                                      "it will be module-inlined.".
+                                      format(kern.name))

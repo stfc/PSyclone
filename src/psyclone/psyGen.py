@@ -3046,11 +3046,27 @@ class Kern(Call):
 
     @module_inline.setter
     def module_inline(self, value):
+        '''
+        Setter for whether or not to module-inline this kernel.
+
+        :param bool value: Whether or not to module-inline this kernel.
+        :raises NotImplementedError: if module-inlining is enabled and the \
+                                     kernel has been transformed.
+        '''
         # check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
         # kernel within an invoke. Note, this will set this kernel as
         # well so there is no need to set it locally.
+        if value and self._fp2_ast:
+            # TODO #229. We take the existence of an fparser2 AST for
+            # this kernel to mean that it has been transformed. Since
+            # kernel in-lining is currently implemented via
+            # manipulation of the fparser1 AST, there is at present no
+            # way to inline such a kernel.
+            raise NotImplementedError(
+                "Cannot module-inline a transformed kernel ({0}).".
+                format(self.name))
         my_schedule = self.ancestor(Schedule)
         for kernel in self.walk(my_schedule.children, Kern):
             if kernel.name == self.name:
@@ -3203,6 +3219,8 @@ class Kern(Call):
         :raises GenerationError: if config.kernel_naming == "single" and a \
                                  different, transformed version of this \
                                  kernel is already in the output directory.
+        :raises NotImplementedError: if the kernel has been transformed but \
+                                     is also flagged for module-inlining.
         '''
         import os
         from psyclone.line_length import FortLineLength
@@ -3254,7 +3272,11 @@ class Kern(Call):
         # If this kernel is being module in-lined then we do not need to
         # write it to file.
         if self.module_inline:
-            return
+            # TODO #229. We cannot currently inline transformed kernels
+            # (because that requires an fparser1 AST and we only have an
+            # fparser2 AST of the modified kernel) so raise an error.
+            raise NotImplementedError("Cannot module-inline a transformed "
+                                      "kernel ({0})".format(self.name))
 
         # Generate the Fortran for this transformed kernel, ensuring that
         # we limit the line lengths
