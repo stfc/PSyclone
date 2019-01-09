@@ -4744,7 +4744,8 @@ class DynKern(Kern):
 
     def __init__(self):
         if False:  # pylint: disable=using-constant-test
-            self._arguments = DynKernelArguments(None, None)  # for pyreverse
+            # for pyreverse
+            self._arguments = DynKernelArguments(None, None)
         self._func_descriptors = None
         self._fs_descriptors = None
         # Whether this kernel requires quadrature
@@ -5189,7 +5190,7 @@ class DynKern(Kern):
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.requires_orientation:
-                    field = self._arguments.get_arg_on_space(unique_fs)
+                    field = self.arguments.get_arg_on_space(unique_fs)
                     oname = get_fs_orientation_name(unique_fs)
                     orientation_decl_names.append(oname+"(:) => null()")
                     parent.add(
@@ -5214,8 +5215,15 @@ class DynKern(Kern):
         # method of base class.
         create_arg_list = KernCallArgList(self, parent)
         create_arg_list.generate()
+        # TODO #268 the functionality of KernCallArgList and
+        # DynKernelArguments needs revisiting. It would seem to make
+        # more sense if the functionality of the former was available
+        # in the latter. This would then mean we wouldn't need to set
+        # raw_arg_list here before calling the base-class gen_code()
+        # method.
+        self.arguments.raw_arg_list = create_arg_list.arglist
 
-        super(DynKern, self).gen_code(parent, create_arg_list.arglist)
+        super(DynKern, self).gen_code(parent)
 
 
 class ArgOrdering(object):
@@ -5836,8 +5844,13 @@ class KernCallArgList(ArgOrdering):
 
     @property
     def arglist(self):
-        '''return the kernel argument list. The generate function must be
-        called first'''
+        '''
+        :return: the kernel argument list. The generate function must be \
+                 called first.
+        :rtype: List of str
+
+        :raises GenerationError: if the argument list is empty.
+        '''
         if not self._arglist:
             raise GenerationError(
                 "Internal error. The argument list in KernCallArgList:"

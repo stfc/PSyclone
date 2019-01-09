@@ -2628,7 +2628,7 @@ class Call(Node):
         :type indent: integer
         '''
         print(self.indent(indent) + self.coloured_text,
-              self.name + "(" + str(self.arguments.raw_arg_list) + ")")
+              self.name + "(" + self.arguments.names + ")")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -2926,7 +2926,7 @@ class Kern(Call):
         :type indent: integer
         '''
         print(self.indent(indent) + self.coloured_text,
-              self.name + "(" + str(self.arguments.raw_arg_list) + ")",
+              self.name + "(" + self.arguments.names + ")",
               "[module_inline=" + str(self._module_inline) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -2942,15 +2942,13 @@ class Kern(Call):
         '''
         return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
 
-    def gen_code(self, parent, arguments=None):
+    def gen_code(self, parent):
         '''
         Generates the f2pygen AST of the Fortran for this kernel call and
         writes the kernel itself to file if it has been transformed.
 
         :param parent: The parent of this kernel call in the f2pygen AST.
         :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
-        :param arguments: The list of arguments to pass to the kernel.
-        :type arguments: list of str.
         '''
         from psyclone.f2pygen import CallGen, UseGen
 
@@ -2958,11 +2956,7 @@ class Kern(Call):
         # being module inlined then we also write it to file.
         self.rename_and_write()
 
-        if arguments:
-            # The list of arguments has been augmented by a sub-class
-            parent.add(CallGen(parent, self._name, arguments))
-        else:
-            parent.add(CallGen(parent, self._name, self._arguments.arglist))
+        parent.add(CallGen(parent, self._name, self.arguments.raw_arg_list))
 
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
@@ -3269,21 +3263,49 @@ class BuiltIn(Call):
 
 
 class Arguments(object):
-    ''' arguments abstract base class '''
+    '''
+    Arguments abstract base class.
+
+    :param parent_call: the call with which the arguments are associated.
+    :type parent_call: sub-class of :py:class:`psyclone.psyGen.Call`
+    '''
     def __init__(self, parent_call):
         self._parent_call = parent_call
+        # The container object holding information on all arguments
+        # (derived from both kernel meta-data and the kernel call
+        # in the Algorithm layer).
         self._args = []
+        # The actual list of arguments that must be supplied to a
+        # subroutine call.
+        self._raw_arg_list = []
 
     @property
     def raw_arg_list(self):
-        ''' returns a comma separated list of the field arguments to the
-            kernel call '''
-        result = ""
-        for idx, arg in enumerate(self.args):
-            result += arg.name
-            if idx < (len(self.args) - 1):
-                result += ","
-        return result
+        '''
+        :returns: a list of all of the actual arguments to the \
+                  kernel call.
+        :rtype: list of str
+        '''
+        if not self._raw_arg_list:
+            self._raw_arg_list = [arg.name for arg in self.args]
+        return self._raw_arg_list
+
+    @raw_arg_list.setter
+    def raw_arg_list(self, input_list):
+        '''
+        Setter for the raw argument list.
+        :param list input_list: List of arguments.
+        '''
+        self._raw_arg_list = input_list
+
+    @property
+    def names(self):
+        '''
+        :returns: the Algorithm-visible kernel arguments in a \
+                  comma-delimited string.
+        :rtype: str
+        '''
+        return ",".join([arg.name for arg in self.args])
 
     @property
     def args(self):

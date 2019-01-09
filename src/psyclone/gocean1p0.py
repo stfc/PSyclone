@@ -871,64 +871,6 @@ class GOKern(Kern):
         '''
         return []
 
-    def find_grid_access(self):
-        '''Determine the best kernel argument from which to get properties of
-            the grid. For this, an argument must be a field (i.e. not
-            a scalar) and must be supplied by the algorithm layer
-            (i.e. not a grid property). If possible it should also be
-            a field that is read-only as otherwise compilers can get
-            confused about data dependencies and refuse to SIMD
-            vectorise.
-
-        '''
-        for access in ["read", "readwrite", "write"]:
-            for arg in self._arguments.args:
-                if arg.type == "field" and arg.access.lower() == access:
-                    return arg
-        # We failed to find any kernel argument which could be used
-        # to access the grid properties. This will only be a problem
-        # if the kernel requires a grid-property argument.
-        return None
-
-    def gen_code(self, parent):
-        ''' Generates GOcean v1.0 specific psy code for a call to the dynamo
-            kernel instance. '''
-        from psyclone.f2pygen import CallGen, UseGen
-
-        # Before we do anything else, go through the arguments and
-        # determine the best one from which to obtain the grid properties.
-        grid_arg = self.find_grid_access()
-
-        # A GOcean 1.0 kernel always requires the [i,j] indices of the
-        # grid-point that is to be updated
-        arguments = ["i", "j"]
-        for arg in self._arguments.args:
-
-            if arg.type == "scalar":
-                # Scalar arguments require no de-referencing
-                arguments.append(arg.name)
-            elif arg.type == "field":
-                # Field objects are Fortran derived-types
-                arguments.append(arg.name + "%data")
-            elif arg.type == "grid_property":
-                # Argument is a property of the grid which we can access via
-                # the grid member of any field object.
-                # We use the most suitable field as chosen above.
-                if grid_arg is None:
-                    raise GenerationError(
-                        "Error: kernel {0} requires grid property {1} but "
-                        "does not have any arguments that are fields".
-                        format(self._name, arg.name))
-                else:
-                    arguments.append(grid_arg.name+"%grid%"+arg.name)
-            else:
-                raise GenerationError("Kernel {0}, argument {1} has "
-                                      "unrecognised type: {2}".
-                                      format(self._name, arg.name, arg.type))
-        # Now sub-class specific setup is done, call the gen_code() method
-        # of base class
-        super(GOKern, self).gen_code(parent, arguments)
-
     @property
     def index_offset(self):
         ''' The grid index-offset convention that this kernel expects '''
@@ -968,6 +910,73 @@ class GOKernelArguments(Arguments):
         self._dofs = []
 
     @property
+    def raw_arg_list(self):
+        '''
+        :returns: a list of all of the actual arguments to the \
+                  kernel call.
+        :rtype: list of str
+
+        :raises InternalError: if we encounter a kernel argument with an \
+                               unrecognised type.
+        '''
+        if self._raw_arg_list:
+            return self._raw_arg_list
+
+        # Before we do anything else, go through the arguments and
+        # determine the best one from which to obtain the grid properties.
+        grid_arg = self.find_grid_access()
+
+        # A GOcean 1.0 kernel always requires the [i,j] indices of the
+        # grid-point that is to be updated
+        arguments = ["i", "j"]
+        for arg in self._args:
+
+            if arg.type == "scalar":
+                # Scalar arguments require no de-referencing
+                arguments.append(arg.name)
+            elif arg.type == "field":
+                # Field objects are Fortran derived-types
+                arguments.append(arg.name + "%data")
+            elif arg.type == "grid_property":
+                # Argument is a property of the grid which we can access via
+                # the grid member of any field object.
+                # We use the most suitable field as chosen above.
+                if grid_arg is None:
+                    raise GenerationError(
+                        "Error: kernel {0} requires grid property {1} but "
+                        "does not have any arguments that are fields".
+                        format(self._name, arg.name))
+                else:
+                    arguments.append(grid_arg.name+"%grid%"+arg.name)
+            else:
+                raise InternalError("Kernel {0}, argument {1} has "
+                                    "unrecognised type: {2}".
+                                    format(self._name, arg.name, arg.type))
+        self._raw_arg_list = arguments
+        return self._raw_arg_list
+
+    def find_grid_access(self):
+        '''
+        Determine the best kernel argument from which to get properties of
+        the grid. For this, an argument must be a field (i.e. not
+        a scalar) and must be supplied by the algorithm layer
+        (i.e. not a grid property). If possible it should also be
+        a field that is read-only as otherwise compilers can get
+        confused about data dependencies and refuse to SIMD
+        vectorise.
+        :returns: the argument object from which to get grid properties.
+        :rtype: :py:class:`psyclone.gocean1p0.XXX` or None
+        '''
+        for access in ["read", "readwrite", "write"]:
+            for arg in self._args:
+                if arg.type == "field" and arg.access.lower() == access:
+                    return arg
+        # We failed to find any kernel argument which could be used
+        # to access the grid properties. This will only be a problem
+        # if the kernel requires a grid-property argument.
+        return None
+
+    @property
     def dofs(self):
         ''' Currently required for invoke base class although this makes no
             sense for GOcean. Need to refactor the invoke class and pull out
@@ -1005,7 +1014,7 @@ class GOKernelArguments(Arguments):
         # We do this as some compilers do less optimisation if we get (read-
         # -only) grid properties from a field object that has read-write
         # access.
-        grid_fld = self._parent_call.find_grid_access()
+        grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
         arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
 
