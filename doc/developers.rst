@@ -160,7 +160,8 @@ for continuous integration. GitHub triggers Travis to execute the test
 suite whenever there is a push to the repository. The work performed
 by Travis is configured by the ``.travis.yml`` file in the root
 directory of the repository. Currently Travis is configured to run the
-test suite for both Python 2.7 and 3.6.
+test suite for both Python 2.7 and 3.6. It also runs all of the examples
+using the ``check_examples`` script in the ``examples`` directory.
 
 By default, the Travis configuration uses ``pip`` to install the
 dependencies required by PSyclone before running the test suite. This
@@ -197,6 +198,177 @@ Before a branch can be merged to master it must pass code review. The
 guidelines for performing a review (i.e. what is expected from the
 developer) are available on the GitHub PSyclone wiki pages:
 https://github.com/stfc/PSyclone/wiki.
+
+Generic Code
+############
+
+PSyclone is designed to be configurable so that new front-ends (called
+API's) can be built, re-using as much existing code as possible. The
+generic code is kept in the `psyGen.py` file for psy-code generation.
+
+Dependence Analysis
+===================
+
+Dependence Analysis in PSyclone produces ordering constraints between
+instances of the `Argument` class within a PSyIRe.
+
+The `Argument` class is used to specify the data being passed into and
+out of instances of the `Call` class, `HaloExchange` Class and
+`GlobalSum` class (and their subclasses).
+
+As an illustration consider the following invoke::
+
+   invoke(           &
+       kernel1(a,b), &
+       kernel2(b,c))
+
+where the metadata for `kernel1` specifies that the 2nd argument is
+written to and the metadata for `kernel2` specifies that the 1st
+argument is read.
+
+In this case the PSyclone dependence analysis will determine that
+there is a flow dependence between the second argument of `Kernel1`
+and the first argument of `Kernel2` (a read after a write).
+
+Information about arguments is aggregated to the PSyIRe node level
+(`kernel1` and `kernel2` in this case) and then on to the parent
+`loop` node resulting in a flow dependence (a read after a write)
+between a loop containing `kernel1` and a loop containing
+`kernel2`. This dependence is used to ensure that a transformation is
+not able to move one loop before or after the other in the PSyIRe
+schedule (as this would cause incorrect results).
+
+Dependence analysis is implemented in PSyclone to support
+functionality such as adding and removing halo exchanges,
+parallelisation and moving nodes in a PSyIRe schedule. Dependencies
+between nodes in a PSyIRe schedule can be viewed as a DAG using the
+`dag()` method within the `Node` base class.
+
+DataAccess Class
+----------------
+
+The `DataAccess` class is at the core of PSyclone data dependence
+analysis. It takes an instance of the `Argument` class on
+initialisation and provides methods to compare this instance with
+other instances of the `Argument` class. The class is used to
+determine 2 main things, called `overlap` and `covered`.
+
+Overlap
++++++++
+
+`Overlap` specifies whether accesses specified by two instances of the
+`Argument` class access the same data or not. If they do access the
+same data their accesses are deemed to `overlap`. The best way to
+explain the meaning of `overlap` is with an example:
+
+Consider a one dimensional array called `A` of size 4 (`A(4)`). If one
+instance of the `Argument` class accessed the first two elements of
+array `A` and another instance of the `Argument` class accessed the
+last two elements of array `A` then they would both be accessing array
+`A` but their accesses would *not* `overlap`. However, if one instance
+of the `Argument` class accessed the first three elements of array `A`
+and another instance of the `Argument` class accessed the last two
+elements of array `A` then their accesses would `overlap` as they are
+both accessing element `A(3)`.
+
+Having explained the idea of `overlap` in its general sense, in
+practice PSyclone currently assumes that *any* two instances of the
+`Argument` class that access data with the same name will always
+`overlap` and does no further analysis (apart from halo exchanges and
+vectors, which are discussed below). The reason for this is that
+nearly all accesses to data, associated with an instance of the
+`Argument` class, start at index 1 and end at the number of elements,
+dofs or some halo depth. The exceptions to this are halo exchanges,
+which only access the halo and boundary conditions, which only access
+a subset of the data. However these subset accesses are currently not
+captured in metadata so PSyclone must assume subset accesses do not
+exist.
+
+If there is a field vector associated with an instance of an
+`Argument` class then all of the data in its vector indices are
+assumed to be accessed when the argument is part of a `Call` or a
+`GlobalSum`. However, in contrast, a `HaloExchange` only acts on a
+single index of a field vector. Therefore there is one halo exchange
+per field vector index. For example::
+
+    Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+    ... Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
+    ... ... KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+
+In the above PSyIRe schedule, the field `f1` is a vector field and the
+`Call` `testkern\_stencil\_vector\_code` is assumed to access data in
+all of the vector components. However, there is a separate `HaloExchange`
+for each component. This means that halo exchanges accessing the
+same field but different components do not `overlap`, but each halo
+exchange does overlap with the loop node. The current implementation
+of the `overlaps()` method deals with field vectors correctly.
+
+Coverage
+++++++++
+
+The concept of `coverage` naturally follows from the discussion in the
+previous section.
+
+Again consider a one dimensional array called `A` of size 4
+(`A(4)`). If one instance (that we will call the `source`) of the
+`Argument` class accessed the first 3 elements of array `A`
+(i.e. elements 1 to 3) and another instance of the `Argument` class
+accessed the first two elements of array `A` then their accesses would
+`overlap` as they are both accessing elements `A(1) and A(2)` and
+elements `A(1) and A(2)` would be `covered`. However, access `A(3)`
+for the `source Argument` class would not yet be `covered`. If a
+subsequent instance of the `Argument` class accessed the 2nd and 3rd
+elements of array `A` then all of the accesses (`A(1), A(2) and A(3)`)
+would now be `covered` so the `source argument` would be deemed to be
+covered.
+
+In PSyclone the above situation occurs when a vector field is accessed
+in a kernel and also requires halo exchanges e.g.::
+
+   Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
+      Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
+         KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
+
+In this case the PSyIRe loop node needs to know about all 3 halo
+exchanges before its access is fully `covered`. This functionality is
+implemented by passing instances of the `Argument` class to the
+`DataAccess` class `update_coverage()` method and testing the
+access.covered property until it returns `True`.
+
+::
+
+   # this example is for a field vector 'f1' of size 3
+   # f1_index[1,2,3] are halo exchange accesses to vector indices [1,2,3] respectively
+   access = DataAccess(f1_loop)
+   access.update_coverage(f1_index1)
+   result = access.covered  # will be False
+   access.update_coverage(f1_index2)
+   result = access.covered  # will be False
+   access.update_coverage(f1_index3)
+   result = access.covered  # will be True
+   access.reset_coverage()
+
+Note the `reset_coverage()` method can be used to reset internal state
+so the instance can be re-used (but this is not used by PSyclone at
+the moment).
+
+The way in which halo exchanges are placed means that it is not
+possible for two halo exchange with the same index to depend on each
+other in a schedule. As a result an exception is raised if this
+situation is found.
+
+Notice there is no concept of read or write dependencies here. Read or
+write dependencies are handled by classes that make use of the
+DataAccess class i.e. the `_field_write_arguments()` and
+`_field_read_arguments()` methods, both of which are found in the
+`Arguments` class.
+
 
 New APIs
 ########
@@ -600,9 +772,7 @@ A downside of performing redundant computation in the level-1 halo is
 that any fields being read by the kernel must have their level-1 halo
 clean (up-to-date), which can result in halo exchanges. Note that this
 is not the case for the modified field, it does not need its halo to
-be clean, however, at the moment a halo exchange is added in this
-case. This unecessary halo exchange will be removed in a future
-release of PSyclone.
+be clean.
 
 Cell iterators: Discontinuous
 -----------------------------
@@ -661,18 +831,21 @@ has completed. If a following kernel needs to read the field's
 annexed dofs, then PSyclone will need to add a halo exchange to make
 them clean.
 
-There are 3 cases to consider:
+There are 4 cases to consider:
 
 1) the field is read in a loop that iterates over dofs,
 2) the field is read in a loop that iterates over owned cells and
+   level-1 halo cells,
+3) the field is incremented in a loop that iterates over owned cells and
    level-1 halo cells, and
-3) the field is read in a loop that iterates over owned cells
+4) the field is read in a loop that iterates over owned cells
 
 In case 1) the annexed dofs will not be read as the loop only iterates
 over owned dofs so a halo exchange is not required. In case 2) the
 full level-1 halo will be read (including annexed dofs) so a halo
-exchange is required. In case 3) the annexed dofs will be read so a
-halo exchange will be required.
+exchange is required. In case 3) the annexed dofs will be updated so a
+halo exchange is required. In case 4) the annexed dofs will be read so
+a halo exchange will be required.
 
 If we now take the case where annexed dofs are computed for loops that
 iterate over dofs (`COMPUTE_ANNEXED_DOFS` is ``true``) then a field's
@@ -685,19 +858,32 @@ continuous field has been modified by a kernel. This is because loops
 that iterate over either dofs or cells now compute annexed dofs and
 there are no other ways for a continuous field to be updated.
 
-We now consider the same three cases. In case 1) the annexed dofs will
+We now consider the same four cases. In case 1) the annexed dofs will
 now be read, but annexed dofs are guaranteed to be clean, so no halo
 exchange is required. In case 2) the full level-1 halo is read so a
 halo exchange is still required. Note, as part of this halo exchange
 we will update annexed dofs that are already clean. In case 3) the
-annexed dofs will be read but a halo exchange is not required as the
-annexed dofs are guaranteed to be clean.
+annexed dofs will be updated but a halo exchange is not required as
+the annexed dofs are guaranteed to be clean. In case 4) the annexed
+dofs will be read but a halo exchange is not required as the annexed
+dofs are guaranteed to be clean.
+
+Furthermore, in the 3rd and 4th cases (in which annexed dofs are read
+or updated but the rest of the halo does not have to be clean), where
+the previous writer is unknown (as it comes from a different invoke
+call) we need to add a speculative halo exchange (one that makes use of
+the runtime clean and dirty flags) when `COMPUTE_ANNEXED_DOFS` is
+`False`, as the previous writer *may* have iterated over dofs, leaving
+the annexed dofs dirty. In contrast, when `COMPUTE_ANNEXED_DOFS` is
+`True`, we do not require a speculative halo exchange as we know that
+annexed dofs are always clean.
 
 Therefore no additional halo exchanges are required when
 `COMPUTE_ANNEXED_DOFS` is changed from ``false`` to ``true`` i.e. case 1)
 does not require a halo exchange in either situation and case 2)
 requires a halo exchange in both situations. We also remove halo
-exchanges for case 3) so the number of halo exchanges may be reduced.
+exchanges for cases 3) and 4) so the number of halo exchanges may be
+reduced.
 
 If a switch were not used and it were possible to use a transformation
 to selectively perform computation over annexed dofs for loops that
@@ -761,26 +947,28 @@ initial schedule. There are three cases:
 
 1) loops that iterate over cells and modify a continuous field will
    access the level-1 halo. This means that any field that is read
-   within such a loop must have its level-1 halo clean and therefore
-   requires a halo exchange. Note, at the moment PSyclone adds a halo
-   exchange for the modified field (as it is specified as `GH_INC`
-   which requires a read before a write), however this is not required
-   if there is only one field updated in the kernel. This is because
-   we only care about updating owned and annexed dofs, therefore it
-   does not matter what the values of any halo dofs are.
+   within such a loop must have its level-1 halo clean (up-to-date)
+   and therefore requires a halo exchange. A modified field (specified
+   as `GH_INC` which involves a read before a write) will require a
+   halo exchange if its annexed dofs are not clean, or if their
+   status is unknown. Whilst it is only the annexed dofs that need to
+   be made clean in this case, the only way to acheive this is
+   via a halo exchange (which updates the halo i.e. more than is
+   required). Note, if the `COMPUTE_ANNEXED_DOFS` configuration
+   variable is set to ``true`` then no halo exchange is required as
+   annexed dofs will always be clean.
 
 2) continuous fields that are read from within loops that iterate over
-   cells and modify a discontinuous field must have their annexed dofs
-   clean. Currently the only way to make annexed dofs clean is to
-   perform a halo exchange. If the `COMPUTE_ANNEXED_DOFS`
-   configuration variable is set to ``true`` then no halo exchange is
-   required as annexed dofs will always be clean. If the
-   `COMPUTE_ANNEXED_DOFS` configuration variable is set to ``false``
-   then a halo exchange must be added if the previous modification of
-   the field is known to be from within a loop over dofs, or if the
-   previous modification of the field is unknown (i.e. outside the
-   invoke) as the previous modification may have been from within a
-   loop over dofs.
+   cells and modify a discontinuous field will access their annexed
+   dofs. If the annexed dofs are known to be dirty (because the
+   previous modification of the field is known to be from within a
+   loop over dofs) or their status is unknown (because the previous
+   modification to the field is outside of the current invoke) then a
+   halo exchange will be required (As already mentioned, currently the
+   only way to make annexed dofs clean is to perform a halo
+   swap. Note, if the `COMPUTE_ANNEXED_DOFS` configuration variable is
+   set to ``true`` then no halo exchange is required as annexed dofs
+   will always be clean.
 
 3) fields that have a stencil access will access the halo and need
    halo exchange calls added.
@@ -839,7 +1027,57 @@ Note that we do not need to worry about halo depth or whether a halo
 is definitely required, or whether it might be required, as this is
 determined by the halo exchange itself at code generation time. The
 reason for deferring this information is that it can change as
-transformations are added.
+transformations are applied.
+
+Asynchronous Halo Exchanges
++++++++++++++++++++++++++++
+
+The Dynamo0p3AsynchronousHaloExchange transformation allows the
+default synchronous halo exchange to be split into a halo exchange
+start and a halo exhange end which are represented separately as nodes
+in the schedule. These can then be moved in the schedule to allow
+overlapping of communication and computation, as long as data
+dependencies are honoured.
+
+A halo exchange both reads and modifies a field so has a readwrite
+access for dependence analysis purposes. An asynchronous halo exchange
+start reads the field and an asynchronous halo exchange end writes to
+the field. Therefore the obvious thing to do would be to have the
+associated field set to read and write access respectively. However,
+the way the halo exchange logic works means that it is simplest to set
+the halo exchange end access to readwrite. The reason for this is that
+the logic to determine whether a halo exchange is required
+(`_required()`) needs information from all fields that read from the
+halo after the halo exchange has been called (and therefore must be
+treated as a write with following reads for dependence analysis) and
+it needs information from all fields that write to the field before
+the halo exchange has been called (and therefore must be treated as a
+read with previous writes for dependence analysis). An alternative
+would be to make the `_required()` method use the halo exchange start
+for previous writes and the halo exchange end for following
+reads. However, it was decided that this would be more complicated
+than the solution chosen.
+
+Both halo exchange start and halo exchange end inherit from halo
+exchange. However, the halo exchange start and end are really two
+parts of the same thing and need to have consistent properties
+including after transformations have been performed. This is achieved by
+having the halo exchange start find and use the methods from the halo
+exchange end, rather than implement them independently. The actual
+methods needed are `_compute_stencil_type()`,
+`_compute_halo_depth()` and `_required()`. It is unclear how much
+halo exhange start really benefits from inheriting from halo exchange
+and this could probably be removed at the expense of returning
+appropriate names for the dag, colourmap, declaration etc.
+
+.. note:: The dependence analysis for halo exchanges for field vectors
+   is currently over zealous. It does not allow halo exchanges for
+   independent vector components to be moved past one another. For
+   example, a halo exchange for vector component 2, if placed after a halo
+   exchange for component 1 could not be moved before the halo exchange
+   for component 1, even though the accesses are independent of each
+   other. This is also the case for asynchronous halo exchanges. See
+   issue #220.
 
 Modifying the Schedule
 ----------------------

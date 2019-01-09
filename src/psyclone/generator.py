@@ -59,6 +59,9 @@ from psyclone.version import __VERSION__
 from psyclone import configuration
 from psyclone.configuration import Config
 
+# Those APIs that do not have a separate Algorithm layer
+API_WITHOUT_ALGORITHM = ["nemo"]
+
 
 def handle_script(script_name, psy):
     '''Loads and applies the specified script to the given psy layer.
@@ -147,29 +150,32 @@ def generate(filename, api="", kernel_path="", script_name=None,
     modified algorithm code.
 
     :param str filename: The file containing the algorithm specification.
-    :param str kernel_path: The directory from which to recursively
-                            search for the files containing the kernel
-                            source (if different from the location of the
-                            algorithm specification)
-    :param str script_name: A script file that can apply optimisations
-                            to the PSy layer (can be a path to a file or
-                            a filename that relies on the PYTHONPATH to
+    :param str kernel_path: The directory from which to recursively \
+                            search for the files containing the kernel \
+                            source (if different from the location of the \
+                            algorithm specification).
+    :param str script_name: A script file that can apply optimisations \
+                            to the PSy layer (can be a path to a file or \
+                            a filename that relies on the PYTHONPATH to \
                             find the module).
-    :param bool line_length: A logical flag specifying whether we care
-                             about line lengths being longer than 132
-                             characters. If so, the input (algorithm
-                             and kernel) code is checked to make sure
+    :param bool line_length: A logical flag specifying whether we care \
+                             about line lengths being longer than 132 \
+                             characters. If so, the input (algorithm \
+                             and kernel) code is checked to make sure \
                              that it conforms. The default is False.
-    :param bool distributed_memory: A logical flag specifying whether to
-                                    generate distributed memory code. The
+    :param bool distributed_memory: A logical flag specifying whether to \
+                                    generate distributed memory code. The \
                                     default is set in the config.py file.
-    :param str kern_out_path: Directory to which to write transformed
+    :param str kern_out_path: Directory to which to write transformed \
                               kernel code.
-    :param bool kern_naming: the scheme to use when re-naming transformed
+    :param bool kern_naming: the scheme to use when re-naming transformed \
                              kernels.
-    :return: The algorithm code and the psy code.
-    :rtype: ast
-    :raises IOError: if the filename or search path do not exist.
+    :return: 2-tuple containing fparser1 ASTs for the algorithm code and \
+             the psy code.
+    :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
+             :py:class:`fparser.one.block_statements.Module`)
+
+    :raises IOError: if the filename or search path do not exist
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
 
@@ -217,11 +223,15 @@ def generate(filename, api="", kernel_path="", script_name=None,
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy)
-        alg = Alg(ast, psy)
+
+        if api not in API_WITHOUT_ALGORITHM:
+            alg_gen = Alg(ast, psy).gen
+        else:
+            alg_gen = None
     except Exception:
         raise
 
-    return alg.gen, psy.gen
+    return alg_gen, psy.gen
 
 
 def main(args):

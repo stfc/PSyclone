@@ -122,7 +122,7 @@ class GHKernelArguments(Arguments):
                     else:
                         self._dofs[arg.ptype].append(arg)
         else:
-            print "Error, unsupported function space"
+            print("Error, unsupported function space")
             raise Exception
         for arg in self._args:
             dataref="%data"

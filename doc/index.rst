@@ -17,6 +17,7 @@
    built_ins
    dynamo0p3
    gocean1p0
+   nemo
    stub_gen
    line_length
    fortran_naming_conventions
@@ -25,6 +26,8 @@
    system_specific_setup
    configuration
    developers
+   zz_bibliography
+
 ..   tutorial
 ..   examples
 ..   FAQS
@@ -39,5 +42,3 @@
     * :ref:`genindex`
     * :ref:`modindex`
     * :ref:`search`
-
-.. bibliography:: refs.bib

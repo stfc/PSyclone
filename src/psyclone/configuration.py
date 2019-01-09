@@ -86,7 +86,7 @@ class Config(object):
 
     # List of supported API by PSyclone
     _supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
-                           "gocean0.1", "gocean1.0"]
+                           "gocean0.1", "gocean1.0", "nemo"]
 
     # List of supported stub API by PSyclone
     _supported_stub_api_list = ["dynamo0.3"]

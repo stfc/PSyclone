@@ -53,7 +53,7 @@ from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES
+    FORTRAN_INTENT_NAMES, DataAccess
 
 # First section : Parser specialisations and classes
 
@@ -3304,13 +3304,15 @@ class DynGlobalSum(GlobalSum):
 
 
 def _create_depth_list(halo_info_list):
-    '''Halo's may have more than one dependency. This method simplifies
-    multiple dependencies to remove duplicates and any obvious
-    redundancy. For example, if one dependency is for depth=1 and
-    another for depth=2 then we do not need the former as it is
+    '''Halo exchanges may have more than one dependency. This method
+    simplifies multiple dependencies to remove duplicates and any
+    obvious redundancy. For example, if one dependency is for depth=1
+    and another for depth=2 then we do not need the former as it is
     covered by the latter. Similarly, if we have a depth=extent+1 and
-    another for depth=extent+2 then we do not need the former as
-    it is covered by the latter.
+    another for depth=extent+2 then we do not need the former as it is
+    covered by the latter. It also takes into account
+    needs_clean_outer, which indicates whether the outermost halo
+    needs to be clean (and therefore whether there is a dependence).
 
     :param: a list containing halo access information derived from
     all read fields dependent on this halo exchange
@@ -3321,35 +3323,61 @@ def _create_depth_list(halo_info_list):
 
     '''
     depth_info_list = []
-    # first look to see if all field dependencies specify
-    # annexed_only. If so we only access annexed dofs
+    # first look to see if all field dependencies are
+    # annexed_only. If so we only care about annexed dofs
     annexed_only = True
     for halo_info in halo_info_list:
-        if not halo_info.annexed_only:
+        if not (halo_info.annexed_only or
+                (halo_info.literal_depth == 1
+                 and not halo_info.needs_clean_outer)):
+            # There are two cases when we only care about accesses to
+            # annexed dofs. 1) when annexed_only is set and 2) when
+            # the halo depth is 1 but we only depend on annexed dofs
+            # being up-to-date (needs_clean_outer is False)
             annexed_only = False
             break
     if annexed_only:
         depth_info = HaloDepth()
         depth_info.set_by_value(max_depth=False, var_depth="",
-                                literal_depth=1, annexed_only=True)
+                                literal_depth=1, annexed_only=True,
+                                max_depth_m1=False)
         return [depth_info]
     # next look to see if one of the field dependencies specifies
     # a max_depth access. If so the whole halo region is accessed
     # so we do not need to be concerned with other accesses.
+    max_depth_m1 = False
     for halo_info in halo_info_list:
         if halo_info.max_depth:
-            # found a max_depth access so we only need one
-            # HaloDepth entry
-            depth_info = HaloDepth()
-            depth_info.set_by_value(max_depth=True, var_depth="",
-                                    literal_depth=0, annexed_only=False)
-            return [depth_info]
+            if halo_info.needs_clean_outer:
+                # found a max_depth access so we only need one
+                # HaloDepth entry
+                depth_info = HaloDepth()
+                depth_info.set_by_value(max_depth=True, var_depth="",
+                                        literal_depth=0, annexed_only=False,
+                                        max_depth_m1=False)
+                return [depth_info]
+            # remember that we found a max_depth-1 access
+            max_depth_m1 = True
+
+    if max_depth_m1:
+        # we have at least one max_depth-1 access.
+        depth_info = HaloDepth()
+        depth_info.set_by_value(max_depth=False, var_depth="",
+                                literal_depth=0, annexed_only=False,
+                                max_depth_m1=True)
+        depth_info_list.append(depth_info)
 
     for halo_info in halo_info_list:
         # go through the halo information associated with each
-        # read dependency
+        # read dependency, skipping any max_depth-1 accesses
+        if halo_info.max_depth and not halo_info.needs_clean_outer:
+            continue
         var_depth = halo_info.var_depth
         literal_depth = halo_info.literal_depth
+        if literal_depth and not halo_info.needs_clean_outer:
+            # decrease depth by 1 if we don't care about the outermost
+            # access
+            literal_depth -= 1
         match = False
         # check whether we match with existing depth information
         for depth_info in depth_info_list:
@@ -3365,12 +3393,12 @@ def _create_depth_list(halo_info_list):
                 match = True
                 break
         if not match:
-            # no matches were found with existing variables, or no
-            # variables so create a new halo depth entry
+            # no matches were found with existing entries so
+            # create a new one
             depth_info = HaloDepth()
             depth_info.set_by_value(max_depth=False, var_depth=var_depth,
                                     literal_depth=literal_depth,
-                                    annexed_only=False)
+                                    annexed_only=False, max_depth_m1=False)
             depth_info_list.append(depth_info)
     return depth_info_list
 
@@ -3379,7 +3407,28 @@ class DynHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
     manipulated in, a schedule
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument default True indicating \
+    whether this halo exchange should be subject to a run-time check \
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to \
+    identify which index of a vector field this halo exchange is \
+    responsible for
+    :type vector_index: int
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
     '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        HaloExchange.__init__(self, field, check_dirty=check_dirty,
+                              vector_index=vector_index, parent=parent)
+        # set up some defaults for this class
+        self._halo_exchange_name = "halo_exchange"
 
     def _compute_stencil_type(self):
         '''Dynamically work out the type of stencil required for this halo
@@ -3388,8 +3437,8 @@ class DynHaloExchange(HaloExchange):
         return that stencil, otherwise we return the "region" stencil
         type (as it is safe for all stencils).
 
-        :return: Return the type of stencil required for this halo exchange
-        :rtype: string
+        :return: the type of stencil required for this halo exchange
+        :rtype: str
 
         '''
         # get information about stencil accesses from all read fields
@@ -3410,8 +3459,8 @@ class DynHaloExchange(HaloExchange):
         as the depth can change as transformations are applied to the
         schedule
 
-        :return: Return the halo exchange depth as a fortran string
-        :rtype: int
+        :return: the halo exchange depth as a Fortran string
+        :rtype: str
 
         '''
         # get information about reading from the halo from all read fields
@@ -3421,21 +3470,13 @@ class DynHaloExchange(HaloExchange):
         # if there is only one entry in the list we can just return
         # the depth
         if len(depth_info_list) == 1:
-            depth_info = depth_info_list[0]
-            if depth_info.max_depth:
-                # return the maximum halo depth (which is returned by
-                # calling get_halo_depth with no depth argument)
-                # TODO fix hard-wired mesh name here
-                return "mesh%get_halo_depth()"
-            else:  # return the variable and/or literal depth expression
-                return str(depth_info)
-        else:
-            # the depth information can't be reduced to a single
-            # expression, therefore we need to determine the maximum
-            # of all expresssions
-            depth_str_list = [str(depth_info) for depth_info in
-                              depth_info_list]
-            return "max("+",".join(depth_str_list)+")"
+            return str(depth_info_list[0])
+        # the depth information can't be reduced to a single
+        # expression, therefore we need to determine the maximum
+        # of all expresssions
+        depth_str_list = [str(depth_info) for depth_info in
+                          depth_info_list]
+        return "max("+",".join(depth_str_list)+")"
 
     def _compute_halo_read_depth_info(self):
         '''Take a list of `psyclone.dynamo0p3.HaloReadAccess` objects and
@@ -3444,7 +3485,7 @@ class DynHaloExchange(HaloExchange):
         `psyclone.dynamo0p3.HaloDepth` list to remove redundant depth
         information e.g. depth=1 is not required if we have a depth=2
 
-        :return: a list containing halo depth information derived from
+        :return: a list containing halo depth information derived from \
         all fields dependent on this halo exchange
         :rtype: :func:`list` of :py:class:`psyclone.dynamo0p3.HaloDepth`
 
@@ -3476,10 +3517,10 @@ class DynHaloExchange(HaloExchange):
         '''Determines how much of the halo has been cleaned from any previous
         redundant computation
 
-        :return: a HaloWriteAccess object containing the required
+        :return: a HaloWriteAccess object containing the required \
         information, or None if no dependence information is found.
-        :rtype::py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
-        :raises GenerationError: if more than one write dependence is
+        :rtype: :py:class:`psyclone.dynamo0p3.HaloWriteAccess` or None
+        :raises GenerationError: if more than one write dependence is \
         found for this halo exchange as this should not be possible
 
         '''
@@ -3496,12 +3537,13 @@ class DynHaloExchange(HaloExchange):
 
     def required(self):
         '''Determines whether this halo exchange is definitely required (True,
-        True), might be required (True, False) or is definitely not required
-        (False, *). The first return argument is used to decide whether a halo
-        exchange should exist. If it is True then the halo is required or
-        might be required. If it is False then the halo is definitely not
-        required. The second argument is used to specify whether we definitely
-        know that it is required or are not sure.
+        True), might be required (True, False) or is definitely not
+        required (False, *). The first return argument is used to
+        decide whether a halo exchange should exist. If it is True
+        then the halo is required or might be required. If it is False
+        then the halo exchange is definitely not required. The second
+        argument is used to specify whether we definitely know that it
+        is required or are not sure.
 
         Whilst a halo exchange is generally only ever added if it is
         required, or if it may be required, this situation can change
@@ -3522,10 +3564,10 @@ class DynHaloExchange(HaloExchange):
         updated. Note, the routine would still be correct as is, it
         would just return more unknown results than it should).
 
-        :return: Returns (x, y) where x specifies whether this halo
-        exchange is (or might be) required - True, or is not required
-        - False. If the first argument is True then the second
-        argument specifies whether we definitely know that we need the
+        :return: Returns (x, y) where x specifies whether this halo \
+        exchange is (or might be) required - True, or is not required \
+        - False. If the first tuple item is True then the second \
+        argument specifies whether we definitely know that we need the \
         HaloExchange - True, or are not sure - False.
         :rtype: (bool, bool)
 
@@ -3665,15 +3707,24 @@ class DynHaloExchange(HaloExchange):
         ''' Class specific view  '''
         _, known = self.required()
         runtime_check = not known
+        field_id = self._field.name
+        if self.vector_index:
+            field_id += "({0})".format(self.vector_index)
         print(self.indent(indent) + (
             "{0}[field='{1}', type='{2}', depth={3}, "
-            "check_dirty={4}]".format(self.coloured_text, self._field.name,
+            "check_dirty={4}]".format(self.coloured_text, field_id,
                                       self._compute_stencil_type(),
                                       self._compute_halo_depth(),
                                       runtime_check)))
 
     def gen_code(self, parent):
-        ''' Dynamo specific code generation for this class '''
+        '''Dynamo specific code generation for this class.
+
+        :param parent: an f2pygen object that will be the parent of \
+        f2pygen objects created in this method
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
         from psyclone.f2pygen import IfThenGen, CallGen, CommentGen
         if self.vector_index:
             ref = "(" + str(self.vector_index) + ")"
@@ -3691,8 +3742,166 @@ class DynHaloExchange(HaloExchange):
         halo_parent.add(
             CallGen(
                 halo_parent, name=self._field.proxy_name + ref +
-                "%halo_exchange(depth=" + self._compute_halo_depth() + ")"))
+                "%" + self._halo_exchange_name +
+                "(depth=" + self._compute_halo_depth() + ")"))
         parent.add(CommentGen(parent, ""))
+
+
+class DynHaloExchangeStart(DynHaloExchange):
+    '''The start of an asynchronous halo exchange. This is similar to a
+    regular halo exchange except that the Fortran name of the call is
+    different and the routine only reads the data being transferred
+    (the associated field is specified as having a read access). As a
+    result this class is not able to determine some important
+    properties (such as whether the halo exchange is known to be
+    required or not). This is solved by finding the corresponding
+    asynchronous halo exchange end (a halo exchange start always has a
+    corresponding halo exchange end and vice versa) and calling its
+    methods (a halo exchange end is specified as having readwrite
+    access to its associated field and therefore is able to determine
+    the required properties).
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument (default True) indicating \
+    whether this halo exchange should be subject to a run-time check \
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to \
+    identify which component of a vector field this halo exchange is \
+    responsible for
+    :type vector_index: int
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                 vector_index=vector_index, parent=parent)
+        # Update the field's access appropriately. Here "gh_read"
+        # specifies that the start of a halo exchange only reads
+        # the field's data.
+        self._field.access = "gh_read"
+        # override appropriate parent class names
+        self._halo_exchange_name = "halo_exchange_start"
+        self._text_name = "HaloExchangeStart"
+        self._colour_map_name = "HaloExchangeStart"
+        self._dag_name = "haloexchangestart"
+
+    def _compute_stencil_type(self):
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :return: Return the type of stencil required for this pair of \
+        halo exchanges
+        :rtype: str
+
+        '''
+        return self._get_hex_end()._compute_stencil_type()
+
+    def _compute_halo_depth(self):
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :return: Return the halo exchange depth as a Fortran string
+        :rtype: str
+
+        '''
+        return self._get_hex_end()._compute_halo_depth()
+
+    def required(self):
+        '''Call the required method in the corresponding halo exchange end
+        object. This is done as the field in halo exchange start is
+        only read and the dependence analysis beneath this call
+        requires the field to be modified.
+
+        :return: Returns (x, y) where x specifies whether this halo \
+        exchange is (or might be) required - True, or is not required \
+        - False. If the first tuple item is True then the second \
+        argument specifies whether we definitely know that we need the \
+        HaloExchange - True, or are not sure - False.
+        :rtype: (bool, bool)
+
+        '''
+        return self._get_hex_end().required()
+
+    def _get_hex_end(self):
+        '''An internal helper routine for this class which finds the halo
+        exchange end object corresponding to this halo exchange start
+        object or raises an exception if one is not found.
+
+        :return: The corresponding halo exchange end object
+        :rtype: :py:class:`psyclone.dynamo0p3.DynHaloExchangeEnd`
+        :raises GenerationError: If no matching HaloExchangeEnd is \
+        found, or if the first matching haloexchange that is found is \
+        not a HaloExchangeEnd
+
+        '''
+        # Look at all nodes following this one in schedule order
+        # (which is PSyIRe node order)
+        for node in self.following():
+            if self.sameParent(node) and isinstance(node, DynHaloExchange):
+                # Found a following `haloexchange`,
+                # `haloexchangestart` or `haloexchangeend` PSyIRe node
+                # that is at the same calling hierarchy level as this
+                # haloexchangestart
+                access = DataAccess(self.field)
+                if access.overlaps(node.field):
+                    if isinstance(node, DynHaloExchangeEnd):
+                        return node
+                    raise GenerationError(
+                        "Halo exchange start for field '{0}' should match "
+                        "with a halo exchange end, but found {1}".format(
+                            self.field.name, type(node)))
+        # no match has been found which is an error as a halo exchange
+        # start should always have a matching halo exchange end that
+        # follows it in schedule (PSyIRe sibling) order
+        raise GenerationError(
+            "Halo exchange start for field '{0}' has no matching halo "
+            "exchange end".format(self.field.name))
+
+
+class DynHaloExchangeEnd(DynHaloExchange):
+    '''The end of an asynchronous halo exchange. This is similar to a
+    regular halo exchange except that the Fortran name of the call is
+    different and the routine only writes to the data being
+    transferred.
+
+    :param field: the field that this halo exchange will act on
+    :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+    :param check_dirty: optional argument (default True) indicating \
+    whether this halo exchange should be subject to a run-time check \
+    for clean/dirty halos.
+    :type check_dirty: bool
+    :param vector_index: optional vector index (default None) to \
+    identify which index of a vector field this halo exchange is \
+    responsible for
+    :type vector_index: int
+    :param parent: optional PSyIRe parent node (default None) of this \
+    object
+    :type parent: :py:class:`psyclone.psyGen.node`
+
+    '''
+    def __init__(self, field, check_dirty=True,
+                 vector_index=None, parent=None):
+        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                 vector_index=vector_index, parent=parent)
+        # Update field properties appropriately. The associated field is
+        # written to. However, a readwrite field access needs to be
+        # specified as this is required for the halo exchange logic to
+        # work correctly.
+        self._field.access = "gh_readwrite"
+        # override appropriate parent class names
+        self._halo_exchange_name = "halo_exchange_finish"
+        self._text_name = "HaloExchangeEnd"
+        self._colour_map_name = "HaloExchangeEnd"
+        self._dag_name = "haloexchangeend"
 
 
 class HaloDepth(object):
@@ -3711,10 +3920,16 @@ class HaloDepth(object):
         self._var_depth = None
         # max_depth specifies whether the full depth of halo (whatever
         # that might be) is accessed. If this is set then
-        # literal_depth and var_depth have no meaning. max_depth being
-        # False does not necessarily mean the full halo depth is not
-        # accessed, rather it means that we do not know.
+        # literal_depth, var_depth and max_depth_m1 have no
+        # meaning. max_depth being False does not necessarily mean the
+        # full halo depth is not accessed, rather it means that we do
+        # not know.
         self._max_depth = False
+        # max_depth_m1 specifies whether the full depth of halo
+        # (whatever that might be) apart from the outermost level is
+        # accessed. If this is set then literal_depth, var_depth and
+        # max_depth have no meaning.
+        self._max_depth_m1 = False
         # annexed only is True if the only access in the halo is for
         # annexed dofs
         self._annexed_only = False
@@ -3742,6 +3957,18 @@ class HaloDepth(object):
 
         '''
         return self._max_depth
+
+    @property
+    def max_depth_m1(self):
+        '''Returns whether the read to the field is known to access all of the
+        halo except the outermost level or not.
+
+        :return: Return True if the read to the field is known to
+        access all of the halo except the outermost and False otherwise
+        :rtype: bool
+
+        '''
+        return self._max_depth_m1
 
     @property
     def var_depth(self):
@@ -3781,38 +4008,44 @@ class HaloDepth(object):
         '''
         self._literal_depth = value
 
-    def set_by_value(self, max_depth, var_depth, literal_depth, annexed_only):
+    def set_by_value(self, max_depth, var_depth, literal_depth, annexed_only,
+                     max_depth_m1):
         '''Set halo depth information directly
 
-        :param max_depth: True if the field accesses all of the halo
+        :param bool max_depth: True if the field accesses all of the \
+        halo and False otherwise
+        :param str var_depth: A variable name specifying the halo \
+        access depth, if one exists, and None if not
+        :param int literal_depth: The known fixed (literal) halo \
+        access depth
+        :param bool annexed_only: True if only the halo's annexed dofs \
+        are accessed and False otherwise
+        :param bool max_depth_m1: True if the field accesses all of \
+        the halo but does not require the outermost halo to be correct \
         and False otherwise
-        :type max_depth: bool
-        :param var_depth: A variable name specifying the halo access
-        depth, if one exists, and None if not
-        :type var_depth: String
-        :param literal_depth: The known fixed (literal) halo access
-        depth
-        :type literal_depth: integer
-        :param annexed_only: True if only the halo's annexed dofs are
-        accessed and False otherwise
-        :type max_depth: bool
 
         '''
         self._max_depth = max_depth
         self._var_depth = var_depth
         self._literal_depth = literal_depth
         self._annexed_only = annexed_only
+        self._max_depth_m1 = max_depth_m1
 
     def __str__(self):
         '''return the depth of a halo dependency
         as a string'''
         depth_str = ""
-        if self.var_depth:
-            depth_str += self.var_depth
+        if self.max_depth:
+            depth_str += "mesh%get_halo_depth()"
+        elif self.max_depth_m1:
+            depth_str += "mesh%get_halo_depth()-1"
+        else:
+            if self.var_depth:
+                depth_str += self.var_depth
+                if self.literal_depth:
+                    depth_str += "+"
             if self.literal_depth:
-                depth_str += "+"
-        if self.literal_depth:
-            depth_str += str(self.literal_depth)
+                depth_str += str(self.literal_depth)
         return depth_str
 
 
@@ -3863,11 +4096,14 @@ class HaloWriteAccess(HaloDepth):
     when a field is accessed in a particular kernel within a
     particular loop nest
 
-    :param field: the field that we are concerned with
-    :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-
     '''
     def __init__(self, field):
+        '''
+        :param field: the field that we are concerned with
+        :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
+
+        '''
+
         HaloDepth.__init__(self)
         self._compute_from_field(field)
 
@@ -3925,11 +4161,13 @@ class HaloWriteAccess(HaloDepth):
         # The third argument for set_by_value specifies the name of a
         # variable used to specify the depth. Variables are currently
         # not used when a halo is written to, so we pass None which
-        # indicates there is no variable.
-        # the fifth argument for set_by_value indicates whether we
-        # only access annexed_dofs. At the moment this is not possible
-        # when modifying a field so we always return False
-        HaloDepth.set_by_value(self, max_depth, None, depth, False)
+        # indicates there is no variable.  the fifth argument for
+        # set_by_value indicates whether we only access
+        # annexed_dofs. At the moment this is not possible when
+        # modifying a field so we always return False. The sixth
+        # argument indicates if the depth of access is the
+        # maximum-1. This is not possible here so we return False.
+        HaloDepth.set_by_value(self, max_depth, None, depth, False, False)
 
 
 class HaloReadAccess(HaloDepth):
@@ -3946,7 +4184,22 @@ class HaloReadAccess(HaloDepth):
         '''
         HaloDepth.__init__(self)
         self._stencil_type = None
+        self._needs_clean_outer = None
         self._compute_from_field(field)
+
+    @property
+    def needs_clean_outer(self):
+        '''Returns False if the reader has a gh_inc access and accesses the
+        halo. Otherwise returns True.  Indicates that the outer level
+        of halo that has been read does not need to be clean (although
+        any annexed dofs do).
+
+        :return: Returns False if the outer layer of halo that is read \
+        does not need to be clean and True otherwise.
+        :rtype: bool
+
+        '''
+        return self._needs_clean_outer
 
     @property
     def stencil_type(self):
@@ -3980,6 +4233,22 @@ class HaloReadAccess(HaloDepth):
         call = halo_check_arg(field, GH_READ_ACCESSES)
         # no test required here as all calls exist within a loop
         loop = call.parent
+
+        # For GH_INC we accumulate contributions into the field being
+        # modified. In order to get correct results for owned and
+        # annexed dofs, this requires that the fields we are
+        # accumulating contributions from have up-to-date values in
+        # the halo cell(s). However, we do not need to be concerned
+        # with the values of the modified field in the last-level of
+        # the halo. This is because we only have enough information to
+        # partially compute the contributions in those cells
+        # anyway. (If the values of the field being modified are
+        # required, at some later point, in that level of the halo
+        # then we do a halo swap.)
+        self._needs_clean_outer = (
+            not (field.access.lower() == "gh_inc"
+                 and loop.upper_bound_name in ["cell_halo",
+                                               "colour_halo"]))
         # now we have the parent loop we can work out what part of the
         # halo this field accesses
         if loop.upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
