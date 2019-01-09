@@ -240,7 +240,7 @@ def test_new_kern_single_error(tmpdir, monkeypatch):
     # clash and the content of the existing file is not the same as that
     # which we would generate
     with pytest.raises(GenerationError) as err:
-        new_kern.update()
+        new_kern.rename_and_write()
     assert ("transformed version of this Kernel 'testkern_0_mod.f90' already "
             "exists in the kernel-output directory ({0}) but is not the same "
             "as the current, transformed kernel and the kernel-renaming "
@@ -268,8 +268,8 @@ def test_new_same_kern_single(tmpdir, monkeypatch):
         new_kernels.append(new_kern)
 
     # Generate the code - we should end up with just one transformed kernel
-    new_kernels[0].update()
-    new_kernels[1].update()
+    new_kernels[0].rename_and_write()
+    new_kernels[1].rename_and_write()
     assert new_kernels[1]._name == "testkern_0_code"
     assert new_kernels[1].module_name == "testkern_0_mod"
     out_files = os.listdir(str(tmpdir))

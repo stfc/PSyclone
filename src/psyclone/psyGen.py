@@ -2554,6 +2554,64 @@ class Loop(Node):
 
 
 class Call(Node):
+    '''
+    Represents a call to a sub-program unit from within the PSy layer.
+
+    :param parent: parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :param call: information on the call itself, as obtained by parsing \
+                 the Algorithm layer code.
+    :type call: :py:class:`psyclone.parse.KernelCall`
+    :param str name: the name of the routine being called.
+    :param arguments: object holding information on the kernel arguments, \
+                      as extracted from kernel meta-data.
+    :type arguments: :py:class:`psyclone.psyGen.Arguments`
+
+    :raises GenerationError: if any of the arguments to the call are \
+                             duplicated.
+    '''
+    def __init__(self, parent, call, name, arguments):
+        Node.__init__(self, children=[], parent=parent)
+        self._arguments = arguments
+        self._name = name
+        self._iterates_over = call.ktype.iterates_over
+
+        # check algorithm arguments are unique for a kernel or
+        # built-in call
+        arg_names = []
+        for arg in self._arguments.args:
+            if arg.text:
+                text = arg.text.lower().replace(" ", "")
+                if text in arg_names:
+                    raise GenerationError(
+                        "Argument '{0}' is passed into kernel '{1}' code more "
+                        "than once from the algorithm layer. This is not "
+                        "allowed.".format(arg.text, self._name))
+                else:
+                    arg_names.append(text)
+
+        # visual properties
+        self._width = 250
+        self._height = 30
+        self._shape = None
+        self._text = None
+        self._canvas = None
+        self._arg_descriptors = None
+
+        # initialise any reduction information
+        args = args_filter(arguments.args,
+                           arg_types=MAPPING_SCALARS.values(),
+                           arg_accesses=MAPPING_REDUCTIONS.values())
+        if args:
+            self._reduction = True
+            if len(args) != 1:
+                raise GenerationError(
+                    "PSyclone currently only supports a single reduction "
+                    "in a kernel or builtin")
+            self._reduction_arg = args[0]
+        else:
+            self._reduction = False
+            self._reduction_arg = None
 
     @property
     def args(self):
@@ -2607,49 +2665,6 @@ class Call(Node):
         self._text = self._canvas.create_text(self._x+self._width/2,
                                               self._y+self._height/2,
                                               text=self._name)
-
-    def __init__(self, parent, call, name, arguments):
-        Node.__init__(self, children=[], parent=parent)
-        self._arguments = arguments
-        self._name = name
-        self._iterates_over = call.ktype.iterates_over
-
-        # check algorithm arguments are unique for a kernel or
-        # built-in call
-        arg_names = []
-        for arg in self._arguments.args:
-            if arg.text:
-                text = arg.text.lower().replace(" ", "")
-                if text in arg_names:
-                    raise GenerationError(
-                        "Argument '{0}' is passed into kernel '{1}' code more "
-                        "than once from the algorithm layer. This is not "
-                        "allowed.".format(arg.text, self._name))
-                else:
-                    arg_names.append(text)
-
-        # visual properties
-        self._width = 250
-        self._height = 30
-        self._shape = None
-        self._text = None
-        self._canvas = None
-        self._arg_descriptors = None
-
-        # initialise any reduction information
-        args = args_filter(arguments.args,
-                           arg_types=MAPPING_SCALARS.values(),
-                           arg_accesses=MAPPING_REDUCTIONS.values())
-        if args:
-            self._reduction = True
-            if len(args) != 1:
-                raise GenerationError(
-                    "PSyclone currently only supports a single reduction "
-                    "in a kernel or builtin")
-            self._reduction_arg = args[0]
-        else:
-            self._reduction = False
-            self._reduction_arg = None
 
     @property
     def is_reduction(self):
@@ -2939,8 +2954,9 @@ class Kern(Call):
         '''
         from psyclone.f2pygen import CallGen, UseGen
 
-        # If kernel has been transformed then we rename it and write it to file
-        self.update()
+        # If kernel has been transformed then we rename it. If it is *not*
+        # being module inlined then we also write it to file.
+        self.rename_and_write()
 
         if arguments:
             # The list of arguments has been augmented by a sub-class
@@ -3042,7 +3058,7 @@ class Kern(Call):
             return original[:-len(suffix)] + tag + suffix
         return original + tag + suffix
 
-    def update(self):
+    def rename_and_write(self):
         '''
         Writes the (transformed) AST of this kernel to file and resets the
         'modified' flag to False. By default, the kernel is re-named
@@ -3099,6 +3115,14 @@ class Kern(Call):
         # within the AST of the kernel code
         self._rename_ast(new_suffix)
 
+        # Kernel is now self-consistent so unset the modified flag
+        self.modified = False
+
+        # If this kernel is being module in-lined then we do not need to
+        # write it to file.
+        if self.module_inline:
+            return
+
         # Generate the Fortran for this transformed kernel, ensuring that
         # we limit the line lengths
         fll = FortLineLength()
@@ -3129,9 +3153,6 @@ class Kern(Call):
             os.write(fdesc, new_kern_code.encode())
             # Close the new kernel file
             os.close(fdesc)
-
-        # Kernel is now self-consistent so unset the modified flag
-        self.modified = False
 
 
     def _rename_ast(self, suffix):
