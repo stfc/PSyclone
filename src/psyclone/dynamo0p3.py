@@ -5013,8 +5013,7 @@ class DynKern(Kern):
 
     def __init__(self):
         if False:  # pylint: disable=using-constant-test
-            # for pyreverse
-            self._arguments = DynKernelArguments(None, None)
+            self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._func_descriptors = None
         self._fs_descriptors = None
         # Whether this kernel requires quadrature
@@ -5479,18 +5478,6 @@ class DynKern(Kern):
         #    new_parent, position = parent.start_parent_loop()
         #    create_dump = DinoWriters(self, new_parent, position)
         #    create_dump.generate()
-
-        # Generate class-specific argument list and then call gen_code()
-        # method of base class.
-        create_arg_list = KernCallArgList(self, parent)
-        create_arg_list.generate()
-        # TODO #268 the functionality of KernCallArgList and
-        # DynKernelArguments needs revisiting. It would seem to make
-        # more sense if the functionality of the former was available
-        # in the latter. This would then mean we wouldn't need to set
-        # raw_arg_list here before calling the base-class gen_code()
-        # method.
-        self.arguments.raw_arg_list = create_arg_list.arglist
 
         super(DynKern, self).gen_code(parent)
 
@@ -7101,6 +7088,25 @@ class DynKernelArguments(Arguments):
         makes no sense for dynamo. Need to refactor the invoke class
         and pull out dofs into the gunghoproto api. '''
         return self._dofs
+
+    def raw_arg_list(self, parent):
+        '''
+        Constructs the class-specific argument list for a kernel.
+
+        :param parent: the parent (in the PSyIR) of the kernel call with \
+                       which this argument list is associated.
+        :type parent: sub-class of :py:class:`psyclone.psyGen.Call`
+        :returns: a list of all of the actual arguments to the \
+                  kernel call.
+        :rtype: list of str.
+        '''
+        if not self._raw_arg_list:
+            create_arg_list = KernCallArgList(self._parent_call, parent)
+            create_arg_list.generate()
+            # TODO #268 the functionality of KernCallArgList and
+            # DynKernelArguments needs revisiting.
+            self._raw_arg_list = create_arg_list.arglist
+        return self._raw_arg_list
 
 
 class DynKernelArgument(KernelArgument):

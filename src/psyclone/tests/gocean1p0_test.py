@@ -1076,21 +1076,21 @@ def test_raw_arg_list_error(monkeypatch):
     schedule.view()
     kern = schedule.children[0].children[0].children[0]
     assert isinstance(kern, GOKern)
-    raw_list = kern.arguments.raw_arg_list
+    raw_list = kern.arguments.raw_arg_list()
     assert raw_list == ['i', 'j', 'z_fld%data', 'p_fld%data', 'u_fld%data',
                         'v_fld%data', 'p_fld%grid%dx', 'p_fld%grid%dy']
     # Now monkeypatch find_grid_access()
     monkeypatch.setattr(kern.arguments, "find_grid_access", lambda: None)
     kern.arguments._raw_arg_list = None
     with pytest.raises(GenerationError) as err:
-        _ = kern.arguments.raw_arg_list
+        _ = kern.arguments.raw_arg_list()
     assert ("kernel compute_z_code requires grid property dx but does not "
             "have any arguments that are fields" in str(err))
     # Now monkeypatch one of the kernel arguments so that it has an
     # unrecognised type
     monkeypatch.setattr(kern.arguments._args[0]._arg, "_type", "broken")
     with pytest.raises(InternalError) as err:
-        _ = kern.arguments.raw_arg_list
+        _ = kern.arguments.raw_arg_list()
     assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
             "'broken'" in str(err))
 

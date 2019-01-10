@@ -910,8 +910,7 @@ class GOKernelArguments(Arguments):
                                                    "field"]))
         self._dofs = []
 
-    @property
-    def raw_arg_list(self):
+    def raw_arg_list(self, parent=None):
         '''
         :returns: a list of all of the actual arguments to the \
                   kernel call.
