@@ -42,13 +42,15 @@ by the script:
     -oalg OALG            filename of transformed algorithm code
     -opsy OPSY            filename of generated PSy code
     -api API              choose a particular api from ['gunghoproto',
-                          'dynamo0.1', 'dynamo0.3', 'gocean0.1', 'gocean1.0'],
-                          default 'dynamo0.3'.
+                          'dynamo0.1', 'dynamo0.3', 'gocean0.1', 'gocean1.0',
+			  'nemo'], default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
                           path to root of directory structure containing kernel
                           source code
+    -I INCLUDE, --include INCLUDE
+                          path to Fortran INCLUDE files
     -l, --limit           limit the fortran line length to 132 characters
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
@@ -79,7 +81,6 @@ return with an appropriate error. For example, if we use the Python
 
 If the algorithm file is valid then the modified algorithm code and
 the generated PSy code will be output to the terminal screen.
-
 
 Choosing the API
 ----------------
@@ -255,3 +256,18 @@ that calls the PSyclone-generated code is responsible for initialising
 and finalising the profiling library that is being used.  For full
 details on the use of this profiling functionality please see the
 :ref:`profiling` section.
+
+Fortran INCLUDE Files
+---------------------
+
+If the algorithm file and/or the files containing the kernels called
+by the algorithm contain INCLUDE statements then the location of any
+INCLUDE'd files must be supplied to PSyclone via the ``-I`` or
+``--include`` option. Multiple locations may be specified by using
+multiple ``-I`` flags, e.g.::
+
+  > psyclone -I/some/path -I/some/other/path alg.f90
+
+(This is necessary because INCLUDE statements are a part of the Fortran
+language and must therefore be parsed - they are not handled by any
+pre-processing step).
