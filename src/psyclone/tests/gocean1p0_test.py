@@ -41,7 +41,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOSchedule
 from psyclone_test_utils import get_invoke
@@ -481,14 +481,11 @@ def test_ne_offset_all_cf_points():
 def test_sw_offset_cf_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CF points '''
-    _, invoke_info = parse(os.path.
-                           join(os.path.
-                                dirname(os.path.
-                                        abspath(__file__)),
-                                "test_files", "gocean1p0",
-                                "test19.1_sw_offset_cf_updated" +
-                                "_one_invoke.f90"),
-                           api=API)
+    _, invoke_info = parse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "test_files", "gocean1p0",
+                     "test19.1_sw_offset_cf_updated_one_invoke.f90"),
+        api=API)
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
@@ -1054,7 +1051,6 @@ def test_find_grid_access(monkeypatch):
     from psyclone.gocean1p0 import GOKernelArgument
     _, invoke = get_invoke("single_invoke.f90", API, idx=0)
     schedule = invoke.schedule
-    schedule.view()
     kern = schedule.children[0].children[0].children[0]
     assert isinstance(kern, GOKern)
     arg = kern.arguments.find_grid_access()
@@ -1068,6 +1064,35 @@ def test_find_grid_access(monkeypatch):
     # find_grid_access should now return None
     arg = kern.arguments.find_grid_access()
     assert arg is None
+
+
+def test_raw_arg_list_error(monkeypatch):
+    ''' Test that we raise an internal error in the
+    GOKernelArguments.raw_arg_list method if there's no argument from which
+    to get the grid properties. '''
+    _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
+                           API, idx=0)
+    schedule = invoke.schedule
+    schedule.view()
+    kern = schedule.children[0].children[0].children[0]
+    assert isinstance(kern, GOKern)
+    raw_list = kern.arguments.raw_arg_list
+    assert raw_list == ['i', 'j', 'z_fld%data', 'p_fld%data', 'u_fld%data',
+                        'v_fld%data', 'p_fld%grid%dx', 'p_fld%grid%dy']
+    # Now monkeypatch find_grid_access()
+    monkeypatch.setattr(kern.arguments, "find_grid_access", lambda: None)
+    kern.arguments._raw_arg_list = None
+    with pytest.raises(GenerationError) as err:
+        _ = kern.arguments.raw_arg_list
+    assert ("kernel compute_z_code requires grid property dx but does not "
+            "have any arguments that are fields" in str(err))
+    # Now monkeypatch one of the kernel arguments so that it has an
+    # unrecognised type
+    monkeypatch.setattr(kern.arguments._args[0]._arg, "_type", "broken")
+    with pytest.raises(InternalError) as err:
+        _ = kern.arguments.raw_arg_list
+    assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
+            "'broken'" in str(err))
 
 
 # -----------------------------------

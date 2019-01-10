@@ -951,7 +951,7 @@ class GOKernelArguments(Arguments):
                     arguments.append(grid_arg.name+"%grid%"+arg.name)
             else:
                 raise InternalError("Kernel {0}, argument {1} has "
-                                    "unrecognised type: {2}".
+                                    "unrecognised type: '{2}'".
                                     format(self._parent_call.name, arg.name,
                                            arg.type))
         self._raw_arg_list = arguments
