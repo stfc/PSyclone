@@ -1047,12 +1047,28 @@ def test_dag(tmpdir, have_graphviz):
             assert '[color={0}]'.format(col) not in dot
 
 
-def test_grid_arg_error():
-    ''' Tests for error conditions relating to getting a kernel argument
-    from which to access grid properties. '''
+def test_find_grid_access(monkeypatch):
+    ''' Tests for the GOKernelArguments.find_grid_access method. This
+    identifies the best kernel argument from which to access grid
+    properties. '''
+    from psyclone.gocean1p0 import GOKernelArgument
     _, invoke = get_invoke("single_invoke.f90", API, idx=0)
     schedule = invoke.schedule
-    assert 0
+    schedule.view()
+    kern = schedule.children[0].children[0].children[0]
+    assert isinstance(kern, GOKern)
+    arg = kern.arguments.find_grid_access()
+    assert isinstance(arg, GOKernelArgument)
+    # The first read-only argument for this kernel is the pressure field
+    assert arg.name == "p_fld"
+    # Now monkeypatch the type of each of the kernel arguments so that
+    # none of them is a field
+    for karg in kern.arguments._args:
+        monkeypatch.setattr(karg._arg, "_type", "broken")
+    # find_grid_access should now return None
+    arg = kern.arguments.find_grid_access()
+    assert arg is None
+
 
 # -----------------------------------
 # Parser Tests for the GOcean 1.0 API

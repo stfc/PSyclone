@@ -967,7 +967,7 @@ class GOKernelArguments(Arguments):
         confused about data dependencies and refuse to SIMD
         vectorise.
         :returns: the argument object from which to get grid properties.
-        :rtype: :py:class:`psyclone.gocean1p0.XXX` or None
+        :rtype: :py:class:`psyclone.gocean1p0.GOKernelArgument` or None
         '''
         for access in ["go_read", "go_readwrite", "go_write"]:
             for arg in self._args:
