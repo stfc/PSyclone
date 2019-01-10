@@ -50,7 +50,7 @@ by the script:
                           path to root of directory structure containing kernel
                           source code
     -I INCLUDE, --include INCLUDE
-                          path to Fortran INCLUDE files
+                          path to Fortran INCLUDE files (nemo API only)
     -l, --limit           limit the fortran line length to 132 characters
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
@@ -260,14 +260,17 @@ details on the use of this profiling functionality please see the
 Fortran INCLUDE Files
 ---------------------
 
-If the algorithm file and/or the files containing the kernels called
-by the algorithm contain INCLUDE statements then the location of any
+For the NEMO API, if the source code to be processed by PSyclone contains
+INCLUDE statements then the location of any
 INCLUDE'd files must be supplied to PSyclone via the ``-I`` or
 ``--include`` option. Multiple locations may be specified by using
 multiple ``-I`` flags, e.g.::
 
-  > psyclone -I/some/path -I/some/other/path alg.f90
+  > psyclone api "nemo" -I /some/path -I /some/other/path alg.f90
 
-(This is necessary because INCLUDE statements are a part of the Fortran
+(This is necessary because INCLUDE lines are a part of the Fortran
 language and must therefore be parsed - they are not handled by any
 pre-processing step).
+
+Attempting to specify ``-I``/``--include`` for any API other than NEMO
+will be rejected by PSyclone.

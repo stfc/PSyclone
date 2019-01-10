@@ -64,12 +64,17 @@ COMPUTE_ANNEXED_DOFS = false
 '''
 
 
+def setup_module():
+    ''' xunit-style set-up. This ensures that any exising Configuration
+    object is deleted upon entry to this module. '''
+    Config._instance = None
+
+
 def teardown_function():
-    '''This teardown function is called at the end of all tests and makes
+    '''This teardown function is called at the end of each test and makes
     sure that we wipe the Config object so we get a fresh/default one
     for any further test (and not a left-over one from a test here).
     '''
-
     # Enforce loading of the default config file
     Config._instance = None
 

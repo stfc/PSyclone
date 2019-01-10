@@ -56,7 +56,7 @@ from psyclone.algGen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
-from psyclone.configuration import Config
+from psyclone.configuration import Config, ConfigurationError
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
@@ -248,9 +248,11 @@ def main(args):
     parser.add_argument(
         '-d', '--directory', default="", help='path to root of directory '
         'structure containing kernel source code')
+    # Make the default an empty list so that we can check whether the
+    # user has supplied a value(s) later
     parser.add_argument(
-        '-I', '--include', default=["./"], action="append",
-        help='path to Fortran INCLUDE files')
+        '-I', '--include', default=[], action="append",
+        help='path to Fortran INCLUDE files (nemo API only)')
     parser.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
         help='limit the fortran line length to 132 characters')
@@ -320,8 +322,25 @@ def main(args):
         Config.get().api = api
 
     # Store the search path(s) for include files
-    if args.include:
-        Config.get().include_paths = args.include
+    if args.include and api != 'nemo':
+        # We only support passing include paths to fparser2 and it's
+        # only the NEMO API that uses fparser2 currently.
+        print("Setting the search path for Fortran include files "
+              "(-I/--include) is only supported for the 'nemo' API.")
+        exit(1)
+
+    # The Configuration manager checks that the supplied path(s) is/are
+    # valid so protect with a try
+    try:
+        if args.include:
+            Config.get().include_paths = args.include
+        else:
+            # Default is to instruct fparser2 to look in the directory
+            # containing the file being parsed
+            Config.get().include_paths = ["./"]
+    except ConfigurationError as err:
+        print(str(err))
+        exit(1)
 
     try:
         alg, psy = generate(args.filename, api=api,

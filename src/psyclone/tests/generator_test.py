@@ -48,6 +48,7 @@ import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
 from psyclone.parse import ParseError
+from psyclone.configuration import ConfigurationError, Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
@@ -64,6 +65,15 @@ def delete_module(modname):
             delattr(mod, modname)
         except AttributeError:
             pass
+
+
+def teardown_function():
+    '''This teardown function is called at the end of all tests and makes
+    sure that we wipe the Config object so we get a fresh/default one
+    for any further test (and not a left-over one from a test here).
+    '''
+    Config._instance = None
+
 
 # a set of unit tests for the generate function
 
@@ -554,7 +564,6 @@ def test_main_api():
 
     # 1) Make sure if no paramenters are given,
     #   config will give us the default API
-    from psyclone.configuration import Config
 
     # Make sure we get a default config instance
     Config._instance = None
@@ -740,3 +749,60 @@ def test_main_no_invoke_alg_file(capsys):
 
     # check psy file is not created
     assert not os.path.isfile(psy_filename)
+
+
+def test_main_include_nemo_only(capsys):
+    ''' Check that the main function rejects attempts to specify INCLUDE
+    paths for all except the nemo API. (Since that is the only one which
+    uses fparser2 at the moment.) '''
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    Config._instance = None
+    count = 0
+    for api in Config.get().supported_apis:
+        if api != "nemo":
+            count += 1
+            with pytest.raises(SystemExit) as err:
+                main([alg_filename, '-api', api, '-I', './'])
+            assert str(err.value) == "1"
+            out, _ = capsys.readouterr()
+            out.count("is only supported for the 'nemo' API") == count
+
+
+def test_main_include_invalid(capsys, tmpdir):
+    ''' Check that the main function complains if a non-existant location
+    is specified as a search path for INCLUDE files. '''
+    alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "nemo", "test_files", "include_stmt.f90"))
+    fake_path = tmpdir.join('does_not_exist')
+    with pytest.raises(SystemExit) as err:
+        main([alg_file, '-api', 'nemo', '-I', fake_path.strpath])
+    assert str(err.value) == "1"
+    out, _ = capsys.readouterr()
+    assert "does_not_exist' does not exist" in out
+
+
+def test_main_include_path(capsys):
+    ''' Test that the main function supplies any INCLUDE paths to
+    fparser. '''
+    # This algorithm file INCLUDE's a file that defines a variable called
+    # "some_fake_mpi_handle"
+    alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "nemo", "test_files", "include_stmt.f90"))
+    # First try without specifying where to find the include file. Currently
+    # fparser2 just removes any include statement that it cannot resolve
+    # (https://github.com/stfc/fparser/issues/138).
+    main([alg_file, '-api', 'nemo'])
+    stdout, _ = capsys.readouterr()
+    assert "some_fake_mpi_handle" not in stdout
+    # Now specify two locations to search with only the second containing
+    # the necessary header file
+    inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files")
+    inc_path2 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "nemo", "test_files", "include_files")
+    main([alg_file, '-api', 'nemo', '-I', str(inc_path1),
+          '-I', str(inc_path2)])
+    stdout, _ = capsys.readouterr()
+    assert "some_fake_mpi_handle" in stdout
