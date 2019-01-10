@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOSchedule
-
+from psyclone_test_utils import get_invoke
 
 API = "gocean1.0"
 
@@ -1046,6 +1046,13 @@ def test_dag(tmpdir, have_graphviz):
         for col in ["red", "#ff0000", "green", "#00ff00"]:
             assert '[color={0}]'.format(col) not in dot
 
+
+def test_grid_arg_error():
+    ''' Tests for error conditions relating to getting a kernel argument
+    from which to access grid properties. '''
+    _, invoke = get_invoke("single_invoke.f90", API, idx=0)
+    schedule = invoke.schedule
+    assert 0
 
 # -----------------------------------
 # Parser Tests for the GOcean 1.0 API
