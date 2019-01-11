@@ -97,38 +97,6 @@ def test_explicit_do_sched():
     assert isinstance(loops[2].children[0], nemo.NemoKern)
 
 
-def test_implicit_loop_sched1():
-    ''' Check that we get the correct schedule for an implicit loop '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    assert isinstance(psy, nemo.NemoPSy)
-    print(len(psy.invokes.invoke_list))
-    sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
-    loops = sched.walk(sched.children, nemo.NemoLoop)
-    assert len(loops) == 3
-    kerns = sched.kern_calls()
-    assert len(kerns) == 1
-
-
-def test_implicit_loop_sched2():
-    ''' Check that we get the correct schedule for an explicit loop over
-    levels containing an implicit loop over the i-j slab '''
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "explicit_over_implicit.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
-    # We should have 3 loops (one from the explicit loop over levels and
-    # the other two from the implicit loops over ji and jj).
-    loops = sched.walk(sched.children, nemo.NemoLoop)
-    assert len(loops) == 3
-    kerns = sched.kern_calls()
-    assert len(kerns) == 1
-
-
 def test_array_valued_function():
     ''' Check that we handle array notation used when there is no implicit
     loop. '''
@@ -145,7 +113,7 @@ def test_array_valued_function():
 def test_multi_kern():
     ''' Test that having multiple kernels within a single loop raises
     the expected error. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "two_explicit_do.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
