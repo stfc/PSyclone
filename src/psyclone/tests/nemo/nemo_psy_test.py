@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -249,7 +249,7 @@ def test_kern_inside_if():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     kerns = sched.kern_calls()
-    assert len(kerns) == 3
+    assert len(kerns) == 4
     ifblock = sched.children[0].children[1]
     assert isinstance(ifblock, nemo.NemoIfBlock)
     assert str(ifblock) == "If-block: jk == 1"

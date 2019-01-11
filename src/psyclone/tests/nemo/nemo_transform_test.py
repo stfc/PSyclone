@@ -74,8 +74,6 @@ def test_omp_explicit_gen():
         "  integer :: ji, jj, jk\n"
         "  integer :: jpi, jpj, jpk\n"
         "  real, dimension(jpi, jpj, jpk) :: umask\n"
-        "\n"
-        "  ! test code with explicit nemo-style do loop\n"
         "  !$omp parallel do default(shared), private(jk,jj,ji), "
         "schedule(static)\n"
         "  do jk = 1, jpk\n"
@@ -86,7 +84,6 @@ def test_omp_explicit_gen():
         "    end do\n"
         "  end do\n"
         "  !$omp end parallel do\n"
-        "\n"
         "end program explicit_do")
     assert expected in gen_code
     # Check that calling gen a second time gives the same code
@@ -227,16 +224,18 @@ def test_omp_do_within_if():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
+    loop = schedule.children[0].children[1].children[2].children[0]
+    assert isinstance(loop, nemo.NemoLoop)
     # Apply the transformation to a loop within an else clause
-    schedule, _ = otrans.apply(schedule.children[0].children[1].
-                               children[2].children[0])
+    schedule, _ = otrans.apply(loop)
     gen = str(psy.gen)
+    print(gen)
     expected = (
         "    ELSE\n"
         "      !$omp parallel do default(shared), private(jj,ji), "
         "schedule(static)\n"
-        "      DO jj = 1, jpj\n"
-        "        DO ji = 1, jpi\n"
+        "      DO jj = 1, jpj, 1\n"
+        "        DO ji = 1, jpi, 1\n"
         "          zdkt(ji, jj) = (ptb(ji, jj, jk - 1, jn) - "
         "ptb(ji, jj, jk, jn)) * wmask(ji, jj, jk)\n"
         "        END DO\n"
