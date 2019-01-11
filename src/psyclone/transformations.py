@@ -2521,13 +2521,18 @@ class NemoExplicitLoopTrans(Transformation):
     def apply(self, loop):
         '''
         :param loop: the NemoImplicitLoop to transform.
-        :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`
+        :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`.
+        :returns: XXX
+        :rtype: XXX
+
         :raises NotImplementedError: if the array slice has explicit bounds.
         :raises TransformationError: if an array slice is not in dimensions \
                                      1-3 of the array.
         '''
         from fparser.two import Fortran2003
         from fparser.two.utils import walk_ast
+        from fparser.common.readfortran import FortranStringReader
+        from psyclone.nemo import NemoLoop
 
         self.validate(loop)
 
@@ -2561,20 +2566,6 @@ class NemoExplicitLoopTrans(Transformation):
             raise TransformationError(
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(loop._ast)))
-
-        # Create a new, explicit loop
-        # TODO need to add a load() method to NemoExplicitLoop
-        new_loop = NemoExplicitLoop()
-        
-        self._step = 1
-        # TODO ensure no name clash is possible with variables that
-        # already exist in the NEMO source.
-        self.loop_type = NEMO_INDEX_ORDERING[outermost_dim]
-        self._start = VALID_LOOP_TYPES[loop.loop_type]["start"]
-        self._stop = VALID_LOOP_TYPES[loop.loop_type]["stop"]
-        var_name = "psy_" + VALID_LOOP_TYPES[loop.loop_type]["var"]
-        self._variable_name = name_space_manager.create_name(
-            root_name=var_name, context="PSyVars", label=var_name)
 
         # TODO Since the fparser2 AST does not have parent
         # information (and no other way of getting to the root node), it is

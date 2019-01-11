@@ -339,7 +339,7 @@ def test_implicit_range_err():
             "implemented: 'umask(1 : jpi, 1, :) = 0.0D0'" in str(err))
 
 
-@pytest.mark.xfail(reason="Error will be raised by new transformation")
+#@pytest.mark.xfail(reason="Error will be raised by new transformation")
 def test_implicit_loop_different_rank():
     ''' Test that we reject implicit loops if the index positions of the
     colons differs. This is a restriction that could be lifted by
@@ -348,7 +348,12 @@ def test_implicit_loop_different_rank():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "array_section_index_mismatch.f90"),
                            api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    sched.view()
+    loop = sched.children[1]
+    trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     with pytest.raises(NotImplementedError) as err:
-        _ = PSyFactory(API, distributed_memory=False).create(invoke_info)
-        assert ("implicit loops are restricted to cases where all array "
-                "range specifications occur" in str(err))
+        _ = trans.apply(loop)
+    assert ("implicit loops are restricted to cases where all array "
+            "range specifications occur" in str(err))
