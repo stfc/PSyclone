@@ -485,7 +485,7 @@ class Config(object):
         self._include_paths = []
         if not isinstance(path_list, list):
             raise ValueError("include_paths must be a list but got: {0}".
-                             format(type(value)))
+                             format(type(path_list)))
         for path in path_list:
             if not os.path.exists(path):
                 raise ConfigurationError("Include path '{0}' does not exist".

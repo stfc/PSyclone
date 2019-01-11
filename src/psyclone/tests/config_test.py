@@ -464,3 +464,18 @@ def test_default_api():
         config = Config()
         config.load(new_name)
         assert config.api == "dynamo0.3"
+
+
+def test_incl_path_errors(tmpdir):
+    ''' Check that we raise the expected errors if we attempt to set the list
+    of include paths to something other than a list or to a location that
+    does not exist. '''
+    config = Config()
+    with pytest.raises(ValueError) as err:
+        config.include_paths = config
+    assert "include_paths must be a list but got:" in str(err)
+    # Create a path that does not exist
+    missing_path = tmpdir.join("does_not_exist")
+    with pytest.raises(ConfigurationError) as cerr:
+        config.include_paths = [missing_path.strpath]
+    assert "does_not_exist' does not exist" in str(cerr)
