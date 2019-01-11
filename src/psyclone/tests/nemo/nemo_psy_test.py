@@ -151,50 +151,6 @@ def test_implicit_loop_assign():
         assert gen.count("integer :: {0}".format(var)) == 1
 
 
-def test_unrecognised_implicit():
-    ''' Check that we raise the expected error if we encounter an
-    unrecognised form of implicit loop. '''
-    from psyclone.nemo import NemoImplicitLoop, NemoInvoke
-    # Array syntax used in an unsupported index location
-    reader = FortranStringReader("umask(:, :, :, :) = 0.0D0")
-    assign = Fortran2003.Assignment_Stmt(reader)
-    with pytest.raises(GenerationError) as err:
-        NemoImplicitLoop(assign)
-    assert ("Array section in unsupported dimension (4) for code "
-            "'umask(:, :, :, :) = 0.0D0'" in str(err))
-    # and now for the case where the Program unit doesn't have a
-    # specification section to modify. This is hard to trigger
-    # so we manually construct some objects and put them together
-    # to create an artificial example...
-    reader = FortranStringReader("umask(:, :, :) = 0.0D0")
-    assign = Fortran2003.Assignment_Stmt(reader)
-    reader = FortranStringReader("program atest\nreal :: umask(1,1,1,1)\n"
-                                 "umask(:, :, :) = 0.0\nend program atest")
-    prog = Fortran2003.Program_Unit(reader)
-    invoke = NemoInvoke(prog, name="atest")
-    loop = NemoImplicitLoop.__new__(NemoImplicitLoop)
-    loop._parent = None
-    loop.invoke = invoke
-    loop.root.invoke._ast = prog
-    spec = walk_ast(prog.content, [Fortran2003.Specification_Part])
-    prog.content.remove(spec[0])
-    with pytest.raises(InternalError) as err:
-        loop.__init__(assign)
-    assert "No specification part found for routine atest" in str(err)
-
-
-def test_implicit_range_err():
-    ''' Check that we raise the expected error if we encounter an implicit
-    loop with an explicit range (since we don't yet support that). '''
-    # Array syntax with an explicit range
-    reader = FortranStringReader("umask(1:jpi, 1, :) = 0.0D0")
-    assign = Fortran2003.Assignment_Stmt(reader)
-    with pytest.raises(NotImplementedError) as err:
-        nemo.NemoImplicitLoop(assign)
-    assert ("Support for implicit loops with specified bounds is not yet "
-            "implemented: 'umask(1 : jpi, 1, :) = 0.0D0'" in str(err))
-
-
 def test_codeblock():
     ''' Check that we get the right schedule when the code contains
     some unrecognised statements as well as both an explict and an
@@ -208,7 +164,7 @@ def test_codeblock():
     cblocks = sched.walk(sched.children, nemo.NemoCodeBlock)
     assert len(cblocks) == 4
     kerns = sched.kern_calls()
-    assert len(kerns) == 2
+    assert len(kerns) == 1
     # The last loop does not contain a kernel
     assert loops[-1].kernel is None
 
@@ -293,7 +249,7 @@ def test_kern_inside_if():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     kerns = sched.kern_calls()
-    assert len(kerns) == 6
+    assert len(kerns) == 3
     ifblock = sched.children[0].children[1]
     assert isinstance(ifblock, nemo.NemoIfBlock)
     assert str(ifblock) == "If-block: jk == 1"
