@@ -1718,6 +1718,39 @@ def test_directive_backward_dependence():
     assert omp2.backward_dependence() == omp1
 
 
+def test_directive_get_private(monkeypatch):
+    ''' Tests for the _get_private_list() method of OMPParallelDirective. '''
+    from psyclone.psyGen import Loop
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # We use Transformations to introduce the necessary directives
+    from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
+        OMPParallelTrans
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    schedule, _ = rtrans.apply(schedule.children[0])
+    directive = schedule.children[0]
+    assert isinstance(directive, OMPParallelDirective)
+    # Now check that _get_private_list returns what we expect
+    vars = directive._get_private_list()
+    assert vars == ['cell']
+    # Now use monkeypatch to break the Call within the loop
+    call = directive.children[0].children[0].children[0]
+    monkeypatch.setattr(call, "local_vars", lambda: [""])
+    with pytest.raises(InternalError) as err:
+        _ = directive._get_private_list()
+    assert ("call 'testkern_code' has a local variable but its name is "
+            "not set" in str(err))
+
+
 def test_node_is_valid_location():
     '''Test that the Node class is_valid_location method returns True if
     the new location does not break any data dependencies, otherwise it

@@ -1896,26 +1896,32 @@ class OMPParallelDirective(OMPDirective):
                 call.reduction_sum_loop(parent)
 
     def _get_private_list(self):
-        '''Returns the variable names used for any loops within a directive
+        '''
+        Returns the variable names used for any loops within a directive
         and any variables that have been declared private by a Call
         within the directive.
 
+        :return: list of variables to declare as thread private.
+        :rtype: list of str
+
+        :raises InternalError: if a Call has local variable(s) but they \
+                               aren't named.
         '''
         result = []
         # get variable names from all loops that are a child of this node
         for loop in self.loops():
-            if loop._variable_name == "":
-                raise GenerationError("Internal error: name of loop "
-                                      "variable not set.")
-            if loop._variable_name.lower() not in result:
+            # We must allow for implicit loops (e.g. in the NEMO API) that
+            # have no associated variable name
+            if loop._variable_name and \
+               loop._variable_name.lower() not in result:
                 result.append(loop._variable_name.lower())
         # get variable names from all calls that are a child of this node
         for call in self.calls():
             for variable_name in call.local_vars():
                 if variable_name == "":
-                    raise GenerationError("Internal error: call has a "
-                                          "local variable but its name "
-                                          "is not set.")
+                    raise InternalError(
+                        "call '{0}' has a local variable but its "
+                        "name is not set.".format(call.name))
                 if variable_name.lower() not in result:
                     result.append(variable_name.lower())
         return result
