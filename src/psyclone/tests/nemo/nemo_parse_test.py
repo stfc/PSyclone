@@ -37,6 +37,7 @@
 
 from __future__ import print_function, absolute_import
 import os
+from fparser.common.readfortran import FortranStringReader
 from fparser.two.utils import walk_ast
 from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
@@ -64,3 +65,12 @@ def test_identify_implicit_loop():
     stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
     assert not nemo.NemoImplicitLoop.match(stmts[1])
     assert nemo.NemoImplicitLoop.match(stmts[0])
+
+
+def test_not_implicit_loop():
+    ''' Check we do not incorrectly identify an implicit loop when array
+    notation is used in the arguments to a function call. '''
+    code = "z3d(1,:,:) =  ptr_sjk( pvtr(:,:,:), btmsk(:,:,jn)*btm30(:,:) )"
+    reader = FortranStringReader(code)
+    assign = Fortran2003.Assignment_Stmt(reader)
+    assert not nemo.NemoImplicitLoop.match(assign)

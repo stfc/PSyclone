@@ -700,13 +700,47 @@ class NemoImplicitLoop(NemoLoop):
             return False
         # We are expecting something like:
         #    array(:,:,jk) = some_expression
-        # so we check the left-hand side...
+        # but we have to beware of cases like the following:
+        #   array(1,:,:) = a_func(array2(:,:,:), mask(:,:))
+        # where a_func is an array-valued function and `array2(:,:,:)`
+        # could just be `array2`.
+        # We check the left-hand side...
         lhs = node.items[0]
-        if isinstance(lhs, Fortran2003.Part_Ref):
-            colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
-            if colons:
-                return True
-        return False
+        if not isinstance(lhs, Fortran2003.Part_Ref):
+            # LHS is not an array reference
+            return False
+        colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
+        if not colons:
+            # LHS does not use array syntax
+            return False
+        # Now check the right-hand side...
+        rhs = node.items[2]
+        colons = walk_ast(rhs.items, [Fortran2003.Subscript_Triplet])
+        if not colons:
+            # We just have array syntax on the LHS
+            return True
+        # Check that we haven't got array syntax used within the index
+        # expression to another array. Array references are represented by
+        # Part_Ref nodes in the fparser2 AST. This would be easier to do
+        # if the fparser2 AST carried parent information with each node.
+        # As it is we have to walk down the tree rather than come back up
+        # from each colon.
+        # Find all array references
+        array_refs = []
+        if isinstance(rhs, Fortran2003.Part_Ref):
+            # Since walk_ast is slightly clunky we have to manually allow
+            # for the top-level "rhs" node being an array reference
+            array_refs.append(rhs)
+        array_refs += walk_ast(rhs.items, [Fortran2003.Part_Ref])
+        for ref in array_refs:
+            nested_refs = walk_ast(ref.items, [Fortran2003.Part_Ref])
+            # Do any of these nested array references use array syntax?
+            for nested_ref in nested_refs:
+                colons = walk_ast(nested_ref.items,
+                                  [Fortran2003.Subscript_Triplet])
+                if colons:
+                    return False
+        return True
 
 
 class NemoIfBlock(IfBlock, ASTProcessor):

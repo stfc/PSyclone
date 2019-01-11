@@ -129,6 +129,19 @@ def test_implicit_loop_sched2():
     assert len(kerns) == 1
 
 
+def test_array_valued_function():
+    ''' Check that we handle array notation used when there is no implicit
+    loop. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "array_valued_function.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    assert len(sched.children) == 1
+    # We should just have a single code block
+    assert isinstance(sched.children[0], nemo.NemoCodeBlock)
+
+
 def test_multi_kern():
     ''' Test that having multiple kernels within a single loop raises
     the expected error. '''
