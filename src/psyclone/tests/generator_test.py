@@ -48,7 +48,7 @@ import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
 from psyclone.parse import ParseError
-from psyclone.configuration import ConfigurationError, Config
+from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
@@ -464,7 +464,7 @@ def test_main_profile(capsys):
     # Check for warning in case of script with profiling"
     with pytest.raises(SystemExit):
         main(options+["--profile", "kernels", "-s", "somescript", filename])
-    out, _ = capsys.readouterr()
+    _, out = capsys.readouterr()
     out = out.replace("\n", " ")
 
     warning = ("Error: use of automatic profiling in combination with an "
@@ -525,17 +525,17 @@ def test_main_force_profile(capsys):
     # the error about mixing --profile and -s does not happen
     with pytest.raises(SystemExit):
         main(options+["--force-profile", "kernels", "-s", "invalid", filename])
-    out, outerr = capsys.readouterr()
+    _, outerr = capsys.readouterr()
     error = "expected the script file 'invalid' to have the '.py' extension"
-    assert error in out
+    assert error in outerr
 
     # Test that --profile and --force-profile can not be used together
     with pytest.raises(SystemExit):
         main(options+["--force-profile", "kernels", "--profile", "invokes",
                       filename])
-    out, outerr = capsys.readouterr()
+    _, outerr = capsys.readouterr()
     error = "Specify only one of --profile and --force-profile."
-    assert error in out
+    assert error in outerr
 
     # Reset profile flags to avoid further failures in other tests
     Profiler.set_options(None)
@@ -549,9 +549,9 @@ def test_main_invalid_api(capsys):
                              "1_single_invoke.f90"))
     with pytest.raises(SystemExit) as excinfo:
         main([filename, "-api", "madeup"])
-    # the error code should be 1
+    # The error code should be 1
     assert str(excinfo.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     expected_output = ("Unsupported API 'madeup' specified. Supported API's "
                        "are ['gunghoproto', 'dynamo0.1', 'dynamo0.3', "
                        "'gocean0.1', 'gocean1.0', 'nemo'].\n")
@@ -615,7 +615,7 @@ def test_main_expected_fatal_error(capsys):
         main([filename])
     # the error code should be 1
     assert str(excinfo.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     expected_output = ("\"Parse Error: Kernel 'testkern_type' called from the "
                        "algorithm layer with an insufficient number of "
                        "arguments as specified by the metadata. Expected at "
@@ -639,7 +639,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
         main([filename])
     # the error code should be 1
     assert str(excinfo.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     expected_output = (
         "Error, unexpected exception, please report to the authors:\n"
         "Description ...\n"
@@ -759,15 +759,14 @@ def test_main_include_nemo_only(capsys):
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
     Config._instance = None
-    count = 0
     for api in Config.get().supported_apis:
         if api != "nemo":
-            count += 1
             with pytest.raises(SystemExit) as err:
                 main([alg_filename, '-api', api, '-I', './'])
             assert str(err.value) == "1"
-            out, _ = capsys.readouterr()
-            out.count("is only supported for the 'nemo' API") == count
+            captured = capsys.readouterr()
+            assert (captured.err.count("is only supported for the 'nemo' API")
+                    == 1)
 
 
 def test_main_include_invalid(capsys, tmpdir):
@@ -779,8 +778,8 @@ def test_main_include_invalid(capsys, tmpdir):
     with pytest.raises(SystemExit) as err:
         main([alg_file, '-api', 'nemo', '-I', fake_path.strpath])
     assert str(err.value) == "1"
-    out, _ = capsys.readouterr()
-    assert "does_not_exist' does not exist" in out
+    capout = capsys.readouterr()
+    assert "does_not_exist' does not exist" in capout.err
 
 
 def test_main_include_path(capsys):
@@ -801,7 +800,7 @@ def test_main_include_path(capsys):
     inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files")
     inc_path2 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "nemo", "test_files", "include_files")
+                             "nemo", "test_files", "include_files")
     main([alg_file, '-api', 'nemo', '-I', str(inc_path1),
           '-I', str(inc_path2)])
     stdout, _ = capsys.readouterr()

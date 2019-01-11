@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -284,16 +284,17 @@ def main(args):
         print("PSyclone version: {0}".format(__VERSION__))
 
     if args.script is not None and args.profile is not None:
-        print("Error: use of automatic profiling in combination with an")
-        print("optimisation script is not recommened since it may not work")
-        print("as expected.")
-        print("You can use --force-profile instead of --profile if you "
-              "really want to use both options")
-        print("at the same time.")
+        print("Error: use of automatic profiling in combination with an\n"
+              "optimisation script is not recommened since it may not work\n"
+              "as expected.\n"
+              "You can use --force-profile instead of --profile if you \n"
+              "really want to use both options at the same time.",
+              file=sys.stderr)
         exit(1)
 
     if args.profile is not None and args.force_profile is not None:
-        print("Specify only one of --profile and --force-profile.")
+        print("Specify only one of --profile and --force-profile.",
+              file=sys.stderr)
         exit(1)
 
     if args.profile:
@@ -313,7 +314,8 @@ def main(args):
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
         print("Unsupported API '{0}' specified. Supported API's are "
-              "{1}.".format(args.api, Config.get().supported_apis))
+              "{1}.".format(args.api, Config.get().supported_apis),
+              file=sys.stderr)
         exit(1)
     else:
         # There is a valid API specified on the command line. Set it
@@ -326,7 +328,8 @@ def main(args):
         # We only support passing include paths to fparser2 and it's
         # only the NEMO API that uses fparser2 currently.
         print("Setting the search path for Fortran include files "
-              "(-I/--include) is only supported for the 'nemo' API.")
+              "(-I/--include) is only supported for the 'nemo' API.",
+              file=sys.stderr)
         exit(1)
 
     # The Configuration manager checks that the supplied path(s) is/are
@@ -339,7 +342,7 @@ def main(args):
             # containing the file being parsed
             Config.get().include_paths = ["./"]
     except ConfigurationError as err:
-        print(str(err))
+        print(str(err), file=sys.stderr)
         exit(1)
 
     try:
@@ -361,17 +364,18 @@ def main(args):
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError):
         _, exc_value, _ = sys.exc_info()
-        print(exc_value)
+        print(exc_value, file=sys.stderr)
         exit(1)
     except Exception:  # pylint: disable=broad-except
-        print("Error, unexpected exception, please report to the authors:")
+        print("Error, unexpected exception, please report to the authors:",
+              file=sys.stderr)
         exc_type, exc_value, exc_tb = sys.exc_info()
-        print("Description ...")
-        print(exc_value)
-        print("Type ...")
-        print(exc_type)
-        print("Stacktrace ...")
-        traceback.print_tb(exc_tb, limit=10, file=sys.stdout)
+        print("Description ...", file=sys.stderr)
+        print(exc_value, file=sys.stderr)
+        print("Type ...", file=sys.stderr)
+        print(exc_type, file=sys.stderr)
+        print("Stacktrace ...", file=sys.stderr)
+        traceback.print_tb(exc_tb, limit=10, file=sys.stderr)
         exit(1)
     if args.limit:
         fll = FortLineLength()
