@@ -2409,8 +2409,8 @@ def test_codeblock_can_be_printed():
     '''Test that an CodeBlck instance can always be printed (i.e. is
     initialised fully)'''
     cblock = CodeBlock([])
-    assert "CodeBlock[" in cblock.__str__()
-    assert "]" in cblock.__str__()
+    assert "CodeBlock[" in str(cblock)
+    assert "]" in str(cblock)
 
 # Test Assignment class
 
@@ -2437,7 +2437,7 @@ def test_assignment_can_be_printed():
     rhs = Literal("1", parent=assignment)
     assignment.addchild(lhs)
     assignment.addchild(rhs)
-    assert "Assignment[]\n" in assignment.__str__()
+    assert "Assignment[]\n" in str(assignment)
 
 
 # Test Reference class
@@ -2457,7 +2457,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     ref = Reference("rname")
-    assert "Reference[name:'rname']\n" in ref.__str__()
+    assert "Reference[name:'rname']\n" in str(ref)
 
 
 # Test Array class
@@ -2477,7 +2477,7 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     array = Array("aname")
-    assert "ArrayReference[name:'aname']\n" in array.__str__()
+    assert "ArrayReference[name:'aname']\n" in str(array)
 
 
 # Test Literal class
@@ -2497,7 +2497,7 @@ def test_literal_can_be_printed():
     '''Test that an Literal instance can always be printed (i.e. is
     initialised fully)'''
     literal = Literal("1")
-    assert "Literal[value:'1']\n" in literal.__str__()
+    assert "Literal[value:'1']\n" in str(literal)
 
 
 # Test BinaryOperation class
@@ -2527,14 +2527,14 @@ def test_binaryoperation_can_be_printed():
     op2 = Literal("1", parent=binaryOp)
     binaryOp.addchild(op1)
     binaryOp.addchild(op2)
-    assert "BinaryOperation[operator:'+']\n" in binaryOp.__str__()
+    assert "BinaryOperation[operator:'+']\n" in str(binaryOp)
 
 
 # Test fparser2ASTProcessor
 
 
 def test_fparser2astprocessor_handling_assignment_stmt():
-    ''' Test that fparser2 Assignment_Stmt are converted to expected PSyIRe
+    ''' Test that fparser2 Assignment_Stmt is converted to expected PSyIRe
     tree structure.
     '''
     from fparser.two.parser import ParserFactory
@@ -2555,7 +2555,7 @@ def test_fparser2astprocessor_handling_assignment_stmt():
 
 
 def test_fparser2astprocessor_handling_name():
-    ''' Test that fparser2 Name are converted to expected PSyIRe
+    ''' Test that fparser2 Name is converted to expected PSyIRe
     tree structure.
     '''
     from fparser.two.parser import ParserFactory
@@ -2576,7 +2576,7 @@ def test_fparser2astprocessor_handling_name():
 
 
 def test_fparser2astprocessor_handling_parenthesis():
-    ''' Test that fparser2 Parenthesis are converted to expected PSyIRe
+    ''' Test that fparser2 Parenthesis is converted to expected PSyIRe
     tree structure.
     '''
     from fparser.two.parser import ParserFactory
@@ -2597,7 +2597,7 @@ def test_fparser2astprocessor_handling_parenthesis():
 
 
 def test_fparser2astprocessor_handling_part_ref():
-    ''' Test that fparser2 Part_Ref are converted to expected PSyIRe
+    ''' Test that fparser2 Part_Ref is converted to expected PSyIRe
     tree structure.
     '''
     from fparser.two.parser import ParserFactory
@@ -2631,7 +2631,7 @@ def test_fparser2astprocessor_handling_part_ref():
 
 
 def test_fparser2astprocessor_handling_if_stmt():
-    ''' Test that fparser2 If_Stmt are converted to expected PSyIRe
+    ''' Test that fparser2 If_Stmt is converted to expected PSyIRe
     tree structure.
     '''
     from fparser.two.parser import ParserFactory
@@ -2652,7 +2652,7 @@ def test_fparser2astprocessor_handling_if_stmt():
 
 
 def test_fparser2astprocessor_handling_numberbase():
-    ''' Test that fparser2 NumberBase are converted to expected PSyIRe
+    ''' Test that fparser2 NumberBase is converted to expected PSyIRe
     tree structure.
     '''
     from fparser.two.parser import ParserFactory
@@ -2673,7 +2673,7 @@ def test_fparser2astprocessor_handling_numberbase():
 
 
 def test_fparser2astprocessor_handling_binaryopbase():
-    ''' Test that fparser2 BinaryOpBase are converted to expected PSyIRe
+    ''' Test that fparser2 BinaryOpBase is converted to expected PSyIRe
     tree structure.
     '''
     from fparser.two.parser import ParserFactory

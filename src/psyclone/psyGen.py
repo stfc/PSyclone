@@ -3921,7 +3921,7 @@ class fparser2ASTProcessor(object):
 
     def __init__(self):
         from fparser.two import Fortran2003, utils
-        # Map of fparser2 node types to handlers(which are class methods)
+        # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Name: self._name_handler,
@@ -3966,12 +3966,12 @@ class fparser2ASTProcessor(object):
     # parent information (fparser/#102).
     def process_nodes(self, parent, nodes, nodes_parent):
         '''
-        Create the PSyclone IR of the supplied list of nodes in the
+        Create the PSyIRe of the supplied list of nodes in the
         fparser2 AST. Currently also inserts parent information back
         into the fparser2 AST. This is a workaround until fparser2
         itself generates and stores this information.
 
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node in the PSyIRe we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :param nodes: List of sibling nodes in fparser2 AST.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
@@ -3988,25 +3988,27 @@ class fparser2ASTProcessor(object):
             try:
                 psy_child = self._create_child(child, parent)
             except NotImplementedError:
-                # If child type implementation nor found add them on the
-                # ongoing code_block
+                # If child type implementation not found, add them on the
+                # ongoing code_block node list.
                 code_block_nodes.append(child)
             else:
-                if psy_child:  # Child could have been safely ignored.
+                if psy_child:
                     self.nodes_to_code_block(parent, code_block_nodes)
                     # and then connect new PSyIRe child to AST
                     parent.addchild(psy_child)
+                # If psy_child is not initialized but it didn't produce a
+                # NotImplementedError, it means it can be ignored.
 
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes)
 
     def _create_child(self, child, parent=None):
         '''
-        Create a PSyIRe node representing the the supplied fparser 2 node.
+        Create a PSyIRe node representing the supplied fparser 2 node.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
                 child type.
@@ -4014,8 +4016,8 @@ class fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         handler = self.handlers.get(type(child))
-        if not handler:
-            # if handler not found directly check with the base class.
+        if handler is None:
+            # If handler not found directly, check with the base class.
             handler = self.handlers.get(type(child).__bases__[0])
             if not handler:
                 raise NotImplementedError()
@@ -4023,11 +4025,12 @@ class fparser2ASTProcessor(object):
 
     def _ignore_handler(self, node, parent):
         '''
-        This fparser2 node can be ignored, we return None insted.
+        This handler returns None indicating that the associated
+        fparser2 node can be ignored.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: None
         :rtype: NoneType
@@ -4040,7 +4043,7 @@ class fparser2ASTProcessor(object):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.If_Stmt`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
@@ -4058,7 +4061,7 @@ class fparser2ASTProcessor(object):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.Assignment`
@@ -4077,7 +4080,7 @@ class fparser2ASTProcessor(object):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.BinaryOpBase`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
@@ -4099,7 +4102,7 @@ class fparser2ASTProcessor(object):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Name`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.Reference`
@@ -4114,12 +4117,14 @@ class fparser2ASTProcessor(object):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Parenthesis`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
-        # Parentheses are discarded and it continues with the single child
+        # Use the items[1] content of the node as it contains the required
+        # information (items[0] and items[2] just contain the left and right
+        # brackets as strings so can be disregarded.
         return self._create_child(node.items[1], parent)
 
     def _part_ref_handler(self, node, parent):
@@ -4128,7 +4133,7 @@ class fparser2ASTProcessor(object):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.Array`
@@ -4157,7 +4162,7 @@ class fparser2ASTProcessor(object):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.NumberBase`
-        :param parent: Parent node in the PSyclone IR we are constructing.
+        :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.Literal`
@@ -4218,8 +4223,6 @@ class Assignment(Node):
     :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt.
     :param parent: the parent node of this Assignment in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
-    :raises InternalError: if the fparser2 AST does not have the expected \
-                           structure.
     '''
     def __init__(self, parent=None):
         super(Assignment, self).__init__(parent=parent)
@@ -4260,8 +4263,6 @@ class Reference(Node):
     :type ast: :py:class:`fparser.two.Fortran2003.Name.
     :param parent: the parent node of this Reference in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
-    :raises InternalError: if the fparser2 AST does not have the expected \
-                           structure.
     '''
     def __init__(self, reference_name, parent=None):
         super(Reference, self).__init__(parent=parent)
@@ -4300,8 +4301,6 @@ class BinaryOperation(Node):
     :type ast: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
     :param parent: the parent node of this BinaryOperator in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
-    :raises InternalError: if the fparser2 AST does not have the expected \
-                           structure.
     '''
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
@@ -4346,8 +4345,6 @@ class Array(Reference):
     :type ast: :py:class:`fparser.two.Fortran2003.Part_Ref.
     :param parent: the parent node of this Array in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
-    :raises InternalError: if the fparser2 AST does not have the expected \
-                           structure.
     '''
     def __init__(self, reference_name, parent=None):
         super(Array, self).__init__(reference_name, parent=parent)
@@ -4374,7 +4371,7 @@ class Array(Reference):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = "Array"+super(Array, self).__str__()
+        result = "Array" + super(Array, self).__str__()
         for entity in self._children:
             result += str(entity)
         return result
@@ -4388,8 +4385,6 @@ class Literal(Node):
     :type ast: :py:class:`fparser.two.Fortran2003.NumberBase.
     :param parent: the parent node of this Literal in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
-    :raises InternalError: if the fparser2 AST does not have the expected \
-                           structure.
     '''
     def __init__(self, value, parent=None):
         super(Literal, self).__init__(parent=parent)
