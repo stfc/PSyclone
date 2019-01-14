@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -671,8 +671,9 @@ class KernelType(object):
 
     def get_integer_array(self, name):
         ''' Parse the kernel meta-data and find the value of the
-        integer array variable with the supplied name. Return None if no
-        matching variable is found.
+        integer array variable with the supplied name. Returns an empty list
+        if no matching variable is found.
+
         :param str name: the name of the integer array to find.
         :returns: list of values.
         :rtype: list of str.

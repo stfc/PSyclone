@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone_test_utils import code_compiles, TEST_COMPILE
 
@@ -246,11 +246,11 @@ def test_internal_qr_err(monkeypatch):
 
 
 def test_dyninvokebasisfns(monkeypatch):
-    ''' Check that we raise internal errors as required '''
+    ''' Check that we raise internal errors as required. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     # Get hold of a DynInvokeBasisFns object
     evaluator = psy.invokes.invoke_list[0].evaluators
 
@@ -270,6 +270,16 @@ def test_dyninvokebasisfns(monkeypatch):
     evaluator._initialise_xyz_qr(None)
     evaluator._initialise_xyoz_qr(None)
     evaluator._initialise_xoyoz_qr(None)
+
+    # Check that the constructor raises an internal error if it encounters
+    # a shape it doesn't recognise
+    sched = psy.invokes.invoke_list[0].schedule
+    call = sched.children[0].children[0]
+    assert isinstance(call, dynamo0p3.DynKern)
+    monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
+    with pytest.raises(InternalError) as err:
+        _ = dynamo0p3.DynInvokeBasisFns(sched)
+    assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err)
 
 
 def test_dynkern_setup(monkeypatch):

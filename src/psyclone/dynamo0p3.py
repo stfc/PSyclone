@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2335,6 +2335,11 @@ class DynInvokeBasisFns(object):
                         # add it to the list of target spaces
                         self._eval_targets[fs_name] = \
                             call.eval_targets[fs_name]
+            else:
+                raise InternalError("Unrecognised evaluator shape: '{0}'. "
+                                    "Should be one of {1}".format(
+                                        call.eval_shape,
+                                        VALID_EVALUATOR_SHAPES))
 
             # Both quadrature and evaluators require basis and/or differential
             # basis functions. We need a full FunctionSpace object for
