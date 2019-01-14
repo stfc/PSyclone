@@ -3916,7 +3916,8 @@ class IfClause(IfBlock):
 
 class fparser2ASTProcessor(object):
     '''
-    Mixin class to provide functionality for processing the fparser2 AST.
+    Class to encapsulate the functionality for processing the fparser2 AST and
+    convert the nodes to PSyIRe.
     '''
 
     def __init__(self):
