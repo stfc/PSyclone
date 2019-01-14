@@ -55,6 +55,7 @@ class GOInvokes(Invokes):
     ''' The GOcean specific invokes class. This passes the GOcean specific
         invoke class to the base class so it creates the one we require. '''
     def __init__(self, alg_calls):
+        # pylint: disable=using-constant-test
         if False:
             self._0_to_n = GOInvoke(None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke)
@@ -69,6 +70,7 @@ class GOInvoke(Invoke):
         provides to methods which separate arguments that are arrays from
         arguments that are scalars. '''
     def __init__(self, alg_invocation, idx):
+        # pylint: disable=using-constant-test
         if False:
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule,
@@ -116,7 +118,7 @@ class GOInvoke(Invoke):
         # add the subroutine argument declarations for arrays
         if len(self.unique_args_arrays) > 0:
             my_decl_arrays = DeclGen(invoke_sub, datatype="REAL",
-                                     intent="inout", kind="wp",
+                                     intent="inout", kind="go_wp",
                                      entity_decls=self.unique_args_arrays,
                                      dimension=":,:")
             invoke_sub.add(my_decl_arrays)
@@ -230,6 +232,7 @@ class GOKern(Kern):
         code for the Kernel instance. Specialises the gen_code method to
         create the appropriate GOcean specific kernel call. '''
     def __init__(self):
+        # pylint: disable=using-constant-test
         if False:
             self._arguments = GOKernelArguments(None, None)  # for pyreverse
 
@@ -261,6 +264,7 @@ class GOKernelArguments(Arguments):
         as specified by the kernel argument metadata. This class ensures that
         initialisation is performed correctly. It also adds three '''
     def __init__(self, call, parent_call):
+        # pylint: disable=using-constant-test
         if False:
             self._0_to_n = GOKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)

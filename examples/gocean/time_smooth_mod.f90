@@ -20,15 +20,15 @@ module time_smooth_mod
   !! Presumably FE should be FD for us and maybe CELLS 
   !! should be COLUMNS?
   TYPE, EXTENDS(kernel_type) :: time_smooth
-     TYPE(arg), DIMENSION(3) :: meta_args = &
-          (/ arg(READ, EVERY, POINTWISE),     &
-             arg(READ, EVERY, POINTWISE),     &
-             arg(READWRITE , EVERY, POINTWISE)      &
+     TYPE(go_arg), DIMENSION(3) :: meta_args = &
+          (/ go_arg(GO_READ, GO_EVERY, GO_POINTWISE),     &
+             go_arg(GO_READ, GO_EVERY, GO_POINTWISE),     &
+             go_arg(GO_READWRITE , GO_EVERY, GO_POINTWISE)      &
            /)
 
      !> This kernel writes only to internal points of the
      !! simulation domain.
-     INTEGER :: ITERATES_OVER = INTERNAL_PTS
+     INTEGER :: ITERATES_OVER = GO_INTERNAL_PTS
   
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -36,7 +36,7 @@ module time_smooth_mod
      !! which grid-point types have the same (i,j) index as a T
      !! point. This kernel is independent of this choice (because it
      !! acts in time rather than space).
-     integer :: index_offset = OFFSET_ANY
+     integer :: index_offset = GO_OFFSET_ANY
 
   CONTAINS
     procedure, nopass :: code => time_smooth_code

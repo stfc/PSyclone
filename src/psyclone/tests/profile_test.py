@@ -87,12 +87,12 @@ def test_profile_basic(capsys):
     correct = (
         '''{0}[invoke='invoke_0',Constant loop bounds=True]
     {3}
-        {1}[type='outer',field_space='cv',it_space='internal_pts']
-            {1}[type='inner',field_space='cv',it_space='internal_pts']
+        {1}[type='outer',field_space='go_cv',it_space='go_internal_pts']
+            {1}[type='inner',field_space='go_cv',it_space='go_internal_pts']
                 {2} compute_cv_code(cv_fld,p_fld,v_fld) '''
         '''[module_inline=False]
-        {1}[type='outer',field_space='ct',it_space='all_pts']
-            {1}[type='inner',field_space='ct',it_space='all_pts']
+        {1}[type='outer',field_space='go_ct',it_space='go_all_pts']
+            {1}[type='inner',field_space='go_ct',it_space='go_all_pts']
                 {2} bc_ssh_code(ncycle,p_fld,tmask) '''
         '''[module_inline=False]'''.format(coloured_schedule, coloured_loop,
                                            coloured_kern, coloured_profile)

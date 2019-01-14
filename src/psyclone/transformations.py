@@ -923,13 +923,18 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
 
     def apply(self, node):
 
-        ''' Perform Dynamo specific loop validity checks then call the
+        '''Perform Dynamo specific loop validity checks then call the
         :py:meth:`~OMPParallelLoopTrans.apply` method of the
-        :py:class:`base class <OMPParallelLoopTrans>`. '''
-        OMPParallelLoopTrans._validate(self, node)
+        :py:class:`base class <OMPParallelLoopTrans>`.
 
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node)
+        :param node: the Node in the Schedule to check
+        :type node: :py:class:`psyclone.psyGen.Node`
+
+        :raise TransformationError: if the associated loop requires \
+        colouring.
+
+        '''
+        OMPParallelLoopTrans._validate(self, node)
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous then we don't
@@ -1028,9 +1033,6 @@ class Dynamo0p3OMPLoopTrans(OMPLoopTrans):
                 "Error in {0} transformation. The kernel has an argument"
                 " with INC access. Colouring is required.".
                 format(self.name))
-
-        # Check that we don't have an inter-grid kernel
-        check_intergrid(node)
 
         return OMPLoopTrans.apply(self, node, reprod=reprod)
 
@@ -1614,7 +1616,7 @@ class GOConstLoopBoundsTrans(Transformation):
     generates code like:
     ::
 
-      ny = my_field%grid%simulation_domain%ystop
+      ny = my_field%grid%subdomain%internal%ystop
       ...
       DO j = 1, ny-1
 
@@ -2444,6 +2446,8 @@ class ACCRoutineTrans(Transformation):
         :raises TransformationError: if we fail to find the subroutine \
                                      corresponding to the kernel object.
         '''
+        # pylint: disable=too-many-locals
+
         from fparser.two.Fortran2003 import Subroutine_Subprogram, \
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
@@ -2473,7 +2477,7 @@ class ACCRoutineTrans(Transformation):
         spec = walk_ast(kern_sub.content, [Specification_Part])[0]
         idx = 0
         for idx, node in enumerate(spec.content):
-            if not (isinstance(node, (Implicit_Part, Type_Declaration_Stmt))):
+            if not isinstance(node, (Implicit_Part, Type_Declaration_Stmt)):
                 break
         # Create the directive and insert it
         cmt = Comment(FortranStringReader("!$acc routine",

@@ -12,15 +12,15 @@ module compute_h_mod
   public compute_h, compute_h_code
 
   type, extends(kernel_type) :: compute_h
-     type(arg), dimension(4) :: meta_args =    &
-          (/ arg(WRITE, CT, POINTWISE),        & ! h
-             arg(READ,  CT, POINTWISE),        & ! p
-             arg(READ,  CU, POINTWISE),        & ! u
-             arg(READ,  CV, POINTWISE)         & ! v
+     type(go_arg), dimension(4) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),        & ! h
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
+             go_arg(GO_READ,  GO_CU, GO_POINTWISE),        & ! u
+             go_arg(GO_READ,  GO_CV, GO_POINTWISE)         & ! v
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.
-     integer :: ITERATES_OVER = INTERNAL_PTS
+     integer :: ITERATES_OVER = GO_INTERNAL_PTS
 
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -29,7 +29,7 @@ module compute_h_mod
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_h_code
