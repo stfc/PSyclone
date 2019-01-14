@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2939,6 +2939,18 @@ class DynInvoke(Invoke):
                 return True
         return False
 
+    @property
+    def iterate_over_dofs_only(self):
+        '''
+        :returns: whether or not this Invoke consists only of kernels that \
+                  iterate over DoFs.
+        :rtype: bool
+        '''
+        for kern_call in self.schedule.calls():
+            if kern_call.iterates_over == "cells":
+                return False
+        return True
+
     def field_on_space(self, func_space):
         ''' If a field exists on this space for any kernel in this
         invoke then return that field. Otherwise return None. '''
@@ -2961,6 +2973,9 @@ class DynInvoke(Invoke):
         '''
         from psyclone.f2pygen import SubroutineGen, TypeDeclGen, AssignGen, \
             DeclGen, CommentGen
+        # Does this Invoke contain only kernels that iterate over dofs?
+        dofs_only = self.iterate_over_dofs_only
+
         # Create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
         # Create the subroutine
@@ -3098,10 +3113,13 @@ class DynInvoke(Invoke):
                             datatype="columnwise_operator_proxy_type",
                             entity_decls=cma_op_proxy_decs))
 
-        # Initialise the number of layers
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-        invoke_sub.add(CommentGen(invoke_sub, " Initialise number of layers"))
-        invoke_sub.add(CommentGen(invoke_sub, ""))
+        # Initialise the number of layers (if we are calling one or more
+        # kernels that iterate over cells)
+        if not dofs_only:
+            invoke_sub.add(CommentGen(invoke_sub, ""))
+            invoke_sub.add(CommentGen(invoke_sub,
+                                      " Initialise number of layers"))
+            invoke_sub.add(CommentGen(invoke_sub, ""))
 
         # Find the first argument that is not a scalar. Also, if there
         # any CMA operators as arguments then keep a reference to one
@@ -3118,17 +3136,20 @@ class DynInvoke(Invoke):
             raise GenerationError(
                 "Cannot create an Invoke with no field/operator arguments")
 
-        # Use our namespace manager to create a unique name unless
-        # the context and label match and in this case return the
-        # previous name
-        nlayers_name = self._name_space_manager.create_name(
-            root_name="nlayers", context="PSyVars", label="nlayers")
-        invoke_sub.add(
-            AssignGen(invoke_sub, lhs=nlayers_name,
-                      rhs=first_var.proxy_name_indexed + "%" +
-                      first_var.ref_name() + "%get_nlayers()"))
-        invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                               entity_decls=[nlayers_name]))
+        # We only need the number of layers in the mesh if we are calling
+        # one or more kernels that iterate over cells
+        if not dofs_only:
+            # Use our namespace manager to create a unique name unless
+            # the context and label match and in this case return the
+            # previous name
+            nlayers_name = self._name_space_manager.create_name(
+                root_name="nlayers", context="PSyVars", label="nlayers")
+            invoke_sub.add(
+                AssignGen(invoke_sub, lhs=nlayers_name,
+                          rhs=first_var.proxy_name_indexed + "%" +
+                          first_var.ref_name() + "%get_nlayers()"))
+            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
+                                   entity_decls=[nlayers_name]))
 
         # Initialise mesh object(s) and all related quantities for any
         # inter-grid kernels (number of fine cells per coarse cell etc.)
@@ -3178,8 +3199,8 @@ class DynInvoke(Invoke):
         self.cma_ops.initialise_cma_ops(invoke_sub)
 
         var_list = []
-        # loop over all unique function spaces used by the kernels in this
-        # invoke
+        # loop over all unique function spaces used by the kernels in
+        # this invoke
         for function_space in self.unique_fss():
             # Initialise information associated with this function space
             invoke_sub.add(CommentGen(invoke_sub, ""))
@@ -3192,22 +3213,27 @@ class DynInvoke(Invoke):
             name = arg.proxy_name_indexed
             # initialise ndf for this function space and add name to
             # list to declare later
-            ndf_name = get_fs_ndf_name(function_space)
-            var_list.append(ndf_name)
-            invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
-                                     rhs=name +
-                                     "%" + arg.ref_name(function_space) +
-                                     "%get_ndf()"))
-            # if there is a field on this space then initialise undf
+            if not dofs_only:
+                ndf_name = get_fs_ndf_name(function_space)
+                var_list.append(ndf_name)
+                invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
+                                         rhs=name +
+                                         "%" + arg.ref_name(function_space) +
+                                         "%get_ndf()"))
+            # If there is a field on this space then initialise undf
             # for this function space and add name to list to declare
-            # later
-            if self.field_on_space(function_space):
-                undf_name = get_fs_undf_name(function_space)
-                var_list.append(undf_name)
-                invoke_sub.add(AssignGen(invoke_sub, lhs=undf_name,
-                                         rhs=name + "%" +
-                                         arg.ref_name(function_space) +
-                                         "%get_undf()"))
+            # later. However, if the invoke contains only kernels that iterate
+            # over dofs and distributed memory is enabled then the
+            # number of dofs is obtained from the field proxy and undf is
+            # not required.
+            if not (dofs_only and Config.get().distributed_memory):
+                if self.field_on_space(function_space):
+                    undf_name = get_fs_undf_name(function_space)
+                    var_list.append(undf_name)
+                    invoke_sub.add(AssignGen(invoke_sub, lhs=undf_name,
+                                             rhs=name + "%" +
+                                             arg.ref_name(function_space) +
+                                             "%get_undf()"))
         if var_list:
             # declare ndf and undf for all function spaces
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
