@@ -3995,10 +3995,9 @@ class fparser2ASTProcessor(object):
             else:
                 if psy_child:
                     self.nodes_to_code_block(parent, code_block_nodes)
-                    # and then connect new PSyIRe child to AST
                     parent.addchild(psy_child)
                 # If psy_child is not initialized but it didn't produce a
-                # NotImplementedError, it means it can be ignored.
+                # NotImplementedError, it means it is safe to ignore it.
 
         # Complete any unfinished code-block
         self.nodes_to_code_block(parent, code_block_nodes)
@@ -4019,7 +4018,8 @@ class fparser2ASTProcessor(object):
         handler = self.handlers.get(type(child))
         if handler is None:
             # If handler not found directly, check with the base class.
-            handler = self.handlers.get(type(child).__bases__[0])
+            generic_type = type(child).__bases__[0]
+            handler = self.handlers.get(generic_type)
             if not handler:
                 raise NotImplementedError()
         return handler(child, parent)
@@ -4295,7 +4295,7 @@ class Reference(Node):
 
 class BinaryOperation(Node):
     '''
-    Node representing a BinaryOperator expression. As such it has two operants
+    Node representing a BinaryOperator expression. As such it has two operands
     as children 0 and 1, and a attribute with the operator type.
 
     :param ast: node in the fparser2 AST representing the binary operator.
