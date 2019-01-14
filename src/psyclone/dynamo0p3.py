@@ -2458,8 +2458,11 @@ class DynInvokeBasisFns(object):
         of the supplied parent node in the AST.
 
         :param parent: the node in the f2pygen AST that will be the
-                       parent of all of the declarations and assignments
+                       parent of all of the declarations and assignments.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if an invalid entry is encountered in the \
+                               self._basis_fns list.
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, \
             AllocateGen, UseGen
@@ -2519,13 +2522,21 @@ class DynInvokeBasisFns(object):
         # Loop over the list of dicts describing each basis function
         # required by this Invoke.
         for basis_fn in self._basis_fns:
-            # Get the extent of the first dimension of the basis array
+            # Get the extent of the first dimension of the basis array and
+            # store whether we have a basis or a differential basis function
             if basis_fn['type'] == "basis":
                 first_dim = basis_first_dim_name(basis_fn["fspace"])
                 dim_space = "get_dim_space()"
-            else:
+                is_diff_basis = False
+            elif basis_fn['type'] == "diff-basis":
                 first_dim = diff_basis_first_dim_name(basis_fn["fspace"])
                 dim_space = "get_dim_space_diff()"
+                is_diff_basis = True
+            else:
+                raise InternalError(
+                    "Unrecognised type of basis function: '{0}'. Should be "
+                    "either 'basis' or 'diff-basis'.".format(basis_fn['type']))
+
             if first_dim not in var_dim_list:
                 var_dim_list.append(first_dim)
                 rhs = "%".join([basis_fn["arg"].proxy_name_indexed,
@@ -2534,12 +2545,13 @@ class DynInvokeBasisFns(object):
                 parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
 
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
-                if basis_fn["type"] == "basis":
-                    op_name = get_fs_operator_name("gh_basis",
+
+                if is_diff_basis:
+                    op_name = get_fs_operator_name("gh_diff_basis",
                                                    basis_fn["fspace"],
                                                    qr_var=basis_fn["qr_var"])
                 else:
-                    op_name = get_fs_operator_name("gh_diff_basis",
+                    op_name = get_fs_operator_name("gh_basis",
                                                    basis_fn["fspace"],
                                                    qr_var=basis_fn["qr_var"])
                 if op_name in op_name_list:
@@ -2558,18 +2570,19 @@ class DynInvokeBasisFns(object):
                 # many dimensions this array has.
                 basis_declarations.append(
                     op_name+"("+",".join([":"]*len(alloc_args))+")")
-            else:
+
+            elif basis_fn["shape"].lower() == "gh_evaluator":
                 # This is an evaluator and thus may be required on more than
                 # one function space
                 for target_space in basis_fn["nodal_fspaces"]:
-                    if basis_fn["type"] == "basis":
+                    if is_diff_basis:
                         op_name = get_fs_operator_name(
-                            "gh_basis", basis_fn["fspace"],
+                            "gh_diff_basis", basis_fn["fspace"],
                             qr_var=basis_fn["qr_var"],
                             on_space=target_space)
                     else:
                         op_name = get_fs_operator_name(
-                            "gh_diff_basis", basis_fn["fspace"],
+                            "gh_basis", basis_fn["fspace"],
                             qr_var=basis_fn["qr_var"],
                             on_space=target_space)
                     if op_name in op_name_list:
@@ -2586,6 +2599,10 @@ class DynInvokeBasisFns(object):
                                            op_name+"("+alloc_args_str+")"))
                     # add basis function variable to list to declare later
                     basis_declarations.append(op_name+"(:,:,:)")
+            else:
+                raise InternalError(
+                    "Unrecognised evaluator shape: '{0}'. Should be one of "
+                    "{1}".format(basis_fn["shape"], VALID_EVALUATOR_SHAPES))
 
         if var_dim_list:
             # declare dim and diff_dim for all function spaces
