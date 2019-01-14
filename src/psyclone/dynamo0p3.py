@@ -940,7 +940,7 @@ class DynKernMetadata(KernelType):
         # has been supplied. This lists the function spaces for which
         # any evaluators (gh_shape=gh_evaluator) should be provided.
         _targets = self.get_integer_array('gh_evaluator_targets')
-        if not _targets and self._eval_shape == "gh_evaluator":
+        if not _targets and self._eval_shape.lower() == "gh_evaluator":
             # Use the FS of the kernel arguments that are updated
             write_args = psyGen.args_filter(self._arg_descriptors,
                                             arg_accesses=GH_WRITE_ACCESSES)
@@ -2284,6 +2284,8 @@ class DynInvokeBasisFns(object):
                      information on all required basis/diff-basis functions.
     :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
 
+    :raises InternalError: if a call in the supplied Schedule has an \
+                           unrecognised evaluator shape.
     '''
     def __init__(self, schedule):
         self._name_space_manager = NameSpaceFactory().create()
@@ -2321,7 +2323,7 @@ class DynInvokeBasisFns(object):
                     # have this shape
                     self._qr_vars[call.eval_shape].append(call.qr_name)
 
-            elif call.eval_shape == "gh_evaluator":
+            elif call.eval_shape.lower() == "gh_evaluator":
                 # An evaluator consists of basis or diff basis functions
                 # for one FS evaluated on the nodes of another 'target' FS.
                 # Make a dict of 2-tuples, each containing the FunctionSpace
@@ -2342,50 +2344,76 @@ class DynInvokeBasisFns(object):
                                         VALID_EVALUATOR_SHAPES))
 
             # Both quadrature and evaluators require basis and/or differential
-            # basis functions. We need a full FunctionSpace object for
-            # each function space that has basis functions associated with it.
-            for fsd in call.fs_descriptors.descriptors:
+            # basis functions. This helper routine populates self._basis_fns
+            # with entries describing the basis functions required by
+            # this call.
+            self._setup_basis_fns_for_call(call)
 
-                # We need the full FS object, not just the name. Therefore
-                # we first have to get a kernel argument that is on this
-                # space...
-                arg, fspace = call.arguments.get_arg_on_space_name(fsd.fs_name)
+    def _setup_basis_fns_for_call(self, call):
+        '''
+        Populates self._basis_fns with entries describing the basis
+        functions required by the supplied Call.
 
-                # Populate a dict with the shape, function space and
-                # associated kernel argument for this basis/diff-basis f'n.
-                entry = {"shape": call.eval_shape,
-                         "fspace": fspace,
-                         "arg": arg}
-                if call.eval_shape in VALID_QUADRATURE_SHAPES:
-                    # This is for quadrature - store the name of the
-                    # qr variable
-                    entry["qr_var"] = call.qr_name
-                    # Quadrature are evaluated at pre-determined
-                    # points rather than at the nodes of another FS.
-                    # We put one entry of None in the list of target
-                    # spaces to facilitate cases where we loop over
-                    # this list.
-                    entry["nodal_fspaces"] = [None]
-                else:
-                    # This is an evaluator
-                    entry["qr_var"] = None
-                    # Store a list of the FunctionSpace objects for which
-                    # these basis functions are to be evaluated
-                    entry["nodal_fspaces"] = [items[0] for items in
-                                              call.eval_targets.values()]
-                # Add our newly-constructed dict object to the list describing
-                # the required basis and/or differential basis functions for
-                # this Invoke.
-                if fsd.requires_basis:
-                    entry["type"] = "basis"
-                    self._basis_fns.append(entry)
-                if fsd.requires_diff_basis:
-                    # Take a shallow copy of the dict and just modify the
-                    # 'type' of the basis function it describes (this works
-                    # because the 'type' entry is a primitive type [str]).
-                    diff_entry = entry.copy()
-                    diff_entry["type"] = "diff-basis"
-                    self._basis_fns.append(diff_entry)
+        :param call: the kernel call for which basis functions are required.
+        :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+
+        :raises InternalError: if the supplied call is of incorrect type.
+        :raises InternalError: if the supplied call has an unrecognised \
+                               evaluator shape.
+        '''
+        if not isinstance(call, DynKern):
+            raise InternalError("Expected a DynKern object but got: '{0}'".
+                                format(type(call)))
+        # We need a full FunctionSpace object for each function space
+        # that has basis functions associated with it.
+        for fsd in call.fs_descriptors.descriptors:
+
+            # We need the full FS object, not just the name. Therefore
+            # we first have to get a kernel argument that is on this
+            # space...
+            arg, fspace = call.arguments.get_arg_on_space_name(fsd.fs_name)
+
+            # Populate a dict with the shape, function space and
+            # associated kernel argument for this basis/diff-basis f'n.
+            entry = {"shape": call.eval_shape,
+                     "fspace": fspace,
+                     "arg": arg}
+            if call.eval_shape in VALID_QUADRATURE_SHAPES:
+                # This is for quadrature - store the name of the
+                # qr variable
+                entry["qr_var"] = call.qr_name
+                # Quadrature are evaluated at pre-determined
+                # points rather than at the nodes of another FS.
+                # We put one entry of None in the list of target
+                # spaces to facilitate cases where we loop over
+                # this list.
+                entry["nodal_fspaces"] = [None]
+            elif call.eval_shape.lower() == "gh_evaluator":
+                # This is an evaluator
+                entry["qr_var"] = None
+                # Store a list of the FunctionSpace objects for which
+                # these basis functions are to be evaluated
+                entry["nodal_fspaces"] = [items[0] for items in
+                                          call.eval_targets.values()]
+            else:
+                raise InternalError("Unrecognised evaluator shape: '{0}'. "
+                                    "Should be one of {1}".format(
+                                        call.eval_shape,
+                                        VALID_EVALUATOR_SHAPES))
+
+            # Add our newly-constructed dict object to the list describing
+            # the required basis and/or differential basis functions for
+            # this Invoke.
+            if fsd.requires_basis:
+                entry["type"] = "basis"
+                self._basis_fns.append(entry)
+            if fsd.requires_diff_basis:
+                # Take a shallow copy of the dict and just modify the
+                # 'type' of the basis function it describes (this works
+                # because the 'type' entry is a primitive type [str]).
+                diff_entry = entry.copy()
+                diff_entry["type"] = "diff-basis"
+                self._basis_fns.append(diff_entry)
 
     def declare_qr(self, parent):
         '''

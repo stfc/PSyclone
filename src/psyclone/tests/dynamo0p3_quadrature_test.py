@@ -44,7 +44,7 @@ import pytest
 from fparser import api as fpapi
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynInvokeBasisFns
 from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
@@ -275,10 +275,29 @@ def test_dyninvokebasisfns(monkeypatch):
     # a shape it doesn't recognise
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].children[0]
-    assert isinstance(call, dynamo0p3.DynKern)
+    assert isinstance(call, DynKern)
     monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
     with pytest.raises(InternalError) as err:
-        _ = dynamo0p3.DynInvokeBasisFns(sched)
+        _ = DynInvokeBasisFns(sched)
+    assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err)
+
+
+def test_dyninvokebasisfns_setup(monkeypatch):
+    ''' Check that DynInvokeBasisFns._setup_basis_fns_for_call() raises an
+     internal error if an unrecognised evaluator shape is encountered. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.0_single_invoke_xyoz_qr.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    call = sched.children[0].children[0]
+    assert isinstance(call, DynKern)
+    dinf = DynInvokeBasisFns(sched)
+    # Now we've created a DynInvokeBasisFns object, monkeypatch the call
+    # to have the wrong shape and try and call setup_basis_fns_for_call()
+    monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
+    with pytest.raises(InternalError) as err:
+        dinf._setup_basis_fns_for_call(call)
     assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err)
 
 
