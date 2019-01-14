@@ -390,7 +390,6 @@ def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
             "      END DO")
         assert output in code
     else:
-        mesh_code_present("f3", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -449,7 +448,6 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
             "      END DO \n")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -519,7 +517,6 @@ def test_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
     else:
-        mesh_code_present("f3", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -590,7 +587,6 @@ def test_inc_aX_plus_Y(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -661,7 +657,6 @@ def test_inc_X_plus_bY(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -733,7 +728,6 @@ def test_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
     else:
-        mesh_code_present("f3", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -805,7 +799,6 @@ def test_inc_aX_plus_bY(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -868,7 +861,6 @@ def test_X_minus_Y(monkeypatch, annexed, dist_mem):
             "      END DO")
         assert output in code
     else:
-        mesh_code_present("f3", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -927,7 +919,6 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
             "      END DO \n")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -996,7 +987,6 @@ def test_aX_minus_Y(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
     else:
-        mesh_code_present("f3", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1068,7 +1058,6 @@ def test_X_minus_bY(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
     else:
-        mesh_code_present("f3", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1139,7 +1128,6 @@ def test_inc_X_minus_bY(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1211,7 +1199,6 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
             "      END DO \n")
         assert output in code
     else:
-        mesh_code_present("f3", code)
         output = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -1268,7 +1255,6 @@ def test_inc_X_times_Y(monkeypatch, annexed, dist_mem):
             "      END DO")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1339,7 +1325,6 @@ def test_inc_aX_times_Y(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1401,7 +1386,6 @@ def test_a_times_X(monkeypatch, annexed, dist_mem):
             "      END DO")
         assert output in code
     else:
-        mesh_code_present("f2", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1476,7 +1460,6 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
             "      END DO \n"
             "      !\n")
     else:
-        mesh_code_present("f1", code)
         output = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -1535,7 +1518,6 @@ def test_X_divideby_Y(monkeypatch, annexed, dist_mem):
             "      END DO")
         assert output in code
     else:
-        mesh_code_present("f3", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1593,7 +1575,6 @@ def test_inc_X_divideby_Y(monkeypatch, annexed, dist_mem):
             "      END DO")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1652,7 +1633,6 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
             "      END DO \n"
             "      !\n")
     else:
-        mesh_code_present("f1", code)
         output = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -1710,7 +1690,6 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
             "      END DO \n"
             "      !\n")
     else:
-        mesh_code_present("f1", code)
         output = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -1775,7 +1754,6 @@ def test_setval_c(monkeypatch, annexed, dist_mem):
             "      END DO")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1840,7 +1818,6 @@ def test_setval_X(monkeypatch, annexed, dist_mem):
             "      END DO")
         assert output in code
     else:
-        mesh_code_present("f2", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1909,7 +1886,6 @@ def test_X_innerproduct_Y(dist_mem):
             "      !\n")
         assert output_seq in code
     else:
-        mesh_code_present("f1", code)
         output_dm = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -1976,7 +1952,6 @@ def test_X_innerproduct_X(dist_mem):
             "      !\n")
         assert output_seq in code
     else:
-        mesh_code_present("f1", code)
         output_dm = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -2041,7 +2016,6 @@ def test_sum_X(dist_mem):
             "      END DO ")
         assert output in code
     else:
-        mesh_code_present("f1", code)
         output = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -2152,7 +2126,6 @@ def test_builtin_set(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
         assert output_seq in code
 
     if dist_mem:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -2217,7 +2190,6 @@ def test_aX_plus_Y_by_value(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0")
         assert output in code
     if dist_mem:
-        mesh_code_present("f3", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -2283,7 +2255,6 @@ def test_aX_plus_bY_by_value(monkeypatch, annexed, dist_mem):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
     if dist_mem:
-        mesh_code_present("f3", code)
         output_dm_2 = (
             "      !\n"
             "      ! Call kernels and communication routines\n"
@@ -2363,7 +2334,6 @@ def test_multiple_builtin_set(monkeypatch, annexed, dist_mem):
             "      END DO \n")
         assert output in code
     if dist_mem:
-        mesh_code_present("f1", code)
         output_dm_2 = (
             "      ! Call kernels and communication routines\n"
             "      !\n"
@@ -2521,22 +2491,16 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
         assert(
             "    SUBROUTINE invoke_0(asum, f1, f2, b)\n"
             "      USE scalar_mod, ONLY: scalar_type\n"
-            "      USE mesh_mod, ONLY: mesh_type\n"
             "      REAL(KIND=r_def), intent(out) :: asum\n"
             "      REAL(KIND=r_def), intent(in) :: b\n"
             "      TYPE(field_type), intent(inout) :: f1\n"
             "      TYPE(field_type), intent(in) :: f2\n"
             "      TYPE(scalar_type) global_sum\n"
             "      INTEGER df\n"
-            "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
-            "      TYPE(mesh_type), pointer :: mesh => null()\n") in code
+            "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n") in code
         assert (
             "      f1_proxy = f1%get_proxy()\n"
             "      f2_proxy = f2%get_proxy()\n"
-            "      !\n"
-            "      ! Create a mesh object\n"
-            "      !\n"
-            "      mesh => f1%get_mesh()\n"
             "      !\n") in code
         output = (
             "      asum = 0.0_r_def\n"

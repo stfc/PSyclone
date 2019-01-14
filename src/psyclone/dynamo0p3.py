@@ -1871,15 +1871,15 @@ class DynMeshes(object):
     is "restriction" where a field on a fine mesh is mapped onto a coarse
     mesh.
 
-    :param schedule: the schedule of the Invoke for which to extract \
-                     information on all required inter-grid operations.
-    :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+    :param invoke: the Invoke for which to extract information on all \
+                   required inter-grid operations.
+    :type invoke: :py:class:`psyclone.dynamo0p3.DynInvoke`
     :param unique_psy_vars: list of arguments to the PSy-layer routine.
     :type unique_psy_vars: list of \
                       :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects.
     '''
 
-    def __init__(self, schedule, unique_psy_vars):
+    def __init__(self, invoke, unique_psy_vars):
         self._name_space_manager = NameSpaceFactory().create()
         # Dict of DynInterGrid objects holding information on the mesh-related
         # variables required by each inter-grid kernel. Keys are the kernel
@@ -1891,7 +1891,7 @@ class DynMeshes(object):
         self._needs_colourmap = False
         # Keep a reference to the Schedule so we can check for colouring
         # later
-        self._schedule = schedule
+        self._schedule = invoke.schedule
 
         # Set used to generate a list of the unique mesh objects
         _name_set = set()
@@ -1909,7 +1909,7 @@ class DynMeshes(object):
         # any non-intergrid kernels so that we can generate a verbose error
         # message if necessary.
         non_intergrid_kernels = []
-        for call in schedule.kern_calls():
+        for call in self._schedule.kern_calls():
 
             if not call.is_intergrid:
                 non_intergrid_kernels.append(call)
@@ -1947,14 +1947,17 @@ class DynMeshes(object):
                 "other kernel types but kernels '{0}' in invoke '{1}' are "
                 "not inter-grid kernels.".format(
                     ", ".join([call.name for call in non_intergrid_kernels]),
-                    schedule.invoke.name))
+                    invoke.name))
 
         # If we didn't have any inter-grid kernels but distributed memory
-        # is enabled then we will still need a mesh object. (Colourmaps also
+        # is enabled then we will still need a mesh object if we have one or
+        # more kernels that iterate over cells. (Colourmaps also
         # require a mesh object but that is handled in _colourmap_init().)
-        if not _name_set and Config.get().distributed_memory:
-            _name_set.add(self._name_space_manager.create_name(
-                root_name="mesh", context="PSyVars", label="mesh"))
+        if not _name_set:
+            if (Config.get().distributed_memory and
+                not invoke.iterate_over_dofs_only):
+                _name_set.add(self._name_space_manager.create_name(
+                    root_name="mesh", context="PSyVars", label="mesh"))
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
@@ -2838,7 +2841,7 @@ class DynInvoke(Invoke):
 
         # Initialise the object holding all information related to meshes
         # and inter-grid operations
-        self.meshes = DynMeshes(self.schedule, self.psy_unique_vars)
+        self.meshes = DynMeshes(self, self.psy_unique_vars)
 
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -3203,11 +3206,12 @@ class DynInvoke(Invoke):
         # this invoke
         for function_space in self.unique_fss():
             # Initialise information associated with this function space
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(
-                CommentGen(invoke_sub, " Initialise number of DoFs for " +
-                           function_space.mangled_name))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
+            if not dofs_only or not Config.get().distributed_memory:
+                invoke_sub.add(CommentGen(invoke_sub, ""))
+                invoke_sub.add(
+                    CommentGen(invoke_sub, " Initialise number of DoFs for " +
+                               function_space.mangled_name))
+                invoke_sub.add(CommentGen(invoke_sub, ""))
             # Find an argument on this space to use to dereference
             arg = self.arg_for_funcspace(function_space)
             name = arg.proxy_name_indexed
