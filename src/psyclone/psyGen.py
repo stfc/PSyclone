@@ -4019,11 +4019,12 @@ class fparser2ASTProcessor(object):
         '''
         handler = self.handlers.get(type(child))
         if handler is None:
-            # If the handler is not found directly then check with the first
-            # level parent class. This is done to simplify the handlers map
-            # when multiple fparser2 types can be processed with the same
-            # handler. (e.g. Subclasses of BianryOpBase: Mult_Operand,
-            # Add_Operand, Level_2_Expr, ... can use the same handler.)
+            # If the handler is not found then check with the first
+            # level parent class. This is done to simplify the
+            # handlers map when multiple fparser2 types can be
+            # processed with the same handler. (e.g. Subclasses of
+            # BinaryOpBase: Mult_Operand, Add_Operand, Level_2_Expr,
+            # ... can use the same handler.)
             generic_type = type(child).__bases__[0]
             handler = self.handlers.get(generic_type)
             if not handler:
