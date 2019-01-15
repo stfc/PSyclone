@@ -4012,12 +4012,18 @@ class fparser2ASTProcessor(object):
         :type parent: :py:class:`psyclone.psyGen.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
                 child type.
-        :return: Returns the PSyIRe representation of child.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :return: Returns the PSyIRe representation of child, which can be a
+                 single node, a tree of nodes or None if the child can be
+                 ignored.
+        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
         '''
         handler = self.handlers.get(type(child))
         if handler is None:
-            # If handler not found directly, check with the base class.
+            # If the handler is not found directly then check with the first
+            # level parent class. This is done to simplify the handlers map
+            # when multiple fparser2 types can be processed with the same
+            # handler. (e.g. Subclasses of BianryOpBase: Mult_Operand,
+            # Add_Operand, Level_2_Expr, ... can use the same handler.)
             generic_type = type(child).__bases__[0]
             handler = self.handlers.get(generic_type)
             if not handler:
