@@ -58,8 +58,10 @@ from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
 from psyclone.parse import parse, InvokeCall
-from psyclone.transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
+from psyclone.transformations import OMPParallelLoopTrans, \
+    DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
 from psyclone.generator import generate
+from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -1211,10 +1213,16 @@ def test_argument_forward_read_dependencies():
     assert f2_write.forward_read_dependencies() == []
 
 
-def test_argument_forward_dependence():
+def test_argument_forward_dependence(monkeypatch, annexed):
     '''Check that forward_dependence method returns the first dependent
     argument after the current Node in the schedule or None if none
-    are found.'''
+    are found. We also test when annexed is False and True as it
+    affects how many halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1237,9 +1245,13 @@ def test_argument_forward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
-    f2_halo_field = schedule.children[8].field
-    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
+    if annexed:
+        index = 7
+    else:
+        index = 8
+    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[index].field
+    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
     # a) previous kern arg depends on halo arg
     result = f2_prev_arg.forward_dependence()
     assert result == f2_halo_field
@@ -1268,10 +1280,16 @@ def test_argument_forward_dependence():
     assert result == next_arg
 
 
-def test_argument_backward_dependence():
+def test_argument_backward_dependence(monkeypatch, annexed):
     '''Check that backward_dependence method returns the first dependent
     argument before the current Node in the schedule or None if none
-    are found.'''
+    are found. We also test when annexed is False and True as it
+    affects how many halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1294,9 +1312,13 @@ def test_argument_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
-    f2_halo_field = schedule.children[8].field
-    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
+    if annexed:
+        index = 7
+    else:
+        index = 8
+    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[index].field
+    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
     # a) following kern arg depends on halo arg
     result = f2_next_arg.backward_dependence()
     assert result == f2_halo_field
@@ -2082,14 +2104,18 @@ def test_find_write_arguments_for_write():
     assert node_list == []
 
 
-def test_find_w_args_hes_no_vec(monkeypatch):
+def test_find_w_args_hes_no_vec(monkeypatch, annexed):
     '''when backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the field must be a vector field. If the field is not a vector
     then an exception is raised. This test checks that the exception
-    is raised correctly.
+    is raised correctly. Also test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -2097,7 +2123,11 @@ def test_find_w_args_hes_no_vec(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 1)
     with pytest.raises(InternalError) as excinfo:
@@ -2106,14 +2136,19 @@ def test_find_w_args_hes_no_vec(monkeypatch):
             "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
 
 
-def test_find_w_args_hes_diff_vec(monkeypatch):
+def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
     '''when backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the associated fields must be equal size vectors . If the fields
     are not vectors of equal size then an exception is raised. This
-    test checks that the exception is raised correctly.
+    test checks that the exception is raised correctly. Also test with
+    and without annexed dofs being computed as this affects the
+    generated code.
 
     '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -2121,7 +2156,11 @@ def test_find_w_args_hes_diff_vec(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 2)
     with pytest.raises(InternalError) as excinfo:
@@ -2130,14 +2169,19 @@ def test_find_w_args_hes_diff_vec(monkeypatch):
             "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
 
 
-def test_find_w_args_hes_vec_idx(monkeypatch):
+def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
     '''when backward_write_dependencies, or forward_read_dependencies are
     called, and a dependence is found between two halo exchanges, then
     the vector indices of the two halo exchanges must be different. If
     the vector indices have the same value then an exception is
-    raised. This test checks that the exception is raised correctly.
+    raised. This test checks that the exception is raised
+    correctly. Also test with and without annexed dofs being computed
+    as this affects the generated code.
 
     '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -2145,9 +2189,13 @@ def test_find_w_args_hes_vec_idx(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
-    halo_exchange_d_v2 = schedule.children[4]
+    halo_exchange_d_v2 = schedule.children[index-1]
     monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
     with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
@@ -2228,11 +2276,18 @@ def test_check_vec_hes_differ_diff_names():
         "different field name 'm1' to self 'f2'" in str(excinfo.value))
 
 
-def test_find_w_args_multiple_deps_error():
+def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
     '''when _find_write_arguments finds a write that causes it to return
     there should not be any previous dependencies. This test checks
-    that an error is raised if this is not the case.
+    that an error is raised if this is not the case. We test with
+    annexed dofs is True and False as different numbers of halo
+    exchanges are created.
+
     '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
@@ -2241,8 +2296,16 @@ def test_find_w_args_multiple_deps_error():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    del schedule.children[4]
-    loop = schedule.children[6]
+    # create halo exchanges between the two loops via redundant
+    # computation
+    if annexed:
+        index = 1
+    else:
+        index = 4
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[index], depth=2)
+    del schedule.children[index]
+    loop = schedule.children[index+2]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[0]
     with pytest.raises(InternalError) as excinfo:
@@ -2252,12 +2315,18 @@ def test_find_w_args_multiple_deps_error():
         in str(excinfo.value))
 
 
-def test_find_write_arguments_no_more_nodes():
+def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
     '''when _find_write_arguments has looked through all nodes but has not
     returned it should mean that is has not found any write
     dependencies. This test checks that an error is raised if this is
-    not the case.
+    not the case. We test with and without computing annexed dofs as
+    different numbers of halo exchanges are created.
+
     '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
@@ -2266,8 +2335,12 @@ def test_find_write_arguments_no_more_nodes():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    del schedule.children[3]
-    loop = schedule.children[5]
+    if annexed:
+        index = 3
+    else:
+        index = 4
+    del schedule.children[index]
+    loop = schedule.children[index+1]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[5]
     with pytest.raises(InternalError) as excinfo:
@@ -2277,12 +2350,18 @@ def test_find_write_arguments_no_more_nodes():
         in str(excinfo.value))
 
 
-def test_find_w_args_multiple_deps():
+def test_find_w_args_multiple_deps(monkeypatch, annexed):
     '''_find_write_arguments should return as many halo exchange
     dependencies as the vector size of the associated field. This test
     checks that this is the case and that the returned objects are
-    what is expected.
+    what is expected. We test with annexed dofs is True and False as
+    different numbers of halo exchanges are created.
+
     '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
@@ -2291,7 +2370,15 @@ def test_find_w_args_multiple_deps():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop = schedule.children[7]
+    # create halo exchanges between the two loops via redundant
+    # computation
+    if annexed:
+        index = 1
+    else:
+        index = 4
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[index], depth=2)
+    loop = schedule.children[index+3]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[0]
     vector_size = d_field.vector_size

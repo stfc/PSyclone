@@ -9,6 +9,7 @@ REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 
 [gocean1.0]
-iteration-spaces=offset_sw:ct:internal_we_halo:1:2:3:4
-                 offset_sw:ct:internal_ns_halo:{start}:{stop}:1:{stop}+1
-                 offset_sw:ct:north_east_corner:{start}-2:{start}-1:{stop}:{stop}+1
+iteration-spaces=go_offset_sw:go_ct:internal_we_halo:1:2:3:4
+                 go_offset_sw:go_ct:internal_ns_halo:{start}:{stop}:1:{stop}+1
+                 go_offset_sw:go_ct:n_halo:{start}:{start}:{start}:{stop}+1
+                 go_offset_sw:go_ct:north_east_corner:{start}-2:{start}-1:{stop}:{stop}+1
