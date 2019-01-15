@@ -751,7 +751,7 @@ def test_main_kern_output_no_dir(capsys):
     with pytest.raises(SystemExit) as err:
         main([alg_filename, '-okern', "/does/not/exist"])
     assert str(err.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     assert ("Specified kernel output directory (/does/not/exist) does not "
             "exist" in output)
 
@@ -770,7 +770,7 @@ def test_main_kern_output_no_write(tmpdir, capsys):
     with pytest.raises(SystemExit) as err:
         main([alg_filename, '-okern', str(new_dir)])
     assert str(err.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     assert ("Cannot write to specified kernel output directory ({0})".
             format(str(new_dir)) in output)
 

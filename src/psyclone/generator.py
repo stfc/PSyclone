@@ -324,11 +324,11 @@ def main(args):
     if args.okern:
         if not os.path.exists(args.okern):
             print("Specified kernel output directory ({0}) does not exist.".
-                  format(args.okern))
+                  format(args.okern), file=sys.stderr)
             exit(1)
         if not os.access(args.okern, os.W_OK):
             print("Cannot write to specified kernel output directory ({0}).".
-                  format(args.okern))
+                  format(args.okern), file=sys.stderr)
             exit(1)
         kern_out_path = args.okern
     else:
