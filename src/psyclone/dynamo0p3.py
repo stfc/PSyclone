@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -6103,7 +6103,7 @@ class KernCallArgList(ArgOrdering):
         '''
         :return: the kernel argument list. The generate function must be \
                  called first.
-        :rtype: List of str
+        :rtype: list of str.
 
         :raises GenerationError: if the argument list is empty.
         '''
