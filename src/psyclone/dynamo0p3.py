@@ -6471,7 +6471,7 @@ class KernStubArgList(ArgOrdering):
             # Need a basis array for each target space upon which the basis
             # functions have been evaluated. _kern.eval_targets is a dict
             # where the values are 2-tuples of (FunctionSpace, argument).
-            for space, target in self._kern.eval_targets.items():
+            for _, target in self._kern.eval_targets.items():
                 basis_name = get_fs_basis_name(function_space,
                                                on_space=target[0])
                 self._arglist.append(basis_name)
@@ -6539,7 +6539,7 @@ class KernStubArgList(ArgOrdering):
             # potentially for multiple target spaces. _kern.eval_targets is
             # a dict where the values are 2-tuples of
             # (FunctionSpace, argument).
-            for space, target in self._kern.eval_targets.items():
+            for _, target in self._kern.eval_targets.items():
                 diff_basis_name = get_fs_diff_basis_name(function_space,
                                                          on_space=target[0])
                 self._arglist.append(diff_basis_name)
