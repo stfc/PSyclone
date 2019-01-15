@@ -95,6 +95,17 @@ class Config(object):
     # option is specified nor is the API in the config file used.
     _default_api = u"dynamo0.3"
 
+    # The default scheme to use when (re)naming transformed kernels.
+    # By default we support multiple, different versions of any given
+    # kernel by ensuring that each transformed kernel is given a
+    # unique name (within the specified kernel-output directory).
+    # N.B. the default location to which to write transformed kernels is
+    # the current working directory. Since this may change between the
+    # importing of this module and the actual generation of code (e.g. as
+    # happens in the test suite), we do not store it here. Instead it
+    # is set in the Config.kernel_output_dir getter.
+    _default_kernel_naming = u"multiple"
+
     @staticmethod
     def get(do_not_load_file=False):
         '''Static function that if necessary creates and returns the singleton
@@ -151,6 +162,12 @@ class Config(object):
         # Padding size (number of array elements) to be used when
         # reproducible reductions are created.
         self._reprod_pad_size = None
+
+        # Where to write transformed kernels - set at runtime
+        self._kernel_output_dir = None
+
+        # The naming scheme to use for transformed kernels
+        self._kernel_naming = None
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
@@ -273,12 +290,10 @@ class Config(object):
                         "Config sub-class has been implemented for this API".
                         format(api))
 
-        # Where to write any transformed kernels (set at runtime)
-        self._kernel_output_dir = ""
         # The scheme to use when re-naming transformed kernels.
         # By default we ensure that each transformed kernel is given a
         # unique name (within the specified kernel-output directory).
-        self._kernel_naming = "multiple"
+        self._kernel_naming = Config._default_kernel_naming
 
     def api_conf(self, api):
         '''
@@ -482,7 +497,6 @@ class Config(object):
         '''
         if not self._kernel_output_dir:
             # We use the CWD if no directory has been specified
-            import os
             self._kernel_output_dir = os.getcwd()
         return self._kernel_output_dir
 
