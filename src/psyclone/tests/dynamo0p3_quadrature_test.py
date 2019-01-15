@@ -301,6 +301,27 @@ def test_dyninvokebasisfns_setup(monkeypatch):
     assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err)
 
 
+def test_dyninvokebasisfns_initialise(monkeypatch):
+    ''' Check that the DynInvokeBasisFns.initialise_basis_fns() method
+    raises the expected InternalErrors. '''
+    from psyclone.f2pygen import ModuleGen
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.0_single_invoke_xyoz_qr.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    call = sched.children[0].children[0]
+    assert isinstance(call, DynKern)
+    dinf = DynInvokeBasisFns(sched)
+    mod = ModuleGen(name="testmodule")
+    # Break the internal list of basis functions
+    monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
+    with pytest.raises(InternalError) as err:
+        dinf.initialise_basis_fns(mod)
+    assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
+            "either 'basis' or 'diff-basis'" in str(err))
+
+
 def test_dynkern_setup(monkeypatch):
     ''' Check that internal-consistency checks in DynKern._setup() work
     as expected '''
