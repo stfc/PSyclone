@@ -3914,7 +3914,7 @@ class IfClause(IfBlock):
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
 
-class fparser2ASTProcessor(object):
+class Fparser2ASTProcessor(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
     convert the nodes to PSyIRe.
@@ -3984,7 +3984,7 @@ class fparser2ASTProcessor(object):
         for child in nodes:
             # TODO remove this line once fparser2 contains parent
             # information (fparser/#102)
-            child._parent = nodes_parent  # Retro-fit parent info
+            child.parent = nodes_parent  # Retro-fit parent info
 
             try:
                 psy_child = self._create_child(child, parent)
@@ -4031,7 +4031,7 @@ class fparser2ASTProcessor(object):
                 raise NotImplementedError()
         return handler(child, parent)
 
-    def _ignore_handler(self, node, parent):
+    def _ignore_handler(self, node, parent):  # pylint: disable=unused-argument
         '''
         This handler returns None indicating that the associated
         fparser2 node can be ignored.

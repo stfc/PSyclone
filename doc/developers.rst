@@ -1355,15 +1355,15 @@ See `psyclone.transformations.ACCRoutineTrans` for an example of directly
 manipulating the fparser2 AST.
 
 When a translation to PSyIRe is needed, an ASTProcessor can be used.
-At the moment, `psyclone.psyGen.fparser2ASTProcessor` and its specialised
-version for Nemo `psyclone.nemo. Nemofparser2ASTProcessor` are available.
+At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
+version for Nemo `psyclone.nemo.NemoFparser2ASTProcessor` are available.
 (In the future we aim to have a generic ASTProcessor class, specialized
 for different language parsers: <parser>ASTProcessor, and specialized again
 for specific APIs when additional functionality is requiered
 <API><parser>ASTProcessor.)
 Each ASTProcessor is used with the `process_nodes` method:
 
-.. autoclass:: psyclone.psyGen.fparser2ASTProcessor
+.. autoclass:: psyclone.psyGen.Fparser2ASTProcessor
     :members:
 
 OpenACC Support

@@ -56,7 +56,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     BinaryOperation
-from psyclone.psyGen import fparser2ASTProcessor
+from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
@@ -2617,7 +2617,7 @@ def test_binaryoperation_can_be_printed():
     assert "BinaryOperation[operator:'+']\n" in str(binaryOp)
 
 
-# Test fparser2ASTProcessor
+# Test Fparser2ASTProcessor
 
 
 def test_fparser2astprocessor_handling_assignment_stmt():
@@ -2632,7 +2632,7 @@ def test_fparser2astprocessor_handling_assignment_stmt():
     fparser2assignment = Execution_Part.match(reader)[0][0]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2assignment], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
@@ -2653,7 +2653,7 @@ def test_fparser2astprocessor_handling_name():
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2name], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
@@ -2674,7 +2674,7 @@ def test_fparser2astprocessor_handling_parenthesis():
     fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2parenthesis], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
@@ -2695,7 +2695,7 @@ def test_fparser2astprocessor_handling_part_ref():
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
@@ -2729,7 +2729,7 @@ def test_fparser2astprocessor_handling_if_stmt():
     fparser2if_stmt = Execution_Part.match(reader)[0][0]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2if_stmt], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
@@ -2750,7 +2750,7 @@ def test_fparser2astprocessor_handling_numberbase():
     fparser2number = Execution_Part.match(reader)[0][0].items[2]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2number], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
@@ -2771,7 +2771,7 @@ def test_fparser2astprocessor_handling_binaryopbase():
     fparser2binaryOp = Execution_Part.match(reader)[0][0].items[2]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2binaryOp], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
@@ -2795,7 +2795,7 @@ def test_fparser2astprocessor_handling_end_do_stmt():
     fparser2enddo = Execution_Part.match(reader)[0][0].content[-1]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2enddo], None)
     assert len(fake_parent.children) == 0  # No new children created
 
@@ -2813,6 +2813,6 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt():
     fparser2endsub = Subroutine_Subprogram.match(reader)[0][-1]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2endsub], None)
     assert len(fake_parent.children) == 0  # No new children created
