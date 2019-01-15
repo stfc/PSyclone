@@ -3984,7 +3984,7 @@ class Fparser2ASTProcessor(object):
         for child in nodes:
             # TODO remove this line once fparser2 contains parent
             # information (fparser/#102)
-            child.parent = nodes_parent  # Retro-fit parent info
+            child._parent = nodes_parent  # Retro-fit parent info
 
             try:
                 psy_child = self._create_child(child, parent)
