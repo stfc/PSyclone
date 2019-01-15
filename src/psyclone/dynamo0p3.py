@@ -940,7 +940,8 @@ class DynKernMetadata(KernelType):
         # has been supplied. This lists the function spaces for which
         # any evaluators (gh_shape=gh_evaluator) should be provided.
         _targets = self.get_integer_array('gh_evaluator_targets')
-        if not _targets and self._eval_shape.lower() == "gh_evaluator":
+        if not _targets and \
+           self._eval_shape and self._eval_shape.lower() == "gh_evaluator":
             # Use the FS of the kernel arguments that are updated
             write_args = psyGen.args_filter(self._arg_descriptors,
                                             arg_accesses=GH_WRITE_ACCESSES)
