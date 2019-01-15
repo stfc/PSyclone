@@ -310,8 +310,6 @@ def test_dyninvokebasisfns_initialise(monkeypatch):
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    call = sched.children[0].children[0]
-    assert isinstance(call, DynKern)
     dinf = DynInvokeBasisFns(sched)
     mod = ModuleGen(name="testmodule")
     # Break the internal list of basis functions
@@ -320,6 +318,54 @@ def test_dyninvokebasisfns_initialise(monkeypatch):
         dinf.initialise_basis_fns(mod)
     assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
             "either 'basis' or 'diff-basis'" in str(err))
+
+
+def test_dyninvokebasisfns_compute(monkeypatch):
+    ''' Check that the DynInvokeBasisFns.compute_basis_fns() method
+    raises the expected InternalErrors if an unrecognised type or shape of
+    basis function is encountered. '''
+    from psyclone.f2pygen import ModuleGen
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.0_single_invoke_xyoz_qr.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    dinf = DynInvokeBasisFns(sched)
+    mod = ModuleGen(name="testmodule")
+    # First supply an invalid shape for one of the basis functions
+    dinf._basis_fns[0]["shape"] = "not-a-shape"
+    with pytest.raises(InternalError) as err:
+        dinf.compute_basis_fns(mod)
+    assert ("Unrecognised shape 'not-a-shape' specified for basis function. "
+            "Should be one of: ['gh_quadrature_xyoz', 'gh_evaluator']"
+            in str(err))
+    # Now supply an invalid type for one of the basis functions
+    monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
+    with pytest.raises(InternalError) as err:
+        dinf.compute_basis_fns(mod)
+    assert ("Unrecognised type of basis function: 'not-a-type'. Expected "
+            "one of 'basis' or 'diff-basis'" in str(err))
+
+
+def test_dyninvokebasisfns_dealloc(monkeypatch):
+    ''' Check that the DynInvokeBasisFns.deallocate() method
+    raises the expected InternalError if an unrecognised type of
+    basis function is encountered. '''
+    from psyclone.f2pygen import ModuleGen
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.1.0_single_invoke_xyoz_qr.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    call = sched.children[0].children[0]
+    assert isinstance(call, DynKern)
+    dinf = DynInvokeBasisFns(sched)
+    # Supply an invalid type for one of the basis functions
+    monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
+    with pytest.raises(InternalError) as err:
+        dinf.compute_basis_fns(mod)
+    assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
+            "one of 'basis' or 'diff-basis'" in str(err))
 
 
 def test_dynkern_setup(monkeypatch):
