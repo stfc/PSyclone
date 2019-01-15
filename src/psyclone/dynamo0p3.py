@@ -6426,6 +6426,11 @@ class KernStubArgList(ArgOrdering):
         :param function_space: the function space for which to provide
                                the basis functions
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+        :raises GenerationError: if function_space is not a recognised \
+                                 Function Space.
+        :raises GenerationError: if a quadrature other than XYoZ is required.
+        :raises InternalError: if the evaluator shape is not recognised.
         '''
         from psyclone.f2pygen import DeclGen
         # the size of the first dimension for a
@@ -6478,10 +6483,9 @@ class KernStubArgList(ArgOrdering):
                                          dimension=dim_list,
                                          entity_decls=[basis_name]))
         else:
-            raise GenerationError(
-                "Internal error: unrecognised evaluator shape ({0}). Expected "
-                "one of: {1}".format(self._kern.eval_shape,
-                                     VALID_EVALUATOR_SHAPES))
+            raise InternalError(
+                "Unrecognised evaluator shape ({0}). Expected one of: {1}".
+                format(self._kern.eval_shape, VALID_EVALUATOR_SHAPES))
 
     def diff_basis(self, function_space):
         '''

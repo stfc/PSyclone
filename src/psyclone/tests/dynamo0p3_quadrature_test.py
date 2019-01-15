@@ -360,11 +360,12 @@ def test_dyninvokebasisfns_dealloc(monkeypatch):
     call = sched.children[0].children[0]
     assert isinstance(call, DynKern)
     dinf = DynInvokeBasisFns(sched)
+    mod = ModuleGen(name="testmodule")
     # Supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
     with pytest.raises(InternalError) as err:
         dinf.compute_basis_fns(mod)
-    assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
+    assert ("Unrecognised type of basis function: 'not-a-type'. Expected "
             "one of 'basis' or 'diff-basis'" in str(err))
 
 
@@ -524,11 +525,10 @@ def test_stub_basis_wrong_shape(monkeypatch):
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shape",
                         value="gh_quadrature_wrong")
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
-    assert (
-        "Internal error: unrecognised evaluator shape (gh_quadrature_wrong)"
-        in str(excinfo))
+    assert ("Unrecognised evaluator shape (gh_quadrature_wrong)"
+            in str(excinfo))
     monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
