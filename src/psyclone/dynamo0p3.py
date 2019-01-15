@@ -6785,10 +6785,16 @@ class FSDescriptors(object):
     that provide information across these objects. We have one
     FSDescriptor for each meta-funcs entry in the kernel
     meta-data.
-    #TODO this should actually be named something like
+    #TODO #274 this should actually be named something like
     BasisFuncDescriptors as it holds information describing the
-    basis/diff-basis functions required by a kernel. '''
+    basis/diff-basis functions required by a kernel.
 
+    :param descriptors: list of objects describing the basis/diff-basis \
+                        functions required by a kernel, as obtained from \
+                        meta-data.
+    :type descriptors: list of :py:class:`psyclone.DynFuncDescriptor03`.
+
+    '''
     def __init__(self, descriptors):
         self._orig_descriptors = descriptors
         self._descriptors = []
