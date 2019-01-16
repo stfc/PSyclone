@@ -98,7 +98,7 @@ if __name__ == '__main__':
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={"": "src"},
-        install_requires=['pyparsing', 'fparser>=0.0.7', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.0.8', 'configparser',
                           'six'],
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],

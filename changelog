@@ -1,3 +1,8 @@
+	1) #245 and PR #247. Extend PSyIRe to support common kernel
+	constructs (e.g. asignments) and generalise ASTProcessor and
+	CodeBlocks.
+
+release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
 	attribute and initialisation in f2pygen (required for the OpenACC
@@ -79,6 +84,21 @@
         synchronous halo exchange into an asynchronous halo exchange.
 
 	24) #235 and PR #243. Removes dependency on Habakkuk in NEMO API.
+
+	25) #134 and PR #236. Adds support for adding OpenMP to intergrid
+	kernels.
+
+        26) #198 and PR #223. Updates PSyclone to use the latest
+        version of dl_esm_inf which has "GO_" prefixed to all public
+        quantities. Adds dl_esm_inf as a git submodule.
+
+        27) #158 and PR #253. Fix to remove unnecessary halo exchanges
+	related to GH_INC updates to kernel arguments.
+
+release 1.6.1 6th December 2018
+
+  	1) #250. Change setup.py (used for pip installation) to only use
+	version 0.0.7 of fparser.
 
 release 1.6.0 18th May 2018
 

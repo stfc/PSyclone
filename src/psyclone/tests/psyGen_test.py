@@ -56,13 +56,15 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
     BinaryOperation, KernelSchedule
-from psyclone.psyGen import fparser2ASTProcessor, IgnoredKeyError
+from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
 from psyclone.parse import parse, InvokeCall
-from psyclone.transformations import OMPParallelLoopTrans, DynamoLoopFuseTrans
+from psyclone.transformations import OMPParallelLoopTrans, \
+    DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
 from psyclone.generator import generate
+from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -1225,10 +1227,16 @@ def test_argument_forward_read_dependencies():
     assert f2_write.forward_read_dependencies() == []
 
 
-def test_argument_forward_dependence():
+def test_argument_forward_dependence(monkeypatch, annexed):
     '''Check that forward_dependence method returns the first dependent
     argument after the current Node in the schedule or None if none
-    are found.'''
+    are found. We also test when annexed is False and True as it
+    affects how many halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1251,9 +1259,13 @@ def test_argument_forward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
-    f2_halo_field = schedule.children[8].field
-    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
+    if annexed:
+        index = 7
+    else:
+        index = 8
+    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[index].field
+    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
     # a) previous kern arg depends on halo arg
     result = f2_prev_arg.forward_dependence()
     assert result == f2_halo_field
@@ -1282,10 +1294,16 @@ def test_argument_forward_dependence():
     assert result == next_arg
 
 
-def test_argument_backward_dependence():
+def test_argument_backward_dependence(monkeypatch, annexed):
     '''Check that backward_dependence method returns the first dependent
     argument before the current Node in the schedule or None if none
-    are found.'''
+    are found. We also test when annexed is False and True as it
+    affects how many halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -1308,9 +1326,13 @@ def test_argument_backward_dependence():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    f2_prev_arg = schedule.children[7].children[0].arguments.args[0]
-    f2_halo_field = schedule.children[8].field
-    f2_next_arg = schedule.children[9].children[0].arguments.args[1]
+    if annexed:
+        index = 7
+    else:
+        index = 8
+    f2_prev_arg = schedule.children[index-1].children[0].arguments.args[0]
+    f2_halo_field = schedule.children[index].field
+    f2_next_arg = schedule.children[index+1].children[0].arguments.args[1]
     # a) following kern arg depends on halo arg
     result = f2_next_arg.backward_dependence()
     assert result == f2_halo_field
@@ -2042,14 +2064,18 @@ def test_find_write_arguments_for_write():
     assert node_list == []
 
 
-def test_find_w_args_hes_no_vec(monkeypatch):
+def test_find_w_args_hes_no_vec(monkeypatch, annexed):
     '''when backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the field must be a vector field. If the field is not a vector
     then an exception is raised. This test checks that the exception
-    is raised correctly.
+    is raised correctly. Also test with and without annexed dofs being
+    computed as this affects the generated code.
 
     '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -2057,7 +2083,11 @@ def test_find_w_args_hes_no_vec(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 1)
     with pytest.raises(InternalError) as excinfo:
@@ -2066,14 +2096,19 @@ def test_find_w_args_hes_no_vec(monkeypatch):
             "halo exchange calls. Found '1' and '3'" in str(excinfo.value))
 
 
-def test_find_w_args_hes_diff_vec(monkeypatch):
+def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
     '''when backward_write_dependencies, or forward_read_dependencies, are
     called and a dependence is found between two halo exchanges, then
     the associated fields must be equal size vectors . If the fields
     are not vectors of equal size then an exception is raised. This
-    test checks that the exception is raised correctly.
+    test checks that the exception is raised correctly. Also test with
+    and without annexed dofs being computed as this affects the
+    generated code.
 
     '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -2081,7 +2116,11 @@ def test_find_w_args_hes_diff_vec(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
     monkeypatch.setattr(field_d_v3, "_vector_size", 2)
     with pytest.raises(InternalError) as excinfo:
@@ -2090,14 +2129,19 @@ def test_find_w_args_hes_diff_vec(monkeypatch):
             "halo exchange calls. Found '2' and '3'" in str(excinfo.value))
 
 
-def test_find_w_args_hes_vec_idx(monkeypatch):
+def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
     '''when backward_write_dependencies, or forward_read_dependencies are
     called, and a dependence is found between two halo exchanges, then
     the vector indices of the two halo exchanges must be different. If
     the vector indices have the same value then an exception is
-    raised. This test checks that the exception is raised correctly.
+    raised. This test checks that the exception is raised
+    correctly. Also test with and without annexed dofs being computed
+    as this affects the generated code.
 
     '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
         distributed_memory=True, api="dynamo0.3")
@@ -2105,9 +2149,13 @@ def test_find_w_args_hes_vec_idx(monkeypatch):
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    halo_exchange_d_v3 = schedule.children[5]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    halo_exchange_d_v3 = schedule.children[index]
     field_d_v3 = halo_exchange_d_v3.field
-    halo_exchange_d_v2 = schedule.children[4]
+    halo_exchange_d_v2 = schedule.children[index-1]
     monkeypatch.setattr(halo_exchange_d_v2, "_vector_index", 3)
     with pytest.raises(InternalError) as excinfo:
         _ = field_d_v3.backward_write_dependencies()
@@ -2188,11 +2236,18 @@ def test_check_vec_hes_differ_diff_names():
         "different field name 'm1' to self 'f2'" in str(excinfo.value))
 
 
-def test_find_w_args_multiple_deps_error():
+def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
     '''when _find_write_arguments finds a write that causes it to return
     there should not be any previous dependencies. This test checks
-    that an error is raised if this is not the case.
+    that an error is raised if this is not the case. We test with
+    annexed dofs is True and False as different numbers of halo
+    exchanges are created.
+
     '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
@@ -2201,8 +2256,16 @@ def test_find_w_args_multiple_deps_error():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    del schedule.children[4]
-    loop = schedule.children[6]
+    # create halo exchanges between the two loops via redundant
+    # computation
+    if annexed:
+        index = 1
+    else:
+        index = 4
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[index], depth=2)
+    del schedule.children[index]
+    loop = schedule.children[index+2]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[0]
     with pytest.raises(InternalError) as excinfo:
@@ -2212,12 +2275,18 @@ def test_find_w_args_multiple_deps_error():
         in str(excinfo.value))
 
 
-def test_find_write_arguments_no_more_nodes():
+def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
     '''when _find_write_arguments has looked through all nodes but has not
     returned it should mean that is has not found any write
     dependencies. This test checks that an error is raised if this is
-    not the case.
+    not the case. We test with and without computing annexed dofs as
+    different numbers of halo exchanges are created.
+
     '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
@@ -2226,8 +2295,12 @@ def test_find_write_arguments_no_more_nodes():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    del schedule.children[3]
-    loop = schedule.children[5]
+    if annexed:
+        index = 3
+    else:
+        index = 4
+    del schedule.children[index]
+    loop = schedule.children[index+1]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[5]
     with pytest.raises(InternalError) as excinfo:
@@ -2237,12 +2310,18 @@ def test_find_write_arguments_no_more_nodes():
         in str(excinfo.value))
 
 
-def test_find_w_args_multiple_deps():
+def test_find_w_args_multiple_deps(monkeypatch, annexed):
     '''_find_write_arguments should return as many halo exchange
     dependencies as the vector size of the associated field. This test
     checks that this is the case and that the returned objects are
-    what is expected.
+    what is expected. We test with annexed dofs is True and False as
+    different numbers of halo exchanges are created.
+
     '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
@@ -2251,7 +2330,15 @@ def test_find_w_args_multiple_deps():
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    loop = schedule.children[7]
+    # create halo exchanges between the two loops via redundant
+    # computation
+    if annexed:
+        index = 1
+    else:
+        index = 4
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[index], depth=2)
+    loop = schedule.children[index+3]
     kernel = loop.children[0]
     d_field = kernel.arguments.args[0]
     vector_size = d_field.vector_size
@@ -2403,11 +2490,14 @@ def test_dataaccess_same_vector_indices(monkeypatch):
 
 
 # Test CodeBlock class
-def test_reference_view(capsys):
+
+
+def test_codeblock_view(capsys):
     ''' Check the view and colored_text methods of the Code Block class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     cblock = CodeBlock([])
     coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
-    assignment.view()
+    cblock.view()
     output, _ = capsys.readouterr()
     assert coloredtext+"[" in output
     assert "]" in output
@@ -2417,18 +2507,8 @@ def test_codeblock_can_be_printed():
     '''Test that an CodeBlck instance can always be printed (i.e. is
     initialised fully)'''
     cblock = CodeBlock([])
-    assert "CodeBlock[" in cblock.__str__()
-    assert "]" in cblock.__str__()
-
-
-def test_codeblock_gencode_error():
-    ''' Check that calling CodeBlock.gen_code() results in an internal
-    error. '''
-    cblock = CodeBlock([])
-    with pytest.raises(InternalError) as err:
-        cblock.gen_code()
-    assert "CodeBlock.gen_code() should not be called" in str(err)
-
+    assert "CodeBlock[" in str(cblock)
+    assert "]" in str(cblock)
 
 # Test Assignment class
 
@@ -2455,7 +2535,7 @@ def test_assignment_can_be_printed():
     rhs = Literal("1", parent=assignment)
     assignment.addchild(lhs)
     assignment.addchild(rhs)
-    assert "Assignment[]\n" in assignment.__str__()
+    assert "Assignment[]\n" in str(assignment)
 
 
 # Test Reference class
@@ -2475,7 +2555,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     ref = Reference("rname")
-    assert "Reference[name:'rname']\n" in ref.__str__()
+    assert "Reference[name:'rname']\n" in str(ref)
 
 
 # Test Array class
@@ -2495,7 +2575,7 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     array = Array("aname")
-    assert "ArrayReference[name:'aname']\n" in array.__str__()
+    assert "ArrayReference[name:'aname']\n" in str(array)
 
 
 # Test Literal class
@@ -2515,13 +2595,13 @@ def test_literal_can_be_printed():
     '''Test that an Literal instance can always be printed (i.e. is
     initialised fully)'''
     literal = Literal("1")
-    assert "Literal[value:'1']\n" in literal.__str__()
+    assert "Literal[value:'1']\n" in str(literal)
 
 
 # Test BinaryOperation class
 
 
-def test_BinaryOperation_view(capsys):
+def test_binaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the Binary Operation
     class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
@@ -2537,7 +2617,7 @@ def test_BinaryOperation_view(capsys):
     assert coloredtext+"[operator:'+']" in output
 
 
-def test_BinaryOperation_can_be_printed():
+def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
     binaryOp = BinaryOperation("+")
@@ -2545,10 +2625,10 @@ def test_BinaryOperation_can_be_printed():
     op2 = Literal("1", parent=binaryOp)
     binaryOp.addchild(op1)
     binaryOp.addchild(op2)
-    assert "BinaryOperation[operator:'+']\n" in binaryOp.__str__()
+    assert "BinaryOperation[operator:'+']\n" in str(binaryOp)
 
 
-# Test fparser2ASTProcessor
+# Test Fparser2ASTProcessor
 
 def test_fparser2AST_generate_schedule():
     ''' Tests the fparser2AST generate_schedule method.
@@ -2639,7 +2719,10 @@ def test_fparser2ASTProcessor_process_declarations():
     assert fake_parent.get_symbol("array4") == ('integer', 2, 'local')
 
 
-def test_fparser2ASTProcessor_handling_assignments():
+def test_fparser2astprocessor_handling_assignment_stmt():
+    ''' Test that fparser2 Assignment_Stmt is converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2648,16 +2731,19 @@ def test_fparser2ASTProcessor_handling_assignments():
     fparser2assignment = Execution_Part.match(reader)[0][0]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2assignment], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Assignment)
     assert len(new_node.children) == 2
 
 
-def test_fparser2ASTProcessor_handling_Names():
+def test_fparser2astprocessor_handling_name():
+    ''' Test that fparser2 Name is converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2666,16 +2752,19 @@ def test_fparser2ASTProcessor_handling_Names():
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2name], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Reference)
     assert new_node._reference == "x"
 
 
-def test_fparser2ASTProcessor_handling_Parenthesis():
+def test_fparser2astprocessor_handling_parenthesis():
+    ''' Test that fparser2 Parenthesis is converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2684,16 +2773,19 @@ def test_fparser2ASTProcessor_handling_Parenthesis():
     fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2parenthesis], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     # Check parenthesis are ignored and process_nodes uses its child
     assert isinstance(new_node, BinaryOperation)
 
 
-def test_fparser2ASTProcessor_handling_Part_Ref():
+def test_fparser2astprocessor_handling_part_ref():
+    ''' Test that fparser2 Part_Ref is converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2702,9 +2794,9 @@ def test_fparser2ASTProcessor_handling_Part_Ref():
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
@@ -2716,7 +2808,7 @@ def test_fparser2ASTProcessor_handling_Part_Ref():
 
     fake_parent = Node()
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Array)
@@ -2724,7 +2816,10 @@ def test_fparser2ASTProcessor_handling_Part_Ref():
     assert len(new_node.children) == 3  # Array dimensions
 
 
-def test_fparser2ASTProcessor_handling_If_Stmt():
+def test_fparser2astprocessor_handling_if_stmt():
+    ''' Test that fparser2 If_Stmt is converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2733,16 +2828,19 @@ def test_fparser2ASTProcessor_handling_If_Stmt():
     fparser2if_stmt = Execution_Part.match(reader)[0][0]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2if_stmt], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, IfBlock)
     assert len(new_node.children) == 2
 
 
-def test_fparser2ASTProcessor_handling_NumberBase():
+def test_fparser2astprocessor_handling_numberbase():
+    ''' Test that fparser2 NumberBase is converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2751,16 +2849,19 @@ def test_fparser2ASTProcessor_handling_NumberBase():
     fparser2number = Execution_Part.match(reader)[0][0].items[2]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2number], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Literal)
     assert new_node._value == "1"
 
 
-def test_fparser2ASTProcessor_handling_BinaryOpBase():
+def test_fparser2astprocessor_handling_binaryopbase():
+    ''' Test that fparser2 BinaryOpBase is converted to expected PSyIRe
+    tree structure.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -2769,9 +2870,9 @@ def test_fparser2ASTProcessor_handling_BinaryOpBase():
     fparser2binaryOp = Execution_Part.match(reader)[0][0].items[2]
 
     fake_parent = Node()
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2binaryOp], None)
-    # Check a new node was generated a connected to parent
+    # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, BinaryOperation)
@@ -2779,8 +2880,38 @@ def test_fparser2ASTProcessor_handling_BinaryOpBase():
     assert new_node._operator == '+'
 
 
-def test_ASTProcessor_ignorekey_err(monkeypatch):
-    processor = fparser2ASTProcessor()
-    with pytest.raises(IgnoredKeyError) as excinfo:
-        _ = processor._ignore_handler(None, None)
-    assert "ASTProcessor has no handler for:" in str(excinfo)
+def test_fparser2astprocessor_handling_end_do_stmt():
+    ''' Test that fparser2 End_Do_Stmt are ignored.'''
+    from fparser.two.parser import ParserFactory
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader('''
+        do i=1,10
+            a=a+1
+        end do
+        ''')
+    fparser2enddo = Execution_Part.match(reader)[0][0].content[-1]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2enddo], None)
+    assert len(fake_parent.children) == 0  # No new children created
+
+
+def test_fparser2astprocessor_handling_end_subroutine_stmt():
+    ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
+    from fparser.two.parser import ParserFactory
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Subroutine_Subprogram
+    ParserFactory().create(std="f2008")
+    reader = FortranStringReader('''
+        subroutine dummy_code()
+        end subroutine dummy_code
+        ''')
+    fparser2endsub = Subroutine_Subprogram.match(reader)[0][-1]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2endsub], None)
+    assert len(fake_parent.children) == 0  # No new children created

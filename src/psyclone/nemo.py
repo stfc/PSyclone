@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 import copy
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
-    NameSpaceFactory, fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
+    NameSpaceFactory, Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 
@@ -71,26 +71,36 @@ NEMO_LOOP_TYPE_MAPPING = {"ji": "lon", "jj": "lat", "jk": "levels",
 NEMO_INDEX_ORDERING = ["lon", "lat", "levels", "tracers"]
 
 
-class NemoASTProcessor(fparser2ASTProcessor):
+class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     '''
-    Specialization of fparser2ASTProcessor for Nemo API
+    Specialisation of Fparser2ASTProcessor for the Nemo API. It is used
+    as a Mixin in the Nemo API.
     '''
+    def __init__(self):
+        super(NemoFparser2ASTProcessor, self).__init__()
 
     def _create_child(self, child, parent=None):
-        # TODO: Call super initialization every time from here is not very nice
-        # but nemo API has to be updated to new fparser2ASTProcessor and for
-        # this first we need the base class to have handlers for Loops and
-        # IfBlocks implemented.
-        super(NemoASTProcessor, self).__init__()
+        '''
+        Adds Nemo API specific processors for certain fparser2 types
+        before calling the parent _create_child.
 
+        :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.utils.Base`
+        :param parent: Parent node in the PSyclone IR we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :return: Returns the PSyIRe representation of child.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        '''
         if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
             return NemoLoop(child, parent=parent)
+        elif isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
+            pass
         elif NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
         elif NemoIfBlock.match(child):
             return NemoIfBlock(child, parent=parent)
         else:
-            return super(NemoASTProcessor, self)._create_child(child)
+            return super(NemoFparser2ASTProcessor, self)._create_child(child)
 
 
 class NemoInvoke(Invoke):
@@ -242,7 +252,7 @@ class NemoPSy(PSy):
         return self._ast
 
 
-class NemoSchedule(Schedule, NemoASTProcessor):
+class NemoSchedule(Schedule, NemoFparser2ASTProcessor):
     '''
     The NEMO-specific schedule class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
@@ -258,6 +268,7 @@ class NemoSchedule(Schedule, NemoASTProcessor):
     '''
     def __init__(self, invoke, ast):
         Node.__init__(self)
+        NemoFparser2ASTProcessor.__init__(self)
 
         self._invoke = invoke
         self._ast = ast
@@ -477,7 +488,7 @@ class NemoKern(Kern):
               self.ktype + "]")
 
 
-class NemoLoop(Loop, NemoASTProcessor):
+class NemoLoop(Loop, NemoFparser2ASTProcessor):
     '''
     Class representing a Loop in NEMO.
 
@@ -490,6 +501,7 @@ class NemoLoop(Loop, NemoASTProcessor):
         from fparser.two.Fortran2003 import Loop_Control
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
+        NemoFparser2ASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
@@ -702,7 +714,7 @@ class NemoImplicitLoop(NemoLoop):
         return False
 
 
-class NemoIfBlock(IfBlock, NemoASTProcessor):
+class NemoIfBlock(IfBlock, NemoFparser2ASTProcessor):
     '''
     Represents an if-block within a NEMO Schedule.
     Within the fparser2 AST, an if-block is represented as:
@@ -724,6 +736,7 @@ class NemoIfBlock(IfBlock, NemoASTProcessor):
     '''
     def __init__(self, ast, parent=None):
         super(NemoIfBlock, self).__init__(parent=parent)
+        NemoFparser2ASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
         # Check that the fparser2 AST has the expected structure
@@ -795,7 +808,7 @@ class NemoIfBlock(IfBlock, NemoASTProcessor):
         return False
 
 
-class NemoIfClause(IfClause, NemoASTProcessor):
+class NemoIfClause(IfClause, NemoFparser2ASTProcessor):
     '''
     Represents a sub-clause of an if-block (else-if or else).
 
@@ -809,6 +822,7 @@ class NemoIfClause(IfClause, NemoASTProcessor):
     '''
     def __init__(self, ast_nodes, parent=None):
         super(NemoIfClause, self).__init__(parent=parent)
+        NemoFparser2ASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast_nodes[0]
         # Store what type of clause we are
