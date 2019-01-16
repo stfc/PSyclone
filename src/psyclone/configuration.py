@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -478,19 +478,20 @@ class Config(object):
         :param path_list: list of directories to search.
         :type path_list: list of str.
 
-        :raises ValueError: if `path_list` is not a list.
+        :raises ValueError: if `path_list` is not a list-like object.
         :raises ConfigurationError: if any of the paths in the list do \
                                     not exist.
         '''
         self._include_paths = []
-        if not isinstance(path_list, list):
+        try:
+            for path in path_list:
+                if not os.path.exists(path):
+                    raise ConfigurationError(
+                        "Include path '{0}' does not exist".format(path))
+                self._include_paths.append(path)
+        except (TypeError, ValueError):
             raise ValueError("include_paths must be a list but got: {0}".
                              format(type(path_list)))
-        for path in path_list:
-            if not os.path.exists(path):
-                raise ConfigurationError("Include path '{0}' does not exist".
-                                         format(path))
-            self._include_paths.append(path)
 
     def get_default_keys(self):
         '''Returns all keys from the default section.
