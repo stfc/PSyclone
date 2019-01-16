@@ -260,17 +260,24 @@ details on the use of this profiling functionality please see the
 Fortran INCLUDE Files
 ---------------------
 
-For the NEMO API, if the source code to be processed by PSyclone contains
-INCLUDE statements then the location of any
-INCLUDE'd files must be supplied to PSyclone via the ``-I`` or
-``--include`` option. Multiple locations may be specified by using
-multiple ``-I`` flags, e.g.::
+For the NEMO API, if the source code to be processed by PSyclone
+contains INCLUDE statements (other than those for libraries such as
+MPI) then the location of any INCLUDE'd files must be supplied to
+PSyclone via the ``-I`` or ``--include`` option. (This is necessary
+because INCLUDE lines are a part of the Fortran language and must
+therefore be parsed - they are not handled by any pre-processing
+step.) Multiple locations may be specified by using multiple ``-I``
+flags, e.g.::
 
-  > psyclone api "nemo" -I /some/path -I /some/other/path alg.f90
+    > psyclone api "nemo" -I /some/path -I /some/other/path alg.f90
 
-(This is necessary because INCLUDE lines are a part of the Fortran
-language and must therefore be parsed - they are not handled by any
-pre-processing step).
+If no include paths are specified then the directory containing the
+source file currently being parsed is searched by default. If the
+specified include file is not found then ideally the INCLUDE line
+would be left unchanged. However, fparser currently treats any such
+INCLUDE lines as comments which results in them being lost (fparser
+issue #138). The workaround for this is to ensure that the location
+of *all* INCLUDE files is supplied to PSyclone.
 
 Attempting to specify ``-I``/``--include`` for any API other than NEMO
 will be rejected by PSyclone.
