@@ -1530,7 +1530,6 @@ class Schedule(Node):
         if self.opencl:
             # Ensure we block at the end of the invoke to ensure all
             # kernels have completed before we return.
-            # TODO can we lift this restriction?
             # This code ASSUMES only the first command queue is used for
             # executing kernels.
             parent.add(CommentGen(parent,

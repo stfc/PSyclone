@@ -987,9 +987,10 @@ class GOKern(Kern):
             elif arg.type == "field":
                 arguments.append(arg.name + "%device_ptr")
             elif arg.type == "grid_property":
-                # TODO dl_esm_inf stores the pointers to device memory
-                # for grid properties in "grid-prop-name_device" which
-                # is a bit hacky but works for now.
+                # TODO (dl_esm_inf/#18) the dl_esm_inf library stores
+                # the pointers to device memory for grid properties in
+                # "<grid-prop-name>_device" which is a bit hacky but
+                # works for now.
                 arguments.append(garg.name+"%grid%"+arg.name+"_device")
         sub_name = self._name_space_manager.create_name(
             root_name=self.name+"_set_args", context=self.name+"ArgSetter",

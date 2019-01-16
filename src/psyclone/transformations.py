@@ -2140,7 +2140,10 @@ class OCLTrans(Transformation):
     '''
     @property
     def name(self):
-        '''Returns the name of this transformation as a string.'''
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+        '''
         return "OCLTrans"
 
     def apply(self, sched, opencl=True):
@@ -2160,7 +2163,7 @@ class OCLTrans(Transformation):
             self._validate(sched)
         # create a memento of the schedule and the proposed transformation
         from psyclone.undoredo import Memento
-        keep = Memento(sched, self, [sched])
+        keep = Memento(sched, self, [sched, opencl])
         # All we have to do here is set the flag in the Schedule. When this
         # flag is True PSyclone produces OpenCL at code-generation time.
         sched.opencl = opencl
