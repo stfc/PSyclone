@@ -538,7 +538,7 @@ module dummy_mod
            /)
      integer :: iterates_over = cells
    contains
-     procedure :: code => dummy_code
+     procedure, nopass :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
