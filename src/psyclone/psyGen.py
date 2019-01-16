@@ -3014,7 +3014,7 @@ class Kern(Call):
         :rtype: :py:class:`psyclone.psyGen.KernSchedule`
         '''
         if self._kern_schedule is None:
-            astp = fparser2ASTProcessor()
+            astp = Fparser2ASTProcessor()
             self._kern_schedule = astp.generate_schedule(self.name,
                                                          self.ast,
                                                          self.arg_descriptors)

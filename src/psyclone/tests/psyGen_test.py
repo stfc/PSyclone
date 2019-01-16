@@ -538,7 +538,7 @@ module dummy_mod
            /)
      integer :: iterates_over = cells
    contains
-     procedure() :: code => dummy_code
+     procedure :: code => dummy_code
   end type dummy_type
 contains
   subroutine dummy_code()
@@ -2638,7 +2638,7 @@ def test_fparser2AST_generate_schedule():
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     ast2 = my_kern.ast
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
 
     # Test properly formed kernel module
     schedule = processor.generate_schedule("dummy_code", ast2)
@@ -2657,13 +2657,13 @@ def test_fparser2AST_generate_schedule():
            "subroutine: dummy_code" in str(error.value)
 
 
-def test_fparser2ASTProcessor_process_declarations():
+def test_Fparser2ASTProcessor_process_declarations():
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
     ParserFactory().create(std="f2008")
     fake_parent = KernelSchedule("dummy_schedule")
-    processor = fparser2ASTProcessor()
+    processor = Fparser2ASTProcessor()
 
     # Test simple declarations
     reader = FortranStringReader("integer :: local1")
