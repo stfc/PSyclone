@@ -66,7 +66,8 @@ COMPUTE_ANNEXED_DOFS = false
 
 def setup_module():
     ''' xunit-style set-up. This ensures that any exising Configuration
-    object is deleted upon entry to this module. '''
+    object is deleted upon entry to this module. (Necessary when running
+    tests in parallel.) '''
     Config._instance = None
 
 

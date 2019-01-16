@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ def delete_module(modname):
 
 
 def teardown_function():
-    '''This teardown function is called at the end of all tests and makes
+    '''This teardown function is called at the end of each test and makes
     sure that we wipe the Config object so we get a fresh/default one
     for any further test (and not a left-over one from a test here).
     '''
