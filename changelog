@@ -1,3 +1,7 @@
+	1) #245 and PR #247. Extend PSyIRe to support common kernel
+	constructs (e.g. asignments) and generalise ASTProcessor and
+	CodeBlocks.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
