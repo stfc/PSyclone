@@ -1,3 +1,7 @@
+	3) #269 and PR #273. Remove generation of unnecessary
+	infrastructure calls when an Invoke only contains calls to
+	built-ins.
+
 	2) #275 and PR #276. Update fparser submodule (to point to latest
 	version) as this was not done at the last release.
 
