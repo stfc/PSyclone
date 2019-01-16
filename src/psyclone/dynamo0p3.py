@@ -1953,11 +1953,10 @@ class DynMeshes(object):
         # is enabled then we will still need a mesh object if we have one or
         # more kernels that iterate over cells. (Colourmaps also
         # require a mesh object but that is handled in _colourmap_init().)
-        if not _name_set:
-            if (Config.get().distributed_memory and
-                not invoke.iterate_over_dofs_only):
-                _name_set.add(self._name_space_manager.create_name(
-                    root_name="mesh", context="PSyVars", label="mesh"))
+        if not _name_set and (Config.get().distributed_memory and
+                              not invoke.iterate_over_dofs_only):
+            _name_set.add(self._name_space_manager.create_name(
+                root_name="mesh", context="PSyVars", label="mesh"))
 
         # Convert the set of mesh names to a list and store
         self._mesh_names = sorted(_name_set)
@@ -2950,7 +2949,7 @@ class DynInvoke(Invoke):
         :rtype: bool
         '''
         for kern_call in self.schedule.calls():
-            if kern_call.iterates_over == "cells":
+            if kern_call.iterates_over.lower() != "dofs":
                 return False
         return True
 
@@ -3205,7 +3204,11 @@ class DynInvoke(Invoke):
         # loop over all unique function spaces used by the kernels in
         # this invoke
         for function_space in self.unique_fss():
-            # Initialise information associated with this function space
+            # Initialise information associated with this function space.
+            # We'll only need ndf if we have one or more kernels that
+            # iterate over cells (dofs_only==False). If dofs_only==True
+            # then we'll only need undf (for the upper bound of the loop
+            # over dofs) if we're not doing distributed memory.
             if not dofs_only or not Config.get().distributed_memory:
                 invoke_sub.add(CommentGen(invoke_sub, ""))
                 invoke_sub.add(
@@ -3215,8 +3218,8 @@ class DynInvoke(Invoke):
             # Find an argument on this space to use to dereference
             arg = self.arg_for_funcspace(function_space)
             name = arg.proxy_name_indexed
-            # initialise ndf for this function space and add name to
-            # list to declare later
+            # Initialise ndf for this function space and add name to
+            # list to declare later.
             if not dofs_only:
                 ndf_name = get_fs_ndf_name(function_space)
                 var_list.append(ndf_name)
