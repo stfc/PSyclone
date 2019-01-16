@@ -4294,22 +4294,74 @@ class Fparser2ASTProcessor(object):
         return Literal(node.items[0], parent=parent)
 
 
+class Symbol(object):
+    '''
+    Symbol item for the Symbol Table. It contains information about: the name
+    of the symbol, its datatype, the number of dimensions and lenght of each,
+    the declaration type (e.g. localvar, external, read_arg, write_arg, rw_arg)
+    and if it has any metadata associated with it.
+
+    Declaration_type = [localvar | argument | external]
+
+    :param name: Name of the symbol
+    :type name: string
+    :param datatype: Data type of the symbol
+    :type datatype: string
+    :param dimensions: Name of the symbol
+    :type dimensions: list of integers
+    :param declaration_type:
+    :type declaration_type: string
+    :param metadata:
+    :type metadata:
+    '''
+    def __init__(self, name, datatype=None, dimensions=[1],
+                 declaration_type=None, metadata=None):
+        self._name = name
+        self._datatype = datatype
+        self._dimensions = dimensions
+        self._declaration_type = declaration_type
+        self._metadata = metadata
+
+
+class SymbolTable(object):
+    '''
+    Encapsulates the Symbols table and provides methods to declare new symbols
+    and look up existing symbols.
+    '''
+    def __init__(self):
+        self._symbols = {}
+
+    def declare(self, name, datatype, dimensions, declaration_type, metadata):
+        '''
+        Declare a new symbol in the symbols table.
+        '''
+        if name in self._symbols:
+            raise InternalError("Multiple definition of symbol {0}."
+                                "".format(name))
+        else:
+            self._symbols[name] = Symbol(name, datatype, dimensions,
+                                         declaration_type, metadata)
+
+    def lookup(self, name):
+        '''
+        Look up a symbol in the symbols table.
+
+        :param name: Name of the symbol
+        :type name: string
+        '''
+        return self._symbols.get(name)
+
+
 class KernelSchedule(Schedule):
 
     def __init__(self, name):
         super(KernelSchedule, self).__init__(None, None)
         self._name = name
-        self._symbol_table = {}
+        self._symbol_table = SymbolTable()
 
-    def get_symbol(self, name):
-        return self._symbol_table[name]
-
-    def insert_symbol(self, name, datatype, dimensions, decltype):
-        if name in self._symbol_table:
-            raise InternalError("Multiple definition of variable {0} in "
-                                "{1}".format(name, self._name))
-        else:
-            self._symbol_table[name] = (datatype, dimensions, decltype)
+    @property
+    def symbol_table(self):
+        return self._symbol_table
 
     def view(self, indent=0):
         '''
@@ -4321,7 +4373,7 @@ class KernelSchedule(Schedule):
         '''
         print(self.indent(indent) + self.coloured_text + "[name:" + self._name
               + "]")
-        for symbol in self._symbol_table:
+        for symbol in self.symbol_table:
             print(self.indent(indent + 1) + "Symbol: " + symbol + ", "
                   + str(self._symbol_table[symbol]))
         for entity in self._children:
