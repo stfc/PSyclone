@@ -1,3 +1,6 @@
+	2) #275 and PR #276. Update fparser submodule (to point to latest
+	version) as this was not done at the last release.
+
 	1) #245 and PR #247. Extend PSyIRe to support common kernel
 	constructs (e.g. asignments) and generalise ASTProcessor and
 	CodeBlocks.
