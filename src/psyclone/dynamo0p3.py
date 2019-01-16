@@ -3205,11 +3205,11 @@ class DynInvoke(Invoke):
         # this invoke
         for function_space in self.unique_fss():
             # Initialise information associated with this function space.
-            # We'll only need ndf if we have one or more kernels that
-            # iterate over cells (dofs_only==False). If dofs_only==True
-            # then we'll only need undf (for the upper bound of the loop
-            # over dofs) if we're not doing distributed memory.
-            if not dofs_only or not Config.get().distributed_memory:
+            # If we have 1+ kernels that iterate over cells then we
+            # will need ndf and undf. If we don't then we only need undf
+            # (for the upper bound of the loop over dofs) if we're not
+            # doing DM.
+            if not (dofs_only and Config.get().distributed_memory):
                 invoke_sub.add(CommentGen(invoke_sub, ""))
                 invoke_sub.add(
                     CommentGen(invoke_sub, " Initialise number of DoFs for " +
