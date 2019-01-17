@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -339,7 +339,6 @@ def test_implicit_range_err():
             "implemented: 'umask(1 : jpi, 1, :) = 0.0D0'" in str(err))
 
 
-#@pytest.mark.xfail(reason="Error will be raised by new transformation")
 def test_implicit_loop_different_rank():
     ''' Test that we reject implicit loops if the index positions of the
     colons differs. This is a restriction that could be lifted by
@@ -353,7 +352,7 @@ def test_implicit_loop_different_rank():
     sched.view()
     loop = sched.children[1]
     trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(TransformationError) as err:
         _ = trans.apply(loop)
     assert ("implicit loops are restricted to cases where all array "
             "range specifications occur" in str(err))

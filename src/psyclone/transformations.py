@@ -2523,7 +2523,7 @@ class NemoExplicitLoopTrans(Transformation):
         :param loop: the NemoImplicitLoop to transform.
         :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`.
         :returns: XXX
-        :rtype: XXX
+        :rtype: (,)
 
         :raises NotImplementedError: if the array slice has explicit bounds.
         :raises TransformationError: if an array slice is not in dimensions \
@@ -2582,6 +2582,10 @@ class NemoExplicitLoopTrans(Transformation):
         invoke = loop.root.invoke
 
         name = Fortran2003.Name(FortranStringReader(loop._variable_name))
+        # TODO we need some sort of type/declarations table to check that
+        # we don't already have a declaration for a variable of this name.
+        # For the moment we keep a list of variables we have created in
+        # Invoke._loop_vars.
         if loop._variable_name not in invoke._loop_vars:
             invoke._loop_vars.append(loop._variable_name)
 
@@ -2615,7 +2619,7 @@ class NemoExplicitLoopTrans(Transformation):
                     "dimensions".format(outermost_dim+1, len(indices)))
             if not isinstance(indices[outermost_dim],
                               Fortran2003.Subscript_Triplet):
-                raise NotImplementedError(
+                raise TransformationError(
                     "Currently implicit loops are restricted to cases where "
                     "all array range specifications occur in the same "
                     "dimension(s) of each array in an assignment.")

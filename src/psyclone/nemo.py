@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -162,6 +162,10 @@ class NemoInvoke(Invoke):
         self._name = name
         # Store the whole fparser2 AST
         self._ast = ast
+        # A temporary workaround for the fact that we don't yet have a
+        # proper place to store information on the variable declarations
+        # TODO (#XXXX) remove this workaround.
+        self._loop_vars = []
         self._name_space_manager = NameSpaceFactory().create()
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
