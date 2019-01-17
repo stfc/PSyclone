@@ -2582,7 +2582,7 @@ class NemoExplicitLoopTrans(Transformation):
         invoke = loop.root.invoke
 
         name = Fortran2003.Name(FortranStringReader(loop._variable_name))
-        # TODO we need some sort of type/declarations table to check that
+        # TODO XXX we need some sort of type/declarations table to check that
         # we don't already have a declaration for a variable of this name.
         # For the moment we keep a list of variables we have created in
         # Invoke._loop_vars.

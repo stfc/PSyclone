@@ -52,6 +52,19 @@ API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
+# Parser to use in tests.
+_PARSER = None
+
+
+def setup_module():
+    '''
+    xunit-style pytest fixture that is called just once on entry to
+    this module. We ensure that a suitable parser has been created and
+    store a reference to it in the module-wide `_PARSER` variable.
+    '''
+    global _PARSER
+    from fparser.two.parser import ParserFactory
+    _PARSER = ParserFactory().create()
 
 
 def test_omp_explicit_gen():
@@ -289,16 +302,14 @@ def test_unrecognised_implicit():
     ''' Check that we raise the expected error if we encounter an
     unrecognised form of implicit loop. '''
     from psyclone.nemo import NemoImplicitLoop, NemoInvoke
-    from fparser.two.parser import ParserFactory
     from fparser.two.utils import walk_ast
     exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     # Array syntax used in an unsupported index location
-    parser = ParserFactory().create()
     reader = FortranStringReader("program test_prog\n"
                                  "real, dimension(3,3,3,3) :: umask\n"
                                  "umask(:, :, :, :) = 0.0D0\n"
                                  "end program test_prog\n")
-    prog = parser(reader)
+    prog = PARSER(reader)
     psy = PSyFactory(API).create(prog)
     sched = psy.invokes.invoke_list[0].schedule
     with pytest.raises(TransformationError) as err:
@@ -326,15 +337,20 @@ def test_unrecognised_implicit():
     assert "No specification part found for routine atest" in str(err)
 
 
-@pytest.mark.xfail(reason="Error will be raised by new transformation")
 def test_implicit_range_err():
     ''' Check that we raise the expected error if we encounter an implicit
     loop with an explicit range (since we don't yet support that). '''
+    exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     # Array syntax with an explicit range
-    reader = FortranStringReader("umask(1:jpi, 1, :) = 0.0D0")
-    assign = Fortran2003.Assignment_Stmt(reader)
+    reader = FortranStringReader("program atest\n"
+                                 "umask(1:jpi, 1, :) = 0.0D0\n"
+                                 "end program atest\n")
+    prog = _PARSER(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(prog)
+    sched = psy.invokes.invoke_list[0].schedule
+    sched.view()
     with pytest.raises(NotImplementedError) as err:
-        nemo.NemoImplicitLoop(assign)
+        exp_trans.apply(sched.children[0])
     assert ("Support for implicit loops with specified bounds is not yet "
             "implemented: 'umask(1 : jpi, 1, :) = 0.0D0'" in str(err))
 
