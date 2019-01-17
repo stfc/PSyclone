@@ -4077,7 +4077,8 @@ class Fparser2ASTProcessor(object):
                 (name, array_spec, char_len, initialization) = entity.items
                 if (array_spec is not None) or (initialization is not None):
                     raise NotImplementedError()
-                parent.insert_symbol(str(name), datatype, dimensions, decltype)
+                parent.symbol_table.declare(str(name), datatype, dimensions,
+                                            decltype)
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).
@@ -4298,29 +4299,38 @@ class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name
     of the symbol, its datatype, the number of dimensions and lenght of each,
-    the declaration type (e.g. localvar, external, read_arg, write_arg, rw_arg)
-    and if it has any metadata associated with it.
-
-    Declaration_type = [localvar | argument | external]
+    and the symbol kind (e.g. local, external, read_arg, write_arg, rw_arg).
 
     :param name: Name of the symbol
     :type name: string
     :param datatype: Data type of the symbol
     :type datatype: string
-    :param dimensions: Name of the symbol
+    :param dimensions: Dimensions of the symbol (0 represents an scalar symbol)
     :type dimensions: list of integers
-    :param declaration_type:
-    :type declaration_type: string
-    :param metadata:
-    :type metadata:
+    :param kind:
+    :type kind: string
     '''
-    def __init__(self, name, datatype=None, dimensions=[1],
-                 declaration_type=None, metadata=None):
+    def __init__(self, name, datatype=None, dimensions=0, kind=None):
         self._name = name
         self._datatype = datatype
         self._dimensions = dimensions
-        self._declaration_type = declaration_type
-        self._metadata = metadata
+        self._kind = kind
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def datatype(self):
+        return self._datatype
+
+    @property
+    def dimensions(self):
+        return self._dimensions
+
+    @property
+    def kind(self):
+        return self._kind
 
 
 class SymbolTable(object):
@@ -4331,7 +4341,7 @@ class SymbolTable(object):
     def __init__(self):
         self._symbols = {}
 
-    def declare(self, name, datatype, dimensions, declaration_type, metadata):
+    def declare(self, name, datatype, dimensions, kind):
         '''
         Declare a new symbol in the symbols table.
         '''
@@ -4339,8 +4349,7 @@ class SymbolTable(object):
             raise InternalError("Multiple definition of symbol {0}."
                                 "".format(name))
         else:
-            self._symbols[name] = Symbol(name, datatype, dimensions,
-                                         declaration_type, metadata)
+            self._symbols[name] = Symbol(name, datatype, dimensions, kind)
 
     def lookup(self, name):
         '''
