@@ -2477,13 +2477,20 @@ class ACCRoutineTrans(Transformation):
 
 class NemoExplicitLoopTrans(Transformation):
     '''
-    Transform an implicit loop in a NEMO Schedule into an explicit
-    loop nest. For example:
+    Transforms the outermost array slice in an implicit loop in a NEMO
+    Schedule into an explicit loop. For example, if "implicit_loop.f90"
+    contained:
+
+    .. code-block:: fortran
+
+        my_array(:, :, :) = 1.0
+
+    then doing:
 
     >>> from psyclone.parse import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "nemo"
-    >>> filename = "traldf_iso.f90"
+    >>> filename = "implicit_loop.f90"
     >>> ast, invokeInfo = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
@@ -2491,10 +2498,27 @@ class NemoExplicitLoopTrans(Transformation):
     >>> rtrans = NemoExplicitLoopTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
-    >>> loop = schedule.children[0].children[0].children[0]
-    >>> # Transform the loop
+    >>> loop = schedule.children[0]
     >>> newloop, _ = rtrans.apply(loop)
+
+    will create a new NemoLoop object for an explicit loop over levels
+    (the outermost slice) that then contains an implicit loop:
+
+    .. code-block:: fortran
+
+        DO jk = 1, jpk
+          my_array(:, :, jk) = 1.0
+        END DO
+
+    Subsequently applying `rtrans` to `newloop` will create:
+
+    .. code-block:: fortran
+
+        DO jk = 1, jpk
+          DO jj = 1, jpj
+            my_array(:, jj, jk) = 1.0
+          END DO
+        END DO
 
     '''
     @property
@@ -2507,11 +2531,12 @@ class NemoExplicitLoopTrans(Transformation):
 
     def apply(self, loop):
         '''
-        Transform the supplied implicit loop into an explicit loop.
+        Transform the outermost array slice in the supplied implicit loop
+        into an explicit loop.
 
         :param loop: the NemoImplicitLoop to transform.
-        :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`.
-        :returns: a new loop object and a memento of the transformation.
+        :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`
+        :returns: a new PSyIR loop object and a memento of the transformation.
         :rtype: (:py:class:`psyclone.nemo.NemoLoop`, \
                  :py:class:`psyclone.undoredo.Memento`)
 

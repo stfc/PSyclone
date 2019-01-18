@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018, Science and Technology Facilities Council
+.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -159,6 +159,18 @@ internal representation of it::
                  Loop[type='lon',field_space='None',it_space='None']
                      KernCall[]
 
+Transformations
+---------------
+
+This section describes the transformations that are specific to the
+NEMO API. For an overview of transformations in general see
+:ref:`transformations`.
+
+
+.. autoclass:: psyclone.transformations.NemoExplicitLoopTrans
+   :members:
+   :noindex:
+     
 .. _limitations:
 
 Limitations
@@ -167,8 +179,8 @@ Limitations
 The NEMO API is currently only a prototype implementation. Here
 we list the current, known limitations/issues:
 
- 1. When converting implicit loops into explicit loops, the
-    declaration of the loop variables is repeated (there is an
+ 1. When transforming implicit loops into explicit loops, the
+    declaration of the loop variables can be repeated (there is an
     x-failing test for this);
  2. Scalar variables inside loops are not made private when
     parallelising using OpenMP;
@@ -184,9 +196,11 @@ we list the current, known limitations/issues:
  7. Loops are currently only permitted to contain one kernel.  This
     restriction will have to be lifted in order to permit loop fusion;
  8. Array slices with specified bounds (e.g. umask(1:10)) are not yet
-    supported and will raise an exception;
+    supported and will raise a TransformationError when attempting to
+    transform them into explicit loops;
  9. When generating new variable names, no attempt is made to avoid
-    clashing with variables already present in the NEMO source.
+    clashing with variables already present in the NEMO source. This
+    will be resolved once a symbol table is available (#255).
  10. The psyGen.Node base class now has an _ast property to hold a
      pointer into the associated fparser2 AST. However, the psyGen.Kern
      class already has an _fp2_ast property that points to the whole
