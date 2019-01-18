@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018, Science and Technology Facilities Council.
+! Copyright (c) 2018-2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -43,5 +43,7 @@ program implicit_do
   jp_tem = 2
 
   zvab(:,jp_tem) = zab(ji,jj,:,jp_tem)
-  
+
+  zab(ji,jj,:,1) = zvab(:,jj)
+
 end program implicit_do

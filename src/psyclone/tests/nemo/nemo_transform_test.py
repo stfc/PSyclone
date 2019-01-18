@@ -300,7 +300,7 @@ def test_implicit_loop_sched2():
     exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     sched = psy.invokes.invoke_list[0].schedule
     loop_levels = sched.children[0]
-    new_loop, _ = exp_trans.apply(loop_levels.children[0])
+    _, _ = exp_trans.apply(loop_levels.children[0])
     # We should have 3 loops (one from the explicit loop over levels and
     # the other two from the implicit loops over ji and jj).
     loops = sched.walk(sched.children, nemo.NemoLoop)
@@ -308,7 +308,7 @@ def test_implicit_loop_sched2():
     assert loop_levels.children[0].loop_type == "lat"
     kerns = sched.kern_calls()
     assert not kerns
-    new_loop, _ = exp_trans.apply(loop_levels.children[0].children[0])
+    _, _ = exp_trans.apply(loop_levels.children[0].children[0])
     gen_code = str(psy.gen)
     assert ("  INTEGER :: jj\n"
             "  INTEGER :: ji\n"
@@ -403,3 +403,22 @@ def test_implicit_loop_different_rank():
         _ = trans.apply(loop)
     assert ("implicit loops are restricted to cases where all array "
             "range specifications occur" in str(err))
+    loop = sched.children[2]
+    with pytest.raises(InternalError) as err:
+        _ = trans.apply(loop)
+    assert ("Expecting a colon for index 3 but array only has 2 "
+            "dimensions: zab(" in str(err))
+
+def text_explicit_loop_validate():
+    ''' Test for the validate method of NemoExplicitLoopTrans. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "explicit_over_implicit.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
+    sched = psy.invokes.invoke_list[0].schedule
+    # Attempt to apply the transformation to an explicit do loop
+    with pytest.raises(TransformationError) as err:
+        _ = exp_trans.apply(sched.children[0])
+    assert ("Cannot apply NemoExplicitLoopTrans to something that is "
+            "not a NemoImplicitLoop (got " in str(err))

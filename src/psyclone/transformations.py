@@ -44,7 +44,7 @@
 
 import abc
 import six
-from psyclone.psyGen import Transformation
+from psyclone.psyGen import Transformation, InternalError
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 
@@ -2635,13 +2635,16 @@ class NemoExplicitLoopTrans(Transformation):
                         "integer :: {0}".format(loop_var)))
                 spec.content.append(decln)
 
+        # Modify the line containing the implicit do by replacing every
+        # occurrence of the outermost ':' with the new loop variable name.
         for subsec in subsections:
             # A tuple is immutable so work with a list
             indices = list(subsec.items)
             if outermost_dim >= len(indices):
                 raise InternalError(
                     "Expecting a colon for index {0} but array only has {1} "
-                    "dimensions".format(outermost_dim+1, len(indices)))
+                    "dimensions: {2}".format(outermost_dim+1, len(indices),
+                                             str(loop._ast)))
             if not isinstance(indices[outermost_dim],
                               Fortran2003.Subscript_Triplet):
                 raise TransformationError(
