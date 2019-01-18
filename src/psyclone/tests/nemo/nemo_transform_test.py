@@ -52,19 +52,6 @@ API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
-# Parser to use in tests.
-_PARSER = None
-
-
-def setup_module():
-    '''
-    xunit-style pytest fixture that is called just once on entry to
-    this module. We ensure that a suitable parser has been created and
-    store a reference to it in the module-wide `_PARSER` variable.
-    '''
-    global _PARSER
-    from fparser.two.parser import ParserFactory
-    _PARSER = ParserFactory().create()
 
 
 def test_omp_explicit_gen():
@@ -336,48 +323,52 @@ def test_implicit_loop_sched2():
     # Check that we haven't got duplicate declarations of the loop vars
     assert gen_code.count("INTEGER :: ji") == 1
 
-@pytest.mark.xfail(reason="Test needs updating once transformation "
-                   "implemented")
-def test_unrecognised_implicit():
+
+def test_exp_loop_unrecognised_implicit(parser):
     ''' Check that we raise the expected error if we encounter an
     unrecognised form of implicit loop. '''
-    from psyclone.nemo import NemoImplicitLoop, NemoInvoke
-    from fparser.two.utils import walk_ast
     exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     # Array syntax used in an unsupported index location
     reader = FortranStringReader("program test_prog\n"
                                  "real, dimension(3,3,3,3) :: umask\n"
                                  "umask(:, :, :, :) = 0.0D0\n"
                                  "end program test_prog\n")
-    prog = PARSER(reader)
+    prog = parser(reader)
     psy = PSyFactory(API).create(prog)
     sched = psy.invokes.invoke_list[0].schedule
     with pytest.raises(TransformationError) as err:
         exp_trans.apply(sched.children[0])
     assert ("Array section in unsupported dimension (4) for code "
             "'umask(:, :, :, :) = 0.0D0'" in str(err))
-    # and now for the case where the Program unit doesn't have a
-    # specification section to modify. This is hard to trigger
-    # so we manually construct some objects and put them together
-    # to create an artificial example...
-    reader = FortranStringReader("umask(:, :, :) = 0.0D0")
-    assign = Fortran2003.Assignment_Stmt(reader)
+
+
+def test_exp_loop_missing_spec(parser):
+    '''Test that the ExplicitLoop transformation still works when the
+    fparser2 AST is missing a Specification_Part for the routine.
+
+    '''
+    from fparser.two.utils import walk_ast
     reader = FortranStringReader("program atest\nreal :: umask(1,1,1,1)\n"
-                                 "umask(:, :, :) = 0.0\nend program atest")
-    prog = Fortran2003.Program_Unit(reader)
-    invoke = NemoInvoke(prog, name="atest")
-    loop = NemoImplicitLoop.__new__(NemoImplicitLoop)
-    loop._parent = None
-    loop.invoke = invoke
-    loop.root.invoke._ast = prog
+                                 "umask(:, :, :) = 0.0\nend program atest\n")
+    prog = parser(reader)
+    psy = PSyFactory(API).create(prog)
+    sched = psy.invokes.invoke_list[0].schedule
+    # Remove the specification part
     spec = walk_ast(prog.content, [Fortran2003.Specification_Part])
-    prog.content.remove(spec[0])
-    with pytest.raises(InternalError) as err:
-        loop.__init__(assign)
-    assert "No specification part found for routine atest" in str(err)
+    prog.content[0].content.remove(spec[0])
+    # Check that we can transform OK
+    exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
+    _, _ = exp_trans.apply(sched.children[0])
+    gen_code = str(psy.gen)
+    assert ("PROGRAM atest\n"
+            "  INTEGER :: jk\n"
+            "  DO jk = 1, jpk, 1\n"
+            "    umask(:, :, jk) = 0.0\n"
+            "  END DO\n"
+            "END PROGRAM atest" in gen_code)
 
 
-def test_implicit_range_err():
+def test_implicit_range_err(parser):
     ''' Check that we raise the expected error if we encounter an implicit
     loop with an explicit range (since we don't yet support that). '''
     exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
@@ -385,7 +376,7 @@ def test_implicit_range_err():
     reader = FortranStringReader("program atest\n"
                                  "umask(1:jpi, 1, :) = 0.0D0\n"
                                  "end program atest\n")
-    prog = _PARSER(reader)
+    prog = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(prog)
     sched = psy.invokes.invoke_list[0].schedule
     sched.view()
