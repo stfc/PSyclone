@@ -229,7 +229,6 @@ def test_omp_do_within_if():
     # Apply the transformation to a loop within an else clause
     schedule, _ = otrans.apply(loop)
     gen = str(psy.gen)
-    print(gen)
     expected = (
         "    ELSE\n"
         "      !$omp parallel do default(shared), private(jj,ji), "

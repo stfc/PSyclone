@@ -2567,7 +2567,7 @@ class NemoExplicitLoopTrans(Transformation):
                 # for the start, end and increment of the slice. If any of
                 # these are not None then we have an explicit range of some
                 # sort and we do not yet support that.
-                # TODO allow for implicit loops with specified bounds
+                # TODO #278 allow for implicit loops with specified bounds
                 # (e.g. 2:jpjm1)
                 if [part for part in item.items if part]:
                     raise NotImplementedError(
@@ -2585,9 +2585,9 @@ class NemoExplicitLoopTrans(Transformation):
                 "Array section in unsupported dimension ({0}) for code "
                 "'{1}'".format(outermost_dim+1, str(loop._ast)))
 
-        # TODO Since the fparser2 AST does not have parent
+        # TODO (fparser/#102) since the fparser2 AST does not have parent
         # information (and no other way of getting to the root node), it is
-        # currently not possible to insert a declaration in the correct
+        # currently not possible to cleanly insert a declaration in the correct
         # location.
         # For the moment, we can work around the fparser2 AST limitation
         # by using the fact that we *can* get hold of the PSyclone Invoke
@@ -2595,8 +2595,6 @@ class NemoExplicitLoopTrans(Transformation):
         # AST...
 
         # Get a reference to the Invoke to which this loop belongs
-        # TODO this breaks some tests because it assumes we're in a full
-        # PSyIRe tree with an Invoke at its root.
         invoke = loop.root.invoke
         nsm = invoke._name_space_manager
         loop_type = nemo.NEMO_INDEX_ORDERING[outermost_dim]
