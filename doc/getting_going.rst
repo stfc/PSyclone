@@ -327,7 +327,6 @@ If everything is working as expected then you should see output similar to:
    dynamo0p1_transformations_test.py .
    dynamo0p3_test.py .....................................x
    generator_test.py ...................
-   ghproto_transformations_test.py x
    gocean0p1_transformations_test.py .......
    gocean1p0_test.py ....
    gocean1p0_transformations_test.py ......................x........
@@ -377,7 +376,7 @@ supplied then the script writes the generated/re-written Fortran to
 the terminal.
 
 Examples are provided in the examples directory. There are 3
-subdirectories (dynamo, gocean and gunghoproto) corresponding to different
+subdirectories (dynamo, gocean and nemo) corresponding to different
 API's that are supported by PSyclone. In this case we are going to use
 one of the dynamo examples
 ::

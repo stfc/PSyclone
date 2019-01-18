@@ -379,9 +379,8 @@ TBD
 .. ============================
 .. 
 .. This section explains how to create a new API in PSyclone. PSyclone
-.. currently supports the following API's; the original prototype gungho
-.. implementation, dynamo versions 0.1 and 0.3, and gocean versions 0.1
-.. and 1.0.
+.. currently supports the following API's; dynamo versions 0.1 and 0.3
+.. and gocean versions 0.1 and 1.0.
 .. 
 .. config.py
 .. ---------

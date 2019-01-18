@@ -31,45 +31,55 @@ Metadata describing the kernel subroutines is required by the PSyclone
 system to generate appropriate PSy layer code. The metadata is written
 by the kernel developer and is kept with the kernel code in the same
 module using a sub-type of the ``kernel_type`` type. In the example
-below the ``integrate_one_kernel`` type specifies the appropriate
+below the ``w3_solver_kernel_type`` type specifies the appropriate
 metadata information describing the kernel code for the
-``gunghoproto`` api.
+``dynamo0.3`` api::
 
-::
-
-  module integrate_one_module
-    use kernel_mod
+  module w3_solver_kernel_mod
+    use kernel_mod,              only : kernel_type
+    use constants_mod,           only : r_def
+    use argument_mod,            only : arg_type, func_type,         &
+                                    GH_FIELD, GH_READ, GH_WRITE,     &
+                                    W0, W3, GH_BASIS, GH_DIFF_BASIS, &
+                                    CELLS 
     implicit none
-    
-    private
-    public integrate_one_kernel
-    public integrate_one_code
-    
-    type, extends(kernel_type) :: integrate_one_kernel
-      type(arg) :: meta_args(2) = (/&
-           arg(READ, (CG(1)*CG(1))**3, FE), &
-           arg(SUM, R, FE)/)
-      integer :: ITERATES_OVER = CELLS
-      contains
-      procedure, nopass :: code => integrate_one_code
-    end type integrate_one_kernel
+
+    type, public, extends(kernel_type) :: w3_solver_kernel_type
+      private
+      type(arg_type) :: meta_args(4) = (/                &
+           arg_type(GH_FIELD,   GH_WRITE, W3),           &
+           arg_type(GH_FIELD,   GH_READ,  W3),           &
+           arg_type(GH_FIELD*3, GH_READ,  W0),           &
+           arg_type(GH_REAL,    GH_READ)                 &
+           /)
+      type(func_type) :: meta_funcs(2) = (/              &
+           func_type(W3, GH_BASIS),                      &
+           func_type(W0, GH_DIFF_BASIS)                  &
+           /)
+      integer :: gh_shape = gh_quadrature_XYoZ
+      integer :: iterates_over = CELLS
+    contains
+      procedure, nopass ::solver_w3_code
+    end type
   
   contains
   
-    subroutine integrate_one_code(layers, p1dofm, X, R)
-      integer, intent(in) :: layers
-      integer, intent(in) :: p1dofm(6)
-      real(dp), intent(in) :: X(3,*)
-      real(dp), intent(inout) :: R
-    end subroutine integrate_one_code
+    subroutine solver_w3_code(nlayers,                                 &
+                              x, rhs,                                  &
+                              chi_1, chi_2, chi_3, ascalar,            &
+                              ndf_w3, undf_w3, map_w3, w3_basis,       &
+                              ndf_w0, undf_w0, map_w0, w0_diff_basis,  &
+                              nqp_h, nqp_v, wqp_h, wqp_v)
+      ...
+    end subroutine solver_w3_code
   
-  end module integrate_one_module
+  end module w3_solver_kernel_mod
 
 Metadata
 --------
 
 Kernel metadata is not required if the PSy layer is going to be
-written manually, its sole purpose is to let PSyclone know how to
+written manually - its sole purpose is to let PSyclone know how to
 generate the PSy layer. The content of Kernel metadata differs
 depending on the particular API and this information can be found in
 the API-specific sections of this document.

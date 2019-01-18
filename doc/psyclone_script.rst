@@ -41,8 +41,8 @@ by the script:
     -h, --help            show this help message and exit
     -oalg OALG            filename of transformed algorithm code
     -opsy OPSY            filename of generated PSy code
-    -api API              choose a particular api from ['gunghoproto',
-                          'dynamo0.1', 'dynamo0.3', 'gocean0.1', 'gocean1.0'],
+    -api API              choose a particular api from ['dynamo0.1',
+                          'dynamo0.3', 'gocean0.1', 'gocean1.0', 'nemo'],
                           default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
