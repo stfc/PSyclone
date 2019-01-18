@@ -268,36 +268,73 @@ def test_implicit_loop_trans():
     assert isinstance(psy, nemo.NemoPSy)
     sched = psy.invokes.invoke_list[0].schedule
     assert isinstance(sched.children[0], nemo.NemoImplicitLoop)
-    sched.view()
     new_loop, _ = exp_trans.apply(sched.children[0])
-    sched.view()
     # The code being tested has a triply-nested implicit loop so applying
     # the transform once gives an outer explicit loop and an inner,
     # doubly-nested implicit loop
     loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 2
     assert loops[0].loop_type == "levels"
+    new_loop, _ = exp_trans.apply(new_loop.children[0])
+    loops = sched.walk(sched.children, nemo.NemoLoop)
+    assert len(loops) == 3
+    assert loops[1].loop_type == "lat"
+    new_loop, _ = exp_trans.apply(new_loop.children[0])
+    loops = sched.walk(sched.children, nemo.NemoLoop)
+    # We should still have 3 loops since the last transformation
+    # should have created an explicit loop containing a kernel
+    assert len(loops) == 3
+    assert loops[2].loop_type == "lon"
+    assert isinstance(loops[2].children[0], nemo.NemoKern)
+    # Finally, check the generated code
+    gen_code = str(psy.gen)
+    assert ("  INTEGER :: jk\n"
+            "  INTEGER :: jj\n"
+            "  INTEGER :: ji\n"
+            "  DO jk = 1, jpk, 1\n"
+            "    DO jj = 1, jpj, 1\n"
+            "      DO ji = 1, jpi, 1\n"
+            "        umask(ji, jj, jk) = 0.0D0\n"
+            "      END DO\n"
+            "    END DO\n"
+            "  END DO\n" in gen_code)
 
 
-@pytest.mark.xfail(reason="Explicit loop transformation not implemented.")
+@pytest.mark.xfail(reason="Code being transformed already declares ji and jj "
+                   "and so we get duplicate declarations. Needs symbol "
+                   "table - #255.")
 def test_implicit_loop_sched2():
-    ''' Check that we get the correct schedule for an explicit loop over
-    levels containing an implicit loop over the i-j slab '''
+    ''' Check that we get the correct schedule when we transform an implicit
+    loop over the i-j slab within an explicit loop levels. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "explicit_over_implicit.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
-    new_sched, _ = exp_trans.apply(sched.children[0])
+    loop_levels = sched.children[0]
+    new_loop, _ = exp_trans.apply(loop_levels.children[0])
     # We should have 3 loops (one from the explicit loop over levels and
     # the other two from the implicit loops over ji and jj).
     loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 3
+    assert loop_levels.children[0].loop_type == "lat"
     kerns = sched.kern_calls()
-    assert len(kerns) == 1
-
+    assert not kerns
+    new_loop, _ = exp_trans.apply(loop_levels.children[0].children[0])
+    gen_code = str(psy.gen)
+    assert ("  INTEGER :: jj\n"
+            "  INTEGER :: ji\n"
+            "  DO jk = 1, jpk\n"
+            "    DO jj = 1, jpj, 1\n"
+            "      DO ji = 1, jpi, 1\n"
+            "        umask(ji, jj, jk) = vmask(ji, jj, jk) + 1.0\n"
+            "      END DO\n"
+            "    END DO\n"
+            "  END DO\n"
+            "END PROGRAM explicit_over_implicit" in gen_code)
+    # Check that we haven't got duplicate declarations of the loop vars
+    assert gen_code.count("INTEGER :: ji") == 1
 
 @pytest.mark.xfail(reason="Test needs updating once transformation "
                    "implemented")

@@ -2582,7 +2582,7 @@ class NemoExplicitLoopTrans(Transformation):
         loop_stop = nemo.VALID_LOOP_TYPES[loop_type]["stop"]
         loop_step = "1"
         name = Fortran2003.Name(FortranStringReader(loop_var))
-        # TODO XXX we need some sort of type/declarations table to check that
+        # TODO #255 we need some sort of type/declarations table to check that
         # we don't already have a declaration for a variable of this name.
         # For the moment we keep a list of variables we have created in
         # Invoke._loop_vars.
@@ -2655,7 +2655,8 @@ class NemoExplicitLoopTrans(Transformation):
         # Delete the old PSyIR node that we have transformed
         del loop
         loop = None
-        return new_loop, keep
+        # Return the new NemoLoop object that we have created
+        return psyir_parent.children[0], keep
 
     def validate(self, loop):
         '''
