@@ -77,7 +77,7 @@ class Config(object):
     _instance = None
 
     # List of supported API by PSyclone
-    _supported_api_list = ["gunghoproto", "dynamo0.1", "dynamo0.3",
+    _supported_api_list = ["dynamo0.1", "dynamo0.3",
                            "gocean0.1", "gocean1.0", "nemo"]
 
     # List of supported stub API by PSyclone

@@ -258,20 +258,6 @@ class DynDescriptor(Descriptor):
         return self._gauss_quad
 
 
-class GHProtoDescriptor(Descriptor):
-    def __init__(self, access, space, stencil):
-        self._space = FunctionSpace.unpack(space)
-        Descriptor.__init__(self, access, self._space, stencil)
-
-    @property
-    def element(self):
-        return self._space.element
-
-    def __repr__(self):
-        return 'Descriptor(%s, %s, %s)' % (self.stencil, self.element,
-                                           self.access)
-
-
 class FunctionSpace(object):
     @staticmethod
     def unpack(string):
@@ -431,7 +417,8 @@ class KernelProcedure(object):
 
 class KernelTypeFactory(object):
     '''
-    Factory for calls to user-supplied Kernels.
+    Factory for objects in the PSyIR representing calls to user-supplied
+     Kernels.
 
     :param str api: The API to which this kernel conforms.
     '''
@@ -444,10 +431,15 @@ class KernelTypeFactory(object):
             self._type = api
 
     def create(self, ast, name=None):
+        '''
+        Create a Kernel object for the API supplied to the constructor
+        of this factory.
 
-        if self._type == "gunghoproto":
-            return GHProtoKernelType(ast, name=name)
-        elif self._type == "dynamo0.1":
+        :param ast: The fparser1 AST for the Kernel code.
+        :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+        :param str name: the name of the kernel or None.
+        '''
+        if self._type == "dynamo0.1":
             return DynKernelType(ast, name=name)
         elif self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
@@ -751,25 +743,6 @@ class GOKernelType(KernelType):
                     format(str(len(init.args)), init.args))
             self._arg_descriptors.append(GODescriptor(access, funcspace,
                                                       stencil))
-
-
-class GHProtoKernelType(KernelType):
-
-    def __init__(self, ast, name=None):
-        KernelType.__init__(self, ast, name=name)
-        self._arg_descriptors = []
-        for init in self._inits:
-            if init.name != 'arg':
-                raise ParseError(
-                    "Each meta_arg value must be of type 'arg' for the GungHo "
-                    "prototype API, but found '" + init.name + "'")
-            if len(init.args) != 3:
-                raise ParseError(
-                    "'arg' type expects 3 arguments but found '{}' in '{}'".
-                    format(str(len(init.args)), init.args))
-            self._arg_descriptors.append(GHProtoDescriptor(init.args[0].name,
-                                                           str(init.args[1]),
-                                                           init.args[2].name))
 
 
 class ParsedCall(object):

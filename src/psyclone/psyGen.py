@@ -254,10 +254,7 @@ class PSyFactory(object):
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
         '''
-        if self._type == "gunghoproto":
-            from psyclone.ghproto import GHProtoPSy
-            return GHProtoPSy(invoke_info)
-        elif self._type == "dynamo0.1":
+        if self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynamoPSy
             return DynamoPSy(invoke_info)
         elif self._type == "dynamo0.3":

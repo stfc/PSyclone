@@ -7117,8 +7117,8 @@ class DynKernelArguments(Arguments):
     @property
     def dofs(self):
         ''' Currently required for invoke base class although this
-        makes no sense for dynamo. Need to refactor the invoke class
-        and pull out dofs into the gunghoproto api. '''
+        makes no sense for dynamo. Need to refactor the Invoke base class
+        and remove the need for this property (#279). '''
         return self._dofs
 
 
