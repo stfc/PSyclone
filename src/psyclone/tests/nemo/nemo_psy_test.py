@@ -41,7 +41,8 @@ from __future__ import print_function, absolute_import
 import os
 import pytest
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, InternalError, GenerationError
+from psyclone.psyGen import PSyFactory, InternalError, GenerationError, \
+    CodeBlock
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
@@ -105,9 +106,11 @@ def test_array_valued_function():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    assert len(sched.children) == 1
-    # We should just have a single code block
-    assert isinstance(sched.children[0], nemo.NemoCodeBlock)
+    sched.view()
+    assert len(sched.children) == 2
+    # We should just have two assignments and no Loops
+    kernels = sched.walk(sched.children, nemo.NemoKern)
+    assert not kernels
 
 
 def test_multi_kern():
@@ -145,37 +148,27 @@ def test_implicit_loop_assign():
     assert isinstance(sched.children[0], nemo.NemoLoop)
     # The other statements (that use array syntax) are not assignments
     # and therefore are not implicit loops
-    assert isinstance(sched.children[1], nemo.NemoCodeBlock)
+    assert not(isinstance(sched.children[1], nemo.NemoLoop))
     # Check that the loop variables have been declared just once
     for var in ["psy_ji", "psy_jj", "psy_jk"]:
         assert gen.count("integer :: {0}".format(var)) == 1
 
 
-def test_codeblock():
+def test_complex_code():
     ''' Check that we get the right schedule when the code contains
-    some unrecognised statements as well as both an explict and an
-    implicit loop. '''
+    multiple statements of different types '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 5
-    cblocks = sched.walk(sched.children, nemo.NemoCodeBlock)
+    cblocks = sched.walk(sched.children, CodeBlock)
     assert len(cblocks) == 4
     kerns = sched.kern_calls()
     assert len(kerns) == 1
     # The last loop does not contain a kernel
     assert loops[-1].kernel is None
-
-
-def test_codeblock_gencode_error():
-    ''' Check that calling NemoCodeBlock.gen_code() results in an internal
-    error. '''
-    cblock = nemo.NemoCodeBlock([])
-    with pytest.raises(InternalError) as err:
-        cblock.gen_code()
-    assert "NemoCodeBlock.gen_code() should not be called" in str(err)
 
 
 def test_io_not_kernel():
@@ -185,9 +178,7 @@ def test_io_not_kernel():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    # We should have only 1 actual kernel and 2 code blocks
-    cblocks = sched.walk(sched.children, nemo.NemoCodeBlock)
-    assert len(cblocks) == 2
+    # We should have only 1 actual kernel
     kerns = sched.kern_calls()
     assert len(kerns) == 1
 
@@ -201,7 +192,6 @@ def test_schedule_view(capsys):
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     sched_str = str(sched)
-    assert "CodeBlock[2 statements]" in sched_str
     assert "NemoLoop[levels]: jk=1,jpk,1" in sched_str
     assert "NemoLoop[lat]: jj=1,jpj,1" in sched_str
     assert "NemoLoop[lon]: ji=1,jpi,1" in sched_str
@@ -210,7 +200,6 @@ def test_schedule_view(capsys):
 
     # Have to allow for colouring of output text
     loop_str = colored("Loop", NEMO_SCHEDULE_COLOUR_MAP["Loop"])
-    cb_str = colored("NemoCodeBlock", NEMO_SCHEDULE_COLOUR_MAP["CodeBlock"])
     kern_str = colored("KernCall", NEMO_SCHEDULE_COLOUR_MAP["KernCall"])
     sched_str = colored("Schedule", NEMO_SCHEDULE_COLOUR_MAP["Schedule"])
 
@@ -229,17 +218,17 @@ def test_schedule_view(capsys):
         "it_space='None']\n"
         "            " + loop_str + "[type='lon',field_space='None',"
         "it_space='None']\n"
-        "                " + cb_str + "[<class 'fparser.two.Fortran2003."
-        "Assignment_Stmt'>]\n"
-        "    " + loop_str + "[type='levels',field_space='None',"
+        "                ")
+    assert expected_sched in output
+    expected_sched2 = (
+        loop_str + "[type='levels',field_space='None',"
         "it_space='None']\n"
         "        " + loop_str + "[type='lat',field_space='None',"
         "it_space='None']\n"
         "            " + loop_str + "[type='lon',field_space='None',"
         "it_space='None']\n"
-        "                " + cb_str + "[<class 'fparser.two.Fortran2003."
-        "Assignment_Stmt'>]")
-    assert expected_sched in output
+        "                ")
+    assert expected_sched2 in output
 
 
 def test_kern_inside_if():
@@ -365,4 +354,3 @@ def test_invoke_function():
     assert len(psy.invokes.invoke_list) == 1
     invoke = psy.invokes.invoke_list[0]
     assert invoke.name == "afunction"
-    assert isinstance(invoke.schedule.children[0], nemo.NemoCodeBlock)
