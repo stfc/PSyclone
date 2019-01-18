@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@ from __future__ import print_function, absolute_import
 import os
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.utils import walk_ast
-from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
 from psyclone.parse import parse
 from psyclone import nemo
@@ -51,9 +50,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 
 
-def test_identify_implicit_loop():
+def test_identify_implicit_loop(parser):
     ''' Check that we correctly identify implicit loops in the fparser2 AST '''
-    parser = ParserFactory().create()
     reader = FortranStringReader("program test_prog\n"
                                  "umask(:, :, :, :) = 0.0D0\n"
                                  "do jk = 1, jpk\n"
