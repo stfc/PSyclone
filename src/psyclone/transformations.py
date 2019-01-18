@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ import abc
 import six
 from psyclone.psyGen import Transformation
 from psyclone.configuration import Config
+from psyclone.undoredo import Memento
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -204,7 +205,6 @@ class LoopFuseTrans(Transformation):
         schedule = node1.root
 
         # create a memento of the schedule and the proposed transformation
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [node1, node2])
 
         # add loop contents of node2 to node1
@@ -493,7 +493,6 @@ class ParallelLoopTrans(Transformation):
 
         # create a memento of the schedule and the proposed
         # transformation
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [node, collapse])
 
         # keep a reference to the node's original parent and its index as these
@@ -878,7 +877,6 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         schedule = node.root
         # create a memento of the schedule and the proposed transformation
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [node])
 
         # keep a reference to the node's original parent and its index as these
@@ -1121,7 +1119,6 @@ class ColourTrans(Transformation):
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [node])
 
         node_parent = node.parent
@@ -1218,7 +1215,6 @@ class KernelModuleInlineTrans(Transformation):
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [node])
 
         # set kernel's inline status
@@ -1436,7 +1432,6 @@ class ParallelRegionTrans(RegionTrans):
         # transformation
         schedule = node_list[0].root
 
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self)
 
         # Create the parallel directive as a child of the
@@ -1671,7 +1666,6 @@ class GOConstLoopBoundsTrans(Transformation):
             raise TransformationError("Error in GOConstLoopBoundsTrans: "
                                       "node is not a GOSchedule")
 
-        from psyclone.undoredo import Memento
         keep = Memento(node, self)
 
         node.const_loop_bounds = const_bounds
@@ -1740,7 +1734,6 @@ class MoveTrans(Transformation):
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
-        from .undoredo import Memento
         keep = Memento(schedule, self, [node, location])
 
         parent = node.parent
@@ -1971,7 +1964,6 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         # create a memento of the schedule and the proposed
         # transformation
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [loop, depth])
 
         if loop.loop_type == "":
@@ -2100,7 +2092,6 @@ class GOLoopSwapTrans(Transformation):
         parent = outer.parent
 
         # create a memento of the schedule and the proposed transformation
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [inner, outer])
 
         # Remove outer from parent:
@@ -2204,7 +2195,6 @@ class ProfileRegionTrans(RegionTrans):
         # transformation
         schedule = node_list[0].root
 
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self)
 
         from psyclone.profiler import ProfileNode
@@ -2277,7 +2267,6 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         schedule = node.root
 
         # create a memento of the schedule and the proposed transformation
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [node])
 
         from psyclone.dynamo0p3 import DynHaloExchangeStart, DynHaloExchangeEnd
@@ -2393,7 +2382,6 @@ class ACCDataTrans(Transformation):
                                       "data region - cannot add another.")
         # create a memento of the schedule and the proposed
         # transformation
-        from psyclone.undoredo import Memento
         keep = Memento(schedule, self, [schedule])
 
         # Add the directive
@@ -2456,7 +2444,6 @@ class ACCRoutineTrans(Transformation):
         # Get the fparser2 AST of the kernel
         ast = kern.ast
         # Keep a record of this transformation
-        from psyclone.undoredo import Memento
         keep = Memento(kern, self)
         # Find the kernel subroutine
         kern_sub = None
@@ -2520,10 +2507,13 @@ class NemoExplicitLoopTrans(Transformation):
 
     def apply(self, loop):
         '''
+        Transform the supplied implicit loop into an explicit loop.
+
         :param loop: the NemoImplicitLoop to transform.
         :type loop: :py:class:`psyclone.nemo.NemoImplicitLoop`.
-        :returns: XXX
-        :rtype: (,)
+        :returns: a new loop object and a memento of the transformation.
+        :rtype: (:py:class:`psyclone.nemo.NemoLoop`, \
+                 :py:class:`psyclone.undoredo.Memento`)
 
         :raises NotImplementedError: if the array slice has explicit bounds.
         :raises TransformationError: if an array slice is not in dimensions \
@@ -2532,9 +2522,12 @@ class NemoExplicitLoopTrans(Transformation):
         from fparser.two import Fortran2003
         from fparser.two.utils import walk_ast
         from fparser.common.readfortran import FortranStringReader
-        from psyclone.nemo import NemoLoop
+        from psyclone import nemo
 
         self.validate(loop)
+
+        # Keep a record of this transformation
+        keep = Memento(loop, self)
 
         # Find all uses of array syntax in the statement
         subsections = walk_ast(loop._ast.items,
@@ -2580,14 +2573,21 @@ class NemoExplicitLoopTrans(Transformation):
         # TODO this breaks some tests because it assumes we're in a full
         # PSyIRe tree with an Invoke at its root.
         invoke = loop.root.invoke
-
-        name = Fortran2003.Name(FortranStringReader(loop._variable_name))
+        nsm = invoke._name_space_manager
+        loop_type = nemo.NEMO_INDEX_ORDERING[outermost_dim]
+        base_name = nemo.VALID_LOOP_TYPES[loop_type]["var"]
+        loop_var = nsm.create_name(root_name=base_name, context="PSyVars",
+                                   label=base_name)
+        loop_start = nemo.VALID_LOOP_TYPES[loop_type]["start"]
+        loop_stop = nemo.VALID_LOOP_TYPES[loop_type]["stop"]
+        loop_step = "1"
+        name = Fortran2003.Name(FortranStringReader(loop_var))
         # TODO XXX we need some sort of type/declarations table to check that
         # we don't already have a declaration for a variable of this name.
         # For the moment we keep a list of variables we have created in
         # Invoke._loop_vars.
         if loop._variable_name not in invoke._loop_vars:
-            invoke._loop_vars.append(loop._variable_name)
+            invoke._loop_vars.append(loop_var)
 
             prog_unit = loop.root.invoke._ast
             spec_list = walk_ast(prog_unit.content,
@@ -2597,7 +2597,7 @@ class NemoExplicitLoopTrans(Transformation):
                 # in to the AST
                 spec = Fortran2003.Specification_Part(
                     FortranStringReader(
-                        "integer :: {0}".format(loop._variable_name)))
+                        "integer :: {0}".format(loop_var)))
                 spec._parent = prog_unit
                 for idx, child in enumerate(prog_unit.content):
                     if isinstance(child, Fortran2003.Execution_Part):
@@ -2607,7 +2607,7 @@ class NemoExplicitLoopTrans(Transformation):
                 spec = spec_list[0]
                 decln = Fortran2003.Type_Declaration_Stmt(
                     FortranStringReader(
-                        "integer :: {0}".format(loop._variable_name)))
+                        "integer :: {0}".format(loop_var)))
                 spec.content.append(decln)
 
         for subsec in subsections:
@@ -2624,37 +2624,38 @@ class NemoExplicitLoopTrans(Transformation):
                     "all array range specifications occur in the same "
                     "dimension(s) of each array in an assignment.")
             # Replace the colon with our new variable name
-            indices[outermost_dim] = name
+            indices[outermost_dim] = loop_var
             # Replace the original tuple with a new one
             subsec.items = tuple(indices)
 
-        # Create an explicit loop
+        # Create the fparser AST for an explicit loop
         text = ("do {0}=1,{1},{2}\n"
                 "  replace = me\n"
-                "end do\n".format(loop._variable_name, loop._stop, loop._step))
-        loop = Fortran2003.Block_Nonlabel_Do_Construct(
+                "end do\n".format(loop_var, loop_stop, loop_step))
+        new_loop = Fortran2003.Block_Nonlabel_Do_Construct(
             FortranStringReader(text))
-        parent_index = loop._ast._parent.content.index(loop._ast)
+
         # Insert it in the fparser2 AST at the location of the implicit
         # loop
-        loop._ast._parent.content.insert(parent_index, loop)
+        parent_index = loop._ast._parent.content.index(loop._ast)
+        loop._ast._parent.content.insert(parent_index, new_loop)
         # Replace the content of the loop with the (modified) implicit
         # loop
-        loop.content[1] = loop._ast
+        new_loop.content[1] = loop._ast
         # Remove the implicit loop from its original parent in the AST
         loop._ast._parent.content.remove(loop._ast)
-        # Update the parent of the AST
-        loop._ast._parent = loop
-        # Update the loop pointer into the AST to now point to the explicit
-        # loop we've just created
-        loop._ast = loop
 
-        if not NemoImplicitLoop.match(self._ast):
-            # We still have an implicit loop so recurse
-            # self.addchild(NemoImplicitLoop(ast, parent=self))
-
-            # We must be left with a kernel
-            loop.addchild(NemoKern(loop._ast, parent=loop))
+        # Now we must update the PSyIR to reflect the new AST
+        # First we update the parent of the loop we have transformed
+        psyir_parent = loop.parent
+        psyir_parent.children.remove(loop)
+        # Next, we simply process the transformed fparser2 AST to generate
+        # the new PSyIR of it
+        psyir_parent.process_nodes(psyir_parent, [new_loop], loop._ast._parent)
+        # Delete the old PSyIR node that we have transformed
+        del loop
+        loop = None
+        return new_loop, keep
 
     def validate(self, loop):
         '''

@@ -163,8 +163,8 @@ class NemoInvoke(Invoke):
         # Store the whole fparser2 AST
         self._ast = ast
         # A temporary workaround for the fact that we don't yet have a
-        # proper place to store information on the variable declarations
-        # TODO (#XXXX) remove this workaround.
+        # symbol table to store information on the variable declarations.
+        # TODO (#255) remove this workaround.
         self._loop_vars = []
         self._name_space_manager = NameSpaceFactory().create()
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part

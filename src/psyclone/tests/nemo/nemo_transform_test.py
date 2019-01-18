@@ -258,9 +258,9 @@ def test_omp_do_within_if():
     assert expected in gen
 
 
-@pytest.mark.xfail(reason="Explicit loop transformation not implemented.")
-def test_implicit_loop_sched1():
-    ''' Check that we get the correct schedule for an implicit loop '''
+def test_implicit_loop_trans():
+    ''' Check that we get the correct schedule when we apply the explicit
+    loop transformation to  an implicit loop. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -269,11 +269,14 @@ def test_implicit_loop_sched1():
     sched = psy.invokes.invoke_list[0].schedule
     assert isinstance(sched.children[0], nemo.NemoImplicitLoop)
     sched.view()
-    new_sched, _ = exp_trans.apply(sched.children[0])
+    new_loop, _ = exp_trans.apply(sched.children[0])
+    sched.view()
+    # The code being tested has a triply-nested implicit loop so applying
+    # the transform once gives an outer explicit loop and an inner,
+    # doubly-nested implicit loop
     loops = sched.walk(sched.children, nemo.NemoLoop)
-    assert len(loops) == 3
-    kerns = sched.kern_calls()
-    assert len(kerns) == 1
+    assert len(loops) == 2
+    assert loops[0].loop_type == "levels"
 
 
 @pytest.mark.xfail(reason="Explicit loop transformation not implemented.")
