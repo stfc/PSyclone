@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -543,7 +543,7 @@ def test_main_invalid_api(capsys):
     assert str(excinfo.value) == "1"
     output, _ = capsys.readouterr()
     expected_output = ("Unsupported API 'madeup' specified. Supported API's "
-                       "are ['gunghoproto', 'dynamo0.1', 'dynamo0.3', "
+                       "are ['dynamo0.1', 'dynamo0.3', "
                        "'gocean0.1', 'gocean1.0', 'nemo'].\n")
     assert output == expected_output
 
