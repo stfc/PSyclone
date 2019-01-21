@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    BinaryOperation, KernelSchedule
+    BinaryOperation, KernelSchedule, Symbol, SymbolTable
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -2600,7 +2600,6 @@ def test_literal_can_be_printed():
 
 # Test BinaryOperation class
 
-
 def test_binaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the Binary Operation
     class.'''
@@ -2628,6 +2627,86 @@ def test_binaryoperation_can_be_printed():
     assert "BinaryOperation[operator:'+']\n" in str(binaryOp)
 
 
+# Test KernelSchedule Class
+
+def test_kernschedule_view(capsys):
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    kschedule = KernelSchedule("kname")
+    kschedule.view()
+    coloredtext = colored("Schedule",
+                          SCHEDULE_COLOUR_MAP["Schedule"])
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[name:'kname']" in output
+
+
+def test_kernschedule_can_be_printed():
+    kschedule = KernelSchedule("kname")
+    assert "Schedule[name:'kname']:\n" in str(kschedule)
+    assert "End Schedule" in str(kschedule)
+
+
+# Test Symbol Class
+
+def test_symbol_can_be_printed():
+    symbol = Symbol("sname", "real", 1, "read_arg")
+    assert "sname<real,1,read_arg>" in str(symbol)
+
+
+# Test SymbolTable Class
+
+def test_symboltable_declare():
+    sym_table = SymbolTable()
+
+    # Declare a symbol
+    sym_table.declare("var1", "real", 3, "read_arg")
+    assert sym_table._symbols["var1"].name == "var1"
+    assert sym_table._symbols["var1"].datatype == "real"
+    assert sym_table._symbols["var1"].dimensions == 3
+    assert sym_table._symbols["var1"].kind == "read_arg"
+
+    # Declare a duplicate name symbol
+    with pytest.raises(InternalError) as error:
+        sym_table.declare("var1", "real", 0, "write_arg")
+    assert "Multiple definition of symbol: 'var1'." in str(error.value)
+
+
+def test_symboltable_lookup():
+    sym_table = SymbolTable()
+    sym_table.declare("var1", "real", 3, "read_arg")
+    sym_table.declare("var2", "integer", 0, "write_arg")
+    sym_table.declare("var3", "real", 0, None)
+
+    assert isinstance(sym_table.lookup("var1"), Symbol)
+    assert sym_table.lookup("var1").name == "var1"
+    assert isinstance(sym_table.lookup("var2"), Symbol)
+    assert sym_table.lookup("var2").name == "var2"
+    assert isinstance(sym_table.lookup("var3"), Symbol)
+    assert sym_table.lookup("var3").name == "var3"
+
+    with pytest.raises(KeyError) as error:
+        sym_table.lookup("notdeclared")
+
+
+def test_symboltable_view(capsys):
+    sym_table = SymbolTable()
+    sym_table.declare("var1", "real", 3, "read_arg")
+    sym_table.declare("var2", "integer", 2, "read_arg")
+    sym_table.view()
+    output, _ = capsys.readouterr()
+    assert "Symbol Table:\n" in output
+    assert "var1" in output
+    assert "var2" in output
+
+
+def test_symboltable_can_be_printed():
+    sym_table = SymbolTable()
+    sym_table.declare("var1", "real", 3, "read_arg")
+    sym_table.declare("var2", "integer", 2, "read_arg")
+    assert "Symbol Table:\n" in str(sym_table)
+    assert "var1" in str(sym_table)
+    assert "var2" in str(sym_table)
+
+
 # Test Fparser2ASTProcessor
 
 def test_fparser2astprocessor_generate_schedule():
@@ -2640,10 +2719,11 @@ def test_fparser2astprocessor_generate_schedule():
     ast2 = my_kern.ast
     processor = Fparser2ASTProcessor()
 
-    # Test properly formed kernel module
+    # Test properly formed but empty kernel module
     schedule = processor.generate_schedule("dummy_code", ast2)
-    # assert isinstance(schedule, KernelSchedule)
+    assert isinstance(schedule, KernelSchedule)
 
+    # Test generate an unexistent subroutine name
     with pytest.raises(InternalError) as error:
         schedule = processor.generate_schedule("nonexistent_code", ast2)
     assert "Unexpected kernel AST. Could not find " \
@@ -2655,6 +2735,48 @@ def test_fparser2astprocessor_generate_schedule():
         schedule = processor.generate_schedule("dummy_code", ast2)
     assert "Unexpected kernel AST. Could not find " \
            "subroutine: dummy_code" in str(error.value)
+
+    # Test corrupting ast by deleting specification part
+    del ast2.content[0].content[1]
+    with pytest.raises(InternalError) as error:
+        schedule = processor.generate_schedule("dummy_code", ast2)
+    assert "Unexpected kernel AST. Could not find specification part."
+
+    DUMMY_KERNEL_METADATA = '''
+    module dummy_mod
+      type, extends(kernel_type) :: dummy_type
+         type(arg_type), meta_args(3) =                    &
+              (/ arg_type(gh_field, gh_write,     w3),     &
+                 arg_type(gh_field, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_inc,       w1)      &
+               /)
+         integer :: iterates_over = cells
+       contains
+         procedure, nopass :: code => dummy_code
+      end type dummy_type
+    contains
+     subroutine dummy_code(f1, f2, f3)
+        real(wp), dimension(:,:), intent(in)  :: f1
+        real(wp), dimension(:,:), intent(out)  :: f2
+        real(wp), dimension(:,:), intent(inout)  :: f3
+        f2 = f1 + 1
+      end subroutine dummy_code
+    end module dummy_mod
+    '''
+    ast1 = fpapi.parse(DUMMY_KERNEL_METADATA, ignore_comments=True)
+    metadata = DynKernMetadata(ast1)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    ast2 = my_kern.ast
+
+    # Test properly formed kernel module
+    schedule = processor.generate_schedule("dummy_code", ast2)
+    assert isinstance(schedule, KernelSchedule)
+
+    # Test corrupting ast by deleting execution part
+    del ast2.content[0].content[2].content[1].content[2]
+    schedule = processor.generate_schedule("dummy_code", ast2)
+    assert isinstance(schedule, KernelSchedule)
 
 
 def test_fparser2astprocessor_process_declarations():
@@ -2681,6 +2803,12 @@ def test_fparser2astprocessor_process_declarations():
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
     assert fake_parent.symbol_table.lookup("l2").dimensions == 0
     assert fake_parent.symbol_table.lookup("l2").kind == 'local'
+
+    # Initialisations not supported yet
+    reader = FortranStringReader("integer :: l1 = 1")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2specification])
 
     # Test different intent specifications
     reader = FortranStringReader("integer, intent(in) :: arg1")

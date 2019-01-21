@@ -4012,31 +4012,32 @@ class Fparser2ASTProcessor(object):
             mod_content = module_ast.content[0].content
             mod_spec = first_type_match(mod_content,
                                         Fortran2003.Specification_Part)
-        except ValueError:
+        except (ValueError, IndexError):
             raise InternalError("Unexpected kernel AST. Could not find "
                                 "specification part.")
 
         try:
             subroutines = first_type_match(mod_content,
-                                   Fortran2003.Module_Subprogram_Part)
+                                           Fortran2003.Module_Subprogram_Part)
             subroutine = search_subroutine(subroutines.content, name)
-        except ValueError:
+        except (ValueError, IndexError):
             raise InternalError("Unexpected kernel AST. Could not find "
                                 "subroutine: {0}".format(name))
 
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
+        except ValueError:
+            pass
+        else:
+            self.process_declarations(new_schedule, sub_spec.content)
+
+        try:
             sub_exec = first_type_match(subroutine.content,
                                         Fortran2003.Execution_Part)
         except ValueError:
-            # If the subroutine is not as expected, just create a code_block.
-            statements = subroutine.content[:]  # First, we need to copy the
-            # list structure as node_to_code_block deletes the consumed items
-            # from the list.
-            self.nodes_to_code_block(new_schedule, statements)
+            pass
         else:
-            self.process_declarations(new_schedule, sub_spec.content)
             self.process_nodes(new_schedule, sub_exec.content, sub_exec)
 
         return new_schedule
@@ -4048,8 +4049,8 @@ class Fparser2ASTProcessor(object):
 
         :param parent: PSyIRe node to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
-        :param nodes: fparser2 AST node to search for Declarations Statements
-        :type nodes: :py:class:`fparser.two.Fortran2003.Specification_Part`
+        :param nodes: fparser2 AST nodes to search for Declarations Statements
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
         '''
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
@@ -4370,7 +4371,7 @@ class SymbolTable(object):
         :type kind: string
         '''
         if name in self._symbols:
-            raise InternalError("Multiple definition of symbol {0}."
+            raise InternalError("Multiple definition of symbol: '{0}'."
                                 "".format(name))
         else:
             self._symbols[name] = Symbol(name, datatype, dimensions, kind)
@@ -4381,14 +4382,15 @@ class SymbolTable(object):
 
         :param name: Name of the symbol
         :type name: string
+        :raises KeyError: If the given name is not in the Symbol Table.
         '''
-        return self._symbols.get(name)
+        return self._symbols[name]
 
     def view(self):
         '''
         Print a representation of this Symbol Table to stdout.
         '''
-        print("Symbol Table")
+        print("Symbol Table:")
         for symbol in self._symbols.values():
             print(str(symbol))
 
@@ -4424,10 +4426,18 @@ class KernelSchedule(Schedule):
         :param indent: Depth of indent for output text
         :type indent: integer
         '''
-        print(self.indent(indent) + self.coloured_text + "[name:" + self._name
-              + "]")
+        print(self.indent(indent) + self.coloured_text + "[name:'" + self._name
+              + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "Schedule[name:'" + self._name + "']:\n"
+        for entity in self._children:
+            result += str(entity)+"\n"
+        result += "End Schedule"
+        return result
+
 
 
 class CodeBlock(Node):
