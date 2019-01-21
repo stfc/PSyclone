@@ -2646,14 +2646,14 @@ def test_fparser2astprocessor_generate_schedule():
 
     with pytest.raises(InternalError) as error:
         schedule = processor.generate_schedule("nonexistent_code", ast2)
-    assert "Unexpected kernel ast. Could not find " \
+    assert "Unexpected kernel AST. Could not find " \
            "subroutine: nonexistent_code" in str(error.value)
 
     # Test corrupting ast by deleting subroutine
     del ast2.content[0].content[2]
     with pytest.raises(InternalError) as error:
         schedule = processor.generate_schedule("dummy_code", ast2)
-    assert "Unexpected kernel ast. Could not find " \
+    assert "Unexpected kernel AST. Could not find " \
            "subroutine: dummy_code" in str(error.value)
 
 

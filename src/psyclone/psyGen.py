@@ -3005,19 +3005,17 @@ class Kern(Call):
 
     def get_kernel_schedule(self):
         '''
-        Returns a PSyIRe Schedule representing the kernel code.
-
-        NOTE: It assumes Kernel schedule is immutalbe, because self.ast is
-        also immutable (won't change afer the first self.ast invokation).
+        Returns a PSyIRe Schedule representing the kernel code. The Schedule
+        is just generated on first invokation, this allows to retain
+        transformations applied to the Schedule but will not adapt to
+        transformations applied to the fparser2 AST.
 
         :return: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernSchedule`
         '''
         if self._kern_schedule is None:
             astp = Fparser2ASTProcessor()
-            self._kern_schedule = astp.generate_schedule(self.name,
-                                                         self.ast,
-                                                         self.arg_descriptors)
+            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
         return self._kern_schedule
 
     def __str__(self):
@@ -3981,46 +3979,57 @@ class Fparser2ASTProcessor(object):
         del statements[:]
         return code_block
 
-    def generate_schedule(self, name, module_ast, arg_descriptors=None):
+    def generate_schedule(self, name, module_ast):
         '''
-        Create a KernelSchedule from the supplied module fparser2 AST.
+        Create a KernelSchedule from the supplied fparser2 AST.
 
         :param name: Name of the subroutine respresenting the kernel.
         :type name: string
         :param module_ast: fparser2 AST of the full module where the kernel
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :param arg_descriptors: PSyclone Metadata about the kernel
-        :rtype arg_descriptors: list
+        :raises: InternalError: Unexpected fpaser2 AST format.
         '''
         from fparser.two import Fortran2003
 
-        def get_type(nodelist, typekind):
-            return next(x for x in nodelist if type(x) is typekind)
+        def first_type_match(nodelist, typekind):
+            for x in nodelist:
+                if isinstance(x, typekind):
+                    return x
+            raise ValueError  # Type not found
 
-        def get_subroutine(nodelist, searchname):
-            return next(x for x in nodelist if
-                        (type(x) is Fortran2003.Subroutine_Subprogram) and
-                        (str(x.content[0].get_name()) == searchname))
+        def search_subroutine(nodelist, searchname):
+            for x in nodelist:
+                if (isinstance(x, Fortran2003.Subroutine_Subprogram) and
+                   str(x.content[0].get_name()) == searchname):
+                        return x
+            raise ValueError  # Subroutine not found
 
         new_schedule = KernelSchedule(name)
 
         try:
-            # Assume just 1 module definition in the file
+            # Assume just 1 Fortran module definition in the file
             mod_content = module_ast.content[0].content
-            mod_spec = get_type(mod_content, Fortran2003.Specification_Part)
-            subroutines = get_type(mod_content,
+            mod_spec = first_type_match(mod_content,
+                                        Fortran2003.Specification_Part)
+        except ValueError:
+            raise InternalError("Unexpected kernel AST. Could not find "
+                                "specification part.")
+
+        try:
+            subroutines = first_type_match(mod_content,
                                    Fortran2003.Module_Subprogram_Part)
-            subroutine = get_subroutine(subroutines.content, name)
-        except StopIteration:
-            raise InternalError("Unexpected kernel ast. Could not find "
+            subroutine = search_subroutine(subroutines.content, name)
+        except ValueError:
+            raise InternalError("Unexpected kernel AST. Could not find "
                                 "subroutine: {0}".format(name))
 
         try:
-            sub_spec = get_type(subroutine.content,
-                                Fortran2003.Specification_Part)
-            sub_exec = get_type(subroutine.content, Fortran2003.Execution_Part)
-        except StopIteration:
+            sub_spec = first_type_match(subroutine.content,
+                                        Fortran2003.Specification_Part)
+            sub_exec = first_type_match(subroutine.content,
+                                        Fortran2003.Execution_Part)
+        except ValueError:
             # If the subroutine is not as expected, just create a code_block.
             statements = subroutine.content[:]  # First, we need to copy the
             # list structure as node_to_code_block deletes the consumed items
@@ -4028,7 +4037,6 @@ class Fparser2ASTProcessor(object):
             self.nodes_to_code_block(new_schedule, statements)
         else:
             self.process_declarations(new_schedule, sub_spec.content)
-            # TODO: Populate arg_descripors information
             self.process_nodes(new_schedule, sub_exec.content, sub_exec)
 
         return new_schedule
@@ -4036,7 +4044,7 @@ class Fparser2ASTProcessor(object):
     def process_declarations(self, parent, nodes):
         '''
         Transform the fparser2 AST Declarations to symbols into the PSyIRe
-        parent node.
+        parent node symbol table.
 
         :param parent: PSyIRe node to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -4046,7 +4054,7 @@ class Fparser2ASTProcessor(object):
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
-            # Parse data type
+            # Parse data type, currently restricted to integers and reals.
             datatype = 'unknown'
             if str(decl.items[0]).lower().startswith('real'):
                 datatype = 'real'
@@ -4060,10 +4068,10 @@ class Fparser2ASTProcessor(object):
             for attr in walk_ast(decl.items,
                                  [Fortran2003.Explicit_Shape_Spec]):
                 dimensions = dimensions + 1
-                # Maybe? raise NotImplemented("Explicit shape arrays")
 
             # Parse intent attributes
-            decltype = 'local'  # If no intent attribute, it is a local var
+            decltype = 'local'  # If no intent attribute provided, it is a
+            # local variable.
             for attr in walk_ast(decl.items, [Fortran2003.Attr_Spec]):
                 if "intent(in)" in str(attr).lower().replace(' ', ''):
                     decltype = 'read_arg'
@@ -4298,16 +4306,17 @@ class Fparser2ASTProcessor(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name
-    of the symbol, its datatype, the number of dimensions and lenght of each,
-    and the symbol kind (e.g. local, external, read_arg, write_arg, rw_arg).
+    of the symbol, its datatype, the number of dimensions and the symbol kind
+    (e.g. local, external, read_arg, write_arg, rw_arg).
 
-    :param name: Name of the symbol
+    :param name: Name of the symbol.
     :type name: string
-    :param datatype: Data type of the symbol
+    :param datatype: Data type of the symbol.
     :type datatype: string
-    :param dimensions: Dimensions of the symbol (0 represents an scalar symbol)
+    :param dimensions: Dimensions of the symbol (0 represents an scalar
+                       symbol).
     :type dimensions: list of integers
-    :param kind:
+    :param kind: Information about the variable declaration attributes.
     :type kind: string
     '''
     def __init__(self, name, datatype=None, dimensions=0, kind=None):
@@ -4332,11 +4341,16 @@ class Symbol(object):
     def kind(self):
         return self._kind
 
+    def __str__(self):
+        return (self.name + "<" + self.datatype + "," + str(self.dimensions) +
+                "," + self.kind + ">")
+
 
 class SymbolTable(object):
     '''
     Encapsulates the Symbols table and provides methods to declare new symbols
-    and look up existing symbols.
+    and look up existing symbols. It is implemented as a monolithic scope
+    symbol table.
     '''
     def __init__(self):
         self._symbols = {}
@@ -4344,6 +4358,16 @@ class SymbolTable(object):
     def declare(self, name, datatype, dimensions, kind):
         '''
         Declare a new symbol in the symbols table.
+
+        :param name: Name of the symbol.
+        :type name: string
+        :param datatype: Data type of the symbol.
+        :type datatype: string
+        :param dimensions: Dimensions of the symbol (0 represents an scalar
+                           symbol).
+        :type dimensions: list of integers
+        :param kind: Information about the variable declaration attributes.
+        :type kind: string
         '''
         if name in self._symbols:
             raise InternalError("Multiple definition of symbol {0}."
@@ -4360,8 +4384,28 @@ class SymbolTable(object):
         '''
         return self._symbols.get(name)
 
+    def view(self):
+        '''
+        Print a representation of this Symbol Table to stdout.
+        '''
+        print("Symbol Table")
+        for symbol in self._symbols.values():
+            print(str(symbol))
+
+    def __str__(self):
+        return ("Symbol Table:\n" +
+                "\n".join(map(str, self._symbols.values())) +
+                "\n")
+
 
 class KernelSchedule(Schedule):
+    '''
+    A kernelSchedule inherits the functionality from Schedule and adds a symbol
+    table to keep a record of the declared variables and their attributes.
+
+    :param name: Kernel subroutine name
+    :type name: string
+    '''
 
     def __init__(self, name):
         super(KernelSchedule, self).__init__(None, None)
@@ -4382,9 +4426,6 @@ class KernelSchedule(Schedule):
         '''
         print(self.indent(indent) + self.coloured_text + "[name:" + self._name
               + "]")
-        for symbol in self.symbol_table:
-            print(self.indent(indent + 1) + "Symbol: " + symbol + ", "
-                  + str(self._symbol_table[symbol]))
         for entity in self._children:
             entity.view(indent=indent + 1)
 
