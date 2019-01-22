@@ -3006,7 +3006,7 @@ class Kern(Call):
     def get_kernel_schedule(self):
         '''
         Returns a PSyIRe Schedule representing the kernel code. The Schedule
-        is just generated on first invokation, this allows to retain
+        is just generated on first invocation, this allows to retain
         transformations applied to the Schedule but will not adapt to
         transformations applied to the fparser2 AST.
 
@@ -3967,7 +3967,7 @@ class Fparser2ASTProcessor(object):
         :param parent: Node in the PSyclone AST to which to add this code \
                        block.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :param list statements: List of fparser2 AST nodes consituting the \
+        :param list statements: List of fparser2 AST nodes constituting the \
                                 code block.
         :rtype: :py:class:`psyclone.CodeBlock`
         '''
@@ -3983,7 +3983,7 @@ class Fparser2ASTProcessor(object):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
-        :param name: Name of the subroutine respresenting the kernel.
+        :param name: Name of the subroutine representing the kernel.
         :type name: string
         :param module_ast: fparser2 AST of the full module where the kernel
                            code is located.

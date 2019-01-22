@@ -1354,16 +1354,27 @@ stores the resulting AST in `Kern._fp2_ast` for return by future calls.
 See `psyclone.transformations.ACCRoutineTrans` for an example of directly
 manipulating the fparser2 AST.
 
-When a translation to PSyIRe is needed, an ASTProcessor can be used.
+Alternatively, one can call the `psyclone.psyGen.Kern.get_kernel_schedule()`
+to generate the PSyIRe re/presentation of the kernel code. 
+
+.. automethod:: psyclone.psyGen.Kern.get_kernel_schedule
+
+The AST to AST transformation is done using an ASTProcessor.
 At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
 version for Nemo `psyclone.nemo.NemoFparser2ASTProcessor` are available.
 (In the future we aim to have a generic ASTProcessor class, specialized
 for different language parsers: <parser>ASTProcessor, and specialized again
 for specific APIs when additional functionality is requiered
 <API><parser>ASTProcessor.)
-Each ASTProcessor is used with the `process_nodes` method:
 
 .. autoclass:: psyclone.psyGen.Fparser2ASTProcessor
+    :members:
+
+The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
+`psyclone.psyGen.KernelSchedule` which has the same functionality than
+a PSy Schedule but it adds Symbol Table.
+
+.. autoclass:: psyclone.psyGen.SymbolTable
     :members:
 
 OpenACC Support
