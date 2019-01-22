@@ -2629,19 +2629,33 @@ def test_binaryoperation_can_be_printed():
 
 # Test KernelSchedule Class
 
-def test_kernschedule_view(capsys):
+def test_kernelschedule_view(capsys):
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
+    assignment = Assignment()
+    lhs = Reference("x", parent=assignment)
+    rhs = Literal("1", parent=assignment)
+    assignment.addchild(lhs)
+    assignment.addchild(rhs)
+    kschedule.addchild(assignment)
     kschedule.view()
     coloredtext = colored("Schedule",
                           SCHEDULE_COLOUR_MAP["Schedule"])
     output, _ = capsys.readouterr()
     assert coloredtext+"[name:'kname']" in output
+    assert "Assignment" in output  # Check child view method is called 
 
 
-def test_kernschedule_can_be_printed():
+def test_kernelschedule_can_be_printed():
     kschedule = KernelSchedule("kname")
+    assignment = Assignment()
+    lhs = Reference("x", parent=assignment)
+    rhs = Literal("1", parent=assignment)
+    assignment.addchild(lhs)
+    assignment.addchild(rhs)
+    kschedule.addchild(assignment)
     assert "Schedule[name:'kname']:\n" in str(kschedule)
+    assert "Assignment" in str(kschedule)  # Check childs are printed
     assert "End Schedule" in str(kschedule)
 
 
