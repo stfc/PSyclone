@@ -1369,17 +1369,35 @@ multiple kernel calls within an OpenMP region) must sub-class the
 Kernel Transformations
 ----------------------
 
-Kernel transformations work on the fparser2 AST of the target kernel
-code.  This AST is obtained by converting the fparser1 AST (stored
+PSyclone is able to perform kernel transformations. Currently it has
+two ways to apply transformations: by directly manipulating the language
+AST or by translating the language AST to PSyIRe, apply the transformation,
+and producing the resulting language AST or code.
+
+For now, both methods only support fparser2 AST for kernel code.
+This AST is obtained by converting the fparser1 AST (stored
 when the kernel code was originally parsed to process the meta-data)
-back into a Fortran string and then parsing that with fparser2. (Note
-that in future we intend to adopt fparser2 throughout PSyclone so that
-this translation between ASTs will be unnecessary.) The `ast` property
-of the `psyclone.psyGen.Kern` class is responsible for performing this
-translation the first time it is called. It also stores the resulting
-AST in `Kern._fp2_ast` for return by future calls.
-Transforming a kernel is then a matter of manipulating this AST.
-(See `psyclone.transformations.ACCRoutineTrans` for an example.)
+back into a Fortran string and then parsing that with fparser2.
+(Note that in future we intend to adopt fparser2 throughout PSyclone so that
+this translation between ASTs will be unnecessary.)
+The `ast` property of the `psyclone.psyGen.Kern` class is responsible
+for performing this translation the first time it is called. It also
+stores the resulting AST in `Kern._fp2_ast` for return by future calls.
+
+See `psyclone.transformations.ACCRoutineTrans` for an example of directly
+manipulating the fparser2 AST.
+
+When a translation to PSyIRe is needed, an ASTProcessor can be used.
+At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
+version for Nemo `psyclone.nemo.NemoFparser2ASTProcessor` are available.
+(In the future we aim to have a generic ASTProcessor class, specialized
+for different language parsers: <parser>ASTProcessor, and specialized again
+for specific APIs when additional functionality is requiered
+<API><parser>ASTProcessor.)
+Each ASTProcessor is used with the `process_nodes` method:
+
+.. autoclass:: psyclone.psyGen.Fparser2ASTProcessor
+    :members:
 
 OpenACC Support
 ---------------
