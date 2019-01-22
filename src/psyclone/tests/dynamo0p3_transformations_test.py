@@ -40,6 +40,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse import parse
+from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
@@ -470,10 +471,16 @@ def test_omp_colour_trans(tmpdir, f90, f90flags, dist_mem):
         assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_omp_colour_orient_trans():
+def test_omp_colour_orient_trans(monkeypatch, annexed):
     '''Test the OpenMP transformation applied to a coloured loop when the
     kernel expects orientation information. We test when distributed
-    memory is on or off. '''
+    memory is on or off. We also test when annexed is False and True
+    as it affects how many halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9.1_orientation2.f90"),
@@ -487,7 +494,10 @@ def test_omp_colour_orient_trans():
         otrans = DynamoOMPParallelLoopTrans()
 
         if dist_mem:
-            index = 5
+            if annexed:
+                index = 4
+            else:
+                index = 5
         else:
             index = 0
 
@@ -507,18 +517,27 @@ def test_omp_colour_orient_trans():
         assert "private(cell,orientation_w2)" in code
 
 
-def test_omp_parallel_colouring_needed():
+def test_omp_parallel_colouring_needed(monkeypatch, annexed):
     '''Test that we raise an error when applying an OpenMP PARALLEL DO
     transformation to a loop that requires colouring (i.e. has a field
     with 'INC' access) but is not coloured. We test when distributed
-    memory is on or off. '''
+    memory is on or off. We also test when annexed is False and True
+    as it affects how many halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         if dist_mem:
-            index = 5
+            if annexed:
+                index = 4
+            else:
+                index = 5
         else:
             index = 0
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
@@ -533,18 +552,27 @@ def test_omp_parallel_colouring_needed():
         assert "Colouring is required" in str(excinfo.value)
 
 
-def test_omp_colouring_needed():
+def test_omp_colouring_needed(monkeypatch, annexed):
     '''Test that we raise an error when applying an OpenMP DO
     transformation to a loop that requires colouring (i.e. has a field
     with 'INC' access) but is not coloured. We test when distributed
-    memory is on or off. '''
+    memory is on or off. We also test when annexed is False and True
+    as it affects how many halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "11_any_space.f90"),
                     api=TEST_API)
     for dist_mem in [False, True]:
         if dist_mem:
-            index = 5
+            if annexed:
+                index = 4
+            else:
+                index = 5
         else:
             index = 0
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
@@ -560,11 +588,17 @@ def test_omp_colouring_needed():
         assert "Colouring is required" in str(excinfo.value)
 
 
-def test_check_seq_colours_omp_parallel_do():
+def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed):
     '''Test that we raise an error if the user attempts to apply an OpenMP
     PARALLEL DO transformation to a loop over colours (since any such
     loop must be sequential). We test when distributed memory is on or
-    off. '''
+    off. We also test when annexed is False and True as it affects how
+    many halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9.1_orientation2.f90"),
@@ -574,7 +608,10 @@ def test_check_seq_colours_omp_parallel_do():
         invoke = psy.invokes.get('invoke_0_testkern_orientation2_type')
         schedule = invoke.schedule
         if dist_mem:
-            index = 5
+            if annexed:
+                index = 4
+            else:
+                index = 5
         else:
             index = 0
 
@@ -593,10 +630,17 @@ def test_check_seq_colours_omp_parallel_do():
         assert "must be computed serially" in str(excinfo.value)
 
 
-def test_check_seq_colours_omp_do(tmpdir, f90, f90flags):
+def test_check_seq_colours_omp_do(tmpdir, f90, f90flags, monkeypatch, annexed):
     '''Test that we raise an error if the user attempts to apply an OpenMP
     DO transformation to a loop over colours (since any such loop must
-    be sequential). We test when distributed memory is on or off. '''
+    be sequential). We test when distributed memory is on or off. We
+    also test when annexed is False and True as it affects how many
+    halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "9.1_orientation2.f90"),
@@ -606,7 +650,10 @@ def test_check_seq_colours_omp_do(tmpdir, f90, f90flags):
         invoke = psy.invokes.get('invoke_0_testkern_orientation2_type')
         schedule = invoke.schedule
         if dist_mem:
-            index = 5
+            if annexed:
+                index = 4
+            else:
+                index = 5
         else:
             index = 0
 
@@ -663,10 +710,16 @@ def test_colouring_after_openmp():
         assert "within an OpenMP parallel region" in str(excinfo.value)
 
 
-def test_colouring_multi_kernel(dist_mem):
+def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
     '''Test that we correctly generate all the map-lookups etc.  when an
     invoke contains more than one kernel. We test when distributed
-    memory is on or off. '''
+    memory is on or off. We also test when annexed is False and True
+    as it affects how many halo exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -680,10 +733,13 @@ def test_colouring_multi_kernel(dist_mem):
     mtrans = MoveTrans()
 
     if dist_mem:
-        # f is required but can be moved before the first loop
-        schedule, _ = mtrans.apply(schedule.children[7],
-                                   schedule.children[6])
-        index = 7
+        if annexed:
+            index = 5
+        else:
+            # f is required but can be moved before the first loop
+            schedule, _ = mtrans.apply(schedule.children[7],
+                                       schedule.children[6])
+            index = 7
     else:
         index = 0
 
@@ -893,11 +949,17 @@ def test_multi_kernel_single_omp_region():
         assert (omp_end_do_idx - end_do_idx) == 1
 
 
-def test_multi_different_kernel_omp():
+def test_multi_different_kernel_omp(monkeypatch, annexed):
     '''Test that we correctly generate the OpenMP private lists when we
-    have more than one kernel of a different type (requiring a different
-    private list) within an invoke. Test with and without DM.'''
+    have more than one kernel of a different type (requiring a
+    different private list) within an invoke. Test with and without
+    DM. We also test when annexed is False and True as it affects how
+    many halo exchanges are generated.
 
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
@@ -908,8 +970,12 @@ def test_multi_different_kernel_omp():
         schedule = invoke.schedule
 
         if dist_mem:
-            index1 = 6
-            index2 = 9
+            if annexed:
+                index1 = 5
+                index2 = 8
+            else:
+                index1 = 6
+                index2 = 9
         else:
             index1 = 0
             index2 = 1
@@ -931,9 +997,15 @@ def test_multi_different_kernel_omp():
         assert "private(cell)" in code
 
 
-def test_loop_fuse_different_spaces():
-    ''' Test that we raise an appropriate error if the user attempts
-    to fuse loops that are on different spaces. '''
+def test_loop_fuse_different_spaces(monkeypatch):
+    '''Test that we raise an appropriate error if the user attempts to
+    fuse loops that are on different spaces. We test with annexed is
+    False as this is how the test has been set up.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
@@ -1211,10 +1283,18 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
             assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_fuse_colour_loops(tmpdir, f90, f90flags, dist_mem):
+def test_fuse_colour_loops(tmpdir, f90, f90flags, monkeypatch, annexed,
+                           dist_mem):
     '''Test that we can fuse colour loops , enclose them in an OpenMP
-    parallel region and preceed each by an OpenMP PARALLEL DO for
-    both sequential and distributed-memory code. '''
+    parallel region and preceed each by an OpenMP DO for both
+    sequential and distributed-memory code. We also test when annexed
+    is False and True as it affects how many halo exchanges are
+    generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -1230,10 +1310,13 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags, dist_mem):
     mtrans = MoveTrans()
 
     if dist_mem:
-        # f is required but can be moved before the first loop
-        schedule, _ = mtrans.apply(schedule.children[7],
-                                   schedule.children[6])
-        index = 7
+        if annexed:
+            index = 5
+        else:
+            # f is required but can be moved before the first loop
+            schedule, _ = mtrans.apply(schedule.children[7],
+                                       schedule.children[6])
+            index = 7
     else:
         index = 0
 
@@ -1404,10 +1487,17 @@ def test_omp_par_and_halo_exchange_error():
         in str(excinfo.value)
 
 
-def test_module_inline():
+def test_module_inline(monkeypatch, annexed):
     '''Tests that correct results are obtained when a kernel is inlined
-    into the psy-layer in the dynamo0.3 API. More in-depth tests can be
-    found in the gocean1p0_transformations.py file. '''
+    into the psy-layer in the dynamo0.3 API. More in-depth tests can
+    be found in the gocean1p0_transformations.py file. We also test
+    when annexed is False and True as it affects how many halo
+    exchanges are generated.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4.6_multikernel_invokes.f90"),
@@ -1417,7 +1507,10 @@ def test_module_inline():
         invoke = psy.invokes.get('invoke_0')
         schedule = invoke.schedule
         if dist_mem:
-            index = 8
+            if annexed:
+                index = 6
+            else:
+                index = 8
         else:
             index = 1
         kern_call = schedule.children[index].children[0]
@@ -1938,9 +2031,8 @@ def test_multi_reduction_real_pdo():
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -2019,9 +2111,8 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child, reprod=False)
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
@@ -2104,9 +2195,8 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
@@ -2212,9 +2302,8 @@ def test_two_reductions_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child, reprod=False)
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
@@ -2291,9 +2380,8 @@ def test_two_reprod_reductions_real_do():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
         # Apply an OpenMP Parallel for all loops
         schedule, _ = rtrans.apply(schedule.children[0:2])
@@ -2400,9 +2488,8 @@ def test_multi_reduction_same_name_real_do():
             otrans = Dynamo0p3OMPLoopTrans()
             rtrans = OMPParallelTrans()
             # Apply an OpenMP do to the loop
-            from psyclone.psyGen import Loop
             for child in schedule.children:
-                if isinstance(child, Loop):
+                if isinstance(child, psyGen.Loop):
                     schedule, _ = otrans.apply(child, reprod=reprod)
             if distmem:
                 # We have to move/delete a
@@ -2467,9 +2554,8 @@ def test_multi_different_reduction_real_pdo():
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         code = str(psy.gen)
@@ -2547,9 +2633,8 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         result = str(psy.gen)
@@ -2624,9 +2709,8 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child, reprod=False)
         if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
@@ -2878,9 +2962,8 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
         schedule = invoke.schedule
         otrans = DynamoOMPParallelLoopTrans()
         # Apply OpenMP parallelisation to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child)
         invoke.schedule = schedule
         result = str(psy.gen)
@@ -3263,9 +3346,8 @@ def test_no_global_sum_in_parallel_region():
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
         schedule, _ = rtrans.apply(schedule.children)
         invoke.schedule = schedule
@@ -3298,9 +3380,8 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
         otrans = Dynamo0p3OMPLoopTrans()
         rtrans = OMPParallelTrans()
         # Apply an OpenMP do to the loop
-        from psyclone.psyGen import Loop
         for child in schedule.children:
-            if isinstance(child, Loop):
+            if isinstance(child, psyGen.Loop):
                 schedule, _ = otrans.apply(child, reprod=True)
         if distmem:  # annexed can be True or False
             mtrans = MoveTrans()
@@ -5285,34 +5366,57 @@ def test_rc_invalid_depth_type():
             "type '%s'" % (type("2")) in str(excinfo.value))
 
 
-def test_loop_fusion_different_loop_depth():
+def test_loop_fusion_different_loop_depth(monkeypatch, annexed):
     '''We can only loop fuse if two loops iterate over the same entities
     and iterate over the same depth. The loop fusion transformation
     raises an exception if this is not the case. This test checks that
-    the exception is raised correctly.'''
+    the exception is raised correctly. We also test when annexed is
+    False and True as it affects how many halo exchanges are
+    generated.
+
+    '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(BASE_PATH,
                                  "4.6_multikernel_invokes.f90"),
                     api="dynamo0.3")
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    # move the halo exchange between the two loops
-    move_trans = MoveTrans()
-    move_trans.apply(schedule.children[7], schedule.children[6])
+    if annexed:
+        index = 5
+    else:
+        index = 7
+        # move the halo exchange between the two loops
+        move_trans = MoveTrans()
+        move_trans.apply(schedule.children[7], schedule.children[6])
     # make the first loop redundantly compute to halo level 3
     rc_trans = Dynamo0p3RedundantComputationTrans()
-    rc_trans.apply(schedule.children[7], depth=3)
+    rc_trans.apply(schedule.children[index], depth=3)
     # try to fuse the loops. This should fail as the depths are different
+    if annexed:
+        # we now have an additional halo exchange for the gh_inc
+        # access in the first loop
+        index += 1
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        f_trans.apply(schedule.children[7], schedule.children[8])
+        f_trans.apply(schedule.children[index], schedule.children[index+1])
     assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
             "are not the same. Found '3' and '1'" in str(excinfo.value))
     # now redundantly compute to the full halo
-    rc_trans.apply(schedule.children[8])
+    rc_trans.apply(schedule.children[index+1])
+    if annexed:
+        # we now have a halo exchange between the 2 loops due to
+        # redundant computation
+        index = 7
+        # move the halo exchange between the two loops
+        move_trans = MoveTrans()
+        move_trans.apply(schedule.children[7], schedule.children[6])
     # try to fuse the loops. This should fail as the depths are different
     f_trans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
-        f_trans.apply(schedule.children[7], schedule.children[8])
+        f_trans.apply(schedule.children[index], schedule.children[index+1])
     assert ("Error in DynamoLoopFuse transformation. The halo-depth indices "
             "are not the same. Found '3' and 'None'" in str(excinfo.value))
 
@@ -5351,27 +5455,42 @@ def test_loop_fusion_different_loop_name(monkeypatch):
             in str(excinfo.value))
 
 
-def test_rc_max_w_to_r_continuous_known_halo():
+def test_rc_max_w_to_r_continuous_known_halo(monkeypatch, annexed):
     '''If we have a continuous field being written to in one loop to the
-    maximum halo depth and then being read in a following (dependent) loop
-    to the maximum halo depth we can determine that we definitely need a
-    halo exchange (at the outermost halo level). This test checks that a
-    halo with no runtime checking is produced for this case.'''
+    maximum halo depth and then being read in a following (dependent)
+    loop to the maximum halo depth we can determine that we definitely
+    need a halo exchange (at the outermost halo level). This test
+    checks that a halo with no runtime checking is produced for this
+    case. We also test when annexed is False and True as it affects
+    how many halo exchanges are generated.
 
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
 
-    w_loop = schedule.children[2]
-    r_loop = schedule.children[5]
+    if annexed:
+        index1 = 1
+        index2 = 3
+    else:
+        index1 = 2
+        index2 = 5
+    w_loop = schedule.children[index1]
+    r_loop = schedule.children[index2]
 
     # make both the writer and reader loops use the full halo
     rc_trans = Dynamo0p3RedundantComputationTrans()
     rc_trans.apply(w_loop)
     rc_trans.apply(r_loop)
 
-    w_to_r_halo_exchange = schedule.children[4]
+    if annexed:
+        w_to_r_halo_exchange = schedule.children[3]
+    else:
+        w_to_r_halo_exchange = schedule.children[4]
 
     # sanity check that the halo exchange goes to the full halo depth
     assert (w_to_r_halo_exchange._compute_halo_depth() ==
@@ -5950,9 +6069,12 @@ def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
         assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_haloex_colouring(tmpdir, f90, f90flags):
-    '''Check that the halo exchange logic for halo exchanges between
-    loops works when we colour the loops.'''
+def test_haloex_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
+    '''Check that the halo exchange logic for halo exchanges between loops
+    works when we colour the loops. We also test when annexed is False
+    and True as it affects how many halo exchanges are generated.
+
+    '''
 
     def check_halo_exchange(halo_exchange):
         '''internal function to check the validity of a halo exchange for
@@ -5983,8 +6105,17 @@ def test_haloex_colouring(tmpdir, f90, f90flags):
         assert not depth_info.max_depth
         assert not depth_info.var_depth
 
-    w_loop_idx = 2
-    r_loop_idx = 5
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    if annexed:
+        w_loop_idx = 1
+        r_loop_idx = 3
+        halo_idx = 2
+    else:
+        w_loop_idx = 2
+        r_loop_idx = 5
+        halo_idx = 4
     ctrans = Dynamo0p3ColourTrans()
 
     # Begin with a loop which modifies the continuous field f1
@@ -6009,7 +6140,7 @@ def test_haloex_colouring(tmpdir, f90, f90flags):
             schedule, _ = ctrans.apply(schedule.children[cloop_idx])
 
         invoke.schedule = schedule
-        halo_exchange = schedule.children[4]
+        halo_exchange = schedule.children[halo_idx]
         check_halo_exchange(halo_exchange)
 
         if TEST_COMPILE:
@@ -6020,7 +6151,7 @@ def test_haloex_colouring(tmpdir, f90, f90flags):
         print("OK for iteration ", idx)
 
 
-def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
+def test_haloex_rc1_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
     works when we colour the loops and apply redundant computation to
     the maximum depth for the reader. We first check the halo exchange
@@ -6028,7 +6159,10 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
     the first loop, then the second and finally both. In each case we
     check that the halo exchange properties do not change. We expect
     to see a definite (no runtime check) halo exchange to the maximum
-    halo depth.'''
+    halo depth. We also test when annexed is False and True as it
+    affects how many halo exchanges are generated.
+
+    '''
 
     def check_halo_exchange(halo_exchange):
         '''Internal method to check the validity of a halo exchange for field
@@ -6060,8 +6194,16 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
-    w_loop_idx = 2
-    r_loop_idx = 5
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+
+    if annexed:
+        w_loop_idx = 1
+        r_loop_idx = 4
+    else:
+        w_loop_idx = 2
+        r_loop_idx = 5
     ctrans = Dynamo0p3ColourTrans()
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
@@ -6075,7 +6217,7 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
     # that loop colouring just the second loop makes no difference to
     # the halo exchange.
     for idx, cloop_idxs in enumerate([[], [r_loop_idx],
-                                      [r_loop_idx, w_loop_idx], [w_loop_idx]]):
+                                      [w_loop_idx, r_loop_idx], [w_loop_idx]]):
 
         _, invoke_info = parse(os.path.join(
             BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"),
@@ -6085,13 +6227,20 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
 
-        schedule, _ = rc_trans.apply(schedule.children[r_loop_idx])
+        if annexed:
+            index = 3
+        else:
+            index = 5
+        schedule, _ = rc_trans.apply(schedule.children[index])
 
         for cloop_idx in cloop_idxs:
             schedule, _ = ctrans.apply(schedule.children[cloop_idx])
 
         invoke.schedule = schedule
-        halo_exchange = schedule.children[4]
+        if annexed:
+            halo_exchange = schedule.children[2]
+        else:
+            halo_exchange = schedule.children[4]
         check_halo_exchange(halo_exchange)
 
         if TEST_COMPILE:
@@ -6102,7 +6251,7 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags):
         print("OK for iteration ", idx)
 
 
-def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
+def test_haloex_rc2_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
     works when we colour the loops and apply redundant computation to
     the maximum depth for the writer. We first check the halo exchange
@@ -6113,7 +6262,8 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
     is because we do not know the depth of the halo and the writer
     ends up with its outermost halo-depth dirty. So, if the maximum
     depth of the halo is 1 then we need a halo exchange but if it is 2
-    or more we do not.
+    or more we do not. We also test when annexed is False and True
+    as it affects how many halo exchanges are generated.
 
     '''
 
@@ -6145,8 +6295,14 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
         assert not depth_info.max_depth
         assert not depth_info.var_depth
 
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
-    r_loop_idx = 5
+    if annexed:
+        r_loop_idx = 4
+    else:
+        r_loop_idx = 5
     ctrans = Dynamo0p3ColourTrans()
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
@@ -6170,13 +6326,21 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
 
-        schedule, _ = rc_trans.apply(schedule.children[w_loop_idx])
+        if annexed:
+            index = 1
+        else:
+            index = w_loop_idx
+        schedule, _ = rc_trans.apply(schedule.children[index])
 
         for cloop in cloops:
             schedule, _ = ctrans.apply(schedule.children[cloop])
 
         invoke.schedule = schedule
-        halo_exchange = schedule.children[4]
+        if annexed:
+            index = 3
+        else:
+            index = 4
+        halo_exchange = schedule.children[index]
         check_halo_exchange(halo_exchange)
 
         if TEST_COMPILE:
@@ -6187,7 +6351,7 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags):
         print("OK for iteration ", idx)
 
 
-def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
+def test_haloex_rc3_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
     works when we colour the loops and apply redundant computation to
     the maximum depth for the writer and the reader. We first check
@@ -6197,7 +6361,8 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
     not change. We expect to see a definite (no runtime check) halo
     exchange to the maximum halo depth. We could halo exchange only
     the outermost halo depth but the LFRic API does not currently
-    support this option.'''
+    support this option. We also test when annexed is False and True
+    as it affects how many halo exchanges are generated.'''
 
     def check_halo_exchange(halo_exchange):
         '''internal method to check the validity of a halo exchange for field
@@ -6229,6 +6394,9 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
         assert depth_info.max_depth
         assert not depth_info.var_depth
 
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     w_loop_idx = 2
     r_loop_idx = 5
     ctrans = Dynamo0p3ColourTrans()
@@ -6253,14 +6421,24 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
 
-        schedule, _ = rc_trans.apply(schedule.children[w_loop_idx])
-        schedule, _ = rc_trans.apply(schedule.children[r_loop_idx])
+        if annexed:
+            index1 = 1
+            index2 = 4
+        else:
+            index1 = w_loop_idx
+            index2 = r_loop_idx
+        schedule, _ = rc_trans.apply(schedule.children[index1])
+        schedule, _ = rc_trans.apply(schedule.children[index2])
 
         for cloop_idx in cloop_idxs:
             schedule, _ = ctrans.apply(schedule.children[cloop_idx])
 
         invoke.schedule = schedule
-        halo_exchange = schedule.children[4]
+        if annexed:
+            index = 3
+        else:
+            index = 4
+        halo_exchange = schedule.children[index]
         check_halo_exchange(halo_exchange)
 
         if TEST_COMPILE:
@@ -6271,16 +6449,23 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags):
         print("OK for iteration ", idx)
 
 
-def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
+def test_haloex_rc4_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
     '''Check that the halo exchange logic for halo exchanges between loops
     works when we colour the loops and apply redundant computation to
     depth 2 for the writer. We first check a halo exchange is not
     generated. We then apply colouring to the first loop, then the
     second and finally both. In each case we check that a halo
-    exchange is not generated.'''
+    exchange is not generated. We also test when annexed is False and
+    True as it affects how many halo exchanges are generated.
 
+    '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     # At the start we have two halo exchange calls for field f1, one
-    # before the first loop and one between the two loops
+    # before the first loop and one between the two loops when annexed
+    # is False, and just the latter halo exchange when annexed is True
     _, invoke_info = parse(os.path.join(
         BASE_PATH, "14.10_halo_continuous_cell_w_to_r.f90"), api="dynamo0.3")
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -6289,14 +6474,22 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
     schedule = invoke.schedule
 
     from psyclone.dynamo0p3 import DynHaloExchange
-    assert result.count("f1_proxy%halo_exchange(depth=1)") == 2
-    assert isinstance(schedule.children[0], DynHaloExchange)
-    assert schedule.children[0].field.name == "f1"
-    assert isinstance(schedule.children[4], DynHaloExchange)
-    assert schedule.children[4].field.name == "f1"
+    if annexed:
+        assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
+        assert isinstance(schedule.children[2], DynHaloExchange)
+        assert schedule.children[2].field.name == "f1"
+    else:
+        assert result.count("f1_proxy%halo_exchange(depth=1)") == 2
+        assert isinstance(schedule.children[0], DynHaloExchange)
+        assert schedule.children[0].field.name == "f1"
+        assert isinstance(schedule.children[4], DynHaloExchange)
+        assert schedule.children[4].field.name == "f1"
 
     w_loop_idx = 2
-    r_loop_idx = 4
+    if annexed:
+        r_loop_idx = 3
+    else:
+        r_loop_idx = 4
     ctrans = Dynamo0p3ColourTrans()
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
@@ -6322,7 +6515,12 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
 
-        schedule, _ = rc_trans.apply(schedule.children[w_loop_idx], depth=2)
+        if annexed:
+            index = 1
+        else:
+            index = w_loop_idx
+
+        schedule, _ = rc_trans.apply(schedule.children[index], depth=2)
 
         for cloop_idx in cloop_idxs:
             schedule, _ = ctrans.apply(schedule.children[cloop_idx])
@@ -6331,9 +6529,13 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
         result = str(psy.gen)
 
         # the redundant computation code has one halo exchange for field f1
-        assert result.count("f1_proxy%halo_exchange(depth=2)") == 1
-        assert isinstance(schedule.children[0], DynHaloExchange)
-        assert schedule.children[0].field.name == "f1"
+        assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
+        if annexed:
+            index = 1
+        else:
+            index = 0
+        assert isinstance(schedule.children[index], DynHaloExchange)
+        assert schedule.children[index].field.name == "f1"
 
         if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
@@ -6346,7 +6548,6 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags):
 def test_intergrid_colour(dist_mem):
     ''' Check that we can apply colouring to a loop containing
     an inter-grid kernel. '''
-    from psyclone import psyGen
     # Use an example that contains both prolongation and restriction
     # kernels
     _, invoke_info = parse(os.path.join(
@@ -6391,7 +6592,6 @@ def test_intergrid_colour(dist_mem):
 def test_intergrid_colour_errors(dist_mem, monkeypatch):
     ''' Check that we raise the expected error when colouring is not applied
     correctly to inter-grid kernels within a loop over colours. '''
-    from psyclone import psyGen
     ctrans = Dynamo0p3ColourTrans()
     # Use an example that contains both prolongation and restriction kernels
     _, invoke_info = parse(os.path.join(
@@ -6426,10 +6626,111 @@ def test_intergrid_colour_errors(dist_mem, monkeypatch):
             "but kernel 'restrict_kernel_code' has not" in str(err))
 
 
+def test_intergrid_omp_parado(dist_mem, tmpdir, f90, f90flags):
+    '''Check that we can add an OpenMP parallel loop to a loop containing
+    an inter-grid kernel call.
+
+    '''
+    # Use an example that contains both prolongation and restriction
+    # kernels
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # First two kernels are prolongation, last two are restriction
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    ctrans = Dynamo0p3ColourTrans()
+    # To a prolong kernel
+    _, _ = ctrans.apply(loops[1])
+    # To a restrict kernel
+    _, _ = ctrans.apply(loops[3])
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    otrans = DynamoOMPParallelLoopTrans()
+    # Apply OMP to loops over coloured cells
+    _, _ = otrans.apply(loops[2])
+    _, _ = otrans.apply(loops[5])
+    gen = str(psy.gen)
+    assert ("      DO colour=1,ncolour_fld_c\n"
+            "        !$omp parallel do default(shared), private(cell), "
+            "schedule(static)\n" in gen)
+    if dist_mem:
+        assert ("        DO cell=1,mesh_fld_c%get_last_halo_cell_per_colour("
+                "colour,1)\n" in gen)
+    else:
+        assert ("        DO cell=1,mesh_fld_c%get_last_edge_cell_per_colour("
+                "colour)\n" in gen)
+    if TEST_COMPILE:
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+
+
+def test_intergrid_omp_para_region1(dist_mem, tmpdir, f90, f90flags):
+    ''' Check that we can create an OpenMP-parallel region containing
+    a single inter-grid kernel call. '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # Get the various transformations we need
+    ctrans = Dynamo0p3ColourTrans()
+    ptrans = OMPParallelTrans()
+    otrans = Dynamo0p3OMPLoopTrans()
+    # Colour the first loop
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    _, _ = ctrans.apply(loops[0])
+    # Parallelise the loop over cells of a given colour
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    _, _ = otrans.apply(loops[1])
+    # Put the parallel loop inside a parallel region
+    dirs = schedule.walk(schedule.children, psyGen.Directive)
+    _, _ = ptrans.apply(dirs[0])
+    gen = str(psy.gen)
+    if dist_mem:
+        upper_bound = "mesh_fld_c%get_last_halo_cell_per_colour(colour,1)"
+    else:
+        upper_bound = "mesh_fld_c%get_last_edge_cell_per_colour(colour)"
+    assert ("      DO colour=1,ncolour_fld_m\n"
+            "        !$omp parallel default(shared), private(cell)\n"
+            "        !$omp do schedule(static)\n"
+            "        DO cell=1,{0}\n"
+            "          !\n"
+            "          CALL prolong_kernel_code(nlayers, cell_map_fld_c(:,"
+            "cmap_fld_m(colour, cell)), ncpc_fld_m_fld_c, ncell_fld_m, "
+            "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
+            "undf_w2, map_w2(:,cmap_fld_m(colour, cell)))\n"
+            "        END DO \n"
+            "        !$omp end do\n"
+            "        !$omp end parallel\n"
+            "      END DO \n".format(upper_bound) in gen)
+    if TEST_COMPILE:
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+
+
+@pytest.mark.xfail(reason="Loop-fusion not yet supported for inter-grid "
+                   "kernels")
+def test_intergrid_omp_para_region2(dist_mem, tmpdir, f90, f90flags):
+    ''' Check that we can create an OpenMP-parallel region containing
+    multiple inter-grid kernels. '''
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "22.2_intergrid_3levels.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    ctrans = Dynamo0p3ColourTrans()
+    ftrans = DynamoLoopFuseTrans()
+    _, _ = ctrans.apply(loops[0])
+    _, _ = ctrans.apply(loops[1])
+    schedule.view()
+    loops = schedule.walk(schedule.children, psyGen.Loop)
+    _, _ = ftrans.apply(loops[0], loops[2])
+    schedule.view()
+    if TEST_COMPILE:
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+
+
 def test_intergrid_err(dist_mem):
-    ''' Check that we cannot apply redundant computation, OpenMP or loop
+    ''' Check that we cannot apply redundant computation or loop
     fusion to loops containing inter-grid kernels. '''
-    from psyclone import psyGen
     # Use an example that contains both prolongation and restriction
     # kernels
     _, invoke_info = parse(os.path.join(
@@ -6443,28 +6744,12 @@ def test_intergrid_err(dist_mem):
         "cannot currently be applied to nodes which have inter-grid "
         "kernels as children and ")
 
-    if not dist_mem:
+    if dist_mem:
         # Cannot apply redundant computation unless DM is enabled
         rc_trans = Dynamo0p3RedundantComputationTrans()
         with pytest.raises(TransformationError) as excinfo:
             rc_trans.apply(loops[2], depth=2)
             assert expected_err in str(excinfo)
-
-    ctrans = Dynamo0p3ColourTrans()
-    omplooptrans = Dynamo0p3OMPLoopTrans()
-    # We have to colour before we can apply OMP to this loop...
-    # Keep a ref to the kernel as that makes it easy to find the correct
-    # loop to which to apply OMP
-    kern = loops[2]._kern
-    _, _ = ctrans.apply(loops[2])
-    with pytest.raises(TransformationError) as excinfo:
-        omplooptrans.apply(kern.parent)
-    assert expected_err in str(excinfo)
-
-    ompparatrans = DynamoOMPParallelLoopTrans()
-    with pytest.raises(TransformationError) as excinfo:
-        ompparatrans.apply(loops[2])
-    assert expected_err in str(excinfo)
 
     lftrans = DynamoLoopFuseTrans()
     with pytest.raises(TransformationError) as excinfo:
@@ -6679,13 +6964,17 @@ def test_async_hex_preserve_properties():
     assert f1_async_hex_end._compute_halo_depth() == halo_depth
 
 
-def test_async_hex_move_2(tmpdir, f90, f90flags):
+def test_async_hex_move_2(tmpdir, f90, f90flags, monkeypatch):
     '''Test that we can convert a synchronous halo exchange to an
     asynchronous one using the Dynamo0p3AsyncHaloExchangeTrans
     transformation and then move them to new valid locations. In this
     case we move a haloexchangestart before a loop.
 
     '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "test_files", "dynamo0p3",
@@ -6693,13 +6982,13 @@ def test_async_hex_move_2(tmpdir, f90, f90flags):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    f2_hex = schedule.children[11]
+    f2_hex = schedule.children[10]
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     schedule, _ = ahex_trans.apply(f2_hex)
 
     mtrans = MoveTrans()
-    schedule, _ = mtrans.apply(schedule.children[11],
-                               schedule.children[10])
+    schedule, _ = mtrans.apply(schedule.children[10],
+                               schedule.children[9])
     result = str(psy.gen)
     assert (
         "      CALL f2_proxy%halo_exchange_start(depth=1)\n"
@@ -6992,6 +7281,10 @@ def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
+    # Create vector halo exchanges after the first loop by performing
+    # redundant computation.
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[4], depth=2)
     # make all f1 vector halo exchanges asynchronous before the first
     # loop and one of them before the second loop, then check depths
     # and set clean are still generated correctly
@@ -7060,11 +7353,16 @@ def test_async_halo_exchange_nomatch1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
+    # create vector halo exchanges after the first loop by performing
+    # redundant computation
+    rc_trans = Dynamo0p3RedundantComputationTrans()
+    rc_trans.apply(schedule.children[4], depth=2)
+
     # make the first vector component of the halo exchange for f1
     # asynchronous before the first loop.
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
-    hex = schedule.children[0]
-    schedule, _ = ahex_trans.apply(hex)
+    my_hex = schedule.children[0]
+    schedule, _ = ahex_trans.apply(my_hex)
 
     # now remove the generated halo exchange end. This will mean that
     # the halo exchange start will now match with the halo exchange
@@ -7095,16 +7393,16 @@ def test_async_halo_exchange_nomatch2():
     # make the last vector component of the halo exchange for f1
     # asynchronous after the first loop.
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
-    hex = schedule.children[6]
-    schedule, _ = ahex_trans.apply(hex)
+    my_hex = schedule.children[0]
+    schedule, _ = ahex_trans.apply(my_hex)
 
     # now remove the generated halo exchange end. This will mean that
     # the halo exchange start will now match with nothing as it is the
     # last halo exchange in the schedule. This should cause an
     # exception to be raised.
-    del(schedule.children[7])
+    del(schedule.children[1])
 
-    hex_start = schedule.children[6]
+    hex_start = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
         _ = hex_start._get_hex_end()
     assert ("Halo exchange start for field 'f1' has no matching halo "

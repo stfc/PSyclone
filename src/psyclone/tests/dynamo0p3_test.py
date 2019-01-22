@@ -1,4 +1,3 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -32,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
@@ -2296,14 +2295,22 @@ def test_field_bc_kernel(tmpdir, f90, f90flags):
         assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
-def test_bc_kernel_field_only(monkeypatch):
-    ''' Tests that the recognised boundary-condition kernel is rejected
-    if it has an operator as argument instead of a field. '''
+def test_bc_kernel_field_only(monkeypatch, annexed):
+    '''Tests that the recognised boundary-condition kernel is rejected if
+    it has an operator as argument instead of a field. Test with and
+    without annexed as different numbers of halo exchanges are
+    produced.
+
+    '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
     for dist_mem in [False, True]:
-        if dist_mem:
+        if dist_mem and not annexed:
             idx = 1
         else:
             idx = 0
@@ -4227,21 +4234,28 @@ def test_halo_exchange():
     assert output2 in generated_code
 
 
-def test_halo_exchange_inc():
+def test_halo_exchange_inc(monkeypatch, annexed):
     '''test that appropriate halo exchange calls are added if we have a
     gh_inc operation and that the loop bounds included computation in
-    the l1 halo '''
+    the l1 halo. Test when annexed is False and True as a different
+    number of halo exchanges are produced.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.6_multikernel_invokes.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
-    output1 = (
+    output0 = (
         "      IF (a_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL a_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
-        "      !\n"
+        "      !\n")
+    output1 = (
         "      IF (b_proxy%is_dirty(depth=1)) THEN\n"
         "        CALL b_proxy%halo_exchange(depth=1)\n"
         "      END IF \n"
@@ -4270,8 +4284,12 @@ def test_halo_exchange_inc():
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n")
     assert output1 in result
-    assert output2 in result
-    assert result.count("halo_exchange") == 7
+    if annexed:
+        assert result.count("halo_exchange") == 5
+    else:
+        assert output0 in result
+        assert output2 in result
+        assert result.count("halo_exchange") == 7
 
 
 def test_no_halo_exchange_for_operator():
@@ -4314,38 +4332,59 @@ def test_halo_exchange_different_spaces():
     assert result.count("halo_exchange") == 9
 
 
-def test_halo_exchange_vectors_1():
-    ''' test that halo exchange produces correct code for vector
-    fields. Test a field with gh_inc '''
+def test_halo_exchange_vectors_1(monkeypatch, annexed):
+    '''Test that halo exchange produces correct code for vector fields
+    including a field with a gh_inc access. Test when annexed = False
+    and True as halo exchanges are only produced when annexed = False.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4.1_halo_vector.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
-    assert result.count("halo_exchange(") == 3
-    for idx in range(1, 4):
-        assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
-    expected = ("      IF (f1_proxy(3)%is_dirty(depth=1)) THEN\n"
-                "        CALL f1_proxy(3)%halo_exchange(depth=1)\n"
-                "      END IF \n"
-                "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    assert expected in result
+    if annexed:
+        assert result.count("halo_exchange(") == 0
+    else:
+        assert result.count("halo_exchange(") == 3
+        for idx in range(1, 4):
+            assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
+        expected = ("      IF (f1_proxy(3)%is_dirty(depth=1)) THEN\n"
+                    "        CALL f1_proxy(3)%halo_exchange(depth=1)\n"
+                    "      END IF \n"
+                    "      !\n"
+                    "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+        assert expected in result
 
 
-def test_halo_exchange_vectors():
-    ''' test that halo exchange produces correct code for vector
-    fields. Test both a field with a stencil and a field with gh_inc '''
+def test_halo_exchange_vectors(monkeypatch, annexed):
+    '''Test that halo exchange produces correct code for vector
+    fields. Test both a field with a stencil and a field with
+    gh_inc. Test when annexed = False and True as a different number
+    of halo exchanges are produced.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
-    assert result.count("halo_exchange(") == 7
+    if annexed:
+        assert result.count("halo_exchange(") == 4
+    else:
+        assert result.count("halo_exchange(") == 7
+        for idx in range(1, 4):
+            assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
     for idx in range(1, 4):
-        assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
         assert "f2_proxy("+str(idx)+")%halo_exchange(depth=f2_extent+1)" \
             in result
     expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent+1)) THEN\n"
@@ -4357,8 +4396,10 @@ def test_halo_exchange_vectors():
 
 
 def test_halo_exchange_depths():
-    ''' test that halo exchange includes the correct halo
-    depth with gh_write '''
+    '''test that halo exchange includes the correct halo depth with
+    gh_write.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.5_halo_depth.f90"),
                            api=TEST_API)
@@ -4381,34 +4422,46 @@ def test_halo_exchange_depths():
     assert expected in result
 
 
-def test_halo_exchange_depths_gh_inc():
-    ''' test that halo exchange includes the correct halo depth when
-    we have a gh_inc as this increases the required depth by 1 (as
-    redundant computation is performed in the l1 halo) '''
+def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
+    '''test that halo exchange includes the correct halo depth when we
+    have a gh_inc as this increases the required depth by 1 (as
+    redundant computation is performed in the l1 halo). Test when
+    annexed = False and True as a different number of halo exchanges
+    are produced.
+
+    '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.6_halo_depth_2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
-    expected = ("      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
-                "        CALL f1_proxy%halo_exchange(depth=1)\n"
-                "      END IF \n"
-                "      !\n"
-                "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-                "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
-                "      END IF \n"
-                "      !\n"
-                "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
-                "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
-                "      END IF \n"
-                "      !\n"
-                "      IF (f4_proxy%is_dirty(depth=f4_extent+1)) THEN\n"
-                "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
-                "      END IF \n"
-                "      !\n"
-                "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    assert expected in result
+    expected1 = (
+        "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
+        "        CALL f1_proxy%halo_exchange(depth=1)\n"
+        "      END IF \n"
+        "      !\n")
+    expected2 = (
+        "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
+        "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      IF (f4_proxy%is_dirty(depth=f4_extent+1)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
+        "      END IF \n"
+        "      !\n"
+        "      DO cell=1,mesh%get_last_halo_cell(1)\n")
+    if not annexed:
+        assert expected1 in result
+    assert expected2 in result
 
 
 def test_stencil_read_only():
@@ -6837,7 +6890,11 @@ def test_arg_discontinuous(monkeypatch, annexed):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.children[5].children[0]
+    if annexed:
+        index = 4
+    else:
+        index = 5
+    kernel = schedule.children[index].children[0]
     field = kernel.arguments.args[0]
     assert field.space == 'any_space_1'
     assert not field.discontinuous
@@ -7101,12 +7158,19 @@ def test_loop_cont_read_inv_bound(monkeypatch, annexed):
 
 
 def test_new_halo_exch_vect_field(monkeypatch):
-    '''if a field requires (or may require) a halo exchange before it is
-    called and it has more than one backward write dependencies then it
-    must be a vector (as a vector field requiring a halo exchange should
-    have a halo exchange for each vector). The method
+    '''If a field requires (or may require) a halo exchange before it is
+    accessed and it has more than one backward write dependency then it
+    must be a vector (as a vector field requiring a halo exchange
+    should have a halo exchange for each vector). The method
     create_halo_exchanges raises an exception if this is not the
-    case. This test checks that the exception is raised correctly.'''
+    case. This test checks that the exception is raised
+    correctly. This test relies on annexed = False as the required
+    halo exchanges are not generated when annexed = True.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -7136,7 +7200,14 @@ def test_new_halo_exch_vect_deps(monkeypatch):
     should have a halo exchange for each vector) and its vector size
     must equal the number of dependencies. The method
     create_halo_exchanges raises an exception if this is not the
-    case. This test checks that the exception is raised correctly.'''
+    case. This test checks that the exception is raised
+    correctly. This test relies on annexed = False as the required
+    halo exchanges are not generated when annexed = True.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
@@ -7164,10 +7235,17 @@ def test_new_halo_exch_vect_deps2(monkeypatch):
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then
     it must be a vector (as a vector field requiring a halo exchange
-    should have a halo exchange for each component) and each dependency
-    should be a halo exchange. The method create_halo_exchanges raises
-    an exception if this is not the case. This test checks that the
-    exception is raised correctly.'''
+    should have a halo exchange for each component) and each
+    dependency should be a halo exchange. The method
+    create_halo_exchanges raises an exception if this is not the
+    case. This test checks that the exception is raised
+    correctly. This test relies on annexed = False as the required
+    halo exchanges are not generated when annexed = True.
+
+    '''
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", False)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "14.4_halo_vector.f90"),
                            api=TEST_API)
