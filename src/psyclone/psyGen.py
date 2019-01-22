@@ -3011,7 +3011,7 @@ class Kern(Call):
         transformations applied to the fparser2 AST.
 
         :return: Schedule representing the kernel code.
-        :rtype: :py:class:`psyclone.psyGen.KernSchedule`
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
         '''
         if self._kern_schedule is None:
             astp = Fparser2ASTProcessor()
@@ -4044,7 +4044,7 @@ class Fparser2ASTProcessor(object):
 
     def process_declarations(self, parent, nodes):
         '''
-        Transform the fparser2 AST Declarations to symbols into the PSyIRe
+        Transform the fparser2 AST declarations to symbols into the PSyIRe
         parent node symbol table.
 
         :param parent: PSyIRe node to insert the symbols found.
@@ -4349,7 +4349,7 @@ class Symbol(object):
 
 class SymbolTable(object):
     '''
-    Encapsulates the Symbols table and provides methods to declare new symbols
+    Encapsulates the symbols table and provides methods to declare new symbols
     and look up existing symbols. It is implemented as a monolithic scope
     symbol table.
     '''

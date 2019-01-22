@@ -527,7 +527,7 @@ def test_derived_type_deref_naming():
         "      TYPE(field_type), intent(in) :: f1_my_field_1, m1, m2\n")
     assert output in generated_code
 
-
+# TODO: Update considering fparser/166 issue resolution.
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
