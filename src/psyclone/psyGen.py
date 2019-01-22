@@ -1289,6 +1289,9 @@ class Node(object):
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
+    def gen_c_code(self, indent=0, opencl=False):
+        raise NotImplementedError("Please implement me")
+
     def update(self):
         ''' By default we assume there is no need to update the existing
         fparser2 AST which this Node represents. We simply call the update()
@@ -4301,7 +4304,7 @@ class Fparser2ASTProcessor(object):
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
-        return Literal(node.items[0], parent=parent)
+        return Literal(str(node.items[0]), parent=parent)
 
 
 class Symbol(object):
@@ -4438,6 +4441,46 @@ class KernelSchedule(Schedule):
         result += "End Schedule"
         return result
 
+    def gen_c_code(self, indent=0, opencl=False):
+
+        code = self.indent(indent)
+        if opencl:
+            code = code + "__kernel "
+        code = code + "void " + self._name + "(\n"
+
+        # Generate kernel arguments
+        for symbol in self.symbol_table._symbols.values():
+            if symbol.kind in ('read_arg', 'write_arg'):
+                code = code + self.indent(indent + 1)
+                if opencl:
+                    code = code + "__global "
+                if symbol.datatype == 'real':
+                    code = code + "double "
+                elif symbol.datatype == 'integer':
+                    code = code + "int "
+                if symbol.dimensions > 0:
+                    code = code + "* restrict "
+                code = code + symbol.name + ",\n"
+
+        code = code[:-2]   # Remove last ",\n"
+        code = code + "\n" + self.indent(indent + 1) + "){\n"
+
+        # Declare local variables
+        for symbol in self.symbol_table._symbols.values():
+            if symbol.kind in ('local'):
+                code = code + self.indent(indent + 1)
+                if symbol.datatype == 'real':
+                    code = code + "double "
+                elif symbol.datatype == 'integer':
+                    code = code + "int "
+                if symbol.dimensions > 0:
+                    code = code + "*"
+                code = code + symbol.name + ";\n"
+
+        for child in self._children:
+            code = code + child.gen_c_code(indent + 1, opencl) + ";\n"
+        code = code + "}\n"
+        return code
 
 
 class CodeBlock(Node):
@@ -4483,6 +4526,9 @@ class CodeBlock(Node):
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
 
+    def gen_c_code(self, indent=0, opencl=False):
+        raise InternalError("CodeBlock can not be translated to C")
+
 
 class Assignment(Node):
     '''
@@ -4524,6 +4570,11 @@ class Assignment(Node):
             result += str(entity)
         return result
 
+    def gen_c_code(self, indent=0, opencl=False):
+        return self.indent(indent) + \
+               self.children[0].gen_c_code(indent, opencl) + " = " + \
+               self.children[1].gen_c_code(indent, opencl)
+
 
 class Reference(Node):
     '''
@@ -4560,6 +4611,9 @@ class Reference(Node):
 
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
+
+    def gen_c_code(self, indent=0, opencl=False):
+        return self._reference
 
 
 class BinaryOperation(Node):
@@ -4605,6 +4659,11 @@ class BinaryOperation(Node):
             result += str(entity)
         return result
 
+    def gen_c_code(self, indent=0, opencl=False):
+        return "(" + self._children[0].gen_c_code(indent, opencl) + " " + \
+                self._operator + " " \
+                + self._children[1].gen_c_code(indent, opencl) + ")"
+
 
 class Array(Reference):
     '''
@@ -4646,13 +4705,20 @@ class Array(Reference):
             result += str(entity)
         return result
 
+    def gen_c_code(self, indent=0, opencl=False):
+        code = super(Array, self).gen_c_code(indent, opencl) + "["
+        code = code + ",".join([c.gen_c_code(indent, opencl) for c
+                               in self._children])
+        code = code + "]"
+        return code
+
 
 class Literal(Node):
     '''
     Node representing a Literal
 
-    :param ast: node in the fparser2 AST representing the literal.
-    :type ast: :py:class:`fparser.two.Fortran2003.NumberBase.
+    :param value: string representing the literal value.
+    :type value: string
     :param parent: the parent node of this Literal in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
@@ -4682,3 +4748,6 @@ class Literal(Node):
 
     def __str__(self):
         return "Literal[value:'" + self._value + "']\n"
+
+    def gen_c_code(self, indent=0, opencl=False):
+        return self._value
