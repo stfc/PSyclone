@@ -1079,6 +1079,47 @@ appropriate names for the dag, colourmap, declaration etc.
    other. This is also the case for asynchronous halo exchanges. See
    issue #220.
 
+Evaluators
+----------
+
+Evaluators consist of basis and/or differential basis functions for a
+given function space, evaluated at the nodes of another, 'target',
+function space. A kernel can request evaluators on multiple target
+spaces through the use of the `gh_evaluator_targets` metadata entry.
+Every evaluator used by that kernel will then be provided on all of the
+target spaces.
+
+When constructing a `DynKernMetadata` object from the parsed kernel
+metadata, the list of target function-space names (as they appear in
+the meta-data) is stored in `DynKernMetadata._eval_targets`. This
+information is then used in the `DynKern._setup()` method which
+populates `DynKern._eval_targets`. This is an `OrderedDict` which has
+the (mangled) names of the target function spaces as keys and 2-tuples
+consisting of `FunctionSpace` and `DynKernelArgument` objects as
+values. The `DynKernelArgument` object provides the kernel argument
+from which to extract the function space and the `FunctionSpace` object
+holds full information on the target function space.
+
+The `DynInvokeBasisFunctions` class is responsible for managing the
+evaluators required by all of the kernels called from an Invoke.
+`DynInvokeBasisFunctions._eval_targets` collects all of the unique target
+function spaces from the `DynKern._eval_targets` of each kernel.
+
+`DynInvokeBasisFunctions._basis_fns` is a list holding information on
+each basis/differential basis function required by a kernel within the
+invoke. Each entry in this list is a `dict` with keys:
+
+============= =================================== ===================
+Key           Entry                      	  Type
+============= =================================== ===================
+shape         Shape of the evaluator              `str`
+type          Whether basis or differential basis `str`
+fspace        Function space             	  `FunctionSpace`
+arg           Associated kernel argument 	  `DynKernelArgument`
+qr_var        Quadrature argument name   	  `str`
+nodal_fspaces Target function spaces     	  list of `(FunctionSpace, DynKernelArgument)`
+============= =================================== ===================
+
 Modifying the Schedule
 ----------------------
 

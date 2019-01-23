@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -553,7 +553,7 @@ class KernelType(object):
         self._iterates_over = self.get_integer_variable("iterates_over")
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits = self.getkerneldescriptors(self._ktype)
-        self._arg_descriptors = None  # this is set up by the subclasses
+        self._arg_descriptors = []  # this is set up by the subclasses
 
     def getkerneldescriptors(self, ast, var_name='meta_args'):
         descs = ast.get_variable(var_name)
@@ -671,8 +671,9 @@ class KernelType(object):
 
     def get_integer_array(self, name):
         ''' Parse the kernel meta-data and find the value of the
-        integer array variable with the supplied name. Return None if no
-        matching variable is found.
+        integer array variable with the supplied name. Returns an empty list
+        if no matching variable is found.
+
         :param str name: the name of the integer array to find.
         :returns: list of values.
         :rtype: list of str.
@@ -711,7 +712,7 @@ class KernelType(object):
                     raise InternalError("Failed to parse array constructor: "
                                         "'{0}'".format(str(assign.items[2])))
                 return [str(name) for name in names]
-        return None
+        return []
 
 
 class DynKernelType(KernelType):
