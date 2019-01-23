@@ -4027,16 +4027,17 @@ class Fparser2ASTProcessor(object):
             raise InternalError("Unexpected kernel AST. Could not find "
                                 "subroutine: {0}".format(name))
 
+        arg_list = []
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
+            arg_list = [x.string for x in subroutine.content[0].items[2].items]
         except ValueError:
             pass
         else:
             self.process_declarations(new_schedule, sub_spec.content)
 
         try:
-            arg_list = [x.string for x in subroutine.content[0].items[2].items]
             new_schedule.symbol_table.specify_argument_list(arg_list)
         except KeyError:
             raise InternalError("Unexpected kernel AST. The argument list of"
@@ -4460,6 +4461,17 @@ class KernelSchedule(Schedule):
         return result
 
     def gen_c_code(self, indent=0, opencl=False):
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean:
+        :return: C language code representing the node.
+        :rtype: string
+        '''
 
         code = self.indent(indent)
         if opencl:
@@ -4553,6 +4565,16 @@ class CodeBlock(Node):
         return "CodeBlock[{0} statements]".format(len(self._statements))
 
     def gen_c_code(self, indent=0, opencl=False):
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean
+        :raises InternalError: gen_c_code always fails for CodeBlocks.
+        '''
         raise InternalError("CodeBlock can not be translated to C")
 
 
@@ -4597,9 +4619,20 @@ class Assignment(Node):
         return result
 
     def gen_c_code(self, indent=0, opencl=False):
-        return self.indent(indent) + \
-               self.children[0].gen_c_code(indent, opencl) + " = " + \
-               self.children[1].gen_c_code(indent, opencl)
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean:
+        :return: C language code representing the node.
+        :rtype: string
+        '''
+        return self.indent(indent) \
+            + self.children[0].gen_c_code(indent, opencl) + " = " \
+            + self.children[1].gen_c_code(indent, opencl)
 
 
 class Reference(Node):
@@ -4639,6 +4672,17 @@ class Reference(Node):
         return "Reference[name:'" + self._reference + "']\n"
 
     def gen_c_code(self, indent=0, opencl=False):
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean:
+        :return: C language code representing the node.
+        :rtype: string
+        '''
         return self._reference
 
 
@@ -4686,9 +4730,20 @@ class BinaryOperation(Node):
         return result
 
     def gen_c_code(self, indent=0, opencl=False):
-        return "(" + self._children[0].gen_c_code(indent, opencl) + " " + \
-                self._operator + " " \
-                + self._children[1].gen_c_code(indent, opencl) + ")"
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean:
+        :return: C language code representing the node.
+        :rtype: string
+        '''
+        return "(" + self._children[0].gen_c_code(indent, opencl) + " " \
+            + self._operator + " " \
+            + self._children[1].gen_c_code(indent, opencl) + ")"
 
 
 class Array(Reference):
@@ -4732,6 +4787,17 @@ class Array(Reference):
         return result
 
     def gen_c_code(self, indent=0, opencl=False):
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean:
+        :return: C language code representing the node.
+        :rtype: string
+        '''
         code = super(Array, self).gen_c_code(indent, opencl) + "["
 
         # In C array expressions should be reversed (row-major order)
@@ -4787,4 +4853,15 @@ class Literal(Node):
         return "Literal[value:'" + self._value + "']\n"
 
     def gen_c_code(self, indent=0, opencl=False):
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean:
+        :return: C language code representing the node.
+        :rtype: string
+        '''
         return self._value
