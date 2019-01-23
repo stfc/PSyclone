@@ -4467,18 +4467,26 @@ class KernelSchedule(Schedule):
         code = code + "void " + self._name + "(\n"
 
         # Generate kernel arguments
+        array_arguments = []
         for symbol in self.symbol_table.argument_list:
             if symbol.kind in ('read_arg', 'write_arg'):
                 code = code + self.indent(indent + 1)
                 if opencl:
                     code = code + "__global "
-                if symbol.datatype == 'real':
+                if symbol.datatype == "real":
                     code = code + "double "
-                elif symbol.datatype == 'integer':
+                elif symbol.datatype == "integer":
                     code = code + "int "
                 if symbol.dimensions > 0:
                     code = code + "* restrict "
+                    array_arguments.append((symbol.name, symbol.dimensions))
                 code = code + symbol.name + ",\n"
+
+        # Generate a LEN arguments for each array
+        for name, dimensions in array_arguments:
+            for dim in range(1, dimensions + 1):
+                code = code + self.indent(indent + 1) + "int " + name \
+                       + "LEN" + str(dim) + ",\n"
 
         code = code[:-2]   # Remove last ",\n"
         code = code + "\n" + self.indent(indent + 1) + "){\n"
