@@ -1,6 +1,26 @@
 This directory contains wrapper libraries that can be used with
 PSyclone's profiling interface.
 
+Compilation
+-----------
+The top level makefile can be used to compile some or all profiling libraries:
+make all
+will compile all profiling libraries included in PSyclone. The command
+make TARGET
+where TARGET is one of 'template', 'simple_timing' or 'dl_timer' will
+only comnpile the corresponding library. The following makefile variables
+are used and can be overwritten on the command line (e.g. make F90=mpif90):
+--------------------------------------------------------------------------
+Variable      Default                   Description
+--------------------------------------------------------------------------
+F90           gfortran                  Name of the compiler.
+FFLAGS        -g                        Flags to use when compiling.
+
+Using
+make clean
+will clean all compiled libraries. You can also compile each library by
+changing into the corresponding directory and invoking 'make'.
+
 template
 --------
 This is a very simple example library that just prints the name of the
@@ -31,9 +51,19 @@ dl_timer
 This is a wrapper library that maps the PSyclone profiling API
 to the dl_timer API. A copy of dl_timer can be downloaded from
 https://bitbucket.org/apeg/dl_timer
-It uses the ProfileData type and dl_timer's timer_register function
-to store the module/region name and the index used by dl_timer.
-This library is thread-safe.
+
+To compile the PSyclone wrapper library for dl_timer, one of the following
+two Makefile variables must be set:
+- DL_TIMER_ROOT This is the path to the apeg-dl_timer directory in which
+  dl_timer was compiled. It defaults to ../../../../apeg-dl_timer, which
+  means if apeg-dl_timer is next to the PSyclone root dir, it will be found
+  by default.
+- DL_TIMER_INCLUDE The path to the dl_timer include directory (or src
+  directory). This defaults to $DL_TIMER_ROOT/src.
+
+The PSyclone dl_timer wrapper library uses the ProfileData type and
+dl_timer's timer_register function to store the module/region name and
+the index used by dl_timer. This library is thread-safe.
 
 Example output:
 =============================== Timing report ===============================
@@ -56,3 +86,5 @@ psy_time_step_mod:swlat_update_c    11  0.19000E+01   0.17272E+00  0.24E-02
 -----------------------------------------------------------------------------
 * corrected for systematic error
 =============================================================================
+
+
