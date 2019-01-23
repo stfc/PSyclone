@@ -1,6 +1,7 @@
+# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-18, Science and Technology Facilities Council
+# Copyright (c) 2017-189 Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -3111,8 +3112,8 @@ class Kern(Call):
         '''
         from psyclone.f2pygen import CallGen, UseGen
 
-        # If kernel has been transformed then we rename it. If it is *not*
-        # being module inlined then we also write it to file.
+        # If the kernel has been transformed then we rename it. If it
+        # is *not* being module inlined then we also write it to file.
         self.rename_and_write()
 
         parent.add(CallGen(parent, self._name,
@@ -3215,17 +3216,22 @@ class Kern(Call):
     def rename_and_write(self):
         '''
         Writes the (transformed) AST of this kernel to file and resets the
-        'modified' flag to False. By default, the kernel is re-named
-        so as to be unique within the kernel output directory stored
-        within the configuration object. If config.kernel_naming is
-        "single" then no re-naming and output is performed if there is
-        already a transformed copy of the kernel in the output dir.
+        'modified' flag to False. By default (config.kernel_naming ==
+        "multiple"), the kernel is re-named so as to be unique within
+        the kernel output directory stored within the configuration
+        object. Alternatively, if config.kernel_naming is "single"
+        then no re-naming and output is performed if there is already
+        a transformed copy of the kernel in the output dir. (In this
+        case a check is performed that the transformed kernel already
+        present is identical to the one that we would otherwise write
+        to file. If this is not the case then we raise a GenerationError.)
 
         :raises GenerationError: if config.kernel_naming == "single" and a \
                                  different, transformed version of this \
                                  kernel is already in the output directory.
         :raises NotImplementedError: if the kernel has been transformed but \
                                      is also flagged for module-inlining.
+
         '''
         import os
         from psyclone.line_length import FortLineLength

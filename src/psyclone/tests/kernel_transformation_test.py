@@ -168,8 +168,8 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     dtypes = walk_ast(prog.content, [Fortran2003.Derived_Type_Def])
     names = walk_ast(dtypes[0].content, [Fortran2003.Type_Name])
     assert str(names[0]) == "continuity{0}_type".format(tag)
-    # TODO check compilation of code (needs Joerg's extension of compilation
-    # testing to GOcean)
+    # TODO #281 check compilation of code (needs Joerg's extension of
+    # compilation testing to GOcean)
 
 
 def test_new_kernel_dir(tmpdir, monkeypatch):

@@ -104,7 +104,7 @@ class Config(object):
     # importing of this module and the actual generation of code (e.g. as
     # happens in the test suite), we do not store it here. Instead it
     # is set in the Config.kernel_output_dir getter.
-    _default_kernel_naming = u"multiple"
+    _default_kernel_naming = "multiple"
 
     @staticmethod
     def get(do_not_load_file=False):
@@ -511,7 +511,7 @@ class Config(object):
     @property
     def kernel_naming(self):
         '''
-        :returns: what naming scheme to use when writing transformed kernels
+        :returns: what naming scheme to use when writing transformed kernels \
                   to file.
         :rtype: str
         '''

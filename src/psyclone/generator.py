@@ -255,7 +255,8 @@ def main(args):
     parser.add_argument(
         '-opsy', help='filename of generated PSy code')
     parser.add_argument('-okern',
-                        help='directory in which to put transformed kernels')
+                        help='directory in which to put transformed kernels, '
+                        'default is the current working directory.')
     parser.add_argument('-api',
                         help='choose a particular api from {0}, '
                              'default \'{1}\'.'
