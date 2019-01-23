@@ -7279,12 +7279,15 @@ class DynKernelArguments(Arguments):
                   kernel call.
         :rtype: list of str.
         '''
-        if not self._raw_arg_list:
-            create_arg_list = KernCallArgList(self._parent_call, parent)
-            create_arg_list.generate()
-            # TODO #268 the functionality of KernCallArgList and
-            # DynKernelArguments needs revisiting.
-            self._raw_arg_list = create_arg_list.arglist
+        create_arg_list = KernCallArgList(self._parent_call, parent)
+        create_arg_list.generate()
+        # TODO #268 the functionality of KernCallArgList and
+        # DynKernelArguments needs revisiting. In particular,
+        # KernCallArgList.generate() modifies the PSy AST (in
+        # `field_bcs_kernel()`) if the special boundary-condition
+        # kernel is called.
+        self._raw_arg_list = create_arg_list.arglist
+
         return self._raw_arg_list
 
 
