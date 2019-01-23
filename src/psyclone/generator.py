@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ from psyclone.algGen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
-from psyclone.configuration import Config
+from psyclone.configuration import Config, ConfigurationError
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
@@ -248,6 +248,11 @@ def main(args):
     parser.add_argument(
         '-d', '--directory', default="", help='path to root of directory '
         'structure containing kernel source code')
+    # Make the default an empty list so that we can check whether the
+    # user has supplied a value(s) later
+    parser.add_argument(
+        '-I', '--include', default=[], action="append",
+        help='path to Fortran INCLUDE files (nemo API only)')
     parser.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
         help='limit the fortran line length to 132 characters')
@@ -279,16 +284,17 @@ def main(args):
         print("PSyclone version: {0}".format(__VERSION__))
 
     if args.script is not None and args.profile is not None:
-        print("Error: use of automatic profiling in combination with an")
-        print("optimisation script is not recommened since it may not work")
-        print("as expected.")
-        print("You can use --force-profile instead of --profile if you "
-              "really want to use both options")
-        print("at the same time.")
+        print("Error: use of automatic profiling in combination with an\n"
+              "optimisation script is not recommened since it may not work\n"
+              "as expected.\n"
+              "You can use --force-profile instead of --profile if you \n"
+              "really want to use both options at the same time.",
+              file=sys.stderr)
         exit(1)
 
     if args.profile is not None and args.force_profile is not None:
-        print("Specify only one of --profile and --force-profile.")
+        print("Specify only one of --profile and --force-profile.",
+              file=sys.stderr)
         exit(1)
 
     if args.profile:
@@ -308,13 +314,36 @@ def main(args):
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
         print("Unsupported API '{0}' specified. Supported API's are "
-              "{1}.".format(args.api, Config.get().supported_apis))
+              "{1}.".format(args.api, Config.get().supported_apis),
+              file=sys.stderr)
         exit(1)
     else:
         # There is a valid API specified on the command line. Set it
         # as API in the config object as well.
         api = args.api
         Config.get().api = api
+
+    # Store the search path(s) for include files
+    if args.include and api != 'nemo':
+        # We only support passing include paths to fparser2 and it's
+        # only the NEMO API that uses fparser2 currently.
+        print("Setting the search path for Fortran include files "
+              "(-I/--include) is only supported for the 'nemo' API.",
+              file=sys.stderr)
+        exit(1)
+
+    # The Configuration manager checks that the supplied path(s) is/are
+    # valid so protect with a try
+    try:
+        if args.include:
+            Config.get().include_paths = args.include
+        else:
+            # Default is to instruct fparser2 to look in the directory
+            # containing the file being parsed
+            Config.get().include_paths = ["./"]
+    except ConfigurationError as err:
+        print(str(err), file=sys.stderr)
+        exit(1)
 
     try:
         alg, psy = generate(args.filename, api=api,
@@ -335,17 +364,18 @@ def main(args):
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError):
         _, exc_value, _ = sys.exc_info()
-        print(exc_value)
+        print(exc_value, file=sys.stderr)
         exit(1)
     except Exception:  # pylint: disable=broad-except
-        print("Error, unexpected exception, please report to the authors:")
+        print("Error, unexpected exception, please report to the authors:",
+              file=sys.stderr)
         exc_type, exc_value, exc_tb = sys.exc_info()
-        print("Description ...")
-        print(exc_value)
-        print("Type ...")
-        print(exc_type)
-        print("Stacktrace ...")
-        traceback.print_tb(exc_tb, limit=10, file=sys.stdout)
+        print("Description ...", file=sys.stderr)
+        print(exc_value, file=sys.stderr)
+        print("Type ...", file=sys.stderr)
+        print(exc_type, file=sys.stderr)
+        print("Stacktrace ...", file=sys.stderr)
+        traceback.print_tb(exc_tb, limit=10, file=sys.stderr)
         exit(1)
     if args.limit:
         fll = FortLineLength()

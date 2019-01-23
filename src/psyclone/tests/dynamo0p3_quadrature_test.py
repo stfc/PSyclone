@@ -59,7 +59,7 @@ def test_field_xyoz(tmpdir, f90, f90flags):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
-    psy = PSyFactory(API).create(invoke_info)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
 

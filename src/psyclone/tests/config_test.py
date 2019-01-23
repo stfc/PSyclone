@@ -64,12 +64,18 @@ COMPUTE_ANNEXED_DOFS = false
 '''
 
 
+def setup_module():
+    ''' xunit-style set-up. This ensures that any exising Configuration
+    object is deleted upon entry to this module. (Necessary when running
+    tests in parallel.) '''
+    Config._instance = None
+
+
 def teardown_function():
-    '''This teardown function is called at the end of all tests and makes
+    '''This teardown function is called at the end of each test and makes
     sure that we wipe the Config object so we get a fresh/default one
     for any further test (and not a left-over one from a test here).
     '''
-
     # Enforce loading of the default config file
     Config._instance = None
 
@@ -459,3 +465,18 @@ def test_default_api():
         config = Config()
         config.load(new_name)
         assert config.api == "dynamo0.3"
+
+
+def test_incl_path_errors(tmpdir):
+    ''' Check that we raise the expected errors if we attempt to set the list
+    of include paths to something other than a list or to a location that
+    does not exist. '''
+    config = Config()
+    with pytest.raises(ValueError) as err:
+        config.include_paths = config
+    assert "include_paths must be a list but got:" in str(err)
+    # Create a path that does not exist
+    missing_path = tmpdir.join("does_not_exist")
+    with pytest.raises(ConfigurationError) as cerr:
+        config.include_paths = [missing_path.strpath]
+    assert "does_not_exist' does not exist" in str(cerr)
