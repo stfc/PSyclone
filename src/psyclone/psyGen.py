@@ -4036,6 +4036,14 @@ class Fparser2ASTProcessor(object):
             self.process_declarations(new_schedule, sub_spec.content)
 
         try:
+            arg_list = [x.string for x in subroutine.content[0].items[2].items]
+            new_schedule.symbol_table.specify_argument_list(arg_list)
+        except KeyError:
+            raise InternalError("Unexpected kernel AST. The argument list of"
+                                " '{0}' not match the variable declarations"
+                                "".format(name))
+
+        try:
             sub_exec = first_type_match(subroutine.content,
                                         Fortran2003.Execution_Part)
         except ValueError:
@@ -4358,6 +4366,7 @@ class SymbolTable(object):
     '''
     def __init__(self):
         self._symbols = {}
+        self._argument_list = []
 
     def declare(self, name, datatype, dimensions, kind):
         '''
@@ -4388,6 +4397,15 @@ class SymbolTable(object):
         :raises KeyError: If the given name is not in the Symbol Table.
         '''
         return self._symbols[name]
+
+    def specify_argument_list(self, argument_names_list):
+        for name in argument_names_list:
+            symbol = self.lookup(name)
+            self._argument_list.append(symbol)
+
+    @property
+    def argument_list(self):
+        return self._argument_list
 
     def view(self):
         '''
@@ -4449,7 +4467,7 @@ class KernelSchedule(Schedule):
         code = code + "void " + self._name + "(\n"
 
         # Generate kernel arguments
-        for symbol in self.symbol_table._symbols.values():
+        for symbol in self.symbol_table.argument_list:
             if symbol.kind in ('read_arg', 'write_arg'):
                 code = code + self.indent(indent + 1)
                 if opencl:
@@ -4707,9 +4725,20 @@ class Array(Reference):
 
     def gen_c_code(self, indent=0, opencl=False):
         code = super(Array, self).gen_c_code(indent, opencl) + "["
-        code = code + ",".join([c.gen_c_code(indent, opencl) for c
-                               in self._children])
-        code = code + "]"
+
+        # In C array expressions should be reversed (row-major order)
+        # and flattened.
+        num_dimensions = len(self._children)
+        for child in reversed(self._children):
+            code = code + child.gen_c_code(indent, opencl)
+            if num_dimensions > 1:
+                dimstring = super(Array, self).gen_c_code(indent, opencl)
+                dimstring = dimstring + "LEN" + str(num_dimensions)
+                code = code + " * " + dimstring
+                num_dimensions = num_dimensions - 1
+            code = code + " + "
+
+        code = code[:-3] + "]"
         return code
 
 
