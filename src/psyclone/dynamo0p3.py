@@ -2526,7 +2526,11 @@ class DynInvokeBasisFns(object):
         # required by this Invoke.
         for basis_fn in self._basis_fns:
             # Get the extent of the first dimension of the basis array and
-            # store whether we have a basis or a differential basis function
+            # store whether we have a basis or a differential basis function.
+            # Currently there are only those two possible types of basis
+            # function and we store which we have in is_diff_basis. Should
+            # further basis-function types be added in the future then the if
+            # blocks that use if_diff_basis further down must be updated.
             if basis_fn['type'] == "basis":
                 first_dim = basis_first_dim_name(basis_fn["fspace"])
                 dim_space = "get_dim_space()"
@@ -2711,6 +2715,10 @@ class DynInvokeBasisFns(object):
 
         for basis_fn in self._basis_fns:
 
+            # Currently there are only two possible types of basis function
+            # and we store which we have in is_diff_basis. If support for
+            # other basis function types is added in future then the if-blocks
+            # (further down) that use is_diff_basis will have to be changed.
             if basis_fn["type"] == "diff-basis":
                 is_diff_basis = True
             elif basis_fn["type"] == "basis":
