@@ -28,7 +28,7 @@ by the script:
   > psyclone -h
 
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
-                  [-d DIRECTORY] [-l] [-dm] [-nodm]
+                  [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
 		  [--profile {invokes,kernels}]
 		  [--force-profile {invokes,kernels}] [-v] filename
 
