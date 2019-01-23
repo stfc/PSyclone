@@ -29,7 +29,7 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: A. R. Porter, STFC Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Lab
 
 ! This is a very simple include file for testing of PSyclone's  ability
 ! to handle source code containing include statements.

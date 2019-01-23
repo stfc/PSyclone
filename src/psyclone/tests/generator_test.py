@@ -758,7 +758,6 @@ def test_main_include_nemo_only(capsys):
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
-    Config._instance = None
     for api in Config.get().supported_apis:
         if api != "nemo":
             with pytest.raises(SystemExit) as err:
