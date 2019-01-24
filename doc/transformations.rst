@@ -144,10 +144,17 @@ application, ensuring that there are no name clashes for kernels in
 the application as a whole requires that some state is maintained
 between PSyclone invocations. This is achieved by requiring that the
 same kernel output directory is used for every invocation of PSyclone
-when building a given application. By default, transformed kernels
-are written to the current working directory. Alternatively, the user
-may specify the location to which to write the modified code via the
-``-okern`` command-line flag.
+when building a given application. However, this is under the control
+of the user and therefore it is possible to use the same output
+directory for a subset of algorithms that require the same kernel
+transformation and then a different directory for another subset
+requiring a different transformation. Of course, such use would
+require care when building and linking the application since the
+differently-optimised kernels would have the same names.
+
+By default, transformed kernels are written to the current working
+directory. Alternatively, the user may specify the location to which
+to write the modified code via the ``-okern`` command-line flag.
 
 In order to support the two use cases given above, PSyclone supports
 two different kernel-renaming schemes: "multiple" and "single"

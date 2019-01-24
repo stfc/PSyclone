@@ -1169,15 +1169,13 @@ exchange is no longer required after the loop).
 Kernel Transformations
 ++++++++++++++++++++++
 
-When a kernel is transformed we need to ensure that the PSy layer is
-updated so as to call the new version of the kernel. Since PSyclone is
-invoked separately for each Algorithm file in an application, the
-naming of the new, transformed kernels is done with reference to the
-kernel output directory. All transformed kernels (and the modules that
-contain them) are re-named following the PSyclone Fortran naming
-conventions (:ref:`fortran_naming`). This enables the reliable
-identification of transformed versions of any given kernel within the
-output directory.
+Since PSyclone is invoked separately for each Algorithm file in an
+application, the naming of the new, transformed kernels is done with
+reference to the kernel output directory. All transformed kernels (and
+the modules that contain them) are re-named following the PSyclone
+Fortran naming conventions (:ref:`fortran_naming`). This enables the
+reliable identification of transformed versions of any given kernel
+within the output directory.
 
 If the "multiple" kernel-renaming scheme is in use, PSyclone simply
 appends an integer to the original kernel name, checks whether such a

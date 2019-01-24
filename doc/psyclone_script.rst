@@ -271,8 +271,8 @@ and finalising the profiling library that is being used.  For full
 details on the use of this profiling functionality please see the
 :ref:`profiling` section.
 
-Naming of Transformed Kernels
------------------------------
+Outputting of Transformed Kernels
+---------------------------------
 
 When transforming kernels there are two use-cases to consider:
 
