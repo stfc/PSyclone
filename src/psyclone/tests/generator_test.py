@@ -751,6 +751,67 @@ def test_main_no_invoke_alg_file(capsys):
     assert not os.path.isfile(psy_filename)
 
 
+def test_main_kern_output_no_dir(capsys):
+    ''' Test for when the specified output directory (for transformed
+    kernels) does not exist. '''
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    with pytest.raises(SystemExit) as err:
+        main([alg_filename, '-okern', "/does/not/exist"])
+    assert str(err.value) == "1"
+    _, output = capsys.readouterr()
+    assert ("Specified kernel output directory (/does/not/exist) does not "
+            "exist" in output)
+
+
+def test_main_kern_output_no_write(tmpdir, capsys):
+    ''' Test for when the specified output directory (for transformed
+    kernels) cannot be written to. '''
+    import stat
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    # Create a new directory and make it readonly
+    new_dir = os.path.join(str(tmpdir), "no_write_access")
+    os.mkdir(new_dir)
+    os.chmod(new_dir, stat.S_IREAD)
+    with pytest.raises(SystemExit) as err:
+        main([alg_filename, '-okern', str(new_dir)])
+    assert str(err.value) == "1"
+    _, output = capsys.readouterr()
+    assert ("Cannot write to specified kernel output directory ({0})".
+            format(str(new_dir)) in output)
+
+
+def test_main_kern_output_dir(tmpdir):
+    ''' Test that we can specify a valid kernel output directory. '''
+    from psyclone.configuration import Config
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    main([alg_filename, '-okern', str(tmpdir)])
+    # The specified kernel output directory should have been stored in
+    # the configuration object
+    assert Config.get().kernel_output_dir == str(tmpdir)
+
+
+def test_invalid_kern_naming(capsys):
+    ''' Check that we raise the expected error if an invalid kernel-renaming
+    scheme is supplied. '''
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    # Simply supplying the wrong value on the command line is picked up
+    # by the argparse module so we call generate() directly with an
+    # incorrect value
+    with pytest.raises(GenerationError) as err:
+        _, _ = generate(alg_filename, api="dynamo0.3",
+                        kern_naming="not-a-scheme")
+    assert "Invalid kernel-renaming scheme supplied" in str(err)
+    assert "but got 'not-a-scheme'" in str(err)
+
+
 def test_main_include_nemo_only(capsys):
     ''' Check that the main function rejects attempts to specify INCLUDE
     paths for all except the nemo API. (Since that is the only one which

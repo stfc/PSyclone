@@ -65,9 +65,11 @@ COMPUTE_ANNEXED_DOFS = false
 
 
 def setup_module():
-    ''' xunit-style set-up. This ensures that any exising Configuration
-    object is deleted upon entry to this module. (Necessary when running
-    tests in parallel.) '''
+    ''' The tests in this module all assume that there is no pre-existing
+    Config object. This setup routine ensures that this is the case when
+    this module is first entered and the teardown function below guarantees
+    it for subsequent tests.  (Necessary when running tests in parallel.)
+    '''
     Config._instance = None
 
 
@@ -465,6 +467,19 @@ def test_default_api():
         config = Config()
         config.load(new_name)
         assert config.api == "dynamo0.3"
+
+
+def test_kernel_naming_setter():
+    ''' Check that the setter for the kernel-naming scheme rejects
+    unrecognised values. '''
+    from psyclone import configuration
+    config = Config()
+    config.kernel_naming = "single"
+    assert config.kernel_naming == "single"
+    with pytest.raises(ValueError) as err:
+        config.kernel_naming = "not-a-scheme"
+    assert ("kernel_naming must be one of '{0}' but got 'not-a-scheme'".
+            format(configuration.VALID_KERNEL_NAMING_SCHEMES) in str(err))
 
 
 def test_incl_path_errors(tmpdir):

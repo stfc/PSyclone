@@ -636,6 +636,10 @@ def test_arguments_abstract():
     with pytest.raises(NotImplementedError) as err:
         _ = my_arguments.scalars
     assert "Arguments.scalars must be implemented in sub-class" in str(err)
+    with pytest.raises(NotImplementedError) as err:
+        _ = my_arguments.raw_arg_list()
+    assert ("Arguments.raw_arg_list must be implemented in sub-class"
+            in str(err))
 
 
 def test_incremented_arg():

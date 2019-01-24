@@ -1,5 +1,11 @@
+	6) #201 and PR #224. Add ability to write transformed kernels to
+	file. Also ensures that kernel and psy-layer names match, allows
+	an output directory to be specified and supports different output
+	options when the same kernel is transformed in more than one
+	location.
+
 	5) #270 and PR #271. Add ability to specify include directories in
-	psyclone script to allow Fortran include files to be found when
+	PSyclone script to allow Fortran include files to be found when
 	transforming kernels.
 
 	4) #196 and PR #242. Add support for kernels with evaluators on

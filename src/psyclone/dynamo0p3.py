@@ -1323,8 +1323,12 @@ class DynamoPSy(PSy):
     ''' The Dynamo specific PSy class. This creates a Dynamo specific
     invokes object (which controls all the required invocation calls).
     It also overrides the PSy gen method so that we generate dynamo
-    specific PSy module code. '''
+    specific PSy module code.
 
+    :param invoke_info: object containing the required invocation information \
+                        for code optimisation and generation.
+    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = DynamoInvokes(invoke_info.calls)
@@ -5491,16 +5495,16 @@ class DynKern(Kern):
 
     def gen_code(self, parent):
         '''Generates dynamo version 0.3 specific psy code for a call to
-            the dynamo kernel instance.
+           the dynamo kernel instance.
 
-        :param parent: an f2pygen object that will be the parent of
-        f2pygen objects created in this method
+        :param parent: an f2pygen object that will be the parent of \
+                       f2pygen objects created in this method.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        :raises GenerationError: if the loop goes beyond the level 1
-        halo and an operator is accessed
-        :raises GenerationError: if a kernel in the loop has an inc
-        access and the loop is not coloured but is within an OpenMP
-        parallel region.
+        :raises GenerationError: if the loop goes beyond the level 1 \
+                                 halo and an operator is accessed.
+        :raises GenerationError: if a kernel in the loop has an inc access \
+                                 and the loop is not coloured but is within \
+                                 an OpenMP parallel region.
 
         '''
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, UseGen, \
@@ -5560,7 +5564,7 @@ class DynKern(Kern):
             if self._fs_descriptors.exists(unique_fs):
                 fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
                 if fs_descriptor.requires_orientation:
-                    field = self._arguments.get_arg_on_space(unique_fs)
+                    field = self.arguments.get_arg_on_space(unique_fs)
                     oname = get_fs_orientation_name(unique_fs)
                     orientation_decl_names.append(oname+"(:) => null()")
                     parent.add(
@@ -5581,15 +5585,7 @@ class DynKern(Kern):
         #    create_dump = DinoWriters(self, new_parent, position)
         #    create_dump.generate()
 
-        create_arg_list = KernCallArgList(self, parent)
-        create_arg_list.generate()
-        arglist = create_arg_list.arglist
-
-        # generate the kernel call and associated use statement
-        parent.add(CallGen(parent, self._name, arglist))
-        if not self.module_inline:
-            parent.add(UseGen(parent, name=self._module_name,
-                              only=True, funcnames=[self._name]))
+        super(DynKern, self).gen_code(parent)
 
 
 class ArgOrdering(object):
@@ -6240,8 +6236,13 @@ class KernCallArgList(ArgOrdering):
 
     @property
     def arglist(self):
-        '''return the kernel argument list. The generate function must be
-        called first'''
+        '''
+        :return: the kernel argument list. The generate function must be \
+                 called first.
+        :rtype: list of str.
+
+        :raises GenerationError: if the argument list is empty.
+        '''
         if not self._arglist:
             raise GenerationError(
                 "Internal error. The argument list in KernCallArgList:"
@@ -7266,6 +7267,28 @@ class DynKernelArguments(Arguments):
         makes no sense for dynamo. Need to refactor the invoke class
         and pull out dofs into the gunghoproto api. '''
         return self._dofs
+
+    def raw_arg_list(self, parent):
+        '''
+        Constructs the class-specific argument list for a kernel.
+
+        :param parent: the parent (in the PSyIR) of the kernel call with \
+                       which this argument list is associated.
+        :type parent: sub-class of :py:class:`psyclone.psyGen.Call`
+        :returns: a list of all of the actual arguments to the \
+                  kernel call.
+        :rtype: list of str.
+        '''
+        create_arg_list = KernCallArgList(self._parent_call, parent)
+        create_arg_list.generate()
+        # TODO #268 the functionality of KernCallArgList and
+        # DynKernelArguments needs revisiting. In particular,
+        # KernCallArgList.generate() modifies the PSy AST (in
+        # `field_bcs_kernel()`) if the special boundary-condition
+        # kernel is called.
+        self._raw_arg_list = create_arg_list.arglist
+
+        return self._raw_arg_list
 
 
 class DynKernelArgument(KernelArgument):

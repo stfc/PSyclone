@@ -1166,6 +1166,37 @@ exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
 
+Kernel Transformations
+++++++++++++++++++++++
+
+Since PSyclone is invoked separately for each Algorithm file in an
+application, the naming of the new, transformed kernels is done with
+reference to the kernel output directory. All transformed kernels (and
+the modules that contain them) are re-named following the PSyclone
+Fortran naming conventions (:ref:`fortran_naming`). This enables the
+reliable identification of transformed versions of any given kernel
+within the output directory.
+
+If the "multiple" kernel-renaming scheme is in use, PSyclone simply
+appends an integer to the original kernel name, checks whether such a
+kernel is present in the output directory and if not, creates it. If a
+kernel with the generated name is present then the integer is
+incremented and the process repeated. If the "single" kernel-renaming
+scheme is in use, the same procedure is followed but if a matching
+kernel is already present in the output directory then the new kernel
+is not written (and we check that the contents of the existing kernel
+are the same as the one we would create).
+
+If an application is being built in parallel then it is possible that
+different invocations of PSyclone will happen simultaneously and
+therefore we must take care to avoid race conditions when querying the
+filesystem. For this reason we use ``os.open``::
+  
+    fd = os.open(<filename>, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
+
+The ``os.O_CREATE`` and ``os.O_EXCL`` flags in combination mean that
+``open()`` raises an error if the file in question already exists.
+
 Colouring
 +++++++++
 

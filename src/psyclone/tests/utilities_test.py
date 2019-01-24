@@ -115,13 +115,13 @@ def test_find_fortran_file(tmpdir):
     error if it can't find a matching file. Also check that it returns
     the correct name if the file does exist. '''
     with pytest.raises(IOError) as excinfo:
-        find_fortran_file(str(tmpdir), "missing_file")
+        find_fortran_file([str(tmpdir)], "missing_file")
     assert "missing_file' with suffix in ['f90', 'F90'," in str(excinfo)
     old_pwd = tmpdir.chdir()
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
-        name = find_fortran_file(str(tmpdir), "hello_world")
+        name = find_fortran_file([str(tmpdir)], "hello_world")
         assert name.endswith("hello_world.f90")
     finally:
         os.chdir(str(old_pwd))
