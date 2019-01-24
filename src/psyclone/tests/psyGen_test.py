@@ -527,7 +527,7 @@ def test_derived_type_deref_naming():
         "      TYPE(field_type), intent(in) :: f1_my_field_1, m1, m2\n")
     assert output in generated_code
 
-# TODO: Update considering fparser/166 issue resolution.
+
 FAKE_KERNEL_METADATA = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
@@ -2630,6 +2630,7 @@ def test_binaryoperation_can_be_printed():
 # Test KernelSchedule Class
 
 def test_kernelschedule_view(capsys):
+    '''Test the view method of the KernelSchedule part.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
     assignment = Assignment()
@@ -2643,10 +2644,12 @@ def test_kernelschedule_view(capsys):
                           SCHEDULE_COLOUR_MAP["Schedule"])
     output, _ = capsys.readouterr()
     assert coloredtext+"[name:'kname']" in output
-    assert "Assignment" in output  # Check child view method is called 
+    assert "Assignment" in output  # Check child view method is called
 
 
 def test_kernelschedule_can_be_printed():
+    '''Test that a KernelSchedule instance can always be printed (i.e. is
+    initialised fully)'''
     kschedule = KernelSchedule("kname")
     assignment = Assignment()
     lhs = Reference("x", parent=assignment)
@@ -2681,7 +2684,8 @@ def test_symboltable_declare():
     # Declare a duplicate name symbol
     with pytest.raises(InternalError) as error:
         sym_table.declare("var1", "real", 0, "write_arg")
-    assert "Multiple definition of symbol: 'var1'." in str(error.value)
+    assert ("Symbol table already contains a symbol with name "
+            "'var1'.") in str(error.value)
 
 
 def test_symboltable_lookup():
@@ -2797,7 +2801,7 @@ def test_fparser2astprocessor_process_declarations():
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
-    ParserFactory().create(std="f2008")
+    f2008parser = ParserFactory().create(std="f2008")
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
 
@@ -2818,11 +2822,33 @@ def test_fparser2astprocessor_process_declarations():
     assert fake_parent.symbol_table.lookup("l2").dimensions == 0
     assert fake_parent.symbol_table.lookup("l2").kind == 'local'
 
-    # Initialisations not supported yet
+    # RHS array specifications are not supported
+    reader = FortranStringReader("integer :: l1(4)")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    with pytest.raises(InternalError) as error:
+        processor.process_declarations(fake_parent, [fparser2specification])
+    assert ("Array specifications after the variable name are not "
+            "supported.") in str(error.value)
+
+    # Initialisations are not supported
     reader = FortranStringReader("integer :: l1 = 1")
     fparser2specification = Specification_Part.match(reader)[0][0]
-    with pytest.raises(NotImplementedError) as error:
+    with pytest.raises(InternalError) as error:
         processor.process_declarations(fake_parent, [fparser2specification])
+    assert ("Array initializations on the declaration statements are not "
+            "supported.") in str(error.value)
+
+    # Char lengths are not supported
+    # TODO: It would be simpler to do just a Specification_Part.match() instead
+    # of parsing a full program, but fparser/169 needs to be fixed first.
+    reader = FortranStringReader("program dummy\ncharacter :: l*4"
+                                 "\nend program")
+    program = f2008parser(reader)
+    fparser2specification = program.content[0].content[1].content[0]
+    with pytest.raises(InternalError) as error:
+        processor.process_declarations(fake_parent, [fparser2specification])
+    assert ("Character length specifications are not "
+            "supported.") in str(error.value)
 
     # Test different intent specifications
     reader = FortranStringReader("integer, intent(in) :: arg1")
@@ -2855,7 +2881,7 @@ def test_fparser2astprocessor_process_declarations():
     assert fake_parent.symbol_table.lookup("arg4").name == "arg4"
     assert fake_parent.symbol_table.lookup("arg4").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("arg4").dimensions == 0
-    assert fake_parent.symbol_table.lookup("arg4").kind == 'rw_arg'
+    assert fake_parent.symbol_table.lookup("arg4").kind == 'readwrite_arg'
 
     # Test different array dimensions
     reader = FortranStringReader("integer, dimension(:,:,:) :: array1")

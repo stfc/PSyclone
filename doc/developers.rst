@@ -1338,7 +1338,7 @@ Kernel Transformations
 
 PSyclone is able to perform kernel transformations. Currently it has
 two ways to apply transformations: by directly manipulating the language
-AST or by translating the language AST to PSyIRe, apply the transformation,
+AST or by translating the language AST to PSyIR, apply the transformation,
 and producing the resulting language AST or code.
 
 For now, both methods only support fparser2 AST for kernel code.
@@ -1355,7 +1355,7 @@ See `psyclone.transformations.ACCRoutineTrans` for an example of directly
 manipulating the fparser2 AST.
 
 Alternatively, one can call the `psyclone.psyGen.Kern.get_kernel_schedule()`
-to generate the PSyIRe re/presentation of the kernel code. 
+to generate the PSyIR representation of the kernel code. 
 
 .. automethod:: psyclone.psyGen.Kern.get_kernel_schedule
 
@@ -1371,8 +1371,8 @@ for specific APIs when additional functionality is requiered
     :members:
 
 The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
-`psyclone.psyGen.KernelSchedule` which has the same functionality than
-a PSy Schedule but it adds Symbol Table.
+`psyclone.psyGen.KernelSchedule` which has the same functionality as
+a PSy Schedule but with the addition of a Symbol Table.
 
 .. autoclass:: psyclone.psyGen.SymbolTable
     :members:

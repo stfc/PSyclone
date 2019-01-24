@@ -2991,7 +2991,7 @@ class Kern(Call):
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  # The fparser2 AST for the kernel
-        self._kern_schedule = None  # PSyIRe schedule for the kernel
+        self._kern_schedule = None  # PSyIR schedule for the kernel
         self._module_inline = False
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
@@ -3005,10 +3005,10 @@ class Kern(Call):
 
     def get_kernel_schedule(self):
         '''
-        Returns a PSyIRe Schedule representing the kernel code. The Schedule
-        is just generated on first invocation, this allows to retain
-        transformations applied to the Schedule but will not adapt to
-        transformations applied to the fparser2 AST.
+        Returns a PSyIR Schedule representing the kernel code. The Schedule
+        is just generated on first invocation, this allows us to retain
+        transformations that may subsequently be applied to the Schedule
+        (but will not adapt to transformations applied to the fparser2 AST).
 
         :return: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -3983,22 +3983,35 @@ class Fparser2ASTProcessor(object):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
-        :param name: Name of the subroutine representing the kernel.
-        :type name: string
-        :param module_ast: fparser2 AST of the full module where the kernel
+        :param str name: Name of the subroutine representing the kernel.
+        :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :raises: InternalError: Unexpected fpaser2 AST format.
+        :raises InternalError: Unexpected fpaser2 AST format.
         '''
         from fparser.two import Fortran2003
 
         def first_type_match(nodelist, typekind):
+            '''
+            Returns the first instance of the specified type in the given
+            node list.
+
+            :param list nodelist: List of fparser2 nodes.
+            :param type typekind: The fparse2 Type we are searching for.
+            '''
             for x in nodelist:
                 if isinstance(x, typekind):
                     return x
             raise ValueError  # Type not found
 
         def search_subroutine(nodelist, searchname):
+            '''
+            Returns the first instance of the specified subroutine in the given
+            node list.
+
+            :param list nodelist: List of fparser2 nodes.
+            :param str searchname: Name of the subroutine we are searching for.
+            '''
             for x in nodelist:
                 if (isinstance(x, Fortran2003.Subroutine_Subprogram) and
                    str(x.content[0].get_name()) == searchname):
@@ -4009,6 +4022,9 @@ class Fparser2ASTProcessor(object):
 
         try:
             # Assume just 1 Fortran module definition in the file
+            if len(module_ast.content) > 1:
+                raise InternalError("Unexpected kernel AST. Just one "
+                                    "module definition per file supported.")
             mod_content = module_ast.content[0].content
             mod_spec = first_type_match(mod_content,
                                         Fortran2003.Specification_Part)
@@ -4044,12 +4060,12 @@ class Fparser2ASTProcessor(object):
 
     def process_declarations(self, parent, nodes):
         '''
-        Transform the fparser2 AST declarations to symbols into the PSyIRe
+        Transform the fparser2 AST declarations to symbols into the PSyIR
         parent node symbol table.
 
-        :param parent: PSyIRe node to insert the symbols found.
+        :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
-        :param nodes: fparser2 AST nodes to search for Declarations Statements
+        :param nodes: fparser2 AST nodes to search for declaration statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         '''
         from fparser.two.utils import walk_ast
@@ -4071,21 +4087,30 @@ class Fparser2ASTProcessor(object):
                 dimensions = dimensions + 1
 
             # Parse intent attributes
-            decltype = 'local'  # If no intent attribute provided, it is a
-            # local variable.
+            decltype = 'local'  # If no intent attribute is provided, it is
+            # provisionally marked as a local variable (when the argument
+            # list is parsed, undeclared arguments are updated appropriately).
             for attr in walk_ast(decl.items, [Fortran2003.Attr_Spec]):
                 if "intent(in)" in str(attr).lower().replace(' ', ''):
                     decltype = 'read_arg'
                 elif "intent(out)" in str(attr).lower().replace(' ', ''):
                     decltype = 'write_arg'
                 elif "intent(inout)" in str(attr).lower().replace(' ', ''):
-                    decltype = 'rw_arg'
+                    decltype = 'readwrite_arg'
 
             # Get name and insert into the parent symbol table
             for entity in walk_ast(decl.items, [Fortran2003.Entity_Decl]):
                 (name, array_spec, char_len, initialization) = entity.items
-                if (array_spec is not None) or (initialization is not None):
-                    raise NotImplementedError()
+                if (array_spec is not None):
+                    raise InternalError("Array specifications after the "
+                                        "variable name are not supported.")
+                if (initialization is not None):
+                    raise InternalError("Array initializations on the"
+                                        " declaration statements are "
+                                        "not supported.")
+                if (char_len is not None):
+                    raise InternalError("Character length specifications "
+                                        "are not supported.")
                 parent.symbol_table.declare(str(name), datatype, dimensions,
                                             decltype)
 
@@ -4308,17 +4333,13 @@ class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name
     of the symbol, its datatype, the number of dimensions and the symbol kind
-    (e.g. local, external, read_arg, write_arg, rw_arg).
+    (e.g. local, external, read_arg, write_arg, readwrite_arg).
 
-    :param name: Name of the symbol.
-    :type name: string
-    :param datatype: Data type of the symbol.
-    :type datatype: string
-    :param dimensions: Dimensions of the symbol (0 represents an scalar
+    :param str name: Name of the symbol.
+    :param str datatype: Data type of the symbol.
+    :param int dimensions: Dimensions of the symbol (0 represents a scalar \
                        symbol).
-    :type dimensions: list of integers
     :param kind: Information about the variable declaration attributes.
-    :type kind: string
     '''
     def __init__(self, name, datatype=None, dimensions=0, kind=None):
         self._name = name
@@ -4328,18 +4349,34 @@ class Symbol(object):
 
     @property
     def name(self):
+        '''
+        :return: Name of the Symbol.
+        :rtype: string
+        '''
         return self._name
 
     @property
     def datatype(self):
+        '''
+        :return: Data type of the Symbol.
+        :rtype: string
+        '''
         return self._datatype
 
     @property
     def dimensions(self):
+        '''
+        :return: Number of dimensions of the Symbol.
+        :rtype: integer
+        '''
         return self._dimensions
 
     @property
     def kind(self):
+        '''
+        :return: Information about where and how the symbol is declared.
+        :rtype: string
+        '''
         return self._kind
 
     def __str__(self):
@@ -4349,16 +4386,17 @@ class Symbol(object):
 
 class SymbolTable(object):
     '''
-    Encapsulates the symbols table and provides methods to declare new symbols
-    and look up existing symbols. It is implemented as a monolithic scope
-    symbol table.
+    Encapsulates the symbol table and provides methods to declare new symbols
+    and look up existing symbols. It is implemented as a single scope
+    symbol table (nested scopes not supported).
     '''
     def __init__(self):
+        # Dict of Symbol objects with the symbol names as keys.
         self._symbols = {}
 
     def declare(self, name, datatype, dimensions, kind):
         '''
-        Declare a new symbol in the symbols table.
+        Declare a new symbol in the symbol table.
 
         :param name: Name of the symbol.
         :type name: string
@@ -4371,14 +4409,14 @@ class SymbolTable(object):
         :type kind: string
         '''
         if name in self._symbols:
-            raise InternalError("Multiple definition of symbol: '{0}'."
-                                "".format(name))
+            raise InternalError("Symbol table already contains a symbol with"
+                                " name '{0}'.".format(name))
         else:
             self._symbols[name] = Symbol(name, datatype, dimensions, kind)
 
     def lookup(self, name):
         '''
-        Look up a symbol in the symbols table.
+        Look up a symbol in the symbol table.
 
         :param name: Name of the symbol
         :type name: string
@@ -4405,7 +4443,7 @@ class KernelSchedule(Schedule):
     A kernelSchedule inherits the functionality from Schedule and adds a symbol
     table to keep a record of the declared variables and their attributes.
 
-    :param name: Kernel subroutine name
+    :param str name: Kernel subroutine name
     :type name: string
     '''
 
@@ -4423,8 +4461,7 @@ class KernelSchedule(Schedule):
         Print a text representation of this node to stdout and then
         call the view() method of any children.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: Depth of indent for output text
         '''
         print(self.indent(indent) + self.coloured_text + "[name:'" + self._name
               + "']")
@@ -4437,7 +4474,6 @@ class KernelSchedule(Schedule):
             result += str(entity)+"\n"
         result += "End Schedule"
         return result
-
 
 
 class CodeBlock(Node):
