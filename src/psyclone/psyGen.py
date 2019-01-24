@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-189 Science and Technology Facilities Council
+# Copyright (c) 2017-19 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -3319,7 +3319,6 @@ class Kern(Call):
             os.write(fdesc, new_kern_code.encode())
             # Close the new kernel file
             os.close(fdesc)
-
 
     def _rename_ast(self, suffix):
         '''

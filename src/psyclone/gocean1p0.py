@@ -260,27 +260,26 @@ class GOInvoke(Invoke):
         self.schedule.gen_code(invoke_sub)
 
         # add the subroutine argument declarations for fields
-        if len(self.unique_args_arrays) > 0:
+        if self.unique_args_arrays:
             my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
                                          intent="inout",
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
 
         # add the subroutine argument declarations for real scalars
-        if len(self.unique_args_rscalars) > 0:
+        if self.unique_args_rscalars:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
                                        intent="inout", kind="go_wp",
                                        entity_decls=self.unique_args_rscalars)
             invoke_sub.add(my_decl_rscalars)
         # add the subroutine argument declarations for integer scalars
-        if len(self.unique_args_iscalars) > 0:
+        if self.unique_args_iscalars:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
                                        entity_decls=self.unique_args_iscalars)
             invoke_sub.add(my_decl_iscalars)
 
-        if self._schedule.const_loop_bounds and \
-           len(self.unique_args_arrays) > 0:
+        if self._schedule.const_loop_bounds and self.unique_args_arrays:
 
             # Look-up the loop bounds using the first field object in the
             # list
@@ -767,7 +766,7 @@ class GOLoop(Loop):
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
         go_kernels = self.walk(self.children, GOKern)
-        if len(go_kernels) == 0:
+        if not go_kernels:
             raise GenerationError("Internal error: cannot find the "
                                   "GOcean Kernel enclosed by this loop")
         index_offset = go_kernels[0].index_offset

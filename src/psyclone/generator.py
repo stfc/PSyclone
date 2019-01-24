@@ -212,7 +212,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
 
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
-    if (len(kernel_path) > 0) and (not os.access(kernel_path, os.R_OK)):
+    if kernel_path and not os.access(kernel_path, os.R_OK):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
         from psyclone.algGen import Alg
