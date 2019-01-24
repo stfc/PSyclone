@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -168,6 +168,9 @@ class Config(object):
 
         # The naming scheme to use for transformed kernels
         self._kernel_naming = None
+
+        # The list of directories to search for Fortran include files
+        self._include_paths = []
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
@@ -532,6 +535,37 @@ class Config(object):
                 "kernel_naming must be one of '{0}' but got '{1}'".
                 format(VALID_KERNEL_NAMING_SCHEMES, value))
         self._kernel_naming = value
+
+    @property
+    def include_paths(self):
+        '''
+        :returns: the list of paths to search for Fortran include files.
+        :rtype: list of str.
+        '''
+        return self._include_paths
+
+    @include_paths.setter
+    def include_paths(self, path_list):
+        '''
+        Sets the list of paths to search for Fortran include files.
+
+        :param path_list: list of directories to search.
+        :type path_list: list of str.
+
+        :raises ValueError: if `path_list` is not a list-like object.
+        :raises ConfigurationError: if any of the paths in the list do \
+                                    not exist.
+        '''
+        self._include_paths = []
+        try:
+            for path in path_list:
+                if not os.path.exists(path):
+                    raise ConfigurationError(
+                        "Include path '{0}' does not exist".format(path))
+                self._include_paths.append(path)
+        except (TypeError, ValueError):
+            raise ValueError("include_paths must be a list but got: {0}".
+                             format(type(path_list)))
 
     def get_default_keys(self):
         '''Returns all keys from the default section.

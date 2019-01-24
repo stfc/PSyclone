@@ -28,7 +28,7 @@ by the script:
   > psyclone -h
 
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
-                  [-s SCRIPT] [-d DIRECTORY] [-l] [-dm] [-nodm]
+                  [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
                   [--kernel-renaming {multiple,single}]
 		  [--profile {invokes,kernels}]
 		  [--force-profile {invokes,kernels}] [-v] filename
@@ -44,13 +44,15 @@ by the script:
     -opsy OPSY            filename of generated PSy code
     -okern OKERN          directory in which to put transformed kernels
     -api API              choose a particular api from ['gunghoproto',
-                          'dynamo0.1', 'dynamo0.3', 'gocean0.1', 'gocean1.0'],
-                          default 'dynamo0.3'.
+                          'dynamo0.1', 'dynamo0.3', 'gocean0.1', 'gocean1.0',
+			  'nemo'], default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
                           path to root of directory structure containing kernel
                           source code
+    -I INCLUDE, --include INCLUDE
+                          path to Fortran INCLUDE files (nemo API only)
     -l, --limit           limit the fortran line length to 132 characters
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
@@ -84,7 +86,6 @@ return with an appropriate error. For example, if we use the Python
 
 If the algorithm file is valid then the modified algorithm code and
 the generated PSy code will be output to the terminal screen.
-
 
 Choosing the API
 ----------------
@@ -297,3 +298,28 @@ PSyclone will check the kernel output directory and if a transformed
 version of that kernel is already present then that will be
 used. Note, if the kernel file on disk does not match with what would
 be generated then PSyclone will raise an exception.
+
+Fortran INCLUDE Files
+---------------------
+
+For the NEMO API, if the source code to be processed by PSyclone
+contains INCLUDE statements (other than those for libraries such as
+MPI) then the location of any INCLUDE'd files must be supplied to
+PSyclone via the ``-I`` or ``--include`` option. (This is necessary
+because INCLUDE lines are a part of the Fortran language and must
+therefore be parsed - they are not handled by any pre-processing
+step.) Multiple locations may be specified by using multiple ``-I``
+flags, e.g.::
+
+    > psyclone api "nemo" -I /some/path -I /some/other/path alg.f90
+
+If no include paths are specified then the directory containing the
+source file currently being parsed is searched by default. If the
+specified include file is not found then ideally the INCLUDE line
+would be left unchanged. However, fparser currently treats any such
+INCLUDE lines as comments which results in them being lost (fparser
+issue #138). The workaround for this is to ensure that the location
+of *all* INCLUDE files is supplied to PSyclone.
+
+Attempting to specify ``-I``/``--include`` for any API other than NEMO
+will be rejected by PSyclone.

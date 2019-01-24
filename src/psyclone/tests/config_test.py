@@ -68,13 +68,13 @@ def setup_module():
     ''' The tests in this module all assume that there is no pre-existing
     Config object. This setup routine ensures that this is the case when
     this module is first entered and the teardown function below guarantees
-    it for subsequent tests.
+    it for subsequent tests.  (Necessary when running tests in parallel.)
     '''
     Config._instance = None
 
 
 def teardown_function():
-    '''This teardown function is called at the end of all tests and makes
+    '''This teardown function is called at the end of each test and makes
     sure that we wipe the Config object so we get a fresh/default one
     for any further test (and not a left-over one from a test here).
     '''
@@ -480,3 +480,18 @@ def test_kernel_naming_setter():
         config.kernel_naming = "not-a-scheme"
     assert ("kernel_naming must be one of '{0}' but got 'not-a-scheme'".
             format(configuration.VALID_KERNEL_NAMING_SCHEMES) in str(err))
+
+
+def test_incl_path_errors(tmpdir):
+    ''' Check that we raise the expected errors if we attempt to set the list
+    of include paths to something other than a list or to a location that
+    does not exist. '''
+    config = Config()
+    with pytest.raises(ValueError) as err:
+        config.include_paths = config
+    assert "include_paths must be a list but got:" in str(err)
+    # Create a path that does not exist
+    missing_path = tmpdir.join("does_not_exist")
+    with pytest.raises(ConfigurationError) as cerr:
+        config.include_paths = [missing_path.strpath]
+    assert "does_not_exist' does not exist" in str(cerr)
