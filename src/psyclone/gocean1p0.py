@@ -858,10 +858,13 @@ class GOKernCallFactory(object):
 
 
 class GOKern(Kern):
-    ''' Stores information about GOcean Kernels as specified by the Kernel
-        metadata. Uses this information to generate appropriate PSy layer
-        code for the Kernel instance. Specialises the gen_code method to
-        create the appropriate GOcean specific kernel call. '''
+    '''
+    Stores information about GOcean Kernels as specified by the Kernel
+    metadata. Uses this information to generate appropriate PSy layer
+    code for the Kernel instance. Specialises the gen_code method to
+    create the appropriate GOcean specific kernel call.
+
+    '''
     def __init__(self):
         ''' Create an empty GOKern object. The object is given state via
         the load method '''
@@ -913,7 +916,8 @@ class GOKern(Kern):
     def gen_code(self, parent):
         '''
         Generates GOcean v1.0 specific psy code for a call to the
-        kernel instance.
+        kernel instance. Also ensures that the kernel is written to file
+        if it has been transformed.
 
         :param parent: parent node in the f2pygen AST being created.
         :type parent: :py:class:`psyclone.f2pygen.LoopGen`
@@ -924,6 +928,10 @@ class GOKern(Kern):
                                  unrecognised type.
         '''
         from psyclone.f2pygen import CallGen, UseGen
+
+        # If the kernel has been transformed then we rename it. If it
+        # is *not* being module inlined then we also write it to file.
+        self.rename_and_write()
 
         if self.root.opencl:
             # OpenCL is completely different so has its own gen method.
