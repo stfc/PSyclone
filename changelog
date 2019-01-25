@@ -1,3 +1,16 @@
+	6) #201 and PR #224. Add ability to write transformed kernels to
+	file. Also ensures that kernel and psy-layer names match, allows
+	an output directory to be specified and supports different output
+	options when the same kernel is transformed in more than one
+	location.
+
+	5) #270 and PR #271. Add ability to specify include directories in
+	PSyclone script to allow Fortran include files to be found when
+	transforming kernels.
+
+	4) #196 and PR #242. Add support for kernels with evaluators on
+	multiple target function spaces.
+
 	3) #269 and PR #273. Remove generation of unnecessary
 	infrastructure calls when an Invoke only contains calls to
 	built-ins.
@@ -5,7 +18,7 @@
 	2) #275 and PR #276. Update fparser submodule (to point to latest
 	version) as this was not done at the last release.
 
-	1) #245 and PR #247. Extend PSyIRe to support common kernel
+	1) #245 and PR #247. Extend PSyIR to support common kernel
 	constructs (e.g. asignments) and generalise ASTProcessor and
 	CodeBlocks.
 

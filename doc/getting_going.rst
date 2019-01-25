@@ -359,8 +359,9 @@ on your PATH:
 ::
 
    > psyclone
-   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-api API] [-s SCRIPT]
-                   [-d DIRECTORY] [-l] [-dm] [-nodm]
+   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
+                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l] [-dm] [-nodm]
+                   [--kernel-renaming {multiple,single}]
 		   [--profile {invokes,kernels}]
                    [--force-profile {invokes,kernels}] [-v]
                    filename
@@ -374,13 +375,13 @@ PSy, middle layer and the second a re-write of the algorithm code to
 use that layer. These files are named according to the user-supplied
 arguments (options -oalg and -opsy). If those arguments are not
 supplied then the script writes the generated/re-written Fortran to
-the terminal.
+the terminal. For details of the other command-line arguments please
+see the :ref:`psyclone_script` Section.
 
 Examples are provided in the examples directory. There are 3
 subdirectories (dynamo, gocean and gunghoproto) corresponding to different
 API's that are supported by PSyclone. In this case we are going to use
-one of the dynamo examples
-::
+one of the dynamo examples::
 
    > cd <PSYCLONEHOME>/examples/dynamo/eg1
    > psyclone -api dynamo0.1 \
@@ -393,45 +394,42 @@ Fortran source code has dependencies on the dynamo system and
 therefore cannot be compiled stand-alone.
 
 You can also use the runme.py example to see the interactive
-API in action. This script contains:
-::
+API in action. This script contains::
 
    from psyclone.parse import parse
    from psyclone.psyGen import PSyFactory
    
    # This example uses version 0.1 of the Dynamo API
-   api="dynamo0.1"
+   api = "dynamo0.1"
    
    # Parse the file containing the algorithm specification and
    # return the Abstract Syntax Tree and invokeInfo objects
-   ast,invokeInfo=parse("dynamo.F90",api=api)
+   ast, invokeInfo = parse("dynamo.F90", api=api)
    
    # Create the PSy-layer object using the invokeInfo
-   psy=PSyFactory(api).create(invokeInfo)
+   psy = PSyFactory(api).create(invokeInfo)
    # Generate the Fortran code for the PSy layer
-   print psy.gen
+   print(psy.gen)
    
    # List the invokes that the PSy layer has
-   print psy.invokes.names
+   print(psy.invokes.names)
    
    # Examine the 'schedule' (e.g. loop structure) that each
    # invoke has
-   schedule=psy.invokes.get('invoke_0_v3_kernel_type').schedule
+   schedule = psy.invokes.get('invoke_0_v3_kernel_type').schedule
    schedule.view()
     
-   schedule=psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
+   schedule = psy.invokes.get('invoke_1_v3_solver_kernel_type').schedule
    schedule.view()
 
-It can be run non-interactively as follows:
-::
+It can be run non-interactively as follows::
 
    > cd <PSYCLONEHOME>/example/dynamo/eg1
    > python runme.py
 
 However, to understand this example in more depth it is instructive to
 cut-and-paste from the runme.py file into your own, interactive python
-session:
-::
+session::
 
    > cd <PSYCLONEHOME>/example/dynamo/eg1
    > python
@@ -439,8 +437,7 @@ session:
 In addition to the runme.py script, there is also runme_openmp.py which
 illustrates how one applies an OpenMP transform to a loop schedule
 within the PSy layer. The initial part of this script is the same as that 
-of runme.py (above) and is therefore omitted here:
-::
+of runme.py (above) and is therefore omitted here::
 
    # List the various invokes that the PSy layer contains
    print(psy.invokes.names)
