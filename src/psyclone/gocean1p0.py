@@ -194,9 +194,10 @@ class GOInvoke(Invoke):
 
     def __init__(self, alg_invocation, idx):
         '''Constructor for the GOcean-specific invoke class.
+
         :param alg_invocation: Node in the AST describing the invoke call.
         :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
-        :param int idx: The position of the invoke in the list of invokes
+        :param int idx: The position of the invoke in the list of invokes \
                         contained in the Algorithm.
         '''
 
@@ -242,10 +243,15 @@ class GOInvoke(Invoke):
         return result
 
     def gen_code(self, parent):
-        ''' Generates GOcean specific invocation code (the subroutine called
-            by the associated invoke call in the algorithm layer). This
-            consists of the PSy invocation subroutine and the declaration of
-            its arguments.'''
+        '''
+        Generates GOcean specific invocation code (the subroutine called
+        by the associated invoke call in the algorithm layer). This
+        consists of the PSy invocation subroutine and the declaration of
+        its arguments.
+
+        :param parent: the node in the generated AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        '''
         from psyclone.f2pygen import SubroutineGen, DeclGen, TypeDeclGen, \
             CommentGen, AssignGen
         # create the subroutine
@@ -911,6 +917,7 @@ class GOKern(Kern):
 
         :param parent: parent node in the f2pygen AST being created.
         :type parent: :py:class:`psyclone.f2pygen.LoopGen`
+
         :raises GenerationError: if the kernel requires a grid property but \
                                  does not have any field arguments.
         :raises GenerationError: if it encounters a kernel argument of \
@@ -1386,12 +1393,18 @@ class GOKernelArgument(KernelArgument):
 
 
 class GOKernelGridArgument(Argument):
-    ''' Describes arguments that supply grid properties to a kernel.
-        These arguments are provided by the PSy layer rather than in
-        the Algorithm layer. '''
+    '''
+    Describes arguments that supply grid properties to a kernel.
+    These arguments are provided by the PSy layer rather than in
+    the Algorithm layer.
 
+    :param arg: the meta-data entry describing the required grid property.
+    :type arg: :py:class:`psyclone.gocean1p0.GO1p0Descriptor`
+
+    :raises GenerationError: if the grid property is not recognised.
+
+    '''
     def __init__(self, arg):
-
         if arg.grid_prop in GRID_PROPERTY_DICT:
             self._name = GRID_PROPERTY_DICT[arg.grid_prop]
         else:

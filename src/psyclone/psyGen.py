@@ -1374,22 +1374,42 @@ class Node(object):
 
 
 class Schedule(Node):
+    '''
+    Stores schedule information for an invocation call. Schedules can be
+    optimised using transformations.
 
-    ''' Stores schedule information for an invocation call. Schedules can be
-        optimised using transformations.
+    >>> from parse import parse
+    >>> ast, info = parse("algorithm.f90")
+    >>> from psyGen import PSyFactory
+    >>> api = "..."
+    >>> psy = PSyFactory(api).create(info)
+    >>> invokes = psy.invokes
+    >>> invokes.names
+    >>> invoke = invokes.get("name")
+    >>> schedule = invoke.schedule
+    >>> schedule.view()
 
-        >>> from parse import parse
-        >>> ast, info = parse("algorithm.f90")
-        >>> from psyGen import PSyFactory
-        >>> api = "..."
-        >>> psy = PSyFactory(api).create(info)
-        >>> invokes = psy.invokes
-        >>> invokes.names
-        >>> invoke = invokes.get("name")
-        >>> schedule = invoke.schedule
-        >>> schedule.view()
+    :param type KernFactory: the sub-class-specific Kernel factory.
+    :param type BuiltInFactory: the sub-class-specific factory for built-ins.
+    :param alg_calls: list of kernel-calls in the schedule.
+    :type alg_calls: list of :py:class:`psyclone.parse.KernelCall`
 
     '''
+    def __init__(self, KernFactory, BuiltInFactory, alg_calls=[]):
+        # we need to separate calls into loops (an iteration space really)
+        # and calls so that we can perform optimisations separately on the
+        # two entities.
+        sequence = []
+        from psyclone.parse import BuiltInCall
+        for call in alg_calls:
+            if isinstance(call, BuiltInCall):
+                sequence.append(BuiltInFactory.create(call, parent=self))
+            else:
+                sequence.append(KernFactory.create(call, parent=self))
+        Node.__init__(self, children=sequence)
+        self._invoke = None
+        self._opencl = False  # Whether or not to generate OpenCL
+        self._name_space_manager = NameSpaceFactory().create()
 
     @property
     def dag_name(self):
@@ -1413,23 +1433,6 @@ class Schedule(Node):
     @invoke.setter
     def invoke(self, my_invoke):
         self._invoke = my_invoke
-
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=[]):
-
-        # we need to separate calls into loops (an iteration space really)
-        # and calls so that we can perform optimisations separately on the
-        # two entities.
-        sequence = []
-        from psyclone.parse import BuiltInCall
-        for call in alg_calls:
-            if isinstance(call, BuiltInCall):
-                sequence.append(BuiltInFactory.create(call, parent=self))
-            else:
-                sequence.append(KernFactory.create(call, parent=self))
-        Node.__init__(self, children=sequence)
-        self._invoke = None
-        self._opencl = False  # Whether or not to generate OpenCL
-        self._name_space_manager = NameSpaceFactory().create()
 
     def view(self, indent=0):
         '''
@@ -1541,8 +1544,7 @@ class Schedule(Node):
     @property
     def opencl(self):
         '''
-        Whether or not we are generating OpenCL for this Schedule.
-
+        :return: Whether or not we are generating OpenCL for this Schedule.
         :rtype: bool
         '''
         return self._opencl
@@ -2853,7 +2855,13 @@ class Loop(Node):
         return all_args
 
     def gen_code(self, parent):
-        '''Generate the fortran Loop and any associated code '''
+        '''
+        Generate the Fortran Loop and any associated code.
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
