@@ -2074,7 +2074,7 @@ class GOLoopSwapTrans(Transformation):
                                       "an instance of '{1}."
                                       .format(node_outer, type(node_outer)))
 
-        if len(node_outer.children) == 0:
+        if not node_outer.children:
             raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Supplied node '{0}' must be the outer "
                                       "loop of a loop nest and must have one "
@@ -2482,8 +2482,8 @@ class ACCDataTrans(Transformation):
                                       "not a Schedule")
         schedule = sched
         # Check that we don't already have a data region
-        data_dir = schedule.walk(schedule.children, AccDataDir)
-        if len(data_dir) != 0:
+        data_directives = schedule.walk(schedule.children, AccDataDir)
+        if data_directives:
             raise TransformationError("Schedule already has an OpenACC "
                                       "data region - cannot add another.")
         # create a memento of the schedule and the proposed

@@ -1395,17 +1395,18 @@ class Schedule(Node):
     :type alg_calls: list of :py:class:`psyclone.parse.KernelCall`
 
     '''
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=[]):
+    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
         sequence = []
         from psyclone.parse import BuiltInCall
-        for call in alg_calls:
-            if isinstance(call, BuiltInCall):
-                sequence.append(BuiltInFactory.create(call, parent=self))
-            else:
-                sequence.append(KernFactory.create(call, parent=self))
+        if alg_calls:
+            for call in alg_calls:
+                if isinstance(call, BuiltInCall):
+                    sequence.append(BuiltInFactory.create(call, parent=self))
+                else:
+                    sequence.append(KernFactory.create(call, parent=self))
         Node.__init__(self, children=sequence)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL

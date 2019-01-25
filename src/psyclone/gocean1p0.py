@@ -184,23 +184,22 @@ class GOInvokes(Invokes):
 
 
 class GOInvoke(Invoke):
-    ''' The GOcean specific invoke class. This passes the GOcean specific
-        schedule class to the base class so it creates the one we require.
-        A set of GOcean infrastructure reserved names are also passed to
-        ensure that there are no name clashes. Also overrides the gen_code
-        method so that we generate GOcean specific invocation code and
-        provides three methods which separate arguments that are arrays from
-        arguments that are {integer, real} scalars. '''
+    '''
+    The GOcean specific invoke class. This passes the GOcean specific
+    schedule class to the base class so it creates the one we require.
+    A set of GOcean infrastructure reserved names are also passed to
+    ensure that there are no name clashes. Also overrides the gen_code
+    method so that we generate GOcean specific invocation code and
+    provides three methods which separate arguments that are arrays from
+    arguments that are {integer, real} scalars.
 
+    :param alg_invocation: Node in the AST describing the invoke call.
+    :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
+    :param int idx: The position of the invoke in the list of invokes \
+                    contained in the Algorithm.
+
+    '''
     def __init__(self, alg_invocation, idx):
-        '''Constructor for the GOcean-specific invoke class.
-
-        :param alg_invocation: Node in the AST describing the invoke call.
-        :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
-        :param int idx: The position of the invoke in the list of invokes \
-                        contained in the Algorithm.
-        '''
-
         if False:  # pylint: disable=using-constant-test
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule)
@@ -272,10 +271,7 @@ class GOInvoke(Invoke):
         # If we're generating an OpenCL routine then the arguments must
         # have the target attribute as we pass pointers to them in to
         # the OpenCL run-time.
-        if self.schedule.opencl:
-            target = True
-        else:
-            target = False
+        target = bool(self.schedule.opencl)
 
         # add the subroutine argument declarations for fields
         if self.unique_args_arrays:
@@ -980,8 +976,7 @@ class GOKern(Kern):
         :param parent: Parent node in the f2pygen AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen, \
-            IfThenGen, UseGen
+        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
         # Create the array used to specify the iteration space of the kernel
         garg = self.find_grid_access()
         glob_size = self._name_space_manager.create_name(
