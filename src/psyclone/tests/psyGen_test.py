@@ -2658,13 +2658,15 @@ def test_kernelschedule_can_be_printed():
     assignment.addchild(rhs)
     kschedule.addchild(assignment)
     assert "Schedule[name:'kname']:\n" in str(kschedule)
-    assert "Assignment" in str(kschedule)  # Check childs are printed
+    assert "Assignment" in str(kschedule)  # Check children are printed
     assert "End Schedule" in str(kschedule)
 
 
 # Test Symbol Class
 
 def test_symbol_can_be_printed():
+    '''Test that a Symbol instance can always be printed (i.e. is
+    initialised fully)'''
     symbol = Symbol("sname", "real", 1, "read_arg")
     assert "sname<real,1,read_arg>" in str(symbol)
 
@@ -2672,6 +2674,9 @@ def test_symbol_can_be_printed():
 # Test SymbolTable Class
 
 def test_symboltable_declare():
+    '''Test that the declare method inserts new symbols in the symbol
+    table, but raises appropiate errors when provied with wrong parameters
+    or duplate declarations'''
     sym_table = SymbolTable()
 
     # Declare a symbol
@@ -2689,6 +2694,8 @@ def test_symboltable_declare():
 
 
 def test_symboltable_lookup():
+    '''Test that the lookup method retrive symbols from the symbol table
+    if the name exist, otherwise it raises and error'''
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", 3, "read_arg")
     sym_table.declare("var2", "integer", 0, "write_arg")
@@ -2706,6 +2713,8 @@ def test_symboltable_lookup():
 
 
 def test_symboltable_view(capsys):
+    '''Test the view method of the SymbolTable class, it should print to
+    standard out a representation of the full SymbolTable'''
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", 3, "read_arg")
     sym_table.declare("var2", "integer", 2, "read_arg")
@@ -2717,6 +2726,8 @@ def test_symboltable_view(capsys):
 
 
 def test_symboltable_can_be_printed():
+    '''Test that a SymbolTable instance can always be printed (i.e. is
+    initialised fully)'''
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", 3, "read_arg")
     sym_table.declare("var2", "integer", 2, "read_arg")
@@ -2727,8 +2738,9 @@ def test_symboltable_can_be_printed():
 
 # Test Fparser2ASTProcessor
 
-def test_fparser2astprocessor_generate_schedule():
-    ''' Tests the fparser2AST generate_schedule method.
+def test_fparser2astprocessor_generate_schedule_empty_subroutine():
+    ''' Tests the fparser2AST generate_schedule method with an empty
+    subroutine.
     '''
     ast1 = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=True)
     metadata = DynKernMetadata(ast1)
@@ -2741,7 +2753,7 @@ def test_fparser2astprocessor_generate_schedule():
     schedule = processor.generate_schedule("dummy_code", ast2)
     assert isinstance(schedule, KernelSchedule)
 
-    # Test generate an unexistent subroutine name
+    # Test that we get an error for a nonexistant subroutine name
     with pytest.raises(InternalError) as error:
         schedule = processor.generate_schedule("nonexistent_code", ast2)
     assert "Unexpected kernel AST. Could not find " \
@@ -2760,6 +2772,10 @@ def test_fparser2astprocessor_generate_schedule():
         schedule = processor.generate_schedule("dummy_code", ast2)
     assert "Unexpected kernel AST. Could not find specification part."
 
+def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
+    ''' Tests the fparser2AST generate_schedule method with an simple
+    subroutine.
+    '''
     DUMMY_KERNEL_METADATA = '''
     module dummy_mod
       type, extends(kernel_type) :: dummy_type
@@ -2786,6 +2802,7 @@ def test_fparser2astprocessor_generate_schedule():
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     ast2 = my_kern.ast
+    processor = Fparser2ASTProcessor()
 
     # Test properly formed kernel module
     schedule = processor.generate_schedule("dummy_code", ast2)
@@ -2798,6 +2815,10 @@ def test_fparser2astprocessor_generate_schedule():
 
 
 def test_fparser2astprocessor_process_declarations():
+    '''Test that process_declarations method of fparse2astprocessor
+    converts the fparser2 decalations to symbols in the provided
+    parent Kernel Schedule.
+    '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
@@ -2850,7 +2871,18 @@ def test_fparser2astprocessor_process_declarations():
     assert ("Character length specifications are not "
             "supported.") in str(error.value)
 
-    # Test different intent specifications
+
+def test_fparser2astprocessor_process_declarations_intent():
+    '''Test that process_declarations method parses multiple specifications
+    of the intent attribute.
+    '''
+    from fparser.two.parser import ParserFactory
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    f2008parser = ParserFactory().create(std="f2008")
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+
     reader = FortranStringReader("integer, intent(in) :: arg1")
     fparser2specification = Specification_Part.match(reader)[0][0]
     processor.process_declarations(fake_parent, [fparser2specification])
@@ -2883,7 +2915,18 @@ def test_fparser2astprocessor_process_declarations():
     assert fake_parent.symbol_table.lookup("arg4").dimensions == 0
     assert fake_parent.symbol_table.lookup("arg4").kind == 'readwrite_arg'
 
-    # Test different array dimensions
+
+def test_fparser2astprocessor_process_declarations_array_attributes():
+    '''Test that process_declarations method parses multiple specifications
+    of array attributes.
+    '''
+    from fparser.two.parser import ParserFactory
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    f2008parser = ParserFactory().create(std="f2008")
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+
     reader = FortranStringReader("integer, dimension(:,:,:) :: array1")
     fparser2specification = Specification_Part.match(reader)[0][0]
     processor.process_declarations(fake_parent, [fparser2specification])
