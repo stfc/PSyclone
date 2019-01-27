@@ -63,6 +63,8 @@ class Alg(object):
         :rtype: ast
 
         '''
+        print "IN ALGGEN GEN"
+        return ""
         from fparser import api
         from psyclone.f2pygen import adduse
         psy_name = self._psy.name

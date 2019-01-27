@@ -130,8 +130,8 @@ contains
     else if( .not.present(qr) .and. present(mm) ) then
        ! Mass matrix
        if(fs_l == W3) then
-          write( log_scratch_space,'(A)' )                             &
-               "Solver_algorithm: mass-matrix not implemented for W3," &
+          write( log_scratch_space,'(A)' )                              &
+               "Solver_algorithm: mass-matrix not implemented for W3,", &
                " stopping"
           call log_event(log_scratch_space, LOG_LEVEL_ERROR)
        else
@@ -154,14 +154,14 @@ contains
        end if
     else if( present(qr) .and. present(mm) ) then
        ! Both - bork
-       write( log_scratch_space, '(A)' )                              &
-            "Quadrature OR mass matrix required for solver not both." &
+       write( log_scratch_space, '(A)' )                               &
+            "Quadrature OR mass matrix required for solver not both.", &
             " Whats a guy to do?, stopping"
        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     else
        ! Neither - bork
-       write( log_scratch_space, '(A)' )                     &
-            "Quadrature OR mass matrix required for solver." &
+       write( log_scratch_space, '(A)' )                      &
+            "Quadrature OR mass matrix required for solver.", &
             " Gimme something to work with, stopping"
     end if
 

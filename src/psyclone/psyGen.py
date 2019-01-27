@@ -1339,7 +1339,7 @@ class Schedule(Node):
         # and calls so that we can perform optimisations separately on the
         # two entities.
         sequence = []
-        from psyclone.parse import BuiltInCall
+        from psyclone.parse_orig import BuiltInCall
         for call in alg_calls:
             if isinstance(call, BuiltInCall):
                 sequence.append(BuiltInFactory.create(call, parent=self))
