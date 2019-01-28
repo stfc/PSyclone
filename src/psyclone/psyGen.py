@@ -4351,16 +4351,37 @@ class Fparser2ASTProcessor(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name
-    of the symbol, its datatype, the number of shape and the symbol access
-    (e.g. local, external, read_arg, write_arg, readwrite_arg).
+    of the symbol, its datatype, the shape and the symbol access (whether it
+    is local, external, read_arg, write_arg or readwrite_arg).
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
-    :param int shape: shape of the symbol (an empty list represents \
-                           a scalar symbol).
-    :param access: Information about the variable declaration attributes.
+    :param int shape: Shape of the symbol (an empty list represents \
+                      a scalar symbol).
+    :param list access: Information to specify if the declaration represents
+                        a local, external or argument variable, if it is an
+                        argument it also specifies if it is read, write or
+                        readwrite.
     '''
     def __init__(self, name, datatype=None, shape=[], access=None):
+
+        if datatype not in ('real', 'integer'):
+            raise InternalError("Symbol can only be initialized with 'real' "
+                                "or 'integer' datatypes.")
+
+        if not isinstance(shape, list):
+            raise InternalError("Symbol shape attribute must be a list.")
+
+        if False in [isinstance(x, (type(None), int)) for x in shape]:
+            raise InternalError("Symbol shape list elements can only be "
+                                "'integer' or 'None'.")
+
+        if access not in ('local', 'external', 'read_arg', 'write_arg',
+                          'readwrite_arg'):
+            raise InternalError("Symbol access attribute can only be: ",
+                                "'local', 'external', 'read_arg', "
+                                "'write_arg' or 'readwrite_arg'.")
+
         self._name = name
         self._datatype = datatype
         self._shape = shape
@@ -4377,7 +4398,7 @@ class Symbol(object):
     @property
     def datatype(self):
         '''
-        :return: Data type of the Symbol.
+        :return: Datatype of the Symbol.
         :rtype: string
         '''
         return self._datatype
@@ -4385,7 +4406,7 @@ class Symbol(object):
     @property
     def shape(self):
         '''
-        :return: Number of shape of the Symbol.
+        :return: Shape (number of dimensions and sizes) of the Symbol.
         :rtype: integer
         '''
         return self._shape
@@ -4393,7 +4414,9 @@ class Symbol(object):
     @property
     def access(self):
         '''
-        :return: Information about where and how the symbol is declared.
+        :return: Whether the variable is local, external or an argument. In
+                 case it is argument it also specify if it is a read, write
+                 or readwrite argument.
         :rtype: string
         '''
         return self._access
@@ -4417,28 +4440,24 @@ class SymbolTable(object):
         '''
         Declare a new symbol in the symbol table.
 
-        :param name: Name of the symbol.
-        :type name: string
-        :param datatype: Data type of the symbol.
-        :type datatype: string
-        :param shape: shape of the symbol (0 represents an scalar
-                           symbol).
+        :param str name: Name of the symbol.
+        :param str datatype: Datatype of the symbol.
+        :param shape: Shape of the symbol (empty list represents an scalar
+                      symbol).
         :type shape: list of integers
-        :param access: Information about the variable declaration attributes.
-        :type access: string
+        :param str access: Information about the variable declaration
+                           attributes.
         '''
         if name in self._symbols:
             raise InternalError("Symbol table already contains a symbol with"
                                 " name '{0}'.".format(name))
-        else:
-            self._symbols[name] = Symbol(name, datatype, shape, access)
+        self._symbols[name] = Symbol(name, datatype, shape, access)
 
     def lookup(self, name):
         '''
         Look up a symbol in the symbol table.
 
-        :param name: Name of the symbol
-        :type name: string
+        :param str name: Name of the symbol
         :raises KeyError: If the given name is not in the Symbol Table.
         '''
         return self._symbols[name]
