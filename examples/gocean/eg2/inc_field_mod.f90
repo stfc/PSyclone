@@ -2,22 +2,22 @@ module inc_field_mod
   use kind_params_mod
   use kernel_mod
   use argument_mod
-  use grid_mod, only: OFFSET_SW
+  use grid_mod, only: GO_OFFSET_SW
   implicit none
 
   type, extends(kernel_type) :: inc_field
-     type(arg), dimension(4) :: meta_args =    &
-          (/ arg(WRITE, CT, POINTWISE),        & ! field
+     type(go_arg), dimension(4) :: meta_args =             &
+          (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),        & ! field
              ! We have to pass in the extend of the field array as PGI
              ! does not support assumed-size arguments in accelerator
              ! regions. Ultimately PSyclone will do this for us.
-             arg(READ,  I_SCALAR, POINTWISE),  & ! nx
-             arg(READ,  I_SCALAR, POINTWISE),  & ! ny
-             arg(READ,  I_SCALAR, POINTWISE)   & ! istp
+             go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),  & ! nx
+             go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE),  & ! ny
+             go_arg(GO_READ,  GO_I_SCALAR, GO_POINTWISE)   & ! istp
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.
-     integer :: ITERATES_OVER = INTERNAL_PTS
+     integer :: ITERATES_OVER = GO_INTERNAL_PTS
 
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -26,7 +26,7 @@ module inc_field_mod
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => inc_field_code
