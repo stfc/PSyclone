@@ -488,6 +488,8 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
                                                                self._type))
         # Attempt to parse the meta-data
         try:
+            parsefortran.FortranParser.cache.clear()
+            fparser.logging.disable(fparser.logging.CRITICAL)
             ast = fpapi.parse(fname)
         except:
             raise ParseError(

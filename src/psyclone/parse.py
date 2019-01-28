@@ -344,7 +344,7 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
 def get_kernel(parse_tree, alg_filename):
     ''' xxx '''
     from fparser.two.Fortran2003 import Part_Ref, Section_Subscript_List, \
-        Name, Real_Literal_Constant, Data_Ref
+        Name, Real_Literal_Constant, Data_Ref, Int_Literal_Constant
 
     if not isinstance(parse_tree, Part_Ref):
         raise ParseError("xxx")
@@ -366,17 +366,20 @@ def get_kernel(parse_tree, alg_filename):
             arguments.append(Arg('variable', str(argument), str(argument)))
         elif isinstance(argument, Real_Literal_Constant):
             arguments.append(Arg('literal', argument.tostr()))
+        elif isinstance(argument, Int_Literal_Constant):
+            arguments.append(Arg('literal', argument.tostr()))
         elif isinstance(argument, Part_Ref):
-            var_name = str(argument.items[0])
             full_text = argument.tostr()
+            var_name = str(argument.items[0]).replace(' ','')
             arguments.append(Arg('indexed_variable', full_text, var_name))
         elif isinstance(argument, Data_Ref):
-            arguments.append(Arg('variable', str(argument), str(argument)))
+            full_text = argument.tostr()
+            var_name = full_text.replace(' ','')
+            arguments.append(Arg('variable', full_text, var_name))
         else:
-            print "unsupported argument structure"
-            print type(argument)
-            print str(argument)
-            print parse_tree
+            print ("Unsupported argument structure '{0}', value '{1}', "
+            "kernel '{2}' in file '{3}'.".format(type(argument), str(argument),
+                                                 parse_tree, alg_filename))
             exit(1)
     return kernel_name, arguments
 
@@ -436,7 +439,11 @@ def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
                 "'{0}.[fF]90' found!".
                 format(module_name))
     else:
+        from fparser.one import parsefortran
+        import fparser
         from fparser import api as fpapi
+        parsefortran.FortranParser.cache.clear()
+        fparser.logging.disable(fparser.logging.CRITICAL)
         try:
             modast = fpapi.parse(matches[0])
             # ast includes an extra comment line which
