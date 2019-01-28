@@ -36,10 +36,10 @@ contains
 
   subroutine inc_field_code(ji, jj, fld1, nx, ny, istp)
     integer, intent(in) :: ji, jj, nx, ny
-    real(wp), dimension(nx,ny), intent(inout) :: fld1
+    real(go_wp), dimension(nx,ny), intent(inout) :: fld1
     integer, intent(in) :: istp
 
-    fld1(ji,jj) = fld1(ji,jj) + real(istp, wp)
+    fld1(ji,jj) = fld1(ji,jj) + real(istp, go_wp)
     
   end subroutine inc_field_code
 

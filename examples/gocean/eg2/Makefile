@@ -1,5 +1,6 @@
-# Location of the infrastucture code
-SHARED_DIR = ${HOME}/PSycloneBench/shared
+# Location of the infrastucture code (which is a submodule of the
+# PSyclone git repo).
+SHARED_DIR = ../../../external
 INF_DIR = ${SHARED_DIR}/dl_esm_inf/finite_difference
 INF_INC = ${INF_DIR}/src
 INF_LIB = ${INF_DIR}/src/dl_esm_inf_fd.a
