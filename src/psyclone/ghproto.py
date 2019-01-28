@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-18, Science and Technology Facilities Council
+# Copyright (c) 2017-19, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 from psyGen import PSy,Invokes,Invoke,Schedule,Loop,Kern,Arguments,Argument,Inf
@@ -122,7 +122,7 @@ class GHKernelArguments(Arguments):
                     else:
                         self._dofs[arg.ptype].append(arg)
         else:
-            print "Error, unsupported function space"
+            print("Error, unsupported function space")
             raise Exception
         for arg in self._args:
             dataref="%data"

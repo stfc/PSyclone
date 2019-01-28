@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,10 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOSchedule
-
+from psyclone_test_utils import get_invoke
 
 API = "gocean1.0"
 
@@ -74,8 +74,8 @@ def test_field():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = cu_fld%grid%simulation_domain%xstop\n"
-        "      jstop = cu_fld%grid%simulation_domain%ystop\n"
+        "      istop = cu_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop+1\n"
@@ -117,8 +117,8 @@ def test_two_kernels():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = cu_fld%grid%simulation_domain%xstop\n"
-        "      jstop = cu_fld%grid%simulation_domain%ystop\n"
+        "      istop = cu_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop+1\n"
@@ -165,8 +165,8 @@ def test_grid_property():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = cu_fld%grid%simulation_domain%xstop\n"
-        "      jstop = cu_fld%grid%simulation_domain%ystop\n"
+        "      istop = cu_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = cu_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop-1\n"
@@ -213,8 +213,8 @@ def test_scalar_int_arg():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = ssh_fld%grid%simulation_domain%xstop\n"
-        "      jstop = ssh_fld%grid%simulation_domain%ystop\n"
+        "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -249,14 +249,14 @@ def test_scalar_float_arg():
         "    SUBROUTINE invoke_0_bc_ssh(a_scalar, ssh_fld)\n"
         "      USE kernel_scalar_float, ONLY: bc_ssh_code\n"
         "      TYPE(r2d_field), intent(inout) :: ssh_fld\n"
-        "      REAL(KIND=wp), intent(inout) :: a_scalar\n"
+        "      REAL(KIND=go_wp), intent(inout) :: a_scalar\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = ssh_fld%grid%simulation_domain%xstop\n"
-        "      jstop = ssh_fld%grid%simulation_domain%ystop\n"
+        "      istop = ssh_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = ssh_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -298,8 +298,8 @@ def test_ne_offset_cf_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = vort_fld%grid%simulation_domain%xstop\n"
-        "      jstop = vort_fld%grid%simulation_domain%ystop\n"
+        "      istop = vort_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = vort_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop-1\n"
         "        DO i=1,istop-1\n"
@@ -340,8 +340,8 @@ def test_ne_offset_ct_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = p_fld%grid%simulation_domain%xstop\n"
-        "      jstop = p_fld%grid%simulation_domain%ystop\n"
+        "      istop = p_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = p_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop\n"
@@ -382,8 +382,8 @@ def test_ne_offset_all_cu_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = u_fld%grid%simulation_domain%xstop\n"
-        "      jstop = u_fld%grid%simulation_domain%ystop\n"
+        "      istop = u_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = u_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop\n"
@@ -423,8 +423,8 @@ def test_ne_offset_all_cv_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = v_fld%grid%simulation_domain%xstop\n"
-        "      jstop = v_fld%grid%simulation_domain%ystop\n"
+        "      istop = v_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = v_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop\n"
         "        DO i=1,istop+1\n"
@@ -464,8 +464,8 @@ def test_ne_offset_all_cf_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = f_fld%grid%simulation_domain%xstop\n"
-        "      jstop = f_fld%grid%simulation_domain%ystop\n"
+        "      istop = f_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = f_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop\n"
         "        DO i=1,istop\n"
@@ -481,14 +481,11 @@ def test_ne_offset_all_cf_points():
 def test_sw_offset_cf_points():
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CF points '''
-    _, invoke_info = parse(os.path.
-                           join(os.path.
-                                dirname(os.path.
-                                        abspath(__file__)),
-                                "test_files", "gocean1p0",
-                                "test19.1_sw_offset_cf_updated" +
-                                "_one_invoke.f90"),
-                           api=API)
+    _, invoke_info = parse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "test_files", "gocean1p0",
+                     "test19.1_sw_offset_cf_updated_one_invoke.f90"),
+        api=API)
     psy = PSyFactory(API).create(invoke_info)
     generated_code = str(psy.gen)
 
@@ -498,21 +495,21 @@ def test_sw_offset_cf_points():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_compute_z(zfld, pfld, ufld, vfld)\n"
+        "    SUBROUTINE invoke_0_compute_z(z_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_sw_offset_cf_mod, ONLY: compute_z_code\n"
-        "      TYPE(r2d_field), intent(inout) :: zfld, pfld, ufld, vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: z_fld, p_fld, u_fld, v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = zfld%grid%simulation_domain%xstop\n"
-        "      jstop = zfld%grid%simulation_domain%ystop\n"
+        "      istop = z_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = z_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop+1\n"
         "        DO i=2,istop+1\n"
-        "          CALL compute_z_code(i, j, zfld%data, pfld%data, "
-        "ufld%data, vfld%data, pfld%grid%dx, pfld%grid%dy)\n"
+        "          CALL compute_z_code(i, j, z_fld%data, p_fld%data, "
+        "u_fld%data, v_fld%data, p_fld%grid%dx, p_fld%grid%dy)\n"
         "        END DO \n"
         "      END DO \n"
         "    END SUBROUTINE invoke_0_compute_z\n"
@@ -540,21 +537,21 @@ def test_sw_offset_all_cf_points():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_apply_bcs_f(zfld, pfld, ufld, vfld)\n"
+        "    SUBROUTINE invoke_0_apply_bcs_f(z_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_sw_offset_cf_mod, ONLY: apply_bcs_f_code\n"
-        "      TYPE(r2d_field), intent(inout) :: zfld, pfld, ufld, vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: z_fld, p_fld, u_fld, v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = zfld%grid%simulation_domain%xstop\n"
-        "      jstop = zfld%grid%simulation_domain%ystop\n"
+        "      istop = z_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = z_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
-        "          CALL apply_bcs_f_code(i, j, zfld%data, pfld%data, "
-        "ufld%data, vfld%data)\n"
+        "          CALL apply_bcs_f_code(i, j, z_fld%data, p_fld%data, "
+        "u_fld%data, v_fld%data)\n"
         "        END DO \n"
         "      END DO \n"
         "    END SUBROUTINE invoke_0_apply_bcs_f\n"
@@ -582,21 +579,21 @@ def test_sw_offset_ct_points():
         "    USE kind_params_mod\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
-        "    SUBROUTINE invoke_0_compute_h(hfld, pfld, ufld, vfld)\n"
+        "    SUBROUTINE invoke_0_compute_h(h_fld, p_fld, u_fld, v_fld)\n"
         "      USE kernel_sw_offset_ct_mod, ONLY: compute_h_code\n"
-        "      TYPE(r2d_field), intent(inout) :: hfld, pfld, ufld, vfld\n"
+        "      TYPE(r2d_field), intent(inout) :: h_fld, p_fld, u_fld, v_fld\n"
         "      INTEGER j\n"
         "      INTEGER i\n"
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = hfld%grid%simulation_domain%xstop\n"
-        "      jstop = hfld%grid%simulation_domain%ystop\n"
+        "      istop = h_fld%grid%subdomain%internal%xstop\n"
+        "      jstop = h_fld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=2,jstop\n"
         "        DO i=2,istop\n"
-        "          CALL compute_h_code(i, j, hfld%data, pfld%data, ufld%data, "
-        "vfld%data)\n"
+        "          CALL compute_h_code(i, j, h_fld%data, p_fld%data, "
+        "u_fld%data, v_fld%data)\n"
         "        END DO \n"
         "      END DO \n"
         "    END SUBROUTINE invoke_0_compute_h\n"
@@ -633,8 +630,8 @@ def test_sw_offset_all_ct_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = hfld%grid%simulation_domain%xstop\n"
-        "      jstop = hfld%grid%simulation_domain%ystop\n"
+        "      istop = hfld%grid%subdomain%internal%xstop\n"
+        "      jstop = hfld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -676,8 +673,8 @@ def test_sw_offset_all_cu_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = ufld%grid%simulation_domain%xstop\n"
-        "      jstop = ufld%grid%simulation_domain%ystop\n"
+        "      istop = ufld%grid%subdomain%internal%xstop\n"
+        "      jstop = ufld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -718,8 +715,8 @@ def test_sw_offset_all_cv_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = vfld%grid%simulation_domain%xstop\n"
-        "      jstop = vfld%grid%simulation_domain%ystop\n"
+        "      istop = vfld%grid%subdomain%internal%xstop\n"
+        "      jstop = vfld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -760,8 +757,8 @@ def test_offset_any_all_cu_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = ufld%grid%simulation_domain%xstop\n"
-        "      jstop = ufld%grid%simulation_domain%ystop\n"
+        "      istop = ufld%grid%subdomain%internal%xstop\n"
+        "      jstop = ufld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop\n"
         "        DO i=1,istop\n"
@@ -803,8 +800,8 @@ def test_offset_any_all_points():
         "      INTEGER istop, jstop\n"
         "      !\n"
         "      ! Look-up loop bounds\n"
-        "      istop = voldfld%grid%simulation_domain%xstop\n"
-        "      jstop = voldfld%grid%simulation_domain%ystop\n"
+        "      istop = voldfld%grid%subdomain%internal%xstop\n"
+        "      jstop = voldfld%grid%subdomain%internal%ystop\n"
         "      !\n"
         "      DO j=1,jstop+1\n"
         "        DO i=1,istop+1\n"
@@ -841,16 +838,16 @@ def test_goschedule_view(capsys):
 
     expected_output = (
         sched + "[invoke='invoke_0',Constant loop bounds=True]\n"
-        "    " + loop + "[type='outer',field_space='cu',"
-        "it_space='internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='cu',"
-        "it_space='internal_pts']\n"
+        "    " + loop + "[type='outer',field_space='go_cu',"
+        "it_space='go_internal_pts']\n"
+        "        " + loop + "[type='inner',field_space='go_cu',"
+        "it_space='go_internal_pts']\n"
         "            " + call + " compute_cu_code(cu_fld,p_fld,u_fld) "
         "[module_inline=False]\n"
-        "    " + loop + "[type='outer',field_space='every',"
-        "it_space='internal_pts']\n"
-        "        " + loop + "[type='inner',field_space='every',"
-        "it_space='internal_pts']\n"
+        "    " + loop + "[type='outer',field_space='go_every',"
+        "it_space='go_internal_pts']\n"
+        "        " + loop + "[type='inner',field_space='go_every',"
+        "it_space='go_internal_pts']\n"
         "            " + call + " time_smooth_code(u_fld,unew_fld,uold_fld) "
         "[module_inline=False]")
 
@@ -979,12 +976,16 @@ def test_goloop_unmatched_offsets():
     gokern2 = GOKern()
     # Set the index-offset of this kernel to a value that is not
     # supported when using constant loop bounds
-    gokern1._index_offset = "offset_ne"
-    gokern2._index_offset = "offset_sw"
+    gokern1._index_offset = "go_offset_ne"
+    gokern2._index_offset = "go_offset_sw"
     goiloop.addchild(gokern1)
     goiloop.addchild(gokern2)
-    with pytest.raises(GenerationError):
+    with pytest.raises(GenerationError) as excinfo:
         goiloop.gen_code(None)
+    # Note that the kernels do not have a name, so there is a double space
+    assert "All Kernels must expect the same grid offset but kernel  " \
+        "has offset go_offset_sw which does not match go_offset_ne" \
+        in str(excinfo.value)
 
 
 def test_writetoread_dag(tmpdir, have_graphviz):
@@ -1041,6 +1042,57 @@ def test_dag(tmpdir, have_graphviz):
         # have no forwards/backwards dependencies
         for col in ["red", "#ff0000", "green", "#00ff00"]:
             assert '[color={0}]'.format(col) not in dot
+
+
+def test_find_grid_access(monkeypatch):
+    ''' Tests for the GOKernelArguments.find_grid_access method. This
+    identifies the best kernel argument from which to access grid
+    properties. '''
+    from psyclone.gocean1p0 import GOKernelArgument
+    _, invoke = get_invoke("single_invoke.f90", API, idx=0)
+    schedule = invoke.schedule
+    kern = schedule.children[0].children[0].children[0]
+    assert isinstance(kern, GOKern)
+    arg = kern.arguments.find_grid_access()
+    assert isinstance(arg, GOKernelArgument)
+    # The first read-only argument for this kernel is the pressure field
+    assert arg.name == "p_fld"
+    # Now monkeypatch the type of each of the kernel arguments so that
+    # none of them is a field
+    for karg in kern.arguments._args:
+        monkeypatch.setattr(karg._arg, "_type", "broken")
+    # find_grid_access should now return None
+    arg = kern.arguments.find_grid_access()
+    assert arg is None
+
+
+def test_raw_arg_list_error(monkeypatch):
+    ''' Test that we raise an internal error in the
+    GOKernelArguments.raw_arg_list method if there's no argument from which
+    to get the grid properties. '''
+    _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
+                           API, idx=0)
+    schedule = invoke.schedule
+    schedule.view()
+    kern = schedule.children[0].children[0].children[0]
+    assert isinstance(kern, GOKern)
+    raw_list = kern.arguments.raw_arg_list()
+    assert raw_list == ['i', 'j', 'z_fld%data', 'p_fld%data', 'u_fld%data',
+                        'v_fld%data', 'p_fld%grid%dx', 'p_fld%grid%dy']
+    # Now monkeypatch find_grid_access()
+    monkeypatch.setattr(kern.arguments, "find_grid_access", lambda: None)
+    kern.arguments._raw_arg_list = None
+    with pytest.raises(GenerationError) as err:
+        _ = kern.arguments.raw_arg_list()
+    assert ("kernel compute_z_code requires grid property dx but does not "
+            "have any arguments that are fields" in str(err))
+    # Now monkeypatch one of the kernel arguments so that it has an
+    # unrecognised type
+    monkeypatch.setattr(kern.arguments._args[0]._arg, "_type", "broken")
+    with pytest.raises(InternalError) as err:
+        _ = kern.arguments.raw_arg_list()
+    assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
+            "'broken'" in str(err))
 
 
 # -----------------------------------
@@ -1178,7 +1230,7 @@ def test05p1_kernel_add_iteration_spaces():
     '''
 
     # Add new iteration space 'dofs'
-    GOLoop.add_bounds("offset_sw:cu:dofs:1:2:3:{stop}")
+    GOLoop.add_bounds("go_offset_sw:go_cu:dofs:1:2:3:{stop}")
 
     _, invoke_info = \
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),

@@ -1,8 +1,35 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
@@ -21,6 +48,7 @@ import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
 from psyclone.parse import ParseError
+from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
@@ -37,6 +65,15 @@ def delete_module(modname):
             delattr(mod, modname)
         except AttributeError:
             pass
+
+
+def teardown_function():
+    '''This teardown function is called at the end of each test and makes
+    sure that we wipe the Config object so we get a fresh/default one
+    for any further test (and not a left-over one from a test here).
+    '''
+    Config._instance = None
+
 
 # a set of unit tests for the generate function
 
@@ -427,7 +464,7 @@ def test_main_profile(capsys):
     # Check for warning in case of script with profiling"
     with pytest.raises(SystemExit):
         main(options+["--profile", "kernels", "-s", "somescript", filename])
-    out, _ = capsys.readouterr()
+    _, out = capsys.readouterr()
     out = out.replace("\n", " ")
 
     warning = ("Error: use of automatic profiling in combination with an "
@@ -488,17 +525,17 @@ def test_main_force_profile(capsys):
     # the error about mixing --profile and -s does not happen
     with pytest.raises(SystemExit):
         main(options+["--force-profile", "kernels", "-s", "invalid", filename])
-    out, outerr = capsys.readouterr()
+    _, outerr = capsys.readouterr()
     error = "expected the script file 'invalid' to have the '.py' extension"
-    assert error in out
+    assert error in outerr
 
     # Test that --profile and --force-profile can not be used together
     with pytest.raises(SystemExit):
         main(options+["--force-profile", "kernels", "--profile", "invokes",
                       filename])
-    out, outerr = capsys.readouterr()
+    _, outerr = capsys.readouterr()
     error = "Specify only one of --profile and --force-profile."
-    assert error in out
+    assert error in outerr
 
     # Reset profile flags to avoid further failures in other tests
     Profiler.set_options(None)
@@ -512,12 +549,12 @@ def test_main_invalid_api(capsys):
                              "1_single_invoke.f90"))
     with pytest.raises(SystemExit) as excinfo:
         main([filename, "-api", "madeup"])
-    # the error code should be 1
+    # The error code should be 1
     assert str(excinfo.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     expected_output = ("Unsupported API 'madeup' specified. Supported API's "
                        "are ['gunghoproto', 'dynamo0.1', 'dynamo0.3', "
-                       "'gocean0.1', 'gocean1.0'].\n")
+                       "'gocean0.1', 'gocean1.0', 'nemo'].\n")
     assert output == expected_output
 
 
@@ -527,7 +564,6 @@ def test_main_api():
 
     # 1) Make sure if no paramenters are given,
     #   config will give us the default API
-    from psyclone.configuration import Config
 
     # Make sure we get a default config instance
     Config._instance = None
@@ -579,7 +615,7 @@ def test_main_expected_fatal_error(capsys):
         main([filename])
     # the error code should be 1
     assert str(excinfo.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     expected_output = ("\"Parse Error: Kernel 'testkern_type' called from the "
                        "algorithm layer with an insufficient number of "
                        "arguments as specified by the metadata. Expected at "
@@ -603,7 +639,7 @@ def test_main_unexpected_fatal_error(capsys, monkeypatch):
         main([filename])
     # the error code should be 1
     assert str(excinfo.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     expected_output = (
         "Error, unexpected exception, please report to the authors:\n"
         "Description ...\n"
@@ -724,7 +760,7 @@ def test_main_kern_output_no_dir(capsys):
     with pytest.raises(SystemExit) as err:
         main([alg_filename, '-okern', "/does/not/exist"])
     assert str(err.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     assert ("Specified kernel output directory (/does/not/exist) does not "
             "exist" in output)
 
@@ -743,7 +779,7 @@ def test_main_kern_output_no_write(tmpdir, capsys):
     with pytest.raises(SystemExit) as err:
         main([alg_filename, '-okern', str(new_dir)])
     assert str(err.value) == "1"
-    output, _ = capsys.readouterr()
+    _, output = capsys.readouterr()
     assert ("Cannot write to specified kernel output directory ({0})".
             format(str(new_dir)) in output)
 
@@ -758,3 +794,74 @@ def test_main_kern_output_dir(tmpdir):
     # The specified kernel output directory should have been stored in
     # the configuration object
     assert Config.get().kernel_output_dir == str(tmpdir)
+
+
+def test_invalid_kern_naming(capsys):
+    ''' Check that we raise the expected error if an invalid kernel-renaming
+    scheme is supplied. '''
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    # Simply supplying the wrong value on the command line is picked up
+    # by the argparse module so we call generate() directly with an
+    # incorrect value
+    with pytest.raises(GenerationError) as err:
+        _, _ = generate(alg_filename, api="dynamo0.3",
+                        kern_naming="not-a-scheme")
+    assert "Invalid kernel-renaming scheme supplied" in str(err)
+    assert "but got 'not-a-scheme'" in str(err)
+
+
+def test_main_include_nemo_only(capsys):
+    ''' Check that the main function rejects attempts to specify INCLUDE
+    paths for all except the nemo API. (Since that is the only one which
+    uses fparser2 at the moment.) '''
+    alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"))
+    for api in Config.get().supported_apis:
+        if api != "nemo":
+            with pytest.raises(SystemExit) as err:
+                main([alg_filename, '-api', api, '-I', './'])
+            assert str(err.value) == "1"
+            captured = capsys.readouterr()
+            assert (captured.err.count("is only supported for the 'nemo' API")
+                    == 1)
+
+
+def test_main_include_invalid(capsys, tmpdir):
+    ''' Check that the main function complains if a non-existant location
+    is specified as a search path for INCLUDE files. '''
+    alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "nemo", "test_files", "include_stmt.f90"))
+    fake_path = tmpdir.join('does_not_exist')
+    with pytest.raises(SystemExit) as err:
+        main([alg_file, '-api', 'nemo', '-I', fake_path.strpath])
+    assert str(err.value) == "1"
+    capout = capsys.readouterr()
+    assert "does_not_exist' does not exist" in capout.err
+
+
+def test_main_include_path(capsys):
+    ''' Test that the main function supplies any INCLUDE paths to
+    fparser. '''
+    # This algorithm file INCLUDE's a file that defines a variable called
+    # "some_fake_mpi_handle"
+    alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "nemo", "test_files", "include_stmt.f90"))
+    # First try without specifying where to find the include file. Currently
+    # fparser2 just removes any include statement that it cannot resolve
+    # (https://github.com/stfc/fparser/issues/138).
+    main([alg_file, '-api', 'nemo'])
+    stdout, _ = capsys.readouterr()
+    assert "some_fake_mpi_handle" not in stdout
+    # Now specify two locations to search with only the second containing
+    # the necessary header file
+    inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files")
+    inc_path2 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "nemo", "test_files", "include_files")
+    main([alg_file, '-api', 'nemo', '-I', str(inc_path1),
+          '-I', str(inc_path2)])
+    stdout, _ = capsys.readouterr()
+    assert "some_fake_mpi_handle" in stdout

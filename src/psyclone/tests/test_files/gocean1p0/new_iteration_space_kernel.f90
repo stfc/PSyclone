@@ -2,11 +2,11 @@
 !! \detail Given the current pressure and velocity fields,
 !! computes the mass flux in the x direction.
 module new_iteration_space_kernel
-  !use kind_params_mod
-  !use kernel_mod
-  !use argument_mod
-  !use field_mod
-  !use grid_mod
+  use kind_params_mod
+  use kernel_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
   implicit none
 
   private
@@ -15,10 +15,10 @@ module new_iteration_space_kernel
          compute_kern1_code, compute_kern2_code, compute_kern3_code
 
   type, extends(kernel_type) :: compute_kern1
-     type(arg), dimension(3) :: meta_args =    &
-          (/ arg(WRITE, CT, POINTWISE),        & ! cu
-             arg(READ,  CT, POINTWISE),        & ! p
-             arg(READ,  CT, POINTWISE)         & ! u
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),        & ! cu
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE)         & ! u
            /)
      integer :: ITERATES_OVER = internal_we_halo
 
@@ -29,7 +29,7 @@ module new_iteration_space_kernel
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_kern1_code
@@ -37,10 +37,10 @@ module new_iteration_space_kernel
 
 
   type, extends(kernel_type) :: compute_kern2
-     type(arg), dimension(3) :: meta_args =    &
-          (/ arg(WRITE, CT, POINTWISE),        & ! cu
-             arg(READ,  CT, POINTWISE),        & ! p
-             arg(READ,  CT, POINTWISE)         & ! u
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),        & ! cu
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),        & ! p
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE)         & ! u
            /)
      integer :: ITERATES_OVER = internal_ns_halo
 
@@ -51,20 +51,20 @@ module new_iteration_space_kernel
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_kern2_code
   end type compute_kern2
 
   type, extends(kernel_type) :: compute_kern3
-     type(arg), dimension(3) :: meta_args =    &
-          (/ arg(WRITE, CT, POINTWISE),        & ! cu
-             arg(READ,  CT, POINTWISE),        & ! p
-             arg(READ,  CT, POINTWISE)         & ! u
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CT, GO_POINTWISE),   & ! cu
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE),   & ! p
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE)    & ! u
            /)
      integer :: ITERATES_OVER = north_east_corner
-     integer :: index_offset = OFFSET_SW
+     integer :: index_offset = GO_OFFSET_SW
 
   contains
     procedure, nopass :: code => compute_kern3_code
@@ -78,8 +78,8 @@ contains
   subroutine compute_kern1_code(i, j, cu, p, u)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(out), dimension(:,:) :: cu
-    real(wp), intent(in),  dimension(:,:) :: p, u
+    real(go_wp), intent(out), dimension(:,:) :: cu
+    real(go_wp), intent(in),  dimension(:,:) :: p, u
 
     CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 
@@ -90,8 +90,8 @@ contains
   subroutine compute_kern2_code(i, j, cu, p, u)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(out), dimension(:,:) :: cu
-    real(wp), intent(in),  dimension(:,:) :: p, u
+    real(go_wp), intent(out), dimension(:,:) :: cu
+    real(go_wp), intent(in),  dimension(:,:) :: p, u
 
     CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 
@@ -102,8 +102,8 @@ contains
   subroutine compute_kern3_code(i, j, cu, p, u)
     implicit none
     integer,  intent(in) :: I, J
-    real(wp), intent(out), dimension(:,:) :: cu
-    real(wp), intent(in),  dimension(:,:) :: p, u
+    real(go_wp), intent(out), dimension(:,:) :: cu
+    real(go_wp), intent(in),  dimension(:,:) :: p, u
 
     CU(I,J) = 0.5d0*(P(i+1,J)+P(I,J))*U(I,J)
 

@@ -49,9 +49,9 @@ and associated constructor:
   type(grid_type), target :: model_grid
   ...
   ! Create the model grid
-  model_grid = grid_type(ARAKAWA_C,                           &
-                         (/BC_EXTERNAL,BC_EXTERNAL,BC_NONE/), &
-                         OFFSET_NE)
+  model_grid = grid_type(GO_ARAKAWA_C,                                 &
+                         (/GO_BC_EXTERNAL,GO_BC_EXTERNAL,GO_BC_NONE/), &
+                         GO_OFFSET_NE)
 
 .. note::
   The grid object itself must be declared with the ``target``
@@ -60,7 +60,7 @@ and associated constructor:
 
 The ``grid_type`` constructor takes three arguments:
 
- 1. The type of grid (only ARAKAWA_C is currently supported)
+ 1. The type of grid (only GO_ARAKAWA_C is currently supported)
  2. The boundary conditions on the domain for the *x*, *y* and *z* dimensions (see below). The value for the *z* dimension is currently ignored.
  3. The 'index offset' - the convention used for indexing into offset fields.
 
@@ -68,13 +68,13 @@ Three types of boundary condition are currently supported:
 
 .. tabularcolumns:: |l|L|
 
-============  =========================================
-Name          Description
-============  =========================================
-BC_NONE       No boundary conditions are applied.
-BC_EXTERNAL   Some external forcing is applied. This must be implemented by a kernel. The domain must be defined with a T-point mask (see :ref:`gocean1.0-grid-init`).
-BC_PERIODIC   Periodic boundary conditions are applied.
-============  =========================================
+===============  =========================================
+Name             Description
+===============  =========================================
+GO_BC_NONE       No boundary conditions are applied.
+GO_BC_EXTERNAL   Some external forcing is applied. This must be implemented by a kernel. The domain must be defined with a T-point mask (see :ref:`gocean1.0-grid-init`).
+GO_BC_PERIODIC   Periodic boundary conditions are applied.
+===============  =========================================
 
 The infrastructure requires this information in order to determine the
 extent of the model grid.
@@ -92,7 +92,7 @@ NEMO ocean model):
 .. image:: grid_offset_choices.png
 
 The GOcean 1.0 API supports these two different offset schemes, which
-we term ``OFFSET_SW`` and ``OFFSET_NE``.
+we term ``GO_OFFSET_SW`` and ``GO_OFFSET_NE``.
 
 Note that the constructor does not specify the extent of the model
 grid. This is because this information is normally obtained by reading
@@ -148,15 +148,15 @@ constructor:
   ...
 
   ! Sea-surface height now (current time step)
-  sshn_u = r2d_field(model_grid, U_POINTS)
-  sshn_v = r2d_field(model_grid, V_POINTS)
-  sshn_t = r2d_field(model_grid, T_POINTS)
+  sshn_u = r2d_field(model_grid, GO_U_POINTS)
+  sshn_v = r2d_field(model_grid, GO_V_POINTS)
+  sshn_t = r2d_field(model_grid, GO_T_POINTS)
 
 The constructor takes two arguments:
 
  1. The grid on which the field exists
  2. The type of grid point at which the field is defined
-    (``U_POINTS``, ``V_POINTS``, ``T_POINTS`` or ``F_POINTS``)
+    (``GO_U_POINTS``, ``GO_V_POINTS``, ``GO_T_POINTS`` or ``GO_F_POINTS``)
 
 Note that the grid object need not have been fully configured (by a
 call to ``grid_init`` for instance) before it is passed into this
@@ -177,8 +177,8 @@ application:
 ::
    
    program gocean2d
-     use grid_mod  ! From GOLib
-     use field_mod ! From GOLib
+     use grid_mod  ! From dl_esm_inf
+     use field_mod ! From dl_esm_inf
      use model_mod
      use boundary_conditions_mod
 
@@ -198,9 +198,9 @@ application:
      ! Create the model grid. We use a NE offset (i.e. the U, V and F
      ! points immediately to the North and East of a T point all have the
      ! same i,j index).  This is the same offset scheme as used by NEMO.
-     model_grid = grid_type(ARAKAWA_C,                          &
-                           (/BC_EXTERNAL,BC_EXTERNAL,BC_NONE/), &
-                            OFFSET_NE)
+     model_grid = grid_type(GO_ARAKAWA_C,                                &
+                           (/GO_BC_EXTERNAL,GO_BC_EXTERNAL,GO_BC_NONE/), &
+                            GO_OFFSET_NE)
 
      !! read in model parameters and configure the model grid 
      CALL model_init(model_grid)
@@ -208,12 +208,12 @@ application:
      ! Create fields on this grid
 
      ! Velocity components now (current time step)
-     un_fld = r2d_field(model_grid, U_POINTS)
-     vn_fld = r2d_field(model_grid, V_POINTS)
+     un_fld = r2d_field(model_grid, GO_U_POINTS)
+     vn_fld = r2d_field(model_grid, GO_V_POINTS)
 
      ! Velocity components 'after' (next time step)
-     ua_fld = r2d_field(model_grid, U_POINTS)
-     va_fld = r2d_field(model_grid, V_POINTS)
+     ua_fld = r2d_field(model_grid, GO_U_POINTS)
+     va_fld = r2d_field(model_grid, GO_V_POINTS)
 
      ...
      
@@ -321,9 +321,9 @@ Invoke call and it is contained within the ``step`` subroutine:
                    sshn_t, sshn_u, sshn_v, &
                    ssha_t, ssha_u, ssha_v, &
                    hu, hv, ht)
-     use kind_params_mod  ! From GOLib
-     use grid_mod         ! From GOLib
-     use field_mod        ! From GOLib
+     use kind_params_mod  ! From dl_esm_inf
+     use grid_mod         ! From dl_esm_inf
+     use field_mod        ! From dl_esm_inf
      use model_mod, only: rdt ! The model time-step
      use continuity_mod,  only: continuity
      use momentum_mod,    only: momentum_u, momentum_v
@@ -377,7 +377,7 @@ These are illustrated in the code below:
 ::
 
   type, extends(kernel_type) :: my_kernel_type
-     type(arg), dimension(...) :: meta_args = (/ ... /)
+     type(go_arg), dimension(...) :: meta_args = (/ ... /)
      integer :: iterates_over = ...
      integer :: index_offset = ...
   contains
@@ -395,24 +395,24 @@ kernel code expects to be passed to it via its argument list. There is
 one entry in the ``meta_args`` array for each **scalar**, **field**,
 or **grid-property** passed into the Kernel. Their ordering in the
 ``meta_args`` array must be the same as that in the kernel code
-argument list. The entry must be of type ``arg`` which itself contains
+argument list. The entry must be of type ``go_arg`` which itself contains
 metadata about the associated argument. The size of the meta_args
 array must correspond to the total number of **scalars**, **fields**
 and **grid properties** passed into the Kernel.
 
 For example, if there are a total of two **field** entities being passed
 to the Kernel then the meta_args array will be of size 2 and there
-will be two entries of type ``arg``:
+will be two entries of type ``GO_arg``:
 
 ::
 
-  type(arg) :: meta_args(2) = (/                                  &
-       arg( ... ),                                                &
-       arg( ... )                                                 &
+  type(GO_arg) :: meta_args(2) = (/                                  &
+       go_arg( ... ),                                                &
+       go_arg( ... )                                                 &
        /)
 
 Argument-metadata (metadata contained within the brackets of an
-``arg`` entry), describes either a **scalar**, a **field** or a **grid
+``go_arg`` entry), describes either a **scalar**, a **field** or a **grid
 property**.
 
 The first argument-metadata entry describes how the kernel will access
@@ -423,26 +423,26 @@ kernel while the remaining three are only read.
 
 ::
 
-  type(arg) :: meta_args(4) = (/                            &
-       arg(WRITE, ... ),                                    &
-       arg(READ, ... ),                                     &
-       arg(READ, ... ),                                     &
-       arg(READ, ...)                                       &
+  type(go_arg) :: meta_args(4) = (/                               &
+       go_arg(GO_WRITE, ... ),                                    &
+       go_arg(GO_READ, ... ),                                     &
+       go_arg(GO_READ, ... ),                                     &
+       go_arg(GO_READ, ...)                                       &
        /)
 
 
 .. _gocean1.0-grid_point_type:
 
 The second entry to argument-metadata (information contained within
-the brackets of an ``arg`` type) describes the type of data
+the brackets of an ``go_arg`` type) describes the type of data
 represented by the argument. This type falls into three categories;
 field data, scalar data and grid properties. For field data the
 metadata entry consists of the type of grid-point that field values
 are defined on. Since the GOcean API supports fields on an Arakawa C
-grid, the possible grid-point types are ``CU``, ``CV``, ``CF`` and
-``CT``. GOcean Kernels can also take scalar quantities as
+grid, the possible grid-point types are ``GO_CU``, ``GO_CV``, ``GO_CF`` and
+``GO_CT``. GOcean Kernels can also take scalar quantities as
 arguments. Since these do not live on grid-points they are specified
-as either ``R_SCALAR`` or ``I_SCALAR`` depending on whether the
+as either ``GO_R_SCALAR`` or ``GO_I_SCALAR`` depending on whether the
 corresponding Fortran variable is a real or integer quantity.
 Finally, grid-property entries are used to specify any properties of
 the grid required by the kernel (*e.g.* the area of cells at U points or
@@ -452,11 +452,11 @@ For example:
 
 ::
 
-  type(arg) :: meta_args(4) = (/                            &
-       arg(WRITE, CT, ... ),                                &
-       arg(READ,  CU, ... ),                                &
-       arg(READ,  R_SCALAR, ... ),                          &
-       arg(READ,  GRID_AREA_U)                              &
+  type(go_arg) :: meta_args(4) = (/                                  &
+       go_arg(GO_WRITE, GO_CT, ... ),                                &
+       go_arg(GO_READ,  GO_CU, ... ),                                &
+       go_arg(GO_READ,  GO_R_SCALAR, ... ),                          &
+       go_arg(GO_READ,  GO_GRID_AREA_U)                              &
        /)
 
 Here, the first argument is a field on T points, the second is a field
@@ -467,28 +467,28 @@ The full list of supported grid properties in the GOcean 1.0 API is:
 
 .. _gocean1.0-grid-props:
 
-================ =============================  ====================
-Name             Description                    Type
-================ =============================  ====================
-grid_area_t      Cell area at T point           Real array, rank=2
-grid_area_u      Cell area at U point           Real array, rank=2
-grid_area_v      Cell area at V point           Real array, rank=2
-grid_mask_t      T-point mask (1=wet, 0=dry)    Integer array, rank=2
-grid_dx_t        Grid spacing in x at T points  Real array, rank=2
-grid_dx_u        Grid spacing in x at U points  Real array, rank=2
-grid_dx_v        Grid spacing in x at V points  Real array, rank=2
-grid_dy_t        Grid spacing in y at T points  Real array, rank=2
-grid_dy_u        Grid spacing in y at U points  Real array, rank=2
-grid_dy_v        Grid spacing in y at V points  Real array, rank=2
-grid_lat_u       Latitude of U points (gphiu)   Real array, rank=2
-grid_lat_v       Latitude of V points (gphiv)   Real array, rank=2
-grid_dx_const    Grid spacing in x if constant  Real, scalar
-grid_dy_const    Grid spacing in y if constant  Real, scalar
-grid_x_min_index Minimum X index                Integer, scalar
-grid_x_max_index Maximum X index                Integer, scalar
-grid_y_min_index Minimum Y index                Integer, scalar
-grid_y_max_index Maximum Y index                Integer, scalar
-================ =============================  ====================
+=================== =============================  ====================
+Name                Description                    Type
+=================== =============================  ====================
+go_grid_area_t      Cell area at T point           Real array, rank=2
+go_grid_area_u      Cell area at U point           Real array, rank=2
+go_grid_area_v      Cell area at V point           Real array, rank=2
+go_grid_mask_t      T-point mask (1=wet, 0=dry)    Integer array, rank=2
+go_grid_dx_t        Grid spacing in x at T points  Real array, rank=2
+go_grid_dx_u        Grid spacing in x at U points  Real array, rank=2
+go_grid_dx_v        Grid spacing in x at V points  Real array, rank=2
+go_grid_dy_t        Grid spacing in y at T points  Real array, rank=2
+go_grid_dy_u        Grid spacing in y at U points  Real array, rank=2
+go_grid_dy_v        Grid spacing in y at V points  Real array, rank=2
+go_grid_lat_u       Latitude of U points (gphiu)   Real array, rank=2
+go_grid_lat_v       Latitude of V points (gphiv)   Real array, rank=2
+go_grid_dx_const    Grid spacing in x if constant  Real, scalar
+go_grid_dy_const    Grid spacing in y if constant  Real, scalar
+go_grid_x_min_index Minimum X index                Integer, scalar
+go_grid_x_max_index Maximum X index                Integer, scalar
+go_grid_y_min_index Minimum Y index                Integer, scalar
+go_grid_y_max_index Maximum Y index                Integer, scalar
+=================== =============================  ====================
 
 These are stored in a dictionary named ``GRID_PROPERTY_DICT`` at the
 top of the ``gocean1p0.py`` file. All of the rank-two arrays have the
@@ -496,7 +496,7 @@ first rank as longitude (*x*) and the second as latitude (*y*).
 
 Scalars and fields contain a third argument-metadata entry which
 describes whether the kernel accesses the corresponding argument with
-a stencil. The value ``POINTWISE`` indicates that there is no stencil
+a stencil. The value ``GO_POINTWISE`` indicates that there is no stencil
 access. Metadata for a scalar field is limited to this value.
 Grid-property arguments have no third metadata argument. If there
 are no stencil accesses then the full argument metadata for our
@@ -504,15 +504,15 @@ previous example will be:
 
 ::
 
-  type(arg) :: meta_args(4) = (/                            &
-       arg(WRITE, CT,       POINTWISE),                     &
-       arg(READ,  CU,       POINTWISE),                     &
-       arg(READ,  R_SCALAR, POINTWISE),                     &
-       arg(READ,  GRID_AREA_U)                              &
+  type(go_arg) :: meta_args(4) = (/                            &
+       go_arg(GO_WRITE, GO_CT,       GO_POINTWISE),            &
+       go_arg(GO_READ,  GO_CU,       GO_POINTWISE),            &
+       go_arg(GO_READ,  GO_R_SCALAR, GO_POINTWISE),            &
+       go_arg(GO_READ,  GO_GRID_AREA_U)                        &
        /)
 
 If a kernel accesses a field using a stencil then the third argument
-metadata entry should take the form ``stencil(...)``. Note, a stencil
+metadata entry should take the form ``go_stencil(...)``. Note, a stencil
 access is only allowed for a field that is ``READ`` by a kernel.
 
 In the GOcean API, fields are implemented as two-dimensional
@@ -543,7 +543,7 @@ i.e.
 
 ::
    
-   stencil(010,111,010)
+   go_stencil(010,111,010)
 
 So far we have only considered depth-1 stencils. In our notation
 the depth of access is captured by the integer value (``0`` for no
@@ -557,7 +557,7 @@ would be captured as:
 
 ::
 
-   stencil(020,010,000)
+   go_stencil(020,010,000)
 
 All forms of stencil can be **summarised** using this triplet notation
 up to a depth of ``9`` apart from the central ``a(i,j)`` value which can
@@ -590,20 +590,20 @@ Iterates Over
 The second element of kernel metadata is ``ITERATES_OVER``. This
 specifies that the Kernel has been written with the assumption that it
 is iterating over grid points of the specified type. By default the supported
-values are: ``INTERNAL_PTS``, ``EXTERNAL_PTS`` and ``ALL_PTS``. These
+values are: ``GO_INTERNAL_PTS``, ``GO_EXTERNAL_PTS`` and ``GO_ALL_PTS``. These
 may be understood by considering the following diagram of an example
 model configuration:
 
 .. image:: grids_SW_stagger.png
 
-``INTERNAL_PTS`` are then those points that are within the Model
-domain (fuscia box), ``EXTERNAL_PTS`` are those outside the domain and
-``ALL_PTS`` encompasses all grid points in the model. The chosen value
+``GO_INTERNAL_PTS`` are then those points that are within the Model
+domain (fuscia box), ``GO_EXTERNAL_PTS`` are those outside the domain and
+``GO_ALL_PTS`` encompasses all grid points in the model. The chosen value
 is specified in the kernel-meta data like so:
 
 ::
 
-  integer :: iterates_over = INTERNAL_PTS
+  integer :: iterates_over = GO_INTERNAL_PTS
 
 A user can use a config file (see :ref:`configuration`) to add
 additional iteration spaces to PSyclone.
@@ -619,12 +619,12 @@ supplied to the grid constructor (see the :ref:`gocean1.0-grid`
 Section for a description).
 
 The GOcean 1.0 API supports two different offset schemes;
-``OFFSET_NE``, ``OFFSET_SW``. The scheme used by a kernel is specified
+``GO_OFFSET_NE``, ``GO_OFFSET_SW``. The scheme used by a kernel is specified
 in the metadata as, e.g.:
 
 ::
 
-  integer :: index_offset = OFFSET_NE
+  integer :: index_offset = GO_OFFSET_NE
 
 Currently all kernels used in an application must use the same offset
 scheme which must also be the same as passed to the grid constructor.
@@ -658,8 +658,8 @@ rules, along with PSyclone's naming conventions, are:
 
 2) For each field/scalar/grid property in the order specified by the meta_args metadata:
 
-    1) For a field; the field array itself. A field array is a real array of kind ``wp`` and rank two. The first rank is longitude (*x*) and the second latitude (*y*).
-    2) For a scalar; the variable itself. A real scalar is of kind ``wp``.
+    1) For a field; the field array itself. A field array is a real array of kind ``go_wp`` and rank two. The first rank is longitude (*x*) and the second latitude (*y*).
+    2) For a scalar; the variable itself. A real scalar is of kind ``go_wp``.
     3) For a grid property; the array or variable (see the earlier table) containing the specified property.
 
 .. note::
@@ -674,17 +674,17 @@ As an example, consider the ``bc_solid_u`` kernel that is used in the
 ::
 
    type, extends(kernel_type) :: bc_solid_u
-     type(arg), dimension(2) :: meta_args =  &
-          (/ arg(WRITE, CU, POINTWISE),      &
-             arg(READ,      GRID_MASK_T)     &
+     type(go_arg), dimension(2) :: meta_args =  &
+          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),      &
+             go_arg(GO_READ,      GO_GRID_MASK_T)     &
            /)
 
      !> This is a boundary-conditions kernel and therefore
      !! acts on all points of the domain rather than just
      !! those that are internal
-     integer :: ITERATES_OVER = ALL_PTS
+     integer :: ITERATES_OVER = GO_ALL_PTS
 
-     integer :: index_offset = OFFSET_NE
+     integer :: index_offset = GO_OFFSET_NE
 
   contains
     procedure, nopass :: code => bc_solid_u_code

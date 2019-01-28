@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -553,7 +553,7 @@ class KernelType(object):
         self._iterates_over = self.get_integer_variable("iterates_over")
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits = self.getkerneldescriptors(self._ktype)
-        self._arg_descriptors = None  # this is set up by the subclasses
+        self._arg_descriptors = []  # this is set up by the subclasses
 
     def getkerneldescriptors(self, ast, var_name='meta_args'):
         descs = ast.get_variable(var_name)
@@ -671,8 +671,9 @@ class KernelType(object):
 
     def get_integer_array(self, name):
         ''' Parse the kernel meta-data and find the value of the
-        integer array variable with the supplied name. Return None if no
-        matching variable is found.
+        integer array variable with the supplied name. Returns an empty list
+        if no matching variable is found.
+
         :param str name: the name of the integer array to find.
         :returns: list of values.
         :rtype: list of str.
@@ -711,7 +712,7 @@ class KernelType(object):
                     raise InternalError("Failed to parse array constructor: "
                                         "'{0}'".format(str(assign.items[2])))
                 return [str(name) for name in names]
-        return None
+        return []
 
 
 class DynKernelType(KernelType):
@@ -946,15 +947,18 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                              to make sure that it conforms and an
                              error raised if not. The default is
                              False.
-    :rtype: ast,invoke_info
-    :raises IOError: if the filename or search path does not exist
-    :raises ParseError: if there is an error in the parsing
-    :raises RuntimeError: if there is an error in the parsing
+    :returns: 2-tuple consisting of the fparser1 AST of the Algorithm file \
+              and an object holding details of the invokes found.
+    :rtype: :py:class:`fparser.one.block_statements.BeginSource`, \
+            :py:class:`psyclone.parse.FileInfo`
+    :raises IOError: if the filename or search path does not exist.
+    :raises ParseError: if there is an error in the parsing.
+    :raises RuntimeError: if there is an error in the parsing.
 
     For example:
 
     >>> from parse import parse
-    >>> ast,info=parse("argspec.F90")
+    >>> ast, info = parse("argspec.F90")
 
     '''
     _config = Config.get()
@@ -974,6 +978,12 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         api = _config.default_api
     else:
         check_api(api)
+
+    if api == "nemo":
+        # For this API we just parse the NEMO code and return the resulting
+        # fparser2 AST with None for the Algorithm AST.
+        ast = parse_fp2(alg_filename)
+        return None, ast
 
     # Get the names of the supported Built-in operations for this API
     builtin_names, builtin_defs_file = get_builtin_defs(api)
@@ -1224,3 +1234,22 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             invokecalls[statement] = InvokeCall(statement_kcalls,
                                                 name=invoke_label)
     return ast, FileInfo(container_name, invokecalls)
+
+
+def parse_fp2(filename):
+    '''
+    Parse a Fortran source file using fparser2.
+
+    :param str filename: source file (including path) to read.
+    :returns: fparser2 AST for the source file.
+    :rtype: :py:class:`fparser.two.Fortran2003.Program`
+    '''
+    from fparser.common.readfortran import FortranFileReader
+
+    parser = ParserFactory().create()
+    # We get the directories to search for any Fortran include files from
+    # our configuration object.
+    config = Config.get()
+    reader = FortranFileReader(filename, include_dirs=config.include_paths)
+    ast = parser(reader)
+    return ast

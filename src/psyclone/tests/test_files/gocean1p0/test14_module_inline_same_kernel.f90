@@ -8,8 +8,14 @@
 
 PROGRAM module_inline_same_kernel
 
+use kind_params_mod
+  use grid_mod
+  use field_mod
   use time_smooth_mod, only: time_smooth
+  implicit none
 
+  type(r2d_field) :: a, b, c, d
+  
   call invoke( time_smooth(a,b,c), time_smooth(b,c,d) )
 
 END PROGRAM module_inline_same_kernel

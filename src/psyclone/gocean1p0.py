@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 
@@ -54,50 +54,50 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
-VALID_FIELD_GRID_TYPES = ["cu", "cv", "ct", "cf", "every"]
+VALID_FIELD_GRID_TYPES = ["go_cu", "go_cv", "go_ct", "go_cf", "go_every"]
 
 # The two scalar types we support
-VALID_SCALAR_TYPES = ["i_scalar", "r_scalar"]
+VALID_SCALAR_TYPES = ["go_i_scalar", "go_r_scalar"]
 
 # Index-offset schemes (for the Arakawa C-grid)
-VALID_OFFSET_NAMES = ["offset_se", "offset_sw",
-                      "offset_ne", "offset_nw", "offset_any"]
+VALID_OFFSET_NAMES = ["go_offset_se", "go_offset_sw",
+                      "go_offset_ne", "go_offset_nw", "go_offset_any"]
 
 # The offset schemes for which we can currently generate constant
 # loop bounds in the PSy layer
-SUPPORTED_OFFSETS = ["offset_ne", "offset_sw", "offset_any"]
+SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw", "go_offset_any"]
 
 # The sets of grid points that a kernel may operate on
-VALID_ITERATES_OVER = ["all_pts", "internal_pts", "external_pts"]
+VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
 
 # Valid values for the type of access a kernel argument may have
-VALID_ARG_ACCESSES = ["read", "write", "readwrite"]
+VALID_ARG_ACCESSES = ["go_read", "go_write", "go_readwrite"]
 
 # The list of valid stencil properties. We currently only support
 # pointwise. This property could probably be removed from the
 # GOcean API altogether.
-VALID_STENCIL_NAMES = ["pointwise"]
+VALID_STENCIL_NAMES = ["go_pointwise"]
 
 # A dictionary giving the mapping from meta-data names for
 # properties of the grid to their names in the Fortran grid_type.
-GRID_PROPERTY_DICT = {"grid_area_t": "area_t",
-                      "grid_area_u": "area_u",
-                      "grid_area_v": "area_v",
-                      "grid_mask_t": "tmask",
-                      "grid_dx_t": "dx_t",
-                      "grid_dx_u": "dx_u",
-                      "grid_dx_v": "dx_v",
-                      "grid_dy_t": "dy_t",
-                      "grid_dy_u": "dy_u",
-                      "grid_dy_v": "dy_v",
-                      "grid_lat_u": "gphiu",
-                      "grid_lat_v": "gphiv",
-                      "grid_dx_const": "dx",
-                      "grid_dy_const": "dy",
-                      "grid_x_min_index": "simulation_domain%xstart",
-                      "grid_x_max_index": "simulation_domain%xstop",
-                      "grid_y_min_index": "simulation_domain%ystart",
-                      "grid_y_max_index": "simulation_domain%ystop"}
+GRID_PROPERTY_DICT = {"go_grid_area_t": "area_t",
+                      "go_grid_area_u": "area_u",
+                      "go_grid_area_v": "area_v",
+                      "go_grid_mask_t": "tmask",
+                      "go_grid_dx_t": "dx_t",
+                      "go_grid_dx_u": "dx_u",
+                      "go_grid_dx_v": "dx_v",
+                      "go_grid_dy_t": "dy_t",
+                      "go_grid_dy_u": "dy_u",
+                      "go_grid_dy_v": "dy_v",
+                      "go_grid_lat_u": "gphiu",
+                      "go_grid_lat_v": "gphiv",
+                      "go_grid_dx_const": "dx",
+                      "go_grid_dy_const": "dy",
+                      "go_grid_x_min_index": "subdomain%internal%xstart",
+                      "go_grid_x_max_index": "subdomain%internal%xstop",
+                      "go_grid_y_min_index": "subdomain%internal%ystart",
+                      "go_grid_y_max_index": "subdomain%internal%ystop"}
 
 # The valid types of loop. In this API we expect only doubly-nested
 # loops.
@@ -163,7 +163,7 @@ class GOInvokes(Invokes):
             for kern_call in invoke.schedule.kern_calls():
                 # We only care if the index offset is not offset_any (since
                 # that is compatible with any other offset)
-                if kern_call.index_offset != "offset_any":
+                if kern_call.index_offset != "go_offset_any":
                     # Loop over the offsets we've seen so far
                     for offset in index_offsets:
                         if offset != kern_call.index_offset:
@@ -219,7 +219,7 @@ class GOInvoke(Invoke):
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if arg.type == 'scalar' and \
-                   arg.space.lower() == "r_scalar" and \
+                   arg.space.lower() == "go_r_scalar" and \
                    not arg.is_literal and arg.name not in result:
                     result.append(arg.name)
         return result
@@ -232,7 +232,7 @@ class GOInvoke(Invoke):
         for call in self._schedule.calls():
             for arg in call.arguments.args:
                 if arg.type == 'scalar' and \
-                   arg.space.lower() == "i_scalar" and \
+                   arg.space.lower() == "go_i_scalar" and \
                    not arg.is_literal and arg.name not in result:
                     result.append(arg.name)
         return result
@@ -260,32 +260,31 @@ class GOInvoke(Invoke):
         self.schedule.gen_code(invoke_sub)
 
         # add the subroutine argument declarations for fields
-        if len(self.unique_args_arrays) > 0:
+        if self.unique_args_arrays:
             my_decl_arrays = TypeDeclGen(invoke_sub, datatype="r2d_field",
                                          intent="inout",
                                          entity_decls=self.unique_args_arrays)
             invoke_sub.add(my_decl_arrays)
 
         # add the subroutine argument declarations for real scalars
-        if len(self.unique_args_rscalars) > 0:
+        if self.unique_args_rscalars:
             my_decl_rscalars = DeclGen(invoke_sub, datatype="REAL",
-                                       intent="inout", kind="wp",
+                                       intent="inout", kind="go_wp",
                                        entity_decls=self.unique_args_rscalars)
             invoke_sub.add(my_decl_rscalars)
         # add the subroutine argument declarations for integer scalars
-        if len(self.unique_args_iscalars) > 0:
+        if self.unique_args_iscalars:
             my_decl_iscalars = DeclGen(invoke_sub, datatype="INTEGER",
                                        intent="inout",
                                        entity_decls=self.unique_args_iscalars)
             invoke_sub.add(my_decl_iscalars)
 
-        if self._schedule.const_loop_bounds and \
-           len(self.unique_args_arrays) > 0:
+        if self._schedule.const_loop_bounds and self.unique_args_arrays:
 
             # Look-up the loop bounds using the first field object in the
             # list
             sim_domain = self.unique_args_arrays[0] +\
-                "%grid%simulation_domain%"
+                "%grid%subdomain%internal%"
             position = invoke_sub.last_declaration()
 
             invoke_sub.add(CommentGen(invoke_sub, ""),
@@ -436,65 +435,65 @@ class GOLoop(Loop):
                         itspace] = {}
 
         # Loop bounds for a mesh with NE offset
-        GOLoop._bounds_lookup['offset_ne']['ct']['all_pts'] = \
+        GOLoop._bounds_lookup['go_offset_ne']['go_ct']['go_all_pts'] = \
             {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
              'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
-        GOLoop._bounds_lookup['offset_ne']['ct']['internal_pts'] = \
+        GOLoop._bounds_lookup['go_offset_ne']['go_ct']['go_internal_pts'] = \
             {'inner': {'start': "{start}", 'stop': "{stop}"},
              'outer': {'start': "{start}", 'stop': "{stop}"}}
-        GOLoop._bounds_lookup['offset_ne']['cu']['all_pts'] = \
+        GOLoop._bounds_lookup['go_offset_ne']['go_cu']['go_all_pts'] = \
             {'inner': {'start': "{start}-1", 'stop': "{stop}"},
              'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
-        GOLoop._bounds_lookup['offset_ne']['cu']['internal_pts'] = \
+        GOLoop._bounds_lookup['go_offset_ne']['go_cu']['go_internal_pts'] = \
             {'inner': {'start': "{start}", 'stop': "{stop}-1"},
              'outer': {'start': "{start}", 'stop': "{stop}"}}
-        GOLoop._bounds_lookup['offset_ne']['cv']['all_pts'] = \
+        GOLoop._bounds_lookup['go_offset_ne']['go_cv']['go_all_pts'] = \
             {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
              'outer': {'start': "{start}-1", 'stop': "{stop}"}}
-        GOLoop._bounds_lookup['offset_ne']['cv']['internal_pts'] = \
+        GOLoop._bounds_lookup['go_offset_ne']['go_cv']['go_internal_pts'] = \
             {'inner': {'start': "{start}", 'stop': "{stop}"},
              'outer': {'start': "{start}", 'stop': "{stop}-1"}}
-        GOLoop._bounds_lookup['offset_ne']['cf']['all_pts'] = \
+        GOLoop._bounds_lookup['go_offset_ne']['go_cf']['go_all_pts'] = \
             {'inner': {'start': "{start}-1", 'stop': "{stop}"},
              'outer': {'start': "{start}-1", 'stop': "{stop}"}}
-        GOLoop._bounds_lookup['offset_ne']['cf']['internal_pts'] = \
+        GOLoop._bounds_lookup['go_offset_ne']['go_cf']['go_internal_pts'] = \
             {'inner': {'start': "{start}-1", 'stop': "{stop}-1"},
              'outer': {'start': "{start}-1", 'stop': "{stop}-1"}}
         # Loop bounds for a mesh with SE offset
-        GOLoop._bounds_lookup['offset_sw']['ct']['all_pts'] = \
+        GOLoop._bounds_lookup['go_offset_sw']['go_ct']['go_all_pts'] = \
             {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
              'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
-        GOLoop._bounds_lookup['offset_sw']['ct']['internal_pts'] = \
+        GOLoop._bounds_lookup['go_offset_sw']['go_ct']['go_internal_pts'] = \
             {'inner': {'start': "{start}", 'stop': "{stop}"},
              'outer': {'start': "{start}", 'stop': "{stop}"}}
-        GOLoop._bounds_lookup['offset_sw']['cu']['all_pts'] = \
+        GOLoop._bounds_lookup['go_offset_sw']['go_cu']['go_all_pts'] = \
             {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
              'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
-        GOLoop._bounds_lookup['offset_sw']['cu']['internal_pts'] = \
+        GOLoop._bounds_lookup['go_offset_sw']['go_cu']['go_internal_pts'] = \
             {'inner': {'start': "{start}", 'stop': "{stop}+1"},
              'outer': {'start': "{start}", 'stop': "{stop}"}}
-        GOLoop._bounds_lookup['offset_sw']['cv']['all_pts'] = \
+        GOLoop._bounds_lookup['go_offset_sw']['go_cv']['go_all_pts'] = \
             {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
              'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
-        GOLoop._bounds_lookup['offset_sw']['cv']['internal_pts'] = \
+        GOLoop._bounds_lookup['go_offset_sw']['go_cv']['go_internal_pts'] = \
             {'inner': {'start': "{start}", 'stop': "{stop}"},
              'outer': {'start': "{start}", 'stop': "{stop}+1"}}
-        GOLoop._bounds_lookup['offset_sw']['cf']['all_pts'] = \
+        GOLoop._bounds_lookup['go_offset_sw']['go_cf']['go_all_pts'] = \
             {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
              'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
-        GOLoop._bounds_lookup['offset_sw']['cf']['internal_pts'] = \
+        GOLoop._bounds_lookup['go_offset_sw']['go_cf']['go_internal_pts'] = \
             {'inner': {'start': "{start}", 'stop': "{stop}+1"},
              'outer': {'start': "{start}", 'stop': "{stop}+1"}}
         # For offset 'any'
         for gridpt_type in VALID_FIELD_GRID_TYPES:
             for itspace in VALID_ITERATES_OVER:
-                GOLoop._bounds_lookup['offset_any'][gridpt_type][itspace] = \
+                GOLoop._bounds_lookup['go_offset_any'][gridpt_type][itspace] =\
                     {'inner': {'start': "{start}-1", 'stop': "{stop}"},
                      'outer': {'start': "{start}-1", 'stop': "{stop}"}}
         # For 'every' grid-point type
         for offset in SUPPORTED_OFFSETS:
             for itspace in VALID_ITERATES_OVER:
-                GOLoop._bounds_lookup[offset]['every'][itspace] = \
+                GOLoop._bounds_lookup[offset]['go_every'][itspace] = \
                     {'inner': {'start': "{start}-1", 'stop': "{stop}+1"},
                      'outer': {'start': "{start}-1", 'stop': "{stop}+1"}}
 
@@ -509,7 +508,8 @@ class GOLoop(Loop):
         bound_info = offset-type:field-type:iteration-space:outer-start:
                       outer-stop:inner-start:inner-stop
         Example:
-        bound_info = offset_ne:ct:all_pts:{start}-1:{stop}+1:{start}:{stop}
+        bound_info = go_offset_ne:go_ct:go_all_pts\
+                     :{start}-1:{stop}+1:{start}:{stop}
 
         The expressions {start} and {stop} will be replaced with the loop
         indices that correspond to the inner points (i.e. non-halo or
@@ -642,7 +642,7 @@ class GOLoop(Loop):
             else:
                 stop = "not yet set"
         else:
-            if self.field_space == "every":
+            if self.field_space == "go_every":
                 # Bounds are independent of the grid-offset convention in use
 
                 # We look-up the upper bounds by enquiring about the SIZE of
@@ -658,9 +658,9 @@ class GOLoop(Loop):
                 # Fortran compiler with less information.
                 stop = self.field_name
 
-                if self._iteration_space.lower() == "internal_pts":
+                if self._iteration_space.lower() == "go_internal_pts":
                     stop += "%internal"
-                elif self._iteration_space.lower() == "all_pts":
+                elif self._iteration_space.lower() == "go_all_pts":
                     stop += "%whole"
                 else:
                     raise GenerationError("Unrecognised iteration space, {0}. "
@@ -716,7 +716,7 @@ class GOLoop(Loop):
             else:
                 start = "not yet set"
         else:
-            if self.field_space == "every":
+            if self.field_space == "go_every":
                 # Bounds are independent of the grid-offset convention in use
                 start = "1"
             else:
@@ -724,9 +724,9 @@ class GOLoop(Loop):
                 # is more straightforward for us but provides the
                 # Fortran compiler with less information.
                 start = self.field_name
-                if self._iteration_space.lower() == "internal_pts":
+                if self._iteration_space.lower() == "go_internal_pts":
                     start += "%internal"
-                elif self._iteration_space.lower() == "all_pts":
+                elif self._iteration_space.lower() == "go_all_pts":
                     start += "%whole"
                 else:
                     raise GenerationError("Unrecognised iteration space, {0}. "
@@ -766,7 +766,7 @@ class GOLoop(Loop):
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
         go_kernels = self.walk(self.children, GOKern)
-        if len(go_kernels) == 0:
+        if not go_kernels:
             raise GenerationError("Internal error: cannot find the "
                                   "GOcean Kernel enclosed by this loop")
         index_offset = go_kernels[0].index_offset
@@ -871,64 +871,6 @@ class GOKern(Kern):
         '''
         return []
 
-    def find_grid_access(self):
-        '''Determine the best kernel argument from which to get properties of
-            the grid. For this, an argument must be a field (i.e. not
-            a scalar) and must be supplied by the algorithm layer
-            (i.e. not a grid property). If possible it should also be
-            a field that is read-only as otherwise compilers can get
-            confused about data dependencies and refuse to SIMD
-            vectorise.
-
-        '''
-        for access in ["read", "readwrite", "write"]:
-            for arg in self._arguments.args:
-                if arg.type == "field" and arg.access.lower() == access:
-                    return arg
-        # We failed to find any kernel argument which could be used
-        # to access the grid properties. This will only be a problem
-        # if the kernel requires a grid-property argument.
-        return None
-
-    def gen_code(self, parent):
-        ''' Generates GOcean v1.0 specific psy code for a call to the dynamo
-            kernel instance. '''
-        from psyclone.f2pygen import CallGen, UseGen
-
-        # Before we do anything else, go through the arguments and
-        # determine the best one from which to obtain the grid properties.
-        grid_arg = self.find_grid_access()
-
-        # A GOcean 1.0 kernel always requires the [i,j] indices of the
-        # grid-point that is to be updated
-        arguments = ["i", "j"]
-        for arg in self._arguments.args:
-
-            if arg.type == "scalar":
-                # Scalar arguments require no de-referencing
-                arguments.append(arg.name)
-            elif arg.type == "field":
-                # Field objects are Fortran derived-types
-                arguments.append(arg.name + "%data")
-            elif arg.type == "grid_property":
-                # Argument is a property of the grid which we can access via
-                # the grid member of any field object.
-                # We use the most suitable field as chosen above.
-                if grid_arg is None:
-                    raise GenerationError(
-                        "Error: kernel {0} requires grid property {1} but "
-                        "does not have any arguments that are fields".
-                        format(self._name, arg.name))
-                else:
-                    arguments.append(grid_arg.name+"%grid%"+arg.name)
-            else:
-                raise GenerationError("Kernel {0}, argument {1} has "
-                                      "unrecognised type: {2}".
-                                      format(self._name, arg.name, arg.type))
-        # Now sub-class specific setup is done, call the gen_code() method
-        # of base class
-        super(GOKern, self).gen_code(parent, arguments)
-
     @property
     def index_offset(self):
         ''' The grid index-offset convention that this kernel expects '''
@@ -967,6 +909,73 @@ class GOKernelArguments(Arguments):
                                                    "field"]))
         self._dofs = []
 
+    def raw_arg_list(self, parent=None):
+        '''
+        :returns: a list of all of the actual arguments to the \
+                  kernel call.
+        :rtype: list of str
+
+        :raises InternalError: if we encounter a kernel argument with an \
+                               unrecognised type.
+        '''
+        if self._raw_arg_list:
+            return self._raw_arg_list
+
+        # Before we do anything else, go through the arguments and
+        # determine the best one from which to obtain the grid properties.
+        grid_arg = self.find_grid_access()
+
+        # A GOcean 1.0 kernel always requires the [i,j] indices of the
+        # grid-point that is to be updated
+        arguments = ["i", "j"]
+        for arg in self._args:
+
+            if arg.type == "scalar":
+                # Scalar arguments require no de-referencing
+                arguments.append(arg.name)
+            elif arg.type == "field":
+                # Field objects are Fortran derived-types
+                arguments.append(arg.name + "%data")
+            elif arg.type == "grid_property":
+                # Argument is a property of the grid which we can access via
+                # the grid member of any field object.
+                # We use the most suitable field as chosen above.
+                if grid_arg is None:
+                    raise GenerationError(
+                        "Error: kernel {0} requires grid property {1} but "
+                        "does not have any arguments that are fields".
+                        format(self._parent_call.name, arg.name))
+                else:
+                    arguments.append(grid_arg.name+"%grid%"+arg.name)
+            else:
+                raise InternalError("Kernel {0}, argument {1} has "
+                                    "unrecognised type: '{2}'".
+                                    format(self._parent_call.name, arg.name,
+                                           arg.type))
+        self._raw_arg_list = arguments
+        return self._raw_arg_list
+
+    def find_grid_access(self):
+        '''
+        Determine the best kernel argument from which to get properties of
+        the grid. For this, an argument must be a field (i.e. not
+        a scalar) and must be supplied by the algorithm layer
+        (i.e. not a grid property). If possible it should also be
+        a field that is read-only as otherwise compilers can get
+        confused about data dependencies and refuse to SIMD
+        vectorise.
+        :returns: the argument object from which to get grid properties.
+        :rtype: :py:class:`psyclone.gocean1p0.GOKernelArgument` or None
+        '''
+        for access in ["go_read", "go_readwrite", "go_write"]:
+            for arg in self._args:
+                if arg.type == "field" and arg.access.lower() == access:
+                    return arg
+        # We failed to find any kernel argument which could be used
+        # to access the grid properties. This will only be a problem
+        # if the kernel requires a grid-property argument.
+        return None
+
     @property
     def dofs(self):
         ''' Currently required for invoke base class although this makes no
@@ -983,8 +992,8 @@ class GOKernelArguments(Arguments):
             # in the dictionary as a field that has read access causes
             # the code (that checks that a kernel has at least one argument
             # that is written to) to attempt to lookup "inc".
-            my_mapping = {"write": "write", "read": "read",
-                          "readwrite": "readwrite", "inc": ""}
+            my_mapping = {"write": "go_write", "read": "go_read",
+                          "readwrite": "go_readwrite", "inc": ""}
         arg = Arguments.iteration_space_arg(self, my_mapping)
         return arg
 
@@ -1005,7 +1014,7 @@ class GOKernelArguments(Arguments):
         # We do this as some compilers do less optimisation if we get (read-
         # -only) grid properties from a field object that has read-write
         # access.
-        grid_fld = self._parent_call.find_grid_access()
+        grid_fld = self.find_grid_access()
         grid_ptr = grid_fld.name + "%grid"
         arg_list.extend([grid_fld.name, grid_fld.name+"%data"])
 
@@ -1157,9 +1166,9 @@ class GOStencil(object):
         indicating whether there is a stencil access in a particular
         direction and the depth of that access. For example:
 
-        stencil(010,  !   N
-                212,  !  W E
-                010)  !   S
+        go_stencil(010,  !   N
+                   212,  !  W E
+                   010)  !   S
 
         indicates that there is a stencil access of depth 1 in the
         "North" and "South" directions and stencil access of depth 2
@@ -1184,9 +1193,9 @@ class GOStencil(object):
 
         would be stored as:
 
-        stencil(000,
-                011,
-                010)
+        go_stencil(000,
+                   011,
+                   010)
 
         :param stencil_info: contains the appropriate part of the parser AST
         :type stencil_info: :py:class:`psyclone.expression.FunctionVar`
@@ -1202,7 +1211,8 @@ class GOStencil(object):
             raise ParseError(
                 "Meta-data error in kernel '{0}': 3rd descriptor (stencil) of "
                 "field argument is '{1}' but expected either a name or the "
-                "format 'stencil(...)'".format(kernel_name, str(stencil_info)))
+                "format 'go_stencil(...)'".format(kernel_name,
+                                                  str(stencil_info)))
 
         # Get the name
         name = stencil_info.name.lower()
@@ -1213,16 +1223,16 @@ class GOStencil(object):
             # arguments'
             self._has_stencil = True
             args = stencil_info.args
-            if name != "stencil":
+            if name != "go_stencil":
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument is '{1}' but must be "
-                    "'stencil(...)".format(kernel_name, name))
+                    "'go_stencil(...)".format(kernel_name, name))
             if len(args) != 3:
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument with format "
-                    "'stencil(...)', has {1} arguments but should have "
+                    "'go_stencil(...)', has {1} arguments but should have "
                     "3".format(kernel_name, len(args)))
             # Each of the 3 args should be of length 3 and each
             # character should be a digit from 0-9. Whilst we are
@@ -1235,14 +1245,14 @@ class GOStencil(object):
                     raise ParseError(
                         "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "
-                        "'stencil(...)'. Argument index {1} should be a "
+                        "'go_stencil(...)'. Argument index {1} should be a "
                         "number but found "
                         "'{2}'.".format(kernel_name, arg_idx, str(arg)))
                 if len(arg) != 3:
                     raise ParseError(
                         "Meta-data error in kernel '{0}': 3rd descriptor "
                         "(stencil) of field argument with format "
-                        "'stencil(...)'. Argument index {1} should "
+                        "'go_stencil(...)'. Argument index {1} should "
                         "consist of 3 digits but found "
                         "{2}.".format(kernel_name, arg_idx, len(arg)))
             # The central value is constrained to be 0 or 1
@@ -1250,7 +1260,7 @@ class GOStencil(object):
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument with format "
-                    "'stencil(...)'. Argument index 1 position 1 "
+                    "'go_stencil(...)'. Argument index 1 position 1 "
                     "should be a number from 0-1 "
                     "but found {1}.".format(kernel_name, args[1][1]))
             # It is not valid to specify a zero stencil. This is
@@ -1261,9 +1271,9 @@ class GOStencil(object):
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument with format "
-                    "'stencil(...)'. A zero sized stencil has been "
+                    "'go_stencil(...)'. A zero sized stencil has been "
                     "specified. This should be specified with the "
-                    "'pointwise' keyword.".format(kernel_name))
+                    "'go_pointwise' keyword.".format(kernel_name))
             # store the values in an internal array as integers in i,j
             # order
             for idx0 in range(3):
@@ -1276,8 +1286,8 @@ class GOStencil(object):
                 raise ParseError(
                     "Meta-data error in kernel '{0}': 3rd descriptor "
                     "(stencil) of field argument is '{1}' but must be one "
-                    "of {2} or stencil(...)".format(kernel_name, name,
-                                                    VALID_STENCIL_NAMES))
+                    "of {2} or go_stencil(...)".format(kernel_name, name,
+                                                       VALID_STENCIL_NAMES))
             self._name = name
             # We currently only support one valid name ('pointwise')
             # which indicates that there is no stencil
@@ -1497,9 +1507,9 @@ class GOKernelType1p0(KernelType):
         self._arg_descriptors = []
         have_grid_prop = False
         for init in self._inits:
-            if init.name != 'arg':
+            if init.name != 'go_arg':
                 raise ParseError("Each meta_arg value must be of type " +
-                                 "'arg' for the gocean1.0 api, but " +
+                                 "'go_arg' for the gocean1.0 api, but " +
                                  "found '{0}'".format(init.name))
             # Pass in the name of this kernel for the purposes
             # of error reporting

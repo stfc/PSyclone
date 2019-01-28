@@ -366,15 +366,19 @@ def test_get_int_array_err1(monkeypatch):
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     # Next we create a valid fparser2 result
-    assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
-    # Break it by replacing the Name object with a string (tuples are
-    # immutable so make a new one)
-    new_list = ["invalid"] + list(assign.items[1:])
-    assign.items = tuple(new_list)
-    # Use monkeypatch to ensure that that's the result that is returned
-    # when we attempt to use fparser2 from within the routine under test
-    monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
-                        lambda arg: assign)
+    my_assign = Fortran2003.Assignment_Stmt("my_array(2) = [1, 2]")
+    # Break its `items` property by replacing the Name object with a string
+    # (tuples are immutable so make a new one)
+    broken_items = tuple(["invalid"] + list(my_assign.items[1:]))
+
+    # Use monkeypatch to ensure that that the Assignment_Stmt that
+    # is returned when we attempt to use fparser2 from within the
+    # routine under test now has the broken tuple of items.
+
+    def my_init(self, _):
+        self.items = broken_items
+    monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
+
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
     assert "Unsupported assignment statement: 'invalid = [1, 2]'" in str(err)
@@ -407,10 +411,14 @@ def test_get_int_array_err2(monkeypatch):
     # Break the array constructor expression (tuples are immutable so make a
     # new one)
     assign.items[2].items[1].items = tuple(["hello", "goodbye"])
+
     # Use monkeypatch to ensure that that's the result that is returned
     # when we attempt to use fparser2 from within the routine under test
-    monkeypatch.setattr("fparser.two.Fortran2003.Assignment_Stmt",
-                        lambda arg: assign)
+
+    def my_init(self, _):
+        self.items = assign.items
+    monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
+
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
     assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)

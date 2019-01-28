@@ -7,22 +7,26 @@
 ! Author A. Porter STFC Daresbury Lab
 ! Funded by the NERC GOcean project
 module kernel_any_offset_cu_mod
+  use argument_mod
+  use field_mod
+  use grid_mod
+  use kernel_mod
+  use kind_params_mod
   implicit none
 
   private
 
   public compute_u, compute_u_code
-  public apply_bcs_u, apply_bcs_u_code
 
   type, extends(kernel_type) :: compute_u
-     type(arg), dimension(3) :: meta_args =    &
-          (/ arg(WRITE, CU, POINTWISE),        &
-             arg(READ,  CV, POINTWISE),        &
-             arg(READ,  CT, POINTWISE)         &
+     type(go_arg), dimension(3) :: meta_args =    &
+          (/ go_arg(GO_WRITE, GO_CU, GO_POINTWISE),        &
+             go_arg(GO_READ,  GO_CV, GO_POINTWISE),        &
+             go_arg(GO_READ,  GO_CT, GO_POINTWISE)         &
            /)
      !> This kernel writes only to internal points of the
      !! simulation domain.
-     integer :: ITERATES_OVER = INTERNAL_PTS
+     integer :: ITERATES_OVER = GO_INTERNAL_PTS
 
      !> Although the staggering of variables used in an Arakawa
      !! C grid is well defined, the way in which they are indexed is
@@ -31,7 +35,7 @@ module kernel_any_offset_cu_mod
      !! point. This kernel assumes that the U,V and F points that
      !! share the same index as a given T point are those immediately
      !! to the South and West of it.
-     integer :: index_offset = OFFSET_ANY
+     integer :: index_offset = GO_OFFSET_ANY
 
   contains
     procedure, nopass :: code => compute_u_code
@@ -44,8 +48,8 @@ contains
   SUBROUTINE compute_u_code(i, j, u, v, h)
     IMPLICIT none
     integer,  intent(in) :: I, J
-    REAL(wp), INTENT(inout), DIMENSION(:,:) :: u
-    REAL(wp), INTENT(in),    DIMENSION(:,:) :: h, v
+    REAL(go_wp), INTENT(inout), DIMENSION(:,:) :: u
+    REAL(go_wp), INTENT(in),    DIMENSION(:,:) :: h, v
 
     u(I,J) = h(I,J)+.25d0*(U(I+1,J)*U(I+1,J)+U(I,J)*U(I,J) + & 
                            V(I,J+1)*V(I,J+1)+V(I,J)*V(I,J))

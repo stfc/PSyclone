@@ -43,10 +43,10 @@ This section describes the Dynamo0.3 application programming interface
 (API). This API explains what a user needs to write in order to make
 use of the Dynamo0.3 API in PSyclone.
 
-As with all PSyclone API's the Dynamo0.3 API specifies how a user
-needs to write the algorithm layer and the kernel layer to allow
-PSyclone to generate the PSy layer. These algorithm and kernel API's
-are discussed separately in the following sections.
+As with the majority of PSyclone API's, the Dynamo0.3 API specifies
+how a user needs to write the algorithm layer and the kernel layer to
+allow PSyclone to generate the PSy layer. These algorithm and kernel
+API's are discussed separately in the following sections.
 
 The Dynamo0.3 API supports the Met Office's finite element (hereafter FEM)
 based GungHo dynamical core (see :ref:`introduction`). The Met Office
@@ -1176,33 +1176,29 @@ rules, along with PSyclone's naming conventions, are:
 
     3) For each operation on the function space (``basis``, ``diff_basis``, ``orientation``) in the order specified in the metadata
 
-        1) If it is a basis or differential basis function, include the associated argument. This is a real array of kind ``r_def`` with intent ``in``. The rank and extents of this array depend upon the ``gh_shape``:
+        1) if it is a basis or differential basis function then we must pass real
+	   arrays of kind ``r_def`` with intent ``in``:
 
-	    1) If ``gh_shape`` is ``gh_evaluator`` then basis and diff basis are ``real`` arrays of rank 3 with extent (``dimension``, ``number_of_dofs``, ``np_xyz``)
+	   1) if ``gh_shape`` is ``gh_quadrature_xyoz`` then the arrays are of
+	      rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xy``, ``np_z``). The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
 
-            2) If ``gh_shape`` is ``gh_quadrature_xyoz`` then basis and diff basis are ``real`` arrays of rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xy``, ``np_z``)
-
-           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom (dofs) associated with the function space and ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in all directions (3D); ii) ``*_xy`` in the horizontal plane (2D); iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the vertical (1D). The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
+	   2) if ``gh_shape`` is ``gh_evaluator`` then we pass one array for each
+	      target function space (e.g\. as specified by ``gh_evaluator_targets``).
+	      Each of these arrays are of rank 3 with extent (``dimension``, ``number_of_dofs``,
+	      ``ndf_<target_function_space>``). The name of the argument is ``"basis_"<field_function_space>"_on_"<target_function_space>`` or ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``, as appropriate.
+	      
+           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom (dofs) associated with the function space and ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in all directions (3D); ii) ``*_xy`` in the horizontal plane (2D); iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the vertical (1D).
 
         2) If it is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
 
-5) If Quadrature or an Evaluator is required (this is the case if any of the function spaces require basis or differential basis functions)
+5) If Quadrature is required (``gh_shape = gh_quadrature_*``)
 
     1) include integer, scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
 
-       1) If ``gh_shape`` is ``gh_evaluator`` then pass ``np_xyz`` for
-	  each function space on which an evaluator is required, in
-	  the order in which they are encountered in the metadata;
-	  i.e. if ``gh_evaluator_targets`` has been specified then the
-	  ordering of function spaces in that list defines this
-	  ordering.  Otherwise, the order in which the updated
-	  (written-to) kernel arguments appear in the argument list is
-	  used.
-
-       2) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``np_xy``
+       1) if ``gh_shape`` is ``gh_quadrature_XYoZ`` then pass ``np_xy``
 	  and ``np_z``.
 
-    2) if Quadrature is required (``gh_shape`` is of type ``gh_quadrature_*``) then include weights which are real arrays of kind ``r_def``:
+    2) include weights which are real arrays of kind ``r_def``:
 
        1) If ``gh_quadrature_XYoZ`` pass in ``w_XZ(np_xy)`` and ``w_Z(np_z)``
 
@@ -1216,7 +1212,7 @@ evaluator then its metadata might be::
   
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w0, w0), &
+          (/ arg_type(gh_operator, gh_write, w0, w1), &
              arg_type(gh_field*3, gh_read, w0) /)
      type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
@@ -1232,7 +1228,7 @@ be::
 
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       basis_w0, np_xyz_w0)    
+       basis_w0_on_w0, ndf_w1)    
 
 where ``local_stencil`` is the operator, ``xdata``, ``ydata``
 etc\. are the three components of the field vector and ``map_w0`` is
@@ -1242,7 +1238,7 @@ If instead, ``gh_evaluator_targets`` is specified in the metadata::
 
   type, extends(kernel_type) :: testkern_operator_type
      type(arg_type), dimension(2) :: meta_args =      &
-          (/ arg_type(gh_operator, gh_write, w0, w0), &
+          (/ arg_type(gh_operator, gh_write, w0, w1), &
              arg_type(gh_field*3, gh_read, w0) /)
      type(func_type) :: meta_funcs(1) =               &
           (/ func_type(w0, gh_basis) /)
@@ -1258,8 +1254,7 @@ and at W1)::
   
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
-       basis_w0, basis_w1, np_xyz_w0, np_xyz_w1)    
-
+       basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
 
 Rules for CMA Kernels
 #####################
@@ -2084,13 +2079,14 @@ Transformations
 ---------------
 
 This section describes the dynamo-api-specific transformations. In all
-cases, excepting **Dynamo0p3RedundantComputationTrans**, these
-transformations are specialisations of generic transformations
-described in the :ref:`transformations` section. The difference
-between these transformations and the generic ones is that these
-perform dynamo-api-specific checks to make sure the transformations
-are valid. In practice these transformations perform the required
-checks then call the generic ones internally.
+cases, excepting **Dynamo0p3RedundantComputationTrans** and
+**Dynamo0p3AsyncHaloExchangeTrans**, these transformations are
+specialisations of generic transformations described in the
+:ref:`transformations` section. The difference between these
+transformations and the generic ones is that these perform
+dynamo-api-specific checks to make sure the transformations are
+valid. In practice these transformations perform the required checks
+then call the generic ones internally.
 
 The use of the dynamo-api-specific transformations is exactly the same
 as the equivalent generic ones in all cases excepting
@@ -2106,10 +2102,12 @@ the spaces are the same. This option should therefore be used with
 caution. Note, if PSyclone knows the spaces are different this option
 has no effect and the transformation will always raise an exception.
 
-The **Dynamo0p3RedundantComputationTrans** transformation is only valid
-for the "Dynamo0p3" API. This is because this API is currently the
-only one that supports distributed memory.
-An example of redundant computation can be found in ``examples/dynamo/eg8``.
+The **Dynamo0p3RedundantComputationTrans** and
+**Dynamo0p3AsyncHaloExchange** transformations are only valid for the
+"Dynamo0p3" API. This is because this API is currently the only one
+that supports distributed memory.  An example of redundant computation
+can be found in ``examples/dynamo/eg8`` and an example of asynchronous
+halo exchanges can be found in ``examples/dynamo/eg11``.
 
 The Dynamo-specific transformations currently available are given
 below. If the name of a transformation includes "Dynamo0p3" it means
@@ -2117,9 +2115,9 @@ that the transformation is only valid for this particular API. If the
 name of the transformation includes "Dynamo" then it should work with
 all versions of the Dynamo API.
 
-.. note:: Only the loop-colouring transformation is currently supported
-	  for loops that contain inter-grid kernels. Attempting to apply
-	  other transformation types will result in PSyclone raising
+.. note:: Only the loop-colouring and OpenMP transformations are currently
+	  supported for loops that contain inter-grid kernels. Attempting
+	  to apply other transformation types will result in PSyclone raising
 	  an error.
 
 .. autoclass:: psyclone.transformations.DynamoLoopFuseTrans
@@ -2130,11 +2128,15 @@ all versions of the Dynamo API.
     :members:
     :noindex:
 
-.. autoclass:: psyclone.transformations.Dynamo0p3OMPLoopTrans
+.. autoclass:: psyclone.transformations.Dynamo0p3AsyncHaloExchangeTrans
     :members:
     :noindex:
 
 .. autoclass:: psyclone.transformations.Dynamo0p3ColourTrans
+    :members:
+    :noindex:
+
+.. autoclass:: psyclone.transformations.Dynamo0p3OMPLoopTrans
     :members:
     :noindex:
 

@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -108,6 +108,11 @@ cd dynamo/eg10
 ${PSYCLONE} intergrid_3levels.x90
 cd -
 
+echo "Running example dynamo/eg11"
+cd dynamo/eg11
+${PSYCLONE} -s ./async_script.py helmholtz_solver_alg_mod.x90
+cd -
+
 echo "Running gocean/eg1"
 cd gocean/eg1
 python runme.py
@@ -121,7 +126,18 @@ echo "Running gocean/eg2"
 cd gocean/eg2
 # We don't do the full compile because that requires a Fortran compiler
 # and the dl_esm_inf library
-${PSYCLONE} -s ./acc_transform.py alg.f90
+${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
+cd -
+
+echo "Running example nemo/eg1"
+cd nemo/eg1
+${PSYCLONE} -api "nemo" tra_adv.F90
+./runme_openmp.py
+cd -
+echo "Running example nemo/eg2"
+cd nemo/eg2
+./runme_openmp.py
+${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
 cd -
 
 echo "Running transformation examples"

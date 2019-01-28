@@ -105,10 +105,10 @@ def test_accroutine():
     assert str(comments[0]) == "!$acc routine"
     # Check that directive is in correct place (end of declarations)
     gen = str(new_kern._fp2_ast)
-    assert ("REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
+    assert ("REAL(KIND = go_wp), DIMENSION(:, :), INTENT(IN) :: sshn, sshn_u, "
             "sshn_v, hu, hv, un, vn\n"
             "    !$acc routine\n"
-            "    ssha (ji, jj) = 0.0_wp\n" in gen)
+            "    ssha (ji, jj) = 0.0_go_wp\n" in gen)
 
 
 def test_accroutine_empty_kernel():
@@ -168,8 +168,8 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     dtypes = walk_ast(prog.content, [Fortran2003.Derived_Type_Def])
     names = walk_ast(dtypes[0].content, [Fortran2003.Type_Name])
     assert str(names[0]) == "continuity{0}_type".format(tag)
-    # TODO check compilation of code (needs Joerg's extension of compilation
-    # testing to GOcean)
+    # TODO #281 check compilation of code (needs Joerg's extension of
+    # compilation testing to GOcean)
 
 
 def test_new_kernel_dir(tmpdir, monkeypatch):
@@ -192,11 +192,11 @@ def test_new_kernel_dir(tmpdir, monkeypatch):
 
 def test_new_kern_no_clobber(tmpdir, monkeypatch):
     ''' Check that we create a new kernel with a new name when kernel-naming
-    is set to 'unique' and we would otherwise get a name clash. '''
+    is set to 'multiple' and we would otherwise get a name clash. '''
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
-    monkeypatch.setattr(config, "_kernel_naming", "unique")
+    monkeypatch.setattr(config, "_kernel_naming", "multiple")
     # Change to temp dir (so kernel written there)
     _ = tmpdir.chdir()
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
@@ -240,7 +240,7 @@ def test_new_kern_single_error(tmpdir, monkeypatch):
     # clash and the content of the existing file is not the same as that
     # which we would generate
     with pytest.raises(GenerationError) as err:
-        new_kern.update()
+        new_kern.rename_and_write()
     assert ("transformed version of this Kernel 'testkern_0_mod.f90' already "
             "exists in the kernel-output directory ({0}) but is not the same "
             "as the current, transformed kernel and the kernel-renaming "
@@ -268,8 +268,8 @@ def test_new_same_kern_single(tmpdir, monkeypatch):
         new_kernels.append(new_kern)
 
     # Generate the code - we should end up with just one transformed kernel
-    new_kernels[0].update()
-    new_kernels[1].update()
+    new_kernels[0].rename_and_write()
+    new_kernels[1].rename_and_write()
     assert new_kernels[1]._name == "testkern_0_code"
     assert new_kernels[1].module_name == "testkern_0_mod"
     out_files = os.listdir(str(tmpdir))
@@ -351,3 +351,52 @@ def test_builtin_no_trans():
         _ = rtrans.apply(kernels[0])
     assert ("ACCRoutineTrans to a built-in kernel is not yet supported and "
             "kernel 'x_plus_y' is of type " in str(err))
+
+
+def test_no_inline_before_trans(monkeypatch):
+    ''' Check that we reject attempts to transform kernels that have been
+    marked for module in-lining. Issue #229. '''
+    from psyclone.transformations import KernelModuleInlineTrans
+    psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
+                             idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    assert len(kernels) == 5
+    inline_trans = KernelModuleInlineTrans()
+    rtrans = ACCRoutineTrans()
+    _, _ = inline_trans.apply(kernels[1])
+    with pytest.raises(TransformationError) as err:
+        _, _ = rtrans.apply(kernels[1])
+    assert "because it will be module-inlined" in str(err)
+    # Monkeypatch the validate() routine so we can check that we catch
+    # the error at code-generation time
+    monkeypatch.setattr(rtrans, "validate", lambda kern: None)
+    _, _ = rtrans.apply(kernels[1])
+    with pytest.raises(NotImplementedError) as err:
+        _ = str(psy.gen).lower()
+    assert "Cannot module-inline a transformed kernel " in str(err)
+
+
+def test_no_inline_after_trans(monkeypatch):
+    ''' Check that we reject attempts to inline a previously transformed
+    kernel. Issue #229. '''
+    from psyclone.transformations import KernelModuleInlineTrans
+    _, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
+                           idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(sched.children, Kern)
+    assert len(kernels) == 5
+    # Transform the kernel first
+    inline_trans = KernelModuleInlineTrans()
+    rtrans = ACCRoutineTrans()
+    _, _ = rtrans.apply(kernels[1])
+    # Then attempt to inline it
+    with pytest.raises(TransformationError) as err:
+        _, _ = inline_trans.apply(kernels[1])
+    assert "because it has previously been transformed" in str(err)
+    # Monkeypatch the validate() routine so we can check that we catch
+    # the error at the psyGen level too.
+    monkeypatch.setattr(inline_trans, "validate", lambda node, inline: None)
+    with pytest.raises(NotImplementedError) as err:
+        _, _ = inline_trans.apply(kernels[1])
+    assert "Cannot module-inline a transformed kernel " in str(err)

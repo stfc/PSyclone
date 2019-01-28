@@ -45,11 +45,10 @@ env:
     - WITH_TERMCOLOR=1
 # command to install dependencies
 before_install:
-  # Specify "fparser" (without quotes) as an argument to install_optional.sh
-  # in order to run the tests with the version of fparser pointed to by
-  # the git submodule.
-  - ./bin/install_optional.sh fparser_submodule
-  - pip install coveralls
+  # Specify "fparser_submodule" (without quotes) as an argument to
+  # install_optional.sh in order to run the tests with the version of
+  # fparser pointed to by the git submodule.
+  - ./bin/install_optional.sh
   - pip install codecov
 install:
   - "pip install ."
@@ -58,8 +57,11 @@ script:
   # suite (pulled in with the fparser submodule)
   - coverage run --source=psyclone -m py.test src/psyclone/tests
   - coverage report -m
+  # Invoke the directory change and check_examples script as a single command
+  # so that Travis is returned the error code from the script. Since there is
+  # a lot of output to stdout this is redirected to /dev/null.
+  - ( cd examples && ./check_examples > /dev/null )
 after_success:
-  - coveralls
   - codecov
 # Configure travis to deploy to the pypi server when a new
 # version is tagged on master
