@@ -345,35 +345,78 @@ class TensorProductElement(Element):
 
 
 class KernelProcedure(object):
-    """An elemental kernel procedure"""
+    """
+    An elemental kernel procedure.
+
+    :param ktype_ast: the fparser1 parse tree for the kernel meta-data.
+    :type ktype_ast: :py:class:`fparser.one.block_statements.Type`
+    :param str ktype_name: name of the Fortran type holding the kernel \
+                           meta-data.
+    :param modast: the fparser1 parse tree for the module containing the \
+                   kernel routine.
+    :type modast: :py:class:`fparser.one.block_statements.BeginSource`
+
+    """
     def __init__(self, ktype_ast, ktype_name, modast):
-        a, n = KernelProcedure.get_procedure(ktype_ast, ktype_name, modast)
-        self._ast = a
-        self._name = n
+        self._ast, self._name = KernelProcedure.get_procedure(
+            ktype_ast, ktype_name, modast)
 
     @staticmethod
     def get_procedure(ast, name, modast):
+        '''
+        Get the name of the subroutine associated with the Kernel. This is
+        a type-bound procedure in the meta-data which may take one of two
+        forms:
+                PROCEDURE, nopass :: code => <proc_name>
+        or
+                PROCEDURE, nopass :: <proc_name>
+
+        :param ast: the fparser1 parse tree for the kernel meta-data.
+        :type ast: :py:class:`fparser.one.block_statements.Type`
+        :param str name: the name of the Fortran type holding the kernel \
+                         meta-data.
+        :param modast: the fparser1 parse tree for the module containing the \
+                       kernel routine.
+        :type modast: :py:class:`fparser.one.block_statements.BeginSource`
+
+        :returns: 2-tuple of the fparser1 parse tree of the Subroutine \
+                  statement and the name of that subroutine.
+        :rtype: (:py:class:`fparser1.block_statements.Subroutine`, str)
+
+        :raises RuntimeError: if the supplied kernel meta-data does not \
+                              have a type-bound procedure.
+        :raises RuntimeError: if no implementation is found for the \
+                              type-bound procedure.
+        :raises ParseError: if the type-bound procedure specifies a binding \
+                            name but the generic name is not 'code'.
+        :raises ParseError: if the type-bound procedure is not public in the \
+                            Fortran module.
+        :raises InternalError: if we get an empty string for the name of the \
+                               type-bound procedure.
+        '''
         bname = None
+        # Search the the meta-data for a SpecificBinding
         for statement in ast.content:
             if isinstance(statement, fparser1.statements.SpecificBinding):
-                if statement.name == "code" and statement.bname != "":
-                    # prototype gungho style
+                # We support either:
+                # PROCEDURE, nopass :: code => <proc_name> or
+                # PROCEDURE, nopass :: <proc_name>
+                if statement.bname:
+                    if statement.name.lower() != "code":
+                        raise ParseError(
+                            "Kernel type {0} binds to a specific procedure but"
+                            " does not use 'code' as the generic name.".
+                            format(name))
                     bname = statement.bname
-                elif statement.name.lower() != "code" \
-                        and statement.bname != "":
-                    raise ParseError(
-                        "Kernel type %s binds to a specific procedure but "
-                        "does not use 'code' as the generic name." % name)
                 else:
-                    # psyclone style
                     bname = statement.name
         if bname is None:
             raise RuntimeError(
-                "Kernel type %s does not bind a specific procedure" % name)
+                "Kernel type {0} does not bind a specific procedure".
+                format(name))
         if bname == '':
-            raise ParseError(
-                "Internal error: empty kernel name returned for Kernel type "
-                "%s." % name)
+            raise InternalError(
+                "Empty kernel name returned for Kernel type {0}.".format(name))
         code = None
         default_public = True
         declared_private = False

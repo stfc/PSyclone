@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.parse import parse, ParseError
+from psyclone.parse import parse, ParseError, KernelType
 from psyclone.psyGen import InternalError
 
 
@@ -323,7 +323,6 @@ end module testkern_eval_mod
 
 def test_get_int():
     ''' Tests for the KernelType.get_integer(). method '''
-    from psyclone.parse import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     iter_val = ktype.get_integer_variable("iterates_over")
@@ -333,7 +332,6 @@ def test_get_int():
 def test_get_int_err():
     ''' Tests that we raise the expected error if the meta-data contains
     an integer literal instead of a name. '''
-    from psyclone.parse import KernelType
     mdata = MDATA.replace("= cells", "= 1")
     ast = fpapi.parse(mdata, ignore_comments=False)
     with pytest.raises(ParseError) as err:
@@ -344,7 +342,6 @@ def test_get_int_err():
 
 def test_get_int_array():
     ''' Tests for the KernelType.get_integer_array() method. '''
-    from psyclone.parse import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     targets = ktype.get_integer_array("gh_evaluator_targets")
@@ -359,7 +356,6 @@ def test_get_int_array():
 def test_get_int_array_err1(monkeypatch):
     ''' Tests that we raise the correct error if there is something wrong
     with the assignment statement obtained from fparser2. '''
-    from psyclone.parse import KernelType
     from fparser.two import Fortran2003
     # This is difficult as we have to break the result returned by fparser2.
     # We therefore create a valid KernelType object
@@ -387,7 +383,6 @@ def test_get_int_array_err1(monkeypatch):
 def test_get_int_array_not_array():
     ''' Test that get_integer_array returns the expected error if the
     requested variable is not an array. '''
-    from psyclone.parse import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     # Erroneously call get_integer_array with the name of a scalar meta-data
@@ -401,7 +396,6 @@ def test_get_int_array_not_array():
 def test_get_int_array_err2(monkeypatch):
     ''' Check that we raise the appropriate error if we fail to parse the
     array constructor expression. '''
-    from psyclone.parse import KernelType
     from fparser.two import Fortran2003
     # First create a valid KernelType object
     ast = fpapi.parse(MDATA, ignore_comments=False)
