@@ -51,12 +51,51 @@ class Alg(object):
 
     '''
 
-    def __init__(self, ast, psy):
+    def __init__(self, ast, psy, invoke_name="invoke"):
         self._ast = ast
         self._psy = psy
+        self._invoke_name = invoke_name
 
     @property
     def gen(self):
+        '''
+        Generate modified algorithm code
+
+        :rtype: ast
+
+        '''
+        # run through all statements looking for procedure calls
+        idx = 0
+        from fparser.two.utils import walk_ast
+        from fparser.two.Fortran2003 import Call_Stmt, Section_Subscript_List
+
+        for statement in walk_ast(self._ast.content):
+
+            if isinstance(statement, Call_Stmt):
+                # found a Fortran call statement
+                call_name = str(statement.items[0])
+                if call_name.lower() == self._invoke_name.lower():
+                    # The call statement is an invoke
+                    invoke_info = self._psy.invokes.invoke_list[idx]
+                    new_name = invoke_info.name
+                    new_args = Section_Subscript_List(
+                        ", ".join(invoke_info.alg_unique_args))
+                    statement.items = (new_name, new_args)
+                    # add use statement here
+                    #adduse(psy_name, stmt.parent, only=True,
+                    #       funcnames=[invoke_info.name])
+                    idx += 1
+
+        if idx == 0:
+            raise NoInvokesError(
+                "Algorithm file contains no invoke() calls: refusing to "
+                "generate empty PSy code")
+
+        return self._ast
+
+
+    @property
+    def gen_orig(self):
         '''
         Generate modified algorithm code
 
