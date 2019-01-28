@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -462,9 +462,9 @@ class KernelProcedure(object):
 class KernelTypeFactory(object):
     '''
     Factory for objects in the PSyIR representing calls to user-supplied
-     Kernels.
+    Kernels.
 
-    :param str api: The API to which this kernel conforms.
+    :param str api: The API for which this factory is to create kernels.
     '''
     def __init__(self, api=""):
         if api == "":

@@ -142,7 +142,7 @@ class PSyclone(tk.Frame):
         # the parser requires us to be in the same directory. This should be fixed.
         path,filename=os.path.split(absfilename)
         os.chdir(path)
-        ast,invokeInfo = parse(filename, api="dynamo0.3")
+        ast, invokeInfo = parse(filename, api="dynamo0.3")
         self.algtext.delete(1.0, END) 
         self.psy = PSyFactory("dynamo0.3").create(invokeInfo)
         # *************************************
