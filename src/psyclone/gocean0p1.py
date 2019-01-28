@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 ''' This module implements the emerging PSyclone GOcean API by specialising
     the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
@@ -43,10 +44,16 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
 
 
 class GOPSy(PSy):
-    ''' The GOcean specific PSy class. This creates a GOcean specific
-        invokes object (which controls all the required invocation calls).
-        Also overrides the PSy gen method so that we generate GOceaen
-        specific PSy module code. '''
+    '''
+    The GOcean specific PSy class. This creates a GOcean specific
+    invokes object (which controls all the required invocation calls).
+    Also overrides the PSy gen method so that we generate GOceaen
+    specific PSy module code.
+
+    :param invoke_info: An object containing the required invocation \
+                        information for code optimisation and generation.
+    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = GOInvokes(invoke_info.calls)

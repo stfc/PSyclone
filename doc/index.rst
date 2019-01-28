@@ -20,6 +20,7 @@
    nemo
    stub_gen
    line_length
+   fortran_naming_conventions
    api
    profiling
    system_specific_setup

@@ -1536,9 +1536,9 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER, pointer :: orientation_w2(:) => null()\n"
         "      INTEGER cell\n"
-        "      REAL(KIND=r_def), allocatable :: basis_w3_qr(:,:,:,:), "
-        "diff_basis_w0_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
-        "      INTEGER dim_w3, diff_dim_w0, diff_dim_w2\n"
+        "      REAL(KIND=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:), "
+        "basis_w3_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
+        "      INTEGER diff_dim_w0, dim_w3, diff_dim_w2\n"
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
         "      INTEGER np_xy_qr, np_z_qr\n"
@@ -1592,29 +1592,23 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
         "      weights_xy_qr => qr_proxy%weights_xy\n"
         "      weights_z_qr => qr_proxy%weights_z\n"
         "      !\n"
-        "      ! Allocate basis arrays\n"
-        "      !\n"
-        "      dim_w3 = mapping_proxy%fs_to%get_dim_space()\n"
-        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xy_qr, np_z_qr))\n"
-        "      !\n"
-        "      ! Allocate differential basis arrays\n"
+        "      ! Allocate basis/diff-basis arrays\n"
         "      !\n"
         "      diff_dim_w0 = chi_proxy(1)%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w0_qr(diff_dim_w0, ndf_w0, np_xy_qr, "
         "np_z_qr))\n"
+        "      dim_w3 = mapping_proxy%fs_to%get_dim_space()\n"
+        "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xy_qr, np_z_qr))\n"
         "      diff_dim_w2 = mapping_proxy%fs_from%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, np_xy_qr, "
         "np_z_qr))\n"
         "      !\n"
-        "      ! Compute basis arrays\n"
-        "      !\n"
-        "      CALL qr%compute_function(BASIS, mapping_proxy%fs_to, "
-        "dim_w3, ndf_w3, basis_w3_qr)\n"
-        "      !\n"
-        "      ! Compute differential basis arrays\n"
+        "      ! Compute basis/diff-basis arrays\n"
         "      !\n"
         "      CALL qr%compute_function(DIFF_BASIS, chi_proxy(1)%vspace, "
         "diff_dim_w0, ndf_w0, diff_basis_w0_qr)\n"
+        "      CALL qr%compute_function(BASIS, mapping_proxy%fs_to, "
+        "dim_w3, ndf_w3, basis_w3_qr)\n"
         "      CALL qr%compute_function(DIFF_BASIS, mapping_proxy%fs_from, "
         "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
         "      !\n"
@@ -2572,8 +2566,9 @@ def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
             "map_any_space_2_f2(:,:) => null(), map_w0(:,:) => null()" in gen)
     assert (
         "REAL(KIND=r_def), allocatable :: basis_any_space_1_f1_qr(:,:,:,:), "
-        "basis_any_space_2_f2_qr(:,:,:,:), basis_any_space_1_f2_qr(:,:,:,:), "
-        "basis_any_space_2_f1_qr(:,:,:,:), diff_basis_w0_qr(:,:,:,:)"in gen)
+        "basis_any_space_2_f2_qr(:,:,:,:), diff_basis_w0_qr(:,:,:,:), "
+        "basis_any_space_1_f2_qr(:,:,:,:), basis_any_space_2_f1_qr(:,:,:,:)"
+        in gen)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert "ndf_any_space_2_f2 = f2_proxy%vspace%get_ndf()" in gen
     assert "ndf_w0 = f3_proxy(1)%vspace%get_ndf()" in gen
@@ -3858,8 +3853,9 @@ def test_no_arg_on_space(monkeypatch):
     first_kernel = first_invoke.schedule.kern_calls()[0]
     kernel_args = first_kernel.arguments
     # Test getting the argument by the meta-data name for the function space
-    arg = kernel_args.get_arg_on_space_name("w2")
+    arg, fspace = kernel_args.get_arg_on_space_name("w2")
     assert arg.name == "f2"
+    assert fspace.orig_name == "w2"
     with pytest.raises(FieldNotFoundError) as excinfo:
         _ = kernel_args.get_arg_on_space_name("not_a_space")
     assert ("there is no field or operator with function space not_a_space" in
@@ -6709,7 +6705,7 @@ def test_anyw2_operators():
             "      ALLOCATE (basis_any_w2_qr(dim_any_w2, ndf_any_w2, "
             "np_xy_qr, np_z_qr))\n"
             "      !\n"
-            "      ! Compute basis arrays\n"
+            "      ! Compute basis/diff-basis arrays\n"
             "      !\n"
             "      CALL qr%compute_function(BASIS, mm_w2_proxy%fs_from, "
             "dim_any_w2, ndf_any_w2, basis_any_w2_qr)")
