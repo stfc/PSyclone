@@ -1,10 +1,37 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ''' Tests for the algorithm generation (re-writing) as implemented
     in algGen.py '''
@@ -179,25 +206,24 @@ def test_invoke_argnames():
             "iflag(index2(index3)), qr)" in gen)
 
 
-@pytest.mark.xfail(reason="multi qr values not yet supported in psy layer")
 def test_multiple_qr_per_invoke():
     ''' invoke functions require different quadrature rules '''
     alg, _ = generate(os.path.join(
         BASE_PATH, "6_multiple_QR_per_invoke.f90"), api="dynamo0.3")
     gen = str(alg)
     assert "USE multi_qr_per_invoke_psy, ONLY: invoke_0" in gen
-    assert "CALL invoke_0(f1, f2, f3, f4, f0, qr0, qr1)" in gen
+    assert ("CALL invoke_0(f1, f2, f3, ascalar, f4, iscalar, f0, qr0, qr1)"
+            in gen)
 
 
-@pytest.mark.xfail(reason="multi qr values not yet supported in psy layer")
 def test_qr_argnames():
     ''' qr call arguments which are arrays '''
     alg, _ = generate(os.path.join(BASE_PATH, "7_QR_field_array.f90"),
                       api="dynamo0.3")
     gen = str(alg)
     assert "USE qr_field_array_psy, ONLY: invoke_0" in gen
-    assert ("CALL invoke_0(f1, f2, f3, f4, f0, qr0(i, j), qr0(i, j + 1), "
-            "qr1(i, k(l)))" in gen)
+    assert ("CALL invoke_0(f1, f2, f3, ascal, f4, l, f0, qr0(i, j), "
+            "qr0(i, j + 1), qr1(i, k(l)))" in gen)
 
 
 def test_deref_derived_type_args():
@@ -382,7 +408,6 @@ class TestAlgGenClassDynamo0p1(object):
     generate function as parse and PSyFactory need to be called before
     AlgGen so it is simpler to use this'''
 
-    @pytest.mark.xfail(reason="unknown")
     def test_single_invoke_dynamo0p1(self):
         ''' test for correct code transformation for a single function
         specified in an invoke call for the dynamo0.1 api '''
@@ -391,7 +416,7 @@ class TestAlgGenClassDynamo0p1(object):
                          "test_files", "dynamo0p1", "algorithm",
                          "1_single_function.f90"), api="dynamo0.1")
         gen = str(alg)
-        assert "USE single_function_psy, ONLY: invoke_testkern_type" in gen
+        assert "USE psy_single_function, ONLY: invoke_0_testkern_type" in gen
         assert "CALL invoke_0_testkern_type(f1, f2, m1)" in gen
 
     def test_zero_invoke_dynamo0p1(self):
