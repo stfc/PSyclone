@@ -4081,21 +4081,29 @@ class Fparser2ASTProcessor(object):
             # Parse number of dimensions if it is an array
             shape = []
 
-            for attr in walk_ast(decl.items, [Fortran2003.Assumed_Shape_Spec]):
-                shape.append(None)
             for attr in walk_ast(decl.items,
-                                 [Fortran2003.Explicit_Shape_Spec]):
-                if isinstance(attr.items[1], Fortran2003.Int_Literal_Constant):
-                    try:
-                        shape.append(int(attr.items[1].items[0]))
-                    except ValueError:
-                        raise InternalError("Only integer literals are"
-                                            "supported for explicit shape"
+                                 [Fortran2003.Assumed_Shape_Spec,
+                                  Fortran2003.Explicit_Shape_Spec,
+                                  Fortran2003.Assumed_Size_Spec,
+                                  ]):
+                if isinstance(attr, Fortran2003.Assumed_Size_Spec):
+                    raise InternalError("Assumed size arrays are not "
+                                        "supported.")
+                elif isinstance(attr, Fortran2003.Assumed_Shape_Spec):
+                    shape.append(None)
+                elif isinstance(attr, Fortran2003.Explicit_Shape_Spec):
+                    if isinstance(attr.items[1],
+                                  Fortran2003.Int_Literal_Constant):
+                        try:
+                            shape.append(int(attr.items[1].items[0]))
+                        except ValueError:
+                            raise InternalError("Only integer literals are "
+                                                "supported for explicit shape "
+                                                "array declarations.")
+                    else:
+                        raise InternalError("Only integer literals are "
+                                            "supported for explicit shape "
                                             "array declarations.")
-                else:
-                    raise InternalError("Only integer literals are supported"
-                                        "for explicit shape array"
-                                        "declarations.")
 
             # Parse intent attributes
             decltype = 'local'  # If no intent attribute is provided, it is
