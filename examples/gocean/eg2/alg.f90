@@ -4,6 +4,7 @@ program alg
   use subdomain_mod
   use grid_mod
   use field_mod, only: r2d_field, GO_T_POINTS
+  use gocean_mod, only: gocean_initialise
   use inc_field_mod, only: inc_field
   implicit none
   !> Our domain decomposition
@@ -21,6 +22,8 @@ program alg
   ! Dimensions of our domain
   jpiglo = 50
   jpjglo = 50
+
+  call gocean_initialise()
 
   ! Create our grid
   grid1 = grid_type(GO_ARAKAWA_C,                                   &
