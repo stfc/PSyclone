@@ -410,6 +410,7 @@ class KernelProcedure(object):
                     bname = statement.bname
                 else:
                     bname = statement.name
+                break
         if bname is None:
             raise RuntimeError(
                 "Kernel type {0} does not bind a specific procedure".

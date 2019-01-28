@@ -416,3 +416,44 @@ def test_get_int_array_err2(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
     assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)
+
+
+def test_kernel_binding_not_code():
+    ''' Check that we raise the expected error when kernel meta-data uses
+    a specific binding but does not have 'code' as the generic name. '''
+    mdata = MDATA.replace("code => test", "my_code => test")
+    ast = fpapi.parse(mdata)
+    with pytest.raises(ParseError) as err:
+        _ = KernelType(ast)
+    assert ("binds to a specific procedure but does not use 'code' as the "
+            "generic name" in str(err))
+
+
+def test_kernel_binding_missing():
+    ''' Check that we raise the correct error when the kernel meta-data is
+    missing the type-bound procedure giving the name of the subroutine. '''
+    mdata = MDATA.replace(
+        "contains\n    procedure, nopass :: code => testkern_eval_code\n", "")
+    ast = fpapi.parse(mdata)
+    with pytest.raises(RuntimeError) as err:
+        _ = KernelType(ast)
+    assert ("Kernel type testkern_eval_type does not bind a specific "
+            "procedure" in str(err))
+
+
+def test_empty_kernel_name(monkeypatch):
+    ''' Check that we raise the correct error when we get a blank string for
+    the name of the kernel subroutine. '''
+    import fparser
+    mdata = MDATA.replace("procedure, nopass :: code => testkern_eval_code",
+                          "procedure, nopass :: testkern_eval_code")
+    ast = fpapi.parse(mdata)
+    # Break the AST
+    for statement, depth in fpapi.walk(ast, -1):
+        if isinstance(statement, fparser.one.statements.SpecificBinding):
+            monkeypatch.setattr(statement, "name", "")
+            break
+    with pytest.raises(InternalError) as err:
+        _ = KernelType(ast)
+    assert ("Empty kernel name returned for Kernel type testkern_eval_type"
+            in str(err))
