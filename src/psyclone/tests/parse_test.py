@@ -56,18 +56,6 @@ def test_default_api():
     assert len(list(invoke_info.calls.keys())) == 1
 
 
-def test_dm_not_bool():
-    ''' Check that we raise the correct error if the distributed_memory
-    argument is not a bool '''
-    with pytest.raises(ParseError) as err:
-        _, __info = parse(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3", "1_single_invoke.f90"),
-            distributed_memory="a string")
-    assert ("The distributed_memory flag in parse() must be set to 'True' "
-            "or 'False'" in str(err))
-
-
 def test_continuators_kernel():
     '''Tests that an input kernel file with long lines that already has
        continuators to make the code conform to the line length limit
@@ -100,7 +88,7 @@ def test_get_builtin_defs_wrong_api():
 def test_kerneltypefactory_wrong_api():
     ''' Check that we raise an appropriate error if we try to create
     a KernelTypeFactory with an invalid API '''
-    from psyclone.parse import KernelTypeFactory
+    from psyclone.parse_orig import KernelTypeFactory
     with pytest.raises(ParseError) as excinfo:
         _ = KernelTypeFactory(api="invalid_api")
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
@@ -109,7 +97,7 @@ def test_kerneltypefactory_wrong_api():
 def test_kerneltypefactory_default_api():
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
-    from psyclone.parse import KernelTypeFactory
+    from psyclone.parse_orig import KernelTypeFactory
     from psyclone.configuration import Config
     _config = Config.get()
     factory = KernelTypeFactory(api="")
@@ -119,7 +107,7 @@ def test_kerneltypefactory_default_api():
 def test_kerntypefactory_create_broken_type():
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
-    from psyclone.parse import KernelTypeFactory
+    from psyclone.parse_orig import KernelTypeFactory
     factory = KernelTypeFactory(api="")
     # Deliberately break the 'type' (API) of this factory
     factory._type = "invalid_api"
@@ -139,7 +127,7 @@ def test_broken_builtin_metadata():
     defs_file = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "test_files", "dynamo0p3", "broken_builtins_mod.f90")
-    from psyclone.parse import BuiltInKernelTypeFactory
+    from psyclone.parse_orig import BuiltInKernelTypeFactory
     factory = BuiltInKernelTypeFactory(api="dynamo0.3")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
@@ -152,7 +140,7 @@ def test_unrecognised_builtin():
     ''' Check that we raise an error if we call the BuiltInKernelTypeFactory
     with an unrecognised built-in name '''
     from psyclone import dynamo0p3_builtins
-    from psyclone.parse import BuiltInKernelTypeFactory
+    from psyclone.parse_orig import BuiltInKernelTypeFactory
     factory = BuiltInKernelTypeFactory()
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
@@ -179,7 +167,7 @@ def test_builtin_with_use():
 def test_element_unpack():
     ''' Check that the unpack method of the Element class behaves as
     expected when passed a string '''
-    from psyclone.parse import Element
+    from psyclone.parse_orig import Element
     ele = Element()
     output = ele.unpack("andy")
     assert str(output) == "andy"
@@ -207,10 +195,8 @@ def test_wrong_named_invoke():
                          "test_files", "dynamo0p3",
                          "1.0.3_wrong_named_arg_invoke.f90"),
             api="dynamo0.3")
-    print(str(err))
-    assert (
-        "The arguments to an invoke() must be either kernel calls or an "
-        "(optional) name=" in str(err))
+    assert ("Expecting named identifier to be 'name' but found "
+            "'not_a_name'" in str(err))
 
 
 def test_wrong_type_named_invoke():
@@ -251,8 +237,7 @@ def test_duplicate_named_invoke():
                          "test_files", "dynamo0p3",
                          "3.3_multi_functions_multi_invokes_name_clash.f90"),
             api="dynamo0.3")
-    print(str(err))
-    assert ("Found multiple named invoke()'s with the same name ('jack') "
+    assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err))
     assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
 
@@ -267,7 +252,7 @@ def test_duplicate_named_invoke_case():
                          "test_files", "dynamo0p3",
                          "3.4_multi_invoke_name_clash_case_insensitive.f90"),
             api="dynamo0.3")
-    assert ("Found multiple named invoke()'s with the same name ('jack') "
+    assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err))
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
 
@@ -275,7 +260,7 @@ def test_duplicate_named_invoke_case():
 def test_get_stencil():
     ''' Check that parse.get_stencil() raises the correct errors when
     passed various incorrect inputs. '''
-    from psyclone.parse import get_stencil
+    from psyclone.parse_orig import get_stencil
     from psyclone.expression import ExpressionNode, FunctionVar
     enode = ExpressionNode(["1"])
     with pytest.raises(ParseError) as excinfo:
@@ -323,7 +308,7 @@ end module testkern_eval_mod
 
 def test_get_int():
     ''' Tests for the KernelType.get_integer(). method '''
-    from psyclone.parse import KernelType
+    from psyclone.parse_orig import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     iter_val = ktype.get_integer_variable("iterates_over")
@@ -333,7 +318,7 @@ def test_get_int():
 def test_get_int_err():
     ''' Tests that we raise the expected error if the meta-data contains
     an integer literal instead of a name. '''
-    from psyclone.parse import KernelType
+    from psyclone.parse_orig import KernelType
     mdata = MDATA.replace("= cells", "= 1")
     ast = fpapi.parse(mdata, ignore_comments=False)
     with pytest.raises(ParseError) as err:
@@ -344,7 +329,7 @@ def test_get_int_err():
 
 def test_get_int_array():
     ''' Tests for the KernelType.get_integer_array() method. '''
-    from psyclone.parse import KernelType
+    from psyclone.parse_orig import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     targets = ktype.get_integer_array("gh_evaluator_targets")
@@ -359,7 +344,7 @@ def test_get_int_array():
 def test_get_int_array_err1(monkeypatch):
     ''' Tests that we raise the correct error if there is something wrong
     with the assignment statement obtained from fparser2. '''
-    from psyclone.parse import KernelType
+    from psyclone.parse_orig import KernelType
     from fparser.two import Fortran2003
     # This is difficult as we have to break the result returned by fparser2.
     # We therefore create a valid KernelType object
@@ -387,7 +372,7 @@ def test_get_int_array_err1(monkeypatch):
 def test_get_int_array_not_array():
     ''' Test that get_integer_array returns the expected error if the
     requested variable is not an array. '''
-    from psyclone.parse import KernelType
+    from psyclone.parse_orig import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     # Erroneously call get_integer_array with the name of a scalar meta-data
@@ -401,7 +386,7 @@ def test_get_int_array_not_array():
 def test_get_int_array_err2(monkeypatch):
     ''' Check that we raise the appropriate error if we fail to parse the
     array constructor expression. '''
-    from psyclone.parse import KernelType
+    from psyclone.parse_orig import KernelType
     from fparser.two import Fortran2003
     # First create a valid KernelType object
     ast = fpapi.parse(MDATA, ignore_comments=False)

@@ -7,7 +7,7 @@ program multiple_stencil
   use inf, only: field_type
   implicit none
   type(field_type) :: f1_w1,f1_w3,f2_w2,f3_w2,f4_w3
-  integer :: extent=2, f2_extent=1,
+  integer :: extent=2, f2_extent=1
 
   call invoke(                                                                    &
         testkern_stencil_type(f1_w1,f2_w2,f2_extent,f3_w2,f4_w3),                 &

@@ -64,6 +64,7 @@ def check_api(api):
     _config = Config.get()
 
     if api not in _config.supported_apis:
+        from psyclone.parse import ParseError
         raise ParseError(
             "check_api: Unsupported API '{0}' specified. "
             "Supported types are {1}.".format(api,
@@ -102,12 +103,14 @@ def get_mesh(metadata, valid_mesh_types):
     '''
     if not isinstance(metadata, expr.NamedArg) or \
        metadata.name.lower() != "mesh_arg":
+        from psyclone.parse import ParseError
         raise ParseError(
             "{0} is not a valid mesh identifier (expected "
             "mesh_arg=MESH_TYPE where MESH_TYPE is one of {1}))".
             format(str(metadata), valid_mesh_types))
     mesh = metadata.value.lower()
     if mesh not in valid_mesh_types:
+        from psyclone.parse import ParseError
         raise ParseError("mesh_arg must be one of {0} but got {1}".
                          format(valid_mesh_types, mesh))
     return mesh
@@ -131,36 +134,43 @@ def get_stencil(metadata, valid_types):
     '''
 
     if not isinstance(metadata, expr.FunctionVar):
+        from psyclone.parse import ParseError
         raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but found the "
             "literal {0}".format(metadata))
     if metadata.name.lower() != "stencil" or not metadata.args:
-        raise ParseError(
+            from psyclone.parse import ParseError
+            raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but found {0}".
             format(metadata))
     if len(metadata.args) > 2:
+        from psyclone.parse import ParseError
         raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but there must "
             "be at most two arguments inside the brackets {0}".
             format(metadata))
     if not isinstance(metadata.args[0], expr.FunctionVar):
         if isinstance(metadata.args[0], str):
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Expecting format stencil(<type>[,<extent>]). However, "
                 "the specified <type> '{0}' is a literal and therefore is "
                 "not one of the valid types '{1}'".
                 format(metadata.args[0], valid_types))
         else:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Internal error, expecting either FunctionVar or "
                 "str from the expression analyser but found {0}".
                 format(type(metadata.args[0])))
     if metadata.args[0].args:
+        from psyclone.parse import ParseError
         raise ParseError(
             "Expected format stencil(<type>[,<extent>]). However, the "
             "specified <type> '{0}' includes brackets")
     stencil_type = metadata.args[0].name
     if stencil_type not in valid_types:
+        from psyclone.parse import ParseError
         raise ParseError(
             "Expected format stencil(<type>[,<extent>]). However, the "
             "specified <type> '{0}' is not one of the valid types '{1}'".
@@ -169,28 +179,23 @@ def get_stencil(metadata, valid_types):
     stencil_extent = None
     if len(metadata.args) == 2:
         if not isinstance(metadata.args[1], str):
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Expected format stencil(<type>[,<extent>]). However, the "
                 "specified <extent> '{0}' is not an integer".
                 format(metadata.args[1]))
         stencil_extent = int(metadata.args[1])
         if stencil_extent < 1:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Expected format stencil(<type>[,<extent>]). However, the "
                 "specified <extent> '{0}' is less than 1".
                 format(str(stencil_extent)))
+        from psyclone.parse import ParseError
         raise ParseError(
             "Kernels with fixed stencil extents are not currently "
             "supported")
     return {"type": stencil_type, "extent": stencil_extent}
-
-
-class ParseError(Exception):
-    def __init__(self, value):
-        self.value = "Parse Error: " + value
-
-    def __str__(self):
-        return repr(self.value)
 
 
 class Descriptor(object):
@@ -375,6 +380,7 @@ class KernelProcedure(object):
                     bname = statement.bname
                 elif statement.name.lower() != "code" \
                         and statement.bname != "":
+                    from psyclone.parse import ParseError
                     raise ParseError(
                         "Kernel type %s binds to a specific procedure but "
                         "does not use 'code' as the generic name." % name)
@@ -385,6 +391,7 @@ class KernelProcedure(object):
             raise RuntimeError(
                 "Kernel type %s does not bind a specific procedure" % name)
         if bname == '':
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Internal error: empty kernel name returned for Kernel type "
                 "%s." % name)
@@ -411,6 +418,7 @@ class KernelProcedure(object):
         if code is None:
             raise RuntimeError("Kernel subroutine %s not implemented" % bname)
         if declared_private or (not default_public and not declared_public):
+            from psyclone.parse import ParseError
             raise ParseError("Kernel subroutine '%s' is not public" % bname)
         return code, bname
 
@@ -458,6 +466,7 @@ class KernelTypeFactory(object):
             from psyclone.gocean1p0 import GOKernelType1p0
             return GOKernelType1p0(ast, name=name)
         else:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "KernelTypeFactory: Internal Error: Unsupported "
                 "kernel type '{0}' found. Should not be possible.".
@@ -470,6 +479,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
     def create(self, builtin_names, builtin_defs_file, name=None):
         ''' Create a built-in call object '''
         if name not in builtin_names:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "BuiltInKernelTypeFactory: unrecognised built-in name. "
                 "Got '{0}' but expected one of {1}".format(name,
@@ -480,6 +490,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             os.path.dirname(os.path.abspath(__file__)),
             builtin_defs_file)
         if not os.path.isfile(fname):
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Kernel '{0}' is a recognised Built-in but cannot "
                 "find file '{1}' containing the meta-data describing "
@@ -492,6 +503,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             fparser.logging.disable(fparser.logging.CRITICAL)
             ast = fpapi.parse(fname)
         except:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Failed to parse the meta-data for PSyclone "
                 "built-ins in {0}".format(fname))
@@ -529,12 +541,14 @@ class KernelType(object):
                     found = True
                     break
             if not found:
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "Error KernelType, the file does not contain a module. "
                     "Is it a Kernel file?")
 
             mn_len = len(module_name)
             if mn_len < 5:
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "Error, module name '{0}' is too short to have '_mod' as "
                     "an extension. This convention is assumed.".
@@ -542,6 +556,7 @@ class KernelType(object):
             base_name = module_name.lower()[:mn_len-4]
             extension_name = module_name.lower()[mn_len-4:mn_len]
             if extension_name != "_mod":
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "Error, module name '{0}' does not have '_mod' as an "
                     "extension. This convention is assumed.".
@@ -560,30 +575,36 @@ class KernelType(object):
     def getkerneldescriptors(self, ast, var_name='meta_args'):
         descs = ast.get_variable(var_name)
         if descs is None:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "kernel call does not contain a {0} type".format(var_name))
         try:
             nargs = int(descs.shape[0])
         except AttributeError:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "kernel metadata {0}: {1} variable must be an array".
                 format(self._name, var_name))
         if len(descs.shape) is not 1:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "kernel metadata {0}: {1} variable must be a 1 dimensional "
                 "array".format(self._name, var_name))
         if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
             # there is a bug in f2py
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Parser does not currently support [...] initialisation for "
                 "{0}, please use (/.../) instead".format(var_name))
         try:
             inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
         except ParseException:
+            from psyclone.parse import ParseError
             raise ParseError("kernel metadata has an invalid format {0}".
                              format(descs.init))
         nargs = int(descs.shape[0])
         if len(inits) != nargs:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Error, in {0} specification, the number of args {1} and "
                 "number of dimensions {2} do not match".
@@ -632,6 +653,7 @@ class KernelType(object):
                and statement.name == name and statement.is_public():
                 declared_public = True
         if declared_private or (not default_public and not declared_public):
+            from psyclone.parse import ParseError
             raise ParseError("Kernel type '%s' is not public" % name)
 
     def getKernelMetadata(self, name, ast):
@@ -665,6 +687,7 @@ class KernelType(object):
                     statement.entity_decls[0])
                 if str(assign.items[0]) == name:
                     if not isinstance(assign.items[2], Fortran2003.Name):
+                        from psyclone.parse import ParseError
                         raise ParseError(
                             "get_integer_variable: RHS of assignment is not "
                             "a variable name: '{0}'".format(str(assign)))
@@ -702,6 +725,7 @@ class KernelType(object):
                 # This is the variable declaration we're looking for
                 if not isinstance(assign.items[2],
                                   Fortran2003.Array_Constructor):
+                    from psyclone.parse import ParseError
                     raise ParseError(
                         "get_integer_array: RHS of assignment is not "
                         "an array constructor: '{0}'".format(str(assign)))
@@ -723,6 +747,7 @@ class DynKernelType(KernelType):
         self._arg_descriptors = []
         for init in self._inits:
             if init.name != 'arg_type':
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "Each meta_arg value must be of type 'arg_type' for the "
                     "dynamo0.1 api, but found '{0}'".format(init.name))
@@ -742,6 +767,7 @@ class GOKernelType(KernelType):
         self._arg_descriptors = []
         for init in self._inits:
             if init.name != 'arg':
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "Each meta_arg value must be of type 'arg' for the "
                     "gocean0.1 api, but found '{0}'".format(init.name))
@@ -749,6 +775,7 @@ class GOKernelType(KernelType):
             funcspace = init.args[1].name
             stencil = init.args[2].name
             if len(init.args) != 3:
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "'arg' type expects 3 arguments but found '{}' in '{}'".
                     format(str(len(init.args)), init.args))
@@ -763,10 +790,12 @@ class GHProtoKernelType(KernelType):
         self._arg_descriptors = []
         for init in self._inits:
             if init.name != 'arg':
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "Each meta_arg value must be of type 'arg' for the GungHo "
                     "prototype API, but found '" + init.name + "'")
             if len(init.args) != 3:
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "'arg' type expects 3 arguments but found '{}' in '{}'".
                     format(str(len(init.args)), init.args))
@@ -783,6 +812,7 @@ class ParsedCall(object):
         self._ktype = ktype
         self._args = args
         if len(self._args) < self._ktype.nargs:
+            from psyclone.parse import ParseError
             # we cannot test for equality here as API's may have extra
             # arguments passed in from the algorithm layer (e.g. 'QR'
             # in dynamo0.3), but we do expect there to be at least the
@@ -857,6 +887,7 @@ class Arg(object):
         else:
             self._varName = None
         if form not in formOptions:
+            from psyclone.parse import ParseError
             raise ParseError(
                 "Unknown arg type provided. Expected one of {0} but found "
                 "{1}".format(str(formOptions), form))
@@ -971,6 +1002,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
         _dist_mem = distributed_memory
 
     if _dist_mem not in [True, False]:
+        from psyclone.parse import ParseError
         raise ParseError(
             "The distributed_memory flag in parse() must be set to"
             " 'True' or 'False'")
@@ -1005,12 +1037,14 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     except:
         import traceback
         traceback.print_exc()
+        from psyclone.parse import ParseError
         raise ParseError("Fatal error in external fparser tool")
     if line_length:
         fll = FortLineLength()
         with open(alg_filename, "r") as myfile:
             code_str = myfile.read()
         if fll.long_lines(code_str):
+            from psyclone.parse import ParseError
             raise ParseError(
                 "parse: the algorithm file does not conform to the specified"
                 " {0} line length limit".format(str(fll.length)))
@@ -1025,11 +1059,13 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             import sys
             python_version = sys.version_info
             if python_version[0] <= 2 and python_version[1] < 7:
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "OrderedDict not provided natively pre python 2.7 "
                     "(you are running {0}. Try installing with 'sudo "
                     "pip install ordereddict'".format(python_version))
             else:
+                from psyclone.parse import ParseError
                 raise ParseError(
                     "OrderedDict not found which is unexpected as it is "
                     "meant to be part of the Python library from 2.7 onwards")
@@ -1045,6 +1081,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             container_name = child.name
             break
     if container_name is None:
+        from psyclone.parse import ParseError
         raise ParseError(
             "Error, program, module or subroutine not found in ast")
 
@@ -1063,22 +1100,26 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                 try:
                     parsed = expr.FORT_EXPRESSION.parseString(arg)[0]
                 except ParseException:
+                    from psyclone.parse import ParseError
                     raise ParseError("Failed to parse string: {0}".format(arg))
 
                 if isinstance(parsed, expr.NamedArg):
                     if parsed.name.lower() != "name":
+                        from psyclone.parse import ParseError
                         raise ParseError(
                             "The arguments to an invoke() must be either "
                             "kernel calls or an (optional) name='invoke-name' "
                             "but got '{0}' in file {1}".format(str(parsed),
                                                                alg_filename))
                     if invoke_label:
+                        from psyclone.parse import ParseError
                         raise ParseError(
                             "An invoke must contain one or zero 'name=xxx' "
                             "arguments but found more than one in: {0} in "
                             "file {1}".
                             format(str(statement), alg_filename))
                     if not parsed.is_string:
+                        from psyclone.parse import ParseError
                         raise ParseError(
                             "The (optional) name of an invoke must be "
                             "specified as a string but got {0} in file {1}.".
@@ -1093,6 +1134,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     # Check that the resulting label is a valid Fortran Name
                     #from fparser.two import pattern_tools
                     if not pattern_tools.abs_name.match(invoke_label):
+                        from psyclone.parse import ParseError
                         raise ParseError(
                             "The (optional) name of an invoke must be a "
                             "string containing a valid Fortran name (with "
@@ -1101,6 +1143,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                                            alg_filename))
                     # Check that it's not already been used in this Algorithm
                     if invoke_label in unique_invoke_labels:
+                        from psyclone.parse import ParseError
                         raise ParseError(
                             "Found multiple named invoke()'s with the same "
                             "name ('{0}') when parsing {1}".
@@ -1131,6 +1174,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                                variableName))
                 if argname in builtin_names:
                     if argname in name_to_module:
+                        from psyclone.parse import ParseError
                         raise ParseError("A built-in cannot be named in a use "
                                          "statement but '{0}' is used from "
                                          "module '{1}' in file {2}".
@@ -1149,6 +1193,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                     try:
                         modulename = name_to_module[argname]
                     except KeyError:
+                        from psyclone.parse import ParseError
                         raise ParseError(
                             "kernel call '{0}' must either be named in a use "
                             "statement or be a recognised built-in "
@@ -1215,6 +1260,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                             # (name) to be empty.
                             modast.name = ""
                         except:
+                            from psyclone.parse import ParseError
                             raise ParseError("Failed to parse kernel code "
                                              "'{0}'. Is the Fortran correct?".
                                              format(matches[0]))
@@ -1223,6 +1269,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                             with open(matches[0], "r") as myfile:
                                 code_str = myfile.read()
                             if fll.long_lines(code_str):
+                                from psyclone.parse import ParseError
                                 raise ParseError(
                                     "parse: the kernel file '{0}' does not"
                                     " conform to the specified {1} line length"

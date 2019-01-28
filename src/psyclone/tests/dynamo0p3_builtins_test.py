@@ -59,16 +59,15 @@ API = "dynamo0.3"
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
-def test_dynbuiltin_missing_defs():
+def test_dynbuiltin_missing_defs(monkeypatch):
     ''' Check that we raise an appropriate error if we cannot find the
     file specifying meta-data for built-in kernels '''
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = 'broken'
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        "broken")
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15.12.3_single_pointwise_builtin.f90"),
                      api=API)
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     assert ("broken' containing the meta-data describing the "
             "Built-in operations" in str(excinfo.value))
 
@@ -290,7 +289,7 @@ def test_invalid_builtin_kernel():
                                   "15.12.1_invalid_builtin_kernel.f90"),
                      api=API)
     assert ("kernel call 'setva_c' must either be named in a "
-            "use statement or be a recognised built-in" in
+            "use statement (found ['inf']) or be a recognised built-in" in
             str(excinfo.value))
 
 

@@ -310,7 +310,7 @@ def parse(alg_filename, api=None, invoke_name="invoke", inf_name="inf",
 
 def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     ''' xxx '''
-    from fparser.two.Fortran2003 import Actual_Arg_Spec
+    from fparser.two.Fortran2003 import Actual_Arg_Spec, Char_Literal_Constant
 
     if not isinstance(parse_tree, Actual_Arg_Spec):
         raise ParseError("xxx")
@@ -320,8 +320,15 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
 
     ident = str(parse_tree.items[0])
     if ident.lower() != identifier:
-        raise ParseError("xxx")
-    
+        raise ParseError("Expecting named identifier to be '{0}' but "
+                         "found '{1}'".format(identifier, ident.lower()))
+
+    if not isinstance(parse_tree.items[1], Char_Literal_Constant):
+        raise ParseError("The (optional) name of an invoke must be "
+                         "specified as a string, but found "
+                         "{0} in {1}".format(str(parse_tree.items[1]),
+                                                 alg_filename))
+
     invoke_label = parse_tree.items[1].items[0]
     invoke_label = invoke_label.lower()
     invoke_label = invoke_label.strip()
@@ -344,7 +351,8 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
 def get_kernel(parse_tree, alg_filename):
     ''' xxx '''
     from fparser.two.Fortran2003 import Part_Ref, Section_Subscript_List, \
-        Name, Real_Literal_Constant, Data_Ref, Int_Literal_Constant
+        Name, Real_Literal_Constant, Data_Ref, Int_Literal_Constant, \
+        Function_Reference
 
     if not isinstance(parse_tree, Part_Ref):
         raise ParseError("xxx")
@@ -363,18 +371,29 @@ def get_kernel(parse_tree, alg_filename):
     arguments = []
     for argument in argument_list:
         if isinstance(argument, Name):
-            arguments.append(Arg('variable', str(argument), str(argument)))
+            full_text = str(argument).lower()
+            var_name = full_text
+            arguments.append(Arg('variable', full_text, var_name))
         elif isinstance(argument, Real_Literal_Constant):
-            arguments.append(Arg('literal', argument.tostr()))
+            arguments.append(Arg('literal', argument.tostr().lower()))
         elif isinstance(argument, Int_Literal_Constant):
-            arguments.append(Arg('literal', argument.tostr()))
+            arguments.append(Arg('literal', argument.tostr().lower()))
         elif isinstance(argument, Part_Ref):
-            full_text = argument.tostr()
-            var_name = str(argument.items[0]).replace(' ','')
+            full_text = argument.tostr().lower()
+            var_name = str(argument.items[0]).lower()
+            arguments.append(Arg('indexed_variable', full_text, var_name))
+        elif isinstance(argument, Function_Reference):
+            full_text = argument.tostr().lower()
+            designator = argument.items[0]
+            lhs = designator.items[0]
+            lhs = create_var_name(lhs)
+            rhs = str(designator.items[2])
+            var_name = "{0}_{1}".format(lhs, rhs)
+            var_name = var_name.lower()
             arguments.append(Arg('indexed_variable', full_text, var_name))
         elif isinstance(argument, Data_Ref):
-            full_text = argument.tostr()
-            var_name = full_text.replace(' ','')
+            full_text = argument.tostr().lower()
+            var_name = create_var_name(argument).lower()
             arguments.append(Arg('variable', full_text, var_name))
         else:
             print ("Unsupported argument structure '{0}', value '{1}', "
@@ -382,6 +401,22 @@ def get_kernel(parse_tree, alg_filename):
                                                  parse_tree, alg_filename))
             exit(1)
     return kernel_name, arguments
+
+def create_var_name(arg_parse_tree):
+    ''' remove brackets, return % '''
+    from fparser.two.Fortran2003 import Data_Ref, Name, Part_Ref
+    var_name = ""
+    tree = arg_parse_tree
+    while isinstance(tree, Data_Ref):
+        var_name += str(tree.items[0]) + "_"
+        tree = tree.items[1]
+    if isinstance(tree, Name):
+        var_name += str(tree)
+    elif isinstance(tree, Part_Ref):
+        var_name += str(tree.items[0])
+    else:
+        raise ParseError("unsupported structure '{0}'".format(type(tree)))
+    return var_name
 
 
 def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
@@ -465,6 +500,6 @@ def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
                 raise ParseError(
                     "parse: the kernel file '{0}' does not"
                     " conform to the specified {1} line length"
-                    " limit".format(modulename,
+                    " limit".format(matches[0],
                                     str(fll.length)))
     return modast

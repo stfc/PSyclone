@@ -479,7 +479,7 @@ def test_invokes_can_always_be_printed():
     alg_invocation = list(invoke.calls.values())[0]
     inv = Invoke(alg_invocation, 0, DynSchedule)
     assert inv.__str__() == \
-        "invoke_0_testkern_type(a, f1_my_field, f1%my_field, m1, m2)"
+        "invoke_0_testkern_type(a, f1_my_field, f1 % my_field, m1, m2)"
 
 
 def test_same_name_invalid():
