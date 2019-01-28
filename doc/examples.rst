@@ -97,6 +97,13 @@ quantities on horizontally-discontinuous function spaces.
 Example 10
 ^^^^^^^^^^
 
-Demonstrates the user of "inter-grid" kernels that prolong or restrict
+Demonstrates the use of "inter-grid" kernels that prolong or restrict
 fields (map between grids of different resolutions).
 
+Example 11
+^^^^^^^^^^
+
+Example of the use of transformations to introduce redundant computation,
+split synchronous halo exchanges into asynchronous exchanges (start and
+stop) and move the starts of those exchanges in order to overlap them
+with computation.
