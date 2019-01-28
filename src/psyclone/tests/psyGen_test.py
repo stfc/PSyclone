@@ -2667,8 +2667,8 @@ def test_kernelschedule_can_be_printed():
 def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed (i.e. is
     initialised fully)'''
-    symbol = Symbol("sname", "real", 1, "read_arg")
-    assert "sname<real,1,read_arg>" in str(symbol)
+    symbol = Symbol("sname", "real", [], "read_arg")
+    assert "sname<real, [], read_arg>" in str(symbol)
 
 
 # Test SymbolTable Class
@@ -2699,7 +2699,7 @@ def test_symboltable_lookup():
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", [None, None], "read_arg")
     sym_table.declare("var2", "integer", [], "write_arg")
-    sym_table.declare("var3", "real", [], None)
+    sym_table.declare("var3", "real", [], 'local')
 
     assert isinstance(sym_table.lookup("var1"), Symbol)
     assert sym_table.lookup("var1").name == "var1"
@@ -2771,6 +2771,25 @@ def test_fparser2astprocessor_generate_schedule_empty_subroutine():
     with pytest.raises(InternalError) as error:
         schedule = processor.generate_schedule("dummy_code", ast2)
     assert "Unexpected kernel AST. Could not find specification part."
+
+
+def test_fparser2astprocessor_generate_schedule_two_modules():
+    ''' Tests the fparser2AST generate_schedule method with an simple
+    subroutine.
+    '''
+    ast1 = fpapi.parse(FAKE_KERNEL_METADATA*2, ignore_comments=True)
+    metadata = DynKernMetadata(ast1)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    ast2 = my_kern.ast
+    processor = Fparser2ASTProcessor()
+
+    # Test properly formed kernel module
+    with pytest.raises(InternalError) as error:
+        schedule = processor.generate_schedule("dummy_code", ast2)
+    assert ("Unexpected kernel AST. Just one module definition per "
+            "file supported.") in str(error.value)
+
 
 def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     ''' Tests the fparser2AST generate_schedule method with an simple
@@ -2933,7 +2952,7 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
     assert fake_parent.symbol_table.lookup("array1").name == "array1"
     assert fake_parent.symbol_table.lookup("array1").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("array1").shape == [None, None,
-            None]
+                                                               None]
     assert fake_parent.symbol_table.lookup("array1").access == 'local'
 
     reader = FortranStringReader("real, dimension(:), intent(in) :: array2")
@@ -2957,7 +2976,7 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("array4").name == "array4"
     assert fake_parent.symbol_table.lookup("array4").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("array4").shape == [3,5]
+    assert fake_parent.symbol_table.lookup("array4").shape == [3, 5]
     assert fake_parent.symbol_table.lookup("array4").access == 'local'
 
 

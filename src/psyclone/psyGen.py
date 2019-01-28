@@ -4387,7 +4387,7 @@ class Symbol(object):
 
         if access not in ('local', 'external', 'read_arg', 'write_arg',
                           'readwrite_arg'):
-            raise InternalError("Symbol access attribute can only be: ",
+            raise InternalError("Symbol access attribute can only be: "
                                 "'local', 'external', 'read_arg', "
                                 "'write_arg' or 'readwrite_arg'.")
 
