@@ -4079,12 +4079,23 @@ class Fparser2ASTProcessor(object):
                 datatype = 'integer'
 
             # Parse number of dimensions if it is an array
-            dimensions = 0
+            shape = []
+
             for attr in walk_ast(decl.items, [Fortran2003.Assumed_Shape_Spec]):
-                dimensions = dimensions + 1
+                shape.append(None)
             for attr in walk_ast(decl.items,
                                  [Fortran2003.Explicit_Shape_Spec]):
-                dimensions = dimensions + 1
+                if isinstance(attr.items[1], Fortran2003.Int_Literal_Constant):
+                    try:
+                        shape.append(int(attr.items[1].items[0]))
+                    except ValueError:
+                        raise InternalError("Only integer literals are"
+                                            "supported for explicit shape"
+                                            "array declarations.")
+                else:
+                    raise InternalError("Only integer literals are supported"
+                                        "for explicit shape array"
+                                        "declarations.")
 
             # Parse intent attributes
             decltype = 'local'  # If no intent attribute is provided, it is
@@ -4111,7 +4122,7 @@ class Fparser2ASTProcessor(object):
                 if (char_len is not None):
                     raise InternalError("Character length specifications "
                                         "are not supported.")
-                parent.symbol_table.declare(str(name), datatype, dimensions,
+                parent.symbol_table.declare(str(name), datatype, shape,
                                             decltype)
 
     # TODO remove nodes_parent argument once fparser2 AST contains
@@ -4332,20 +4343,20 @@ class Fparser2ASTProcessor(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name
-    of the symbol, its datatype, the number of dimensions and the symbol kind
+    of the symbol, its datatype, the number of shape and the symbol access
     (e.g. local, external, read_arg, write_arg, readwrite_arg).
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
-    :param int dimensions: Dimensions of the symbol (0 represents a scalar \
-                       symbol).
-    :param kind: Information about the variable declaration attributes.
+    :param int shape: shape of the symbol (an empty list represents \
+                           a scalar symbol).
+    :param access: Information about the variable declaration attributes.
     '''
-    def __init__(self, name, datatype=None, dimensions=0, kind=None):
+    def __init__(self, name, datatype=None, shape=[], access=None):
         self._name = name
         self._datatype = datatype
-        self._dimensions = dimensions
-        self._kind = kind
+        self._shape = shape
+        self._access = access
 
     @property
     def name(self):
@@ -4364,24 +4375,24 @@ class Symbol(object):
         return self._datatype
 
     @property
-    def dimensions(self):
+    def shape(self):
         '''
-        :return: Number of dimensions of the Symbol.
+        :return: Number of shape of the Symbol.
         :rtype: integer
         '''
-        return self._dimensions
+        return self._shape
 
     @property
-    def kind(self):
+    def access(self):
         '''
         :return: Information about where and how the symbol is declared.
         :rtype: string
         '''
-        return self._kind
+        return self._access
 
     def __str__(self):
-        return (self.name + "<" + self.datatype + "," + str(self.dimensions) +
-                "," + self.kind + ">")
+        return (self.name + "<" + self.datatype + "," + str(self.shape) +
+                "," + self.access + ">")
 
 
 class SymbolTable(object):
@@ -4394,7 +4405,7 @@ class SymbolTable(object):
         # Dict of Symbol objects with the symbol names as keys.
         self._symbols = {}
 
-    def declare(self, name, datatype, dimensions, kind):
+    def declare(self, name, datatype, shape, access):
         '''
         Declare a new symbol in the symbol table.
 
@@ -4402,17 +4413,17 @@ class SymbolTable(object):
         :type name: string
         :param datatype: Data type of the symbol.
         :type datatype: string
-        :param dimensions: Dimensions of the symbol (0 represents an scalar
+        :param shape: shape of the symbol (0 represents an scalar
                            symbol).
-        :type dimensions: list of integers
-        :param kind: Information about the variable declaration attributes.
-        :type kind: string
+        :type shape: list of integers
+        :param access: Information about the variable declaration attributes.
+        :type access: string
         '''
         if name in self._symbols:
             raise InternalError("Symbol table already contains a symbol with"
                                 " name '{0}'.".format(name))
         else:
-            self._symbols[name] = Symbol(name, datatype, dimensions, kind)
+            self._symbols[name] = Symbol(name, datatype, shape, access)
 
     def lookup(self, name):
         '''

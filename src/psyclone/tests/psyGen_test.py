@@ -2680,11 +2680,11 @@ def test_symboltable_declare():
     sym_table = SymbolTable()
 
     # Declare a symbol
-    sym_table.declare("var1", "real", 3, "read_arg")
+    sym_table.declare("var1", "real", [5, 1], "read_arg")
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
-    assert sym_table._symbols["var1"].dimensions == 3
-    assert sym_table._symbols["var1"].kind == "read_arg"
+    assert sym_table._symbols["var1"].shape == [5, 1]
+    assert sym_table._symbols["var1"].access == "read_arg"
 
     # Declare a duplicate name symbol
     with pytest.raises(InternalError) as error:
@@ -2697,9 +2697,9 @@ def test_symboltable_lookup():
     '''Test that the lookup method retrive symbols from the symbol table
     if the name exist, otherwise it raises and error'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", 3, "read_arg")
-    sym_table.declare("var2", "integer", 0, "write_arg")
-    sym_table.declare("var3", "real", 0, None)
+    sym_table.declare("var1", "real", [None, None], "read_arg")
+    sym_table.declare("var2", "integer", [], "write_arg")
+    sym_table.declare("var3", "real", [], None)
 
     assert isinstance(sym_table.lookup("var1"), Symbol)
     assert sym_table.lookup("var1").name == "var1"
@@ -2716,8 +2716,8 @@ def test_symboltable_view(capsys):
     '''Test the view method of the SymbolTable class, it should print to
     standard out a representation of the full SymbolTable'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", 3, "read_arg")
-    sym_table.declare("var2", "integer", 2, "read_arg")
+    sym_table.declare("var1", "real", [], "read_arg")
+    sym_table.declare("var2", "integer", [], "read_arg")
     sym_table.view()
     output, _ = capsys.readouterr()
     assert "Symbol Table:\n" in output
@@ -2729,8 +2729,8 @@ def test_symboltable_can_be_printed():
     '''Test that a SymbolTable instance can always be printed (i.e. is
     initialised fully)'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", 3, "read_arg")
-    sym_table.declare("var2", "integer", 2, "read_arg")
+    sym_table.declare("var1", "real", [], "read_arg")
+    sym_table.declare("var2", "integer", [], "read_arg")
     assert "Symbol Table:\n" in str(sym_table)
     assert "var1" in str(sym_table)
     assert "var2" in str(sym_table)
@@ -2832,16 +2832,16 @@ def test_fparser2astprocessor_process_declarations():
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("l1").name == 'l1'
     assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("l1").dimensions == 0
-    assert fake_parent.symbol_table.lookup("l1").kind == 'local'
+    assert fake_parent.symbol_table.lookup("l1").shape == []
+    assert fake_parent.symbol_table.lookup("l1").access == 'local'
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2specification = Specification_Part.match(reader)[0][0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
-    assert fake_parent.symbol_table.lookup("l2").dimensions == 0
-    assert fake_parent.symbol_table.lookup("l2").kind == 'local'
+    assert fake_parent.symbol_table.lookup("l2").shape == []
+    assert fake_parent.symbol_table.lookup("l2").access == 'local'
 
     # RHS array specifications are not supported
     reader = FortranStringReader("integer :: l1(4)")
@@ -2888,32 +2888,32 @@ def test_fparser2astprocessor_process_declarations_intent():
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("arg1").name == "arg1"
     assert fake_parent.symbol_table.lookup("arg1").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("arg1").dimensions == 0
-    assert fake_parent.symbol_table.lookup("arg1").kind == 'read_arg'
+    assert fake_parent.symbol_table.lookup("arg1").shape == []
+    assert fake_parent.symbol_table.lookup("arg1").access == 'read_arg'
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
     fparser2specification = Specification_Part.match(reader)[0][0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("arg2").name == "arg2"
     assert fake_parent.symbol_table.lookup("arg2").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("arg2").dimensions == 0
-    assert fake_parent.symbol_table.lookup("arg2").kind == 'read_arg'
+    assert fake_parent.symbol_table.lookup("arg2").shape == []
+    assert fake_parent.symbol_table.lookup("arg2").access == 'read_arg'
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
     fparser2specification = Specification_Part.match(reader)[0][0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("arg3").name == "arg3"
     assert fake_parent.symbol_table.lookup("arg3").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("arg3").dimensions == 0
-    assert fake_parent.symbol_table.lookup("arg3").kind == 'write_arg'
+    assert fake_parent.symbol_table.lookup("arg3").shape == []
+    assert fake_parent.symbol_table.lookup("arg3").access == 'write_arg'
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
     fparser2specification = Specification_Part.match(reader)[0][0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("arg4").name == "arg4"
     assert fake_parent.symbol_table.lookup("arg4").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("arg4").dimensions == 0
-    assert fake_parent.symbol_table.lookup("arg4").kind == 'readwrite_arg'
+    assert fake_parent.symbol_table.lookup("arg4").shape == []
+    assert fake_parent.symbol_table.lookup("arg4").access == 'readwrite_arg'
 
 
 def test_fparser2astprocessor_process_declarations_array_attributes():
@@ -2932,32 +2932,33 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("array1").name == "array1"
     assert fake_parent.symbol_table.lookup("array1").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("array1").dimensions == 3
-    assert fake_parent.symbol_table.lookup("array1").kind == 'local'
+    assert fake_parent.symbol_table.lookup("array1").shape == [None, None,
+            None]
+    assert fake_parent.symbol_table.lookup("array1").access == 'local'
 
     reader = FortranStringReader("real, dimension(:), intent(in) :: array2")
     fparser2specification = Specification_Part.match(reader)[0][0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("array2").name == "array2"
     assert fake_parent.symbol_table.lookup("array2").datatype == 'real'
-    assert fake_parent.symbol_table.lookup("array2").dimensions == 1
-    assert fake_parent.symbol_table.lookup("array2").kind == 'read_arg'
+    assert fake_parent.symbol_table.lookup("array2").shape == [None]
+    assert fake_parent.symbol_table.lookup("array2").access == 'read_arg'
 
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
     fparser2specification = Specification_Part.match(reader)[0][0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
     assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
-    assert fake_parent.symbol_table.lookup("array3").dimensions == 1
-    assert fake_parent.symbol_table.lookup("array3").kind == 'read_arg'
+    assert fake_parent.symbol_table.lookup("array3").shape == [None]
+    assert fake_parent.symbol_table.lookup("array3").access == 'read_arg'
 
     reader = FortranStringReader("integer, dimension(3,5) :: array4")
     fparser2specification = Specification_Part.match(reader)[0][0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("array4").name == "array4"
     assert fake_parent.symbol_table.lookup("array4").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("array4").dimensions == 2
-    assert fake_parent.symbol_table.lookup("array4").kind == 'local'
+    assert fake_parent.symbol_table.lookup("array4").shape == [3,5]
+    assert fake_parent.symbol_table.lookup("array4").access == 'local'
 
 
 def test_fparser2astprocessor_handling_assignment_stmt():
