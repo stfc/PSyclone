@@ -4040,13 +4040,22 @@ class Fparser2ASTProcessor(object):
             raise InternalError("Unexpected kernel AST. Could not find "
                                 "subroutine: {0}".format(name))
 
+        arg_list = []
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
+            arg_list = [x.string for x in subroutine.content[0].items[2].items]
         except ValueError:
             pass
         else:
             self.process_declarations(new_schedule, sub_spec.content)
+
+        try:
+            new_schedule.symbol_table.specify_argument_list(arg_list)
+        except KeyError:
+            raise InternalError("Unexpected kernel AST. The argument list of"
+                                " '{0}' don't match the variable declarations."
+                                "".format(name))
 
         try:
             sub_exec = first_type_match(subroutine.content,
@@ -4421,9 +4430,23 @@ class Symbol(object):
         '''
         return self._access
 
+    @access.setter
+    def access(self, new_access):
+        '''
+        :param str new_access: New value of the access attribute, can be:
+                               'local', 'external', 'read_arg', 'write_arg'
+                               or 'readwrite_arg'.
+        '''
+        if access not in ('local', 'external', 'read_arg', 'write_arg',
+                          'readwrite_arg'):
+            raise InternalError("Symbol access attribute can only be: ",
+                                "'local', 'external', 'read_arg', "
+                                "'write_arg' or 'readwrite_arg'.")
+        self._access = new_access
+
     def __str__(self):
-        return (self.name + "<" + self.datatype + "," + str(self.shape) +
-                "," + self.access + ">")
+        return (self.name + "<" + self.datatype + ", " + str(self.shape) +
+                ", " + self.access + ">")
 
 
 class SymbolTable(object):
@@ -4435,6 +4458,8 @@ class SymbolTable(object):
     def __init__(self):
         # Dict of Symbol objects with the symbol names as keys.
         self._symbols = {}
+        # Ordered list of the arguments.
+        self._argument_list = []
 
     def declare(self, name, datatype, shape, access):
         '''
@@ -4452,6 +4477,19 @@ class SymbolTable(object):
             raise InternalError("Symbol table already contains a symbol with"
                                 " name '{0}'.".format(name))
         self._symbols[name] = Symbol(name, datatype, shape, access)
+
+    def specify_argument_list(self, argument_name_list):
+        '''
+        Keep track of the arguments order and provide the argument access
+        attribute if it was not available on the variable declaration.
+
+        :param list argument_name_list: Ordered list of the argument names.
+        '''
+        for name in argument_name_list:
+            symbol = self.lookup(name)
+            if symbol.access == 'local':
+                symbol.access = 'readwrite_arg'
+            self._argument_list.append(symbol)
 
     def lookup(self, name):
         '''
