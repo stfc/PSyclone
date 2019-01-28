@@ -379,7 +379,7 @@ TBD
 .. ============================
 .. 
 .. This section explains how to create a new API in PSyclone. PSyclone
-.. currently supports the following API's; dynamo versions 0.1 and 0.3
+.. currently supports the following APIs; dynamo versions 0.1 and 0.3
 .. and gocean versions 0.1 and 1.0.
 .. 
 .. config.py

@@ -36,12 +36,12 @@ metadata information describing the kernel code for the
 ``dynamo0.3`` api::
 
   module w3_solver_kernel_mod
-    use kernel_mod,              only : kernel_type
-    use constants_mod,           only : r_def
-    use argument_mod,            only : arg_type, func_type,         &
-                                    GH_FIELD, GH_READ, GH_WRITE,     &
-                                    W0, W3, GH_BASIS, GH_DIFF_BASIS, &
-                                    CELLS 
+
+    use kernel_mod,      only : kernel_type
+    use constants_mod,   only : r_def
+    use argument_mod,    only : arg_type, func_type,                 &
+                                GH_FIELD, GH_READ, GH_WRITE, W0, W3, &
+                                GH_BASIS, GH_DIFF_BASIS, CELLS 
     implicit none
 
     type, public, extends(kernel_type) :: w3_solver_kernel_type
@@ -59,7 +59,7 @@ metadata information describing the kernel code for the
       integer :: gh_shape = gh_quadrature_XYoZ
       integer :: iterates_over = CELLS
     contains
-      procedure, nopass ::solver_w3_code
+      procedure, nopass :: solver_w3_code
     end type
   
   contains
