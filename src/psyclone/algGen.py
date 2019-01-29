@@ -1,10 +1,37 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2014.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2014-2019, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''This module provides the Alg class and supporting
 exception-handling to translate the original algorithm file into one
@@ -81,42 +108,7 @@ class Alg(object):
                     new_args = Section_Subscript_List(
                         ", ".join(invoke_info.alg_unique_args))
                     statement.items = (new_name, new_args)
-                    # add use statement here
-                    #adduse(psy_name, stmt.parent, only=True,
-                    #       funcnames=[invoke_info.name])
-                    idx += 1
-
-        if idx == 0:
-            raise NoInvokesError(
-                "Algorithm file contains no invoke() calls: refusing to "
-                "generate empty PSy code")
-
-        return self._ast
-
-
-    @property
-    def gen_orig(self):
-        '''
-        Generate modified algorithm code
-
-        :rtype: ast
-
-        '''
-        print "IN ALGGEN GEN"
-        return ""
-        from fparser import api
-        from psyclone.f2pygen import adduse
-        psy_name = self._psy.name
-        # run through all statements looking for procedure calls
-        idx = 0
-        for stmt, _ in api.walk(self._ast, -1):
-
-            if isinstance(stmt, fparser.one.statements.Call):
-                if stmt.designator == "invoke":
-                    invoke_info = self._psy.invokes.invoke_list[idx]
-                    stmt.designator = invoke_info.name
-                    stmt.items = invoke_info.alg_unique_args
-                    adduse(psy_name, stmt.parent, only=True,
+                    adduse(self._ast, self._psy.name, only=True,
                            funcnames=[invoke_info.name])
                     idx += 1
 
@@ -126,3 +118,27 @@ class Alg(object):
                 "generate empty PSy code")
 
         return self._ast
+
+
+def adduse(ast, name, only=False, funcnames=None):
+    ''' xxx '''
+    from fparser.two.utils import walk_ast
+    from fparser.two.Fortran2003 import Main_Program, Module, \
+        Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
+        Call_Stmt, Actual_Arg_Spec_List, Actual_Arg_Spec, Part_Ref, \
+        Specification_Part
+
+    use = Use_Stmt("use {0}, only : {1}".format(name, ", ".join(funcnames)))
+    # find first program statement (top down)
+    for child in ast.content:
+        if isinstance(child, (Main_Program, Module, Subroutine_Subprogram,
+                              Function_Subprogram)):
+            if isinstance(child, (Main_Program, Subroutine_Subprogram)):
+                program = child
+                if not isinstance(program.content[1], Specification_Part):
+                    raise NotImplementedError("Main program content 1 is expected to be a specification part but found '{0}'".format(program.content[1]))
+                spec_part = program.content[1]
+                spec_part.content.insert(0, use)
+            else:
+                raise NotImplementedError("Unsupported code unit found '{0}'".format(str(type(child))))
+    return ast

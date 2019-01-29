@@ -24,6 +24,7 @@ def test_single_function_invoke():
     alg, _ = generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                       api="dynamo0.3")
     gen = str(alg)
+    print (gen)
     assert "USE single_invoke_psy, ONLY: invoke_0_testkern_type" in gen
     assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
 
@@ -212,8 +213,8 @@ def test_deref_derived_type_args():
     gen = str(alg)
     print(gen)
     assert (
-        "CALL invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj%get_flag(), "
-        "my_obj%get_flag(switch), my_obj%get_flag(int_wrapper%data))"
+        "CALL invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
+        "my_obj % get_flag(switch), my_obj % get_flag(int_wrapper % data))"
         in gen)
 
 
@@ -228,8 +229,8 @@ def test_multi_deref_derived_type_args():
     gen = str(alg)
     print(gen)
     assert (
-        "CALL invoke_0(f1, obj_a%iflag, f2, m1, m2, obj_b%iflag, "
-        "obj_a%obj_b, obj_b%obj_a)"
+        "CALL invoke_0(f1, obj_a % iflag, f2, m1, m2, obj_b % iflag, "
+        "obj_a % obj_b, obj_b % obj_a)"
         in gen)
 
 
@@ -245,7 +246,7 @@ def test_op_and_scalar_and_qr_derived_type_args():
     print(gen)
     assert (
         "CALL invoke_0_testkern_operator_nofield_scalar_type("
-        "opbox%my_mapping, box%b(1), qr%get_instance(qr3, 9, 3))" in gen)
+        "opbox % my_mapping, box % b(1), qr % get_instance(qr3, 9, 3))" in gen)
 
 
 def test_vector_field_arg_deref():
@@ -259,7 +260,7 @@ def test_vector_field_arg_deref():
         api="dynamo0.3")
     gen = str(alg)
     print(gen)
-    assert "CALL invoke_0_testkern_chi_type(f1, box%chi, f2)" in gen
+    assert "CALL invoke_0_testkern_chi_type(f1, box % chi, f2)" in gen
 
 
 def test_single_stencil():

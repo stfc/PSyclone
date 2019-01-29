@@ -111,7 +111,7 @@ def get_builtin_defs(api):
             fname
     else:
         # We don't support any built-ins for this API
-        builtins = []
+        builtins = {}
         fname = None
     return builtins, fname
 
