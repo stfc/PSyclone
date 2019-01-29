@@ -216,7 +216,7 @@ class InternalError(Exception):
         self.value = "PSyclone internal error: "+value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 class PSyFactory(object):
@@ -4054,8 +4054,8 @@ class Fparser2ASTProcessor(object):
             new_schedule.symbol_table.specify_argument_list(arg_list)
         except KeyError:
             raise InternalError("Unexpected kernel AST. The argument list of"
-                                " '{0}' don't match the variable declarations."
-                                "".format(name))
+                                " '{0}' do not match the variable "
+                                "declarations.".format(name))
 
         try:
             sub_exec = first_type_match(subroutine.content,
@@ -4103,12 +4103,7 @@ class Fparser2ASTProcessor(object):
                 elif isinstance(attr, Fortran2003.Explicit_Shape_Spec):
                     if isinstance(attr.items[1],
                                   Fortran2003.Int_Literal_Constant):
-                        try:
-                            shape.append(int(attr.items[1].items[0]))
-                        except ValueError:
-                            raise InternalError("Only integer literals are "
-                                                "supported for explicit shape "
-                                                "array declarations.")
+                        shape.append(int(attr.items[1].items[0]))
                     else:
                         raise InternalError("Only integer literals are "
                                             "supported for explicit shape "
@@ -4437,9 +4432,9 @@ class Symbol(object):
                                'local', 'external', 'read_arg', 'write_arg'
                                or 'readwrite_arg'.
         '''
-        if access not in ('local', 'external', 'read_arg', 'write_arg',
-                          'readwrite_arg'):
-            raise InternalError("Symbol access attribute can only be: ",
+        if new_access not in ('local', 'external', 'read_arg', 'write_arg',
+                              'readwrite_arg'):
+            raise InternalError("Symbol access attribute can only be: "
                                 "'local', 'external', 'read_arg', "
                                 "'write_arg' or 'readwrite_arg'.")
         self._access = new_access

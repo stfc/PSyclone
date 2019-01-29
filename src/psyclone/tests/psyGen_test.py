@@ -2663,6 +2663,58 @@ def test_kernelschedule_can_be_printed():
 
 
 # Test Symbol Class
+def test_symbol_initialization():
+    '''Test that a Symbol instance can be created when valid arguments are
+    given, otherwise raise relevant exceptions.'''
+
+    # Test with valid arguments
+    assert isinstance(Symbol('a', 'real', [], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'integer', [], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'real', [], 'read_arg'), Symbol)
+    assert isinstance(Symbol('a', 'real', [], 'external'), Symbol)
+    assert isinstance(Symbol('a', 'real', [], 'write_arg'), Symbol)
+    assert isinstance(Symbol('a', 'real', [], 'readwrite_arg'), Symbol)
+    assert isinstance(Symbol('a', 'real', [None], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'real', [3], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'real', [3, None], 'local'), Symbol)
+
+    # Test with invalid arguments
+    with pytest.raises(InternalError) as error:
+        Symbol('a', 'invalidtype', [], 'local')
+    assert ("Symbol can only be initialized with 'real' "
+            "or 'integer' datatypes.")in str(error.value)
+
+    with pytest.raises(InternalError) as error:
+        Symbol('a', 'real', [], 'invalidaccess')
+    assert ("Symbol access attribute can only be: 'local', 'external', "
+            "'read_arg', 'write_arg' or 'readwrite_arg'.") in str(error.value)
+
+    with pytest.raises(InternalError) as error:
+        Symbol('a', 'real', None, 'local')
+    assert "Symbol shape attribute must be a list." in str(error.value)
+
+    with pytest.raises(InternalError) as error:
+        Symbol('a', 'real', ['invalidshape'], 'local')
+    assert ("Symbol shape list elements can only be "
+            "'integer' or 'None'.") in str(error.value)
+
+
+def test_symbol_access_setter():
+    '''Test that a Symbol access can be set if given a new valid access
+    value, otherwise it raises a relevant exception'''
+
+    # Test with valid access value
+    sym = Symbol('a', 'real', [], 'local')
+    assert sym.access == 'local'
+    sym.access = 'read_arg'
+    assert sym.access == 'read_arg'
+
+    # Test with invalid access value
+    with pytest.raises(InternalError) as error:
+        sym.access = 'invalidaccess'
+    assert ("Symbol access attribute can only be: 'local', 'external', "
+            "'read_arg', 'write_arg' or 'readwrite_arg'.") in str(error.value)
+
 
 def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed (i.e. is
@@ -2811,7 +2863,7 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
      subroutine dummy_code(f1, f2, f3)
         real(wp), dimension(:,:), intent(in)  :: f1
         real(wp), dimension(:,:), intent(out)  :: f2
-        real(wp), dimension(:,:), intent(inout)  :: f3
+        real(wp), dimension(:,:) :: f3
         f2 = f1 + 1
       end subroutine dummy_code
     end module dummy_mod
@@ -2827,10 +2879,52 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     schedule = processor.generate_schedule("dummy_code", ast2)
     assert isinstance(schedule, KernelSchedule)
 
+    # Test argument intent is infered when not available in the declaration
+    assert schedule.symbol_table.lookup('f3').access == 'readwrite_arg'
+
     # Test corrupting ast by deleting execution part
     del ast2.content[0].content[2].content[1].content[2]
     schedule = processor.generate_schedule("dummy_code", ast2)
     assert isinstance(schedule, KernelSchedule)
+
+
+def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
+    ''' Tests the fparser2AST generate_schedule method with an simple
+    subroutine.
+    '''
+    DUMMY_KERNEL_METADATA = '''
+    module dummy_mod
+      type, extends(kernel_type) :: dummy_type
+         type(arg_type), meta_args(3) =                    &
+              (/ arg_type(gh_field, gh_write,     w3),     &
+                 arg_type(gh_field, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_inc,       w1)      &
+               /)
+         integer :: iterates_over = cells
+       contains
+         procedure, nopass :: code => dummy_code
+      end type dummy_type
+    contains
+     subroutine dummy_code(f1, f2, f3, f4)
+        real(wp), dimension(:,:), intent(in)  :: f1
+        real(wp), dimension(:,:), intent(out)  :: f2
+        real(wp), dimension(:,:) :: f3
+        f2 = f1 + 1
+      end subroutine dummy_code
+    end module dummy_mod
+    '''
+    ast1 = fpapi.parse(DUMMY_KERNEL_METADATA, ignore_comments=True)
+    metadata = DynKernMetadata(ast1)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    ast2 = my_kern.ast
+    processor = Fparser2ASTProcessor()
+
+    # Test exception for unmatching argument list
+    with pytest.raises(InternalError) as error:
+        schedule = processor.generate_schedule("dummy_code", ast2)
+    assert ("Unexpected kernel AST. The argument list of 'dummy_code'"
+            " do not match the variable declarations.") in str(error.value)
 
 
 def test_fparser2astprocessor_process_declarations():
@@ -2978,6 +3072,19 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
     assert fake_parent.symbol_table.lookup("array4").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("array4").shape == [3, 5]
     assert fake_parent.symbol_table.lookup("array4").access == 'local'
+
+    reader = FortranStringReader("integer, dimension(*) :: array5")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    with pytest.raises(InternalError) as error:
+        processor.process_declarations(fake_parent, [fparser2specification])
+    assert "Assumed size arrays are not supported." in str(error.value)
+
+    reader = FortranStringReader("integer, dimension(var1) :: array5")
+    fparser2specification = Specification_Part.match(reader)[0][0]
+    with pytest.raises(InternalError) as error:
+        processor.process_declarations(fake_parent, [fparser2specification])
+    assert ("Only integer literals are supported for explicit shape array"
+            " declarations.") in str(error.value)
 
 
 def test_fparser2astprocessor_handling_assignment_stmt():
