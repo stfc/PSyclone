@@ -41,6 +41,7 @@ import os
 import pytest
 from psyclone.generator import generate, GenerationError
 from psyclone.algGen import NoInvokesError
+from psyclone_test_utils import code_compiles
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -207,7 +208,8 @@ def test_invoke_argnames():
 
 
 def test_multiple_qr_per_invoke():
-    ''' invoke functions require different quadrature rules '''
+    ''' Test that we handle an Invoke containing multiple kernel calls,
+    each requiring quadrature. '''
     alg, _ = generate(os.path.join(
         BASE_PATH, "6_multiple_QR_per_invoke.f90"), api="dynamo0.3")
     gen = str(alg)
@@ -217,7 +219,8 @@ def test_multiple_qr_per_invoke():
 
 
 def test_qr_argnames():
-    ''' qr call arguments which are arrays '''
+    ''' Check that we produce correct Algorithm code when the invoke passes
+    qr arguments that are array elements. '''
     alg, _ = generate(os.path.join(BASE_PATH, "7_QR_field_array.f90"),
                       api="dynamo0.3")
     gen = str(alg)
@@ -403,27 +406,27 @@ def test_multiple_stencil_same_name():
             "f3, f4, extent, f3_direction)") in output
 
 
-class TestAlgGenClassDynamo0p1(object):
-    ''' AlgGen class unit tests for the Dynamo0.1 API. We use the
-    generate function as parse and PSyFactory need to be called before
-    AlgGen so it is simpler to use this'''
+def test_single_invoke_dynamo0p1():
+    ''' Test for correct code transformation for a single function
+        specified in an invoke call for the dynamo0.1 API. We use the
+        generate function as parse and PSyFactory need to be called before
+        AlgGen so it is simpler to use this. '''
+    alg, _ = generate(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "test_files", "dynamo0p1", "algorithm",
+                     "1_single_function.f90"), api="dynamo0.1")
+    gen = str(alg)
+    assert "USE psy_single_function, ONLY: invoke_0_testkern_type" in gen
+    assert "CALL invoke_0_testkern_type(f1, f2, m1)" in gen
 
-    def test_single_invoke_dynamo0p1(self):
-        ''' test for correct code transformation for a single function
-        specified in an invoke call for the dynamo0.1 api '''
-        alg, _ = generate(
+
+def test_zero_invoke_dynamo0p1():
+    ''' Test that an exception is raised if the specified file does
+        not contain any actual invoke() calls. We use the generate
+        function as parse and PSyFactory need to be called before
+        AlgGen so it is simpler to use this. '''
+    with pytest.raises(NoInvokesError):
+        _, _ = generate(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p1", "algorithm",
-                         "1_single_function.f90"), api="dynamo0.1")
-        gen = str(alg)
-        assert "USE psy_single_function, ONLY: invoke_0_testkern_type" in gen
-        assert "CALL invoke_0_testkern_type(f1, f2, m1)" in gen
-
-    def test_zero_invoke_dynamo0p1(self):
-        ''' Test that an exception is raised if the specified file does
-        not contain any actual invoke() calls '''
-        with pytest.raises(NoInvokesError):
-            _, _ = generate(
-                os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "test_files", "dynamo0p1", "missing_invokes.f90"),
-                api="dynamo0.1")
+                         "test_files", "dynamo0p1", "missing_invokes.f90"),
+            api="dynamo0.1")
