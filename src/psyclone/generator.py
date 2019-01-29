@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,8 @@ from psyclone.algGen import NoInvokesError
 from psyclone.line_length import FortLineLength
 from psyclone.profiler import Profiler
 from psyclone.version import __VERSION__
-from psyclone.configuration import Config
+from psyclone import configuration
+from psyclone.configuration import Config, ConfigurationError
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
@@ -136,7 +137,9 @@ def handle_script(script_name, psy):
 
 def generate(filename, api="", kernel_path="", script_name=None,
              line_length=False,
-             distributed_memory=None):
+             distributed_memory=None,
+             kern_out_path="",
+             kern_naming="multiple"):
     # pylint: disable=too-many-arguments
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
@@ -163,11 +166,18 @@ def generate(filename, api="", kernel_path="", script_name=None,
     :param bool distributed_memory: A logical flag specifying whether to \
                                     generate distributed memory code. The \
                                     default is set in the config.py file.
-    :return: 2-tuple containing fparser1 ASTs for the algorithm code and \
-             the psy code.
+    :param str kern_out_path: Directory to which to write transformed \
+                              kernel code.
+    :param bool kern_naming: the scheme to use when re-naming transformed \
+                             kernels.
+    :returns: 2-tuple containing fparser1 ASTs for the algorithm code and \
+              the psy code.
     :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
              :py:class:`fparser.one.block_statements.Module`)
+
     :raises IOError: if the filename or search path do not exist
+    :raises GenerationError: if an invalid API is specified.
+    :raises GenerationError: if an invalid kernel-renaming scheme is specified.
 
     For example:
 
@@ -192,9 +202,17 @@ def generate(filename, api="", kernel_path="", script_name=None,
                 "generate: Unsupported API '{0}' specified. Supported "
                 "types are {1}.".format(api, Config.get().supported_apis))
 
+    # Store Kernel-output options in our Configuration object
+    Config.get().kernel_output_dir = kern_out_path
+    try:
+        Config.get().kernel_naming = kern_naming
+    except ValueError as verr:
+        raise GenerationError("Invalid kernel-renaming scheme supplied: {0}".
+                              format(str(verr)))
+
     if not os.path.isfile(filename):
         raise IOError("file '{0}' not found".format(filename))
-    if (len(kernel_path) > 0) and (not os.access(kernel_path, os.R_OK)):
+    if kernel_path and not os.access(kernel_path, os.R_OK):
         raise IOError("kernel search path '{0}' not found".format(kernel_path))
     try:
         from psyclone.algGen import Alg
@@ -203,7 +221,6 @@ def generate(filename, api="", kernel_path="", script_name=None,
                                  line_length=line_length)
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
-
         if script_name is not None:
             handle_script(script_name, psy)
 
@@ -237,6 +254,9 @@ def main(args):
     parser.add_argument('-oalg', help='filename of transformed algorithm code')
     parser.add_argument(
         '-opsy', help='filename of generated PSy code')
+    parser.add_argument('-okern',
+                        help='directory in which to put transformed kernels, '
+                        'default is the current working directory.')
     parser.add_argument('-api',
                         help='choose a particular api from {0}, '
                              'default \'{1}\'.'
@@ -248,6 +268,11 @@ def main(args):
     parser.add_argument(
         '-d', '--directory', default="", help='path to root of directory '
         'structure containing kernel source code')
+    # Make the default an empty list so that we can check whether the
+    # user has supplied a value(s) later
+    parser.add_argument(
+        '-I', '--include', default=[], action="append",
+        help='path to Fortran INCLUDE files (nemo API only)')
     parser.add_argument(
         '-l', '--limit', dest='limit', action='store_true', default=False,
         help='limit the fortran line length to 132 characters')
@@ -257,6 +282,10 @@ def main(args):
     parser.add_argument(
         '-nodm', '--no_dist_mem', dest='dist_mem', action='store_false',
         help='do not generate distributed memory code')
+    parser.add_argument(
+        '--kernel-renaming', default="multiple",
+        choices=configuration.VALID_KERNEL_NAMING_SCHEMES,
+        help="Naming scheme to use when re-naming transformed kernels")
     parser.add_argument(
         '--profile', '-p', action="append", choices=Profiler.SUPPORTED_OPTIONS,
         help="Add profiling hooks for either 'kernels' or 'invokes'")
@@ -279,22 +308,39 @@ def main(args):
         print("PSyclone version: {0}".format(__VERSION__))
 
     if args.script is not None and args.profile is not None:
-        print("Error: use of automatic profiling in combination with an")
-        print("optimisation script is not recommended since it may not work")
-        print("as expected.")
-        print("You can use --force-profile instead of --profile if you "
-              "really want to use both options")
-        print("at the same time.")
+        print("Error: use of automatic profiling in combination with an\n"
+              "optimisation script is not recommened since it may not work\n"
+              "as expected.\n"
+              "You can use --force-profile instead of --profile if you \n"
+              "really want to use both options at the same time.",
+              file=sys.stderr)
         exit(1)
 
     if args.profile is not None and args.force_profile is not None:
-        print("Specify only one of --profile and --force-profile.")
+        print("Specify only one of --profile and --force-profile.",
+              file=sys.stderr)
         exit(1)
 
     if args.profile:
         Profiler.set_options(args.profile)
     elif args.force_profile:
         Profiler.set_options(args.force_profile)
+
+    # If an output directory has been specified for transformed kernels
+    # then check that it is valid
+    if args.okern:
+        if not os.path.exists(args.okern):
+            print("Specified kernel output directory ({0}) does not exist.".
+                  format(args.okern), file=sys.stderr)
+            exit(1)
+        if not os.access(args.okern, os.W_OK):
+            print("Cannot write to specified kernel output directory ({0}).".
+                  format(args.okern), file=sys.stderr)
+            exit(1)
+        kern_out_path = args.okern
+    else:
+        # We write any transformed kernels to the current working directory
+        kern_out_path = os.getcwd()
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
@@ -308,7 +354,8 @@ def main(args):
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
         print("Unsupported API '{0}' specified. Supported API's are "
-              "{1}.".format(args.api, Config.get().supported_apis))
+              "{1}.".format(args.api, Config.get().supported_apis),
+              file=sys.stderr)
         exit(1)
     else:
         # There is a valid API specified on the command line. Set it
@@ -316,12 +363,36 @@ def main(args):
         api = args.api
         Config.get().api = api
 
+    # Store the search path(s) for include files
+    if args.include and api != 'nemo':
+        # We only support passing include paths to fparser2 and it's
+        # only the NEMO API that uses fparser2 currently.
+        print("Setting the search path for Fortran include files "
+              "(-I/--include) is only supported for the 'nemo' API.",
+              file=sys.stderr)
+        exit(1)
+
+    # The Configuration manager checks that the supplied path(s) is/are
+    # valid so protect with a try
+    try:
+        if args.include:
+            Config.get().include_paths = args.include
+        else:
+            # Default is to instruct fparser2 to look in the directory
+            # containing the file being parsed
+            Config.get().include_paths = ["./"]
+    except ConfigurationError as err:
+        print(str(err), file=sys.stderr)
+        exit(1)
+
     try:
         alg, psy = generate(args.filename, api=api,
                             kernel_path=args.directory,
                             script_name=args.script,
                             line_length=args.limit,
-                            distributed_memory=args.dist_mem)
+                            distributed_memory=args.dist_mem,
+                            kern_out_path=kern_out_path,
+                            kern_naming=args.kernel_renaming)
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
         print("Warning: {0}".format(exc_value))
@@ -335,17 +406,18 @@ def main(args):
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError):
         _, exc_value, _ = sys.exc_info()
-        print(exc_value)
+        print(exc_value, file=sys.stderr)
         exit(1)
     except Exception:  # pylint: disable=broad-except
-        print("Error, unexpected exception, please report to the authors:")
+        print("Error, unexpected exception, please report to the authors:",
+              file=sys.stderr)
         exc_type, exc_value, exc_tb = sys.exc_info()
-        print("Description ...")
-        print(exc_value)
-        print("Type ...")
-        print(exc_type)
-        print("Stacktrace ...")
-        traceback.print_tb(exc_tb, limit=10, file=sys.stdout)
+        print("Description ...", file=sys.stderr)
+        print(exc_value, file=sys.stderr)
+        print("Type ...", file=sys.stderr)
+        print(exc_type, file=sys.stderr)
+        print("Stacktrace ...", file=sys.stderr)
+        traceback.print_tb(exc_tb, limit=10, file=sys.stderr)
         exit(1)
     if args.limit:
         fll = FortLineLength()

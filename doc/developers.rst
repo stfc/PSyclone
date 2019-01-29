@@ -1079,6 +1079,47 @@ appropriate names for the dag, colourmap, declaration etc.
    other. This is also the case for asynchronous halo exchanges. See
    issue #220.
 
+Evaluators
+----------
+
+Evaluators consist of basis and/or differential basis functions for a
+given function space, evaluated at the nodes of another, 'target',
+function space. A kernel can request evaluators on multiple target
+spaces through the use of the `gh_evaluator_targets` metadata entry.
+Every evaluator used by that kernel will then be provided on all of the
+target spaces.
+
+When constructing a `DynKernMetadata` object from the parsed kernel
+metadata, the list of target function-space names (as they appear in
+the meta-data) is stored in `DynKernMetadata._eval_targets`. This
+information is then used in the `DynKern._setup()` method which
+populates `DynKern._eval_targets`. This is an `OrderedDict` which has
+the (mangled) names of the target function spaces as keys and 2-tuples
+consisting of `FunctionSpace` and `DynKernelArgument` objects as
+values. The `DynKernelArgument` object provides the kernel argument
+from which to extract the function space and the `FunctionSpace` object
+holds full information on the target function space.
+
+The `DynInvokeBasisFunctions` class is responsible for managing the
+evaluators required by all of the kernels called from an Invoke.
+`DynInvokeBasisFunctions._eval_targets` collects all of the unique target
+function spaces from the `DynKern._eval_targets` of each kernel.
+
+`DynInvokeBasisFunctions._basis_fns` is a list holding information on
+each basis/differential basis function required by a kernel within the
+invoke. Each entry in this list is a `dict` with keys:
+
+============= =================================== ===================
+Key           Entry                      	  Type
+============= =================================== ===================
+shape         Shape of the evaluator              `str`
+type          Whether basis or differential basis `str`
+fspace        Function space             	  `FunctionSpace`
+arg           Associated kernel argument 	  `DynKernelArgument`
+qr_var        Quadrature argument name   	  `str`
+nodal_fspaces Target function spaces     	  list of `(FunctionSpace, DynKernelArgument)`
+============= =================================== ===================
+
 Modifying the Schedule
 ----------------------
 
@@ -1124,6 +1165,37 @@ an increase in depth will only increase the depth of an existing halo
 exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
+
+Kernel Transformations
+++++++++++++++++++++++
+
+Since PSyclone is invoked separately for each Algorithm file in an
+application, the naming of the new, transformed kernels is done with
+reference to the kernel output directory. All transformed kernels (and
+the modules that contain them) are re-named following the PSyclone
+Fortran naming conventions (:ref:`fortran_naming`). This enables the
+reliable identification of transformed versions of any given kernel
+within the output directory.
+
+If the "multiple" kernel-renaming scheme is in use, PSyclone simply
+appends an integer to the original kernel name, checks whether such a
+kernel is present in the output directory and if not, creates it. If a
+kernel with the generated name is present then the integer is
+incremented and the process repeated. If the "single" kernel-renaming
+scheme is in use, the same procedure is followed but if a matching
+kernel is already present in the output directory then the new kernel
+is not written (and we check that the contents of the existing kernel
+are the same as the one we would create).
+
+If an application is being built in parallel then it is possible that
+different invocations of PSyclone will happen simultaneously and
+therefore we must take care to avoid race conditions when querying the
+filesystem. For this reason we use ``os.open``::
+  
+    fd = os.open(<filename>, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
+
+The ``os.O_CREATE`` and ``os.O_EXCL`` flags in combination mean that
+``open()`` raises an error if the file in question already exists.
 
 Colouring
 +++++++++
@@ -1336,17 +1408,35 @@ multiple kernel calls within an OpenMP region) must sub-class the
 Kernel Transformations
 ----------------------
 
-Kernel transformations work on the fparser2 AST of the target kernel
-code.  This AST is obtained by converting the fparser1 AST (stored
+PSyclone is able to perform kernel transformations. Currently it has
+two ways to apply transformations: by directly manipulating the language
+AST or by translating the language AST to PSyIRe, apply the transformation,
+and producing the resulting language AST or code.
+
+For now, both methods only support fparser2 AST for kernel code.
+This AST is obtained by converting the fparser1 AST (stored
 when the kernel code was originally parsed to process the meta-data)
-back into a Fortran string and then parsing that with fparser2. (Note
-that in future we intend to adopt fparser2 throughout PSyclone so that
-this translation between ASTs will be unnecessary.) The `ast` property
-of the `psyclone.psyGen.Kern` class is responsible for performing this
-translation the first time it is called. It also stores the resulting
-AST in `Kern._fp2_ast` for return by future calls.
-Transforming a kernel is then a matter of manipulating this AST.
-(See `psyclone.transformations.ACCRoutineTrans` for an example.)
+back into a Fortran string and then parsing that with fparser2.
+(Note that in future we intend to adopt fparser2 throughout PSyclone so that
+this translation between ASTs will be unnecessary.)
+The `ast` property of the `psyclone.psyGen.Kern` class is responsible
+for performing this translation the first time it is called. It also
+stores the resulting AST in `Kern._fp2_ast` for return by future calls.
+
+See `psyclone.transformations.ACCRoutineTrans` for an example of directly
+manipulating the fparser2 AST.
+
+When a translation to PSyIRe is needed, an ASTProcessor can be used.
+At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
+version for Nemo `psyclone.nemo.NemoFparser2ASTProcessor` are available.
+(In the future we aim to have a generic ASTProcessor class, specialized
+for different language parsers: <parser>ASTProcessor, and specialized again
+for specific APIs when additional functionality is requiered
+<API><parser>ASTProcessor.)
+Each ASTProcessor is used with the `process_nodes` method:
+
+.. autoclass:: psyclone.psyGen.Fparser2ASTProcessor
+    :members:
 
 OpenACC Support
 ---------------
