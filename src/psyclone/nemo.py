@@ -598,10 +598,12 @@ class NemoImplicitLoop(NemoLoop):
         '''
         Checks whether the supplied node in the fparser2 AST represents
         an implicit loop (using Fortran array syntax).
+
         :param node: node in the fparser2 AST to check
         :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        :returns: True if the node does represet an implicit loop.
+        :returns: True if the node does represent an implicit loop.
         :rtype: bool
+
         '''
         if not isinstance(node, Fortran2003.Assignment_Stmt):
             return False
@@ -624,7 +626,7 @@ class NemoImplicitLoop(NemoLoop):
         rhs = node.items[2]
         colons = walk_ast(rhs.items, [Fortran2003.Subscript_Triplet])
         if not colons:
-            # We just have array syntax on the LHS
+            # We don't have any array syntax on the RHS
             return True
         # Check that we haven't got array syntax used within the index
         # expression to another array. Array references are represented by

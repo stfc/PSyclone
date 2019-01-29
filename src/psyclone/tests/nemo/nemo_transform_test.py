@@ -395,7 +395,6 @@ def test_implicit_loop_different_rank():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
     loop = sched.children[1]
     trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     with pytest.raises(TransformationError) as err:
