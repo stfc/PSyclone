@@ -217,8 +217,12 @@ class GOInvoke(Invoke):
 
     @property
     def unique_args_rscalars(self):
-        ''' find unique arguments that are scalars of type real (defined
-            as those that are go_r_scalar 'space'. '''
+        '''
+        :returns: the unique arguments that are scalars of type real \
+                  (defined as those that are go_r_scalar 'space').
+        :rtype: list of str.
+
+        '''
         result = []
         for call in self._schedule.calls():
             for arg in args_filter(call.arguments.args, arg_types=["scalar"],
@@ -230,8 +234,12 @@ class GOInvoke(Invoke):
 
     @property
     def unique_args_iscalars(self):
-        ''' find unique arguments that are scalars of type integer (defined
-            as those that are i_scalar 'space'). '''
+        '''
+        :returns: the unique arguments that are scalars of type integer \
+                  (defined as those that are i_scalar 'space').
+        :rtype: list of str.
+
+        '''
         result = []
         for call in self._schedule.calls():
             for arg in args_filter(call.arguments.args, arg_types=["scalar"],

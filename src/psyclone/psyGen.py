@@ -393,7 +393,8 @@ class Invokes(object):
                 # each kernel called from the PSy layer
                 self.gen_ocl_init(parent, opencl_kernels)
 
-    def gen_ocl_init(self, parent, kernels):
+    @staticmethod
+    def gen_ocl_init(parent, kernels):
         '''
         Generates a subroutine to initialise the OpenCL environment and
         construct the list of OpenCL kernel objects used by this PSy layer.
@@ -1389,9 +1390,12 @@ class Schedule(Node):
     >>> schedule = invoke.schedule
     >>> schedule.view()
 
-    :param type KernFactory: the sub-class-specific Kernel factory.
-    :param type BuiltInFactory: the sub-class-specific factory for built-ins.
-    :param alg_calls: list of kernel-calls in the schedule.
+    :param type KernFactory: class instance of the factory to use when \
+     creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
+    :param type BuiltInFactory: class instance of the factory to use when \
+     creating built-ins. e.g. \
+     :py:class:`psyclone.dynamo0p3_builtins.DynBuiltInCallFactory`.
+    :param alg_calls: list of Kernel calls in the schedule.
     :type alg_calls: list of :py:class:`psyclone.parse.KernelCall`
 
     '''

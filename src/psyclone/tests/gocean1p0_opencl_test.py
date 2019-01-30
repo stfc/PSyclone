@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,6 @@ def test_use_stmts():
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen).lower()
-    print(generated_code)
     expected = '''\
     subroutine invoke_0_compute_cu(cu_fld, p_fld, u_fld)
       use fortcl, only: create_rw_buffer
@@ -71,7 +70,6 @@ def test_psy_init():
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
-    print(generated_code)
     expected = (
         "    SUBROUTINE psy_init()\n"
         "      USE fortcl, ONLY: ocl_env_init, add_kernels\n"
@@ -141,7 +139,6 @@ def test_set_kern_float_arg():
     otrans = OCLTrans()
     otrans.apply(sched)
     generated_code = str(psy.gen)
-    print(generated_code)
     expected = '''\
     SUBROUTINE bc_ssh_code_set_args(kernel_obj, nx, a_scalar, ssh_fld, tmask)
       USE clfortran, ONLY: clSetKernelArg
@@ -167,7 +164,7 @@ def test_set_kern_float_arg():
     assert expected in generated_code
 
 
-def test_set_arg_const_scalar():  # pylint:disable=invalid-name
+def test_set_arg_const_scalar():
     ''' Check that an invoke that passes a scalar kernel argument by
     value is rejected. (We haven't yet implemented the necessary code for
     setting the value of such an argument in OpenCL.) '''
