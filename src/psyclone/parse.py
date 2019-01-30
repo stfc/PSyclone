@@ -346,14 +346,14 @@ class TensorProductElement(Element):
 
 class KernelProcedure(object):
     """
-    An elemental kernel procedure.
+    An elemental Kernel procedure.
 
-    :param ktype_ast: the fparser1 parse tree for the kernel meta-data.
+    :param ktype_ast: the fparser1 parse tree for the Kernel meta-data.
     :type ktype_ast: :py:class:`fparser.one.block_statements.Type`
-    :param str ktype_name: name of the Fortran type holding the kernel \
+    :param str ktype_name: name of the Fortran type holding the Kernel \
                            meta-data.
     :param modast: the fparser1 parse tree for the module containing the \
-                   kernel routine.
+                   Kernel routine.
     :type modast: :py:class:`fparser.one.block_statements.BeginSource`
 
     """
@@ -371,24 +371,24 @@ class KernelProcedure(object):
         or
                 PROCEDURE, nopass :: <proc_name>
 
-        :param ast: the fparser1 parse tree for the kernel meta-data.
+        :param ast: the fparser1 parse tree for the Kernel meta-data.
         :type ast: :py:class:`fparser.one.block_statements.Type`
-        :param str name: the name of the Fortran type holding the kernel \
+        :param str name: the name of the Fortran type holding the Kernel \
                          meta-data.
         :param modast: the fparser1 parse tree for the module containing the \
-                       kernel routine.
+                       Kernel routine.
         :type modast: :py:class:`fparser.one.block_statements.BeginSource`
 
         :returns: 2-tuple of the fparser1 parse tree of the Subroutine \
-                  statement and the name of that subroutine.
+                  statement and the name of that Subroutine.
         :rtype: (:py:class:`fparser1.block_statements.Subroutine`, str)
 
-        :raises RuntimeError: if the supplied kernel meta-data does not \
+        :raises RuntimeError: if the supplied Kernel meta-data does not \
                               have a type-bound procedure.
         :raises RuntimeError: if no implementation is found for the \
                               type-bound procedure.
         :raises ParseError: if the type-bound procedure specifies a binding \
-                            name but the generic name is not 'code'.
+                            name but the generic name is not "code".
         :raises ParseError: if the type-bound procedure is not public in the \
                             Fortran module.
         :raises InternalError: if we get an empty string for the name of the \
@@ -417,7 +417,7 @@ class KernelProcedure(object):
                 format(name))
         if bname == '':
             raise InternalError(
-                "Empty kernel name returned for Kernel type {0}.".format(name))
+                "Empty Kernel name returned for Kernel type {0}.".format(name))
         code = None
         default_public = True
         declared_private = False
@@ -464,7 +464,7 @@ class KernelTypeFactory(object):
     Factory for objects in the PSyIR representing calls to user-supplied
     Kernels.
 
-    :param str api: The API for which this factory is to create kernels.
+    :param str api: The API for which this factory is to create Kernels.
     '''
     def __init__(self, api=""):
         if api == "":
@@ -481,7 +481,7 @@ class KernelTypeFactory(object):
 
         :param ast: The fparser1 AST for the Kernel code.
         :type ast: :py:class:`fparser.one.block_statements.BeginSource`
-        :param str name: the name of the kernel or None.
+        :param str name: the name of the Kernel or None.
         '''
         if self._type == "dynamo0.1":
             return DynKernelType(ast, name=name)
