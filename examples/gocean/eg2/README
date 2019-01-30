@@ -42,7 +42,7 @@ The Makefile and this version of PSyclone work with version 1.0 of the GOcean
 API.
 
 In order to use PSyclone you must first install it, ideally with pip.
-See ../../README.md for more details.
+See ../../../README.md for more details.
 
 In order to compile and run this example you will need the dl_esm_inf
 infrastructure library installed (github.com/stfc/dl_esm_inf). The directory
