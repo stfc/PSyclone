@@ -419,7 +419,7 @@ def test_get_int_array_err2(monkeypatch):
 
 
 def test_kernel_binding_not_code():
-    ''' Check that we raise the expected error when kernel meta-data uses
+    ''' Check that we raise the expected error when Kernel meta-data uses
     a specific binding but does not have 'code' as the generic name. '''
     mdata = MDATA.replace("code => test", "my_code => test")
     ast = fpapi.parse(mdata)
@@ -430,7 +430,7 @@ def test_kernel_binding_not_code():
 
 
 def test_kernel_binding_missing():
-    ''' Check that we raise the correct error when the kernel meta-data is
+    ''' Check that we raise the correct error when the Kernel meta-data is
     missing the type-bound procedure giving the name of the subroutine. '''
     mdata = MDATA.replace(
         "contains\n    procedure, nopass :: code => testkern_eval_code\n", "")
@@ -443,13 +443,13 @@ def test_kernel_binding_missing():
 
 def test_empty_kernel_name(monkeypatch):
     ''' Check that we raise the correct error when we get a blank string for
-    the name of the kernel subroutine. '''
+    the name of the Kernel subroutine. '''
     import fparser
     mdata = MDATA.replace("procedure, nopass :: code => testkern_eval_code",
                           "procedure, nopass :: testkern_eval_code")
     ast = fpapi.parse(mdata)
     # Break the AST
-    for statement, depth in fpapi.walk(ast, -1):
+    for statement, _ in fpapi.walk(ast, -1):
         if isinstance(statement, fparser.one.statements.SpecificBinding):
             monkeypatch.setattr(statement, "name", "")
             break
