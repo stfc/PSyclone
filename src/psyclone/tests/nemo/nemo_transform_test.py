@@ -407,7 +407,7 @@ def test_implicit_loop_different_rank():
     assert ("Expecting a colon for index 3 but array only has 2 "
             "dimensions: zab(" in str(err))
 
-def text_explicit_loop_validate():
+def test_explicit_loop_validate():
     ''' Test for the validate method of NemoExplicitLoopTrans. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "explicit_over_implicit.f90"),
