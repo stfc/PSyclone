@@ -61,7 +61,7 @@ Constructing the PSyIRe
 -----------------------
 
 Transformations in PSyclone are applied to an Internal Representation,
-the "PSyIRe." In contrast to the other APIs where the PSyIRe is
+the "PSyIR." In contrast to the other APIs where the PSyIR is
 constructed from scratch, for NEMO PSyclone must parse the existing
 Fortran and create a higher-level representation of it. This is done
 using rules based upon the NEMO Coding Conventions :cite:`nemo_code_conv`.
@@ -94,30 +94,23 @@ Implicit
 ^^^^^^^^
 
 The use of Fortran array notation is encouraged in the NEMO Coding
-Conventions and is employed throughout the NEMO code base. PSyclone
-therefore also recognises the loops implied by this notation. The type
-of loop is inferred from the position of the colon in the array
-subscripts. Since NEMO uses `(ji,jj,jk)` index ordering (longitude,
-latitude, levels) this means that loop types are determined
-according to the following table:
+Conventions :cite:`nemo_code_conv` (section 4.2) and is employed
+throughout the NEMO code base. The Coding Conventions mandate that the
+shape of every array in such expressions must be specified, e.g.::
 
-===========  ===============  ===========
-Array index  Loop type        Loop limits
-===========  ===============  ===========
-1            Longitude        1, jpi
-2            Latitude         1, jpj
-3            Vertical levels  1, jpk
-===========  ===============  ===========
+    onedarraya(:) = onedarrayb(:) + onedarrayc(:)
+    twodarray (:,:) = scalar * anothertwodarray(:,:)
 
-Currently PSyclone will convert every implicit loop it encounters in
-one of these dimensions into an explicit loop over the full
-sub-domain. This is because it has been found by CMCC and Intel that
-the Intel compiler is better able to OpenMP-parallelise explicit loops.
-However, as with all compiler-specific optimisations, this situation
-may change and will depend on the compiler being used.
+PSyclone therefore also recognises the loops implied by this
+notation.
 
-If an implicit loop is encountered in an array index other than 1-3 then
-currently PSyclone will raise an error.
+It has been found by CMCC and Intel that the Intel compiler is better
+able to OpenMP-parallelise explicit loops.  Therefore, PSyclone
+provides a transformation to allow the user to convert implicit loops
+into explicit loop nests (see :ref:`nemo-transformations`). However,
+as with all compiler-specific optimisations, whether or not this
+transformation is beneficial will depend on the precise details of the
+compiler being used.
 
 Example
 -------
@@ -138,26 +131,20 @@ routine) is shown below::
             END DO
          END DO
 
-PSyclone uses fparser2 to parse such source code and then generates an
-internal representation of it::
-  
+PSyclone uses fparser2 to parse such source code and then generates the PSy
+Internal Representation of it::
+
     Loop[type='tracers',field_space='None',it_space='None']
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 KernCall[Implicit]
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 KernCall[Implicit]
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 KernCall[Implicit]
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 KernCall[Implicit]
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 Loop[type='lon',field_space='None',it_space='None']
-                     KernCall[]
+        Loop[type='None',field_space='None',it_space='None']
+        Loop[type='None',field_space='None',it_space='None']
+        Loop[type='None',field_space='None',it_space='None']
+        Loop[type='None',field_space='None',it_space='None']
+        Loop[type='levels',field_space='None',it_space='None']
+            Loop[type='lat',field_space='None',it_space='None']
+                Loop[type='lon',field_space='None',it_space='None']
+                    KernCall[Explicit]
+
+.. _nemo-transformations:
 
 Transformations
 ---------------
@@ -170,7 +157,24 @@ NEMO API. For an overview of transformations in general see
 .. autoclass:: psyclone.transformations.NemoExplicitLoopTrans
    :members:
    :noindex:
-     
+
+The type of the loop being transformed is inferred from the position
+of the colon(s) in the array subscripts. Since NEMO uses `(ji,jj,jk)`
+index ordering (longitude, latitude, levels) this means that loop
+types are determined according to the following table:
+
+===========  ===============  ===========
+Array index  Loop type        Loop limits
+===========  ===============  ===========
+1            Longitude        1, jpi
+2            Latitude         1, jpj
+3            Vertical levels  1, jpk
+===========  ===============  ===========
+
+If this transformation encounters an implicit loop in an array index
+other than 1-3 then currently PSyclone will raise an error.
+
+
 .. _limitations:
 
 Limitations
