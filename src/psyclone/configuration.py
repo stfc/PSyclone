@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,14 @@ import os
 # Name of the config file we search for
 _FILE_NAME = "psyclone.cfg"
 
+# The different naming schemes supported when transforming kernels:
+# multiple = Every transformed kernel is given a unique name. This permits
+#            multiple versions of the same kernel to be created.
+# single = If any given kernel (within a single Application) is transformed
+#          more than once then the same transformation must always be
+#          applied and only one version of the transformed kernel is created.
+VALID_KERNEL_NAMING_SCHEMES = ["multiple", "single"]
+
 
 class ConfigurationError(Exception):
     '''
@@ -86,6 +94,17 @@ class Config(object):
     # The default API, i.e. the one to be used if neither a command line
     # option is specified nor is the API in the config file used.
     _default_api = u"dynamo0.3"
+
+    # The default scheme to use when (re)naming transformed kernels.
+    # By default we support multiple, different versions of any given
+    # kernel by ensuring that each transformed kernel is given a
+    # unique name (within the specified kernel-output directory).
+    # N.B. the default location to which to write transformed kernels is
+    # the current working directory. Since this may change between the
+    # importing of this module and the actual generation of code (e.g. as
+    # happens in the test suite), we do not store it here. Instead it
+    # is set in the Config.kernel_output_dir getter.
+    _default_kernel_naming = "multiple"
 
     @staticmethod
     def get(do_not_load_file=False):
@@ -143,6 +162,15 @@ class Config(object):
         # Padding size (number of array elements) to be used when
         # reproducible reductions are created.
         self._reprod_pad_size = None
+
+        # Where to write transformed kernels - set at runtime
+        self._kernel_output_dir = None
+
+        # The naming scheme to use for transformed kernels
+        self._kernel_naming = None
+
+        # The list of directories to search for Fortran include files
+        self._include_paths = []
 
     # -------------------------------------------------------------------------
     def load(self, config_file=None):
@@ -264,6 +292,11 @@ class Config(object):
                         "Configuration file contains a {0} section but no "
                         "Config sub-class has been implemented for this API".
                         format(api))
+
+        # The scheme to use when re-naming transformed kernels.
+        # By default we ensure that each transformed kernel is given a
+        # unique name (within the specified kernel-output directory).
+        self._kernel_naming = Config._default_kernel_naming
 
     def api_conf(self, api):
         '''
@@ -459,6 +492,81 @@ class Config(object):
         '''
         return self._config_file
 
+    @property
+    def kernel_output_dir(self):
+        '''
+        :returns: the directory to which to write transformed kernels.
+        :rtype: str
+        '''
+        if not self._kernel_output_dir:
+            # We use the CWD if no directory has been specified
+            self._kernel_output_dir = os.getcwd()
+        return self._kernel_output_dir
+
+    @kernel_output_dir.setter
+    def kernel_output_dir(self, value):
+        '''
+        Setter for kernel output directory.
+        :param str value: directory to which to write transformed kernels.
+        '''
+        self._kernel_output_dir = value
+
+    @property
+    def kernel_naming(self):
+        '''
+        :returns: what naming scheme to use when writing transformed kernels \
+                  to file.
+        :rtype: str
+        '''
+        return self._kernel_naming
+
+    @kernel_naming.setter
+    def kernel_naming(self, value):
+        '''
+        Setter for how to re-name kernels when writing transformed kernels
+        to file.
+
+        :param str value: one of VALID_KERNEL_NAMING_SCHEMES.
+        :raises ValueError: if the supplied value is not a recognised \
+                            kernel-renaming scheme.
+        '''
+        if value not in VALID_KERNEL_NAMING_SCHEMES:
+            raise ValueError(
+                "kernel_naming must be one of '{0}' but got '{1}'".
+                format(VALID_KERNEL_NAMING_SCHEMES, value))
+        self._kernel_naming = value
+
+    @property
+    def include_paths(self):
+        '''
+        :returns: the list of paths to search for Fortran include files.
+        :rtype: list of str.
+        '''
+        return self._include_paths
+
+    @include_paths.setter
+    def include_paths(self, path_list):
+        '''
+        Sets the list of paths to search for Fortran include files.
+
+        :param path_list: list of directories to search.
+        :type path_list: list of str.
+
+        :raises ValueError: if `path_list` is not a list-like object.
+        :raises ConfigurationError: if any of the paths in the list do \
+                                    not exist.
+        '''
+        self._include_paths = []
+        try:
+            for path in path_list:
+                if not os.path.exists(path):
+                    raise ConfigurationError(
+                        "Include path '{0}' does not exist".format(path))
+                self._include_paths.append(path)
+        except (TypeError, ValueError):
+            raise ValueError("include_paths must be a list but got: {0}".
+                             format(type(path_list)))
+
     def get_default_keys(self):
         '''Returns all keys from the default section.
         :returns list: List of all keys of the default section as strings.
@@ -466,7 +574,6 @@ class Config(object):
         return self._config.defaults()
 
 
-# =============================================================================
 class DynConfig(object):
     '''
     Dynamo0.3-specific Config sub-class. Holds configuration options specific

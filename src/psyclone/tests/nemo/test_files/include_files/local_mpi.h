@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! Copyright (c) 2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,21 +29,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Lab
 
-program multi_qr_per_invoke
-
-  use testkern_qr, only: testkern_qr_type
-  implicit none
-  type(field_type)      :: f0, f1, f2, f3, f4
-  type(quadrature_type) :: qr0, qr1
-  real                  :: ascalar
-  integer               :: iscalar
-
-  call invoke(                                               &
-       testkern_qr_type(f1,f2,f3,ascalar,f4,iscalar,qr0),    &
-       testkern_qr_type(f1,f2,f3,ascalar,f4,iscalar,qr1),    &
-       testkern_qr_type(f0,f2,f3,ascalar,f4,iscalar,qr0) )
-
-
-end program multi_qr_per_invoke
+! This is a very simple include file for testing of PSyclone's  ability
+! to handle source code containing include statements.
+integer :: some_fake_mpi_handle
