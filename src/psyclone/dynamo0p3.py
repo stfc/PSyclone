@@ -7305,9 +7305,9 @@ class DynKernelArguments(Arguments):
 
     @property
     def dofs(self):
-        ''' Currently required for invoke base class although this
-        makes no sense for dynamo. Need to refactor the invoke class
-        and pull out dofs into the gunghoproto api. '''
+        ''' Currently required for Invoke base class although this
+        makes no sense for Dynamo. Need to refactor the Invoke base class
+        and remove the need for this property (#279). '''
         return self._dofs
 
     def raw_arg_list(self, parent):

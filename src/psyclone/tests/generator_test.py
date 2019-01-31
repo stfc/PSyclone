@@ -553,7 +553,7 @@ def test_main_invalid_api(capsys):
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
     expected_output = ("Unsupported API 'madeup' specified. Supported API's "
-                       "are ['gunghoproto', 'dynamo0.1', 'dynamo0.3', "
+                       "are ['dynamo0.1', 'dynamo0.3', "
                        "'gocean0.1', 'gocean1.0', 'nemo'].\n")
     assert output == expected_output
 

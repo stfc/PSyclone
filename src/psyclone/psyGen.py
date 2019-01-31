@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-19 Science and Technology Facilities Council.
+# Copyright (c) 2017-19, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -256,9 +256,7 @@ class PSyFactory(object):
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
         '''
-        if self._type == "gunghoproto":
-            from psyclone.ghproto import GHProtoPSy as PSyClass
-        elif self._type == "dynamo0.1":
+        if self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynamoPSy as PSyClass
         elif self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass

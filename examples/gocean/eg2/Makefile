@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,24 +30,52 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-The sub-directories present in the directory containing this README provide
-examples of the use of PSyclone with the GOcean 1.0 API.
+# Makefile for the 2nd GOcean example. Uses PSyclone (which must
+# be installed) to generate Fortran with OpenACC directives for
+# a single-kernel example.
+#
+# The compiler to use must be specified via the F90 environment
+# variable. e.g. to use PGI and OpenACC:
+#
+# export F90=pgf90
+# export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
+# export LDFLAGS="-acc -ta=tesla,cc70"
 
-Example 1
----------
+# Location of the infrastucture code (which is a submodule of the
+# PSyclone git repo).
+SHARED_DIR = ../../../external
+INF_DIR = ${SHARED_DIR}/dl_esm_inf/finite_difference
+INF_INC = ${INF_DIR}/src
+INF_LIB = ${INF_DIR}/src/dl_esm_inf_fd.a
 
-Contains a version of the Shallow benchmark with a subset of the kernels
-called from within invoke()'s. Contains example scripts showing the use
-of PSyclone for adding OpenMP or OpenACC and for performing loop fusion.
+.PHONY: all kernels clean allclean
 
-Example 2
----------
+all: single.exe
 
-A single-kernel example demonstrating the use of PSyclone in generating
-a compilable and executable OpenACC code. Note that compiling this
-example requires that the dl_esm_inf library (github.com/stfc/dl_esm_inf)
-be installed first.
+single.exe: kernels psy.o alg_gen.o
+	${F90} ${LDFLAGS} inc_field_*mod.o psy.o alg_gen.o ${INF_LIB} -o single.exe
 
+alg_gen.f90 psy.f90: alg.f90
+	psyclone -l -api "gocean1.0" -s ./acc_transform.py -opsy psy.f90 -oalg alg_gen.f90 alg.f90
+
+psy.f90: alg_gen.f90
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -I${INF_INC} -c $<
+
+# Gnu Make caches the contents of the current working directory at
+# start-up. Therefore wildcards do not pick-up any files generated
+# during execution.
+kernels: alg_gen.f90
+	${MAKE} inc_field_mod.o inc_field_0_mod.o
+
+clean:
+	rm -f *.o *.mod *~
+
+# Delete generated Fortran and exe
+allclean: clean
+	rm -f inc_field_*_mod.f90
+	rm -f psy.f90 alg_gen.f90 single.exe
