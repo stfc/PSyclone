@@ -1,3 +1,5 @@
+	9) #207 and PR #280. Remove support for gunghoproto API.
+
 	8) #227 and PR #233. Add a gocean1.0 API OpenACC example.
 
 	7) #126 and PR #283. Update xfailing tests in alggen_test.py which
