@@ -447,7 +447,7 @@ class Invokes(object):
 
 
 class NameSpaceFactory(object):
-        # storage for the instance reference
+    # storage for the instance reference
     _instance = None
 
     def __init__(self, reset=False):
@@ -2093,9 +2093,9 @@ class OMPParallelDirective(OMPDirective):
         for loop in self.loops():
             # We must allow for implicit loops (e.g. in the NEMO API) that
             # have no associated variable name
-            if loop._variable_name and \
-               loop._variable_name.lower() not in result:
-                result.append(loop._variable_name.lower())
+            if loop.variable_name and \
+               loop.variable_name.lower() not in result:
+                result.append(loop.variable_name.lower())
         # get variable names from all calls that are a child of this node
         for call in self.calls():
             for variable_name in call.local_vars():
@@ -2810,6 +2810,14 @@ class Loop(Node):
         :type kern: :py:class:`psyclone.psyGen.Kern`
         '''
         self._kern = kern
+
+    @property
+    def variable_name(self):
+        '''
+        :returns: the name of the control variable for this loop.
+        :rtype: str
+        '''
+        return self._variable_name
 
     def __str__(self):
         result = "Loop[" + self._id + "]: " + self._variable_name + "=" + \

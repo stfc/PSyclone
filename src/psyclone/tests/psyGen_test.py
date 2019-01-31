@@ -54,8 +54,7 @@ from psyclone_test_utils import get_invoke
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
-    Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    BinaryOperation
+    Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -1744,7 +1743,6 @@ def test_directive_backward_dependence():
 
 def test_directive_get_private(monkeypatch):
     ''' Tests for the _get_private_list() method of OMPParallelDirective. '''
-    from psyclone.psyGen import Loop
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         distributed_memory=False, api="dynamo0.3")
@@ -1764,8 +1762,8 @@ def test_directive_get_private(monkeypatch):
     directive = schedule.children[0]
     assert isinstance(directive, OMPParallelDirective)
     # Now check that _get_private_list returns what we expect
-    vars = directive._get_private_list()
-    assert vars == ['cell']
+    pvars = directive._get_private_list()
+    assert pvars == ['cell']
     # Now use monkeypatch to break the Call within the loop
     call = directive.children[0].children[0].children[0]
     monkeypatch.setattr(call, "local_vars", lambda: [""])
@@ -1848,7 +1846,7 @@ def test_node_is_valid_location():
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
-    from psyclone.psyGen import Node, Loop
+    from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     sched.view()
@@ -2078,7 +2076,6 @@ def test_haloexchange_vector_index_depend():
     schedule = invoke.schedule
     first_d_field_halo_exchange = schedule.children[3]
     field = first_d_field_halo_exchange.field
-    from psyclone.psyGen import Node
     all_nodes = schedule.walk(schedule.children, Node)
     following_nodes = all_nodes[4:]
     result_list = field._find_read_arguments(following_nodes)
