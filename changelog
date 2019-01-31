@@ -1,5 +1,10 @@
-	7) #174 and PR #216. Adds the ability to generate an OpenCL PSy
+	9) #174 and PR #216. Adds the ability to generate an OpenCL PSy
 	layer in the gocean1.0 API (including an OpenCL transformation).
+
+	8) #227 and PR #233. Add a gocean1.0 API OpenACC example.
+
+	7) #126 and PR #283. Update xfailing tests in alggen_test.py which
+	require multiple quadrature objects in a single invoke to pass.
 
 	6) #201 and PR #224. Add ability to write transformed kernels to
 	file. Also ensures that kernel and psy-layer names match, allows
