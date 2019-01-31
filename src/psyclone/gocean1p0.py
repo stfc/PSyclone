@@ -898,25 +898,6 @@ class GOKern(Kern):
         '''
         return []
 
-    def find_grid_access(self):
-        '''Determine the best kernel argument from which to get properties of
-            the grid. For this, an argument must be a field (i.e. not
-            a scalar) and must be supplied by the algorithm layer
-            (i.e. not a grid property). If possible it should also be
-            a field that is read-only as otherwise compilers can get
-            confused about data dependencies and refuse to SIMD
-            vectorise.
-
-        '''
-        for access in ["go_read", "go_readwrite", "go_write"]:
-            for arg in self._arguments.args:
-                if arg.type == "field" and arg.access.lower() == access:
-                    return arg
-        # We failed to find any kernel argument which could be used
-        # to access the grid properties. This will only be a problem
-        # if the kernel requires a grid-property argument.
-        return None
-
     def gen_code(self, parent):
         '''
         Generates GOcean v1.0 specific psy code for a call to the
@@ -944,7 +925,7 @@ class GOKern(Kern):
 
         # Before we do anything else, go through the arguments and
         # determine the best one from which to obtain the grid properties.
-        grid_arg = self.find_grid_access()
+        grid_arg = self._arguments.find_grid_access()
 
         # A GOcean 1.0 kernel always requires the [i,j] indices of the
         # grid-point that is to be updated
@@ -986,7 +967,7 @@ class GOKern(Kern):
         '''
         from psyclone.f2pygen import CallGen, DeclGen, AssignGen, CommentGen
         # Create the array used to specify the iteration space of the kernel
-        garg = self.find_grid_access()
+        garg = self._arguments.find_grid_access()
         glob_size = self._name_space_manager.create_name(
             root_name="globalsize", context="PSyVars", label="globalsize")
         parent.add(DeclGen(parent, datatype="integer", target=True,
@@ -1127,7 +1108,7 @@ class GOKern(Kern):
         '''
         from psyclone.f2pygen import UseGen, CommentGen, IfThenGen, DeclGen, \
             AssignGen
-        grid_arg = self.find_grid_access()
+        grid_arg = self._arguments.find_grid_access()
         # Ensure the fields required by this kernel are on device. We must
         # create the buffers for them if they're not.
         parent.add(UseGen(parent, name="fortcl", only=True,
