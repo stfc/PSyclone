@@ -4274,7 +4274,8 @@ class Fparser2ASTProcessor(object):
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :raises InternalError: Unexpected fpaser2 AST format.
+        :raises GenerationError: Unable to generate a kernel schedule from the
+                                 provided fpaser2 parse tree.
         '''
         from fparser.two import Fortran2003
 
@@ -4318,17 +4319,17 @@ class Fparser2ASTProcessor(object):
             mod_spec = first_type_match(mod_content,
                                         Fortran2003.Specification_Part)
         except (ValueError, IndexError):
-            raise InternalError("Unexpected kernel AST when generating '{0}' "
-                                " kernel schedule. Could not find the "
-                                "specification part.".format(name))
+            raise GenerationError("Unexpected kernel AST when generating "
+                                  "'{0}' kernel schedule. Could not find the "
+                                  "specification part.".format(name))
 
         try:
             subroutines = first_type_match(mod_content,
                                            Fortran2003.Module_Subprogram_Part)
             subroutine = search_subroutine(subroutines.content, name)
         except (ValueError, IndexError):
-            raise InternalError("Unexpected kernel AST. Could not find "
-                                "subroutine: {0}".format(name))
+            raise GenerationError("Unexpected kernel AST. Could not find "
+                                  "subroutine: {0}".format(name))
 
         arg_list = []  # List of kernel arguments
         try:
@@ -4343,10 +4344,10 @@ class Fparser2ASTProcessor(object):
         try:
             new_schedule.symbol_table.specify_argument_list(arg_list)
         except KeyError:
-            raise InternalError("Unexpected kernel AST. The kernel argument "
-                                "list '{0}' does not match the variable "
-                                "declarations for kernel '{1}'."
-                                "".format(str(arg_list), name))
+            raise GenerationError("Unexpected kernel AST. The kernel argument "
+                                  "list '{0}' does not match the variable "
+                                  "declarations for kernel '{1}'."
+                                  "".format(str(arg_list), name))
 
         try:
             sub_exec = first_type_match(subroutine.content,
@@ -4367,6 +4368,8 @@ class Fparser2ASTProcessor(object):
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
         :param nodes: fparser2 AST nodes to search for declaration statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :raises NotImplementedError: The provided declarations contain
+                                     attributes which are not supported yet.
         '''
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
@@ -4671,6 +4674,9 @@ class Symbol(object):
                         represents a 'local', 'external' or argument variable,
                         if it is an argument it also specifies if it is
                         'read_arg', 'write_arg' or 'readwrite_arg'.
+    :raises NotImplementedError: Provided parameters are not supported yet.
+    :raises TypeError: Provided parameters have invalid error type.
+    :raises ValueError: Provided parameters contain invalid values.
     '''
 
     # Tuple with the valid values for the access attribute.
@@ -4740,6 +4746,7 @@ class Symbol(object):
         :param str new_access: New value of the access attribute, can be:
                                'local', 'external', 'read_arg', 'write_arg'
                                or 'readwrite_arg'.
+        :raises ValueError: New access parameter has an invalid value.
         '''
         if new_access not in Symbol.valid_access_types:
             raise ValueError("Symbol access attribute can only be: "
@@ -4775,6 +4782,8 @@ class SymbolTable(object):
         :type shape: list of integers
         :param str access: Information about the variable declaration
                            attributes.
+        :raises KeyError: The provided name can not be used as key in the
+                          table.
         '''
         if name in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"

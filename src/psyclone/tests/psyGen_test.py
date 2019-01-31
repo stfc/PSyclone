@@ -2810,21 +2810,21 @@ def test_fparser2astprocessor_generate_schedule_empty_subroutine():
     assert isinstance(schedule, KernelSchedule)
 
     # Test that we get an error for a nonexistant subroutine name
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(GenerationError) as error:
         schedule = processor.generate_schedule("nonexistent_code", ast2)
     assert "Unexpected kernel AST. Could not find " \
            "subroutine: nonexistent_code" in str(error.value)
 
     # Test corrupting ast by deleting subroutine
     del ast2.content[0].content[2]
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(GenerationError) as error:
         schedule = processor.generate_schedule("dummy_code", ast2)
     assert "Unexpected kernel AST. Could not find " \
            "subroutine: dummy_code" in str(error.value)
 
     # Test corrupting ast by deleting specification part
     del ast2.content[0].content[1]
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(GenerationError) as error:
         schedule = processor.generate_schedule("dummy_code", ast2)
     assert "Unexpected kernel AST. Could not find specification part."
 
@@ -2926,7 +2926,7 @@ def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
     processor = Fparser2ASTProcessor()
 
     # Test exception for unmatching argument list
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(GenerationError) as error:
         schedule = processor.generate_schedule("dummy_code", ast2)
     assert ("Unexpected kernel AST. The kernel argument list '['f1', 'f2', "
             "'f3', 'f4']' does not match the variable declarations for kernel"
