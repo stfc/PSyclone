@@ -772,9 +772,7 @@ A downside of performing redundant computation in the level-1 halo is
 that any fields being read by the kernel must have their level-1 halo
 clean (up-to-date), which can result in halo exchanges. Note that this
 is not the case for the modified field, it does not need its halo to
-be clean, however, at the moment a halo exchange is added in this
-case. This unnecessary halo exchange will be removed in a future
-release of PSyclone.
+be clean.
 
 Cell iterators: Discontinuous
 -----------------------------
@@ -833,18 +831,21 @@ has completed. If a following kernel needs to read the field's
 annexed dofs, then PSyclone will need to add a halo exchange to make
 them clean.
 
-There are 3 cases to consider:
+There are 4 cases to consider:
 
 1) the field is read in a loop that iterates over dofs,
 2) the field is read in a loop that iterates over owned cells and
+   level-1 halo cells,
+3) the field is incremented in a loop that iterates over owned cells and
    level-1 halo cells, and
-3) the field is read in a loop that iterates over owned cells
+4) the field is read in a loop that iterates over owned cells
 
 In case 1) the annexed dofs will not be read as the loop only iterates
 over owned dofs so a halo exchange is not required. In case 2) the
 full level-1 halo will be read (including annexed dofs) so a halo
-exchange is required. In case 3) the annexed dofs will be read so a
-halo exchange will be required.
+exchange is required. In case 3) the annexed dofs will be updated so a
+halo exchange is required. In case 4) the annexed dofs will be read so
+a halo exchange will be required.
 
 If we now take the case where annexed dofs are computed for loops that
 iterate over dofs (`COMPUTE_ANNEXED_DOFS` is ``true``) then a field's
@@ -857,19 +858,32 @@ continuous field has been modified by a kernel. This is because loops
 that iterate over either dofs or cells now compute annexed dofs and
 there are no other ways for a continuous field to be updated.
 
-We now consider the same three cases. In case 1) the annexed dofs will
+We now consider the same four cases. In case 1) the annexed dofs will
 now be read, but annexed dofs are guaranteed to be clean, so no halo
 exchange is required. In case 2) the full level-1 halo is read so a
 halo exchange is still required. Note, as part of this halo exchange
 we will update annexed dofs that are already clean. In case 3) the
-annexed dofs will be read but a halo exchange is not required as the
-annexed dofs are guaranteed to be clean.
+annexed dofs will be updated but a halo exchange is not required as
+the annexed dofs are guaranteed to be clean. In case 4) the annexed
+dofs will be read but a halo exchange is not required as the annexed
+dofs are guaranteed to be clean.
+
+Furthermore, in the 3rd and 4th cases (in which annexed dofs are read
+or updated but the rest of the halo does not have to be clean), where
+the previous writer is unknown (as it comes from a different invoke
+call) we need to add a speculative halo exchange (one that makes use of
+the runtime clean and dirty flags) when `COMPUTE_ANNEXED_DOFS` is
+`False`, as the previous writer *may* have iterated over dofs, leaving
+the annexed dofs dirty. In contrast, when `COMPUTE_ANNEXED_DOFS` is
+`True`, we do not require a speculative halo exchange as we know that
+annexed dofs are always clean.
 
 Therefore no additional halo exchanges are required when
 `COMPUTE_ANNEXED_DOFS` is changed from ``false`` to ``true`` i.e. case 1)
 does not require a halo exchange in either situation and case 2)
 requires a halo exchange in both situations. We also remove halo
-exchanges for case 3) so the number of halo exchanges may be reduced.
+exchanges for cases 3) and 4) so the number of halo exchanges may be
+reduced.
 
 If a switch were not used and it were possible to use a transformation
 to selectively perform computation over annexed dofs for loops that
@@ -933,26 +947,28 @@ initial schedule. There are three cases:
 
 1) loops that iterate over cells and modify a continuous field will
    access the level-1 halo. This means that any field that is read
-   within such a loop must have its level-1 halo clean and therefore
-   requires a halo exchange. Note, at the moment PSyclone adds a halo
-   exchange for the modified field (as it is specified as `GH_INC`
-   which requires a read before a write), however this is not required
-   if there is only one field updated in the kernel. This is because
-   we only care about updating owned and annexed dofs, therefore it
-   does not matter what the values of any halo dofs are.
+   within such a loop must have its level-1 halo clean (up-to-date)
+   and therefore requires a halo exchange. A modified field (specified
+   as `GH_INC` which involves a read before a write) will require a
+   halo exchange if its annexed dofs are not clean, or if their
+   status is unknown. Whilst it is only the annexed dofs that need to
+   be made clean in this case, the only way to acheive this is
+   via a halo exchange (which updates the halo i.e. more than is
+   required). Note, if the `COMPUTE_ANNEXED_DOFS` configuration
+   variable is set to ``true`` then no halo exchange is required as
+   annexed dofs will always be clean.
 
 2) continuous fields that are read from within loops that iterate over
-   cells and modify a discontinuous field must have their annexed dofs
-   clean. Currently the only way to make annexed dofs clean is to
-   perform a halo exchange. If the `COMPUTE_ANNEXED_DOFS`
-   configuration variable is set to ``true`` then no halo exchange is
-   required as annexed dofs will always be clean. If the
-   `COMPUTE_ANNEXED_DOFS` configuration variable is set to ``false``
-   then a halo exchange must be added if the previous modification of
-   the field is known to be from within a loop over dofs, or if the
-   previous modification of the field is unknown (i.e. outside the
-   invoke) as the previous modification may have been from within a
-   loop over dofs.
+   cells and modify a discontinuous field will access their annexed
+   dofs. If the annexed dofs are known to be dirty (because the
+   previous modification of the field is known to be from within a
+   loop over dofs) or their status is unknown (because the previous
+   modification to the field is outside of the current invoke) then a
+   halo exchange will be required (As already mentioned, currently the
+   only way to make annexed dofs clean is to perform a halo
+   swap. Note, if the `COMPUTE_ANNEXED_DOFS` configuration variable is
+   set to ``true`` then no halo exchange is required as annexed dofs
+   will always be clean.
 
 3) fields that have a stencil access will access the halo and need
    halo exchange calls added.
@@ -1063,6 +1079,47 @@ appropriate names for the dag, colourmap, declaration etc.
    other. This is also the case for asynchronous halo exchanges. See
    issue #220.
 
+Evaluators
+----------
+
+Evaluators consist of basis and/or differential basis functions for a
+given function space, evaluated at the nodes of another, 'target',
+function space. A kernel can request evaluators on multiple target
+spaces through the use of the `gh_evaluator_targets` metadata entry.
+Every evaluator used by that kernel will then be provided on all of the
+target spaces.
+
+When constructing a `DynKernMetadata` object from the parsed kernel
+metadata, the list of target function-space names (as they appear in
+the meta-data) is stored in `DynKernMetadata._eval_targets`. This
+information is then used in the `DynKern._setup()` method which
+populates `DynKern._eval_targets`. This is an `OrderedDict` which has
+the (mangled) names of the target function spaces as keys and 2-tuples
+consisting of `FunctionSpace` and `DynKernelArgument` objects as
+values. The `DynKernelArgument` object provides the kernel argument
+from which to extract the function space and the `FunctionSpace` object
+holds full information on the target function space.
+
+The `DynInvokeBasisFunctions` class is responsible for managing the
+evaluators required by all of the kernels called from an Invoke.
+`DynInvokeBasisFunctions._eval_targets` collects all of the unique target
+function spaces from the `DynKern._eval_targets` of each kernel.
+
+`DynInvokeBasisFunctions._basis_fns` is a list holding information on
+each basis/differential basis function required by a kernel within the
+invoke. Each entry in this list is a `dict` with keys:
+
+============= =================================== ===================
+Key           Entry                      	  Type
+============= =================================== ===================
+shape         Shape of the evaluator              `str`
+type          Whether basis or differential basis `str`
+fspace        Function space             	  `FunctionSpace`
+arg           Associated kernel argument 	  `DynKernelArgument`
+qr_var        Quadrature argument name   	  `str`
+nodal_fspaces Target function spaces     	  list of `(FunctionSpace, DynKernelArgument)`
+============= =================================== ===================
+
 Modifying the Schedule
 ----------------------
 
@@ -1108,6 +1165,37 @@ an increase in depth will only increase the depth of an existing halo
 exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
+
+Kernel Transformations
+++++++++++++++++++++++
+
+Since PSyclone is invoked separately for each Algorithm file in an
+application, the naming of the new, transformed kernels is done with
+reference to the kernel output directory. All transformed kernels (and
+the modules that contain them) are re-named following the PSyclone
+Fortran naming conventions (:ref:`fortran_naming`). This enables the
+reliable identification of transformed versions of any given kernel
+within the output directory.
+
+If the "multiple" kernel-renaming scheme is in use, PSyclone simply
+appends an integer to the original kernel name, checks whether such a
+kernel is present in the output directory and if not, creates it. If a
+kernel with the generated name is present then the integer is
+incremented and the process repeated. If the "single" kernel-renaming
+scheme is in use, the same procedure is followed but if a matching
+kernel is already present in the output directory then the new kernel
+is not written (and we check that the contents of the existing kernel
+are the same as the one we would create).
+
+If an application is being built in parallel then it is possible that
+different invocations of PSyclone will happen simultaneously and
+therefore we must take care to avoid race conditions when querying the
+filesystem. For this reason we use ``os.open``::
+  
+    fd = os.open(<filename>, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
+
+The ``os.O_CREATE`` and ``os.O_EXCL`` flags in combination mean that
+``open()`` raises an error if the file in question already exists.
 
 Colouring
 +++++++++
@@ -1320,17 +1408,35 @@ multiple kernel calls within an OpenMP region) must sub-class the
 Kernel Transformations
 ----------------------
 
-Kernel transformations work on the fparser2 AST of the target kernel
-code.  This AST is obtained by converting the fparser1 AST (stored
+PSyclone is able to perform kernel transformations. Currently it has
+two ways to apply transformations: by directly manipulating the language
+AST or by translating the language AST to PSyIRe, apply the transformation,
+and producing the resulting language AST or code.
+
+For now, both methods only support fparser2 AST for kernel code.
+This AST is obtained by converting the fparser1 AST (stored
 when the kernel code was originally parsed to process the meta-data)
-back into a Fortran string and then parsing that with fparser2. (Note
-that in future we intend to adopt fparser2 throughout PSyclone so that
-this translation between ASTs will be unnecessary.) The `ast` property
-of the `psyclone.psyGen.Kern` class is responsible for performing this
-translation the first time it is called. It also stores the resulting
-AST in `Kern._fp2_ast` for return by future calls.
-Transforming a kernel is then a matter of manipulating this AST.
-(See `psyclone.transformations.ACCRoutineTrans` for an example.)
+back into a Fortran string and then parsing that with fparser2.
+(Note that in future we intend to adopt fparser2 throughout PSyclone so that
+this translation between ASTs will be unnecessary.)
+The `ast` property of the `psyclone.psyGen.Kern` class is responsible
+for performing this translation the first time it is called. It also
+stores the resulting AST in `Kern._fp2_ast` for return by future calls.
+
+See `psyclone.transformations.ACCRoutineTrans` for an example of directly
+manipulating the fparser2 AST.
+
+When a translation to PSyIRe is needed, an ASTProcessor can be used.
+At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
+version for Nemo `psyclone.nemo.NemoFparser2ASTProcessor` are available.
+(In the future we aim to have a generic ASTProcessor class, specialized
+for different language parsers: <parser>ASTProcessor, and specialized again
+for specific APIs when additional functionality is requiered
+<API><parser>ASTProcessor.)
+Each ASTProcessor is used with the `process_nodes` method:
+
+.. autoclass:: psyclone.psyGen.Fparser2ASTProcessor
+    :members:
 
 OpenACC Support
 ---------------

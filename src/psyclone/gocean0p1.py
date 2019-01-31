@@ -1,11 +1,38 @@
-# ----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2016.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
-# ----------------------------------------------------------------------------
-# Author R. Ford STFC Daresbury Lab
-# Funded by the GOcean project
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-19, Science and Technology Facilities Council
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 ''' This module implements the emerging PSyclone GOcean API by specialising
     the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
@@ -17,10 +44,16 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
 
 
 class GOPSy(PSy):
-    ''' The GOcean specific PSy class. This creates a GOcean specific
-        invokes object (which controls all the required invocation calls).
-        Also overrides the PSy gen method so that we generate GOceaen
-        specific PSy module code. '''
+    '''
+    The GOcean specific PSy class. This creates a GOcean specific
+    invokes object (which controls all the required invocation calls).
+    Also overrides the PSy gen method so that we generate GOceaen
+    specific PSy module code.
+
+    :param invoke_info: An object containing the required invocation \
+                        information for code optimisation and generation.
+    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
         self._invokes = GOInvokes(invoke_info.calls)
@@ -55,6 +88,7 @@ class GOInvokes(Invokes):
     ''' The GOcean specific invokes class. This passes the GOcean specific
         invoke class to the base class so it creates the one we require. '''
     def __init__(self, alg_calls):
+        # pylint: disable=using-constant-test
         if False:
             self._0_to_n = GOInvoke(None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, GOInvoke)
@@ -69,6 +103,7 @@ class GOInvoke(Invoke):
         provides to methods which separate arguments that are arrays from
         arguments that are scalars. '''
     def __init__(self, alg_invocation, idx):
+        # pylint: disable=using-constant-test
         if False:
             self._schedule = GOSchedule(None)  # for pyreverse
         Invoke.__init__(self, alg_invocation, idx, GOSchedule,
@@ -116,7 +151,7 @@ class GOInvoke(Invoke):
         # add the subroutine argument declarations for arrays
         if len(self.unique_args_arrays) > 0:
             my_decl_arrays = DeclGen(invoke_sub, datatype="REAL",
-                                     intent="inout", kind="wp",
+                                     intent="inout", kind="go_wp",
                                      entity_decls=self.unique_args_arrays,
                                      dimension=":,:")
             invoke_sub.add(my_decl_arrays)
@@ -230,6 +265,7 @@ class GOKern(Kern):
         code for the Kernel instance. Specialises the gen_code method to
         create the appropriate GOcean specific kernel call. '''
     def __init__(self):
+        # pylint: disable=using-constant-test
         if False:
             self._arguments = GOKernelArguments(None, None)  # for pyreverse
 
@@ -261,6 +297,7 @@ class GOKernelArguments(Arguments):
         as specified by the kernel argument metadata. This class ensures that
         initialisation is performed correctly. It also adds three '''
     def __init__(self, call, parent_call):
+        # pylint: disable=using-constant-test
         if False:
             self._0_to_n = GOKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)

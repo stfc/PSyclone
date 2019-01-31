@@ -37,7 +37,7 @@
     used in setup.py and doc/conf.py '''
 
 __MAJOR__ = 1
-__MINOR__ = 6
+__MINOR__ = 7
 __MICRO__ = 0
 
 __SHORT_VERSION__ = "{0:d}.{1:d}".format(__MAJOR__, __MINOR__)

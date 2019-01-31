@@ -82,8 +82,8 @@ def test_const_loop_bounds_toggle():
     gen = str(psy.gen)
 
     assert "INTEGER istop, jstop" in gen
-    assert "istop = cv_fld%grid%simulation_domain%xstop" in gen
-    assert "jstop = cv_fld%grid%simulation_domain%ystop" in gen
+    assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
+    assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
     assert "DO j=2,jstop-1" in gen
     assert "DO i=2,istop" in gen
 
@@ -95,8 +95,8 @@ def test_const_loop_bounds_toggle():
     gen = str(psy.gen)
 
     assert "INTEGER istop, jstop" in gen
-    assert "istop = cv_fld%grid%simulation_domain%xstop" in gen
-    assert "jstop = cv_fld%grid%simulation_domain%ystop" in gen
+    assert "istop = cv_fld%grid%subdomain%internal%xstop" in gen
+    assert "jstop = cv_fld%grid%subdomain%internal%ystop" in gen
     assert "DO j=2,jstop-1" in gen
     assert "DO i=2,istop" in gen
 
