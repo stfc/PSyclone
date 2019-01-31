@@ -72,6 +72,13 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
 
 
+# Module fixtures
+
+@pytest.fixture(scope="module")
+def f2008_parser():
+    from fparser.two.parser import ParserFactory
+    return ParserFactory().create(std="f2008")
+
 # PSyFactory class unit tests
 
 
@@ -2933,15 +2940,13 @@ def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
             " 'dummy_code'.") in str(error.value)
 
 
-def test_fparser2astprocessor_process_declarations():
+def test_fparser2astprocessor_process_declarations(f2008_parser):
     '''Test that process_declarations method of fparse2astprocessor
     converts the fparser2 decalations to symbols in the provided
     parent Kernel Schedule.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
-    f2008parser = ParserFactory().create(std="f2008")
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
 
@@ -2983,7 +2988,7 @@ def test_fparser2astprocessor_process_declarations():
     # of parsing a full program, but fparser/169 needs to be fixed first.
     reader = FortranStringReader("program dummy\ncharacter :: l*4"
                                  "\nend program")
-    program = f2008parser(reader)
+    program = f2008_parser(reader)
     fparser2specification = program.content[0].content[1].content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2specification])
@@ -2991,14 +2996,12 @@ def test_fparser2astprocessor_process_declarations():
             "supported.") in str(error.value)
 
 
-def test_fparser2astprocessor_process_declarations_intent():
+def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     '''Test that process_declarations method handles various different
     specifications of variable attributes.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
-    f2008parser = ParserFactory().create(std="f2008")
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
 
@@ -3035,14 +3038,13 @@ def test_fparser2astprocessor_process_declarations_intent():
     assert fake_parent.symbol_table.lookup("arg4").access == 'readwrite_arg'
 
 
-def test_fparser2astprocessor_process_declarations_array_attributes():
+def test_fparser2astprocessor_process_declarations_array_attributes(
+        f2008_parser):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
-    f2008parser = ParserFactory().create(std="f2008")
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
 
@@ -3095,14 +3097,12 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
             " declarations.") in str(error.value)
 
 
-def test_fparser2astprocessor_handling_assignment_stmt():
+def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
     ''' Test that fparser2 Assignment_Stmt is converted to expected PSyIRe
     tree structure.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=1")
     fparser2assignment = Execution_Part.match(reader)[0][0]
 
@@ -3116,14 +3116,12 @@ def test_fparser2astprocessor_handling_assignment_stmt():
     assert len(new_node.children) == 2
 
 
-def test_fparser2astprocessor_handling_name():
+def test_fparser2astprocessor_handling_name(f2008_parser):
     ''' Test that fparser2 Name is converted to expected PSyIRe
     tree structure.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
@@ -3137,14 +3135,12 @@ def test_fparser2astprocessor_handling_name():
     assert new_node._reference == "x"
 
 
-def test_fparser2astprocessor_handling_parenthesis():
+def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
     ''' Test that fparser2 Parenthesis is converted to expected PSyIRe
     tree structure.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=(x+1)")
     fparser2parenthesis = Execution_Part.match(reader)[0][0].items[2]
 
@@ -3158,14 +3154,12 @@ def test_fparser2astprocessor_handling_parenthesis():
     assert isinstance(new_node, BinaryOperation)
 
 
-def test_fparser2astprocessor_handling_part_ref():
+def test_fparser2astprocessor_handling_part_ref(f2008_parser):
     ''' Test that fparser2 Part_Ref is converted to expected PSyIRe
     tree structure.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    ParserFactory().create(std="f2008")
     reader = FortranStringReader("x(i)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
@@ -3192,14 +3186,12 @@ def test_fparser2astprocessor_handling_part_ref():
     assert len(new_node.children) == 3  # Array dimensions
 
 
-def test_fparser2astprocessor_handling_if_stmt():
+def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
     ''' Test that fparser2 If_Stmt is converted to expected PSyIRe
     tree structure.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    ParserFactory().create(std="f2008")
     reader = FortranStringReader("if(x==1)y=1")
     fparser2if_stmt = Execution_Part.match(reader)[0][0]
 
@@ -3213,14 +3205,12 @@ def test_fparser2astprocessor_handling_if_stmt():
     assert len(new_node.children) == 2
 
 
-def test_fparser2astprocessor_handling_numberbase():
+def test_fparser2astprocessor_handling_numberbase(f2008_parser):
     ''' Test that fparser2 NumberBase is converted to expected PSyIRe
     tree structure.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=1")
     fparser2number = Execution_Part.match(reader)[0][0].items[2]
 
@@ -3234,14 +3224,12 @@ def test_fparser2astprocessor_handling_numberbase():
     assert new_node._value == "1"
 
 
-def test_fparser2astprocessor_handling_binaryopbase():
+def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     ''' Test that fparser2 BinaryOpBase is converted to expected PSyIRe
     tree structure.
     '''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    ParserFactory().create(std="f2008")
     reader = FortranStringReader("x=1+4")
     fparser2binaryOp = Execution_Part.match(reader)[0][0].items[2]
 
@@ -3256,12 +3244,10 @@ def test_fparser2astprocessor_handling_binaryopbase():
     assert new_node._operator == '+'
 
 
-def test_fparser2astprocessor_handling_end_do_stmt():
+def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):
     ''' Test that fparser2 End_Do_Stmt are ignored.'''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    ParserFactory().create(std="f2008")
     reader = FortranStringReader('''
         do i=1,10
             a=a+1
@@ -3275,12 +3261,10 @@ def test_fparser2astprocessor_handling_end_do_stmt():
     assert len(fake_parent.children) == 0  # No new children created
 
 
-def test_fparser2astprocessor_handling_end_subroutine_stmt():
+def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     ''' Test that fparser2 End_Subroutine_Stmt are ignored.'''
-    from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Subroutine_Subprogram
-    ParserFactory().create(std="f2008")
     reader = FortranStringReader('''
         subroutine dummy_code()
         end subroutine dummy_code
