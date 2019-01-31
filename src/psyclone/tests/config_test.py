@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -244,7 +244,7 @@ def test_read_values():
     assert api == "dynamo0.3"
     # The list of supported APIs
     api_list = _config.supported_apis
-    assert api_list == ['gunghoproto', 'dynamo0.1', 'dynamo0.3',
+    assert api_list == ['dynamo0.1', 'dynamo0.3',
                         'gocean0.1', 'gocean1.0', 'nemo']
     # The default API for kernel stub generation
     api = _config.default_stub_api

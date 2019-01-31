@@ -123,14 +123,6 @@ def test_psy_base_err(monkeypatch):
     assert "must be implemented by subclass" in str(excinfo)
 
 
-# TBD need to find a way to create a valid info object to pass to
-# create so we can check creation
-# def test_create_valid_return_object():
-#     from ghproto import
-#     GHProtoPSy psy = PSyFactory().create(None) assert
-#     isinstance(psy,GHProtoPSy)
-
-
 # Transformation class unit tests
 
 def test_base_class_not_callable():
