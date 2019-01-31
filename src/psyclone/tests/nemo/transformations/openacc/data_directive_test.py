@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
-    representation of NEMO code using teh OpenACC data directive.
+    representation of NEMO code using the OpenACC data directive.
 
 '''
 
@@ -154,7 +154,8 @@ def test_code_block_noalloc_kernels():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children[1:4])
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[1].children[0:3], default_present=True)
+    schedule, _ = acc_trans.apply(schedule.children[1].children[0:3],
+                                  default_present=True)
     gen_code = str(psy.gen)
     
     assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"

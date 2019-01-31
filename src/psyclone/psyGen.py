@@ -168,7 +168,8 @@ def object_index(alist, item):
     for idx, entry in enumerate(alist):
         if entry is item:
             return idx
-    raise ValueError()
+    raise ValueError(
+        "Item '{0}' not found in list: {1}".format(str(item), alist))
 
 
 def get_api(api):
@@ -4920,6 +4921,15 @@ class CodeBlock(Node):
         # the list itself is a temporary product of the process of converting
         # from the fparser2 AST to the PSyIRe.
         self._statements = statements[:]
+        # Store references back into the fparser2 AST
+        if statements:
+            self._ast = self._statements[0]
+            self._ast_start = self._ast
+            self._ast_end = self._statements[-1]
+        else:
+            self._ast = None
+            self._ast_start = None
+            self._ast_end = None
 
     @property
     def coloured_text(self):
