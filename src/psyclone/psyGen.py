@@ -4677,12 +4677,15 @@ class Symbol(object):
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
-    :param int shape: Shape of the symbol (an empty list represents \
-                      a scalar symbol).
-    :param list access: List of strings that specify if the declaration
-                        represents a 'local', 'external' or argument variable,
-                        if it is an argument it also specifies if it is
-                        'read_arg', 'write_arg' or 'readwrite_arg'.
+    :param list shape: Shape of the symbol in row-major order (leftmost \
+                       index is contiguous in memory). Each entry represents \
+                       an array dimension. If not None then it holds the \
+                       extent of that dimension. If it is an empy list it \
+                       represents an scalar.
+    :param str access: String that specifies if the declaration \
+                       represents a 'local', 'external' or argument \
+                       variable, if it is an argument it also specifies \
+                       if it is 'read_arg', 'write_arg' or 'readwrite_arg'.
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
@@ -4734,8 +4737,12 @@ class Symbol(object):
     @property
     def shape(self):
         '''
-        :return: Shape (number of dimensions and sizes) of the Symbol.
-        :rtype: int
+        :return: Shape of the symbol in row-major order (leftmost \
+                 index is contiguous in memory). Each entry represents \
+                 an array dimension. If not None then it holds the \
+                 extent of that dimension. If it is an empy list it \
+                 represents an scalar.
+        :rtype: list
         '''
         return self._shape
 
@@ -4786,11 +4793,15 @@ class SymbolTable(object):
 
         :param str name: Name of the symbol.
         :param str datatype: Datatype of the symbol.
-        :param shape: Shape of the symbol (empty list represents an scalar
-                      symbol).
-        :type shape: list of integers
-        :param str access: Information about the variable declaration
-                           attributes.
+        :param list shape: Shape of the symbol in row-major order (leftmost \
+                       index is contiguous in memory). Each entry represents \
+                       an array dimension. If not None then it holds the \
+                       extent of that dimension. If it is an empy list it \
+                       represents an scalar.
+        :param str access: String that specifies if the declaration \
+                       represents a 'local', 'external' or argument \
+                       variable, if it is an argument it also specifies \
+                       if it is 'read_arg', 'write_arg' or 'readwrite_arg'.
         :raises KeyError: The provided name can not be used as key in the
                           table.
         '''
