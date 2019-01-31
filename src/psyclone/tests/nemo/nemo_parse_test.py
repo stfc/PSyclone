@@ -37,11 +37,10 @@
 
 from __future__ import print_function, absolute_import
 import os
+from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.utils import walk_ast
 from fparser.two import Fortran2003
-from psyclone.parse import parse
-from psyclone import nemo
 
 # Constants
 API = "nemo"

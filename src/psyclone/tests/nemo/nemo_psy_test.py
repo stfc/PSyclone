@@ -108,7 +108,7 @@ def test_array_valued_function():
     sched = psy.invokes.invoke_list[0].schedule
     sched.view()
     assert len(sched.children) == 2
-    # We should just have two assignments and no Loops
+    # We should just have two assignments and no Kernels
     kernels = sched.walk(sched.children, nemo.NemoKern)
     assert not kernels
 

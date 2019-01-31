@@ -39,13 +39,13 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
-from fparser.two import Fortran2003
-from fparser.common.readfortran import FortranStringReader
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo, InternalError, \
     GenerationError
 from psyclone.transformations import TransformationError
 from psyclone import nemo
+from fparser.two import Fortran2003
+from fparser.common.readfortran import FortranStringReader
 
 # Constants
 API = "nemo"
@@ -246,10 +246,10 @@ def test_omp_do_within_if():
 
 def test_implicit_loop_trans():
     ''' Check that we get the correct schedule when we apply the explicit
-    loop transformation to  an implicit loop. '''
+    loop transformation to an implicit loop. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
                            api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API).create(invoke_info)
     exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     assert isinstance(psy, nemo.NemoPSy)
     sched = psy.invokes.invoke_list[0].schedule
@@ -295,7 +295,7 @@ def test_implicit_loop_sched2():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "explicit_over_implicit.f90"),
                            api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API).create(invoke_info)
     exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     sched = psy.invokes.invoke_list[0].schedule
     loop_levels = sched.children[0]
@@ -376,9 +376,8 @@ def test_implicit_range_err(parser):
                                  "umask(1:jpi, 1, :) = 0.0D0\n"
                                  "end program atest\n")
     prog = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(prog)
+    psy = PSyFactory(API).create(prog)
     sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
     with pytest.raises(NotImplementedError) as err:
         exp_trans.apply(sched.children[0])
     assert ("Support for implicit loops with specified bounds is not yet "
@@ -393,7 +392,7 @@ def test_implicit_loop_different_rank():
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "array_section_index_mismatch.f90"),
                            api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loop = sched.children[1]
     trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
@@ -407,12 +406,13 @@ def test_implicit_loop_different_rank():
     assert ("Expecting a colon for index 3 but array only has 2 "
             "dimensions: zab(" in str(err))
 
+
 def test_explicit_loop_validate():
     ''' Test for the validate method of NemoExplicitLoopTrans. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "explicit_over_implicit.f90"),
                            api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    psy = PSyFactory(API).create(invoke_info)
     exp_trans = TransInfo().get_trans_name('NemoExplicitLoopTrans')
     sched = psy.invokes.invoke_list[0].schedule
     # Attempt to apply the transformation to an explicit do loop
