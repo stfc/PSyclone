@@ -113,6 +113,11 @@ cd dynamo/eg11
 ${PSYCLONE} -s ./async_script.py helmholtz_solver_alg_mod.x90
 cd -
 
+echo "Running example dynamo/eg12"
+cd dynamo/eg12
+${PSYCLONE} -nodm -s ./global_plus_extract.py rk_transport_mod.x90
+cd -
+
 echo "Running gocean/eg1"
 cd gocean/eg1
 python runme.py
