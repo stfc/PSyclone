@@ -4335,19 +4335,17 @@ class Fparser2ASTProcessor(object):
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
-            arg_list = [x.string for x in subroutine.content[0].items[2].items]
+            decl_list = sub_spec.content
+            arg_list = subroutine.content[0].items[2].items
         except ValueError:
+            # Specification part was not found
+            decl_list = []
             pass
-        else:
-            self.process_declarations(new_schedule, sub_spec.content)
-
-        try:
-            new_schedule.symbol_table.specify_argument_list(arg_list)
-        except KeyError:
-            raise GenerationError("Unexpected kernel AST. The kernel argument "
-                                  "list '{0}' does not match the variable "
-                                  "declarations for kernel '{1}'."
-                                  "".format(str(arg_list), name))
+        except IndexError:
+            # Argument list not found
+            arg_list = []
+        finally:
+            self.process_declarations(new_schedule, decl_list, arg_list)
 
         try:
             sub_exec = first_type_match(subroutine.content,
@@ -4359,7 +4357,7 @@ class Fparser2ASTProcessor(object):
 
         return new_schedule
 
-    def process_declarations(self, parent, nodes):
+    def process_declarations(self, parent, nodes, arg_list):
         '''
         Transform the variable declarations in fparser2 parse tree into
         symbols in the PSyIR parent node symbol table.
@@ -4368,6 +4366,8 @@ class Fparser2ASTProcessor(object):
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
         :param nodes: fparser2 AST nodes to search for declaration statements.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param arg_list: fparser2 AST node containing the argument list.
+        :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
         :raises NotImplementedError: The provided declarations contain
                                      attributes which are not supported yet.
         '''
@@ -4439,6 +4439,15 @@ class Fparser2ASTProcessor(object):
                                               "".format(nodes))
                 parent.symbol_table.declare(str(name), datatype, shape,
                                             decltype)
+
+        try:
+            arg_strings = [x.string for x in arg_list]
+            parent.symbol_table.specify_argument_list(arg_strings)
+        except KeyError:
+            raise InternalError("The kernel argument "
+                                "list '{0}' does not match the variable "
+                                "declarations for fparser nodes {1}."
+                                "".format(str(arg_list), nodes))
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).

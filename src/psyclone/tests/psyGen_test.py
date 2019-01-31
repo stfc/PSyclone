@@ -2933,11 +2933,11 @@ def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
     processor = Fparser2ASTProcessor()
 
     # Test exception for unmatching argument list
-    with pytest.raises(GenerationError) as error:
+    with pytest.raises(InternalError) as error:
         schedule = processor.generate_schedule("dummy_code", ast2)
-    assert ("Unexpected kernel AST. The kernel argument list '['f1', 'f2', "
-            "'f3', 'f4']' does not match the variable declarations for kernel"
-            " 'dummy_code'.") in str(error.value)
+    assert "The kernel argument list" in str(error.value)
+    assert "does not match the variable declarations for fparser nodes" \
+        in str(error.value)
 
 
 def test_fparser2astprocessor_process_declarations(f2008_parser):
@@ -2952,16 +2952,16 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
 
     # Test simple declarations
     reader = FortranStringReader("integer :: l1")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l1").name == 'l1'
     assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("l1").shape == []
     assert fake_parent.symbol_table.lookup("l1").access == 'local'
 
     reader = FortranStringReader("Real      ::      l2")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
     assert fake_parent.symbol_table.lookup("l2").shape == []
@@ -2969,17 +2969,17 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
 
     # RHS array specifications are not supported
     reader = FortranStringReader("integer :: l1(4)")
-    fparser2specification = Specification_Part(reader).content[0]
+    fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2specification])
+        processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Array specifications after the variable name are not "
             "supported.") in str(error.value)
 
     # Initialisations are not supported
     reader = FortranStringReader("integer :: l1 = 1")
-    fparser2specification = Specification_Part(reader).content[0]
+    fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2specification])
+        processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Initializations on the declaration statements are not "
             "supported.") in str(error.value)
 
@@ -2989,9 +2989,9 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     reader = FortranStringReader("program dummy\ncharacter :: l*4"
                                  "\nend program")
     program = f2008_parser(reader)
-    fparser2specification = program.content[0].content[1].content[0]
+    fparser2spec = program.content[0].content[1].content[0]
     with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2specification])
+        processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Character length specifications are not "
             "supported.") in str(error.value)
 
@@ -3006,32 +3006,32 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     processor = Fparser2ASTProcessor()
 
     reader = FortranStringReader("integer, intent(in) :: arg1")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("arg1").name == "arg1"
     assert fake_parent.symbol_table.lookup("arg1").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("arg1").shape == []
     assert fake_parent.symbol_table.lookup("arg1").access == 'read_arg'
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("arg2").name == "arg2"
     assert fake_parent.symbol_table.lookup("arg2").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("arg2").shape == []
     assert fake_parent.symbol_table.lookup("arg2").access == 'read_arg'
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("arg3").name == "arg3"
     assert fake_parent.symbol_table.lookup("arg3").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("arg3").shape == []
     assert fake_parent.symbol_table.lookup("arg3").access == 'write_arg'
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("arg4").name == "arg4"
     assert fake_parent.symbol_table.lookup("arg4").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("arg4").shape == []
@@ -3049,8 +3049,8 @@ def test_fparser2astprocessor_process_declarations_array_attributes(
     processor = Fparser2ASTProcessor()
 
     reader = FortranStringReader("integer, dimension(:,:,:) :: array1")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("array1").name == "array1"
     assert fake_parent.symbol_table.lookup("array1").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("array1").shape == [None, None,
@@ -3058,40 +3058,40 @@ def test_fparser2astprocessor_process_declarations_array_attributes(
     assert fake_parent.symbol_table.lookup("array1").access == 'local'
 
     reader = FortranStringReader("real, dimension(:), intent(in) :: array2")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("array2").name == "array2"
     assert fake_parent.symbol_table.lookup("array2").datatype == 'real'
     assert fake_parent.symbol_table.lookup("array2").shape == [None]
     assert fake_parent.symbol_table.lookup("array2").access == 'read_arg'
 
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
     assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
     assert fake_parent.symbol_table.lookup("array3").access == 'read_arg'
 
     reader = FortranStringReader("integer, dimension(3,5) :: array4")
-    fparser2specification = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2specification])
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("array4").name == "array4"
     assert fake_parent.symbol_table.lookup("array4").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("array4").shape == [3, 5]
     assert fake_parent.symbol_table.lookup("array4").access == 'local'
 
     reader = FortranStringReader("integer, dimension(*) :: array5")
-    fparser2specification = Specification_Part(reader).content[0]
+    fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2specification])
+        processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
     assert "Assumed-size arrays are not supported." in str(error.value)
 
     reader = FortranStringReader("integer, dimension(var1) :: array5")
-    fparser2specification = Specification_Part(reader).content[0]
+    fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2specification])
+        processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
     assert ("Only integer literals are supported for explicit shape array"
             " declarations.") in str(error.value)
