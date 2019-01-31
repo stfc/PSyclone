@@ -4310,14 +4310,17 @@ class Fparser2ASTProcessor(object):
         try:
             # Assume just 1 Fortran module definition in the file
             if len(module_ast.content) > 1:
-                raise InternalError("Unexpected kernel AST. Just one "
-                                    "module definition per file supported.")
+                raise GenerationError("Unexpected AST when generating '{0}' "
+                                      "kernel schedule. Just one "
+                                      "module definition per file supported."
+                                      "".format(name))
             mod_content = module_ast.content[0].content
             mod_spec = first_type_match(mod_content,
                                         Fortran2003.Specification_Part)
         except (ValueError, IndexError):
-            raise InternalError("Unexpected kernel AST. Could not find "
-                                "specification part.")
+            raise InternalError("Unexpected kernel AST when generating '{0}' "
+                                " kernel schedule. Could not find the "
+                                "specification part.".format(name))
 
         try:
             subroutines = first_type_match(mod_content,
@@ -4327,7 +4330,7 @@ class Fparser2ASTProcessor(object):
             raise InternalError("Unexpected kernel AST. Could not find "
                                 "subroutine: {0}".format(name))
 
-        arg_list = []
+        arg_list = []  # List of kernel arguments
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
@@ -4340,9 +4343,10 @@ class Fparser2ASTProcessor(object):
         try:
             new_schedule.symbol_table.specify_argument_list(arg_list)
         except KeyError:
-            raise InternalError("Unexpected kernel AST. The argument list of"
-                                " '{0}' do not match the variable "
-                                "declarations.".format(name))
+            raise InternalError("Unexpected kernel AST. The kernel argument "
+                                "list '{0}' does not match the variable "
+                                "declarations for kernel '{1}'."
+                                "".format(str(arg_list), name))
 
         try:
             sub_exec = first_type_match(subroutine.content,
@@ -4356,8 +4360,8 @@ class Fparser2ASTProcessor(object):
 
     def process_declarations(self, parent, nodes):
         '''
-        Transform the fparser2 AST declarations to symbols into the PSyIR
-        parent node symbol table.
+        Transform the variable declarations in fparser2 parse tree into
+        symbols in the PSyIR parent node symbol table.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -4380,11 +4384,12 @@ class Fparser2ASTProcessor(object):
             for attr in walk_ast(decl.items,
                                  [Fortran2003.Assumed_Shape_Spec,
                                   Fortran2003.Explicit_Shape_Spec,
-                                  Fortran2003.Assumed_Size_Spec,
+                                  Fortran2003.Assumed_Size_Spec
                                   ]):
                 if isinstance(attr, Fortran2003.Assumed_Size_Spec):
-                    raise InternalError("Assumed size arrays are not "
-                                        "supported.")
+                    raise NotImplementedError("Could not process {0}. Assumed"
+                                              "-size arrays are not "
+                                              "supported.".format(nodes))
                 elif isinstance(attr, Fortran2003.Assumed_Shape_Spec):
                     shape.append(None)
                 elif isinstance(attr, Fortran2003.Explicit_Shape_Spec):
@@ -4392,14 +4397,17 @@ class Fparser2ASTProcessor(object):
                                   Fortran2003.Int_Literal_Constant):
                         shape.append(int(attr.items[1].items[0]))
                     else:
-                        raise InternalError("Only integer literals are "
-                                            "supported for explicit shape "
-                                            "array declarations.")
+                        raise NotImplementedError("Could not process {0}. "
+                                                  "Only integer literals are "
+                                                  "supported for explicit "
+                                                  "shape array declarations."
+                                                  "".format(nodes))
 
             # Parse intent attributes
             decltype = 'local'  # If no intent attribute is provided, it is
             # provisionally marked as a local variable (when the argument
-            # list is parsed, undeclared arguments are updated appropriately).
+            # list is parsed, arguments with no explicit intent are updated
+            # appropriately).
             for attr in walk_ast(decl.items, [Fortran2003.Attr_Spec]):
                 if "intent(in)" in str(attr).lower().replace(' ', ''):
                     decltype = 'read_arg'
@@ -4412,15 +4420,20 @@ class Fparser2ASTProcessor(object):
             for entity in walk_ast(decl.items, [Fortran2003.Entity_Decl]):
                 (name, array_spec, char_len, initialization) = entity.items
                 if (array_spec is not None):
-                    raise InternalError("Array specifications after the "
-                                        "variable name are not supported.")
+                    raise NotImplementedError("Could not process {0}. "
+                                              "Array specifications after the"
+                                              " variable name are not "
+                                              "supported.".format(nodes))
                 if (initialization is not None):
-                    raise InternalError("Array initializations on the"
-                                        " declaration statements are "
-                                        "not supported.")
+                    raise NotImplementedError("Could not process {0}. "
+                                              "Initializations on the"
+                                              " declaration statements are "
+                                              "not supported.".format(nodes))
                 if (char_len is not None):
-                    raise InternalError("Character length specifications "
-                                        "are not supported.")
+                    raise NotImplementedError("Could not process {0}. "
+                                              "Character length specifications"
+                                              " are not supported."
+                                              "".format(nodes))
                 parent.symbol_table.declare(str(name), datatype, shape,
                                             decltype)
 
@@ -4642,36 +4655,45 @@ class Fparser2ASTProcessor(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name
-    of the symbol, its datatype, the shape and the symbol access (whether it
-    is local, external, read_arg, write_arg or readwrite_arg).
+    of the symbol, its datatype, the shape and the symbol access. The symbol
+    access attribute can be:
+        - local: Variable that just exist in the kernel scope.
+        - external: Global variable.
+        - read_arg: Kernel argument which is only read.
+        - write_arg: Kernel argument which is only written.
+        - readwrite_arg: Kernel argument which is read and written.
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
     :param int shape: Shape of the symbol (an empty list represents \
                       a scalar symbol).
-    :param list access: Information to specify if the declaration represents
-                        a local, external or argument variable, if it is an
-                        argument it also specifies if it is read, write or
-                        readwrite.
+    :param list access: List of strings that specify if the declaration
+                        represents a 'local', 'external' or argument variable,
+                        if it is an argument it also specifies if it is
+                        'read_arg', 'write_arg' or 'readwrite_arg'.
     '''
+
+    # Tuple with the valid values for the access attribute.
+    valid_access_types = ('local', 'external', 'read_arg', 'write_arg',
+                          'readwrite_arg')
+
     def __init__(self, name, datatype=None, shape=[], access=None):
 
         if datatype not in ('real', 'integer'):
-            raise InternalError("Symbol can only be initialized with 'real' "
-                                "or 'integer' datatypes.")
+            raise NotImplementedError("Symbol can only be initialized with "
+                                      "'real' or 'integer' datatypes.")
 
         if not isinstance(shape, list):
-            raise InternalError("Symbol shape attribute must be a list.")
+            raise TypeError("Symbol shape attribute must be a list.")
 
         if False in [isinstance(x, (type(None), int)) for x in shape]:
-            raise InternalError("Symbol shape list elements can only be "
-                                "'integer' or 'None'.")
+            raise TypeError("Symbol shape list elements can only be "
+                            "'integer' or 'None'.")
 
-        if access not in ('local', 'external', 'read_arg', 'write_arg',
-                          'readwrite_arg'):
-            raise InternalError("Symbol access attribute can only be: "
-                                "'local', 'external', 'read_arg', "
-                                "'write_arg' or 'readwrite_arg'.")
+        if access not in Symbol.valid_access_types:
+            raise ValueError("Symbol access attribute can only be: "
+                             "'local', 'external', 'read_arg', "
+                             "'write_arg' or 'readwrite_arg'.")
 
         self._name = name
         self._datatype = datatype
@@ -4698,17 +4720,17 @@ class Symbol(object):
     def shape(self):
         '''
         :return: Shape (number of dimensions and sizes) of the Symbol.
-        :rtype: integer
+        :rtype: int
         '''
         return self._shape
 
     @property
     def access(self):
         '''
-        :return: Whether the variable is local, external or an argument. In
-                 case it is argument it also specify if it is a read, write
-                 or readwrite argument.
-        :rtype: string
+        :return: Whether the variable is 'local', 'external' or an argument. In
+                 case it is argument it specifies whether it is a 'read_arg',
+                 'write_arg' or 'readwrite_arg' argument.
+        :rtype: str
         '''
         return self._access
 
@@ -4719,11 +4741,10 @@ class Symbol(object):
                                'local', 'external', 'read_arg', 'write_arg'
                                or 'readwrite_arg'.
         '''
-        if new_access not in ('local', 'external', 'read_arg', 'write_arg',
-                              'readwrite_arg'):
-            raise InternalError("Symbol access attribute can only be: "
-                                "'local', 'external', 'read_arg', "
-                                "'write_arg' or 'readwrite_arg'.")
+        if new_access not in Symbol.valid_access_types:
+            raise ValueError("Symbol access attribute can only be: "
+                             "'local', 'external', 'read_arg', "
+                             "'write_arg' or 'readwrite_arg'.")
         self._access = new_access
 
     def __str__(self):
@@ -4756,8 +4777,8 @@ class SymbolTable(object):
                            attributes.
         '''
         if name in self._symbols:
-            raise InternalError("Symbol table already contains a symbol with"
-                                " name '{0}'.".format(name))
+            raise KeyError("Symbol table already contains a symbol with"
+                           " name '{0}'.".format(name))
         self._symbols[name] = Symbol(name, datatype, shape, access)
 
     def specify_argument_list(self, argument_name_list):
@@ -4786,9 +4807,7 @@ class SymbolTable(object):
         '''
         Print a representation of this Symbol Table to stdout.
         '''
-        print("Symbol Table:")
-        for symbol in self._symbols.values():
-            print(str(symbol))
+        print(str(self))
 
     def __str__(self):
         return ("Symbol Table:\n" +
@@ -4802,7 +4821,6 @@ class KernelSchedule(Schedule):
     table to keep a record of the declared variables and their attributes.
 
     :param str name: Kernel subroutine name
-    :type name: string
     '''
 
     def __init__(self, name):
@@ -4812,6 +4830,10 @@ class KernelSchedule(Schedule):
 
     @property
     def symbol_table(self):
+        '''
+        :return: Table containing symbol information of the kernel.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+        '''
         return self._symbol_table
 
     def view(self, indent=0):

@@ -2683,21 +2683,21 @@ def test_symbol_initialization():
     assert isinstance(Symbol('a', 'real', [3, None], 'local'), Symbol)
 
     # Test with invalid arguments
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
     assert ("Symbol can only be initialized with 'real' "
             "or 'integer' datatypes.")in str(error.value)
 
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(ValueError) as error:
         Symbol('a', 'real', [], 'invalidaccess')
     assert ("Symbol access attribute can only be: 'local', 'external', "
             "'read_arg', 'write_arg' or 'readwrite_arg'.") in str(error.value)
 
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(TypeError) as error:
         Symbol('a', 'real', None, 'local')
     assert "Symbol shape attribute must be a list." in str(error.value)
 
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(TypeError) as error:
         Symbol('a', 'real', ['invalidshape'], 'local')
     assert ("Symbol shape list elements can only be "
             "'integer' or 'None'.") in str(error.value)
@@ -2714,14 +2714,14 @@ def test_symbol_access_setter():
     assert sym.access == 'read_arg'
 
     # Test with invalid access value
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(ValueError) as error:
         sym.access = 'invalidaccess'
     assert ("Symbol access attribute can only be: 'local', 'external', "
             "'read_arg', 'write_arg' or 'readwrite_arg'.") in str(error.value)
 
 
 def test_symbol_can_be_printed():
-    '''Test that a Symbol instance can always be printed (i.e. is
+    '''Test that a Symbol instance can always be printed. (i.e. is
     initialised fully)'''
     symbol = Symbol("sname", "real", [], "read_arg")
     assert "sname<real, [], read_arg>" in str(symbol)
@@ -2732,7 +2732,7 @@ def test_symbol_can_be_printed():
 def test_symboltable_declare():
     '''Test that the declare method inserts new symbols in the symbol
     table, but raises appropiate errors when provied with wrong parameters
-    or duplate declarations'''
+    or duplicate declarations.'''
     sym_table = SymbolTable()
 
     # Declare a symbol
@@ -2743,15 +2743,15 @@ def test_symboltable_declare():
     assert sym_table._symbols["var1"].access == "read_arg"
 
     # Declare a duplicate name symbol
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(KeyError) as error:
         sym_table.declare("var1", "real", 0, "write_arg")
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
 
 
 def test_symboltable_lookup():
-    '''Test that the lookup method retrive symbols from the symbol table
-    if the name exist, otherwise it raises and error'''
+    '''Test that the lookup method retrives symbols from the symbol table
+    if the name exists, otherwise it raises and error.'''
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", [None, None], "read_arg")
     sym_table.declare("var2", "integer", [], "write_arg")
@@ -2770,7 +2770,7 @@ def test_symboltable_lookup():
 
 def test_symboltable_view(capsys):
     '''Test the view method of the SymbolTable class, it should print to
-    standard out a representation of the full SymbolTable'''
+    standard out a representation of the full SymbolTable.'''
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", [], "read_arg")
     sym_table.declare("var2", "integer", [], "read_arg")
@@ -2782,7 +2782,7 @@ def test_symboltable_view(capsys):
 
 
 def test_symboltable_can_be_printed():
-    '''Test that a SymbolTable instance can always be printed (i.e. is
+    '''Test that a SymbolTable instance can always be printed. (i.e. is
     initialised fully)'''
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", [], "read_arg")
@@ -2830,8 +2830,8 @@ def test_fparser2astprocessor_generate_schedule_empty_subroutine():
 
 
 def test_fparser2astprocessor_generate_schedule_two_modules():
-    ''' Tests the fparser2AST generate_schedule method with an simple
-    subroutine.
+    ''' Tests the fparser2AST generate_schedule method raises an exception
+    when more than one fparser2 module node is provided.
     '''
     ast1 = fpapi.parse(FAKE_KERNEL_METADATA*2, ignore_comments=True)
     metadata = DynKernMetadata(ast1)
@@ -2840,18 +2840,19 @@ def test_fparser2astprocessor_generate_schedule_two_modules():
     ast2 = my_kern.ast
     processor = Fparser2ASTProcessor()
 
-    # Test properly formed kernel module
-    with pytest.raises(InternalError) as error:
+    # Test kernel with two modules
+    with pytest.raises(GenerationError) as error:
         schedule = processor.generate_schedule("dummy_code", ast2)
-    assert ("Unexpected kernel AST. Just one module definition per "
-            "file supported.") in str(error.value)
+    assert ("Unexpected AST when generating 'dummy_code' kernel schedule."
+            " Just one module definition per file supported.") \
+        in str(error.value)
 
 
 def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
-    ''' Tests the fparser2AST generate_schedule method with an simple
+    ''' Tests the fparser2AST generate_schedule method with a simple
     subroutine.
     '''
-    DUMMY_KERNEL_METADATA = '''
+    dummy_kernel_metadata = '''
     module dummy_mod
       type, extends(kernel_type) :: dummy_type
          type(arg_type), meta_args(3) =                    &
@@ -2872,7 +2873,7 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
       end subroutine dummy_code
     end module dummy_mod
     '''
-    ast1 = fpapi.parse(DUMMY_KERNEL_METADATA, ignore_comments=True)
+    ast1 = fpapi.parse(dummy_kernel_metadata, ignore_comments=True)
     metadata = DynKernMetadata(ast1)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
@@ -2883,7 +2884,7 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     schedule = processor.generate_schedule("dummy_code", ast2)
     assert isinstance(schedule, KernelSchedule)
 
-    # Test argument intent is infered when not available in the declaration
+    # Test argument intent is inferred when not available in the declaration
     assert schedule.symbol_table.lookup('f3').access == 'readwrite_arg'
 
     # Test corrupting ast by deleting execution part
@@ -2893,10 +2894,10 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
 
 
 def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
-    ''' Tests the fparser2AST generate_schedule method with an simple
-    subroutine.
+    ''' Tests the fparser2AST generate_schedule with unmatching kernel
+    arguments and declarations raises the appropriate exception.
     '''
-    DUMMY_KERNEL_METADATA = '''
+    dummy_kernel_metadata = '''
     module dummy_mod
       type, extends(kernel_type) :: dummy_type
          type(arg_type), meta_args(3) =                    &
@@ -2917,7 +2918,7 @@ def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
       end subroutine dummy_code
     end module dummy_mod
     '''
-    ast1 = fpapi.parse(DUMMY_KERNEL_METADATA, ignore_comments=True)
+    ast1 = fpapi.parse(dummy_kernel_metadata, ignore_comments=True)
     metadata = DynKernMetadata(ast1)
     my_kern = DynKern()
     my_kern.load_meta(metadata)
@@ -2927,8 +2928,9 @@ def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
     # Test exception for unmatching argument list
     with pytest.raises(InternalError) as error:
         schedule = processor.generate_schedule("dummy_code", ast2)
-    assert ("Unexpected kernel AST. The argument list of 'dummy_code'"
-            " do not match the variable declarations.") in str(error.value)
+    assert ("Unexpected kernel AST. The kernel argument list '['f1', 'f2', "
+            "'f3', 'f4']' does not match the variable declarations for kernel"
+            " 'dummy_code'.") in str(error.value)
 
 
 def test_fparser2astprocessor_process_declarations():
@@ -2945,7 +2947,7 @@ def test_fparser2astprocessor_process_declarations():
 
     # Test simple declarations
     reader = FortranStringReader("integer :: l1")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("l1").name == 'l1'
     assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
@@ -2953,7 +2955,7 @@ def test_fparser2astprocessor_process_declarations():
     assert fake_parent.symbol_table.lookup("l1").access == 'local'
 
     reader = FortranStringReader("Real      ::      l2")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
@@ -2962,36 +2964,36 @@ def test_fparser2astprocessor_process_declarations():
 
     # RHS array specifications are not supported
     reader = FortranStringReader("integer :: l1(4)")
-    fparser2specification = Specification_Part.match(reader)[0][0]
-    with pytest.raises(InternalError) as error:
+    fparser2specification = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2specification])
     assert ("Array specifications after the variable name are not "
             "supported.") in str(error.value)
 
     # Initialisations are not supported
     reader = FortranStringReader("integer :: l1 = 1")
-    fparser2specification = Specification_Part.match(reader)[0][0]
-    with pytest.raises(InternalError) as error:
+    fparser2specification = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2specification])
-    assert ("Array initializations on the declaration statements are not "
+    assert ("Initializations on the declaration statements are not "
             "supported.") in str(error.value)
 
     # Char lengths are not supported
-    # TODO: It would be simpler to do just a Specification_Part.match() instead
+    # TODO: It would be simpler to do just a Specification_Part(reader) instead
     # of parsing a full program, but fparser/169 needs to be fixed first.
     reader = FortranStringReader("program dummy\ncharacter :: l*4"
                                  "\nend program")
     program = f2008parser(reader)
     fparser2specification = program.content[0].content[1].content[0]
-    with pytest.raises(InternalError) as error:
+    with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2specification])
     assert ("Character length specifications are not "
             "supported.") in str(error.value)
 
 
 def test_fparser2astprocessor_process_declarations_intent():
-    '''Test that process_declarations method parses multiple specifications
-    of the intent attribute.
+    '''Test that process_declarations method handles various different
+    specifications of variable attributes.
     '''
     from fparser.two.parser import ParserFactory
     from fparser.common.readfortran import FortranStringReader
@@ -3001,7 +3003,7 @@ def test_fparser2astprocessor_process_declarations_intent():
     processor = Fparser2ASTProcessor()
 
     reader = FortranStringReader("integer, intent(in) :: arg1")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("arg1").name == "arg1"
     assert fake_parent.symbol_table.lookup("arg1").datatype == 'integer'
@@ -3009,7 +3011,7 @@ def test_fparser2astprocessor_process_declarations_intent():
     assert fake_parent.symbol_table.lookup("arg1").access == 'read_arg'
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("arg2").name == "arg2"
     assert fake_parent.symbol_table.lookup("arg2").datatype == 'integer'
@@ -3017,7 +3019,7 @@ def test_fparser2astprocessor_process_declarations_intent():
     assert fake_parent.symbol_table.lookup("arg2").access == 'read_arg'
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("arg3").name == "arg3"
     assert fake_parent.symbol_table.lookup("arg3").datatype == 'integer'
@@ -3025,7 +3027,7 @@ def test_fparser2astprocessor_process_declarations_intent():
     assert fake_parent.symbol_table.lookup("arg3").access == 'write_arg'
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("arg4").name == "arg4"
     assert fake_parent.symbol_table.lookup("arg4").datatype == 'integer'
@@ -3045,7 +3047,7 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
     processor = Fparser2ASTProcessor()
 
     reader = FortranStringReader("integer, dimension(:,:,:) :: array1")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("array1").name == "array1"
     assert fake_parent.symbol_table.lookup("array1").datatype == 'integer'
@@ -3054,7 +3056,7 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
     assert fake_parent.symbol_table.lookup("array1").access == 'local'
 
     reader = FortranStringReader("real, dimension(:), intent(in) :: array2")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("array2").name == "array2"
     assert fake_parent.symbol_table.lookup("array2").datatype == 'real'
@@ -3062,7 +3064,7 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
     assert fake_parent.symbol_table.lookup("array2").access == 'read_arg'
 
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
     assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
@@ -3070,7 +3072,7 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
     assert fake_parent.symbol_table.lookup("array3").access == 'read_arg'
 
     reader = FortranStringReader("integer, dimension(3,5) :: array4")
-    fparser2specification = Specification_Part.match(reader)[0][0]
+    fparser2specification = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2specification])
     assert fake_parent.symbol_table.lookup("array4").name == "array4"
     assert fake_parent.symbol_table.lookup("array4").datatype == 'integer'
@@ -3078,15 +3080,17 @@ def test_fparser2astprocessor_process_declarations_array_attributes():
     assert fake_parent.symbol_table.lookup("array4").access == 'local'
 
     reader = FortranStringReader("integer, dimension(*) :: array5")
-    fparser2specification = Specification_Part.match(reader)[0][0]
-    with pytest.raises(InternalError) as error:
+    fparser2specification = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2specification])
-    assert "Assumed size arrays are not supported." in str(error.value)
+    assert "Could not process " in str(error.value)
+    assert "Assumed-size arrays are not supported." in str(error.value)
 
     reader = FortranStringReader("integer, dimension(var1) :: array5")
-    fparser2specification = Specification_Part.match(reader)[0][0]
-    with pytest.raises(InternalError) as error:
+    fparser2specification = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2specification])
+    assert "Could not process " in str(error.value)
     assert ("Only integer literals are supported for explicit shape array"
             " declarations.") in str(error.value)
 
