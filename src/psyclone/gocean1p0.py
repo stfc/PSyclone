@@ -923,36 +923,7 @@ class GOKern(Kern):
             self.gen_ocl(parent)
             return
 
-        # Before we do anything else, go through the arguments and
-        # determine the best one from which to obtain the grid properties.
-        grid_arg = self._arguments.find_grid_access()
-
-        # A GOcean 1.0 kernel always requires the [i,j] indices of the
-        # grid-point that is to be updated
-        arguments = ["i", "j"]
-        for arg in self._arguments.args:
-
-            if arg.type == "scalar":
-                # Scalar arguments require no de-referencing
-                arguments.append(arg.name)
-            elif arg.type == "field":
-                # Field objects are Fortran derived-types
-                arguments.append(arg.name + "%data")
-            elif arg.type == "grid_property":
-                # Argument is a property of the grid which we can access via
-                # the grid member of any field object.
-                # We use the most suitable field as chosen above.
-                if grid_arg is None:
-                    raise GenerationError(
-                        "Error: kernel {0} requires grid property {1} but "
-                        "does not have any arguments that are fields".
-                        format(self._name, arg.name))
-                else:
-                    arguments.append(grid_arg.name+"%grid%"+arg.name)
-            else:
-                raise GenerationError("Kernel {0}, argument {1} has "
-                                      "unrecognised type: {2}".
-                                      format(self._name, arg.name, arg.type))
+        arguments = self._arguments.raw_arg_list()
         parent.add(CallGen(parent, self._name, arguments))
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
@@ -1213,12 +1184,14 @@ class GOKernelArguments(Arguments):
                                                    "field"]))
         self._dofs = []
 
-    def raw_arg_list(self, parent=None):
+    def raw_arg_list(self):
         '''
         :returns: a list of all of the actual arguments to the \
                   kernel call.
         :rtype: list of str
 
+        :raises GenerationError: if the kernel requires a grid property \
+                                 but has no field arguments.
         :raises InternalError: if we encounter a kernel argument with an \
                                unrecognised type.
         '''
