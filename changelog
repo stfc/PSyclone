@@ -1,3 +1,6 @@
+	10) #174 and PR #216. Adds the ability to generate an OpenCL PSy
+	layer in the gocean1.0 API (including an OpenCL transformation).
+
 	9) #207 and PR #280. Remove support for gunghoproto API.
 
 	8) #227 and PR #233. Add a gocean1.0 API OpenACC example.
