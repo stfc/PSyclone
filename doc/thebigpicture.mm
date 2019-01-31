@@ -5,7 +5,7 @@
 <node COLOR="#000000" CREATED="0" ID="ID_1974326076" MODIFIED="0" TEXT="petsc">
 <icon BUILTIN="button_cancel"/>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="new library">
+<node COLOR="#000000" CREATED="0" ID="ID_1538295866" MODIFIED="0" TEXT="new library">
 <icon BUILTIN="idea"/>
 </node>
 </node>
@@ -131,11 +131,8 @@
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="dynamo0.1">
 <icon BUILTIN="stop"/>
 </node>
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="ghproto">
-<icon BUILTIN="stop"/>
-</node>
 <node COLOR="#000000" CREATED="0" ID="ID_1788933211" MODIFIED="1542407061229" TEXT="nemo">
-<node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="code">
+<node COLOR="#000000" CREATED="0" ID="ID_1871439949" MODIFIED="0" TEXT="code">
 <node COLOR="#000000" CREATED="0" ID="ID_1925382168" MODIFIED="0" TEXT="NEMO-DSL (traadv)"/>
 <node COLOR="#000000" CREATED="0" MODIFIED="0" TEXT="NEMO">
 <icon BUILTIN="button_cancel"/>

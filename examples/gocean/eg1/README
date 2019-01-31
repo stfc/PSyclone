@@ -30,24 +30,18 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
 
-The sub-directories present in the directory containing this README provide
-examples of the use of PSyclone with the GOcean 1.0 API.
+These scripts and this version of PSyclone work with version 1.0 of GOcean.
 
-Example 1
----------
+In order to use PSyclone you must first install it, ideally with pip.
+See ../../../README.md for more details.
 
-Contains a version of the Shallow benchmark with a subset of the kernels
-called from within invoke()'s. Contains example scripts showing the use
-of PSyclone for adding OpenMP or OpenACC and for performing loop fusion.
+PSyclone can be run in the directory containing this file by 
+executing, e.g.
+::
+    python ./runme.py
 
-Example 2
----------
-
-A single-kernel example demonstrating the use of PSyclone in generating
-a compilable and executable OpenACC code. Note that compiling this
-example requires that the dl_esm_inf library (github.com/stfc/dl_esm_inf)
-be installed first.
+Examine the runme*.py scripts themselves for further details.
 
