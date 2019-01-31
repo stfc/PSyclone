@@ -112,6 +112,24 @@ as with all compiler-specific optimisations, whether or not this
 transformation is beneficial will depend on the precise details of the
 compiler being used.
 
+Note, not all uses of Fortran array notation in NEMO imply a loop. For
+instance::
+
+  ascalar = afunc(twodarray(:,:))
+
+is actually a function call which is passed a reference to ``twodarray``.
+However, if the quantity being assigned to is actually an array, e.g.::
+
+  twodarray2(:,:) = afunc(twodarray(:,:))
+
+then this does represent a loop. However, currently PSyclone does not
+recognise any occurrences of array notation that are themselves within
+an array access or function call. It is therefore not yet possible to
+transform such implicit loops into explicit loops. It is hoped that this
+limitation will be removed in future releases of PSyclone by adding the
+ability to discover the interface to functions such as ``afunc`` and thus
+determining whether they return scalar or array quantities.
+
 Example
 -------
 
