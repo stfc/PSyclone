@@ -4340,7 +4340,7 @@ class Fparser2ASTProcessor(object):
             # Subroutine without declarations, continue with empty lists.
             decl_list = []
             arg_list = []
-        except IndexError:
+        except (IndexError, AttributeError):
             # Subroutine without argument list, continue with empty list.
             arg_list = []
         finally:

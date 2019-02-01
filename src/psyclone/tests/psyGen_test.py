@@ -2894,10 +2894,47 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     # Test argument intent is inferred when not available in the declaration
     assert schedule.symbol_table.lookup('f3').access == 'readwrite_arg'
 
-    # Test corrupting ast by deleting execution part
+    # Test argument intent is inferred when not available in the declaration
     del ast2.content[0].content[2].content[1].content[2]
     schedule = processor.generate_schedule("dummy_code", ast2)
     assert isinstance(schedule, KernelSchedule)
+
+
+def test_fparser2astprocessor_generate_schedule_no_args_subroutine():
+    ''' Tests the fparser2AST generate_schedule method with a simple
+    subroutine with no arguments.
+    '''
+    dummy_kernel_metadata = '''
+    module dummy_mod
+      type, extends(kernel_type) :: dummy_type
+        type(arg_type), meta_args(3) =                    &
+              (/ arg_type(gh_field, gh_write,     w3),     &
+                 arg_type(gh_field, gh_readwrite, wtheta), &
+                 arg_type(gh_field, gh_inc,       w1)      &
+               /)
+         integer :: iterates_over = cells
+       contains
+         procedure, nopass :: code => dummy_code
+      end type dummy_type
+    contains
+     subroutine dummy_code()
+        real(wp), dimension(:,:) :: f3
+        f3 = f3 + 1
+      end subroutine dummy_code
+    end module dummy_mod
+    '''
+    ast1 = fpapi.parse(dummy_kernel_metadata, ignore_comments=True)
+    metadata = DynKernMetadata(ast1)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    ast2 = my_kern.ast
+    processor = Fparser2ASTProcessor()
+
+    # Test kernel with no arguments, should still proceed
+    schedule = processor.generate_schedule("dummy_code", ast2)
+    assert isinstance(schedule, KernelSchedule)
+    # TODO: In the future we could validate that metadata matches
+    # the kernel arguments, then this test would fail. Issue #288
 
 
 def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
