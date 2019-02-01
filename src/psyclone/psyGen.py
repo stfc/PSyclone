@@ -1557,7 +1557,8 @@ class ACCEnterDataDirective(ACCDirective):
     :type parent: :py:class:`psyclone.psyGen.Node`.
     '''
     def __init__(self, children=None, parent=None):
-        super(ACCEnterDataDirective, self).__init__(children, parent)
+        super(ACCEnterDataDirective, self).__init__(children=children,
+                                                    parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
     def view(self, indent=0):
@@ -1801,7 +1802,8 @@ class ACCLoopDirective(ACCDirective):
         self._collapse = collapse
         self._independent = independent
         self._sequential = sequential
-        super(ACCLoopDirective, self).__init__(children, parent)
+        super(ACCLoopDirective, self).__init__(children=children,
+                                               parent=parent)
 
     @property
     def dag_name(self):
@@ -4969,7 +4971,7 @@ class Assignment(Node):
     :param parent: the parent node of this Assignment in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, ast, parent=None):
+    def __init__(self, ast=None, parent=None):
         super(Assignment, self).__init__(ast=ast, parent=parent)
 
     @property
