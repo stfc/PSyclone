@@ -199,6 +199,38 @@ guidelines for performing a review (i.e. what is expected from the
 developer) are available on the GitHub PSyclone wiki pages:
 https://github.com/stfc/PSyclone/wiki.
 
+The PSyclone Internal Representation (PSyIR)
+############################################
+
+The PSyclone Internal Representation (PSyIR) is a languague independent AST
+that PSyclone uses to represent the PSy layer and the kernel code. It can
+be constructed from scratch or produced from existing code using one of the
+ASTProcessors provided in PSyclone.
+
+All nodes in the AST are sub-classes of the abstract `Node` base class, which
+provides the following common interface:
+
+.. autoclass:: psyclone.psyGen.Node
+    :members:
+
+
+Kernel Schedule
+===============
+
+The Kernel Schedule is a PSyIR node which represent a kernel subroutine. It
+extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
+(`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
+(`psyclone.psyGen.Symbol`) used in the kernel scope. A Symbol is defined as:
+
+.. autoclass:: psyclone.psyGen.Symbol
+
+
+The Symbol Table has the following interface:
+
+.. autoclass:: psyclone.psyGen.SymbolTable
+    :members:
+
+
 Generic Code
 ############
 

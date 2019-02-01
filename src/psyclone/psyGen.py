@@ -793,11 +793,11 @@ class Invoke(object):
 
 class Node(object):
     '''
-    Base class for a node in the PSyIRe (schedule).
+    Base class for a node in the PSyIR (schedule).
 
-    :param children: the PSyIRe nodes that are children of this node.
+    :param children: the PSyIR nodes that are children of this node.
     :type children: :py:class:`psyclone.psyGen.Node`
-    :param parent: that parent of this node in the PSyIRe tree.
+    :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
@@ -813,7 +813,7 @@ class Node(object):
         raise NotImplementedError("Please implement me")
 
     def dag(self, file_name='dag', file_format='svg'):
-        '''Create a dag of this node and its children'''
+        '''Create a dag of this node and its children.'''
         try:
             import graphviz as gv
         except ImportError:
@@ -830,7 +830,7 @@ class Node(object):
         graph.render(filename=file_name)
 
     def dag_gen(self, graph):
-        '''output my node's graph (dag) information and call any
+        '''Output my node's graph (dag) information and call any
         children. Nodes with children are represented as two vertices,
         a start and an end. Forward dependencies are represented as
         green edges, backward dependencies are represented as red
@@ -902,7 +902,7 @@ class Node(object):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
+        '''Return the base dag name for this node.'''
         return "node_" + str(self.abs_position)
 
     @property
@@ -1160,7 +1160,7 @@ class Node(object):
         return False
 
     def walk(self, children, my_type):
-        ''' recurse through tree and return objects of mytype '''
+        ''' Recurse through tree and return objects of 'my_type'. '''
         local_list = []
         for child in children:
             if isinstance(child, my_type):
@@ -1196,7 +1196,7 @@ class Node(object):
         return None
 
     def calls(self):
-        ''' return all calls that are descendents of this node '''
+        '''Return all calls that are descendents of this node.'''
         return self.walk(self.children, Call)
 
     def following(self):
@@ -1232,24 +1232,24 @@ class Node(object):
 
     @property
     def following_calls(self):
-        ''' return all calls after me in the schedule '''
+        '''Return all calls after me in the schedule.'''
         all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[position+1:]
 
     @property
     def preceding_calls(self):
-        ''' return all calls before me in the schedule '''
+        '''Return all calls before me in the schedule.'''
         all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[:position-1]
 
     def kern_calls(self):
-        '''return all user-supplied kernel calls in this schedule'''
+        '''Return all user-supplied kernel calls in this schedule.'''
         return self.walk(self._children, Kern)
 
     def loops(self):
-        ''' return all loops currently in this schedule '''
+        '''Return all loops currently in this schedule.'''
         return self.walk(self._children, Loop)
 
     def reductions(self, reprod=None):
@@ -1273,7 +1273,7 @@ class Node(object):
         return call_reduction_list
 
     def is_openmp_parallel(self):
-        '''Returns true if this Node is within an OpenMP parallel region
+        '''Returns true if this Node is within an OpenMP parallel region.
 
         '''
         omp_dir = self.ancestor(OMPParallelDirective)
@@ -4666,9 +4666,9 @@ class Fparser2ASTProcessor(object):
 
 class Symbol(object):
     '''
-    Symbol item for the Symbol Table. It contains information about: the name
-    of the symbol, its datatype, the shape and the symbol access. The symbol
-    access attribute can be:
+    Symbol item for the Symbol Table. It contains information about: the name,
+    the datatype, the shape (in row-major order) and the symbol
+    access characterisctics. The symbol access can be:
         - local: Variable that just exist in the kernel scope.
         - external: Global variable.
         - read_arg: Kernel argument which is only read.
