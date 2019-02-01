@@ -165,6 +165,8 @@ def object_index(alist, item):
     :rtype: int
     :raises ValueError: if object is not in the list.
     '''
+    if item is None:
+        raise InternalError("Cannot search for None item in list.")
     for idx, entry in enumerate(alist):
         if entry is item:
             return idx
@@ -850,19 +852,21 @@ class Node(object):
     '''
     Base class for a node in the PSyIRe (schedule).
 
+    :param ast: reference into the fparser2 AST corresponding to this node.
+    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIRe nodes that are children of this node.
     :type children: :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIRe tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
-    def __init__(self, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None):
         if not children:
             self._children = []
         else:
             self._children = children
         self._parent = parent
-        self._ast = None  # Reference into fparser2 AST (if any)
+        self._ast = ast  # Reference into fparser2 AST (if any)
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
@@ -4791,14 +4795,14 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Assignment_Stmt to the PSyIRe representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
         :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.Assignment`
         '''
-        assignment = Assignment(parent=parent)
+        assignment = Assignment(node, parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]],
                            nodes_parent=node)
         self.process_nodes(parent=assignment, nodes=[node.items[2]],
@@ -4965,8 +4969,8 @@ class Assignment(Node):
     :param parent: the parent node of this Assignment in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, parent=None):
-        super(Assignment, self).__init__(parent=parent)
+    def __init__(self, ast, parent=None):
+        super(Assignment, self).__init__(ast=ast, parent=parent)
 
     @property
     def coloured_text(self):

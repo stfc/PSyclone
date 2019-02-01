@@ -101,7 +101,8 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         elif NemoIfBlock.match(child):
             return NemoIfBlock(child, parent=parent)
         else:
-            return super(NemoFparser2ASTProcessor, self)._create_child(child)
+            return super(NemoFparser2ASTProcessor,
+                         self)._create_child(child, parent=parent)
 
 
 class NemoInvoke(Invoke):
