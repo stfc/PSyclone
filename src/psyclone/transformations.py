@@ -2033,16 +2033,16 @@ class GOLoopSwapTrans(Transformation):
 
     This transform is used as follows:
 
-     >>> from parse import parse
-     >>> from psyGen import PSyFactory
-     >>> ast,invokeInfo=parse("shallow_alg.f90")
-     >>> psy=PSyFactory("gocean1.0").create(invokeInfo)
-     >>> schedule=psy.invokes.get('invoke_0').schedule
+     >>> from psyclone.parse import parse
+     >>> from psyclone.psyGen import PSyFactory
+     >>> ast, invokeInfo = parse("shallow_alg.f90")
+     >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
+     >>> schedule = psy.invokes.get('invoke_0').schedule
      >>> schedule.view()
      >>>
-     >>> from transformations import GOLoopSwapTrans
-     >>> swap=GOLoopSwapTrans()
-     >>> new_schedule,memento=swap.apply(schedule.children[0])
+     >>> from psyclone.transformations import GOLoopSwapTrans
+     >>> swap = GOLoopSwapTrans()
+     >>> new_schedule, memento = swap.apply(schedule.children[0])
      >>> new_schedule.view()
     '''
 
@@ -2492,10 +2492,12 @@ class ACCEnterDataTrans(Transformation):
                                       "directive to something that is "
                                       "not a Schedule")
         schedule = sched
-        # Check that we don't already have a data region
+        # Check that we don't already have a data region of any sort
         directives = schedule.walk(schedule.children, Directive)
-        data_directives = [ddir if isinstance(ddir, (ACCDataDirective, ACCEnterDataDirective)) else None for ddir in directives]
-        if data_directives:
+        data_directives = [True if isinstance(ddir, (ACCDataDirective,
+                                                     ACCEnterDataDirective))
+                           else False for ddir in directives]
+        if True in data_directives:
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
         # create a memento of the schedule and the proposed
@@ -2789,13 +2791,13 @@ class ACCDataTrans(RegionTrans):
         :raises TransformationError: if any of the nodes are themselves \
                                      data directives.
         '''
-        from psyGen import ACCDataDirective
+        from psyclone.psyGen import ACCDataDirective, ACCEnterDataDirective
         super(ACCDataTrans, self)._validate(node_list)
 
         # Check that the Schedule to which the nodes belong does not already
         # have an 'enter data' directive.
         schedule = node_list[0].root
-        acc_dirs = schedule.walk(schedule.children, ACCEnterDirective)
+        acc_dirs = schedule.walk(schedule.children, ACCEnterDataDirective)
         if acc_dirs:
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
