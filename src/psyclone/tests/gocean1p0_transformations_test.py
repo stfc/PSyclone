@@ -1473,8 +1473,8 @@ def test_acc_data_not_a_schedule():
 
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply(schedule.children[0])
-    assert ("Cannot apply an OpenACC data directive to something that is not "
-            "a Schedule" in str(err))
+    assert ("Cannot apply an OpenACC enter-data directive to something that "
+            "is not a Schedule" in str(err))
 
     new_sched, _ = acct.apply(schedule)
 

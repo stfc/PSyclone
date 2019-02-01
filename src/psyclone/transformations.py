@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -2443,6 +2443,7 @@ class ACCEnterDataTrans(Transformation):
     >>> # Add an enter-data directive
     >>> newschedule, _ = dtrans.apply(schedule)
     >>> newschedule.view()
+
     '''
     def __str__(self):
         return "Adds an OpenACC 'enter data' directive"
@@ -2467,15 +2468,13 @@ class ACCEnterDataTrans(Transformation):
                   transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
-        :raises NotImplementedError: for any API other than GOcean 1.0.
-        :raises TransformationError: if passed something that is not a \
-                         (subclass of) :py:class:`psyclone.psyGen.Schedule`.
         '''
-        # Check that the supplied node is a Schedule
-        from psyclone.psyGen import Schedule, ACCDataDirective, \
-            ACCEnterDataDirective, Directive
+        from psyclone.psyGen import ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOSchedule
         from psyclone.nemo import NemoSchedule
+
+        # Ensure that the proposed transformation is valid
+        self._validate(sched)
 
         if isinstance(sched, GOSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
@@ -2483,33 +2482,60 @@ class ACCEnterDataTrans(Transformation):
         elif isinstance(sched, NemoSchedule):
             from psyclone.nemo import NemoACCEnterDataDirective as \
                 AccEnterDataDir
-        elif isinstance(sched, Schedule):
-            raise NotImplementedError(
-                "ACCEnterDataTrans: ACCEnterDataDirective not implemented for a "
-                "schedule of type {0}".format(type(sched)))
         else:
-            raise TransformationError("Cannot apply an OpenACC data "
+            # Should not get here provided that _validate() has done its job
+            raise InternalError(
+                "ACCEnterDataTrans._validate() has not rejected an "
+                "(unsupported) schedule of type {0}".format(type(sched)))
+
+        # create a memento of the schedule and the proposed
+        # transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(sched, self, [sched])
+
+        # Add the directive
+        data_dir = AccEnterDataDir(parent=sched, children=[])
+        sched.addchild(data_dir, index=0)
+
+        return sched, keep
+
+    def _validate(self, sched):
+        '''
+        Check that we can safely apply the OpenACC enter-data transformation
+        to the supplied Schedule.
+
+        :param sched: Schedule to which to add an "enter data" directive.
+        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`.
+
+        :raises NotImplementedError: for any API other than GOcean 1.0 or NEMO.
+        :raises TransformationError: if passed something that is not a \
+                         (subclass of) :py:class:`psyclone.psyGen.Schedule`.
+        '''
+        from psyclone.psyGen import Schedule, Directive, \
+            ACCDataDirective, ACCEnterDataDirective
+        from psyclone.gocean1p0 import GOSchedule
+        from psyclone.nemo import NemoSchedule
+
+        super(ACCEnterDataTrans, self)._validate(sched)
+
+        if not isinstance(sched, Schedule):
+            raise TransformationError("Cannot apply an OpenACC enter-data "
                                       "directive to something that is "
                                       "not a Schedule")
-        schedule = sched
+
+        if not isinstance(sched, (GOSchedule, NemoSchedule)):
+            raise NotImplementedError(
+                "ACCEnterDataTrans: ACCEnterDataDirective not implemented for "
+                "a schedule of type {0}".format(type(sched)))
+
         # Check that we don't already have a data region of any sort
-        directives = schedule.walk(schedule.children, Directive)
+        directives = sched.walk(sched.children, Directive)
         data_directives = [True if isinstance(ddir, (ACCDataDirective,
                                                      ACCEnterDataDirective))
                            else False for ddir in directives]
         if True in data_directives:
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
-        # create a memento of the schedule and the proposed
-        # transformation
-        from psyclone.undoredo import Memento
-        keep = Memento(schedule, self, [schedule])
-
-        # Add the directive
-        data_dir = AccEnterDataDir(parent=schedule, children=[])
-        schedule.addchild(data_dir, index=0)
-
-        return schedule, keep
 
 
 class ACCRoutineTrans(Transformation):
