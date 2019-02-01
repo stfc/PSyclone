@@ -2654,28 +2654,29 @@ class ACCRoutineTrans(Transformation):
                                       format(kern.name))
 
 
-class ACCKernelsTrans(Transformation):
+class ACCKernelsTrans(RegionTrans):
     '''
-    Add a "!$acc kernels" directive to the start of a NEMO schedule
-    (causing it to be compiled for the OpenACC accelerator device).
+    Enclose a sub-set of nodes from a Schedule within an OpenACC kernels
+    region (i.e. within "!$acc kernels" ... "!$acc end kernels" directives).
+
     For example:
 
     >>> from psyclone.parse import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "NEMO"
-****************** TBD ************************
-    >>> filename = "nemolite2d_alg.f90"
+    >>> filename = "tra_adv.F90"
     >>> ast, invokeInfo = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import ACCRoutineTrans
-    >>> rtrans = ACCRoutineTrans()
+    >>> from psyclone.transformations import ACCKernelsTrans
+    >>> ktrans = ACCKernelsTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> kern = schedule.children[0].children[0].children[0]
+    >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Transform the kernel
-    >>> newkern, _ = rtrans.apply(kern)
+    >>> new_sched, _ = ktrans.apply(kernels)
+
     '''
     @property
     def name(self):
@@ -2690,19 +2691,17 @@ class ACCKernelsTrans(Transformation):
         Add an '!$acc kernels' OpenACC directive to the start of a NEMO
         api schedule.
 
-        :param kern: The kernel object to transform.
-        :type kern: :py:class:`psyclone.psyGen.Call`
-        :returns: (transformed kernel, memento of transformation)
-        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
-                :py:class:`psyclone.undoredo.Memento`).
-        :raises TransformationError: if we fail to find the subroutine \
-                                     corresponding to the kernel object.
+        :param node_list: The list of nodes in the PSyIR to enclose.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param bool default_present: whether or not the kernels region \
+           should have the 'default present' attribute (indicating that data \
+           is already on the accelerator).
+        :returns: (transformed schedule, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`, 
+                            :py:class:`psyclone.undoredo.Memento`).
+
         '''
-        from fparser.two.Fortran2003 import Subroutine_Subprogram, \
-            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
-            Implicit_Part, Comment
-        from fparser.two.utils import walk_ast
-        from fparser.common.readfortran import FortranStringReader
+        self._validate(node_list, default_present)
 
         # Keep a record of this transformation
         from psyclone.undoredo import Memento
@@ -2729,6 +2728,13 @@ class ACCKernelsTrans(Transformation):
         # Return the now modified kernel
         return schedule, keep
 
+    def _validate(node_list, default_present):
+        '''
+        Check that we can safely enclose the supplied list of nodes within
+        OpenACC kernels ... end kernels directives.
+        '''
+        super(ACCKernelsTrans, self)._validate(node_list)
+
 
 class ACCDataTrans(RegionTrans):
     '''
@@ -2739,19 +2745,18 @@ class ACCDataTrans(RegionTrans):
     >>> from psyclone.parse import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "NEMO"
-****************** TBD ************************
-    >>> filename = "nemolite2d_alg.f90"
+    >>> filename = "tra_adv.F90"
     >>> ast, invokeInfo = parse(filename, api=api)
     >>> psy = PSyFactory(api).create(invokeInfo)
     >>>
-    >>> from psyclone.transformations import ACCRoutineTrans
-    >>> rtrans = ACCRoutineTrans()
+    >>> from psyclone.transformations import ACCDataTrans
+    >>> dtrans = ACCDataTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
-    >>> kern = schedule.children[0].children[0].children[0]
-    >>> # Transform the kernel
-    >>> newkern, _ = rtrans.apply(kern)
+    >>> kernels = schedule.children[0].children[0].children[0:-1]
+    >>> # Enclose the kernels
+    >>> new_sched, _ = dtrans.apply(kernels)
 
     '''
     @property
@@ -2772,15 +2777,8 @@ class ACCDataTrans(RegionTrans):
         :returns: (transformed schedule, memento of transformation)
         :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`).
-        :raises TransformationError: if the Schedule to which the list of nodes
-                                     belongs already has an 'enter data' directive.
-        '''
-        from fparser.two.Fortran2003 import Subroutine_Subprogram, \
-            Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
-            Implicit_Part, Comment
-        from fparser.two.utils import walk_ast
-        from fparser.common.readfortran import FortranStringReader
 
+        '''
         self._validate(node_list)
 
         # Keep a record of this transformation
@@ -2794,8 +2792,7 @@ class ACCDataTrans(RegionTrans):
         # as it may just be a reference to the parent.children list
         # that we are about to modify.
         from psyclone.psyGen import ACCDataDirective
-        directive = ACCDataDirective(parent=parent,
-                                           children=node_list[:])
+        directive = ACCDataDirective(parent=parent, children=node_list[:])
         start_index = parent.children.index(node_list[0])
 
         for child in directive.children:
