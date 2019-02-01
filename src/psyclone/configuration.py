@@ -187,10 +187,12 @@ class Config(object):
             if not os.path.isfile(config_file):
                 raise ConfigurationError(
                     "File {0} does not exist".format(config_file))
-            self._config_file = config_file[:]
+            _config_file = config_file[:]
         else:
             # Search for the config file in various default locations
-            self._config_file = Config.find_file()
+            _config_file = Config.find_file()
+        # Ensure we store the config filename as unicode
+        self._config_file = _config_file.decode('utf8')
 
         from configparser import ConfigParser, MissingSectionHeaderError
         self._config = ConfigParser()
