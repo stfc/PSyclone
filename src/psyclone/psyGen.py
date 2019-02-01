@@ -4331,18 +4331,17 @@ class Fparser2ASTProcessor(object):
             raise GenerationError("Unexpected kernel AST. Could not find "
                                   "subroutine: {0}".format(name))
 
-        arg_list = []  # List of kernel arguments
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
             decl_list = sub_spec.content
             arg_list = subroutine.content[0].items[2].items
         except ValueError:
-            # Specification part was not found
+            # Subroutine without declarations, continue with empty lists.
             decl_list = []
-            pass
+            arg_list = []
         except IndexError:
-            # Argument list not found
+            # Subroutine without argument list, continue with empty list.
             arg_list = []
         finally:
             self.process_declarations(new_schedule, decl_list, arg_list)
