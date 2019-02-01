@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-19, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -306,8 +306,8 @@ class DynKernelArguments(Arguments):
     @property
     def dofs(self):
         ''' Currently required for invoke base class although this makes no
-            sense for dynamo. Need to refactor the invoke class and pull out
-            dofs into the gunghoproto api '''
+            sense for dynamo. Need to refactor the Invoke class and remove the
+            need for this dofs property (#279). '''
         return self._dofs
 
 class DynKernelArgument(Argument):

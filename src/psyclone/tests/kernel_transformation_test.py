@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council.
+# Copyright (c) 2018-19, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,16 @@ from psyclone.transformations import TransformationError, ACCRoutineTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
 from psyclone.configuration import Config
+
+
+def setup_module():
+    '''
+    This setup routine ensures that and pre-exisiting Config object is
+    wiped when this module is first entered and the teardown function below
+    guarantees it for subsequent tests.  (Necessary when running tests in
+    parallel.)
+    '''
+    Config._instance = None
 
 
 def teardown_function():
@@ -131,6 +141,7 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     # Ensure kernel-output directory is uninitialised
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
+    monkeypatch.setattr(config, "_kernel_naming", "multiple")
     # Change to temp dir (so kernel written there)
     _ = tmpdir.chdir()
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)

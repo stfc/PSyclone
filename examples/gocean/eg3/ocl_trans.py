@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-19, Science and Technology Facilities Council.
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,19 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
 
-# This is the PSyclone configuration file.
+''' Module providing a transformation script that converts the Schedule of
+    the first Invoke to use OpenCL. '''
 
-[DEFAULT]
-# Settings common to all APIs
-DEFAULTAPI = dynamo0.3
-SUPPORTEDSTUBAPIS = dynamo0.3
-DEFAULTSTUBAPI = dynamo0.3
-DISTRIBUTED_MEMORY = true
-REPRODUCIBLE_REDUCTIONS = false
-# Amount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is true
-REPROD_PAD_SIZE = 8
 
-[dynamo0.3]
-COMPUTE_ANNEXED_DOFS = false
+def trans(psy):
+    '''
+    Transformation routine for use with PSyclone. Applies the OpenCL
+    transform to the first Invoke in the psy object.
+
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
+
+    '''
+    from psyclone.transformations import OCLTrans
+
+    # Get the Schedule associated with the first Invoke
+    invoke = psy.invokes.invoke_list[0]
+    sched = invoke.schedule
+
+    # Transform the Schedule
+    cltrans = OCLTrans()
+    cltrans.apply(sched)
+
+    return psy

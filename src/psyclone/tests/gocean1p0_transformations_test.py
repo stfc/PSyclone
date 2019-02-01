@@ -1367,6 +1367,27 @@ def test_go_loop_swap_errors():
                      str(error.value)) is not None
 
 
+def test_ocl_apply():
+    ''' Check that OCLTrans generates correct code '''
+    from psyclone.transformations import OCLTrans
+    psy, invoke = get_invoke("test11_different_iterates_over_"
+                             "one_invoke.f90", API, idx=0)
+    schedule = invoke.schedule
+    ocl = OCLTrans()
+
+    # Check that we raise the correct error if we attempt to apply the
+    # transformation to something that is not a Schedule
+    with pytest.raises(TransformationError) as err:
+        _, _ = ocl.apply(schedule.children[0])
+    assert "the supplied node must be a (sub-class of) Schedule " in str(err)
+
+    new_sched, _ = ocl.apply(schedule)
+    assert new_sched.opencl
+
+    gen = str(psy.gen)
+    assert "USE clfortran" in gen
+
+
 def test_acc_parallel_not_a_loop():
     ''' Test that we raise an appropriate error if we attempt
     to apply the OpenACC Parallel transformation to something that
