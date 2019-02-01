@@ -2472,14 +2472,17 @@ class ACCEnterDataTrans(Transformation):
                          (subclass of) :py:class:`psyclone.psyGen.Schedule`.
         '''
         # Check that the supplied node is a Schedule
-        from psyclone.psyGen import Schedule
+        from psyclone.psyGen import Schedule, ACCDataDirective, \
+            ACCEnterDataDirective, Directive
         from psyclone.gocean1p0 import GOSchedule
         from psyclone.nemo import NemoSchedule
 
         if isinstance(sched, GOSchedule):
-            from psyclone.gocean1p0 import GOACCEnterDataDirective as AccEnterDataDir
+            from psyclone.gocean1p0 import GOACCEnterDataDirective as \
+                AccEnterDataDir
         elif isinstance(sched, NemoSchedule):
-            from psyclone.nemo import NemoACCEnterDataDirective as AccEnterDataDir
+            from psyclone.nemo import NemoACCEnterDataDirective as \
+                AccEnterDataDir
         elif isinstance(sched, Schedule):
             raise NotImplementedError(
                 "ACCEnterDataTrans: ACCEnterDataDirective not implemented for a "
@@ -2490,7 +2493,8 @@ class ACCEnterDataTrans(Transformation):
                                       "not a Schedule")
         schedule = sched
         # Check that we don't already have a data region
-        data_directives = schedule.walk(schedule.children, AccDataDir)
+        directives = schedule.walk(schedule.children, Directive)
+        data_directives = [ddir if isinstance(ddir, (ACCDataDirective, ACCEnterDataDirective)) else None for ddir in directives]
         if data_directives:
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
@@ -2655,8 +2659,8 @@ class ACCKernelsTrans(Transformation):
 
     def apply(self, node_list, default_present=False):
         '''
-        Add an 
-        '!$acc kernels' OpenACC directive to the start of a NEMO api schedule
+        Add an '!$acc kernels' OpenACC directive to the start of a NEMO
+        api schedule.
 
         :param kern: The kernel object to transform.
         :type kern: :py:class:`psyclone.psyGen.Call`
@@ -2698,10 +2702,10 @@ class ACCKernelsTrans(Transformation):
         return schedule, keep
 
 
-class ACCDataTrans(Transformation):
+class ACCDataTrans(RegionTrans):
     '''
-    Add a "!$acc data" directive to the start of a NEMO schedule
-    (causing it to be compiled for the OpenACC accelerator device).
+    Add an OpenACC data region around a list of nodes in the PSyIR.
+
     For example:
 
     >>> from psyclone.parse import parse
@@ -2720,6 +2724,7 @@ class ACCDataTrans(Transformation):
     >>> kern = schedule.children[0].children[0].children[0]
     >>> # Transform the kernel
     >>> newkern, _ = rtrans.apply(kern)
+
     '''
     @property
     def name(self):
@@ -2731,22 +2736,24 @@ class ACCDataTrans(Transformation):
 
     def apply(self, node_list):
         '''
-        Add an 
-        '!$acc data' OpenACC directive to the start of a NEMO api schedule
+        Put the supplied list of nodes within an OpenACC data region.
 
-        :param kern: The kernel object to transform.
-        :type kern: :py:class:`psyclone.psyGen.Call`
-        :returns: (transformed kernel, memento of transformation)
-        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Kern`, \
+        :param node_list: The list of PSyIR nodes to enclose in the data \
+                          region.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :returns: (transformed schedule, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`).
-        :raises TransformationError: if we fail to find the subroutine \
-                                     corresponding to the kernel object.
+        :raises TransformationError: if the Schedule to which the list of nodes
+                                     belongs already has an 'enter data' directive.
         '''
         from fparser.two.Fortran2003 import Subroutine_Subprogram, \
             Subroutine_Stmt, Specification_Part, Type_Declaration_Stmt, \
             Implicit_Part, Comment
         from fparser.two.utils import walk_ast
         from fparser.common.readfortran import FortranStringReader
+
+        self._validate(node_list)
 
         # Keep a record of this transformation
         from psyclone.undoredo import Memento
@@ -2767,7 +2774,39 @@ class ACCDataTrans(Transformation):
             parent.children.remove(child)
             child.parent = directive
 
-        parent.children.insert(start_index,directive)
+        parent.children.insert(start_index, directive)
 
         # Return the now modified kernel
         return schedule, keep
+
+    def _validate(self, node_list):
+        '''
+        Check that we can safely add a data region around the supplied list
+        of nodes.
+
+        :raises TransformationError: if the Schedule to which the nodes \
+                                belong already has an 'enter data' directive.
+        :raises TransformationError: if any of the nodes are themselves \
+                                     data directives.
+        '''
+        from psyGen import ACCDataDirective
+        super(ACCDataTrans, self)._validate(node_list)
+
+        # Check that the Schedule to which the nodes belong does not already
+        # have an 'enter data' directive.
+        schedule = node_list[0].root
+        acc_dirs = schedule.walk(schedule.children, ACCEnterDirective)
+        if acc_dirs:
+            raise TransformationError(
+                "Cannot add an OpenACC data region to a schedule that "
+                "already contains an 'enter data' directive.")
+        for node in node_list:
+            if isinstance(node, ACCDataDirective):
+                raise TransformationError(
+                    "Cannot enclose an OpenACC data region within another "
+                    "OpenACC data region.")
+            data_dirs = node.walk(node.children, ACCDataDirective)
+            if data_dirs:
+                raise TransformationError(
+                    "Cannot enclose an OpenACC data region within another "
+                    "OpenACC data region.")
