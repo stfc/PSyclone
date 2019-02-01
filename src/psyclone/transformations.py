@@ -2697,7 +2697,7 @@ class ACCKernelsTrans(RegionTrans):
            should have the 'default present' attribute (indicating that data \
            is already on the accelerator).
         :returns: (transformed schedule, memento of transformation)
-        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`, 
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`,
                             :py:class:`psyclone.undoredo.Memento`).
 
         '''
@@ -2723,12 +2723,12 @@ class ACCKernelsTrans(RegionTrans):
             parent.children.remove(child)
             child.parent = directive
 
-        parent.children.insert(start_index,directive)
+        parent.children.insert(start_index, directive)
 
         # Return the now modified kernel
         return schedule, keep
 
-    def _validate(node_list, default_present):
+    def _validate(self, node_list, default_present):
         '''
         Check that we can safely enclose the supplied list of nodes within
         OpenACC kernels ... end kernels directives.
