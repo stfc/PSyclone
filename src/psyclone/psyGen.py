@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-19 Science and Technology Facilities Council.
+# Copyright (c) 2017-19, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -150,7 +150,8 @@ def zero_reduction_variables(red_call_list, parent):
         parent.add(CommentGen(parent, ""))
 
 
-def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
+def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
+                is_literal=True):
     '''
     Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
@@ -164,7 +165,8 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
     :type arg_accesses: list of str
     :param arg_meshes: List of meshes that arguments must be on
     :type arg_meshes: list of str
-
+    :param bool is_literal: Whether or not to include literal arguments in \
+                            the returned list.
     :returns: list of kernel arguments matching the requirements
     :rtype: list of :py:class:`psyclone.parse.Descriptor`
     '''
@@ -178,6 +180,11 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
                 continue
         if arg_meshes:
             if argument.mesh not in arg_meshes:
+                continue
+        if not is_literal:
+            # We're not including literal arguments so skip this argument
+            # if it is literal.
+            if argument.is_literal:
                 continue
         arguments.append(argument)
     return arguments
@@ -255,9 +262,7 @@ class PSyFactory(object):
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
         '''
-        if self._type == "gunghoproto":
-            from psyclone.ghproto import GHProtoPSy as PSyClass
-        elif self._type == "dynamo0.1":
+        if self._type == "dynamo0.1":
             from psyclone.dynamo0p1 import DynamoPSy as PSyClass
         elif self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynamoPSy as PSyClass
@@ -283,19 +288,21 @@ class PSy(object):
     function :func:`parse.parse` as its input and stores this in a
     way suitable for optimisation and code generation.
 
-    :param invoke_info: An object containing the required invocation \
-                        information for code optimisation and generation.
+    :param FileInfo invoke_info: An object containing the required \
+                                 invocation information for code \
+                                 optimisation and generation. Produced \
+                                 by the function :func:`parse.parse`.
     :type invoke_info: :py:class:`psyclone.parse.FileInfo`
 
-        For example:
+    For example:
 
-        >>> import psyclone
-        >>> from psyclone.parse import parse
-        >>> ast, info = parse("argspec.F90")
-        >>> from psyclone.psyGen import PSyFactory
-        >>> api = "..."
-        >>> psy = PSyFactory(api).create(info)
-        >>> print(psy.gen)
+    >>> import psyclone
+    >>> from psyclone.parse import parse
+    >>> ast, info = parse("argspec.F90")
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "..."
+    >>> psy = PSyFactory(api).create(info)
+    >>> print(psy.gen)
 
     '''
     def __init__(self, invoke_info):
@@ -362,8 +369,81 @@ class Invokes(object):
                                       str(self.names)))
 
     def gen_code(self, parent):
+        '''
+        Create the f2pygen AST for each Invoke in the PSy layer.
+
+        :param parent: the parent node in the AST to which to add content.
+        :type parent: `psyclone.f2pygen.ModuleGen`
+        '''
+        opencl_kernels = []
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
+            # If we are generating OpenCL for an Invoke then we need to
+            # create routine(s) to set the arguments of the Kernel(s) it
+            # calls. We do it here as this enables us to prevent
+            # duplication.
+            if invoke.schedule.opencl:
+                for kern in invoke.schedule.kern_calls():
+                    if kern.name not in opencl_kernels:
+                        opencl_kernels.append(kern.name)
+                        kern.gen_arg_setter_code(parent)
+                # We must also ensure that we have a kernel object for
+                # each kernel called from the PSy layer
+                self.gen_ocl_init(parent, opencl_kernels)
+
+    @staticmethod
+    def gen_ocl_init(parent, kernels):
+        '''
+        Generates a subroutine to initialise the OpenCL environment and
+        construct the list of OpenCL kernel objects used by this PSy layer.
+
+        :param parent: the node in the f2pygen AST representing the module \
+                       that will contain the generated subroutine.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        :param kernels: List of kernel names called by the PSy layer.
+        :type kernels: list of str
+        '''
+        from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
+            CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
+
+        sub = SubroutineGen(parent, "psy_init")
+        parent.add(sub)
+        sub.add(UseGen(sub, name="fortcl", only=True,
+                       funcnames=["ocl_env_init", "add_kernels"]))
+        # Add a logical variable used to ensure that this routine is only
+        # executed once.
+        sub.add(DeclGen(sub, datatype="logical", save=True,
+                        entity_decls=["initialised"],
+                        initial_values=[".False."]))
+        # Check whether or not this is our first time in the routine
+        sub.add(CommentGen(sub, " Check to make sure we only execute this "
+                           "routine once"))
+        ifthen = IfThenGen(sub, ".not. initialised")
+        sub.add(ifthen)
+        ifthen.add(AssignGen(ifthen, lhs="initialised", rhs=".True."))
+
+        # Initialise the OpenCL environment
+        ifthen.add(CommentGen(ifthen,
+                              " Initialise the OpenCL environment/device"))
+        ifthen.add(CallGen(ifthen, "ocl_env_init"))
+
+        # Create a list of our kernels
+        ifthen.add(CommentGen(ifthen,
+                              " The kernels this PSy layer module requires"))
+        nkernstr = str(len(kernels))
+
+        # Declare array of character strings
+        ifthen.add(CharDeclGen(
+            ifthen, length="30",
+            entity_decls=["kernel_names({0})".format(nkernstr)]))
+        for idx, kern in enumerate(kernels):
+            ifthen.add(AssignGen(ifthen, lhs="kernel_names({0})".format(idx+1),
+                                 rhs='"{0}"'.format(kern)))
+        ifthen.add(CommentGen(ifthen,
+                              " Create the OpenCL kernel objects. Expects "
+                              "to find all of the compiled"))
+        ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
+        ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 
 
 class NameSpaceFactory(object):
@@ -1293,22 +1373,46 @@ class Node(object):
 
 
 class Schedule(Node):
+    '''
+    Stores schedule information for an invocation call. Schedules can be
+    optimised using transformations.
 
-    ''' Stores schedule information for an invocation call. Schedules can be
-        optimised using transformations.
+    >>> from parse import parse
+    >>> ast, info = parse("algorithm.f90")
+    >>> from psyGen import PSyFactory
+    >>> api = "..."
+    >>> psy = PSyFactory(api).create(info)
+    >>> invokes = psy.invokes
+    >>> invokes.names
+    >>> invoke = invokes.get("name")
+    >>> schedule = invoke.schedule
+    >>> schedule.view()
 
-        >>> from parse import parse
-        >>> ast, info = parse("algorithm.f90")
-        >>> from psyGen import PSyFactory
-        >>> api = "..."
-        >>> psy = PSyFactory(api).create(info)
-        >>> invokes = psy.invokes
-        >>> invokes.names
-        >>> invoke = invokes.get("name")
-        >>> schedule = invoke.schedule
-        >>> schedule.view()
+    :param type KernFactory: class instance of the factory to use when \
+     creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
+    :param type BuiltInFactory: class instance of the factory to use when \
+     creating built-ins. e.g. \
+     :py:class:`psyclone.dynamo0p3_builtins.DynBuiltInCallFactory`.
+    :param alg_calls: list of Kernel calls in the schedule.
+    :type alg_calls: list of :py:class:`psyclone.parse.KernelCall`
 
     '''
+
+    def __init__(self, KernFactory, BuiltInFactory, alg_calls=[]):
+        # we need to separate calls into loops (an iteration space really)
+        # and calls so that we can perform optimisations separately on the
+        # two entities.
+        sequence = []
+        from psyclone.parse_orig import BuiltInCall
+        for call in alg_calls:
+            if isinstance(call, BuiltInCall):
+                sequence.append(BuiltInFactory.create(call, parent=self))
+            else:
+                sequence.append(KernFactory.create(call, parent=self))
+        Node.__init__(self, children=sequence)
+        self._invoke = None
+        self._opencl = False  # Whether or not to generate OpenCL
+        self._name_space_manager = NameSpaceFactory().create()
 
     @property
     def dag_name(self):
@@ -1332,21 +1436,6 @@ class Schedule(Node):
     @invoke.setter
     def invoke(self, my_invoke):
         self._invoke = my_invoke
-
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=[]):
-
-        # we need to separate calls into loops (an iteration space really)
-        # and calls so that we can perform optimisations separately on the
-        # two entities.
-        sequence = []
-        from psyclone.parse_orig import BuiltInCall
-        for call in alg_calls:
-            if isinstance(call, BuiltInCall):
-                sequence.append(BuiltInFactory.create(call, parent=self))
-            else:
-                sequence.append(KernFactory.create(call, parent=self))
-        Node.__init__(self, children=sequence)
-        self._invoke = None
 
     def view(self, indent=0):
         '''
@@ -1380,8 +1469,101 @@ class Schedule(Node):
         return result
 
     def gen_code(self, parent):
+        '''
+        Generate the Nodes in the f2pygen AST for this schedule.
+
+        :param parent: the parent Node (i.e. the enclosing subroutine) to \
+                       which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
+            IfThenGen, CallGen
+
+        if self._opencl:
+            parent.add(UseGen(parent, name="iso_c_binding"))
+            parent.add(UseGen(parent, name="clfortran"))
+            parent.add(UseGen(parent, name="fortcl", only=True,
+                              funcnames=["get_num_cmd_queues",
+                                         "get_cmd_queues",
+                                         "get_kernel_by_name"]))
+            # Command queues
+            nqueues = self._name_space_manager.create_name(
+                root_name="num_cmd_queues", context="PSyVars",
+                label="num_cmd_queues")
+            qlist = self._name_space_manager.create_name(
+                root_name="cmd_queues", context="PSyVars", label="cmd_queues")
+            first = self._name_space_manager.create_name(
+                root_name="first_time", context="PSyVars", label="first_time")
+            flag = self._name_space_manager.create_name(
+                root_name="ierr", context="PSyVars", label="ierr")
+            parent.add(DeclGen(parent, datatype="integer", save=True,
+                               entity_decls=[nqueues]))
+            parent.add(DeclGen(parent, datatype="integer", save=True,
+                               pointer=True, kind="c_intptr_t",
+                               entity_decls=[qlist + "(:)"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[flag]))
+            parent.add(DeclGen(parent, datatype="logical", save=True,
+                               entity_decls=[first],
+                               initial_values=[".true."]))
+            if_first = IfThenGen(parent, first)
+            parent.add(if_first)
+            if_first.add(AssignGen(if_first, lhs=first, rhs=".false."))
+            if_first.add(CommentGen(if_first,
+                                    " Ensure OpenCL run-time is initialised "
+                                    "for this PSy-layer module"))
+            if_first.add(CallGen(if_first, "psy_init"))
+            if_first.add(AssignGen(if_first, lhs=nqueues,
+                                   rhs="get_num_cmd_queues()"))
+            if_first.add(AssignGen(if_first, lhs=qlist, pointer=True,
+                                   rhs="get_cmd_queues()"))
+            # Kernel pointers
+            kernels = self.walk(self._children, Call)
+            for kern in kernels:
+                base = "kernel_" + kern.name
+                kernel = self._name_space_manager.create_name(
+                    root_name=base, context="PSyVars", label=base)
+                parent.add(
+                    DeclGen(parent, datatype="integer", kind="c_intptr_t",
+                            save=True, target=True, entity_decls=[kernel]))
+                if_first.add(
+                    AssignGen(
+                        if_first, lhs=kernel,
+                        rhs='get_kernel_by_name("{0}")'.format(kern.name)))
+
         for entity in self._children:
             entity.gen_code(parent)
+
+        if self.opencl:
+            # Ensure we block at the end of the invoke to ensure all
+            # kernels have completed before we return.
+            # This code ASSUMES only the first command queue is used for
+            # executing kernels.
+            parent.add(CommentGen(parent,
+                                  " Block until all kernels have finished"))
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + qlist + "(1))"))
+
+    @property
+    def opencl(self):
+        '''
+        :return: Whether or not we are generating OpenCL for this Schedule.
+        :rtype: bool
+        '''
+        return self._opencl
+
+    @opencl.setter
+    def opencl(self, value):
+        '''
+        Setter for whether or not to generate the OpenCL version of this
+        schedule.
+
+        :param bool value: whether or not to generate OpenCL.
+        '''
+        if not isinstance(value, bool):
+            raise ValueError("Schedule.opencl must be a bool but got {0}".
+                             format(type(value)))
+        self._opencl = value
 
 
 class Directive(Node):
@@ -2676,12 +2858,19 @@ class Loop(Node):
         return all_args
 
     def gen_code(self, parent):
-        '''Generate the fortran Loop and any associated code '''
+        '''
+        Generate the Fortran Loop and any associated code.
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self._start == "1" and self._stop == "1":  # no need for a loop
+        if self.root.opencl or (self._start == "1" and self._stop == "1"):
+            # no need for a loop
             for child in self.children:
                 child.gen_code(parent)
         else:
@@ -3123,15 +3312,26 @@ class Kern(Call):
             parent.add(UseGen(parent, name=self._module_name, only=True,
                               funcnames=[self._name]))
 
+    def gen_arg_setter_code(self, parent):
+        '''
+        Creates a Fortran routine to set the arguments of the OpenCL
+        version of this kernel.
+
+        :param parent: Parent node of the set-kernel-arguments routine.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        '''
+        raise NotImplementedError("gen_arg_setter_code must be implemented "
+                                  "by sub-class.")
+
     def incremented_arg(self, mapping={}):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
 
-        :param mapping: dictionary of access types (here INC) associated
+        :param mapping: dictionary of access types (here INC) associated \
                         with arguments with their metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
-        :rtype: string
+        :return: a Fortran argument name.
+        :rtype: str
         :raises FieldNotFoundError: if none is found.
 
         '''
@@ -3696,6 +3896,8 @@ class Argument(object):
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access
+        self._name_space_manager = NameSpaceFactory().create()
+
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
             # we do not want an argument (_text=None) but we do want to
@@ -3703,7 +3905,6 @@ class Argument(object):
             self._name = arg_info.text
             self._text = None
         else:
-            self._name_space_manager = NameSpaceFactory().create()
             # Use our namespace manager to create a unique name unless
             # the context and label match in which case return the
             # previous name.
@@ -3771,6 +3972,31 @@ class Argument(object):
     def call(self, value):
         ''' set the node that this argument is associated with '''
         self._call = value
+
+    def set_kernel_arg(self, parent, index, kname):
+        '''
+        Generate the code to set this argument for an OpenCL kernel.
+
+        :param parent: the node in the Schedule to which to add the code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int index: the (zero-based) index of this argument in the \
+                          list of kernel arguments.
+        :param str kname: the name of the OpenCL kernel.
+        '''
+        from psyclone.f2pygen import AssignGen, CallGen
+        # Look up variable names from name-space manager
+        err_name = self._name_space_manager.create_name(
+            root_name="ierr", context="PSyVars", label="ierr")
+        kobj = self._name_space_manager.create_name(
+            root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
+        parent.add(AssignGen(
+            parent, lhs=err_name,
+            rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+            format(kobj, index, self.name)))
+        parent.add(CallGen(
+            parent, "check_status",
+            ["'clSetKernelArg: arg {0} of {1}'".format(index, kname),
+             err_name]))
 
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,8 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
+from psyclone.parse_orig import KernelType, KernelTypeFactory, \
+    BuiltInKernelTypeFactory
 from psyclone.psyGen import InternalError
 
 
@@ -88,7 +90,6 @@ def test_get_builtin_defs_wrong_api():
 def test_kerneltypefactory_wrong_api():
     ''' Check that we raise an appropriate error if we try to create
     a KernelTypeFactory with an invalid API '''
-    from psyclone.parse_orig import KernelTypeFactory
     with pytest.raises(ParseError) as excinfo:
         _ = KernelTypeFactory(api="invalid_api")
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
@@ -97,7 +98,6 @@ def test_kerneltypefactory_wrong_api():
 def test_kerneltypefactory_default_api():
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
-    from psyclone.parse_orig import KernelTypeFactory
     from psyclone.configuration import Config
     _config = Config.get()
     factory = KernelTypeFactory(api="")
@@ -107,7 +107,6 @@ def test_kerneltypefactory_default_api():
 def test_kerntypefactory_create_broken_type():
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
-    from psyclone.parse_orig import KernelTypeFactory
     factory = KernelTypeFactory(api="")
     # Deliberately break the 'type' (API) of this factory
     factory._type = "invalid_api"
@@ -127,7 +126,6 @@ def test_broken_builtin_metadata():
     defs_file = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "test_files", "dynamo0p3", "broken_builtins_mod.f90")
-    from psyclone.parse_orig import BuiltInKernelTypeFactory
     factory = BuiltInKernelTypeFactory(api="dynamo0.3")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
@@ -140,7 +138,6 @@ def test_unrecognised_builtin():
     ''' Check that we raise an error if we call the BuiltInKernelTypeFactory
     with an unrecognised built-in name '''
     from psyclone import dynamo0p3_builtins
-    from psyclone.parse_orig import BuiltInKernelTypeFactory
     factory = BuiltInKernelTypeFactory()
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
@@ -308,7 +305,6 @@ end module testkern_eval_mod
 
 def test_get_int():
     ''' Tests for the KernelType.get_integer(). method '''
-    from psyclone.parse_orig import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     iter_val = ktype.get_integer_variable("iterates_over")
@@ -318,7 +314,6 @@ def test_get_int():
 def test_get_int_err():
     ''' Tests that we raise the expected error if the meta-data contains
     an integer literal instead of a name. '''
-    from psyclone.parse_orig import KernelType
     mdata = MDATA.replace("= cells", "= 1")
     ast = fpapi.parse(mdata, ignore_comments=False)
     with pytest.raises(ParseError) as err:
@@ -329,7 +324,6 @@ def test_get_int_err():
 
 def test_get_int_array():
     ''' Tests for the KernelType.get_integer_array() method. '''
-    from psyclone.parse_orig import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     targets = ktype.get_integer_array("gh_evaluator_targets")
@@ -344,7 +338,6 @@ def test_get_int_array():
 def test_get_int_array_err1(monkeypatch):
     ''' Tests that we raise the correct error if there is something wrong
     with the assignment statement obtained from fparser2. '''
-    from psyclone.parse_orig import KernelType
     from fparser.two import Fortran2003
     # This is difficult as we have to break the result returned by fparser2.
     # We therefore create a valid KernelType object
@@ -372,7 +365,6 @@ def test_get_int_array_err1(monkeypatch):
 def test_get_int_array_not_array():
     ''' Test that get_integer_array returns the expected error if the
     requested variable is not an array. '''
-    from psyclone.parse_orig import KernelType
     ast = fpapi.parse(MDATA, ignore_comments=False)
     ktype = KernelType(ast)
     # Erroneously call get_integer_array with the name of a scalar meta-data
@@ -386,7 +378,6 @@ def test_get_int_array_not_array():
 def test_get_int_array_err2(monkeypatch):
     ''' Check that we raise the appropriate error if we fail to parse the
     array constructor expression. '''
-    from psyclone.parse_orig import KernelType
     from fparser.two import Fortran2003
     # First create a valid KernelType object
     ast = fpapi.parse(MDATA, ignore_comments=False)
@@ -407,3 +398,45 @@ def test_get_int_array_err2(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = ktype.get_integer_array("gh_evaluator_targets")
     assert "Failed to parse array constructor: '[hello, goodbye]'" in str(err)
+
+
+def test_kernel_binding_not_code():
+    ''' Check that we raise the expected error when Kernel meta-data uses
+    a specific binding but does not have 'code' as the generic name. '''
+    mdata = MDATA.replace("code => test", "my_code => test")
+    ast = fpapi.parse(mdata)
+    with pytest.raises(ParseError) as err:
+        _ = KernelType(ast)
+    assert ("binds to a specific procedure but does not use 'code' as the "
+            "generic name" in str(err))
+
+
+def test_kernel_binding_missing():
+    ''' Check that we raise the correct error when the Kernel meta-data is
+    missing the type-bound procedure giving the name of the subroutine. '''
+    mdata = MDATA.replace(
+        "contains\n    procedure, nopass :: code => testkern_eval_code\n", "")
+    ast = fpapi.parse(mdata)
+    with pytest.raises(RuntimeError) as err:
+        _ = KernelType(ast)
+    assert ("Kernel type testkern_eval_type does not bind a specific "
+            "procedure" in str(err))
+
+
+def test_empty_kernel_name(monkeypatch):
+    ''' Check that we raise the correct error when we get a blank string for
+    the name of the Kernel subroutine. '''
+    import fparser
+    mdata = MDATA.replace("procedure, nopass :: code => testkern_eval_code",
+                          "procedure, nopass :: testkern_eval_code")
+    ast = fpapi.parse(mdata)
+    # Break the AST
+    for statement, _ in fpapi.walk(ast, -1):
+        if isinstance(statement, fparser.one.statements.SpecificBinding):
+            monkeypatch.setattr(statement, "name", "")
+            break
+    with pytest.raises(InternalError) as err:
+        _ = KernelType(ast)
+    print (str(err))
+    assert ("Empty kernel name returned for Kernel type testkern_eval_type"
+            in str(err))

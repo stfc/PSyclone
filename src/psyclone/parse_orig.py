@@ -391,10 +391,8 @@ class KernelProcedure(object):
             raise RuntimeError(
                 "Kernel type %s does not bind a specific procedure" % name)
         if bname == '':
-            from psyclone.parse import ParseError
-            raise ParseError(
-                "Internal error: empty kernel name returned for Kernel type "
-                "%s." % name)
+            raise InternalError(
+                "Empty kernel name returned for Kernel type %s." % name)
         code = None
         default_public = True
         declared_private = False
@@ -823,6 +821,7 @@ class ParsedCall(object):
                 "insufficient number of arguments as specified by the "
                 "metadata. Expected at least '{1}' but found '{2}'.".
                 format(self._ktype.name, self._ktype.nargs, len(self._args)))
+        self._module_name = None
 
     @property
     def ktype(self):
@@ -957,13 +956,13 @@ class FileInfo(object):
         return self._calls
 
 
-def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
+def parse(alg_filename, api=None, invoke_name="invoke", inf_name="inf",
           kernel_path="", line_length=False,
           distributed_memory=None):
-    '''Takes a GungHo algorithm specification as input and outputs an AST of
-    this specification and an object containing information about the
-    invocation calls in the algorithm specification and any associated kernel
-    implementations.
+    '''Takes a PSyclone-conformant algorithm file as input and outputs a
+    parse tree of this file and an object containing information about
+    the invocation calls in the algorithm specification and any
+    associated kernel implementations.
 
     :param str alg_filename: The file containing the algorithm specification.
     :param str invoke_name: The expected name of the invocation calls in the

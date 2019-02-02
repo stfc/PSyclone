@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-The sub-directories present in the directory containing this README provide
-examples of the use of PSyclone with the GOcean 1.0 API.
+''' Module providing a transformation script that converts the Schedule of
+    the first Invoke to use OpenCL. '''
 
-Example 1
----------
 
-Contains a version of the Shallow benchmark with a subset of the kernels
-called from within invoke()'s. Contains example scripts showing the use
-of PSyclone for adding OpenMP or OpenACC and for performing loop fusion.
+def trans(psy):
+    '''
+    Transformation routine for use with PSyclone. Applies the OpenCL
+    transform to the first Invoke in the psy object.
 
-Example 2
----------
+    :param psy: the PSy object which this script will transform.
+    :type psy: :py:class:`psyclone.psyGen.PSy`
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.psyGen.PSy`
 
-A single-kernel example demonstrating the use of PSyclone in generating
-a compilable and executable OpenACC code. Note that compiling this
-example requires that the dl_esm_inf library (github.com/stfc/dl_esm_inf)
-be installed first.
+    '''
+    from psyclone.transformations import OCLTrans
 
+    # Get the Schedule associated with the first Invoke
+    invoke = psy.invokes.invoke_list[0]
+    sched = invoke.schedule
+
+    # Transform the Schedule
+    cltrans = OCLTrans()
+    cltrans.apply(sched)
+
+    return psy

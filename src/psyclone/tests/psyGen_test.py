@@ -124,14 +124,6 @@ def test_psy_base_err(monkeypatch):
     assert "must be implemented by subclass" in str(excinfo)
 
 
-# TBD need to find a way to create a valid info object to pass to
-# create so we can check creation
-# def test_create_valid_return_object():
-#     from ghproto import
-#     GHProtoPSy psy = PSyFactory().create(None) assert
-#     isinstance(psy,GHProtoPSy)
-
-
 # Transformation class unit tests
 
 def test_base_class_not_callable():
@@ -563,6 +555,17 @@ def test_sched_view(capsys):
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
 
+def test_sched_ocl_setter():
+    ''' Check that the opencl setter raises the expected error if not passed
+    a bool. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    with pytest.raises(ValueError) as err:
+        psy.invokes.invoke_list[0].schedule.opencl = "a string"
+    assert "Schedule.opencl must be a bool but got " in str(err)
+
 # Kern class test
 
 
@@ -591,6 +594,20 @@ def test_kern_coloured_text():
     my_kern.load_meta(metadata)
     ret_str = my_kern.coloured_text
     assert colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) in ret_str
+
+
+def test_kern_abstract_methods():
+    ''' Check that the abstract methods of the Kern class raise the
+    NotImplementedError. '''
+    # We need to get a valid kernel object
+    from psyclone import dynamo0p3
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(NotImplementedError) as err:
+        super(dynamo0p3.DynKern, my_kern).gen_arg_setter_code(None)
+    assert "gen_arg_setter_code must be implemented by sub-class" in str(err)
 
 
 def test_call_abstract_methods():

@@ -2074,7 +2074,7 @@ class GOLoopSwapTrans(Transformation):
                                       "an instance of '{1}."
                                       .format(node_outer, type(node_outer)))
 
-        if len(node_outer.children) == 0:
+        if not node_outer.children:
             raise TransformationError("Error in GOLoopSwap transformation. "
                                       "Supplied node '{0}' must be the outer "
                                       "loop of a loop nest and must have one "
@@ -2146,8 +2146,83 @@ class GOLoopSwapTrans(Transformation):
         return schedule, keep
 
 
-class ProfileRegionTrans(RegionTrans):
+class OCLTrans(Transformation):
+    '''
+    Switches on/off the generation of an OpenCL PSy layer for a given
+    Schedule. For example:
 
+    >>> invoke = ...
+    >>> schedule = invoke.schedule
+    >>>
+    >>> ocl_trans = OCLTrans()
+    >>> new_sched, _ = ocl_trans.apply(schedule)
+
+    '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+        '''
+        return "OCLTrans"
+
+    def apply(self, sched, opencl=True):
+        '''
+        Apply the OpenCL transformation to the supplied Schedule. This
+        causes PSyclone to generate an OpenCL version of the corresponding
+        PSy-layer routine. The generated code makes use of the FortCL
+        library (https://github.com/stfc/FortCL) in order to manage the
+        OpenCL device directly from Fortran.
+
+        :param sched: Schedule to transform.
+        :type sched: :py:class:`psyclone.psyGen.Schedule`
+        :param bool opencl: whether or not to enable OpenCL generation.
+
+        '''
+        if opencl:
+            self._validate(sched)
+        # create a memento of the schedule and the proposed transformation
+        from psyclone.undoredo import Memento
+        keep = Memento(sched, self, [sched, opencl])
+        # All we have to do here is set the flag in the Schedule. When this
+        # flag is True PSyclone produces OpenCL at code-generation time.
+        sched.opencl = opencl
+        return sched, keep
+
+    def _validate(self, sched):
+        '''
+        Checks that the supplied Schedule is valid and that an OpenCL
+        version of it can be generated.
+
+        :param sched: Schedule to check.
+        :type sched: :py:class:`psyclone.psyGen.Schedule`
+        :raises TransformationError: if the Schedule is not for the GOcean1.0 \
+                                     API.
+        :raises NotImplementedError: if any of the kernels have arguments \
+                                     passed by value.
+        '''
+        from psyclone.psyGen import Schedule, args_filter
+        from psyclone.gocean1p0 import GOSchedule
+        if isinstance(sched, Schedule):
+            if not isinstance(sched, GOSchedule):
+                raise TransformationError(
+                    "OpenCL generation is currently only supported for the "
+                    "GOcean API but got a Schedule of type: '{0}'".
+                    format(type(sched)))
+        else:
+            raise TransformationError(
+                "Error in OCLTrans: the supplied node must be a (sub-class "
+                "of) Schedule but got {0}".format(type(sched)))
+        # Now we need to check the arguments of all the kernels
+        args = args_filter(sched.args, arg_types=["scalar"], is_literal=True)
+        for arg in args:
+            if arg.is_literal:
+                raise NotImplementedError(
+                    "Cannot generate OpenCL for Invokes that contain "
+                    "kernels with arguments passed by value")
+
+
+class ProfileRegionTrans(RegionTrans):
     ''' Create a profile region around a list of statements. For
     example:
 
@@ -2407,8 +2482,8 @@ class ACCDataTrans(Transformation):
                                       "not a Schedule")
         schedule = sched
         # Check that we don't already have a data region
-        data_dir = schedule.walk(schedule.children, AccDataDir)
-        if len(data_dir) != 0:
+        data_directives = schedule.walk(schedule.children, AccDataDir)
+        if data_directives:
             raise TransformationError("Schedule already has an OpenACC "
                                       "data region - cannot add another.")
         # create a memento of the schedule and the proposed
