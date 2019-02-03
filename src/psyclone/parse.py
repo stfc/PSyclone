@@ -1049,9 +1049,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                 KernelCall(module_name, KernelTypeFactory(api=api).create(modast, name=kernel_name), args))
                     else:
                         # I don't support this.
-                        print "  unexpected input"
-                        print "  arg: {0}".format(argument)
-                        print "  type: {0}".format(type(argument))
+                        print ("  unexpected input")
+                        print ("  arg: {0}".format(argument))
+                        print ("  type: {0}".format(type(argument)))
                 from psyclone.parse_orig import InvokeCall
                 invokecalls[statement] = InvokeCall(statement_kcalls,
                                                     name=invoke_label)
