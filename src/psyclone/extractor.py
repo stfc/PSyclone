@@ -52,29 +52,30 @@ from psyclone.transformations import ExtractRegionTrans
 class ExtractNode(Node):
 
     def __init__(self, children=None, parent=None):
-        ''' Constructor for an ExtractNode that is inserted in a schedule.
+        ''' Constructor for an ExtractNode that is inserted in a Schedule.
 
-            :param children: A list of children nodes for this node.
-            :type children: A list of :py::class::`psyclone.psyGen.Node` \
-            or derived classes.
-            :param parent: The parent of this node.
-            :type parent: A :py::class::`psyclone.psyGen.Node`.
+            :param children: a list of children nodes for this Node.
+            :type children: a list of :py::class::`psyclone.psyGen.Node` \
+                            or derived classes.
+            :param parent: the parent of this Node.
+            :type parent: a :py::class::`psyclone.psyGen.Node`.
         '''
         Node.__init__(self, children=children, parent=parent)
         self._namespace = NameSpace()
 
+        # Store the name of the extract variable that is used for this
+        # extract region name. This allows to show the variable name in __str__
+        # (and also if we would call create_name in gen(), the name would
+        # change every time gen() is called).
+        self._var_name = NameSpaceFactory().create().create_name("extract")
+
     def __str__(self):
-        ''' Returns a name for an ExtractNode. '''
-        result = "Extract\n"
+        ''' Returns a string representation of the subtree starting at
+        the Extract Node. '''
+        result = "ExtractStart[var={0}]\n".format(self._var_name)
         for child in self.children:
             result += str(child)+"\n"
-        return result+"End Extract"
-        #''' Returns a string representation of the subtree starting at
-        #this node. '''
-        #result = "ExtractStart[var={0}]\n".format(self._var_name)
-        #for child in self.children:
-            #result += str(child)+"\n"
-        #return result+"ExtractEnd"
+        return result+"ExtractEnd"
 
     @property
     def coloured_text(self):
@@ -101,16 +102,23 @@ class ExtractNode(Node):
         :param int indent: Depth of indent for output text
         '''
         # Find out the name of the first (or only) kernel to be extracted
-        kernels = self.walk(self.children, Kern)
-        extrstr = "[extract='" + kernels[0].name + "']"
-        print(self.indent(indent) + self.coloured_text +
-              extrstr)
+        #kernels = self.walk(self.children, Kern)
+        #extrstr = "[extract='" + kernels[0].name + "']"
+        extrstr = "extract_" + str(self.abs_position)
+        #print(self.indent(indent) + self.coloured_text +
+              #extrstr)
+        print(self.indent(indent) + self.coloured_text + self._var_name)
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        # Add comment at the position of ExtractNode for now.
-        # This comment will later be replaced by calls to write statements.
+        ''' Marks region for code extraction as children of the ExtractNode.
+        For now it inserts comments at the position of the ExtractNode and
+        after all children of the ExtractNode. These comments will later
+        be replaced by calls to write out arguments of extracted kernels.
+        :param parent: the parent of this Node.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        '''
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " CALL write_extract_arguments(argument_list)"))
@@ -181,13 +189,6 @@ class Extractor(object):
         # # Store options so they can be queried later
         # Extractor._options = options
 
-    # # -------------------------------------------------------------------------
-    #@staticmethod
-    #def extract_kernel():
-        #'''Returns true if kernel extraction is enabled.
-        #:return: True if a kernel code should be extracted.
-        #:rtype: bool'''
-        #return Extractor.KERNEL in Extractor._options
 
     @staticmethod
     def extract_kernel(schedule, kernel_name):
@@ -200,15 +201,6 @@ class Extractor(object):
             if kernel.name == kernel_name:
                 extract_parent = kernel.root_at_depth(1)
 
-        modified_schedule, _ = etrans.apply(extract_parent)
+        extract_schedule, _ = etrans.apply(extract_parent)
 
-        # 
-        print(type(extract_parent))
-        extract_schedule = extract_parent.parent
-        extract_schedule.view()
-
-        kdriver_instance = KernDriver(extract_schedule)
-        kdriver_prog = kdriver_instance.gen()
-        #print(str(kdriver_prog))
-
-        return modified_schedule
+        return extract_schedule

@@ -80,24 +80,9 @@ def trans(psy):
                     schedule, _ = otrans.apply(child)
 
         if invoke.name == invoke_name:
-            schedule = extract(schedule, kernel_name, invoke_name)
+            schedule = Extractor.extract_kernel(schedule, kernel_name)
             schedule.view()
 
         invoke.schedule = schedule
 
     return psy
-
-
-def extract(schedule, kernel_name, invoke_name):
-    ''' Extract function for a specific kernel and invoke '''
-    # Find the kernel and invoke to extract
-
-    etrans = ExtractRegionTrans()
-
-    for kernel in schedule.walk(schedule.children, Kern):
-        if kernel.name == kernel_name:
-            extract_parent = kernel.root_at_depth(1)
-
-    modified_schedule, _ = etrans.apply(extract_parent)
-
-    return modified_schedule

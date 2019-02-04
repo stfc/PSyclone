@@ -1782,7 +1782,7 @@ class ExtractRegionTrans(RegionTrans):
 
     Nodes to extract can be individual constructs within an invoke (e.g.
     (kernel or built-in) or entire invokes. For now, this functionality
-    does not include distributed memory (HaloExchange, GlobalSum).
+    does not include distributed memory.
 
     '''
 
@@ -1795,15 +1795,11 @@ class ExtractRegionTrans(RegionTrans):
         return "ExtractRegionTrans"
 
     def _validate(self, node_list):
-        '''Perform validation checks before applying the transformation
+        ''' Perform validation checks before applying the transformation
 
-        :param node: the node we are checking
-        :type node: list of :py:class:`psyclone.psyGen.Node`
-        :raises TransformationError: if distributed memory is configured
-        :raises TransformationError: if the node is a  \
-                              :py:class:`psyclone.psyGen.HaloExchange` or  \
-                              :py:class:`psyclone.psyGen.GlobalSum`
-
+        :param node: the node we are checking.
+        :type node: list of :py:class:`psyclone.psyGen.Node`.
+        :raises TransformationError: if distributed memory is configured.
         '''
 
         # First check constraints on nodes in the node_list common to
@@ -1811,20 +1807,14 @@ class ExtractRegionTrans(RegionTrans):
         super(ExtractRegionTrans, self)._validate(node_list)
 
         # Check ExtractRegionTrans specific constraints
-        # Extracting distributed memory code is not supported
+        # Extracting distributed memory code is not supported. This
+        # constraint covers the presence of HaloExchange and GlobalSum
+        # classses as they are only generated when distributed memory
+        # is enabled.
         if Config.get().distributed_memory:
             raise TransformationError("{0} transformation does not "
                                       "currently support distributed memory.".
                                       format(str(self.name)))
-
-        # Check that a supplied node is not a HaloExchange or a GlobalSum
-        from psyclone.psyGen import HaloExchange, GlobalSum
-        for node in node_list:
-            if isinstance(node, (HaloExchange, GlobalSum)):
-                raise TransformationError(
-                    "Nodes of type {0} are not currently supported "
-                    "in {1} transformation.".
-                    format(type(node), str(self.name)))
 
     def apply(self, nodes):
         ''' Extract the nodes represented by :py:obj:`node`. Exceptions
