@@ -6736,45 +6736,6 @@ class KernStubArgList(ArgOrdering):
         return self._arglist
 
 
-# class KernExtractArgList(ArgOrdering):
-    # ''' Creates the argument list required to create and declare the
-    # required arguments for a kernel extraction. The ordering and type
-    # of the arguments is captured by the base class '''
-    # def __init__(self, kern, parent):
-        # '''
-        # :param kern: Kernel for which to create extract argument list
-        # :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-        # :param parent: Parent subroutine which calls the kernel
-        # :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        # :raises NotImplementedError: ???
-        # '''
-        # from psyclone.f2pygen import UseGen
-        
-        # # This use gen goes to generating the kdriver
-        # #parent.add(UseGen(parent, name="constants_mod", only=True,
-                          # #funcnames=["r_def", "i_def"]))
-        # self._first_arg = True
-        # self._first_arg_decl = None
-        # ArgOrdering.__init__(self, kern)
-        # self._parent = parent
-        # self._arglist = []
-        # self._name_space_manager = NameSpaceFactory().create()
-
-    # def cell_position(self):
-        # ''' Add cell position to the argument list if required '''
-        # from psyclone.f2pygen import DeclGen
-        # self._arglist.append("cell")
-        # self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 # kind="i_def", entity_decls=["cell"]))
-
-    # def mesh_height(self):
-        # ''' add mesh height (nlayers) to the argument list if required '''
-        # from psyclone.f2pygen import DeclGen
-        # self._arglist.append("nlayers")
-        # self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 # kind="i_def", entity_decls=["nlayers"]))
-
 # class DinoWriters(ArgOrdering):
 #    def __init__(self, kern, parent=None, position=None):
 #        ArgOrdering.__init__(self, kern)

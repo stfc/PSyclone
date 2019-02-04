@@ -170,8 +170,8 @@ def generate(filename, api="", kernel_path="", script_name=None,
                               kernel code.
     :param bool kern_naming: the scheme to use when re-naming transformed \
                              kernels.
-    :returns: 2-tuple containing fparser1 ASTs for the algorithm code and \
-              the psy code.
+    :return: 2-tuple containing fparser1 ASTs for the algorithm code and \
+             the psy code.
     :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
              :py:class:`fparser.one.block_statements.Module`)
 
@@ -309,7 +309,7 @@ def main(args):
 
     if args.script is not None and args.profile is not None:
         print("Error: use of automatic profiling in combination with an\n"
-              "optimisation script is not recommened since it may not work\n"
+              "optimisation script is not recommended since it may not work\n"
               "as expected.\n"
               "You can use --force-profile instead of --profile if you \n"
               "really want to use both options at the same time.",

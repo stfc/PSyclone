@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -113,12 +113,12 @@ class ExtractNode(Node):
         # This comment will later be replaced by calls to write statements.
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " ExtractStart"))
         parent.add(CommentGen(parent, " CALL write_extract_arguments(argument_list)"))
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " ExtractStart"))
         for child in self.children:
             child.gen_code(parent)
         parent.add(CommentGen(parent, " ExtractEnd"))
-        parent.add(CommentGen(parent, ""))
 
 
 class Extractor(object):
@@ -189,23 +189,6 @@ class Extractor(object):
         #:rtype: bool'''
         #return Extractor.KERNEL in Extractor._options
 
-    # # -------------------------------------------------------------------------
-    # @staticmethod
-    # def extract_nodes():
-        # '''Returns true if nodes extraction is enabled.
-        # :return: True if nodes within an invoke should be extracted.
-        # :rtype: bool'''
-        # ext
-        # return Extractor.NODES in Extractor._options
-
-    # # -------------------------------------------------------------------------
-    # @staticmethod
-    # def extract_invoke():
-        # '''Returns true if invoke extracting is enabled.
-        # :return: True if invokes should be extracted.
-        # :rtype: bool'''
-        # return Extractor.INVOKE in Extractor._options
-
     @staticmethod
     def extract_kernel(schedule, kernel_name):
         ''' Extract function for a specific kernel and invoke '''
@@ -229,34 +212,3 @@ class Extractor(object):
         #print(str(kdriver_prog))
 
         return modified_schedule
-
-
-class KernDriver(object):
-
-    def __init__(self, driver_schedule):
-        self.name = "kernel_driver"
-        self.schedule = driver_schedule
-
-    def gen(self):
-        ''' Output the kernel driver'''
-        from psyclone.f2pygen import ProgramGen, CommentGen
-        # Create the program
-        program = ProgramGen(name="kdriver", implicitnone=True)
-        # Placeholder for the declarations
-        program.add(CommentGen(program, ""))
-        program.add(CommentGen(program, " Argument declarations"))
-        # Placeholder for the read data statements
-        program.add(CommentGen(program, ""))
-        program.add(CommentGen(program, " CALL read_extract_arguments(argument_list)"))
-        # Create the kernel call loop
-        program.add(CommentGen(program, ""))
-        program.add(CommentGen(program, " Call the kernel(s)"))
-        for child in self.schedule.children:
-            child.gen_code(program)
-        return program.root
-
-
-
-
-
-

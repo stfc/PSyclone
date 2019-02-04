@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -3363,12 +3363,12 @@ def test_enforce_op_bc_kernel_stub_gen():
 SUB_NAME = '''
 module dummy_mod
   type, extends(kernel_type) :: dummy_type
-     type(arg_type), meta_args(1) =    &
-          (/ arg_type(gh_field,gh_write,w1) &
+     type(arg_type) :: meta_args(1) =         &
+          (/ arg_type(gh_field, gh_write, w1) &
            /)
      integer, parameter :: iterates_over = cells
    contains
-     procedure() :: code => dummy
+     procedure, nopass :: code => dummy
   end type dummy_type
 contains
   subroutine dummy()
@@ -3378,7 +3378,7 @@ end module dummy_mod
 
 
 def test_sub_name():
-    ''' test for expected behaviour when the kernel subroutine does
+    ''' Test for expected behaviour when the kernel subroutine does
     not conform to the convention of having "_code" at the end of its
     name. In this case we append "_code to the name and _mod to the
     kernel name.'''
@@ -3406,6 +3406,8 @@ def test_sub_name():
     print(output)
     print(str(generated_code))
     assert str(generated_code).find(output) != -1
+    # Test that the base name does not return _mod
+    assert "_mod" not in kernel.base_name
 
 
 def test_kernel_stub_usage():

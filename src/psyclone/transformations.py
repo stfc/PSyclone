@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1800,9 +1800,9 @@ class ExtractRegionTrans(RegionTrans):
         :param node: the node we are checking
         :type node: list of :py:class:`psyclone.psyGen.Node`
         :raises TransformationError: if distributed memory is configured
-        :raises TransformationError: if the node is a
-        :py:class:`psyclone.psyGen.HaloExchange` or
-        :py:class:`psyclone.psyGen.GlobalSum`
+        :raises TransformationError: if the node is a  \
+                              :py:class:`psyclone.psyGen.HaloExchange` or  \
+                              :py:class:`psyclone.psyGen.GlobalSum`
 
         '''
 
@@ -1847,7 +1847,6 @@ class ExtractRegionTrans(RegionTrans):
                                       "schedule but have been passed an "
                                       "object of type: {0}".
                                       format(arg_type, str(self)))
-
 
         # Validate transformation
         self._validate(node_list)
