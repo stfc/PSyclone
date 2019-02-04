@@ -43,7 +43,7 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
-from psyclone.parse_orig import KernelType, KernelTypeFactory, \
+from psyclone.parse import KernelType, KernelTypeFactory, \
     BuiltInKernelTypeFactory
 from psyclone.psyGen import InternalError
 
@@ -161,15 +161,6 @@ def test_builtin_with_use():
             in str(excinfo.value))
 
 
-def test_element_unpack():
-    ''' Check that the unpack method of the Element class behaves as
-    expected when passed a string '''
-    from psyclone.parse_orig import Element
-    ele = Element()
-    output = ele.unpack("andy")
-    assert str(output) == "andy"
-
-
 def test_too_many_names_invoke():
     ''' Test that we raise the expected error when the invoke contains
     more than one name=xxx argument. '''
@@ -257,7 +248,7 @@ def test_duplicate_named_invoke_case():
 def test_get_stencil():
     ''' Check that parse.get_stencil() raises the correct errors when
     passed various incorrect inputs. '''
-    from psyclone.parse_orig import get_stencil
+    from psyclone.parse import get_stencil
     from psyclone.expression import ExpressionNode, FunctionVar
     enode = ExpressionNode(["1"])
     with pytest.raises(ParseError) as excinfo:
@@ -438,5 +429,5 @@ def test_empty_kernel_name(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = KernelType(ast)
     print (str(err))
-    assert ("Empty kernel name returned for Kernel type testkern_eval_type"
+    assert ("Empty Kernel name returned for Kernel type testkern_eval_type"
             in str(err))

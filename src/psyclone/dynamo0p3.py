@@ -46,7 +46,7 @@ from __future__ import print_function, absolute_import
 import os
 from collections import OrderedDict
 import fparser
-from psyclone.parse_orig import Descriptor, KernelType
+from psyclone.parse import Descriptor, KernelType
 from psyclone.parse import ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
@@ -639,7 +639,7 @@ class DynArgDescriptor03(Descriptor):
             # or a mesh identifier (for inter-grid kernels)
             if len(arg_type.args) == 4:
                 try:
-                    from psyclone.parse_orig import get_stencil, get_mesh
+                    from psyclone.parse import get_stencil, get_mesh
                     if "stencil" in str(arg_type.args[3]):
                         stencil = get_stencil(arg_type.args[3],
                                               VALID_STENCIL_TYPES)
@@ -5231,7 +5231,7 @@ class DynKern(Kern):
                        AST (will be a loop object)
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
         '''
-        from psyclone.parse_orig import KernelCall
+        from psyclone.parse import KernelCall
         Kern.__init__(self, DynKernelArguments,
                       KernelCall(module_name, ktype, args),
                       parent, check=False)

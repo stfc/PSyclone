@@ -38,8 +38,280 @@ PSyclone-conformant Algorithm code.
 
 '''
 
+import os
 from psyclone.configuration import Config
-from psyclone.parse_orig import Arg
+from fparser import one as fparser1
+from fparser import api as fpapi
+from fparser.two.parser import ParserFactory
+from fparser.two import Fortran2003
+from pyparsing import ParseException
+import psyclone.expression as expr
+from fparser.two.utils import walk_ast
+from fparser.one import parsefortran
+import fparser
+from psyclone.psyGen import InternalError
+
+
+# Exceptions
+
+class ParseError(Exception):
+    ''' xxx '''
+    
+    def __init__(self, value):
+        self.value = "Parse Error: " + value
+
+    def __str__(self):
+        return repr(self.value)
+
+
+# parse algorithm
+
+def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
+          kernel_path="", line_length=False,
+          distributed_memory=None):
+    '''Takes a GungHo algorithm specification as input and outputs an AST of
+    this specification and an object containing information about the
+    invocation calls in the algorithm specification and any associated kernel
+    implementations.
+
+    :param str alg_filename: The file containing the algorithm specification.
+    :param str invoke_name: The expected name of the invocation calls in the
+                            algorithm code.
+    :param str inf_name: The expected module name of any required
+                         infrastructure routines.
+    :param str kernel_path: The path to search for kernel source files (if
+                            different from the location of the algorithm
+                            source).
+    :param bool line_length: A logical flag specifying whether we
+                             care about line lengths being longer
+                             than 132 characters. If so, the input
+                             (algorithm and kernel) code is checked
+                             to make sure that it conforms and an
+                             error raised if not. The default is
+                             False.
+    *** dist_mem arg ***
+    :returns: 2-tuple consisting of the fparser2 parse tree of the \
+              Algorithm file and an object holding details of the \
+              invokes found.
+    :rtype: :py:class:`******************`, \
+            :py:class:`psyclone.parse.FileInfo`
+    :raises IOError: if the filename or search path does not exist.
+    :raises ParseError: if there is an error in the parsing.
+    :raises RuntimeError: if there is an error in the parsing.
+
+    For example:
+
+    >>> from parse import parse
+    >>> ast, info = parse("argspec.F90")
+
+    '''
+
+    my_parser = Parser(api, invoke_name, inf_name, kernel_path, line_length,
+                       distributed_memory)
+    return my_parser.parse(alg_filename)
+
+
+class Parser(object):
+    ''' xxx '''
+
+    def __init__(self, api="", invoke_name="invoke", inf_name="inf",
+                 kernel_path="", line_length=False, distributed_memory=None):
+
+        self._invoke_name = invoke_name
+        self._inf_name = inf_name
+        self._kernel_path = kernel_path
+        self._line_length = line_length
+        self._distributed_memory = distributed_memory
+
+        _config = Config.get()
+        if not api:
+            api = _config.default_api
+        else:
+            check_api(api)
+        self._api = api
+        
+        self._arg_name_to_module_name = {}
+        self._unique_invoke_labels = []
+        
+        self._builtin_name_map, \
+            self._builtin_defs_file = get_builtin_defs(self._api)
+
+    def parse(self, alg_filename):
+        ''' xxx '''
+
+        from fparser.two.Fortran2003 import Main_Program, Module, \
+            Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
+            Call_Stmt
+        from fparser.two.utils import walk_ast
+
+        if self._line_length:
+            check_ll(alg_filename)
+
+        if self._api == "nemo":
+            # For this API we just parse the NEMO code and return the resulting
+            # fparser2 AST with None for the Algorithm AST.
+            ast = parse_fp2(alg_filename)
+            return None, ast
+
+        alg_parse_tree = parse_fp2(alg_filename)
+
+        # Find the first program, module, subroutine or function in the
+        # parse tree. The assumption here is that the first is the one
+        # that is required.
+        container_name = None
+        for child in alg_parse_tree.content:
+            if isinstance(child, (Main_Program, Module, Subroutine_Subprogram,
+                                  Function_Subprogram)):
+                container_name = str(child.content[0].items[1])
+                break
+            
+        if not container_name:
+            # Nothing relevant found.
+            raise ParseError(
+                "Error, program, module, function or subroutine not found in "
+                "parse tree")
+
+        self._unique_invoke_labels = []
+        self._arg_name_to_module_name = {}
+        invoke_calls = []
+
+        for statement in walk_ast(alg_parse_tree.content):
+
+            if isinstance(statement, Use_Stmt):
+                # found a Fortran use statement
+                self.update_arg_to_module_map(statement)
+
+            if isinstance(statement, Call_Stmt):
+                # found a Fortran call statement
+                call_name = str(statement.items[0])
+                if call_name.lower() == self._invoke_name.lower():
+                    # The call statement is an invoke
+                    invoke_call = self.create_invoke_call(statement, alg_filename)
+                    invoke_calls.append(invoke_call)
+
+        return alg_parse_tree, FileInfo(container_name, invoke_calls)
+
+    def create_invoke_call(self, statement, alg_filename):
+        ''' xxx '''
+
+        from fparser.two.Fortran2003 import Actual_Arg_Spec_List, Actual_Arg_Spec, Part_Ref
+
+        # Extract argument list. This can be removed when
+        # fparser#170 is implemented
+        argument_list = []
+        if isinstance(statement.items[1], Actual_Arg_Spec_List):
+            argument_list = statement.items[1].items
+        else:
+            # Expecting a single entry rather than a list
+            argument_list = [statement.items[1]]
+
+        invoke_label = None
+        statement_kcalls = []
+
+        for argument in argument_list:
+
+            if isinstance(argument, Actual_Arg_Spec):
+                # This should be the invoke label.
+                if invoke_label:
+                    raise ParseError(
+                        "An invoke must contain one or zero 'name=xxx' "
+                        "arguments but found more than one in: {0} in "
+                        "file {1}".
+                        format(str(statement), alg_filename))
+                invoke_label = self.check_invoke_label(argument, alg_filename)
+
+            elif isinstance(argument, Part_Ref):
+                # This should be a kernel call.
+
+                kernel_call = self.create_kernel_call(argument, alg_filename)
+                statement_kcalls.append(kernel_call)
+
+            else:
+                # I don't support this.
+                print ("  unexpected input")
+                print ("  arg: {0}".format(argument))
+                print ("  type: {0}".format(type(argument)))
+                raise Exception("xxx")
+
+        return InvokeCall(statement_kcalls, name=invoke_label)
+
+    def create_kernel_call(self, argument, alg_filename):
+        ''' xxx '''
+        kernel_name, args = get_kernel(argument, alg_filename)
+
+        if kernel_name.lower() in self._builtin_name_map.keys():
+            kernel_call = self.create_builtin_kernel_call(kernel_name, alg_filename, args)
+        else:
+            kernel_call = self.create_coded_kernel_call(kernel_name, alg_filename, args)
+        return kernel_call
+
+    def create_builtin_kernel_call(self, kernel_name, alg_filename, args):
+        if kernel_name in self._arg_name_to_module_name:
+            raise ParseError(
+                "A built-in cannot be named in a use "
+                "statement but '{0}' is used from "
+                "module '{1}' in file {2}".
+                format(kernel_name,
+                       self._arg_name_to_module_name[kernel_name],
+                       alg_filename))
+
+        return BuiltInCall( BuiltInKernelTypeFactory(api=self._api).create(
+            self._builtin_name_map.keys(), self._builtin_defs_file,
+            name=kernel_name.lower()), args)
+
+    def create_coded_kernel_call(self, kernel_name, alg_filename, args):
+
+        try:
+            module_name = self._arg_name_to_module_name[kernel_name]
+        except KeyError:
+            raise ParseError(
+                "kernel call '{0}' must either be named "
+                "in a use "
+                "statement (found {1}) or be a recognised built-in "
+                "(one of '{2}' for this API)".
+                format(kernel_name, list(self._arg_name_to_module_name.values()), list(self._builtin_name_map.keys())))
+        # coded kernel
+        modast = get_kernel_ast(module_name, alg_filename, self._kernel_path, self._line_length)
+
+        return KernelCall(module_name, KernelTypeFactory(api=self._api).create(modast, name=kernel_name), args)
+
+
+    def update_arg_to_module_map(self, statement):
+        '''Takes a use statement and adds its contents to the
+        arg_name_to_module_name map.
+
+        ********
+        '''
+        from fparser.two.Fortran2003 import Only_List
+
+        # make sure statement is a use
+
+        statement_kcalls = []
+        use_name = str(statement.items[2])
+
+        # Extract only list. This can be removed when
+        # fparser#170 is implemented
+        if isinstance(statement.items[4], Only_List):
+            only_list = statement.items[4].items
+        else:
+            only_list = [statement.items[4]]
+
+        for item in only_list:
+            self._arg_name_to_module_name[str(item)] = use_name
+
+
+    def check_invoke_label(self, argument, alg_filename):
+        ''' xxx '''
+
+        invoke_label = get_invoke_label(argument, alg_filename)
+        if invoke_label in self._unique_invoke_labels:
+            raise ParseError(
+                "Found multiple named invoke()'s with the same "
+                "label ('{0}') when parsing {1}".
+                format(invoke_label, alg_filename))
+        self._unique_invoke_labels.append(invoke_label)
+        return invoke_label
+
 
 def check_api(api):
     '''
@@ -116,14 +388,115 @@ def get_builtin_defs(api):
     return builtins, fname
 
 
-class ParseError(Exception):
-    ''' xxx '''
-    
-    def __init__(self, value):
-        self.value = "Parse Error: " + value
+# parse kernel metadata
 
-    def __str__(self):
-        return repr(self.value)
+def get_mesh(metadata, valid_mesh_types):
+    '''
+    Returns the mesh-type described by the supplied meta-data
+    :param  metadata: node in parser ast
+    :type metadata: py:class:`psyclone.expression.NamedArg`
+    :param valid_mesh_types: List of valid mesh types
+    :type valid_mesh_types: list of strings
+    :return: the name of the mesh
+    :rtype: string
+    :raises ParseError: if the supplied meta-data is not a recognised
+                        mesh identifier
+    '''
+    if not isinstance(metadata, expr.NamedArg) or \
+       metadata.name.lower() != "mesh_arg":
+        from psyclone.parse import ParseError
+        raise ParseError(
+            "{0} is not a valid mesh identifier (expected "
+            "mesh_arg=MESH_TYPE where MESH_TYPE is one of {1}))".
+            format(str(metadata), valid_mesh_types))
+    mesh = metadata.value.lower()
+    if mesh not in valid_mesh_types:
+        from psyclone.parse import ParseError
+        raise ParseError("mesh_arg must be one of {0} but got {1}".
+                         format(valid_mesh_types, mesh))
+    return mesh
+
+
+def get_stencil(metadata, valid_types):
+    '''
+    Returns stencil_type and stencil_extent as a dictionary
+    object from stencil metadata if the metadata conforms to the
+    stencil(type[,extent]) format
+
+    :param metadata: Component of kernel meta-data stored as a node in the
+                     parser AST
+    :type metadata: :py:class:`psyclone.expression.FunctionVar`
+    :param list valid_types: List of valid stencil types (strings)
+    :return: The stencil type and extent described in the meta-data
+    :rtype: dict with keys 'type' (str) and 'extent' (int)
+
+    :raises ParseError: if the supplied meta-data is not a recognised
+                        stencil specification
+    '''
+
+    if not isinstance(metadata, expr.FunctionVar):
+        from psyclone.parse import ParseError
+        raise ParseError(
+            "Expecting format stencil(<type>[,<extent>]) but found the "
+            "literal {0}".format(metadata))
+    if metadata.name.lower() != "stencil" or not metadata.args:
+            from psyclone.parse import ParseError
+            raise ParseError(
+            "Expecting format stencil(<type>[,<extent>]) but found {0}".
+            format(metadata))
+    if len(metadata.args) > 2:
+        from psyclone.parse import ParseError
+        raise ParseError(
+            "Expecting format stencil(<type>[,<extent>]) but there must "
+            "be at most two arguments inside the brackets {0}".
+            format(metadata))
+    if not isinstance(metadata.args[0], expr.FunctionVar):
+        if isinstance(metadata.args[0], str):
+            from psyclone.parse import ParseError
+            raise ParseError(
+                "Expecting format stencil(<type>[,<extent>]). However, "
+                "the specified <type> '{0}' is a literal and therefore is "
+                "not one of the valid types '{1}'".
+                format(metadata.args[0], valid_types))
+        else:
+            from psyclone.parse import ParseError
+            raise ParseError(
+                "Internal error, expecting either FunctionVar or "
+                "str from the expression analyser but found {0}".
+                format(type(metadata.args[0])))
+    if metadata.args[0].args:
+        from psyclone.parse import ParseError
+        raise ParseError(
+            "Expected format stencil(<type>[,<extent>]). However, the "
+            "specified <type> '{0}' includes brackets")
+    stencil_type = metadata.args[0].name
+    if stencil_type not in valid_types:
+        from psyclone.parse import ParseError
+        raise ParseError(
+            "Expected format stencil(<type>[,<extent>]). However, the "
+            "specified <type> '{0}' is not one of the valid types '{1}'".
+            format(stencil_type, valid_types))
+
+    stencil_extent = None
+    if len(metadata.args) == 2:
+        if not isinstance(metadata.args[1], str):
+            from psyclone.parse import ParseError
+            raise ParseError(
+                "Expected format stencil(<type>[,<extent>]). However, the "
+                "specified <extent> '{0}' is not an integer".
+                format(metadata.args[1]))
+        stencil_extent = int(metadata.args[1])
+        if stencil_extent < 1:
+            from psyclone.parse import ParseError
+            raise ParseError(
+                "Expected format stencil(<type>[,<extent>]). However, the "
+                "specified <extent> '{0}' is less than 1".
+                format(str(stencil_extent)))
+        from psyclone.parse import ParseError
+        raise ParseError(
+            "Kernels with fixed stencil extents are not currently "
+            "supported")
+    return {"type": stencil_type, "extent": stencil_extent}
 
 
 class Descriptor(object):
@@ -192,15 +565,6 @@ class DynDescriptor(Descriptor):
 
 
 class FunctionSpace(object):
-    @staticmethod
-    def unpack(string):
-        p = expr.FORT_EXPRESSION.parseString(string)[0]
-        dim = 1
-        if isinstance(p, expr.BinaryOperator) and p.symbols[0] == '**':
-            dim = int(p.operands[1])
-            p = p.operands[0]
-        ele = Element.unpack(p)
-        return FunctionSpace(ele, dim)
 
     def __init__(self, element, dimension):
         self._element = element
@@ -215,66 +579,46 @@ class FunctionSpace(object):
         return self._dimension
 
 
-class Element(object):
-    @staticmethod
-    def unpack(string_or_expr):
-        if isinstance(string_or_expr, str):
-            p = expr.FORT_EXPRESSION.parseString(string_or_expr)[0]
-        else:
-            p = string_or_expr
-        if isinstance(p, expr.Grouping):
-            p = p.expr
-        if isinstance(p, expr.BinaryOperator):
-            assert all(a == '*' for a in p.symbols)
-            eles = p.operands
-        else:
-            assert isinstance(p, expr.FunctionVar)
-            eles = [p]
-        order = eles[0].args[0] if eles[0].args else None
-        ele = Element(eles[0].name, order)
-        for e in eles[1:]:
-            order = e.args[0] if e.args else None
-            ele *= Element(e.name, order)
-        return ele
-
-    def __init__(self, name=None, order=None):
-        self._name = name
-        if isinstance(order, str):
-            order = int(order)
-        self._order = order
-
-    def __repr__(self):
-        if self._order:
-            return "%s%d" % (self._name, self._order)
-        return "%s" % self._name
-
-    def __mul__(self, other):
-        assert isinstance(other, Element), \
-            'Can only take tensor products with Elements'
-        return TensorProductElement(self, other)
-
-
-class TensorProductElement(Element):
-    def __init__(self, *elements):
-        assert all(isinstance(e, Element) for e in elements), \
-            "All arguments to build a TensorProductElement should be Elements"
-        self._elements = elements
-
-    @property
-    def elements(self):
-        return self._elements
-
-    def __repr__(self):
-        s = " * ".join("%s" % e for e in self.elements)
-        return s
-
-    def __mul__(self, other):
-        assert isinstance(other, Element), "Can only take tensor products "
-        "with Elements not %s" % type(other)
-        if isinstance(other, TensorProductElement):
-            return TensorProductElement(*(self.elements + other.elements))
-        else:
-            return TensorProductElement(*(self.elements + (other, )))
+#class Element(object):
+#
+#    def __init__(self, name=None, order=None):
+#        self._name = name
+#        if isinstance(order, str):
+#            order = int(order)
+#        self._order = order
+#
+#    def __repr__(self):
+#        if self._order:
+#            return "%s%d" % (self._name, self._order)
+#        return "%s" % self._name
+#
+#    def __mul__(self, other):
+#        assert isinstance(other, Element), \
+#            'Can only take tensor products with Elements'
+#        return TensorProductElement(self, other)
+#
+#
+#class TensorProductElement(Element):
+#    def __init__(self, *elements):
+#        assert all(isinstance(e, Element) for e in elements), \
+#            "All arguments to build a TensorProductElement should be Elements"
+#        self._elements = elements
+#
+#    @property
+#    def elements(self):
+#        return self._elements
+#
+#    def __repr__(self):
+#        s = " * ".join("%s" % e for e in self.elements)
+#        return s
+#
+#    def __mul__(self, other):
+#        assert isinstance(other, Element), "Can only take tensor products "
+#        "with Elements not %s" % type(other)
+#        if isinstance(other, TensorProductElement):
+#            return TensorProductElement(*(self.elements + other.elements))
+#        else:
+#            return TensorProductElement(*(self.elements + (other, )))
 
 
 class KernelProcedure(object):
@@ -431,6 +775,44 @@ class KernelTypeFactory(object):
                 "KernelTypeFactory: Internal Error: Unsupported "
                 "kernel type '{0}' found. Should not be possible.".
                 format(self._type))
+
+class BuiltInKernelTypeFactory(KernelTypeFactory):
+    ''' Factory class for calls to built-ins '''
+
+    def create(self, builtin_names, builtin_defs_file, name=None):
+        ''' Create a built-in call object '''
+        if name not in builtin_names:
+            from psyclone.parse import ParseError
+            raise ParseError(
+                "BuiltInKernelTypeFactory: unrecognised built-in name. "
+                "Got '{0}' but expected one of {1}".format(name,
+                                                           builtin_names))
+        # The meta-data for these lives in a Fortran module file
+        # passed in to this method.
+        fname = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            builtin_defs_file)
+        if not os.path.isfile(fname):
+            from psyclone.parse import ParseError
+            raise ParseError(
+                "Kernel '{0}' is a recognised Built-in but cannot "
+                "find file '{1}' containing the meta-data describing "
+                "the Built-in operations for API '{2}'".format(name,
+                                                               fname,
+                                                               self._type))
+        # Attempt to parse the meta-data
+        try:
+            parsefortran.FortranParser.cache.clear()
+            fparser.logging.disable(fparser.logging.CRITICAL)
+            ast = fpapi.parse(fname)
+        except:
+            from psyclone.parse import ParseError
+            raise ParseError(
+                "Failed to parse the meta-data for PSyclone "
+                "built-ins in {0}".format(fname))
+
+        # Now we have the AST, call our parent class to create the object
+        return KernelTypeFactory.create(self, ast, name)
 
 
 class KernelType(object):
@@ -737,6 +1119,26 @@ class KernelCall(ParsedCall):
         return 'KernelCall(%s, %s)' % (self.ktype, self.args)
 
 
+class BuiltInCall(ParsedCall):
+    ''' A built-in call (appearing in
+    `call invoke(kernel_name(field_name, ...))` '''
+
+    def __init__(self, ktype, args):
+        ParsedCall.__init__(self, ktype, args)
+        self._func_name = ktype.name
+
+    @property
+    def func_name(self):
+        return self._func_name
+
+    @property
+    def type(self):
+        return "BuiltInCall"
+
+    def __repr__(self):
+        return 'BuiltInCall(%s, %s)' % (self.args)
+
+
 class Arg(object):
     ''' Description of an argument as obtained from parsing the Fortran code
         where a kernel is invoke'd '''
@@ -818,257 +1220,6 @@ class FileInfo(object):
     @property
     def calls(self):
         return self._calls
-
-
-class Parser(object):
-    ''' xxx '''
-
-    def __init__(self, api="", invoke_name="invoke", inf_name="inf",
-                 kernel_path="", line_length=False, distributed_memory=None):
-
-        self._invoke_name = invoke_name
-        self._inf_name = inf_name
-        self._kernel_path = kernel_path
-        self._line_length = line_length
-        self._distributed_memory = distributed_memory
-
-        _config = Config.get()
-        if not api:
-            api = _config.default_api
-        else:
-            check_api(api)
-        self._api = api
-        
-        self._arg_name_to_module_name = {}
-        self._unique_invoke_labels = []
-        
-        self._builtin_name_map, \
-            self._builtin_defs_file = get_builtin_defs(self._api)
-
-    def parse(self, alg_filename):
-        ''' xxx '''
-
-        from fparser.two.Fortran2003 import Main_Program, Module, \
-            Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
-            Call_Stmt
-        from fparser.two.utils import walk_ast
-
-        if self._line_length:
-            check_ll(alg_filename)
-
-        if self._api == "nemo":
-            # For this API we just parse the NEMO code and return the resulting
-            # fparser2 AST with None for the Algorithm AST.
-            ast = parse_fp2(alg_filename)
-            return None, ast
-
-        alg_parse_tree = parse_fp2(alg_filename)
-
-        # Find the first program, module, subroutine or function in the
-        # parse tree. The assumption here is that the first is the one
-        # that is required.
-        container_name = None
-        for child in alg_parse_tree.content:
-            if isinstance(child, (Main_Program, Module, Subroutine_Subprogram,
-                                  Function_Subprogram)):
-                container_name = str(child.content[0].items[1])
-                break
-            
-        if not container_name:
-            # Nothing relevant found.
-            raise ParseError(
-                "Error, program, module, function or subroutine not found in "
-                "parse tree")
-
-        self._unique_invoke_labels = []
-        self._arg_name_to_module_name = {}
-        invoke_calls = []
-
-        for statement in walk_ast(alg_parse_tree.content):
-
-            if isinstance(statement, Use_Stmt):
-                # found a Fortran use statement
-                self.update_arg_to_module_map(statement)
-
-            if isinstance(statement, Call_Stmt):
-                # found a Fortran call statement
-                call_name = str(statement.items[0])
-                if call_name.lower() == self._invoke_name.lower():
-                    # The call statement is an invoke
-                    invoke_call = self.create_invoke_call(statement, alg_filename)
-                    invoke_calls.append(invoke_call)
-
-        from psyclone.parse_orig import FileInfo
-        return alg_parse_tree, FileInfo(container_name, invoke_calls)
-
-    def create_invoke_call(self, statement, alg_filename):
-        ''' xxx '''
-
-        from fparser.two.Fortran2003 import Actual_Arg_Spec_List, Actual_Arg_Spec, Part_Ref
-
-        # Extract argument list. This can be removed when
-        # fparser#170 is implemented
-        argument_list = []
-        if isinstance(statement.items[1], Actual_Arg_Spec_List):
-            argument_list = statement.items[1].items
-        else:
-            # Expecting a single entry rather than a list
-            argument_list = [statement.items[1]]
-
-        invoke_label = None
-        statement_kcalls = []
-
-        for argument in argument_list:
-
-            if isinstance(argument, Actual_Arg_Spec):
-                # This should be the invoke label.
-                if invoke_label:
-                    raise ParseError(
-                        "An invoke must contain one or zero 'name=xxx' "
-                        "arguments but found more than one in: {0} in "
-                        "file {1}".
-                        format(str(statement), alg_filename))
-                invoke_label = self.check_invoke_label(argument, alg_filename)
-
-            elif isinstance(argument, Part_Ref):
-                # This should be a kernel call.
-
-                kernel_call = self.create_kernel_call(argument, alg_filename)
-                statement_kcalls.append(kernel_call)
-
-            else:
-                # I don't support this.
-                print ("  unexpected input")
-                print ("  arg: {0}".format(argument))
-                print ("  type: {0}".format(type(argument)))
-                raise Exception("xxx")
-
-        from psyclone.parse_orig import InvokeCall
-        return InvokeCall(statement_kcalls, name=invoke_label)
-
-    def create_kernel_call(self, argument, alg_filename):
-        ''' xxx '''
-        kernel_name, args = get_kernel(argument, alg_filename)
-
-        if kernel_name.lower() in self._builtin_name_map.keys():
-            kernel_call = self.create_builtin_kernel_call(kernel_name, alg_filename, args)
-        else:
-            kernel_call = self.create_coded_kernel_call(kernel_name, alg_filename, args)
-        return kernel_call
-
-    def create_builtin_kernel_call(self, kernel_name, alg_filename, args):
-        if kernel_name in self._arg_name_to_module_name:
-            raise ParseError(
-                "A built-in cannot be named in a use "
-                "statement but '{0}' is used from "
-                "module '{1}' in file {2}".
-                format(kernel_name,
-                       self._arg_name_to_module_name[kernel_name],
-                       alg_filename))
-        from psyclone.parse_orig import BuiltInKernelTypeFactory, BuiltInCall
-
-        return BuiltInCall( BuiltInKernelTypeFactory(api=self._api).create(
-            self._builtin_name_map.keys(), self._builtin_defs_file,
-            name=kernel_name.lower()), args)
-
-    def create_coded_kernel_call(self, kernel_name, alg_filename, args):
-
-        try:
-            module_name = self._arg_name_to_module_name[kernel_name]
-        except KeyError:
-            raise ParseError(
-                "kernel call '{0}' must either be named "
-                "in a use "
-                "statement (found {1}) or be a recognised built-in "
-                "(one of '{2}' for this API)".
-                format(kernel_name, list(self._arg_name_to_module_name.values()), list(self._builtin_name_map.keys())))
-        # coded kernel
-        modast = get_kernel_ast(module_name, alg_filename, self._kernel_path, self._line_length)
-        from psyclone.parse_orig import KernelCall, KernelTypeFactory
-
-        return KernelCall(module_name, KernelTypeFactory(api=self._api).create(modast, name=kernel_name), args)
-
-
-    def update_arg_to_module_map(self, statement):
-        '''Takes a use statement and adds its contents to the
-        arg_name_to_module_name map.
-
-        ********
-        '''
-        from fparser.two.Fortran2003 import Only_List
-
-        # make sure statement is a use
-
-        statement_kcalls = []
-        use_name = str(statement.items[2])
-
-        # Extract only list. This can be removed when
-        # fparser#170 is implemented
-        if isinstance(statement.items[4], Only_List):
-            only_list = statement.items[4].items
-        else:
-            only_list = [statement.items[4]]
-
-        for item in only_list:
-            self._arg_name_to_module_name[str(item)] = use_name
-
-
-    def check_invoke_label(self, argument, alg_filename):
-        ''' xxx '''
-
-        invoke_label = get_invoke_label(argument, alg_filename)
-        if invoke_label in self._unique_invoke_labels:
-            raise ParseError(
-                "Found multiple named invoke()'s with the same "
-                "label ('{0}') when parsing {1}".
-                format(invoke_label, alg_filename))
-        self._unique_invoke_labels.append(invoke_label)
-        return invoke_label
-
-
-def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
-          kernel_path="", line_length=False,
-          distributed_memory=None):
-    '''Takes a GungHo algorithm specification as input and outputs an AST of
-    this specification and an object containing information about the
-    invocation calls in the algorithm specification and any associated kernel
-    implementations.
-
-    :param str alg_filename: The file containing the algorithm specification.
-    :param str invoke_name: The expected name of the invocation calls in the
-                            algorithm code.
-    :param str inf_name: The expected module name of any required
-                         infrastructure routines.
-    :param str kernel_path: The path to search for kernel source files (if
-                            different from the location of the algorithm
-                            source).
-    :param bool line_length: A logical flag specifying whether we
-                             care about line lengths being longer
-                             than 132 characters. If so, the input
-                             (algorithm and kernel) code is checked
-                             to make sure that it conforms and an
-                             error raised if not. The default is
-                             False.
-    *** dist_mem arg ***
-    :returns: 2-tuple consisting of the fparser2 parse tree of the \
-              Algorithm file and an object holding details of the \
-              invokes found.
-    :rtype: :py:class:`******************`, \
-            :py:class:`psyclone.parse.FileInfo`
-    :raises IOError: if the filename or search path does not exist.
-    :raises ParseError: if there is an error in the parsing.
-    :raises RuntimeError: if there is an error in the parsing.
-
-    For example:
-
-    >>> from parse import parse
-    >>> ast, info = parse("argspec.F90")
-
-    '''
-
-    my_parser = Parser(api, invoke_name, inf_name, kernel_path, line_length,
-                       distributed_memory)
-    return my_parser.parse(alg_filename)
 
 
 def get_invoke_label(parse_tree, alg_filename, identifier="name"):

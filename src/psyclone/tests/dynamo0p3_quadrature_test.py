@@ -396,7 +396,7 @@ def test_dynkern_setup(monkeypatch):
     from psyclone.psyGen import Kern
     monkeypatch.setattr(Kern, "__init__",
                         lambda me, ktype, kcall, parent, check: None)
-    from psyclone.parse_orig import KernelCall
+    from psyclone.parse import KernelCall
     monkeypatch.setattr(KernelCall, "__init__",
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
