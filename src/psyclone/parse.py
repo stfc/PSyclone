@@ -1039,7 +1039,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                                     "in a use "
                                     "statement (found {1}) or be a recognised built-in "
                                     "(one of '{2}' for this API)".
-                                    format(kernel_name, arg_name_to_module_name.values(), list(builtin_name_map.keys())))
+                                    format(kernel_name, list(arg_name_to_module_name.values()), list(builtin_name_map.keys())))
                             # coded kernel
                             modast = get_kernel_ast(module_name, alg_filename, kernel_path, line_length)
                             from psyclone.parse_orig import KernelCall, KernelTypeFactory
