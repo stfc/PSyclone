@@ -946,9 +946,10 @@ def create_coded_kernel_call(kernel_name, arg_name_to_module_name, alg_filename,
     return KernelCall(module_name, KernelTypeFactory(api=api).create(modast, name=kernel_name), args)
 
 
-def create_kernel_call(argument, alg_filename, api, builtin_name_map, builtin_defs_file, arg_name_to_module_name, kernel_path, line_length):
+def create_kernel_call(argument, alg_filename, api, arg_name_to_module_name, kernel_path, line_length):
     ''' xxx '''
     kernel_name, args = get_kernel(argument, alg_filename)
+    builtin_name_map, builtin_defs_file = get_builtin_defs(api)
 
     if kernel_name.lower() in builtin_name_map.keys():
         kernel_call = create_builtin_kernel_call(kernel_name, arg_name_to_module_name, alg_filename, api, builtin_name_map, builtin_defs_file, args)
@@ -957,7 +958,7 @@ def create_kernel_call(argument, alg_filename, api, builtin_name_map, builtin_de
     return kernel_call
 
 
-def create_invoke_call(statement, unique_invoke_labels, builtin_name_map, builtin_defs_file, arg_name_to_module_name, alg_filename, kernel_path, line_length, api):
+def create_invoke_call(statement, unique_invoke_labels, arg_name_to_module_name, alg_filename, kernel_path, line_length, api):
     ''' xxx '''
 
     from fparser.two.Fortran2003 import Actual_Arg_Spec_List, Actual_Arg_Spec, Part_Ref
@@ -989,7 +990,7 @@ def create_invoke_call(statement, unique_invoke_labels, builtin_name_map, builti
         elif isinstance(argument, Part_Ref):
             # This should be a kernel call.
 
-            kernel_call = create_kernel_call(argument, alg_filename, api, builtin_name_map, builtin_defs_file, arg_name_to_module_name, kernel_path, line_length)
+            kernel_call = create_kernel_call(argument, alg_filename, api, arg_name_to_module_name, kernel_path, line_length)
             statement_kcalls.append(kernel_call)
 
         else:
@@ -1001,6 +1002,82 @@ def create_invoke_call(statement, unique_invoke_labels, builtin_name_map, builti
     return InvokeCall(statement_kcalls, name=invoke_label)
 
 
+class Parser(object):
+    ''' xxx '''
+
+    def __init__(self, api="", invoke_name="invoke", inf_name="inf",
+                 kernel_path="", line_length=False, distributed_memory=None):
+
+        self._invoke_name = invoke_name
+        self._inf_name = inf_name
+        self._kernel_path = kernel_path
+        self._line_length = line_length
+        self._distributed_memory = distributed_memory
+
+        _config = Config.get()
+        if not api:
+            api = _config.default_api
+        else:
+            check_api(api)
+        self._api = api
+
+    def parse(self, alg_filename):
+        ''' xxx '''
+
+        from fparser.two.Fortran2003 import Main_Program, Module, \
+            Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
+            Call_Stmt
+        from fparser.two.utils import walk_ast
+
+        if self._line_length:
+            check_ll(alg_filename)
+
+        if self._api == "nemo":
+            # For this API we just parse the NEMO code and return the resulting
+            # fparser2 AST with None for the Algorithm AST.
+            ast = parse_fp2(alg_filename)
+            return None, ast
+
+        alg_parse_tree = parse_fp2(alg_filename)
+
+        # Find the first program, module, subroutine or function in the
+        # parse tree. The assumption here is that the first is the one
+        # that is required.
+        container_name = None
+        for child in alg_parse_tree.content:
+            if isinstance(child, (Main_Program, Module, Subroutine_Subprogram,
+                                  Function_Subprogram)):
+                container_name = str(child.content[0].items[1])
+                break
+            
+        if not container_name:
+            # Nothing relevant found.
+            raise ParseError(
+                "Error, program, module, function or subroutine not found in "
+                "parse tree")
+
+        unique_invoke_labels = []
+        arg_name_to_module_name = {}
+        invoke_calls = []
+
+        for statement in walk_ast(alg_parse_tree.content):
+
+            if isinstance(statement, Use_Stmt):
+                # found a Fortran use statement
+                update_arg_to_module_map(statement, arg_name_to_module_name)
+
+            if isinstance(statement, Call_Stmt):
+                # found a Fortran call statement
+                call_name = str(statement.items[0])
+                if call_name.lower() == self._invoke_name.lower():
+                    # The call statement is an invoke
+                    invoke_call = create_invoke_call(statement, unique_invoke_labels, arg_name_to_module_name, alg_filename, self._kernel_path, self._line_length, self._api)
+                    invoke_calls.append(invoke_call)
+
+        from psyclone.parse_orig import FileInfo
+        return alg_parse_tree, FileInfo(container_name, invoke_calls)
+
+        
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
           kernel_path="", line_length=False,
           distributed_memory=None):
@@ -1041,66 +1118,10 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     '''
 
-    from fparser.two.Fortran2003 import Main_Program, Module, \
-        Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
-        Call_Stmt, Actual_Arg_Spec_List, Actual_Arg_Spec, Part_Ref
-    from fparser.two.utils import walk_ast
-
-    _config = Config.get()
-    if not api:
-        api = _config.default_api
-    else:
-        check_api(api)
-
-    if line_length:
-        check_ll(alg_filename)
-
-    if api == "nemo":
-        # For this API we just parse the NEMO code and return the resulting
-        # fparser2 AST with None for the Algorithm AST.
-        ast = parse_fp2(alg_filename)
-        return None, ast
-
-    alg_parse_tree = parse_fp2(alg_filename)
-
-    # Find the first program, module, subroutine or function in the
-    # parse tree. The assumption here is that the first is the one
-    # that is required.
-    container_name = None
-    for child in alg_parse_tree.content:
-        if isinstance(child, (Main_Program, Module, Subroutine_Subprogram,
-                              Function_Subprogram)):
-            container_name = str(child.content[0].items[1])
-            break
-            
-    if not container_name:
-        # Nothing relevant found.
-        raise ParseError(
-            "Error, program, module, function or subroutine not found in "
-            "parse tree")
-
-    builtin_name_map, builtin_defs_file = get_builtin_defs(api)
-
-    unique_invoke_labels = []
-    arg_name_to_module_name = {}
-    invoke_calls = []
-
-    for statement in walk_ast(alg_parse_tree.content):
-
-        if isinstance(statement, Use_Stmt):
-            # found a Fortran use statement
-            update_arg_to_module_map(statement, arg_name_to_module_name)
-
-        if isinstance(statement, Call_Stmt):
-            # found a Fortran call statement
-            call_name = str(statement.items[0])
-            if call_name.lower() == invoke_name.lower():
-                # The call statement is an invoke
-                invoke_call = create_invoke_call(statement, unique_invoke_labels, builtin_name_map, builtin_defs_file, arg_name_to_module_name, alg_filename, kernel_path, line_length, api)
-                invoke_calls.append(invoke_call)
-
-    from psyclone.parse_orig import FileInfo
-    return alg_parse_tree, FileInfo(container_name, invoke_calls)
+    my_parser = Parser(api, invoke_name, inf_name, kernel_path, line_length,
+                       distributed_memory)
+    parse_tree, info = my_parser.parse(alg_filename)
+    return parse_tree, info
 
 
 def get_invoke_label(parse_tree, alg_filename, identifier="name"):
