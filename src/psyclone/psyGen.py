@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-19, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1002,7 +1002,7 @@ class Node(object):
         '''Returns the closest preceding Node that this Node has a direct
         dependence with or None if there is not one. Only Nodes with
         the same parent as self are returned. Nodes inherit their
-        descendents dependencies. The reason for this is that for
+        descendants' dependencies. The reason for this is that for
         correctness a node must maintain its parent if it is
         moved. For example a halo exchange and a kernel call may have
         a dependence between them but it is the loop body containing
@@ -1233,7 +1233,7 @@ class Node(object):
         it is the root). Needs to be computed dynamically from the
         starting position (0) as its position may change.
         :returns: absolute position of a Node in the tree
-        :raises Exception: if the absolute position cannot be found
+        :raises InternalError: if the absolute position cannot be found
         :rtype: int
         '''
         if self.root == self:
@@ -1241,8 +1241,8 @@ class Node(object):
         found, position = self._find_position(self.root.children,
                                               self.start_position)
         if not found:
-            raise Exception("Error in search for my position in "
-                            "the tree")
+            raise InternalError("Error in search for Node position "
+                                "in the tree")
         return position
 
     def _find_position(self, children, position):
@@ -1259,7 +1259,7 @@ class Node(object):
         '''
         if position < self.start_position:
             raise InternalError(
-                "Search for Node position started from '{0}' "
+                "Search for Node position started from {0} "
                 "instead of {1}.".format(position, self.start_position))
         for child in children:
             position += 1
@@ -1304,7 +1304,7 @@ class Node(object):
         '''
         if not (depth > self.start_depth and depth < self.depth):
             raise InternalError(
-                "Parent depth must be greater than {0} and less than the"
+                "Parent depth must be greater than {0} and less than the "
                 "Node's depth ({1})".format(self.start_depth, self.depth))
         node = self
         while node.parent.depth > depth:
@@ -1348,7 +1348,7 @@ class Node(object):
         return None
 
     def calls(self):
-        ''' return all calls that are descendents of this node '''
+        ''' return all calls that are descendants of this node '''
         return self.walk(self.children, Call)
 
     def following(self):

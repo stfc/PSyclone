@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -65,6 +65,7 @@ from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
+from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -1394,7 +1395,7 @@ def test_node_depth():
         assert child.depth == 3
 
 
-def test_node_position():
+def test_node_position(tmpdir, f90, f90flags):
     '''
     Test that the Node class position and abs_position methods return
     the correct value for a Node in a tree. The start position is
@@ -1412,7 +1413,15 @@ def test_node_position():
     # Assert that relative and absolute positions return correct values
     assert child.position == 6
     assert child.abs_position == 7
-    # Test InternalError for _find_position....
+    # Test InternalError for _find_position
+    with pytest.raises(InternalError) as excinfo:
+        _, _ = child._find_position(child.root.children, -2)
+    assert "started from -2 instead of 0" in str(excinfo.value)
+
+    if TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_node_root():
@@ -1435,10 +1444,13 @@ def test_node_root():
     # and the root at depth 1 is Loop
     assert isinstance(ru_kern.root_at_depth(1), Loop)
     # Assert that specifying incorrect depth for root_at_depth method
-    # raises an InternalError (for both limits...)
+    # raises an InternalError (for both 0 and Node's depth)
     with pytest.raises(InternalError) as excinfo:
-        root = ru_kern.root_at_depth(0)
+        _ = ru_kern.root_at_depth(0)
     assert "Parent depth must be greater than 0" in str(excinfo.value)
+    with pytest.raises(InternalError) as excinfo:
+        _ = ru_kern.root_at_depth(ru_kern.depth)
+    assert "and less than the Node's depth (3)" in str(excinfo.value)
 
 
 def test_node_args():
