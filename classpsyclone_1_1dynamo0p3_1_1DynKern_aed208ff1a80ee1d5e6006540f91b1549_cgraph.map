@@ -1,0 +1,8 @@
+<map id="psyclone.dynamo0p3.DynKern.gen_code" name="psyclone.dynamo0p3.DynKern.gen_code">
+<area shape="rect" id="node2" href="$classpsyclone_1_1dynamo0p3_1_1DynKern.html#a1bcc844fb892249179351237be168d66" title="psyclone.dynamo0p3.DynKern.colourmap" alt="" coords="331,54,595,81"/>
+<area shape="rect" id="node3" href="$classpsyclone_1_1dynamo0p3_1_1DynInvoke.html#a75572ca91c2786ed836e6657b2cec4b8" title="psyclone.dynamo0p3.DynInvoke.is\l_coloured" alt="" coords="661,5,888,47"/>
+<area shape="rect" id="node4" href="$classpsyclone_1_1psyGen_1_1Kern.html#ad5ccfbc244cb81b6733b56133ac9e6c1" title="psyclone.psyGen.Kern.is\l_coloured" alt="" coords="691,88,859,129"/>
+<area shape="rect" id="node5" href="$classpsyclone_1_1dynamo0p3_1_1DynKern.html#a434a612f8d6d10a6c305daed68a90a05" title="psyclone.dynamo0p3.DynKern.incremented_arg" alt="" coords="313,155,613,182"/>
+<area shape="rect" id="node6" href="$classpsyclone_1_1psyGen_1_1Node.html#a68afb39a447656f9ff01930065a1637d" title="psyclone.psyGen.Node.is\l_openmp_parallel" alt="" coords="377,207,549,248"/>
+<area shape="rect" id="node7" href="$classpsyclone_1_1psyGen_1_1Node.html#ae280d2a4a7fc69bcc4c836a696c8ed94" title="psyclone.psyGen.Node.ancestor" alt="" coords="669,214,881,241"/>
+</map>

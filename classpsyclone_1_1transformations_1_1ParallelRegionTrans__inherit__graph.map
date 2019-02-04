@@ -1,0 +1,6 @@
+<map id="psyclone.transformations.ParallelRegionTrans" name="psyclone.transformations.ParallelRegionTrans">
+<area shape="rect" id="node5" href="$classpsyclone_1_1transformations_1_1ACCParallelTrans.html" title="psyclone.transformations.\lACCParallelTrans" alt="" coords="813,5,985,47"/>
+<area shape="rect" id="node6" href="$classpsyclone_1_1transformations_1_1OMPParallelTrans.html" title="psyclone.transformations.\lOMPParallelTrans" alt="" coords="813,71,985,112"/>
+<area shape="rect" id="node2" href="$classpsyclone_1_1transformations_1_1RegionTrans.html" title="psyclone.transformations.\lRegionTrans" alt="" coords="373,39,545,80"/>
+<area shape="rect" id="node3" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title="psyclone.psyGen.Transformation" alt="" coords="111,46,325,73"/>
+</map>

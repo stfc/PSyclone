@@ -1,0 +1,5 @@
+<map id="psyclone.transformations.LoopFuseTrans" name="psyclone.transformations.LoopFuseTrans">
+<area shape="rect" id="node4" href="$classpsyclone_1_1transformations_1_1DynamoLoopFuseTrans.html" title="psyclone.transformations.\lDynamoLoopFuseTrans" alt="" coords="593,5,765,47"/>
+<area shape="rect" id="node5" href="$classpsyclone_1_1transformations_1_1GOceanLoopFuseTrans.html" title="psyclone.transformations.\lGOceanLoopFuseTrans" alt="" coords="593,71,765,112"/>
+<area shape="rect" id="node2" href="$classpsyclone_1_1psyGen_1_1Transformation.html" title="psyclone.psyGen.Transformation" alt="" coords="111,46,325,73"/>
+</map>

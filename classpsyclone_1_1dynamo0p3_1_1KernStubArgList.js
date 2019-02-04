@@ -1,0 +1,26 @@
+var classpsyclone_1_1dynamo0p3_1_1KernStubArgList =
+[
+    [ "__init__", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a3fd82a49fc82f8f816c7203f0c33e27a", null ],
+    [ "arglist", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#ae712a076d0d9dcdb94c144746559c0f2", null ],
+    [ "banded_dofmap", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#ae3e2b881c08bde1288a44f8474a2ff75", null ],
+    [ "basis", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#afde64572207d2730f973dbd6dbd4924e", null ],
+    [ "cell_position", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a81a43c342c431084e11e48b5609a638a", null ],
+    [ "cma_operator", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a0955332570e208be3a21abadacee9cac", null ],
+    [ "diff_basis", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a8e7edf3d9f5ff907c0faae354a5278e0", null ],
+    [ "field", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a9cbadd7fa67eec8057a3b63e2761990f", null ],
+    [ "field_bcs_kernel", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#aff05cee18ae4afe7996405d743c7cfa5", null ],
+    [ "field_vector", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a0b883e83313b6ee23d6ab63b79027f1c", null ],
+    [ "fs_common", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#ac7b8b8ec66058854d569d9745a887f32", null ],
+    [ "fs_compulsory_field", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#accc69de047d8bad0f774c7ec03032a50", null ],
+    [ "indirection_dofmap", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#aba190d113df8fea70ec1edf903438b79", null ],
+    [ "mesh_height", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a066c27936d2d59fdda935ba57bb3aa44", null ],
+    [ "mesh_ncell2d", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a27776e4128b99642df7498d0fe2f2ca6", null ],
+    [ "operator", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a2a01a6225bf35142026939878c356c60", null ],
+    [ "operator_bcs_kernel", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a532fe7b9b2d7a7f7972903bae7d25b51", null ],
+    [ "orientation", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a987c6f31efdebba201de8a30573b3941", null ],
+    [ "quad_rule", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#abc8d87da43f55769aaf1e7fc944bae4c", null ],
+    [ "scalar", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a048f8cccde56780b64141af0837b24fa", null ],
+    [ "stencil", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#a3f6795073a041eed29f3cd2fd09d0c44", null ],
+    [ "stencil_unknown_direction", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#af8c1491ab742fee68f0310774b94df26", null ],
+    [ "stencil_unknown_extent", "classpsyclone_1_1dynamo0p3_1_1KernStubArgList.html#af31f3f3931446ab74a34e15c42311120", null ]
+];

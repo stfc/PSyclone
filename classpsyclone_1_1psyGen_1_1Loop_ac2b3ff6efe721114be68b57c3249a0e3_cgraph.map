@@ -1,0 +1,6 @@
+<map id="psyclone.psyGen.Loop.coloured_text" name="psyclone.psyGen.Loop.coloured_text">
+<area shape="rect" id="node2" href="$classpsyclone_1_1f2pygen_1_1BaseGen.html#abf474284cdc997e16fae0cc494eec6a4" title="psyclone.f2pygen.BaseGen.children" alt="" coords="291,5,521,32"/>
+<area shape="rect" id="node3" href="$classpsyclone_1_1psyGen_1_1Node.html#a16164b7e18b21e72a94cd5da552b58a2" title="psyclone.psyGen.Node.children" alt="" coords="303,56,509,83"/>
+<area shape="rect" id="node4" href="$classpsyclone_1_1psyGen_1_1Schedule.html#ae7c3faaf97d615076bf4440a1b908286" title="psyclone.psyGen.Schedule.tkinter\l_delete" alt="" coords="295,107,517,149"/>
+<area shape="rect" id="node5" href="$classpsyclone_1_1psyGen_1_1Loop.html#a5d3709966ecd13d15d8c59ef9a5b2d6d" title="psyclone.psyGen.Loop.tkinter\l_delete" alt="" coords="309,173,503,214"/>
+</map>

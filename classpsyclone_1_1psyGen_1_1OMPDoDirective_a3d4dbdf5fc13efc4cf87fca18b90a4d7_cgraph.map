@@ -1,0 +1,12 @@
+<map id="psyclone.psyGen.OMPDoDirective.view" name="psyclone.psyGen.OMPDoDirective.view">
+<area shape="rect" id="node2" href="$classpsyclone_1_1psyGen_1_1OMPDirective.html#a3a0e1435113dd1f8715867ced456c038" title="psyclone.psyGen.OMPDirective.\l_get_reductions_list" alt="" coords="355,5,568,47"/>
+<area shape="rect" id="node3" href="$classpsyclone_1_1profiler_1_1ProfileNode.html#a8212324d455a3132e22a06ddb9176a83" title="psyclone.profiler.Profile\lNode.coloured_text" alt="" coords="382,71,541,112"/>
+<area shape="rect" id="node4" href="$classpsyclone_1_1gocean1p0_1_1GOSchedule.html#aa3695c39ec293b1f3b251b5f3575c405" title="psyclone.gocean1p0.GOSchedule.coloured_text" alt="" coords="311,137,612,163"/>
+<area shape="rect" id="node5" href="$classpsyclone_1_1psyGen_1_1Schedule.html#a4c980b1e53473d1fa3cbe245a9ba975a" title="psyclone.psyGen.Schedule.coloured_text" alt="" coords="330,187,593,214"/>
+<area shape="rect" id="node6" href="$classpsyclone_1_1psyGen_1_1Directive.html#a77e1d18b1f0588575c40c4d059371f25" title="psyclone.psyGen.Directive.coloured_text" alt="" coords="331,238,592,265"/>
+<area shape="rect" id="node7" href="$classpsyclone_1_1psyGen_1_1Node.html#a26c38a98f54211eb80dae3fe07d64d30" title="psyclone.psyGen.Node.indent" alt="" coords="363,289,560,315"/>
+<area shape="rect" id="node8" href="$classpsyclone_1_1psyGen_1_1Node.html#ae4625e7bed449c471aead484cf3bfc5a" title="psyclone.psyGen.Node.reductions" alt="" coords="350,339,573,366"/>
+<area shape="rect" id="node9" href="$classpsyclone_1_1f2pygen_1_1BaseGen.html#abf474284cdc997e16fae0cc494eec6a4" title="psyclone.f2pygen.BaseGen.children" alt="" coords="660,289,891,315"/>
+<area shape="rect" id="node10" href="$classpsyclone_1_1psyGen_1_1Node.html#a16164b7e18b21e72a94cd5da552b58a2" title="psyclone.psyGen.Node.children" alt="" coords="672,339,879,366"/>
+<area shape="rect" id="node11" href="$classpsyclone_1_1psyGen_1_1Node.html#a681c8ae703092153cdd1cd1b2eb82e9e" title="psyclone.psyGen.Node.walk" alt="" coords="681,414,870,441"/>
+</map>

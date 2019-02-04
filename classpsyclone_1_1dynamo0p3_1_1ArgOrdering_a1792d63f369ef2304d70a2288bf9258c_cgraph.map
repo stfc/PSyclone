@@ -1,0 +1,25 @@
+<map id="psyclone.dynamo0p3.ArgOrdering.generate" name="psyclone.dynamo0p3.ArgOrdering.generate">
+<area shape="rect" id="node2" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#ae447b81eefcae9c0b292084a68c7441d" title="psyclone.dynamo0p3.ArgOrdering.banded\l_dofmap" alt="" coords="335,5,599,47"/>
+<area shape="rect" id="node3" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a7f1c8b027d438eb49fc9045dad8de2c6" title="psyclone.dynamo0p3.ArgOrdering.basis" alt="" coords="340,71,593,98"/>
+<area shape="rect" id="node4" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#aacac0c302ed31ac61b8a4e6652450fd7" title="psyclone.dynamo0p3.ArgOrdering.cell_map" alt="" coords="329,122,604,149"/>
+<area shape="rect" id="node5" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a3a6a0d4274bd8b1de3981636cf12b1f9" title="psyclone.dynamo0p3.ArgOrdering.cell\l_position" alt="" coords="345,173,588,215"/>
+<area shape="rect" id="node6" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#ac0254dcd091f305ee7241ac112634c1a" title="psyclone.dynamo0p3.ArgOrdering.cma\l_operator" alt="" coords="343,239,590,280"/>
+<area shape="rect" id="node7" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a0335069a7e6706d533c85607fec143ee" title="psyclone.dynamo0p3.ArgOrdering.diff\l_basis" alt="" coords="347,304,587,345"/>
+<area shape="rect" id="node8" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#aaab1aca69f260698f5541d384bf65415" title="psyclone.dynamo0p3.ArgOrdering.field" alt="" coords="343,370,590,397"/>
+<area shape="rect" id="node9" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#acc72560435e14e43c1388e1282d8bbdf" title="psyclone.dynamo0p3.ArgOrdering.field\l_bcs_kernel" alt="" coords="343,421,590,463"/>
+<area shape="rect" id="node10" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a6486b1c8596fec1e5413b02d86b97eea" title="psyclone.dynamo0p3.ArgOrdering.field\l_vector" alt="" coords="343,487,590,528"/>
+<area shape="rect" id="node11" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a3f8c25a562a08acb6558af724105f611" title="psyclone.dynamo0p3.ArgOrdering.fs\l_common" alt="" coords="656,559,889,600"/>
+<area shape="rect" id="node12" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a931b962e11ff13ace2611a65abf24aa5" title="psyclone.dynamo0p3.ArgOrdering.fs\l_compulsory_field" alt="" coords="656,637,889,679"/>
+<area shape="rect" id="node13" href="$classpsyclone_1_1dynamo0p3_1_1KernCallArgList.html#a4e41295640272645f6b3e5eb71a7bd3e" title="psyclone.dynamo0p3.KernCall\lArgList.fs_intergrid" alt="" coords="367,604,566,645"/>
+<area shape="rect" id="node14" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#abe3738e0c224dedd864dd24006940ef6" title="psyclone.dynamo0p3.ArgOrdering.indirection\l_dofmap" alt="" coords="326,721,607,763"/>
+<area shape="rect" id="node15" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a1815cf0ec5d4c5f2fdab681330b2d033" title="psyclone.dynamo0p3.ArgOrdering.mesh\l_height" alt="" coords="339,787,594,828"/>
+<area shape="rect" id="node16" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#adb61c8779c13200cbf923f879f7e26a5" title="psyclone.dynamo0p3.ArgOrdering.mesh\l_ncell2d" alt="" coords="339,852,594,893"/>
+<area shape="rect" id="node17" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a75dc0198d318dd291982ca87a3af70b2" title="psyclone.dynamo0p3.ArgOrdering.operator" alt="" coords="332,918,601,945"/>
+<area shape="rect" id="node18" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a95a7f4be43c9b22dc2eb2ae8ba3ab8c8" title="psyclone.dynamo0p3.ArgOrdering.operator\l_bcs_kernel" alt="" coords="332,969,601,1011"/>
+<area shape="rect" id="node19" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#aa04177eb8a6e4f253c2fba95e51faec7" title="psyclone.dynamo0p3.ArgOrdering.orientation" alt="" coords="325,1035,608,1062"/>
+<area shape="rect" id="node20" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a6684f61f12fa76c5714f3b51e5dca89b" title="psyclone.dynamo0p3.ArgOrdering.quad_rule" alt="" coords="327,1086,606,1113"/>
+<area shape="rect" id="node21" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a3884d69be074c97ce061bb264e2693be" title="psyclone.dynamo0p3.ArgOrdering.scalar" alt="" coords="338,1137,595,1163"/>
+<area shape="rect" id="node22" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#ad8eee666d0871d55b27961224faa80e9" title="psyclone.dynamo0p3.ArgOrdering.stencil" alt="" coords="337,1187,597,1214"/>
+<area shape="rect" id="node23" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a6c766cbb2d5453b938b48422c6658d20" title="psyclone.dynamo0p3.ArgOrdering.stencil\l_unknown_direction" alt="" coords="337,1239,597,1280"/>
+<area shape="rect" id="node24" href="$classpsyclone_1_1dynamo0p3_1_1ArgOrdering.html#a41d378f72b5a0da177028e0d183c56e3" title="psyclone.dynamo0p3.ArgOrdering.stencil\l_unknown_extent" alt="" coords="337,1304,597,1345"/>
+</map>

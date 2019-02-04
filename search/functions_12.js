@@ -1,0 +1,23 @@
+var searchData=
+[
+  ['raw_5farg_5flist',['raw_arg_list',['../classpsyclone_1_1dynamo0p3_1_1DynKernelArguments.html#a80d9f96e3b25dc55c858c9cdcbb75c19',1,'psyclone.dynamo0p3.DynKernelArguments.raw_arg_list()'],['../classpsyclone_1_1gocean1p0_1_1GOKernelArguments.html#a416e081207d3fd0c9e2f799be32350ad',1,'psyclone.gocean1p0.GOKernelArguments.raw_arg_list()'],['../classpsyclone_1_1psyGen_1_1Arguments.html#a323f41dbc9f7836a5e7b7640ffab2d4b',1,'psyclone.psyGen.Arguments.raw_arg_list()']]],
+  ['redo',['redo',['../classpsyclone_1_1undoredo_1_1UR.html#aeada4a5f09c5af1758036398edc97268',1,'psyclone::undoredo::UR']]],
+  ['redoavailable',['redoAvailable',['../classpsyclone_1_1undoredo_1_1UR.html#a83269f8a3115edd1f70591d6ad60a1b5',1,'psyclone::undoredo::UR']]],
+  ['reduction_5farg',['reduction_arg',['../classpsyclone_1_1psyGen_1_1Call.html#aad8c828551e843c3cb5374b2017aaba1',1,'psyclone::psyGen::Call']]],
+  ['reduction_5fsum_5floop',['reduction_sum_loop',['../classpsyclone_1_1psyGen_1_1Call.html#ada0506c4595812f93e9d4aa8f91c2bda',1,'psyclone::psyGen::Call']]],
+  ['reductions',['reductions',['../classpsyclone_1_1psyGen_1_1Node.html#ae4625e7bed449c471aead484cf3bfc5a',1,'psyclone::psyGen::Node']]],
+  ['ref_5flist',['ref_list',['../classpsyclone_1_1psyGen_1_1ACCParallelDirective.html#a0e82075c66cf08023c0b236d75e35829',1,'psyclone::psyGen::ACCParallelDirective']]],
+  ['ref_5fname',['ref_name',['../classpsyclone_1_1dynamo0p3_1_1DynKernelArgument.html#ace6467a73d1d127d6407f1bf74d919ac',1,'psyclone::dynamo0p3::DynKernelArgument']]],
+  ['rename_5fand_5fwrite',['rename_and_write',['../classpsyclone_1_1psyGen_1_1Kern.html#ae26d7ab1f33dfbcb1b46dea82c22800c',1,'psyclone::psyGen::Kern']]],
+  ['reprod',['reprod',['../classpsyclone_1_1psyGen_1_1OMPDoDirective.html#a4347c8135df98ffb956f5e033bd7e507',1,'psyclone::psyGen::OMPDoDirective']]],
+  ['reprod_5fpad_5fsize',['reprod_pad_size',['../classpsyclone_1_1configuration_1_1Config.html#a47d9698c7c779c06aa7d46198b4e0c39',1,'psyclone::configuration::Config']]],
+  ['reprod_5freduction',['reprod_reduction',['../classpsyclone_1_1psyGen_1_1Call.html#aa84f9b6fc725a02a3a49451692e78188',1,'psyclone::psyGen::Call']]],
+  ['reproducible_5freductions',['reproducible_reductions',['../classpsyclone_1_1configuration_1_1Config.html#a9b69edb16e175d936904d77c74cd07ff',1,'psyclone::configuration::Config']]],
+  ['required',['required',['../classpsyclone_1_1dynamo0p3_1_1DynHaloExchange.html#ab6e8d1f34c19cd0694cb1babdf070735',1,'psyclone.dynamo0p3.DynHaloExchange.required()'],['../classpsyclone_1_1dynamo0p3_1_1DynHaloExchangeStart.html#a236038487501eea4285b63c119846ec4',1,'psyclone.dynamo0p3.DynHaloExchangeStart.required()']]],
+  ['requires_5fbasis',['requires_basis',['../classpsyclone_1_1dynamo0p1_1_1DynKernelArgument.html#af2d1b98c2067cfeb7661bc6a37698ef0',1,'psyclone.dynamo0p1.DynKernelArgument.requires_basis()'],['../classpsyclone_1_1dynamo0p3_1_1FSDescriptor.html#a012c18deea44c43976fe74cc7b018390',1,'psyclone.dynamo0p3.FSDescriptor.requires_basis()']]],
+  ['requires_5fdiff_5fbasis',['requires_diff_basis',['../classpsyclone_1_1dynamo0p1_1_1DynKernelArgument.html#a94e74e731ffed7331c7e05ec419784ac',1,'psyclone.dynamo0p1.DynKernelArgument.requires_diff_basis()'],['../classpsyclone_1_1dynamo0p3_1_1FSDescriptor.html#a6a926154aaacd9b40025056e9ec05dba',1,'psyclone.dynamo0p3.FSDescriptor.requires_diff_basis()']]],
+  ['requires_5fgauss_5fquad',['requires_gauss_quad',['../classpsyclone_1_1dynamo0p1_1_1DynKernelArgument.html#aa4bc05230d1f546fc9e95a2d54256112',1,'psyclone::dynamo0p1::DynKernelArgument']]],
+  ['requires_5forientation',['requires_orientation',['../classpsyclone_1_1dynamo0p3_1_1FSDescriptor.html#a468d4532ad93d01d590f994f17ddd84a',1,'psyclone::dynamo0p3::FSDescriptor']]],
+  ['reset_5fcoverage',['reset_coverage',['../classpsyclone_1_1psyGen_1_1DataAccess.html#abb77e83fef0e02cbfc148eed023630d9',1,'psyclone::psyGen::DataAccess']]],
+  ['root',['root',['../classpsyclone_1_1f2pygen_1_1BaseGen.html#a0272f865f0910479c278d1479a2b09ac',1,'psyclone.f2pygen.BaseGen.root()'],['../classpsyclone_1_1f2pygen_1_1BaseDeclGen.html#af2c93a8b4b6bd8d3ca4c234ba21d45de',1,'psyclone.f2pygen.BaseDeclGen.root()']]]
+];

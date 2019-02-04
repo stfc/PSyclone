@@ -1,0 +1,9 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node2" href="$classpsyclone_1_1algGen_1_1NoInvokesError.html" title="psyclone.algGen.NoInvokes\lError" alt="" coords="157,5,343,47"/>
+<area shape="rect" id="node3" href="$classpsyclone_1_1configuration_1_1ConfigurationError.html" title="psyclone.configuration.Configuration\lError" alt="" coords="133,71,367,112"/>
+<area shape="rect" id="node4" href="$classpsyclone_1_1parse_1_1ParseError.html" title="psyclone.parse.ParseError" alt="" coords="162,137,338,163"/>
+<area shape="rect" id="node5" href="$classpsyclone_1_1psyGen_1_1FieldNotFoundError.html" title="psyclone.psyGen.FieldNot\lFoundError" alt="" coords="162,188,338,229"/>
+<area shape="rect" id="node6" href="$classpsyclone_1_1psyGen_1_1GenerationError.html" title="psyclone.psyGen.Generation\lError" alt="" coords="155,253,345,295"/>
+<area shape="rect" id="node7" href="$classpsyclone_1_1psyGen_1_1InternalError.html" title="psyclone.psyGen.Internal\lError" alt="" coords="165,319,335,360"/>
+<area shape="rect" id="node8" href="$classpsyclone_1_1transformations_1_1TransformationError.html" title="psyclone.transformations.\lTransformationError" alt="" coords="164,384,336,425"/>
+</map>
