@@ -344,7 +344,7 @@ class Invokes(object):
         self.invoke_map = {}
         self.invoke_list = []
         from psyclone.profiler import Profiler
-        for idx, alg_invocation in enumerate(alg_calls.values()):
+        for idx, alg_invocation in enumerate(alg_calls):
             my_invoke = Invoke(alg_invocation, idx)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)

@@ -468,7 +468,7 @@ def test_invokes_can_always_be_printed():
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
         api="dynamo0.3")
 
-    alg_invocation = list(invoke.calls.values())[0]
+    alg_invocation = invoke.calls[0]
     inv = Invoke(alg_invocation, 0, DynSchedule)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1 % my_field, m1, m2)"

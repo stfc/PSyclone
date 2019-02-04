@@ -6108,7 +6108,7 @@ def test_dynkernargs_unexpect_stencil_extent():
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
         api=TEST_API)
     # find the parsed code's call class
-    call = list(invoke_info.calls.values())[0].kcalls[0]
+    call = invoke_info.calls[0].kcalls[0]
     # add an extent to the stencil metadata
     kernel_metadata = call.ktype
     kernel_metadata._arg_descriptors[1].stencil['extent'] = 2
@@ -6489,7 +6489,7 @@ def test_kernel_args_has_op():
         os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
         api=TEST_API)
     # find the parsed code's call class
-    call = list(invoke_info.calls.values())[0].kcalls[0]
+    call = invoke_info.calls[0].kcalls[0]
     from psyclone.dynamo0p3 import DynKernelArguments
     dka = DynKernelArguments(call, None)
     with pytest.raises(GenerationError) as excinfo:

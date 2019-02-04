@@ -958,10 +958,8 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     unique_invoke_labels = []
     arg_name_to_module_name = {}
+    invoke_calls = []
 
-    from collections import OrderedDict
-    invokecalls = OrderedDict()
-    
     from fparser.two.utils import walk_ast
     for statement in walk_ast(alg_parse_tree.content):
 
@@ -1053,10 +1051,10 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                         print ("  arg: {0}".format(argument))
                         print ("  type: {0}".format(type(argument)))
                 from psyclone.parse_orig import InvokeCall
-                invokecalls[statement] = InvokeCall(statement_kcalls,
-                                                    name=invoke_label)
+                invoke_calls.append(InvokeCall(statement_kcalls,
+                                               name=invoke_label))
     from psyclone.parse_orig import FileInfo
-    return alg_parse_tree, FileInfo(container_name, invokecalls)
+    return alg_parse_tree, FileInfo(container_name, invoke_calls)
 
 
 def get_invoke_label(parse_tree, alg_filename, identifier="name"):

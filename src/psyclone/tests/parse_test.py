@@ -55,7 +55,7 @@ def test_default_api():
     _, invoke_info = parse(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p3", "1_single_invoke.f90"))
-    assert len(list(invoke_info.calls.keys())) == 1
+    assert len(invoke_info.calls) == 1
 
 
 def test_continuators_kernel():
