@@ -914,7 +914,7 @@ def check_invoke_label(argument, unique_invoke_labels, alg_filename):
     return invoke_label
 
 
-def add_builtin_kernel_call(statement_kcalls, kernel_name, arg_name_to_module_name, alg_filename, api, builtin_name_map, builtin_defs_file, args):
+def create_builtin_kernel_call(kernel_name, arg_name_to_module_name, alg_filename, api, builtin_name_map, builtin_defs_file, args):
     if kernel_name in arg_name_to_module_name:
         raise ParseError(
             "A built-in cannot be named in a use "
@@ -924,14 +924,12 @@ def add_builtin_kernel_call(statement_kcalls, kernel_name, arg_name_to_module_na
                    arg_name_to_module_name[kernel_name],
                    alg_filename))
     from psyclone.parse_orig import BuiltInKernelTypeFactory, BuiltInCall
-    statement_kcalls.append(
-        BuiltInCall(
-            BuiltInKernelTypeFactory(api=api).create(
-                builtin_name_map.keys(), builtin_defs_file,
-                name=kernel_name.lower()), args))
+    return BuiltInCall( BuiltInKernelTypeFactory(api=api).create(
+        builtin_name_map.keys(), builtin_defs_file,
+        name=kernel_name.lower()), args)
 
 
-def add_coded_kernel_call(statement_kcalls, kernel_name, arg_name_to_module_name, alg_filename, kernel_path, line_length, api, args, builtin_name_map):
+def create_coded_kernel_call(kernel_name, arg_name_to_module_name, alg_filename, kernel_path, line_length, api, args, builtin_name_map):
     try:
         module_name = arg_name_to_module_name[kernel_name]
     except KeyError:
@@ -944,24 +942,22 @@ def add_coded_kernel_call(statement_kcalls, kernel_name, arg_name_to_module_name
     # coded kernel
     modast = get_kernel_ast(module_name, alg_filename, kernel_path, line_length)
     from psyclone.parse_orig import KernelCall, KernelTypeFactory
-    statement_kcalls.append(
-        KernelCall(module_name, KernelTypeFactory(api=api).create(modast, name=kernel_name), args))
+
+    return KernelCall(module_name, KernelTypeFactory(api=api).create(modast, name=kernel_name), args)
 
 
-def add_kernel_call(argument, statement_kcalls, alg_filename, api, builtin_name_map, builtin_defs_file, arg_name_to_module_name, kernel_path, line_length):
+def create_kernel_call(argument, alg_filename, api, builtin_name_map, builtin_defs_file, arg_name_to_module_name, kernel_path, line_length):
     ''' xxx '''
     kernel_name, args = get_kernel(argument, alg_filename)
 
     if kernel_name.lower() in builtin_name_map.keys():
-
-        add_builtin_kernel_call(statement_kcalls, kernel_name, arg_name_to_module_name, alg_filename, api, builtin_name_map, builtin_defs_file, args)
-
+        kernel_call = create_builtin_kernel_call(kernel_name, arg_name_to_module_name, alg_filename, api, builtin_name_map, builtin_defs_file, args)
     else:
+        kernel_call = create_coded_kernel_call(kernel_name, arg_name_to_module_name, alg_filename, kernel_path, line_length, api, args, builtin_name_map)
+    return kernel_call
 
-        add_coded_kernel_call(statement_kcalls, kernel_name, arg_name_to_module_name, alg_filename, kernel_path, line_length, api, args, builtin_name_map)
 
-
-def update_invoke_calls(statement, statement_kcalls, unique_invoke_labels, invoke_calls, builtin_name_map, builtin_defs_file, arg_name_to_module_name, alg_filename, kernel_path, line_length, api):
+def create_invoke_call(statement, unique_invoke_labels, builtin_name_map, builtin_defs_file, arg_name_to_module_name, alg_filename, kernel_path, line_length, api):
     ''' xxx '''
 
     from fparser.two.Fortran2003 import Actual_Arg_Spec_List, Actual_Arg_Spec, Part_Ref
@@ -976,6 +972,7 @@ def update_invoke_calls(statement, statement_kcalls, unique_invoke_labels, invok
         argument_list = [statement.items[1]]
 
     invoke_label = None
+    statement_kcalls = []
 
     for argument in argument_list:
 
@@ -992,7 +989,8 @@ def update_invoke_calls(statement, statement_kcalls, unique_invoke_labels, invok
         elif isinstance(argument, Part_Ref):
             # This should be a kernel call.
 
-            add_kernel_call(argument, statement_kcalls, alg_filename, api, builtin_name_map, builtin_defs_file, arg_name_to_module_name, kernel_path, line_length)
+            kernel_call = create_kernel_call(argument, alg_filename, api, builtin_name_map, builtin_defs_file, arg_name_to_module_name, kernel_path, line_length)
+            statement_kcalls.append(kernel_call)
 
         else:
             # I don't support this.
@@ -1000,8 +998,7 @@ def update_invoke_calls(statement, statement_kcalls, unique_invoke_labels, invok
             print ("  arg: {0}".format(argument))
             print ("  type: {0}".format(type(argument)))
     from psyclone.parse_orig import InvokeCall
-    invoke_calls.append(InvokeCall(statement_kcalls,
-                                   name=invoke_label))
+    return InvokeCall(statement_kcalls, name=invoke_label)
 
 
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
@@ -1098,9 +1095,9 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
             # found a Fortran call statement
             call_name = str(statement.items[0])
             if call_name.lower() == invoke_name.lower():
-                statement_kcalls = []
                 # The call statement is an invoke
-                update_invoke_calls(statement, statement_kcalls, unique_invoke_labels, invoke_calls, builtin_name_map, builtin_defs_file, arg_name_to_module_name, alg_filename, kernel_path, line_length, api)
+                invoke_call = create_invoke_call(statement, unique_invoke_labels, builtin_name_map, builtin_defs_file, arg_name_to_module_name, alg_filename, kernel_path, line_length, api)
+                invoke_calls.append(invoke_call)
 
     from psyclone.parse_orig import FileInfo
     return alg_parse_tree, FileInfo(container_name, invoke_calls)
