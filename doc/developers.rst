@@ -214,6 +214,9 @@ provides the following common interface:
     :members:
 
 
+
+.. _kernel_schedule-label:
+
 Kernel Schedule
 ===============
 
@@ -1476,10 +1479,9 @@ for specific APIs when additional functionality is requiered
 
 The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyGen.KernelSchedule` which has the same functionality as
-a PSy Schedule but with the addition of a Symbol Table.
+a PSy Schedule but with the addition of a Symbol Table
+(see :ref:`kernel_schedule-label`).
 
-.. autoclass:: psyclone.psyGen.SymbolTable
-    :members:
 
 OpenACC Support
 ---------------
