@@ -43,7 +43,7 @@ import os
 import pytest
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
-from psyclone.parse import KernelType, KernelTypeFactory, \
+from psyclone.parse_kernel import KernelType, KernelTypeFactory, \
     BuiltInKernelTypeFactory
 from psyclone.psyGen import InternalError
 
@@ -248,7 +248,7 @@ def test_duplicate_named_invoke_case():
 def test_get_stencil():
     ''' Check that parse.get_stencil() raises the correct errors when
     passed various incorrect inputs. '''
-    from psyclone.parse import get_stencil
+    from psyclone.parse_kernel import get_stencil
     from psyclone.expression import ExpressionNode, FunctionVar
     enode = ExpressionNode(["1"])
     with pytest.raises(ParseError) as excinfo:
