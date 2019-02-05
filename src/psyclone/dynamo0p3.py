@@ -1624,11 +1624,15 @@ class DynInvokeStencil(object):
 
 
 class DynInvokeDofmaps(object):
-    ''' Holds all information on the dofmaps (including column-banded and
-    indirection) required by an invoke '''
+    '''
+    Holds all information on the dofmaps (including column-banded and
+    indirection) required by an invoke.
 
-    def __init__(self, schedule):
+    :param kernels: list of kernel objects.
+    :type kernels: list of :py:class:`psyclone.dynamo0p3.DynKern`
 
+    '''
+    def __init__(self, kernels):
         self._name_space_manager = NameSpaceFactory().create()
         # Look at every kernel call in this invoke and generate a list
         # of the unique function spaces involved.
@@ -1647,7 +1651,7 @@ class DynInvokeDofmaps(object):
         # "argument" and "direction" entries.
         self._unique_indirection_maps = OrderedDict()
 
-        for call in schedule.calls():
+        for call in kernels:
             # We only need a dofmap if the kernel iterates over cells
             if call.iterates_over == "cells":
                 for unique_fs in call.arguments.unique_fss:
@@ -1784,6 +1788,110 @@ class DynInvokeDofmaps(object):
         if decl_ind_map_names:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_ind_map_names))
+
+    def declare_stub_dofmaps(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import DeclGen
+        for dmap in sorted(self._unique_fs_maps):
+            # We declare ndf first as some compilers require this
+            ndf_name = get_fs_ndf_name(
+                self._unique_fs_maps[dmap].function_space)
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=ndf_name, entity_decls=[dmap]))
+
+
+class DynInvokeFunctionSpaces(object):
+    '''
+    Handles the declaration and initialisation of all function-space-related
+    quantities required by an Invoke.
+
+    :param invoke: the Invoke object.
+    '''
+    def __init__(self, invoke):
+        self._var_list = []
+        self._function_spaces = invoke.unique_fss()[:]
+        self._dofs_only = invoke.iterate_over_dofs_only
+        
+        # loop over all unique function spaces used by the kernels in
+        # the invoke
+        for function_space in self._function_spaces:
+
+            # Find an argument on this space to use to dereference
+            arg = invoke.arg_for_funcspace(function_space)
+            name = arg.proxy_name_indexed
+            # Initialise ndf for this function space and add name to
+            # list to declare later.
+            if not self._dofs_only:
+                ndf_name = get_fs_ndf_name(function_space)
+                self._var_list.append(ndf_name)
+
+            # If there is a field on this space then initialise undf
+            # for this function space and add name to list to declare
+            # later. However, if the invoke contains only kernels that iterate
+            # over dofs and distributed memory is enabled then the
+            # number of dofs is obtained from the field proxy and undf is
+            # not required.
+            if not (self._dofs_only and Config.get().distributed_memory):
+                if invoke.field_on_space(function_space):
+                    undf_name = get_fs_undf_name(function_space)
+                    self._var_list.append(undf_name)
+
+    def declarations(self, parent):
+        '''
+        '''
+        if self._var_list:
+            # declare ndf and undf for all function spaces
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=self._var_list))
+        
+    def initialise(self, parent):
+        '''
+        Create the code that initialises function-space quantities.
+
+        :param parent:
+        '''
+        # Loop over all unique function spaces used by the kernels in
+        # the invoke
+        for function_space in self._function_spaces:
+            # Initialise information associated with this function space.
+            # If we have 1+ kernels that iterate over cells then we
+            # will need ndf and undf. If we don't then we only need undf
+            # (for the upper bound of the loop over dofs) if we're not
+            # doing DM.
+            if not (self._dofs_only and Config.get().distributed_memory):
+                invoke_sub.add(CommentGen(invoke_sub, ""))
+                invoke_sub.add(
+                    CommentGen(invoke_sub, " Initialise number of DoFs for " +
+                               function_space.mangled_name))
+                invoke_sub.add(CommentGen(invoke_sub, ""))
+
+            # Find an argument on this space to use to dereference
+            arg = invoke.arg_for_funcspace(function_space)
+            name = arg.proxy_name_indexed
+            # Initialise ndf for this function space.
+            if not self._dofs_only:
+                ndf_name = get_fs_ndf_name(function_space)
+                self._var_list.append(ndf_name)
+                parent.add(AssignGen(parent, lhs=ndf_name,
+                                     rhs=name +
+                                     "%" + arg.ref_name(function_space) +
+                                     "%get_ndf()"))
+            # If there is a field on this space then initialise undf
+            # for this function space. However, if the invoke contains only
+            # kernels that iterate
+            # over dofs and distributed memory is enabled then the
+            # number of dofs is obtained from the field proxy and undf is
+            # not required.
+            if not (self._dofs_only and Config.get().distributed_memory):
+                if invoke.field_on_space(function_space):
+                    undf_name = get_fs_undf_name(function_space)
+                    parent.add(AssignGen(parent, lhs=undf_name,
+                                         rhs=name + "%" +
+                                         arg.ref_name(function_space) +
+                                         "%get_undf()"))
 
 
 class DynInvokeCMAOperators(object):
@@ -2939,9 +3047,12 @@ class DynInvoke(Invoke):
         # initialise our invoke stencil information
         self.stencil = DynInvokeStencil(self.schedule)
 
+        # Initialise our information on the function spaces used by this Invoke
+        self.function_spaces = DynInvokeFunctionSpaces(self)
+
         # Initialise the object holding all information on the dofmaps
         # required by this invoke.
-        self.dofmaps = DynInvokeDofmaps(self.schedule)
+        self.dofmaps = DynInvokeDofmaps(self.schedule.calls())
 
         # Initialise the object holding all information on the column-
         # -matrix assembly operators required by this invoke.
@@ -3125,6 +3236,9 @@ class DynInvoke(Invoke):
 
         # Declare any mesh objects (including those for inter-grid kernels)
         self.meshes.declarations(invoke_sub)
+
+        # Declare quantities related to function spaces
+        self.function_spaces.declarations(invoke_sub)
 
         # Declare any dofmaps
         self.dofmaps.declare_dofmaps(invoke_sub)
@@ -3323,52 +3437,9 @@ class DynInvoke(Invoke):
         # Initialise any boundary-condition arrays
         self.boundary_conditions.initialise(invoke_sub)
 
-        var_list = []
-        # loop over all unique function spaces used by the kernels in
-        # this invoke
-        for function_space in self.unique_fss():
-            # Initialise information associated with this function space.
-            # If we have 1+ kernels that iterate over cells then we
-            # will need ndf and undf. If we don't then we only need undf
-            # (for the upper bound of the loop over dofs) if we're not
-            # doing DM.
-            if not (dofs_only and Config.get().distributed_memory):
-                invoke_sub.add(CommentGen(invoke_sub, ""))
-                invoke_sub.add(
-                    CommentGen(invoke_sub, " Initialise number of DoFs for " +
-                               function_space.mangled_name))
-                invoke_sub.add(CommentGen(invoke_sub, ""))
-            # Find an argument on this space to use to dereference
-            arg = self.arg_for_funcspace(function_space)
-            name = arg.proxy_name_indexed
-            # Initialise ndf for this function space and add name to
-            # list to declare later.
-            if not dofs_only:
-                ndf_name = get_fs_ndf_name(function_space)
-                var_list.append(ndf_name)
-                invoke_sub.add(AssignGen(invoke_sub, lhs=ndf_name,
-                                         rhs=name +
-                                         "%" + arg.ref_name(function_space) +
-                                         "%get_ndf()"))
-            # If there is a field on this space then initialise undf
-            # for this function space and add name to list to declare
-            # later. However, if the invoke contains only kernels that iterate
-            # over dofs and distributed memory is enabled then the
-            # number of dofs is obtained from the field proxy and undf is
-            # not required.
-            if not (dofs_only and Config.get().distributed_memory):
-                if self.field_on_space(function_space):
-                    undf_name = get_fs_undf_name(function_space)
-                    var_list.append(undf_name)
-                    invoke_sub.add(AssignGen(invoke_sub, lhs=undf_name,
-                                             rhs=name + "%" +
-                                             arg.ref_name(function_space) +
-                                             "%get_undf()"))
-        if var_list:
-            # declare ndf and undf for all function spaces
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=var_list))
-
+        # Initialise all entities related to function spaces
+        self.function_spaces.initialise(invoke_sub)
+        
         # Initialise basis and/or differential-basis functions
         self.evaluators.initialise_basis_fns(invoke_sub)
 
@@ -5493,7 +5564,13 @@ class DynKern(Kern):
 
     @property
     def gen_stub(self):
-        ''' output a kernel stub '''
+        '''
+        Create the fparser1 AST for a kernel stub.
+
+        :returns: root of fparser1 AST for the stub routine.
+        :rtype: :py:class:`fparser.one.XXXX`
+
+        '''
         from psyclone.f2pygen import ModuleGen, SubroutineGen
 
         # remove "_code" from the name if it exists to determine the
@@ -5512,7 +5589,12 @@ class DynKern(Kern):
         # create the subroutine
         sub_stub = SubroutineGen(psy_module, name=base_name+"_code",
                                  implicitnone=True)
-        # create the arglist and declarations
+        # Create the dofmap declarations
+        arg_declns = DynInvokeDofmaps([self])
+        arg_declns.declare_stub_dofmaps(sub_stub)
+
+        # Create the arglist
+        # TODO get rid of sub_stub argument below.
         create_arg_list = KernStubArgList(self, sub_stub)
         create_arg_list.generate()
         arglist = create_arg_list.arglist
@@ -6319,7 +6401,7 @@ class KernStubArgList(ArgOrdering):
     '''Creates the argument list required to create and declare the
     required arguments for a kernel subroutine.  The ordering and type
     of the arguments is captured by the base class '''
-    def __init__(self, kern):
+    def __init__(self, kern, parent):
         '''
         :param kern: Kernel for which to create argument list
         :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
@@ -6559,13 +6641,8 @@ class KernStubArgList(ArgOrdering):
     def fs_common(self, function_space):
         ''' Provide arguments common to LMA operators and
         fields on a space. There is one: "ndf". '''
-        from psyclone.f2pygen import DeclGen
         ndf_name = get_fs_ndf_name(function_space)
         self._arglist.append(ndf_name)
-        self._parent.add(
-            DeclGen(self._parent, datatype="integer", intent="in",
-                    entity_decls=[ndf_name]),
-            position=["before", self._first_arg_decl.root])
 
     def fs_compulsory_field(self, function_space):
         ''' Provide compulsory arguments if there is a field on this
@@ -6587,9 +6664,6 @@ class KernStubArgList(ArgOrdering):
         self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
                                  entity_decls=[undf_name]),
                          position=["before", self._first_arg_decl.root])
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 dimension=ndf_name,
-                                 entity_decls=[map_name]))
 
     def basis(self, function_space):
         '''
