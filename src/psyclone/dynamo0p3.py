@@ -1447,25 +1447,45 @@ class DynInvokeCollection(object):
     :param invoke:
     '''
     def __init__(self, invoke):
-        self._invoke = invoke
+        if isinstance(invoke, DynInvoke):
+            self._invoke = invoke
+            self._calls = invoke.schedule.calls()
+        elif isinstance(invoke, DynKern):
+            self._invoke = None
+            self._calls = [invoke]
+        else:
+            raise InternalError("DynInvokeCollection takes only a DynInvoke "
+                                "or a DynKern but got: {0}".format(
+                                    type(invoke)))
+
         # Whether or not the associated Invoke contains only kernels that
         # iterate over dofs.
-        self._dofs_only = invoke.iterate_over_dofs_only
+        if self._invoke:
+            self._dofs_only = self._invoke.iterate_over_dofs_only
+        else:
+            self._dofs_only = False
+
         self._name_space_manager = NameSpaceFactory().create()
 
     def declarations(self, parent):
         '''
         '''
+        raise NotImplementedError("")
 
     def initialisation(self, parent):
         '''
         '''
+        raise NotImplementedError("")
 
-class DynInvokeStencil(object):
-    '''stencil information and code generation associated with a
-    DynInvoke call'''
 
-    def __init__(self, schedule):
+class DynInvokeStencil(DynInvokeCollection):
+    '''
+    Stencil information and code generation associated with a
+    DynInvoke call.
+
+    '''
+    def __init__(self, invoke):
+        super(DynInvokeStencil, self).__init__(invoke)
 
         self._name_space_manager = NameSpaceFactory().create()
         # list of arguments which have an extent value passed to this
@@ -1473,7 +1493,7 @@ class DynInvokeStencil(object):
         # names are removed.
         self._unique_extent_args = []
         extent_names = []
-        for call in schedule.calls():
+        for call in self._invoke.schedule.calls():
             for arg in call.arguments.args:
                 if arg.stencil:
                     # check for the existence of arg.extent here as in
@@ -1493,7 +1513,7 @@ class DynInvokeStencil(object):
         # argument names are removed.
         self._unique_direction_args = []
         direction_names = []
-        for call in schedule.calls():
+        for call in self._invoke.schedule.calls():
             for idx, arg in enumerate(call.arguments.args):
                 if arg.stencil and arg.stencil.direction_arg:
                     if arg.stencil.direction_arg.is_literal():
@@ -1512,7 +1532,7 @@ class DynInvokeStencil(object):
         # list of stencil args with an extent variable passed in. The same
         # field name may occur more than once here from different kernels.
         self._kern_args = []
-        for call in schedule.calls():
+        for call in self._invoke.schedule.calls():
             for arg in call.arguments.args:
                 if arg.stencil:
                     if not arg.stencil.extent:
@@ -1655,6 +1675,7 @@ class DynInvokeDofmaps(DynInvokeCollection):
 
     '''
     def __init__(self, invoke):
+
         super(DynInvokeDofmaps, self).__init__(invoke)
 
         # Look at every kernel call in this invoke and generate a list
@@ -1674,7 +1695,7 @@ class DynInvokeDofmaps(DynInvokeCollection):
         # "argument" and "direction" entries.
         self._unique_indirection_maps = OrderedDict()
 
-        for call in invoke.schedule.calls():
+        for call in self._calls:
             # We only need a dofmap if the kernel iterates over cells
             if call.iterates_over == "cells":
                 for unique_fs in call.arguments.unique_fss:
@@ -1812,7 +1833,7 @@ class DynInvokeDofmaps(DynInvokeCollection):
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_ind_map_names))
 
-    def declare_stub_dofmaps(self, parent):
+    def stub_declarations(self, parent):
         '''
         '''
         from psyclone.f2pygen import DeclGen
@@ -2007,12 +2028,15 @@ class DynInvokeCellIterators(DynInvokeCollection):
     '''
     def __init__(self, invoke):
         super(DynInvokeCellIterators, self).__init__(invoke)
-        
+
         # Use our namespace manager to create a unique name unless
         # the context and label match and in this case return the
         # previous name.
         self._nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
+
+        if not self._invoke:
+            return
 
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers.
@@ -2033,8 +2057,14 @@ class DynInvokeCellIterators(DynInvokeCollection):
         # We only need the number of layers in the mesh if we are calling
         # one or more kernels that iterate over cells
         if not self._dofs_only:
-           parent.add(DeclGen(parent, datatype="integer",
-                              entity_decls=[self._nlayers_name]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[self._nlayers_name]))
+
+    def stub_declarations(self, parent):
+        # TODO would it be better to fold this into the `declarations` method?
+        from psyclone.f2pygen import DeclGen
+        parent.add(DeclGen(parent, datatype="integer", intent="in",
+                           entity_decls=[self._nlayers_name]))
 
     def initialise(self, parent):
         '''
@@ -2049,7 +2079,53 @@ class DynInvokeCellIterators(DynInvokeCollection):
                 rhs=self._first_var.proxy_name_indexed + "%" +
                 self._first_var.ref_name() + "%get_nlayers()"))
 
-            
+
+class DynInvokeScalars(DynInvokeCollection):
+    '''
+    Scalar kernel arguments appearing in the Invoke.
+    '''
+    def __init__(self, invoke):
+        '''
+        '''
+        super(DynInvokeScalars, self).__init__(invoke)
+
+        if self._invoke:
+            self._real_scalars = self._invoke.unique_declns_by_intent(
+                "gh_real")
+            self._int_scalars = self._invoke.unique_declns_by_intent(
+                "gh_integer")
+        else:
+            self._real_scalars = {}
+            self._int_scalars = {}
+            for intent in FORTRAN_INTENT_NAMES:
+                self._real_scalars[intent] = []
+                self._int_scalars[intent] = []
+            for arg in self._calls[0].arguments.args:
+                if arg.type in VALID_SCALAR_NAMES:
+                    if arg.type == "gh_real":
+                        self._real_scalars[arg.intent].append(arg.name)
+                    elif arg.type == "gh_integer":
+                        self._int_scalars[arg.intent].append(arg.name)
+                    else:
+                        raise InternalError("TBD")
+
+    def declarations(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import DeclGen
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._real_scalars[intent]:
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   entity_decls=self._real_scalars[intent],
+                                   intent=intent))
+
+        for intent in FORTRAN_INTENT_NAMES:
+            if self._int_scalars[intent]:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=self._int_scalars[intent],
+                                   intent=intent))
+
+
 class DynInvokeLMAOperators(DynInvokeCollection):
     '''
     Handles all entities required by kernels that iterate over cells.
@@ -3259,8 +3335,10 @@ class DynInvoke(Invoke):
         # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
 
+        self.scalar_args = DynInvokeScalars(self)
+
         # initialise our invoke stencil information
-        self.stencil = DynInvokeStencil(self.schedule)
+        self.stencil = DynInvokeStencil(self)
 
         # Initialise our information on the function spaces used by this Invoke
         self.function_spaces = DynInvokeFunctionSpaces(self)
@@ -3439,22 +3517,8 @@ class DynInvoke(Invoke):
                                    self.stencil.unique_alg_vars +
                                    self._psy_unique_qr_vars)
 
-        # Add the subroutine argument declarations for real scalars
-        scalar_args = self.unique_declns_by_intent("gh_real")
-        for intent in FORTRAN_INTENT_NAMES:
-            if scalar_args[intent]:
-                invoke_sub.add(DeclGen(invoke_sub, datatype="real",
-                                       kind="r_def",
-                                       entity_decls=scalar_args[intent],
-                                       intent=intent))
-
-        # Add the subroutine argument declarations for integer scalars
-        scalar_args = self.unique_declns_by_intent("gh_integer")
-        for intent in FORTRAN_INTENT_NAMES:
-            if scalar_args[intent]:
-                invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                       entity_decls=scalar_args[intent],
-                                       intent=intent))
+        # Add the subroutine argument declarations for real & integer scalars
+        self.scalar_args.declarations(invoke_sub)
 
         # declare any stencil arguments
         self.stencil.declare_unique_alg_vars(invoke_sub)
@@ -5684,9 +5748,17 @@ class DynKern(Kern):
         # create the subroutine
         sub_stub = SubroutineGen(psy_module, name=base_name+"_code",
                                  implicitnone=True)
+
+        iter_cell = DynInvokeCellIterators(self)
+        iter_cell.stub_declarations(sub_stub)
+
+        # Scalar arguments
+        scalars = DynInvokeScalars(self)
+        scalars.declarations(sub_stub)
+
         # Create the dofmap declarations
-        arg_declns = DynInvokeDofmaps([self])
-        arg_declns.declare_stub_dofmaps(sub_stub)
+        arg_declns = DynInvokeDofmaps(self)
+        arg_declns.stub_declarations(sub_stub)
 
         # Create the arglist
         # TODO get rid of sub_stub argument below.
@@ -6532,8 +6604,6 @@ class KernStubArgList(ArgOrdering):
         ''' add mesh height (nlayers) to the argument list if required '''
         from psyclone.f2pygen import DeclGen
         self._arglist.append("nlayers")
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=["nlayers"]))
 
     def mesh_ncell2d(self):
         ''' Add the number of columns in the mesh to the argument list if
@@ -6716,21 +6786,6 @@ class KernStubArgList(ArgOrdering):
 
     def scalar(self, arg):
         '''add the name associated with the scalar argument'''
-        from psyclone.f2pygen import DeclGen
-        if arg.type == "gh_real":
-            decl = DeclGen(self._parent, datatype="real", kind="r_def",
-                           intent=arg.intent,
-                           entity_decls=[arg.name])
-        elif arg.type == "gh_integer":
-            decl = DeclGen(self._parent, datatype="integer",
-                           intent=arg.intent,
-                           entity_decls=[arg.name])
-        else:
-            raise GenerationError(
-                "Internal error: expected arg type to be one "
-                "of '{0}' but got '{1}'".format(VALID_SCALAR_NAMES,
-                                                arg.type))
-        self._parent.add(decl)
         self._arglist.append(arg.name)
 
     def fs_common(self, function_space):

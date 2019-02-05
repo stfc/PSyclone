@@ -2810,10 +2810,10 @@ SIMPLE = (
     "      IMPLICIT NONE\n"
     "      INTEGER, intent(in) :: nlayers\n"
     "      INTEGER, intent(in) :: ndf_w1\n"
+    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
     "      INTEGER, intent(in) :: undf_w1\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
     " field_1_w1\n"
-    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
     "    END SUBROUTINE simple_code\n"
     "  END MODULE simple_mod")
 
@@ -2845,12 +2845,12 @@ SIMPLE_WITH_SCALARS = (
     "      IMPLICIT NONE\n"
     "      INTEGER, intent(in) :: nlayers\n"
     "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
+    "      INTEGER, intent(in) :: iscalar_3\n"
     "      INTEGER, intent(in) :: ndf_w1\n"
+    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
     "      INTEGER, intent(in) :: undf_w1\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w1) ::"
     " field_2_w1\n"
-    "      INTEGER, intent(in) :: iscalar_3\n"
-    "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
     "    END SUBROUTINE simple_with_scalars_code\n"
     "  END MODULE simple_with_scalars_mod")
 
