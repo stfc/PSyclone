@@ -4303,7 +4303,7 @@ class Fparser2ASTProcessor(object):
             for x in nodelist:
                 if (isinstance(x, Fortran2003.Subroutine_Subprogram) and
                    str(x.content[0].get_name()) == searchname):
-                        return x
+                    return x
             raise ValueError  # Subroutine not found
 
         new_schedule = KernelSchedule(name)
@@ -4668,19 +4668,20 @@ class Symbol(object):
     Symbol item for the Symbol Table. It contains information about: the name,
     the datatype, the shape (in row-major order) and the symbol
     access characterisctics. The symbol access can be:
-        - local: Variable that just exist in the kernel scope.
-        - external: Global variable.
-        - read_arg: Kernel argument which is only read.
-        - write_arg: Kernel argument which is only written.
-        - readwrite_arg: Kernel argument which is read and written.
+        - 'local': Variable that just exist in the kernel scope.
+        - 'external': Global variable.
+        - 'read_arg': Kernel argument which is only read.
+        - 'write_arg': Kernel argument which is only written.
+        - 'readwrite_arg': Kernel argument which is read and written.
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
     :param list shape: Shape of the symbol in row-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
-                       an array dimension. If not None then it holds the \
-                       extent of that dimension. If it is an empy list it \
-                       represents an scalar.
+                       an array dimension. If it is 'None' the extent of that \
+                       dimension is unknown, otherwise it holds an integer \
+                       with the extent. If it is an empy list then the symbol \
+                       represents a scalar.
     :param str access: String that specifies if the declaration \
                        represents a 'local', 'external' or argument \
                        variable, if it is an argument it also specifies \
@@ -4694,7 +4695,7 @@ class Symbol(object):
     valid_access_types = ('local', 'external', 'read_arg', 'write_arg',
                           'readwrite_arg')
 
-    def __init__(self, name, datatype=None, shape=[], access=None):
+    def __init__(self, name, datatype, shape=[], access='local'):
 
         if datatype not in ('real', 'integer'):
             raise NotImplementedError("Symbol can only be initialized with "
@@ -4708,9 +4709,11 @@ class Symbol(object):
                             "'integer' or 'None'.")
 
         if access not in Symbol.valid_access_types:
-            raise ValueError("Symbol access attribute can only be: "
-                             "'local', 'external', 'read_arg', "
-                             "'write_arg' or 'readwrite_arg'.")
+            raise ValueError("Symbol access attribute can only be one of {0}"
+                             " but got '{1}'."
+                             "".format(str(Symbol.valid_access_types),
+                                       str(access))
+                             )
 
         self._name = name
         self._datatype = datatype
@@ -4764,9 +4767,12 @@ class Symbol(object):
         :raises ValueError: New access parameter has an invalid value.
         '''
         if new_access not in Symbol.valid_access_types:
-            raise ValueError("Symbol access attribute can only be: "
-                             "'local', 'external', 'read_arg', "
-                             "'write_arg' or 'readwrite_arg'.")
+            raise ValueError("Symbol access attribute can only be one of {0}"
+                             " but got '{1}'."
+                             "".format(str(Symbol.valid_access_types),
+                                       str(new_access))
+                             )
+
         self._access = new_access
 
     def __str__(self):

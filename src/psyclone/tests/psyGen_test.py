@@ -2697,8 +2697,9 @@ def test_symbol_initialization():
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', [], 'invalidaccess')
-    assert ("Symbol access attribute can only be: 'local', 'external', "
-            "'read_arg', 'write_arg' or 'readwrite_arg'.") in str(error.value)
+    assert ("Symbol access attribute can only be one of " +
+            str(Symbol.valid_access_types) +
+            " but got 'invalidaccess'.") in str(error.value)
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', None, 'local')
@@ -2723,8 +2724,9 @@ def test_symbol_access_setter():
     # Test with invalid access value
     with pytest.raises(ValueError) as error:
         sym.access = 'invalidaccess'
-    assert ("Symbol access attribute can only be: 'local', 'external', "
-            "'read_arg', 'write_arg' or 'readwrite_arg'.") in str(error.value)
+    assert ("Symbol access attribute can only be one of " +
+            str(Symbol.valid_access_types) +
+            " but got 'invalidaccess'.") in str(error.value)
 
 
 def test_symbol_can_be_printed():
@@ -2894,10 +2896,12 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     # Test argument intent is inferred when not available in the declaration
     assert schedule.symbol_table.lookup('f3').access == 'readwrite_arg'
 
-    # Test argument intent is inferred when not available in the declaration
+    # Test that a kernel subroutine without Execution_Part still creates a
+    # valid KernelSchedule
     del ast2.content[0].content[2].content[1].content[2]
     schedule = processor.generate_schedule("dummy_code", ast2)
     assert isinstance(schedule, KernelSchedule)
+    assert len(schedule.children) == 0
 
 
 def test_fparser2astprocessor_generate_schedule_no_args_subroutine():
@@ -2979,7 +2983,7 @@ def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
 
 def test_fparser2astprocessor_process_declarations(f2008_parser):
     '''Test that process_declarations method of fparse2astprocessor
-    converts the fparser2 decalations to symbols in the provided
+    converts the fparser2 declarations to symbols in the provided
     parent Kernel Schedule.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3135,7 +3139,7 @@ def test_fparser2astprocessor_process_declarations_array_attributes(
 
 
 def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
-    ''' Test that fparser2 Assignment_Stmt is converted to expected PSyIRe
+    ''' Test that fparser2 Assignment_Stmt is converted to expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3154,7 +3158,7 @@ def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_name(f2008_parser):
-    ''' Test that fparser2 Name is converted to expected PSyIRe
+    ''' Test that fparser2 Name is converted to expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3173,7 +3177,7 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
-    ''' Test that fparser2 Parenthesis is converted to expected PSyIRe
+    ''' Test that fparser2 Parenthesis is converted to expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3192,7 +3196,7 @@ def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_part_ref(f2008_parser):
-    ''' Test that fparser2 Part_Ref is converted to expected PSyIRe
+    ''' Test that fparser2 Part_Ref is converted to expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3224,7 +3228,7 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
-    ''' Test that fparser2 If_Stmt is converted to expected PSyIRe
+    ''' Test that fparser2 If_Stmt is converted to expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3243,7 +3247,7 @@ def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_numberbase(f2008_parser):
-    ''' Test that fparser2 NumberBase is converted to expected PSyIRe
+    ''' Test that fparser2 NumberBase is converted to expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3262,7 +3266,7 @@ def test_fparser2astprocessor_handling_numberbase(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
-    ''' Test that fparser2 BinaryOpBase is converted to expected PSyIRe
+    ''' Test that fparser2 BinaryOpBase is converted to expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
