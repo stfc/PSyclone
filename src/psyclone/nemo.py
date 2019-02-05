@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,9 @@
 
 from __future__ import print_function, absolute_import
 import copy
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
-    Loop, Kern, GenerationError, InternalError, colored, IfBlock, IfClause, \
-    NameSpaceFactory, Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
+from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, Loop, Kern, \
+    InternalError, IfBlock, IfClause, NameSpaceFactory, Fparser2ASTProcessor, \
+    SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 
@@ -118,6 +118,10 @@ class NemoInvoke(Invoke):
         self._name = name
         # Store the whole fparser2 AST
         self._ast = ast
+        # A temporary workaround for the fact that we don't yet have a
+        # symbol table to store information on the variable declarations.
+        # TODO (#255) remove this workaround.
+        self._loop_vars = []
         self._name_space_manager = NameSpaceFactory().create()
         from fparser.two.Fortran2003 import Execution_Part, Specification_Part
 
@@ -582,136 +586,70 @@ class NemoImplicitLoop(NemoLoop):
     :param parent: the parent of this Loop in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
-    :raises NotImplementedError: if the array slice has explicit bounds.
-    :raises GenerationError: if an array slice is not in dimensions 1-3 of \
-                             the array.
     '''
     def __init__(self, ast, parent=None):
-        from fparser.common.readfortran import FortranStringReader
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
-
-        # Get a reference to the name-space manager
-        name_space_manager = NameSpaceFactory().create()
-
-        # Find all uses of array syntax in the statement
-        subsections = walk_ast(ast.items, [Fortran2003.Section_Subscript_List])
-        # A Section_Subscript_List is a tuple with each item the
-        # array-index expressions for the corresponding dimension of the array.
-        for idx, item in enumerate(subsections[0].items):
-            if isinstance(item, Fortran2003.Subscript_Triplet):
-                # A Subscript_Triplet has a 3-tuple containing the expressions
-                # for the start, end and increment of the slice. If any of
-                # these are not None then we have an explicit range of some
-                # sort and we do not yet support that.
-                # TODO allow for implicit loops with specified bounds
-                # (e.g. 2:jpjm1)
-                if [part for part in item.items if part]:
-                    raise NotImplementedError(
-                        "Support for implicit loops with specified bounds is "
-                        "not yet implemented: '{0}'".format(str(ast)))
-                # If an array index is a Subscript_Triplet then it is a range
-                # and thus we need to create an explicit loop for this
-                # dimension.
-                outermost_dim = idx
-
-        if outermost_dim < 0 or outermost_dim > 2:
-            raise GenerationError(
-                "Array section in unsupported dimension ({0}) for code "
-                "'{1}'".format(outermost_dim+1, str(ast)))
-
-        self._step = 1
-        # TODO ensure no name clash is possible with variables that
-        # already exist in the NEMO source.
-        self.loop_type = NEMO_INDEX_ORDERING[outermost_dim]
-        self._start = VALID_LOOP_TYPES[self.loop_type]["start"]
-        self._stop = VALID_LOOP_TYPES[self.loop_type]["stop"]
-        var_name = "psy_" + VALID_LOOP_TYPES[self.loop_type]["var"]
-        self._variable_name = name_space_manager.create_name(
-            root_name=var_name, context="PSyVars", label=var_name)
-
-        # TODO Since the fparser2 AST does not have parent
-        # information (and no other way of getting to the root node), it is
-        # currently not possible to insert a declaration in the correct
-        # location.
-        # For the moment, we can work around the fparser2 AST limitation
-        # by using the fact that we *can* get hold of the PSyclone Invoke
-        # object and that contains a reference to the root of the fparser2
-        # AST...
-        name = Fortran2003.Name(FortranStringReader(self._variable_name))
-        prog_unit = self.root.invoke._ast
-        spec = walk_ast(prog_unit.content, [Fortran2003.Specification_Part])
-        if not spec:
-            names = walk_ast(prog_unit.content, [Fortran2003.Name])
-            # TODO create a Specification_Part
-            raise InternalError("No specification part found for routine {0}!".
-                                format(names[0]))
-        # TODO check that this variable has not already been declared
-        # Requires that we capture all variable declarations in the routine
-        # in some sort of management class.
-        decln = Fortran2003.Type_Declaration_Stmt(
-            FortranStringReader("integer :: {0}".format(self._variable_name)))
-        spec[0].content.append(decln)
-
-        for subsec in subsections:
-            # A tuple is immutable so work with a list
-            indices = list(subsec.items)
-            # Replace the colon with our new variable name
-            indices[outermost_dim] = name
-            # Replace the original tuple with a new one
-            subsec.items = tuple(indices)
-
-        # Create an explicit loop
-        text = ("do {0}=1,{1},{2}\n"
-                "  replace = me\n"
-                "end do\n".format(self._variable_name, self._stop, self._step))
-        loop = Fortran2003.Block_Nonlabel_Do_Construct(
-            FortranStringReader(text))
-        parent_index = ast._parent.content.index(ast)
-        # Insert it in the fparser2 AST at the location of the implicit
-        # loop
-        ast._parent.content.insert(parent_index, loop)
-        # Replace the content of the loop with the (modified) implicit
-        # loop
-        loop.content[1] = ast
-        # Remove the implicit loop from its original parent in the AST
-        ast._parent.content.remove(ast)
-        # Update the parent of the AST
-        ast._parent = loop
-        # Update our own pointer into the AST to now point to the explicit
-        # loop we've just created
-        self._ast = loop
-
-        if NemoImplicitLoop.match(ast):
-            # We still have an implicit loop so recurse
-            self.addchild(NemoImplicitLoop(ast, parent=self))
-        else:
-            # We must be left with a kernel
-            self.addchild(NemoKern(ast, parent=self))
 
     @staticmethod
     def match(node):
         '''
         Checks whether the supplied node in the fparser2 AST represents
         an implicit loop (using Fortran array syntax).
+
         :param node: node in the fparser2 AST to check
         :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        :returns: True if the node does represet an implicit loop.
+        :returns: True if the node does represent an implicit loop.
         :rtype: bool
+
         '''
         if not isinstance(node, Fortran2003.Assignment_Stmt):
             return False
         # We are expecting something like:
         #    array(:,:,jk) = some_expression
-        # so we check the left-hand side...
+        # but we have to beware of cases like the following:
+        #   array(1,:,:) = a_func(array2(:,:,:), mask(:,:))
+        # where a_func is an array-valued function and `array2(:,:,:)`
+        # could just be `array2`.
+        # We check the left-hand side...
         lhs = node.items[0]
-        if isinstance(lhs, Fortran2003.Part_Ref):
-            colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
-            if colons:
-                return True
-        return False
+        if not isinstance(lhs, Fortran2003.Part_Ref):
+            # LHS is not an array reference
+            return False
+        colons = walk_ast(lhs.items, [Fortran2003.Subscript_Triplet])
+        if not colons:
+            # LHS does not use array syntax
+            return False
+        # Now check the right-hand side...
+        rhs = node.items[2]
+        colons = walk_ast(rhs.items, [Fortran2003.Subscript_Triplet])
+        if not colons:
+            # We don't have any array syntax on the RHS
+            return True
+        # Check that we haven't got array syntax used within the index
+        # expression to another array. Array references are represented by
+        # Part_Ref nodes in the fparser2 AST. This would be easier to do
+        # if the fparser2 AST carried parent information with each node.
+        # As it is we have to walk down the tree rather than come back up
+        # from each colon.
+        # Find all array references
+        array_refs = []
+        if isinstance(rhs, Fortran2003.Part_Ref):
+            # Since walk_ast is slightly clunky we have to manually allow
+            # for the top-level "rhs" node being an array reference
+            array_refs.append(rhs)
+        array_refs += walk_ast(rhs.items, [Fortran2003.Part_Ref])
+        for ref in array_refs:
+            nested_refs = walk_ast(ref.items, [Fortran2003.Part_Ref])
+            # Do any of these nested array references use array syntax?
+            for nested_ref in nested_refs:
+                colons = walk_ast(nested_ref.items,
+                                  [Fortran2003.Subscript_Triplet])
+                if colons:
+                    return False
+        return True
 
 
 class NemoIfBlock(IfBlock, NemoFparser2ASTProcessor):

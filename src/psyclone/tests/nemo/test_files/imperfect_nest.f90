@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2018, Science and Technology Facilities
+! Modifications copyright (c) 2017-2019, Science and Technology Facilities
 ! Council.
 ! All rights reserved.
 !
@@ -64,7 +64,11 @@ program imperfect_nest
     else if (jk == jpkm1) then
        zdkt(:, :) = 0.5*zdk1t(:, :)
     ELSE
-      zdkt(:, :) = (ptb(:, :, jk - 1, jn) - ptb(:, :, jk, jn)) * wmask(:, :, jk)
+       do jj = 1, jpj, 1
+          do ji = 1, jpi, 1
+             zdkt(ji, jj) = (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) * wmask(ji, jj, jk)
+          end do
+       end do
     END IF
     DO jj = 1, jpjm1
       DO ji = 1, fs_jpim1
