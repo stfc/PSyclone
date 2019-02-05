@@ -2862,6 +2862,48 @@ class DynInvokeBasisFns(object):
             # add the required deallocate call
             parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
 
+class DynInvokeBoundaryConditions(object):
+    '''
+    '''
+    def __init__(self, schedule):
+        self._boundary_dofs = []
+        # Check through all the kernel calls to see whether any of them
+        # require boundary conditions. Currently this is done by recognising
+        # the kernel name.
+        for call in schedule.calls():
+            if call.name.lower() == "enforce_bc_code":
+                bc_fs = None
+                for fspace in call.arguments.unique_fss:
+                    if fspace.orig_name == "any_space_1":
+                        bc_fs = fspace
+                        break
+                if not bc_fs:
+                    raise GenerationError(
+                        "The enforce_bc_code kernel must have an argument on "
+                        "ANY_SPACE_1 but failed to find such an argument.")
+                farg = call.arguments.get_arg_on_space(bc_fs)
+                self._boundary_dofs.append(farg)
+            elif call.name.lower() == "enforce_operator_bc_code":
+                # TODO check that the kernel only has one argument
+                op_arg = call.arguments.args[0]
+                self._boundary_dofs.append(op_arg)
+
+    def declarations(self, parent):
+        '''
+        Add declarations for any boundary-dofs arrays required by an Invoke.
+
+        :param parent: node in PSyIR to which to add declarations.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+
+    def initialise(self, parent):
+        '''
+        Initialise any boundary-dofs arrays required by an Invoke.
+
+        :param parent: node in PSyIR to which to add declarations.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        '''
+
 
 class DynInvoke(Invoke):
     '''The Dynamo specific invoke class. This passes the Dynamo
@@ -2912,6 +2954,10 @@ class DynInvoke(Invoke):
         # Initialise the object holding all information related to meshes
         # and inter-grid operations
         self.meshes = DynMeshes(self, self.psy_unique_vars)
+
+        # Initialise the object holding information on any boundary-condition
+        # kernel calls
+        self.boundary_conditions = DynInvokeBoundaryConditions(self.schedule)
 
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -3085,6 +3131,9 @@ class DynInvoke(Invoke):
 
         # Declare any CMA operators and associated parameters
         self.cma_ops.declare_cma_ops(invoke_sub)
+
+        # Declare any arrays required for boundary conditions
+        self.boundary_conditions.declarations(invoke_sub)
 
         # Add the subroutine argument declarations for fields
         fld_args = self.unique_declns_by_intent("gh_field")
@@ -3270,6 +3319,9 @@ class DynInvoke(Invoke):
 
         # Initialise CMA operators and associated parameters
         self.cma_ops.initialise_cma_ops(invoke_sub)
+
+        # Initialise any boundary-condition arrays
+        self.boundary_conditions.initialise(invoke_sub)
 
         var_list = []
         # loop over all unique function spaces used by the kernels in
@@ -6267,12 +6319,10 @@ class KernStubArgList(ArgOrdering):
     '''Creates the argument list required to create and declare the
     required arguments for a kernel subroutine.  The ordering and type
     of the arguments is captured by the base class '''
-    def __init__(self, kern, parent):
+    def __init__(self, kern):
         '''
         :param kern: Kernel for which to create argument list
         :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-        :param parent: Parent subroutine which calls the kernel
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         :raises NotImplementedError: if kernel is inter-grid
         '''
@@ -7033,6 +7083,24 @@ class DynStencil(object):
         ''' sets the direction_arg argument. '''
         self._direction_arg = value
 
+
+class KernelDeclarations(object):
+    '''
+    Handle the declaration of all quantities required by the kernel
+    arguments.
+
+    :param kernel: the kernel for which to add declarations.
+    :type kernel: TBD
+    :param parent: the node in the PSyIR to which to add declarations.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, kernel, parent):
+        self._kern = kernel
+        self._parent = parent
+
+    def _add_use_stmts(self):
+        '''
+        '''        
 
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments

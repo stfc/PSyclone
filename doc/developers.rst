@@ -1404,6 +1404,40 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
+Module: psyGen
+==============
+
+Provides the base classes for PSy-layer code generation.
+
+Module: dynamo0p3
+=================
+
+Specialises various classes `psyclone.psyGen` module
+in order to support the Dynamo 0.3 API.
+
+Constructing the list of arguments for a kernel (or kernel stub) is a
+complex task. The `psyclone.dynamo0p3.ArgOrdering` base class
+provides support for this:
+
+.. autoclass:: psyclone.dynamo0p3.ArgOrdering
+    :members:
+    :private-members:
+    :noindex:
+
+This class is then sub-classed in order to support the generation or
+arguments lists when *calling* kernels (`KernCallArgList`) and when
+*creating* kernel stubs (`KernStubArgList`).
+
+Unlike the base class, both of these classes allow the parent PSyIR
+node to be passed in to the constructor. This information is then used
+to modify the PSyIR in order to add declarations of various quantities
+associated with kernel arguments.
+
+`KernCallArgList` is only used in `DynKernelArguments.raw_arg_list()`.
+`KernStubArgList` is only used in `DynKern.gen_stub()`.
+
+Possibly we need `KernDeclarations` to handle the modification of the PSyIR.
+
 Kernel Transformations
 ----------------------
 
