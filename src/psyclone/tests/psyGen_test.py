@@ -3031,10 +3031,27 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
                                  "\nend program")
     program = f2008_parser(reader)
     fparser2spec = program.content[0].content[1].content[0]
+    # with pytest.raises(NotImplementedError) as error:
+    #    processor.process_declarations(fake_parent, [fparser2spec], [])
+    # assert ("Character length specifications are not "
+    #        "supported.") in str(error.value)
+
+
+def test_fparser2astprocessor_process_not_supported_declarations(f2008_parser):
+    '''Test that process_declarations method raises the proper errors when
+    declarations contain unsupported attributes.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+
+    reader = FortranStringReader("integer, save :: arg1")
+    fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Character length specifications are not "
-            "supported.") in str(error.value)
+    assert "Could not process " in str(error.value)
+    assert ". Unrecognized attribute " in str(error.value)
 
 
 def test_fparser2astprocessor_process_declarations_intent(f2008_parser):

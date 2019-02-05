@@ -4372,70 +4372,105 @@ class Fparser2ASTProcessor(object):
         '''
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
+
+        def iterateitems(nodes):
+            '''
+            At the moment fparser nodes can be of type None, a single element
+            or a list of elements. This helper function provide a common
+            iteration interface. This could be improved when fpaser/#170 is
+            fixed.
+            :param nodes: fparser2 AST node.
+            :type nodes: None or List or :py:class:`fparser.two.utils.Base`
+            :return: Returns nodes but always encapsulated in a list
+            :rtype: list
+            '''
+            if nodes is None:
+                return []
+            else:
+                if type(nodes).__name__.endswith("_List"):
+                    return nodes.items
+                else:
+                    return [nodes]
+
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
-            # Parse data type, currently restricted to integers and reals.
-            datatype = 'unknown'
-            if str(decl.items[0]).lower().startswith('real'):
-                datatype = 'real'
-            elif str(decl.items[0]).lower().startswith('integer'):
-                datatype = 'integer'
+            (type_spec, attr_specs, entities) = decl.items
 
-            # Parse number of dimensions if it is an array
-            shape = []
+            # Parse type_spec, currently just 'real' and 'integer' intrinsic
+            # types are supported.
+            datatype = None
+            if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+                if str(type_spec.items[0]).lower() == 'real':
+                    datatype = 'real'
+                elif str(type_spec.items[0]).lower() == 'integer':
+                    datatype = 'integer'
+            if not datatype:
+                raise NotImplementedError("")
 
-            for attr in walk_ast(decl.items,
-                                 [Fortran2003.Assumed_Shape_Spec,
-                                  Fortran2003.Explicit_Shape_Spec,
-                                  Fortran2003.Assumed_Size_Spec
-                                  ]):
-                if isinstance(attr, Fortran2003.Assumed_Size_Spec):
-                    raise NotImplementedError("Could not process {0}. Assumed"
-                                              "-size arrays are not "
-                                              "supported.".format(nodes))
-                elif isinstance(attr, Fortran2003.Assumed_Shape_Spec):
-                    shape.append(None)
-                elif isinstance(attr, Fortran2003.Explicit_Shape_Spec):
-                    if isinstance(attr.items[1],
-                                  Fortran2003.Int_Literal_Constant):
-                        shape.append(int(attr.items[1].items[0]))
-                    else:
-                        raise NotImplementedError("Could not process {0}. "
-                                                  "Only integer literals are "
-                                                  "supported for explicit "
-                                                  "shape array declarations."
-                                                  "".format(nodes))
-
-            # Parse intent attributes
+            # Parse declaration attributes
+            shape = []  # If no dimension is provided, it is a scalar
             decltype = 'local'  # If no intent attribute is provided, it is
             # provisionally marked as a local variable (when the argument
             # list is parsed, arguments with no explicit intent are updated
             # appropriately).
-            for attr in walk_ast(decl.items, [Fortran2003.Attr_Spec]):
-                if "intent(in)" in str(attr).lower().replace(' ', ''):
-                    decltype = 'read_arg'
-                elif "intent(out)" in str(attr).lower().replace(' ', ''):
-                    decltype = 'write_arg'
-                elif "intent(inout)" in str(attr).lower().replace(' ', ''):
-                    decltype = 'readwrite_arg'
+            for attr in iterateitems(attr_specs):
+                if isinstance(attr, Fortran2003.Attr_Spec):
+                    normalized_string = str(attr).lower().replace(' ', '')
+                    if "intent(in)" in normalized_string:
+                        decltype = 'read_arg'
+                    elif "intent(out)" in normalized_string:
+                        decltype = 'write_arg'
+                    elif "intent(inout)" in normalized_string:
+                        decltype = 'readwrite_arg'
+                    else:
+                        raise NotImplementedError(
+                            "Could not process {0}. Unrecognized attribute "
+                            "'{1}'.".format(decl.items, str(attr)))
+                elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
+                    for dim in walk_ast(attr.items,
+                                        [Fortran2003.Assumed_Shape_Spec,
+                                         Fortran2003.Explicit_Shape_Spec,
+                                         Fortran2003.Assumed_Size_Spec]):
+                        if isinstance(dim, Fortran2003.Assumed_Size_Spec):
+                            raise NotImplementedError(
+                                "Could not process {0}. Assumed-size arrays"
+                                " are not supported.".format(decl.items))
+                        elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
+                            shape.append(None)
+                        elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
+                            if isinstance(dim.items[1],
+                                          Fortran2003.Int_Literal_Constant):
+                                shape.append(int(dim.items[1].items[0]))
+                            else:
+                                raise NotImplementedError(
+                                    "Could not process {0}. Only integer "
+                                    "literals are supported for explicit shape"
+                                    " array declarations.".format(decl.items))
+                        else:
+                            InternalError("")
+                else:
+                    raise NotImplementedError(
+                            "Could not process {0}. Unrecognized attribute "
+                            "type {1}.".format(decl.items, str(type(attr))))
 
-            # Get name and insert into the parent symbol table
-            for entity in walk_ast(decl.items, [Fortran2003.Entity_Decl]):
+            # Parse declarations RHS and declare new symbol into the
+            # parent symbol table for each entity found.
+            for entity in iterateitems(entities):
                 (name, array_spec, char_len, initialization) = entity.items
                 if (array_spec is not None):
                     raise NotImplementedError("Could not process {0}. "
                                               "Array specifications after the"
                                               " variable name are not "
-                                              "supported.".format(nodes))
+                                              "supported.".format(decl.items))
                 if (initialization is not None):
                     raise NotImplementedError("Could not process {0}. "
                                               "Initializations on the"
-                                              " declaration statements are "
-                                              "not supported.".format(nodes))
+                                              " declaration statements are not"
+                                              " supported.".format(decl.items))
                 if (char_len is not None):
                     raise NotImplementedError("Could not process {0}. "
                                               "Character length specifications"
                                               " are not supported."
-                                              "".format(nodes))
+                                              "".format(decl.items))
                 parent.symbol_table.declare(str(name), datatype, shape,
                                             decltype)
 
