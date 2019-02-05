@@ -1439,6 +1439,28 @@ def stencil_size_name(arg):
         root_name=root_name, context="PSyVars", label=unique)
 
 
+class DynInvokeCollection(object):
+    '''
+    Base class for managing the declaration and initialisation of a
+    group of related entities within an Invoke.
+
+    :param invoke:
+    '''
+    def __init__(self, invoke):
+        self._invoke = invoke
+        # Whether or not the associated Invoke contains only kernels that
+        # iterate over dofs.
+        self._dofs_only = invoke.iterate_over_dofs_only
+        self._name_space_manager = NameSpaceFactory().create()
+
+    def declarations(self, parent):
+        '''
+        '''
+
+    def initialisation(self, parent):
+        '''
+        '''
+
 class DynInvokeStencil(object):
     '''stencil information and code generation associated with a
     DynInvoke call'''
@@ -1623,7 +1645,7 @@ class DynInvokeStencil(object):
                                          rhs=map_name + "%get_size()"))
 
 
-class DynInvokeDofmaps(object):
+class DynInvokeDofmaps(DynInvokeCollection):
     '''
     Holds all information on the dofmaps (including column-banded and
     indirection) required by an invoke.
@@ -1632,8 +1654,9 @@ class DynInvokeDofmaps(object):
     :type kernels: list of :py:class:`psyclone.dynamo0p3.DynKern`
 
     '''
-    def __init__(self, kernels):
-        self._name_space_manager = NameSpaceFactory().create()
+    def __init__(self, invoke):
+        super(DynInvokeDofmaps, self).__init__(invoke)
+
         # Look at every kernel call in this invoke and generate a list
         # of the unique function spaces involved.
         # We create a dictionary whose keys are the map names and entries
@@ -1651,7 +1674,7 @@ class DynInvokeDofmaps(object):
         # "argument" and "direction" entries.
         self._unique_indirection_maps = OrderedDict()
 
-        for call in kernels:
+        for call in invoke.schedule.calls():
             # We only need a dofmap if the kernel iterates over cells
             if call.iterates_over == "cells":
                 for unique_fs in call.arguments.unique_fss:
@@ -1803,7 +1826,7 @@ class DynInvokeDofmaps(object):
                                dimension=ndf_name, entity_decls=[dmap]))
 
 
-class DynInvokeFunctionSpaces(object):
+class DynInvokeFunctionSpaces(DynInvokeCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
     quantities required by an Invoke.
@@ -1811,9 +1834,9 @@ class DynInvokeFunctionSpaces(object):
     :param invoke: the Invoke object.
     '''
     def __init__(self, invoke):
+        super(DynInvokeFunctionSpaces, self).__init__(invoke)
         self._var_list = []
         self._function_spaces = invoke.unique_fss()[:]
-        self._dofs_only = invoke.iterate_over_dofs_only
         
         # loop over all unique function spaces used by the kernels in
         # the invoke
@@ -1842,6 +1865,7 @@ class DynInvokeFunctionSpaces(object):
     def declarations(self, parent):
         '''
         '''
+        from psyclone.f2pygen import DeclGen
         if self._var_list:
             # declare ndf and undf for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
@@ -1853,6 +1877,7 @@ class DynInvokeFunctionSpaces(object):
 
         :param parent:
         '''
+        from psyclone.f2pygen import CommentGen, AssignGen
         # Loop over all unique function spaces used by the kernels in
         # the invoke
         for function_space in self._function_spaces:
@@ -1862,14 +1887,14 @@ class DynInvokeFunctionSpaces(object):
             # (for the upper bound of the loop over dofs) if we're not
             # doing DM.
             if not (self._dofs_only and Config.get().distributed_memory):
-                invoke_sub.add(CommentGen(invoke_sub, ""))
-                invoke_sub.add(
-                    CommentGen(invoke_sub, " Initialise number of DoFs for " +
-                               function_space.mangled_name))
-                invoke_sub.add(CommentGen(invoke_sub, ""))
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent,
+                                      " Initialise number of DoFs for " +
+                                      function_space.mangled_name))
+                parent.add(CommentGen(parent, ""))
 
             # Find an argument on this space to use to dereference
-            arg = invoke.arg_for_funcspace(function_space)
+            arg = self._invoke.arg_for_funcspace(function_space)
             name = arg.proxy_name_indexed
             # Initialise ndf for this function space.
             if not self._dofs_only:
@@ -1886,7 +1911,7 @@ class DynInvokeFunctionSpaces(object):
             # number of dofs is obtained from the field proxy and undf is
             # not required.
             if not (self._dofs_only and Config.get().distributed_memory):
-                if invoke.field_on_space(function_space):
+                if self._invoke.field_on_space(function_space):
                     undf_name = get_fs_undf_name(function_space)
                     parent.add(AssignGen(parent, lhs=undf_name,
                                          rhs=name + "%" +
@@ -1894,7 +1919,163 @@ class DynInvokeFunctionSpaces(object):
                                          "%get_undf()"))
 
 
-class DynInvokeCMAOperators(object):
+class DynInvokeFields(DynInvokeCollection):
+    '''
+    '''
+
+    def declarations(self, parent):
+        '''
+        :param parent:
+        :type parent:
+        '''
+        from psyclone.f2pygen import TypeDeclGen
+        # Add the subroutine argument declarations for fields
+        fld_args = self._invoke.unique_declns_by_intent("gh_field")
+        for intent in FORTRAN_INTENT_NAMES:
+            if fld_args[intent]:
+                if intent == "out":
+                    # The data part of a field might have intent(out) but
+                    # in order to preserve the state of the whole derived-type
+                    # object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
+                parent.add(TypeDeclGen(parent, datatype="field_type",
+                                       entity_decls=fld_args[intent],
+                                       intent=fort_intent))
+
+    def initialise(self, parent):
+        '''
+        '''
+
+
+class DynInvokeProxies(DynInvokeCollection):
+    '''
+    '''
+    def declarations(self, parent):
+        '''
+        :param parent:
+
+        '''
+        from psyclone.f2pygen import TypeDeclGen
+        field_proxy_decs = self._invoke.unique_proxy_declarations("gh_field")
+        if field_proxy_decs:
+            parent.add(TypeDeclGen(parent,
+                                   datatype="field_proxy_type",
+                                   entity_decls=field_proxy_decs))
+        op_proxy_decs = self._invoke.unique_proxy_declarations("gh_operator")
+        if op_proxy_decs:
+            parent.add(TypeDeclGen(parent,
+                                   datatype="operator_proxy_type",
+                                   entity_decls=op_proxy_decs))
+        cma_op_proxy_decs = self._invoke.unique_proxy_declarations(
+            "gh_columnwise_operator")
+        if cma_op_proxy_decs:
+            parent.add(TypeDeclGen(parent,
+                                   datatype="columnwise_operator_proxy_type",
+                                   entity_decls=cma_op_proxy_decs))
+
+    def initialise(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent,
+                              " Initialise field and/or operator proxies"))
+        parent.add(CommentGen(parent, ""))
+        for arg in self._invoke.psy_unique_vars:
+            # We don't have proxies for scalars
+            if arg.type in VALID_SCALAR_NAMES:
+                continue
+            if arg.vector_size > 1:
+                # the range function below returns values from
+                # 1 to the vector size which is what we
+                # require in our Fortran code
+                for idx in range(1, arg.vector_size+1):
+                    parent.add(
+                        AssignGen(parent,
+                                  lhs=arg.proxy_name+"("+str(idx)+")",
+                                  rhs=arg.name+"("+str(idx)+")%get_proxy()"))
+            else:
+                parent.add(AssignGen(parent, lhs=arg.proxy_name,
+                                     rhs=arg.name+"%get_proxy()"))
+
+
+class DynInvokeCellIterators(DynInvokeCollection):
+    '''
+    Handles all entities required by kernels that iterate over cells.
+    '''
+    def __init__(self, invoke):
+        super(DynInvokeCellIterators, self).__init__(invoke)
+        
+        # Use our namespace manager to create a unique name unless
+        # the context and label match and in this case return the
+        # previous name.
+        self._nlayers_name = self._name_space_manager.create_name(
+            root_name="nlayers", context="PSyVars", label="nlayers")
+
+        # Store a reference to the first field/operator object that
+        # we can use to look-up nlayers.
+        first_var = None
+        for var in self._invoke.psy_unique_vars:
+            if var.type not in VALID_SCALAR_NAMES:
+                first_var = var
+                break
+        if not first_var:
+            raise GenerationError(
+                "Cannot create an Invoke with no field/operator arguments")
+        self._first_var = first_var
+
+    def declarations(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import DeclGen
+        # We only need the number of layers in the mesh if we are calling
+        # one or more kernels that iterate over cells
+        if not self._dofs_only:
+           parent.add(DeclGen(parent, datatype="integer",
+                              entity_decls=[self._nlayers_name]))
+
+    def initialise(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import CommentGen, AssignGen
+        if not self._dofs_only:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Initialise number of layers"))
+            parent.add(CommentGen(parent, ""))
+            parent.add(AssignGen(
+                parent, lhs=self._nlayers_name,
+                rhs=self._first_var.proxy_name_indexed + "%" +
+                self._first_var.ref_name() + "%get_nlayers()"))
+
+            
+class DynInvokeLMAOperators(DynInvokeCollection):
+    '''
+    Handles all entities required by kernels that iterate over cells.
+    '''
+    def declarations(self, parent):
+        '''
+        :param parent:
+        '''
+        op_declarations_dict = self._invoke.unique_declns_by_intent(
+            "gh_operator")
+        for intent in FORTRAN_INTENT_NAMES:
+            if op_declarations_dict[intent]:
+                if intent == "out":
+                    # The data part of an operator might have intent(out) but
+                    # in order to preserve the state of the whole derived-type
+                    # object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
+                parent.add(
+                    TypeDeclGen(invoke_sub, datatype="operator_type",
+                                entity_decls=op_declarations_dict[intent],
+                                intent=fort_intent))
+
+
+class DynInvokeCMAOperators(DynInvokeCollection):
     ''' Holds all information on the CMA operators required by an invoke '''
 
     # The scalar parameters that must be passed along with a CMA operator
@@ -1906,9 +2087,10 @@ class DynInvokeCMAOperators(object):
     cma_diff_fs_params = ["nrow", "ncol", "bandwidth", "alpha",
                           "beta", "gamma_m", "gamma_p"]
 
-    def __init__(self, schedule):
-
-        self._name_space_manager = NameSpaceFactory().create()
+    def __init__(self, invoke):
+        super(DynInvokeCMAOperators, self).__init__(invoke)
+        
+        schedule = invoke.schedule
 
         # Look at every kernel call in this invoke and generate a set of
         # the unique CMA operators involved. For each one we create a
@@ -1950,6 +2132,20 @@ class DynInvokeCMAOperators(object):
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
+        
+        # If we have one or more CMA operators then we will need the number
+        # of columns in the mesh
+        parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent,
+                        " Initialise number of cols"))
+        parent.add(CommentGen(parent, ""))
+        ncol_name = self._name_space_manager.create_name(
+            root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+        parent.add(
+            AssignGen(parent, lhs=ncol_name,
+                      rhs=self._cma_ops[0].proxy_name_indexed + "%ncell_2d"))
+        parent.add(DeclGen(parent, datatype="integer",
+                           entity_decls=[ncol_name]))
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent,
@@ -1984,6 +2180,25 @@ class DynInvokeCMAOperators(object):
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
+        
+        # Add subroutine argument declarations for CMA operators that are
+        # read or written (as with normal/LMA operators, they are never 'inc'
+        # because they are discontinuous)
+        cma_op_declarations_dict = self._invoke.unique_declns_by_intent(
+            "gh_columnwise_operator")
+        for intent in FORTRAN_INTENT_NAMES:
+            if cma_op_declarations_dict[intent]:
+                if intent == "out":
+                    # The data part of an operator might have intent(out) but
+                    # in order to preserve the state of the whole derived-type
+                    # object it must be declared as inout.
+                    fort_intent = "inout"
+                else:
+                    fort_intent = intent
+                parent.add(
+                    TypeDeclGen(parent, datatype="columnwise_operator_type",
+                                entity_decls=cma_op_declarations_dict[intent],
+                                intent=fort_intent))
 
         for op_name in self._cma_ops:
             # Declare the matrix itself
@@ -3052,11 +3267,16 @@ class DynInvoke(Invoke):
 
         # Initialise the object holding all information on the dofmaps
         # required by this invoke.
-        self.dofmaps = DynInvokeDofmaps(self.schedule.calls())
+        self.dofmaps = DynInvokeDofmaps(self)
+
+        # Initialise information on all of the fields accessed in this Invoke
+        self.fields = DynInvokeFields(self)
+
+        self.lma_ops = DynInvokeLMAOperators(self)
 
         # Initialise the object holding all information on the column-
         # -matrix assembly operators required by this invoke.
-        self.cma_ops = DynInvokeCMAOperators(self.schedule)
+        self.cma_ops = DynInvokeCMAOperators(self)
 
         # Initialise the object holding all information on the quadrature
         # and/or evaluators required by this invoke
@@ -3069,6 +3289,11 @@ class DynInvoke(Invoke):
         # Initialise the object holding information on any boundary-condition
         # kernel calls
         self.boundary_conditions = DynInvokeBoundaryConditions(self.schedule)
+
+        # Information on all proxies required by this Invoke
+        self.proxies = DynInvokeProxies(self)
+
+        self.cell_iterators = DynInvokeCellIterators(self)
 
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -3250,161 +3475,31 @@ class DynInvoke(Invoke):
         self.boundary_conditions.declarations(invoke_sub)
 
         # Add the subroutine argument declarations for fields
-        fld_args = self.unique_declns_by_intent("gh_field")
-        for intent in FORTRAN_INTENT_NAMES:
-            if fld_args[intent]:
-                if intent == "out":
-                    # The data part of a field might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                invoke_sub.add(TypeDeclGen(invoke_sub, datatype="field_type",
-                                           entity_decls=fld_args[intent],
-                                           intent=fort_intent))
+        self.fields.declarations(invoke_sub)
 
         # Add the subroutine argument declarations for operators that
         # are read or written (operators are always on discontinuous spaces
         # and therefore are never 'inc')
-        op_declarations_dict = self.unique_declns_by_intent("gh_operator")
-        for intent in FORTRAN_INTENT_NAMES:
-            if op_declarations_dict[intent]:
-                if intent == "out":
-                    # The data part of an operator might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                invoke_sub.add(
-                    TypeDeclGen(invoke_sub, datatype="operator_type",
-                                entity_decls=op_declarations_dict[intent],
-                                intent=fort_intent))
-
-        # Add subroutine argument declarations for CMA operators that are
-        # read or written (as with normal/LMA operators, they are never 'inc'
-        # because they are discontinuous)
-        cma_op_declarations_dict = self.unique_declns_by_intent(
-            "gh_columnwise_operator")
-        for intent in FORTRAN_INTENT_NAMES:
-            if cma_op_declarations_dict[intent]:
-                if intent == "out":
-                    # The data part of an operator might have intent(out) but
-                    # in order to preserve the state of the whole derived-type
-                    # object it must be declared as inout.
-                    fort_intent = "inout"
-                else:
-                    fort_intent = intent
-                invoke_sub.add(
-                    TypeDeclGen(invoke_sub,
-                                datatype="columnwise_operator_type",
-                                entity_decls=cma_op_declarations_dict[intent],
-                                intent=fort_intent))
+        self.cma_ops.declarations(invoke_sub)
 
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
         self.evaluators.declare_qr(invoke_sub)
 
-        # declare and initialise proxies for each of the (non-scalar)
-        # arguments
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-        invoke_sub.add(CommentGen(invoke_sub,
-                                  " Initialise field and/or operator proxies"))
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-        for arg in self.psy_unique_vars:
-            # We don't have proxies for scalars
-            if arg.type in VALID_SCALAR_NAMES:
-                continue
-            if arg.vector_size > 1:
-                # the range function below returns values from
-                # 1 to the vector size which is what we
-                # require in our Fortran code
-                for idx in range(1, arg.vector_size+1):
-                    invoke_sub.add(
-                        AssignGen(invoke_sub,
-                                  lhs=arg.proxy_name+"("+str(idx)+")",
-                                  rhs=arg.name+"("+str(idx)+")%get_proxy()"))
-            else:
-                invoke_sub.add(AssignGen(invoke_sub, lhs=arg.proxy_name,
-                                         rhs=arg.name+"%get_proxy()"))
+        # Declare any proxies for fields and operators
+        self.proxies.declarations(invoke_sub)
 
-        field_proxy_decs = self.unique_proxy_declarations("gh_field")
-        if len(field_proxy_decs) > 0:
-            invoke_sub.add(
-                TypeDeclGen(invoke_sub,
-                            datatype="field_proxy_type",
-                            entity_decls=field_proxy_decs))
-        op_proxy_decs = self.unique_proxy_declarations("gh_operator")
-        if len(op_proxy_decs) > 0:
-            invoke_sub.add(
-                TypeDeclGen(invoke_sub,
-                            datatype="operator_proxy_type",
-                            entity_decls=op_proxy_decs))
-        cma_op_proxy_decs = self.unique_proxy_declarations(
-            "gh_columnwise_operator")
-        if cma_op_proxy_decs:
-            invoke_sub.add(
-                TypeDeclGen(invoke_sub,
-                            datatype="columnwise_operator_proxy_type",
-                            entity_decls=cma_op_proxy_decs))
+        self.cell_iterators.declarations(invoke_sub)
+
+        self.proxies.initialise(invoke_sub)
 
         # Initialise the number of layers (if we are calling one or more
         # kernels that iterate over cells)
-        if not dofs_only:
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub,
-                                      " Initialise number of layers"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # Find the first argument that is not a scalar. Also, if there
-        # any CMA operators as arguments then keep a reference to one
-        # of them so that we can look-up the number of columns in the
-        # mesh using its proxy
-        first_var = None
-        cma_op = None
-        for var in self.psy_unique_vars:
-            if not first_var and var.type not in VALID_SCALAR_NAMES:
-                first_var = var
-            if var.type == "gh_columnwise_operator":
-                cma_op = var
-        if not first_var:
-            raise GenerationError(
-                "Cannot create an Invoke with no field/operator arguments")
-
-        # We only need the number of layers in the mesh if we are calling
-        # one or more kernels that iterate over cells
-        if not dofs_only:
-            # Use our namespace manager to create a unique name unless
-            # the context and label match and in this case return the
-            # previous name
-            nlayers_name = self._name_space_manager.create_name(
-                root_name="nlayers", context="PSyVars", label="nlayers")
-            invoke_sub.add(
-                AssignGen(invoke_sub, lhs=nlayers_name,
-                          rhs=first_var.proxy_name_indexed + "%" +
-                          first_var.ref_name() + "%get_nlayers()"))
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=[nlayers_name]))
+        self.cell_iterators.initialise(invoke_sub)
 
         # Initialise mesh object(s) and all related quantities for any
         # inter-grid kernels (number of fine cells per coarse cell etc.)
         self.meshes.initialise(invoke_sub)
-
-        # If we have one or more CMA operators then we will need the number
-        # of columns in the mesh
-        if cma_op:
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(invoke_sub,
-                                      " Initialise number of cols"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            ncol_name = self._name_space_manager.create_name(
-                root_name="ncell_2d", context="PSyVars", label="ncell_2d")
-            invoke_sub.add(
-                AssignGen(invoke_sub, lhs=ncol_name,
-                          rhs=cma_op.proxy_name_indexed + "%ncell_2d"))
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=[ncol_name]))
 
         if self.schedule.reductions(reprod=True):
             # we have at least one reproducible reduction so we need
