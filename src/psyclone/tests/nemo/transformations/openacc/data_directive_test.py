@@ -34,7 +34,7 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
-    representation of NEMO code using the OpenACC data directive.
+   representation of NEMO code using the OpenACC data directive.
 
 '''
 
@@ -53,9 +53,11 @@ API = "nemo"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../../test_files")
 
+
 def test_explicit():
-    '''Check code generation for a single explicit loop containing a
-    kernel.
+    '''
+    Check code generation for enclosing a single explicit loop containing a
+    kernel inside a data region.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
@@ -119,6 +121,7 @@ def test_code_block():
             "  !$ACC END DATA\n"
             "END PROGRAM code_block") in gen_code
 
+
 def test_code_block_noalloc():
     '''Check code generation for a mixture of loops and code blocks,
     skipping allocate and deallocate statements.
@@ -157,7 +160,7 @@ def test_code_block_noalloc_kernels():
     schedule, _ = acc_trans.apply(schedule.children[1].children[0:3],
                                   default_present=True)
     gen_code = str(psy.gen)
-    
+
     assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
             "  !$ACC DATA COPYOUT(umask)\n"
             "  !$ACC KERNELS DEFAULT(PRESENT)\n"
@@ -332,4 +335,3 @@ def test_fn_call():
     schedule, _ = acc_trans.apply(schedule.children[0:1])
     gen_code = str(psy.gen)
     assert "copyin(my_func)" not in gen_code.lower()
-

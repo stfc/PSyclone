@@ -1684,6 +1684,9 @@ class ACCDirective(Directive):
         return "ACC_directive_" + str(self.abs_position)
 
     def add_region(self, start_text, end_text=None, start_index=None):
+        '''
+        '''
+        # TODO can this whole method be removed?
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
 
@@ -1844,8 +1847,11 @@ class ACCEnterDataDirective(ACCDirective):
 
 
 class ACCParallelDirective(ACCDirective):
-    ''' Class for the !$ACC PARALLEL directive of OpenACC. '''
+    '''
+    Class representing the !$ACC PARALLEL directive of OpenACC
+    in the PSyIR.
 
+    '''
     def view(self, indent=0):
         '''
         Print a text representation of this Node to stdout.
