@@ -131,14 +131,6 @@ def test_psy_base_err(monkeypatch):
     assert "must be implemented by subclass" in str(excinfo)
 
 
-# TBD need to find a way to create a valid info object to pass to
-# create so we can check creation
-# def test_create_valid_return_object():
-#     from ghproto import
-#     GHProtoPSy psy = PSyFactory().create(None) assert
-#     isinstance(psy,GHProtoPSy)
-
-
 # Transformation class unit tests
 
 def test_base_class_not_callable():
@@ -570,6 +562,17 @@ def test_sched_view(capsys):
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
 
+def test_sched_ocl_setter():
+    ''' Check that the opencl setter raises the expected error if not passed
+    a bool. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    with pytest.raises(ValueError) as err:
+        psy.invokes.invoke_list[0].schedule.opencl = "a string"
+    assert "Schedule.opencl must be a bool but got " in str(err)
+
 # Kern class test
 
 def test_kern_get_kernel_schedule():
@@ -608,6 +611,20 @@ def test_kern_coloured_text():
     my_kern.load_meta(metadata)
     ret_str = my_kern.coloured_text
     assert colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"]) in ret_str
+
+
+def test_kern_abstract_methods():
+    ''' Check that the abstract methods of the Kern class raise the
+    NotImplementedError. '''
+    # We need to get a valid kernel object
+    from psyclone import dynamo0p3
+    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    my_kern = DynKern()
+    my_kern.load_meta(metadata)
+    with pytest.raises(NotImplementedError) as err:
+        super(dynamo0p3.DynKern, my_kern).gen_arg_setter_code(None)
+    assert "gen_arg_setter_code must be implemented by sub-class" in str(err)
 
 
 def test_call_abstract_methods():
@@ -1743,6 +1760,38 @@ def test_directive_backward_dependence():
     assert omp2.backward_dependence() == omp1
 
 
+def test_directive_get_private(monkeypatch):
+    ''' Tests for the _get_private_list() method of OMPParallelDirective. '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # We use Transformations to introduce the necessary directives
+    from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
+        OMPParallelTrans
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    schedule, _ = rtrans.apply(schedule.children[0])
+    directive = schedule.children[0]
+    assert isinstance(directive, OMPParallelDirective)
+    # Now check that _get_private_list returns what we expect
+    pvars = directive._get_private_list()
+    assert pvars == ['cell']
+    # Now use monkeypatch to break the Call within the loop
+    call = directive.children[0].children[0].children[0]
+    monkeypatch.setattr(call, "local_vars", lambda: [""])
+    with pytest.raises(InternalError) as err:
+        _ = directive._get_private_list()
+    assert ("call 'testkern_code' has a local variable but its name is "
+            "not set" in str(err))
+
+
 def test_node_is_valid_location():
     '''Test that the Node class is_valid_location method returns True if
     the new location does not break any data dependencies, otherwise it
@@ -1816,7 +1865,7 @@ def test_node_is_valid_location():
 
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
-    from psyclone.psyGen import Node, Loop
+    from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     sched.view()
@@ -2046,7 +2095,6 @@ def test_haloexchange_vector_index_depend():
     schedule = invoke.schedule
     first_d_field_halo_exchange = schedule.children[3]
     field = first_d_field_halo_exchange.field
-    from psyclone.psyGen import Node
     all_nodes = schedule.walk(schedule.children, Node)
     following_nodes = all_nodes[4:]
     result_list = field._find_read_arguments(following_nodes)

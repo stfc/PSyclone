@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -32,54 +31,52 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''A simple test script showing the introduction of OpenMP with PSyclone.
-In order to use it you must first install PSyclone. See README.md in the
-top-level psyclone directory.
-
-Once you have psyclone installed, this script may be run by doing (you may
-need to make it executable first with chmod u+x ./runme_openmp.py):
-
- >>> ./runme_openmp.py
-
-This should generate a lot of output, ending with generated
-Fortran.
-'''
+'''Python script intended to be passed to PSyclone's generate()
+function via the -s option. Transforms all kernels in the invoke
+to have them compiled for an OpenACC accelerator. '''
 
 from __future__ import print_function
-from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, TransInfo
 
-if __name__ == "__main__":
-    from psyclone.nemo import NemoKern, NemoImplicitLoop
-    API = "nemo"
-    _, INVOKEINFO = parse("traldf_iso.F90", api=API)
-    PSY = PSyFactory(API).create(INVOKEINFO)
-    print(PSY.gen)
 
-    print("Invokes found:")
-    print(PSY.invokes.names)
+def trans(psy):
+    ''' Take the supplied psy object, apply OpenACC transformations
+    to the schedule of invoke_0 and return the new psy object '''
+    from psyclone.transformations import ACCParallelTrans, \
+        ACCDataTrans, ACCLoopTrans, ACCRoutineTrans, KernelModuleInlineTrans
+    ptrans = ACCParallelTrans()
+    ltrans = ACCLoopTrans()
+    dtrans = ACCDataTrans()
+    ktrans = ACCRoutineTrans()
+    itrans = KernelModuleInlineTrans()
 
-    SCHED = PSY.invokes.get('tra_ldf_iso').schedule
-    SCHED.view()
+    invoke = psy.invokes.get('invoke_0_inc_field')
+    schedule = invoke.schedule
+    # schedule.view()
 
-    TRANS_INFO = TransInfo()
-    print(TRANS_INFO.list)
-    OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
-    DO_TRANS = TRANS_INFO.get_trans_name('NemoExplicitLoopTrans')
-    # Transform each implicit loop to make the outermost loop explicit
-    for loop in SCHED.loops():
-        if isinstance(loop, NemoImplicitLoop):
-            _, _ = DO_TRANS.apply(loop)
-    for loop in SCHED.loops():
-        # TODO loop.kernel method needs extending to cope with
-        # multiple kernels
-        kernels = loop.walk(loop.children, NemoKern)
-        if kernels and loop.loop_type == "levels":
-            sched, _ = OMP_TRANS.apply(loop)
+    # Apply the OpenACC Loop transformation to *every* loop
+    # nest in the schedule
+    from psyclone.psyGen import Loop
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            newschedule, _ = ltrans.apply(child, collapse=2)
+            schedule = newschedule
 
-    SCHED.view()
+    # Put all of the loops in a single parallel region
+    newschedule, _ = ptrans.apply(schedule.children)
 
-    PSY.invokes.get('tra_ldf_iso').schedule = SCHED
-    print(PSY.gen)
+    # Add an enter-data directive
+    newschedule, _ = dtrans.apply(schedule)
+
+    # Put an 'acc routine' directive inside each kernel
+    for kern in schedule.kern_calls():
+        _, _ = ktrans.apply(kern)
+        # Ideally we would module-inline the kernel here (to save having to
+        # rely on the compiler to do it) but this does not currently work
+        # for the fparser2 AST (issue #229).
+        # _, _ = itrans.apply(kern)
+
+    invoke.schedule = newschedule
+    newschedule.view()
+    return psy

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council.
+! Copyright (c) 2018-2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,21 +29,22 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Author A. R. Porter, STFC Daresbury Lab
 
-program multi_qr_per_invoke
-
-  use testkern_qr, only: testkern_qr_type
+program implicit_do
   implicit none
-  type(field_type)      :: f0, f1, f2, f3, f4
-  type(quadrature_type) :: qr0, qr1
-  real                  :: ascalar
-  integer               :: iscalar
+  integer :: jpi=10, jpj=10, jpk=10, jpn=2
+  integer :: ji, jk, jn
+  real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: umask
+  real(kind=kind(1.0d0)), dimension(jpi,jpj,jpk) :: z3d
+  integer, dimension(jpi,jpj,jpk) :: pvtr
+  integer, dimension(jpi,jpj) :: btm30
+  integer, dimension(jpi,jpj,jpn) :: btmsk
 
-  call invoke(                                               &
-       testkern_qr_type(f1,f2,f3,ascalar,f4,iscalar,qr0),    &
-       testkern_qr_type(f1,f2,f3,ascalar,f4,iscalar,qr1),    &
-       testkern_qr_type(f0,f2,f3,ascalar,f4,iscalar,qr0) )
+  ! Test code with array notation used in call to array-valued function
+  ! (`ptr_sjk`).
+  jn = 2
 
+  z3d(1,:,:) =  ptr_sjk( pvtr(:,:,:), btmsk(:,:,jn)*btm30(:,:) ) 
 
-end program multi_qr_per_invoke
+end program implicit_do
