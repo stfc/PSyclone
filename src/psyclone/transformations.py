@@ -2745,9 +2745,17 @@ class ACCDataTrans(RegionTrans):
     >>> kernels = schedule.children[0].children[0].children[0:-1]
     >>> # Enclose the kernels
     >>> new_sched, _ = dtrans.apply(kernels)
-        return "ACCDataTrans"
 
     '''
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+
+        '''
+        return "ACCDataTrans"
+
     def apply(self, node_list):
         '''
         Put the supplied list of nodes within an OpenACC data region.
@@ -2763,7 +2771,6 @@ class ACCDataTrans(RegionTrans):
         self._validate(node_list)
 
         # Keep a record of this transformation
-        from psyclone.undoredo import Memento
         keep = Memento(node_list[:], self)
 
         parent = node_list[0].parent
