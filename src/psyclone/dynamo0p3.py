@@ -1448,10 +1448,14 @@ class DynInvokeCollection(object):
     '''
     def __init__(self, invoke):
         if isinstance(invoke, DynInvoke):
+            # We are handling declarations/initialisations for an Invoke
             self._invoke = invoke
+            self._kernel = None
             self._calls = invoke.schedule.calls()
         elif isinstance(invoke, DynKern):
+            # We are handling declarations for a Kernel stub
             self._invoke = None
+            self._kernel = invoke
             self._calls = [invoke]
         else:
             raise InternalError("DynInvokeCollection takes only a DynInvoke "
@@ -1852,25 +1856,27 @@ class DynInvokeFunctionSpaces(DynInvokeCollection):
     Handles the declaration and initialisation of all function-space-related
     quantities required by an Invoke.
 
-    :param invoke: the Invoke object.
+    :param invoke: the Invoke or Kernel object.
     '''
-    def __init__(self, invoke):
-        super(DynInvokeFunctionSpaces, self).__init__(invoke)
+    def __init__(self, kern_or_invoke):
+        super(DynInvokeFunctionSpaces, self).__init__(kern_or_invoke)
+
+        if self._invoke:
+            self._function_spaces = self._invoke.unique_fss()[:]
+        else:
+            #import pdb; pdb.set_trace()
+            self._function_spaces = self._calls[0].arguments.unique_fss
+
         self._var_list = []
-        self._function_spaces = invoke.unique_fss()[:]
-        
+
         # loop over all unique function spaces used by the kernels in
         # the invoke
         for function_space in self._function_spaces:
 
-            # Find an argument on this space to use to dereference
-            arg = invoke.arg_for_funcspace(function_space)
-            name = arg.proxy_name_indexed
             # Initialise ndf for this function space and add name to
             # list to declare later.
             if not self._dofs_only:
-                ndf_name = get_fs_ndf_name(function_space)
-                self._var_list.append(ndf_name)
+                self._var_list.append(get_fs_ndf_name(function_space))
 
             # If there is a field on this space then initialise undf
             # for this function space and add name to list to declare
@@ -1878,10 +1884,17 @@ class DynInvokeFunctionSpaces(DynInvokeCollection):
             # over dofs and distributed memory is enabled then the
             # number of dofs is obtained from the field proxy and undf is
             # not required.
-            if not (self._dofs_only and Config.get().distributed_memory):
-                if invoke.field_on_space(function_space):
-                    undf_name = get_fs_undf_name(function_space)
-                    self._var_list.append(undf_name)
+            if self._invoke:
+                # TODO if a kernel has an operator on this space then
+                # it DOES need undf!
+                if not (self._dofs_only and Config.get().distributed_memory):
+                    self._var_list.append(get_fs_undf_name(function_space))
+            else:
+                # Does this kernel have an operator on this space?
+                for arg in self._calls[0].args:
+                    if (arg.type == "gh_operator" and
+                        function_space.orig_name in arg.function_spaces):
+                        self._var_list.append()
 
     def declarations(self, parent):
         '''
@@ -1889,9 +1902,13 @@ class DynInvokeFunctionSpaces(DynInvokeCollection):
         from psyclone.f2pygen import DeclGen
         if self._var_list:
             # declare ndf and undf for all function spaces
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=self._var_list))
-        
+            if self._kernel:
+                parent.add(DeclGen(parent, datatype="integer", intent="in",
+                                   entity_decls=self._var_list))
+            else:
+                parent.add(DeclGen(parent, datatype="integer",
+                                   entity_decls=self._var_list))
+
     def initialise(self, parent):
         '''
         Create the code that initialises function-space quantities.
@@ -5760,6 +5777,9 @@ class DynKern(Kern):
         arg_declns = DynInvokeDofmaps(self)
         arg_declns.stub_declarations(sub_stub)
 
+        fspaces = DynInvokeFunctionSpaces(self)
+        fspaces.declarations(sub_stub)
+
         # Create the arglist
         # TODO get rid of sub_stub argument below.
         create_arg_list = KernStubArgList(self, sub_stub)
@@ -7325,6 +7345,7 @@ class KernelDeclarations(object):
     def _add_use_stmts(self):
         '''
         '''        
+
 
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments
