@@ -3096,33 +3096,48 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     assert fake_parent.symbol_table.lookup("arg4").access == 'readwrite_arg'
 
 
-def test_fparser2astprocessor_process_declarations_array_attributes(
+def test_fparser2astprocessor_parse_array_dimensions_attributes(
         f2008_parser):
     '''Test that process_declarations method parses multiple specifications
     of array attributes.
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Specification_Part
+    from fparser.two.Fortran2003 import Dimension_Attr_Spec
+
+    reader = FortranStringReader("dimension(:)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    assert shape == [None]
+
+    reader = FortranStringReader("dimension(:,:,:)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    assert shape == [None, None, None]
+
+    reader = FortranStringReader("dimension(3,5)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    assert shape == [3, 5]
+
+    reader = FortranStringReader("dimension(*)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    with pytest.raises(NotImplementedError) as error:
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    assert "Could not process " in str(error.value)
+    assert "Assumed-size arrays are not supported." in str(error.value)
+
+    reader = FortranStringReader("dimension(var1)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    with pytest.raises(NotImplementedError) as error:
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    assert "Could not process " in str(error.value)
+    assert ("Only integer literals are supported for explicit shape array"
+            " declarations.") in str(error.value)
+
+    # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
-
-    reader = FortranStringReader("integer, dimension(:,:,:) :: array1")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("array1").name == "array1"
-    assert fake_parent.symbol_table.lookup("array1").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("array1").shape == [None, None,
-                                                               None]
-    assert fake_parent.symbol_table.lookup("array1").access == 'local'
-
-    reader = FortranStringReader("real, dimension(:), intent(in) :: array2")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("array2").name == "array2"
-    assert fake_parent.symbol_table.lookup("array2").datatype == 'real'
-    assert fake_parent.symbol_table.lookup("array2").shape == [None]
-    assert fake_parent.symbol_table.lookup("array2").access == 'read_arg'
-
     reader = FortranStringReader("real, intent(in), dimension(:) :: array3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
@@ -3131,28 +3146,30 @@ def test_fparser2astprocessor_process_declarations_array_attributes(
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
     assert fake_parent.symbol_table.lookup("array3").access == 'read_arg'
 
-    reader = FortranStringReader("integer, dimension(3,5) :: array4")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("array4").name == "array4"
-    assert fake_parent.symbol_table.lookup("array4").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("array4").shape == [3, 5]
-    assert fake_parent.symbol_table.lookup("array4").access == 'local'
 
-    reader = FortranStringReader("integer, dimension(*) :: array5")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert "Assumed-size arrays are not supported." in str(error.value)
+def test_fparser2astprocessor_parse_array_dimensions_unhandled(
+        f2008_parser, monkeypatch):
+    '''Test that process_declarations method parses multiple specifications
+    of array attributes.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Dimension_Attr_Spec
+    import fparser
 
-    reader = FortranStringReader("integer, dimension(var1) :: array5")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert ("Only integer literals are supported for explicit shape array"
-            " declarations.") in str(error.value)
+    def walk_ast_return(arg1, arg2):
+        class invalid:
+            pass
+        newobject = invalid()
+        return [newobject]
+
+    monkeypatch.setattr(fparser.two.utils, 'walk_ast', walk_ast_return)
+
+    reader = FortranStringReader("dimension(:)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    with pytest.raises(InternalError) as error:
+        shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    assert "Reached end of loop body and" in str(error.value)
+    assert " has not been handled." in str(error.value)
 
 
 def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):

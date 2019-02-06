@@ -4356,6 +4356,50 @@ class Fparser2ASTProcessor(object):
 
         return new_schedule
 
+    @staticmethod
+    def _parse_dimensions(dimensions):
+        '''
+        Parse the fparser dimension attribute into a shape list with
+        the extent of each dimension.
+
+        :param dimensions: fparser dimension attribute
+        :type dimensions:
+            :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
+        :return: Shape of the attribute in row-major order (leftmost \
+                 index is contiguous in memory). Each entry represents \
+                 an array dimension. If it is 'None' the extent of that \
+                 dimension is unknown, otherwise it holds an integer \
+                 with the extent. If it is an empy list then the symbol \
+                 represents a scalar.
+        :rtype: list
+        '''
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+        shape = []
+        for dim in walk_ast(dimensions.items, [Fortran2003.Assumed_Shape_Spec,
+                                               Fortran2003.Explicit_Shape_Spec,
+                                               Fortran2003.Assumed_Size_Spec]):
+            if isinstance(dim, Fortran2003.Assumed_Size_Spec):
+                raise NotImplementedError(
+                    "Could not process {0}. Assumed-size arrays"
+                    " are not supported.".format(dimensions))
+            elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
+                shape.append(None)
+            elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
+                if isinstance(dim.items[1],
+                              Fortran2003.Int_Literal_Constant):
+                    shape.append(int(dim.items[1].items[0]))
+                else:
+                    raise NotImplementedError(
+                        "Could not process {0}. Only integer "
+                        "literals are supported for explicit shape"
+                        " array declarations.".format(dimensions))
+            else:
+                raise InternalError(
+                    "Reached end of loop body and {0} has"
+                    " not been handled.".format(type(dim)))
+        return shape
+
     def process_declarations(self, parent, nodes, arg_list):
         '''
         Transform the variable declarations in fparser2 parse tree into
@@ -4426,27 +4470,7 @@ class Fparser2ASTProcessor(object):
                             "Could not process {0}. Unrecognized attribute "
                             "'{1}'.".format(decl.items, str(attr)))
                 elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                    for dim in walk_ast(attr.items,
-                                        [Fortran2003.Assumed_Shape_Spec,
-                                         Fortran2003.Explicit_Shape_Spec,
-                                         Fortran2003.Assumed_Size_Spec]):
-                        if isinstance(dim, Fortran2003.Assumed_Size_Spec):
-                            raise NotImplementedError(
-                                "Could not process {0}. Assumed-size arrays"
-                                " are not supported.".format(decl.items))
-                        elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
-                            shape.append(None)
-                        elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
-                            if isinstance(dim.items[1],
-                                          Fortran2003.Int_Literal_Constant):
-                                shape.append(int(dim.items[1].items[0]))
-                            else:
-                                raise NotImplementedError(
-                                    "Could not process {0}. Only integer "
-                                    "literals are supported for explicit shape"
-                                    " array declarations.".format(decl.items))
-                        else:
-                            InternalError("")
+                    shape = self._parse_dimensions(attr)
                 else:
                     raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
