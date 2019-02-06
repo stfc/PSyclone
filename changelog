@@ -1,3 +1,6 @@
+	11) #272 and PR #277. Adds an implicit-to-explicit-loop
+	transformation for the nemo API.
+
 	10) #174 and PR #216. Adds the ability to generate an OpenCL PSy
 	layer in the gocean1.0 API (including an OpenCL transformation).
 

@@ -1279,6 +1279,40 @@ TBD
 .. Create third transformtion which goes over all loops in a schedule and
 .. applies the OpenMP loop transformation.
 
+NEMO
+====
+
+Implicit Loops
+--------------
+
+When constructing the PSyIR of NEMO source code, PSyclone identifies loops
+that are implied by the use of Fortran array notation. Such use of array
+notation is encouraged in the NEMO Coding Conventions :cite:`nemo_code_conv`
+and identifying these loops can be important when introducing, e.g. OpenMP.
+
+However, not all uses of Fortran array notation in NEMO imply a
+loop. For instance,
+::
+
+   ascalar = afunc(twodarray1(:,:))
+
+means that the function ``afunc`` is passed the (whole of the)
+``twodarray1`` and returns a scalar value. (The requirement for
+explicit array shapes in the NEMO Coding Convention means that any
+quantity without such a shape must therefore be a scalar.)
+
+Alternatively, a statement that assigns to an array must imply a loop::
+
+  twodarray2(:,:) = bfunc(twodarray1(:,:))
+
+but it can only be converted into an explicit loop by PSyclone if the
+function ``bfunc`` returns a scalar. Since PSyclone does not currently
+attempt to fully resolve all symbols when parsing NEMO code, this
+information is not available and therefore such statements are not
+identified as loops (issue
+https://github.com/stfc/PSyclone/issues/286). This may then mean that
+opportunities for optimisation are missed.
+
 Modules
 #######
 
