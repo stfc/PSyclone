@@ -4439,16 +4439,21 @@ class Fparser2ASTProcessor(object):
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
 
-            # Parse type_spec, currently just 'real' and 'integer' intrinsic
-            # types are supported.
+            # Parse type_spec, currently just 'real', 'integer' and
+            # 'character' intrinsic types are supported.
             datatype = None
             if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
                 if str(type_spec.items[0]).lower() == 'real':
                     datatype = 'real'
                 elif str(type_spec.items[0]).lower() == 'integer':
                     datatype = 'integer'
-            if not datatype:
-                raise NotImplementedError("")
+                elif str(type_spec.items[0]).lower() == 'character':
+                    datatype = 'character'
+            if datatype is None:
+                raise NotImplementedError(
+                        "Could not process {0}. Only 'real', 'integer' "
+                        "and 'character' intrinsic types are supported."
+                        "".format(str(decl.items)))
 
             # Parse declaration attributes
             shape = []  # If no dimension is provided, it is a scalar
@@ -4753,12 +4758,15 @@ class Symbol(object):
     # Tuple with the valid values for the access attribute.
     valid_access_types = ('local', 'external', 'read_arg', 'write_arg',
                           'readwrite_arg')
+    # Tuple with the valid datatypes.
+    valid_data_types = ('real', 'integer', 'character')
 
     def __init__(self, name, datatype, shape=[], access='local'):
 
-        if datatype not in ('real', 'integer'):
-            raise NotImplementedError("Symbol can only be initialized with "
-                                      "'real' or 'integer' datatypes.")
+        if datatype not in Symbol.valid_data_types:
+            raise NotImplementedError(
+                "Symbol can only be initialized with {0} datatypes."
+                "".format(str(Symbol.valid_data_types)))
 
         if not isinstance(shape, list):
             raise TypeError("Symbol shape attribute must be a list.")

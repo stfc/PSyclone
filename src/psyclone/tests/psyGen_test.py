@@ -2692,8 +2692,8 @@ def test_symbol_initialization():
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
-    assert ("Symbol can only be initialized with 'real' "
-            "or 'integer' datatypes.")in str(error.value)
+    assert ("Symbol can only be initialized with {0} datatypes."
+            "".format(str(Symbol.valid_data_types)))in str(error.value)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', [], 'invalidaccess')
@@ -3008,6 +3008,23 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l2").shape == []
     assert fake_parent.symbol_table.lookup("l2").access == 'local'
 
+    # Test with unsupported data type
+    reader = FortranStringReader("logical      ::      c2")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process " in str(error.value)
+    assert (". Only 'real', 'integer' and 'character' intrinsic types are"
+            " supported.") in str(error.value)
+
+    # Test with unsupported attribute
+    reader = FortranStringReader("real, public :: p2")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process " in str(error.value)
+    assert "Unrecognized attribute type " in str(error.value)
+
     # RHS array specifications are not supported
     reader = FortranStringReader("integer :: l1(4)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -3031,10 +3048,10 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
                                  "\nend program")
     program = f2008_parser(reader)
     fparser2spec = program.content[0].content[1].content[0]
-    # with pytest.raises(NotImplementedError) as error:
-    #    processor.process_declarations(fake_parent, [fparser2spec], [])
-    # assert ("Character length specifications are not "
-    #        "supported.") in str(error.value)
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Character length specifications are not "
+            "supported.") in str(error.value)
 
 
 def test_fparser2astprocessor_process_not_supported_declarations(f2008_parser):
