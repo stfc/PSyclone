@@ -4527,9 +4527,9 @@ class Fparser2ASTProcessor(object):
             :param list nodelist: List of fparser2 nodes.
             :param type typekind: The fparse2 Type we are searching for.
             '''
-            for x in nodelist:
-                if isinstance(x, typekind):
-                    return x
+            for node in nodelist:
+                if isinstance(node, typekind):
+                    return node
             raise ValueError  # Type not found
 
         def search_subroutine(nodelist, searchname):
@@ -4540,10 +4540,10 @@ class Fparser2ASTProcessor(object):
             :param list nodelist: List of fparser2 nodes.
             :param str searchname: Name of the subroutine we are searching for.
             '''
-            for x in nodelist:
-                if (isinstance(x, Fortran2003.Subroutine_Subprogram) and
-                   str(x.content[0].get_name()) == searchname):
-                    return x
+            for node in nodelist:
+                if (isinstance(node, Fortran2003.Subroutine_Subprogram) and
+                   str(node.content[0].get_name()) == searchname):
+                    return node
             raise ValueError  # Subroutine not found
 
         new_schedule = KernelSchedule(name)
@@ -4556,8 +4556,10 @@ class Fparser2ASTProcessor(object):
                                       "module definition per file supported."
                                       "".format(name))
             mod_content = module_ast.content[0].content
-            mod_spec = first_type_match(mod_content,
-                                        Fortran2003.Specification_Part)
+            # TODO: Metadata can be also accessed for validation (issue #288)
+            # using:
+            # mod_spec = first_type_match(mod_content,
+            #                            Fortran2003.Specification_Part)
         except (ValueError, IndexError):
             raise GenerationError("Unexpected kernel AST when generating "
                                   "'{0}' kernel schedule. Could not find the "
@@ -4670,11 +4672,9 @@ class Fparser2ASTProcessor(object):
             '''
             if nodes is None:
                 return []
-            else:
-                if type(nodes).__name__.endswith("_List"):
-                    return nodes.items
-                else:
-                    return [nodes]
+            if type(nodes).__name__.endswith("_List"):
+                return nodes.items
+            return [nodes]
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -4974,9 +4974,14 @@ class Symbol(object):
     access characterisctics. The symbol access can be:
         - 'local': Variable that just exist in the kernel scope.
         - 'external': Global variable.
-        - 'read_arg': Kernel argument which is only read.
-        - 'write_arg': Kernel argument which is only written.
-        - 'readwrite_arg': Kernel argument which is read and written.
+        - 'read_arg': It is initialised on entry to the kernel and it remains \
+                      constant.
+        - 'write_arg': It is not initialised on entry to the kenrel (and \
+                       therefore it needs to be written before it can we \
+                       read) and it will be used to return data to the \
+                       kernel caller.
+        - 'readwrite_arg': It is initialised on entry to the kernel and it \
+                           will be used to return data to the kernel caller.
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
