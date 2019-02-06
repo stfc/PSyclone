@@ -113,7 +113,7 @@ def test_code_block():
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
 
-    assert ("  INTEGER :: psy_jk\n"
+    assert ("  REAL, ALLOCATABLE, DIMENSION(:, :, :) :: umask\n"
             "  !$ACC DATA COPYOUT(umask)\n"
             "  WRITE(*, FMT = *) \"Hello world\"") in gen_code
 
@@ -137,7 +137,7 @@ def test_code_block_noalloc():
 
     assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
             "  !$ACC DATA COPYOUT(umask)\n"
-            "  DO psy_jk = 1, jpk, 1") in gen_code
+            "  umask(1, 1, :) = 0.0D0\n") in gen_code
 
     assert ("  END DO\n"
             "  !$ACC END DATA\n"
@@ -164,7 +164,7 @@ def test_code_block_noalloc_kernels():
     assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
             "  !$ACC DATA COPYOUT(umask)\n"
             "  !$ACC KERNELS DEFAULT(PRESENT)\n"
-            "  DO psy_jk = 1, jpk, 1") in gen_code
+            "  umask(1, 1, :) = 0.0D0\n") in gen_code
 
     assert ("  END DO\n"
             "  !$ACC END KERNELS\n"
@@ -201,13 +201,14 @@ def test_array_syntax():
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
 
-    assert ("  INTEGER :: psy_ji\n"
+    assert ("  REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdit, zdjt, "
+            "zftu, zftv, ztfw\n"
             "  !$ACC DATA COPYOUT(zftv,zftu)\n"
-            "  DO psy_jk = 1, jpk, 1") in gen_code
+            "  zftv(:, :, :) = 0.0D0" in gen_code)
 
-    assert ("  END DO\n"
+    assert ("  zftu(:, :, 1) = 1.0D0\n"
             "  !$ACC END DATA\n"
-            "END SUBROUTINE tra_ldf_iso") in gen_code
+            "END SUBROUTINE tra_ldf_iso" in gen_code)
 
 
 def test_multi_data():
@@ -253,19 +254,11 @@ def test_replicated_loop():
     gen_code = str(psy.gen)
 
     assert ("  !$ACC DATA COPYOUT(zwx)\n"
-            "  DO psy_jj = 1, jpj, 1\n"
-            "    DO psy_ji = 1, jpi, 1\n"
-            "      zwx(psy_ji, psy_jj) = 0.E0\n"
-            "    END DO\n"
-            "  END DO\n"
+            "  zwx(:, :) = 0.E0\n"
             "  !$ACC END DATA\n"
             "  !$ACC DATA COPYOUT(zwx)\n"
-            "  DO psy_jj = 1, jpj, 1\n"
-            "    DO psy_ji = 1, jpi, 1\n"
-            "      zwx(psy_ji, psy_jj) = 0.E0\n"
-            "    END DO\n"
-            "  END DO\n"
-            "  !$ACC END DATA") in gen_code
+            "  zwx(:, :) = 0.E0\n"
+            "  !$ACC END DATA" in gen_code)
 
 
 def test_data_ref():
