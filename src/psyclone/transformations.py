@@ -64,13 +64,19 @@ class TransformationError(Exception):
         return repr(self.value)
 
 
-# =============================================================================
+@six.add_metaclass(abc.ABCMeta)
 class RegionTrans(Transformation):
-    '''This class is a base class for all transforms that act on list of
-    nodes. It gives access to a _validate function that makes sure that
-    the nodes in the list are in the same order as in the original AST,
-    no node is duplicated, and that all nodes have the same parent.
+    '''This abstract class is a base class for all transforms that act on
+    a list of nodes. It gives access to a _validate function that
+    makes sure that the nodes in the list are in the same order as in
+    the original AST, no node is duplicated, and that all nodes have
+    the same parent. We also check that all nodes to be enclosed are
+    valid for this transformation.
+
     '''
+    # The types of Node that we support within this region. Must be
+    # populated by sub-class.
+    valid_node_types = ()
 
     # Avoid pylint warning about abstract functions (apply, name) not
     # overwritten:
@@ -100,6 +106,15 @@ class RegionTrans(Transformation):
                     "position {2}."
                     .format(str(child), child.position, prev_position))
             prev_position = child.position
+
+        # Check that the proposed region contains only supported node types
+        for child in node_list:
+            flat_list = [child] + child.walk(child.children, object)
+            for item in flat_list:
+                if not isinstance(item, self.valid_node_types):
+                    raise TransformationError(
+                        "Nodes of type '{0}' cannot be enclosed by a {1} "
+                        "transformation".format(type(item), self.name))
 
 
 # =============================================================================
@@ -1520,6 +1535,9 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> newschedule.view()
 
     '''
+    from psyclone import psyGen
+    valid_node_types = (psyGen.Loop, psyGen.Kern)
+
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
         from psyclone.psyGen import OMPParallelDirective
@@ -2665,6 +2683,9 @@ class ACCKernelsTrans(RegionTrans):
     >>> new_sched, _ = ktrans.apply(kernels)
 
     '''
+    from psyclone import psyGen
+    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.ACCDirective)
+
     @property
     def name(self):
         '''
@@ -2746,6 +2767,11 @@ class ACCDataTrans(RegionTrans):
     >>> new_sched, _ = dtrans.apply(kernels)
 
     '''
+    from psyclone import nemo, psyGen
+    # The types of Node that we support within this region
+    valid_node_types = (nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
+                        nemo.NemoIfClause, psyGen.ACCKernelsDirective)
+
     @property
     def name(self):
         '''
@@ -2812,16 +2838,6 @@ class ACCDataTrans(RegionTrans):
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
                 "already contains an 'enter data' directive.")
-        for node in node_list:
-            if isinstance(node, ACCDataDirective):
-                raise TransformationError(
-                    "Cannot enclose an OpenACC data region within another "
-                    "OpenACC data region.")
-            data_dirs = node.walk(node.children, ACCDataDirective)
-            if data_dirs:
-                raise TransformationError(
-                    "Cannot enclose an OpenACC data region within another "
-                    "OpenACC data region.")
 
 
 class NemoExplicitLoopTrans(Transformation):
