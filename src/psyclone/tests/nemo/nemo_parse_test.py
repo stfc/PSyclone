@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,10 @@
 
 from __future__ import print_function, absolute_import
 import os
-from fparser.two.utils import walk_ast
-from psyclone.parse import parse
 from psyclone import nemo
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.utils import walk_ast
+from fparser.two import Fortran2003
 
 # Constants
 API = "nemo"
@@ -48,12 +49,25 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
 
 
-def test_identify_implicit_loop():
+def test_identify_implicit_loop(parser):
     ''' Check that we correctly identify implicit loops in the fparser2 AST '''
-    from fparser.two import Fortran2003
-    _, ast = parse(os.path.join(BASE_PATH, "code_block.f90"),
-                   api=API, line_length=False)
+    reader = FortranStringReader("program test_prog\n"
+                                 "umask(:, :, :, :) = 0.0D0\n"
+                                 "do jk = 1, jpk\n"
+                                 "  umask(1,1,jk) = -1.0d0\n"
+                                 "end do\n"
+                                 "end program test_prog\n")
+    ast = parser(reader)
     assert not nemo.NemoImplicitLoop.match(ast)
     stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
     assert not nemo.NemoImplicitLoop.match(stmts[1])
     assert nemo.NemoImplicitLoop.match(stmts[0])
+
+
+def test_not_implicit_loop():
+    ''' Check we do not incorrectly identify an implicit loop when array
+    notation is used in the arguments to a function call. '''
+    code = "z3d(1,:,:) =  ptr_sjk( pvtr(:,:,:), btmsk(:,:,jn)*btm30(:,:) )"
+    reader = FortranStringReader(code)
+    assign = Fortran2003.Assignment_Stmt(reader)
+    assert not nemo.NemoImplicitLoop.match(assign)

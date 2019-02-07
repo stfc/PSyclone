@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018, Science and Technology Facilities Council
+.. Copyright (c) 2018-2019, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ Constructing the PSyIRe
 -----------------------
 
 Transformations in PSyclone are applied to an Internal Representation,
-the "PSyIRe." In contrast to the other APIs where the PSyIRe is
+the "PSyIR." In contrast to the other APIs where the PSyIR is
 constructed from scratch, for NEMO PSyclone must parse the existing
 Fortran and create a higher-level representation of it. This is done
 using rules based upon the NEMO Coding Conventions :cite:`nemo_code_conv`.
@@ -94,30 +94,41 @@ Implicit
 ^^^^^^^^
 
 The use of Fortran array notation is encouraged in the NEMO Coding
-Conventions and is employed throughout the NEMO code base. PSyclone
-therefore also recognises the loops implied by this notation. The type
-of loop is inferred from the position of the colon in the array
-subscripts. Since NEMO uses `(ji,jj,jk)` index ordering (longitude,
-latitude, levels) this means that loop types are determined
-according to the following table:
+Conventions :cite:`nemo_code_conv` (section 4.2) and is employed
+throughout the NEMO code base. The Coding Conventions mandate that the
+shape of every array in such expressions must be specified, e.g.::
 
-===========  ===============  ===========
-Array index  Loop type        Loop limits
-===========  ===============  ===========
-1            Longitude        1, jpi
-2            Latitude         1, jpj
-3            Vertical levels  1, jpk
-===========  ===============  ===========
+    onedarraya(:) = onedarrayb(:) + onedarrayc(:)
+    twodarray (:,:) = scalar * anothertwodarray(:,:)
 
-Currently PSyclone will convert every implicit loop it encounters in
-one of these dimensions into an explicit loop over the full
-sub-domain. This is because it has been found by CMCC and Intel that
-the Intel compiler is better able to OpenMP-parallelise explicit loops.
-However, as with all compiler-specific optimisations, this situation
-may change and will depend on the compiler being used.
+PSyclone therefore also recognises the loops implied by this
+notation.
 
-If an implicit loop is encountered in an array index other than 1-3 then
-currently PSyclone will raise an error.
+It has been found by CMCC and Intel that the Intel compiler is better
+able to OpenMP-parallelise explicit loops.  Therefore, PSyclone
+provides a transformation to allow the user to convert implicit loops
+into explicit loop nests (see :ref:`nemo-transformations`). However,
+as with all compiler-specific optimisations, whether or not this
+transformation is beneficial will depend on the precise details of the
+compiler being used.
+
+Note, not all uses of Fortran array notation in NEMO imply a loop. For
+instance::
+
+  ascalar = afunc(twodarray(:,:))
+
+is actually a function call which is passed a reference to ``twodarray``.
+However, if the quantity being assigned to is actually an array, e.g.::
+
+  twodarray2(:,:) = afunc(twodarray(:,:))
+
+then this does represent a loop. However, currently PSyclone does not
+recognise any occurrences of array notation that are themselves within
+an array access or function call. It is therefore not yet possible to
+transform such implicit loops into explicit loops. It is hoped that this
+limitation will be removed in future releases of PSyclone by adding the
+ability to discover the interface to functions such as ``afunc`` and thus
+determining whether they return scalar or array quantities.
 
 Example
 -------
@@ -138,26 +149,49 @@ routine) is shown below::
             END DO
          END DO
 
-PSyclone uses fparser2 to parse such source code and then generates an
-internal representation of it::
-  
+PSyclone uses fparser2 to parse such source code and then generates the PSy
+Internal Representation of it::
+
     Loop[type='tracers',field_space='None',it_space='None']
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 KernCall[Implicit]
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 KernCall[Implicit]
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 KernCall[Implicit]
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 KernCall[Implicit]
-         Loop[type='levels',field_space='None',it_space='None']
-             Loop[type='lat',field_space='None',it_space='None']
-                 Loop[type='lon',field_space='None',it_space='None']
-                     KernCall[]
+        Loop[type='None',field_space='None',it_space='None']
+        Loop[type='None',field_space='None',it_space='None']
+        Loop[type='None',field_space='None',it_space='None']
+        Loop[type='None',field_space='None',it_space='None']
+        Loop[type='levels',field_space='None',it_space='None']
+            Loop[type='lat',field_space='None',it_space='None']
+                Loop[type='lon',field_space='None',it_space='None']
+                    KernCall[Explicit]
+
+.. _nemo-transformations:
+
+Transformations
+---------------
+
+This section describes the transformations that are specific to the
+NEMO API. For an overview of transformations in general see
+:ref:`transformations`.
+
+
+.. autoclass:: psyclone.transformations.NemoExplicitLoopTrans
+   :members:
+   :noindex:
+
+The type of the loop being transformed is inferred from the position
+of the colon(s) in the array subscripts. Since NEMO uses `(ji,jj,jk)`
+index ordering (longitude, latitude, levels) this means that loop
+types are determined according to the following table:
+
+===========  ===============  ===========
+Array index  Loop type        Loop limits
+===========  ===============  ===========
+1            Longitude        1, jpi
+2            Latitude         1, jpj
+3            Vertical levels  1, jpk
+===========  ===============  ===========
+
+If this transformation encounters an implicit loop in an array index
+other than 1-3 then currently PSyclone will raise an error.
+
 
 .. _limitations:
 
@@ -167,8 +201,8 @@ Limitations
 The NEMO API is currently only a prototype implementation. Here
 we list the current, known limitations/issues:
 
- 1. When converting implicit loops into explicit loops, the
-    declaration of the loop variables is repeated (there is an
+ 1. When transforming implicit loops into explicit loops, the
+    declaration of the loop variables can be repeated (there is an
     x-failing test for this);
  2. Scalar variables inside loops are not made private when
     parallelising using OpenMP;
@@ -184,9 +218,11 @@ we list the current, known limitations/issues:
  7. Loops are currently only permitted to contain one kernel.  This
     restriction will have to be lifted in order to permit loop fusion;
  8. Array slices with specified bounds (e.g. umask(1:10)) are not yet
-    supported and will raise an exception;
+    supported and will raise a TransformationError when attempting to
+    transform them into explicit loops;
  9. When generating new variable names, no attempt is made to avoid
-    clashing with variables already present in the NEMO source.
+    clashing with variables already present in the NEMO source. This
+    will be resolved once a symbol table is available (#255).
  10. The psyGen.Node base class now has an _ast property to hold a
      pointer into the associated fparser2 AST. However, the psyGen.Kern
      class already has an _fp2_ast property that points to the whole
