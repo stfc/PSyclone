@@ -790,6 +790,7 @@ class NemoIfClause(IfClause, NemoFparser2ASTProcessor):
         # code (we manipulate existing code instead).
         raise InternalError("This method should not have been called!")
 
+
 class NemoACCEnterDataDirective(ACCEnterDataDirective):
     ''' '''
     def data_on_device(self, parent):
@@ -798,5 +799,6 @@ class NemoACCEnterDataDirective(ACCEnterDataDirective):
 
     def update(self):
         ''' '''
+        # TODO this method is not used by any of the tests.
         start_text = "!$ACC DATA"
         self.add_region(start_text, start_index=0)

@@ -2458,7 +2458,6 @@ class ACCEnterDataTrans(Transformation):
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
         '''
-        from psyclone.psyGen import ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOSchedule
         from psyclone.nemo import NemoSchedule
 
