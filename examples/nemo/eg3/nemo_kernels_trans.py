@@ -90,6 +90,7 @@ def add_kernels(children):
                      inclusion in an ACC KERNELS region.
     :type children: list of :py:class:`psyclone.psyGen.Node`
     '''
+    from psyclone.nemo import NemoLoop
     if not children:
         return
 
@@ -105,7 +106,17 @@ def add_kernels(children):
         else:
             node_list.append(child)
     if node_list:
-        _, _ = ACC_KERN_TRANS.apply(node_list, default_present=True)
+        # Does our list of nodes contain any loops?
+        have_loops = False
+        for node in node_list:
+            if isinstance(node, NemoLoop):
+                have_loops = True
+            else:
+                loops = node.walk(node.children, NemoLoop)
+                have_loops = bool(loops)
+            if have_loops:
+                _, _ = ACC_KERN_TRANS.apply(node_list, default_present=True)
+                break
 
 
 def trans(psy):
