@@ -1771,11 +1771,37 @@ class MoveTrans(Transformation):
 
 class ExtractRegionTrans(RegionTrans):
     ''' Provides a transformation to extract code contained within one
-    or more nodes in the tree.
+    or more nodes in the tree. For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> from psyclone.transformations import ExtractRegionTrans
+    >>>
+    >>> TEST_API = "dynamo0.3"
+    >>> TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3")
+    >>> _, invoke_info = parse(os.path.join(TEST_PATH,
+    >>>                                     "15.1.2_builtin_and_normal_kernel_"
+    >>>                                     "invoke.f90"),
+    >>>                        api=TEST_API)
+    >>> psy = PSyFactory(TEST_API,
+    >>>                  distributed_memory=False).create(invoke_info)
+    >>> invoke = psy.invokes.get('invoke_0')
+    >>> schedule = invoke.schedule
+    >>>
+    >>> etrans = ExtractRegionTrans()
+    >>>
+    >>> # Apply Extract Transformation to selected Nodes
+    >>> newsched, _ = etrans.apply(schedule.children[0:3])
+    >>> newsched.view()
 
     Nodes to extract can be individual constructs within an invoke (e.g.
     (kernel or built-in) or entire invokes. For now, this functionality
     does not include distributed memory.
+
+    Extraction is subject to the following rules:
+
+    Colouring in the Dynamo 0.3 API
 
     '''
 
@@ -1793,21 +1819,77 @@ class ExtractRegionTrans(RegionTrans):
         :param node: the node we are checking.
         :type node: list of :py:class:`psyclone.psyGen.Node`.
         :raises TransformationError: if distributed memory is configured.
+        :raises TransformationError: if extraction starts with loop over
+                                     cells in a colour for Dynamo0.3 API
+                                     coloured loops.
         '''
 
         # First check constraints on nodes in the node_list common to
         # all RegionTrans transformations
         super(ExtractRegionTrans, self)._validate(node_list)
 
-        # Check ExtractRegionTrans specific constraints
+        # Check ExtractRegionTrans specific constraints.
+        from psyclone.psyGen import Loop, Kern, BuiltIn, Directive, \
+            OMPDoDirective, ACCLoopDirective
+        from psyclone.dynamo0p3 import DynLoop
+        from psyclone.extractor import ExtractNode
+        
         # Extracting distributed memory code is not supported. This
         # constraint covers the presence of HaloExchange and GlobalSum
         # classses as they are only generated when distributed memory
         # is enabled.
         if Config.get().distributed_memory:
-            raise TransformationError("{0} transformation does not "
-                                      "currently support distributed memory.".
-                                      format(str(self.name)))
+            raise TransformationError(
+                "Error in {0}: Distributed memory is not supported."
+                .format(str(self.name)))
+
+        # Now check constrains for individual Nodes in node list
+        for node in node_list:
+
+            # Check that an ExtractNode is not already in the node list
+            # marked for extraction. Otherwise we would have extract
+            # region within another extract region.
+            if node.walk(node.children, ExtractNode) or \
+               isinstance(node, ExtractNode):
+                raise TransformationError(
+                    "Error in {0}: Extraction of a region which already "
+                    "contains another Extract region is not allowed."
+                    .format(str(self.name)))
+
+            # Check that ExtractNode is not inserted between a Kernel
+            # call and its parent Loop.
+            if isinstance(node, (Kern, BuiltIn)) and \
+               isinstance(node.parent, Loop):
+                raise TransformationError(
+                    "Error in {0}: Extraction of a Kernel or a Built-in "
+                    "call without its parent Loop is not allowed."
+                    .format(str(self.name)))
+
+            # Check that ExtractNode is not inserted between a Loop and
+            # its parent Directive when optimisations are applied.
+            if isinstance(node, Loop) and isinstance(node.parent, Directive):
+                raise TransformationError(
+                    "Error in {0}: Extraction of a Loop without its parent "
+                    "Directive is not allowed.".format(str(self.name)))
+
+            # Check that ExtractNode is not inserted between an orphaned
+            # Directive (e.g. OMPDoDirective, ACCLoopDirective) and its
+            # parent Directive (e.g. ACC or OMP Parallel Directive) when
+            # optimisations are applied. 
+            if isinstance(node, (OMPDoDirective, ACCLoopDirective)):
+                raise TransformationError(
+                    "Error in {0}: Extraction of an orphaned Directive "
+                    "without its parent Directive is not allowed."
+                    .format(str(self.name)))
+
+            # Dynamo0.3 API constraint: Check that ExtractNode is not
+            # inserted between a Loop over colours and a Loop over cells
+            # in a colour when colouring is applied.
+            if isinstance(node, DynLoop) and node.loop_type == 'colour':
+                raise TransformationError(
+                    "Error in {0}: Extraction of a Loop over cells in a "
+                    "colour without the parent Loop over colours is not "
+                    "allowed.".format(str(self.name)))
 
     def apply(self, nodes):
         ''' Extract the nodes represented by :py:obj:`node`. Exceptions

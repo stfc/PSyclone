@@ -62,47 +62,366 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 GOCEAN_API = "gocean1.0"
 
 
-def test_extractregiontrans_errors():
-    ''' Test that applying ExtractRegionTrans with distributed memory
-    enabled produces an error.
+def test_extract_node():
     '''
-    dist_mem = False
+    Test that ExtractRegionTrans on a single Node in a Schedule produces
+    the correct result. '''
+    etrans = ExtractRegionTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API,
+                     distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    schedule, _ = etrans.apply(schedule.children[0])
+    code = str(psy.gen)
+    output = (
+        "      ! CALL write_extract_arguments(argument_list)\n"
+        "      !\n"
+        "      ! ExtractStart\n"
+        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
+        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "      END DO \n"
+        "      ! ExtractEnd\n")
+    assert output in code
+
+
+def test_extract_node_list():
+    ''' Test that applying ExtractRegionTrans on a list of Nodes produces
+    the correct result. '''
     etrans = ExtractRegionTrans()
 
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
                                         "15.1.2_builtin_and_normal_kernel_"
                                         "invoke.f90"),
-                    api=DYNAMO_API)
+                           api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API,
-                     distributed_memory=dist_mem).create(invoke_info)
+                     distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    schedule.view()
-    for kernel in schedule.walk(schedule.children, DynKern):
-        print(kernel.name)
-    #schedule = Extractor.extract_kernel(schedule, "testkern_wtheta_code")
-    #schedule.view()
+
     schedule, _ = etrans.apply(schedule.children[0:3])
-    schedule.view()
-    assert "blah" in schedule
+    code = str(psy.gen)
+    output = (
+        "      ! CALL write_extract_arguments(argument_list)\n"
+        "      !\n"
+        "      ! ExtractStart\n"
+        "      DO df=1,undf_any_space_1_f5\n"
+        "        f5_proxy%data(df) = 0.0\n"
+        "      END DO \n"
+        "      DO df=1,undf_any_space_1_f2\n"
+        "        f2_proxy%data(df) = 0.0\n"
+        "      END DO \n"
+        "      DO cell=1,f3_proxy%vspace%get_ncell()\n"
+        "        !\n"
+        "        CALL testkern_code_w2_only(nlayers, f3_proxy%data, "
+        "f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))\n"
+        "      END DO \n"
+        "      ! ExtractEnd\n")
+    assert output in code
 
 
-def test_distmem_errors():
+def test_distmem_error():
     ''' Test that applying ExtractRegionTrans with distributed memory
-    enabled produces an error (specific to extract transformation).
-    '''
+    enabled raises a TransformationError. '''
     etrans = ExtractRegionTrans()
+
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
                                         "1_single_invoke.f90"),
                            api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[3])
-    assert ("ExtractRegionTrans transformation does not currently "
-            "support distributed memory") in str(excinfo.value)
+    assert ("Error in ExtractRegionTrans: Distributed memory is not "
+            "supported.") in str(excinfo.value)
 
+
+def test_repeat_extract_error():
+    ''' Test that applying ExtractRegionTrans on a node list that already
+    contains an ExtractNode raises a TransformationError. '''
+    etrans = ExtractRegionTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # Apply Extract transformation
+    schedule, _ = etrans.apply(schedule.children[0])
+    # Now try applying it again on the ExtractNode
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = etrans.apply(schedule.children[0])
+    assert ("Error in ExtractRegionTrans: Extraction of a region which "
+            "already contains another Extract region is not allowed.") \
+        in str(excinfo.value)
+
+
+def test_extract_kern_builtin_no_loop_error():
+    ''' Test that applying ExtractRegionTrans on a Kernel call without
+    its parent Loop raises a TransformationError. '''
+    etrans = ExtractRegionTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "15.1.2_builtin_and_normal_kernel_"
+                                        "invoke.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # Test Kernel call
+    child = schedule.children[3].children[0]
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = etrans.apply(child)
+    assert ("Extraction of a Kernel or a Built-in call without its "
+            "parent Loop is not allowed.") in str(excinfo.value)
+    # Test Built-in call
+    child = schedule.children[1].children[0]
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = etrans.apply(child)
+    assert ("Extraction of a Kernel or a Built-in call without its "
+            "parent Loop is not allowed.") in str(excinfo.value)
+
+
+def test_loop_no_directive_error():
+    ''' Test that applying ExtractRegionTrans on a Loop without its parent
+    Directive when optimisations are applied raises a TransformationError.
+    Note: Needs examples for GOcean and NEMO !!!!'''
+    etrans = ExtractRegionTrans()
+
+    from psyclone.transformations import DynamoOMPParallelLoopTrans
+    otrans = DynamoOMPParallelLoopTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "4.13_multikernel_invokes_w3.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # Apply DynamoOMPParallelLoopTrans to each Loop
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            schedule, _ = otrans.apply(child)
+
+    child = schedule.children[1].children[0]
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = etrans.apply(child)
+    assert ("Extraction of a Loop without its parent Directive is not "
+            "allowed.") in str(excinfo.value)
+
+
+def test_orphaned_directive_error():
+    ''' Test that applying ExtractRegionTrans on an orphaned Directive 
+    without its parent Directive when optimisations are applied raises
+    a TransformationError.
+    Note: Needs examples for GOcean and NEMO (ACCLoopDirective) !!!!'''
+    etrans = ExtractRegionTrans()
+
+    from psyclone.transformations import OMPParallelTrans, \
+        Dynamo0p3OMPLoopTrans
+
+    ltrans = Dynamo0p3OMPLoopTrans()
+    otrans = OMPParallelTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "4.13_multikernel_invokes_w3.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # Apply the OpenMP Loop transformation to every loop in the schedule
+    for child in schedule.children:
+        newschedule, _ = ltrans.apply(child)
+    # Enclose all of these loops within a single OpenMP Parallel region
+    schedule, _ = otrans.apply(newschedule.children)
+
+    child = schedule.children[0].children[1]
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = etrans.apply(child)
+    assert ("Extraction of an orphaned Directive without its parent "
+            "Directive is not allowed.") in str(excinfo.value)
+
+
+def test_multi_kernels():
+    ''' This tests extraction of kernels via an interface which needs more work'''
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "4.8_multikernel_invokes.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    # Define name of the kernel to extract
+    kernel_name = "testkern_code"
+    #schedule = Extractor.extract_kernel(schedule, kernel_name, 1)
+    schedule = Extractor.extract_kernel(schedule, kernel_name)
+    schedule.view()
+    output = str(psy.gen)
+    ##print(output)
+    ###assert "random_numbers :: qr\n" in output
+
+
+def test_omp_kernels():
+
+    from psyclone.psyGen import Loop
+    from psyclone.transformations import DynamoOMPParallelLoopTrans
+
+    otrans = DynamoOMPParallelLoopTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "4.13_multikernel_invokes_w3.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+
+    # Apply OpenMP to each of the colour loops
+    oschedule = schedule
+    for child in oschedule.children:
+        if isinstance(child, Loop):
+            schedule, _ = otrans.apply(child)
+
+    schedule.view()
+
+    # Define name of the kernel to extract
+    kernel_name = "testkern_w3_code"
+    schedule = Extractor.extract_kernel(schedule, kernel_name, 0)
+    schedule.view()
+    output = str(psy.gen)
+    #print(output)
+    assert "random_numbers :: qr\n" in output
+
+
+def test_omp_kernels_invalid():
+
+    from psyclone.psyGen import Loop
+    from psyclone.transformations import OMPParallelTrans, \
+        Dynamo0p3OMPLoopTrans
+
+    ltrans = Dynamo0p3OMPLoopTrans()
+    otrans = OMPParallelTrans()
+    etrans = ExtractRegionTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "4.13_multikernel_invokes_w3.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+
+    # Apply the OpenMP Loop transformation to *every* loop
+    # in the schedule
+    for child in schedule.children:
+        newschedule, _ = ltrans.apply(child)
+        schedule = newschedule
+    # Enclose all of these loops within a single OpenMP
+   # PARALLEL region
+    newschedule, _ = otrans.apply(schedule.children)
+    newschedule.view()
+
+    #child = schedule.children[0]
+    child = schedule.children[0].children[1] # - raises TransformationError 
+    #child = schedule.children[0].children[1].children[0] # - raises TransformationError 
+    schedule, _ = etrans.apply(child)
+
+    # Define name of the kernel to extract - this brings up problems 
+    # when there are two kernels with a same name in a parallel region,
+    # as both have the same relative and absolute positions - this 
+    # needs to be better programmed in Extractor.extract_kernel
+    ##kernel_name = "testkern_w3_code"
+    ##schedule = Extractor.extract_kernel(newschedule, kernel_name)
+    schedule.view()
+    output = str(psy.gen)
+    #print(output)
+    assert "random_numbers :: qr\n" in output
+
+
+def test_colouring_kernels():
+
+    from psyclone.transformations import Dynamo0p3ColourTrans
+
+    ctrans = Dynamo0p3ColourTrans()
+    etrans = ExtractRegionTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "4.8_multikernel_invokes.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    schedule.view()
+    child = schedule.children[0]
+    schedule, _ = ctrans.apply(child)
+    child = schedule.children[0]
+    #child = schedule.children[0].children[0] - raises TransformationError
+    schedule, _ = etrans.apply(child)
+    schedule.view()
+    schedule.dag()
+    output = str(psy.gen)
+    ##print(output)
+    assert "random_numbers :: qr\n" in output
+
+
+def test_colouringandopenmp_kernels():
+
+    from psyclone.psyGen import Loop
+    from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
+    from psyclone.transformations import Dynamo0p3ColourTrans, \
+        DynamoOMPParallelLoopTrans
+
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "4.8_multikernel_invokes.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    # Colour all of the loops over cells unless they are on
+    # discontinuous spaces (W3, WTHETA and W2V)
+    cschedule = schedule
+    for child in schedule.children:
+        if isinstance(child, Loop) \
+           and child.field_space.orig_name \
+           not in DISCONTINUOUS_FUNCTION_SPACES \
+           and child.iteration_space == "cells":
+            cschedule, _ = ctrans.apply(child)
+
+    # Then apply OpenMP to each of the colour loops
+    schedule = cschedule
+    schedule.view()
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            if child.loop_type == "colours":
+                schedule, _ = otrans.apply(child.children[0])
+            else:
+                schedule, _ = otrans.apply(child)
+
+    schedule.view()
+    # Define name of the kernel to extract
+    kernel_name = "testkern_code"
+    oschedule = schedule
+    schedule = Extractor.extract_kernel(oschedule, kernel_name)
+    schedule.view()
+    output = str(psy.gen)
+    ##print(output)
+    assert "random_numbers :: qr\n" in output
 
 #def test_extract_view(capsys):
     #''' Test the view method in the ExtractNode class. '''
@@ -127,114 +446,3 @@ def test_distmem_errors():
     #assert gsum
     #ret_str = super(dynamo0p3.DynGlobalSum, gsum).coloured_text
     #assert colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"]) in ret_str
-
-
-#def test_move_extract_trans():
-    #''' Test MoveTrans and ExtractTrans '''
-    #dist_mem = False
-    #_, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        #"15.14.1_multi_aX_plus_Y_builtin.f90"),
-                           #distributed_memory=dist_mem, api=DYNAMO_API)
-    #psy = PSyFactory(DYNAMO_API, distributed_memory=dist_mem).create(invoke_info)
-    #invoke = psy.invokes.invoke_list[0]
-    #schedule = invoke.schedule
-    #schedule.view()
-
-    #for invoke in psy.invokes.invoke_list:
-        #print(invoke.name)
-        ## for child in invoke.schedule.children:
-            ## node = child.children[0]
-            ## print(node.name)
-            ## if isinstance(node, DynKern):
-                ## print("The base name of this kernel is: ")
-                ## print(node._base_name)
-
-    #mtrans = MoveTrans()
-    #etrans = ExtractRegionTrans()
-    #ctrans = Dynamo0p3ColourTrans()
-    #otrans = DynamoOMPParallelLoopTrans()
-
-    ## schedule, _ = mtrans.apply(schedule.children[1],
-                               ## schedule.children[0])
-    #for child in schedule.children:
-        #if isinstance(child, Loop):
-            #schedule, _ = otrans.apply(child)
-
-    #schedule.view()
-
-    #schedule, _ = etrans.apply(schedule.children[1:3])
-    #schedule.view()
-    ## for child in schedule.children:
-        ## print(child.position)
-        ## if isinstance(child, ExtractNode):
-           ## print(child.dag_name, child.position)
-           ## for gchild in child.children:
-               ## print(gchild.dag_name, gchild.position)
-    ## print(" ")
-
-    #for invoke in psy.invokes.invoke_list:
-        #if invoke.name == "invoke_0":
-            #generated_code = str(invoke.gen())
-            ##print(generated_code)
-
-    ##assert "blah" in generated_code
-
-
-#def test_extract_trans():
-    #''' Test ExtractTrans '''
-    #dist_mem = False
-    #_, invoke_info = parse(
-        #os.path.join(DYNAMO_BASE_PATH,
-                     #"3_multi_invokes.f90"),
-                     ##"4.7_multikernel_invokes.f90"),
-                     ##"15.1.2_builtin_and_normal_kernel_invoke.f90"),
-        #distributed_memory=dist_mem, api=DYNAMO_API)
-    #psy = PSyFactory("dynamo0.3", distributed_memory=dist_mem).create(invoke_info)
-    #for invoke in psy.invokes.invoke_list:
-        #print(invoke.name)
-
-    #etrans = ExtractRegionTrans()
-    #ctrans = Dynamo0p3ColourTrans()
-    #otrans = DynamoOMPParallelLoopTrans()
-
-    #for invoke in psy.invokes.invoke_list:
-        #ischedule = invoke.schedule
-        ## print(type(ischedule))
-        #print("")
-        #ischedule.view()
-        #oschedule = ischedule
-        #for child in ischedule.children:
-            #if isinstance(child, Loop):
-                #oschedule, _ = otrans.apply(child)
-            #node = child.children[0]
-            ###if isinstance(node, DynBuiltIn): # Extract all built-ins
-            ###if isinstance(node, DynKern): # Extract all kernels
-            ## print node.name
-            ## if isinstance(node, DynKern):
-                ## print("The base name of this kernel is: ")
-                ## print(node._base_name)
-            #if node._base_name == "testkern_qr":#_code": # Extract a specific kernel
-                #schedule = oschedule
-            ##if node.name == "testkern_code_w2_only": # Extract a specific kernel
-                #schedule, _ = etrans.apply(child)
-                ##schedule, _ = etrans.apply(schedule.children[1:4])
-                ##schedule.view()
-                #invoke_name = invoke.name
-    #print("Final schedule")
-    #schedule.view()
-    ###print(type(schedule))
-    ###for node in schedule.children:
-        ###print(node)
-        ###print(type(node))
-        ####if isinstance(node, ExtractSchedule):
-            ####generated_code = str(node.gen())
-            ####print(generated_code)
-
-    #for invoke in psy.invokes.invoke_list:
-        #if invoke.name == invoke_name:
-            #generated_code = str(invoke.gen())
-            #print(generated_code)
-
-    #arg_f1_write_1 = schedule.children[0].children[0].arguments.args[1]
-    #arg_f1_write_2 = schedule.children[3].children[0].arguments.args[1]
-    #assert arg_f1_write_1._depends_on(arg_f1_write_2)

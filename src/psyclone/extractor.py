@@ -35,17 +35,15 @@
 # -----------------------------------------------------------------------------
 
 '''
-    A Python script and Python functions to generate an subroutine
-    from the extracted code within a specified invoke or kernel.
+    This module provides support for extraction of code within a specified
+    invoke. The extracted code may be a single kernel, multiple occurences
+    of a kernel in an invoke, nodes in an invoke or the entire invoke
+    (extraction applied to all nodes).
 '''
 
 from __future__ import absolute_import, print_function
-import os
-import sys
-import traceback
-from psyclone.f2pygen import ProgUnitGen, CallGen, TypeDeclGen, UseGen
-from psyclone.psyGen import colored, GenerationError, Kern, NameSpace, \
-     NameSpaceFactory, Node, Schedule, SCHEDULE_COLOUR_MAP
+from psyclone.psyGen import colored, GenerationError, Kern, Node, \
+     SCHEDULE_COLOUR_MAP
 from psyclone.transformations import ExtractRegionTrans
 
 
@@ -61,18 +59,11 @@ class ExtractNode(Node):
             :type parent: a :py::class::`psyclone.psyGen.Node`.
         '''
         Node.__init__(self, children=children, parent=parent)
-        self._namespace = NameSpace()
-
-        # Store the name of the extract variable that is used for this
-        # extract region name. This allows to show the variable name in __str__
-        # (and also if we would call create_name in gen(), the name would
-        # change every time gen() is called).
-        self._var_name = NameSpaceFactory().create().create_name("extract")
 
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
         the Extract Node. '''
-        result = "ExtractStart[var={0}]\n".format(self._var_name)
+        result = "ExtractStart"
         for child in self.children:
             result += str(child)+"\n"
         return result+"ExtractEnd"
@@ -83,8 +74,8 @@ class ExtractNode(Node):
         Returns a string containing the name of this node along with
         control characters for colouring in terminals that supports it.
 
-        :return: The name of this node, possibly with control codes for
-                 colouring
+        :returns: The name of this node, possibly with control codes for \
+                  colouring
         :rtype: string
         '''
         return colored("Extract", SCHEDULE_COLOUR_MAP["Extract"])
@@ -96,32 +87,32 @@ class ExtractNode(Node):
 
     def view(self, indent=0):
         '''
-        Print a text representation of this Extract schedule to stdout
-        and then call the view() method of any children.
+        Print a text representation of this Extract schedule to stdout \
+        and then call the view() method of any children. The text \
+        representation returns position of Extract Node(s) in the tree.
 
         :param int indent: Depth of indent for output text
         '''
-        # Find out the name of the first (or only) kernel to be extracted
-        #kernels = self.walk(self.children, Kern)
-        #extrstr = "[extract='" + kernels[0].name + "']"
-        extrstr = "extract_" + str(self.abs_position)
-        #print(self.indent(indent) + self.coloured_text +
-              #extrstr)
-        print(self.indent(indent) + self.coloured_text + self._var_name)
+        print(self.indent(indent) + self.coloured_text +
+              "[position='" + str(self.position) + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        ''' Marks region for code extraction as children of the ExtractNode.
-        For now it inserts comments at the position of the ExtractNode and
-        after all children of the ExtractNode. These comments will later
-        be replaced by calls to write out arguments of extracted kernels.
+        '''
+        Marks region for code extraction as children of the ExtractNode. \
+        For now it inserts comments at the position of the ExtractNode
+        and after all children of the ExtractNode. These comments will \
+        later be replaced by calls to write out arguments of extracted \
+        Node(s) or Kernel(s).
+
         :param parent: the parent of this Node.
         :type parent: :py:class:`psyclone.psyGen.Node`.
         '''
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " CALL write_extract_arguments(argument_list)"))
+        parent.add(CommentGen(
+            parent, " CALL write_extract_arguments(argument_list)"))
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
         for child in self.children:
@@ -135,72 +126,41 @@ class Extractor(object):
     2) provides view function about which kernel to extract
     3) generates driver for the extracted code '''
 
-    # KERNEL = "kernel"
-    # NODES = "nodes"
-    # INVOKE = "invoke"
-    # SUPPORTED_OPTIONS = [KERNEL, NODES, INVOKE]
-    # _options = []
-    # # A namespace manager to make sure we get unique region names
-    # _namespace = NameSpace()
-
-    # def set_options(options):
-        # '''Sets the option the user required.
-        # :param options: List of options selected by the user.
-        # :type options: List of strings.
-        # :raises GenerationError: If any option is not in SUPPORTED_OPTIONS.
-        # '''
-        # # Test that all options are valid
-        # if options is None:
-            # options = []   # Makes it easier to test
-        # for index, option in enumerate(options):
-            # if option not in Extractor.SUPPORTED_OPTIONS:
-                # # Create a 'nice' representation of the allowed options.
-                # # [1:-1] cuts out the '[' and ']' that surrounding the
-                # # string of the list.
-                # allowed_options = str(Extractor.SUPPORTED_OPTIONS)[1:-1]
-                # raise GenerationError("Error in Extractor.setOptions: options "
-                                      # "must be one of {0} but found '{1}' "
-                                      # "at {2}"
-                                      # .format(allowed_options,
-                                              # str(option), index))
-        # # When extracting a kernel code test that 
-        # # a) the kernel name is provided, 
-        # # b) that the invoke name is provided if the kernel is
-        # #    called by more than one invoke,
-        # # c) that the kernel is found in specified algorithm file.
-        # if option == Extractor.KERNEL:
-            # if kernel_name is "":
-                # raise GenerationError("Error in Extractor.setOptions: "
-                                      # "Please provide the name of the "
-                                      # "kernel to extract.")
-            # # elif more than one kernel with the same name in an alg file
-        # # When extracting code from one or more nodes within an invoke
-        # # test that the invoke name is provided.
-        # if option == Extractor.NODES and invoke_name is "":
-           # raise GenerationError("Error in Extractor.setOptions: "
-                                 # "Please provide the name of the "
-                                 # "invoke to extract the nodes from.")
-        # # Test that the invoke name is provided if this option is selected
-        # if option == Extractor.INVOKE and invoke_name is "":
-           # raise GenerationError("Error in Extractor.setOptions: "
-                                 # "Please provide the name of the "
-                                 # "invoke to extract.")
-
-        # # Store options so they can be queried later
-        # Extractor._options = options
-
-
     @staticmethod
-    def extract_kernel(schedule, kernel_name):
+    def extract_kernel(schedule, kernel_name, position=None):
         ''' Extract function for a specific kernel and invoke '''
         # Find the kernel and invoke to extract
 
         etrans = ExtractRegionTrans()
 
+        # First construct the list of positions of Nodes which
+        # contain the kernel
+        extract_node_position = []
+        extract_node_absposition = []
         for kernel in schedule.walk(schedule.children, Kern):
             if kernel.name == kernel_name:
-                extract_parent = kernel.root_at_depth(1)
+                extract_node = kernel.root_at_depth(1)
+                extract_node_position.append(extract_node.position)
+                extract_node_absposition.append(extract_node.abs_position)
+                print(type(extract_node))
+                print(extract_node.position, extract_node.abs_position)
 
-        extract_schedule, _ = etrans.apply(extract_parent)
+        if not extract_node_position:
+            raise GenerationError("No Kernels with the name of {0} were "
+                                  "found to extract.".format(kernel_name))
+        else:
+            if position:
+                if position not in extract_node_position:
+                    raise GenerationError(
+                        "Provided position {0} is not the position of any "
+                        "Node which contains Kernel {1} call."
+                        .format(position, kernel_name))
+                else:
+                    extract_node_position = [position]
+        print(extract_node_position)
+        for idx in extract_node_position:
+            print(idx, position)
+            schedule.children[idx]
+            schedule, _ = etrans.apply(schedule.children[idx])
 
-        return extract_schedule
+        return schedule

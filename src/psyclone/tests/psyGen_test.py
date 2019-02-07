@@ -2486,10 +2486,12 @@ def test_node_abstract_methods():
     from psyclone.psyGen import Node
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
+    sched.view()
     loop = sched.children[0].children[0]
+    print(loop)
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop)
-    assert ("Please implement me" in str(err))
+    assert ("Please implementzzz me" in str(err))
     with pytest.raises(NotImplementedError) as err:
         Node.view(loop)
     assert ("BaseClass of a Node must implement the view method" in str(err))
