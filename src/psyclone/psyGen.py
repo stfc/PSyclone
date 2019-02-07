@@ -4633,12 +4633,11 @@ class ACCKernelsDirective(ACCDirective):
 
     def update(self):
         '''
-        Updates the fparser2 AST by inserting nodes for this OpenMP
-        parallel do.
+        Updates the fparser2 AST by inserting nodes for this ACC kernels
+        directive.
 
         :raises GenerationError: if the existing AST doesn't have the \
-        correct structure to permit the insertion \
-        of the OpenMP parallel do.
+        correct structure to permit the insertion of the directive.
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
@@ -5266,13 +5265,14 @@ class BinaryOperation(Node):
     Node representing a BinaryOperator expression. As such it has two operands
     as children 0 and 1, and a attribute with the operator type.
 
-    :param ast: node in the fparser2 AST representing the binary operator.
-    :type ast: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
+    :param operator: node in the fparser2 AST representing the binary operator.
+    :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
     :param parent: the parent node of this BinaryOperator in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
+        self._ast = operator
         self._operator = operator
 
     @property
