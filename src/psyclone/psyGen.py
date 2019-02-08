@@ -168,6 +168,10 @@ def object_index(alist, item):
     A version of the `list.index()` method that checks object identity
     rather that the content of the object.
 
+    TODO this is a workaround for the fact that fparser2 overrides the
+    comparison operator for all nodes in the parse tree. See fparser
+    issue 174.
+
     :param list alist: list of objects to search.
     :param obj item: object to search for in the list.
     :returns: index of the item in the list.
