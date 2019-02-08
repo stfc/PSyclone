@@ -1836,7 +1836,7 @@ class ExtractRegionTrans(RegionTrans):
                                      Loop in GOcean1.0 API.
         '''
 
-        # First check constraints on nodes in the node_list common to
+        # First check constraints on Nodes in the node_list common to
         # all RegionTrans transformations
         super(ExtractRegionTrans, self)._validate(node_list)
 
@@ -1889,7 +1889,7 @@ class ExtractRegionTrans(RegionTrans):
 
             # Check that ExtractNode is not inserted between an orphaned
             # Directive (e.g. OMPDoDirective, ACCLoopDirective) and its
-            # parent Directive (e.g. ACC or OMP Parallel Directive) when
+            # ancestor Directive (e.g. ACC or OMP Parallel Directive) when
             # optimisations are applied. Note that we need to explicitly
             # exclude the OMPParallelDoDirective as it inherits from both
             # OMPDoDirective and OMPParallelDirective.
@@ -1897,7 +1897,7 @@ class ExtractRegionTrans(RegionTrans):
                not isinstance(node, OMPParallelDoDirective):
                 raise TransformationError(
                     "Error in {0}: Extraction of an orphaned Directive "
-                    "without its parent Directive is not allowed."
+                    "without its ancestor Directive is not allowed."
                     .format(str(self.name)))
 
             # Dynamo0.3 API constraint: Check that ExtractNode is not
@@ -1940,12 +1940,12 @@ class ExtractRegionTrans(RegionTrans):
             node_list = [nodes]
         else:
             arg_type = str(type(nodes))
-            raise TransformationError("Error in {1}. "
+            raise TransformationError("Error in {0}: "
                                       "Argument must be a single Node in a "
-                                      "schedule or a list of Nodes in a "
-                                      "schedule but have been passed an "
-                                      "object of type: {0}".
-                                      format(arg_type, str(self)))
+                                      "Schedule or a list of Nodes in a "
+                                      "Schedule but have been passed an "
+                                      "object of type: {1}".
+                                      format(str(self.name), arg_type))
 
         # Validate transformation
         self._validate(node_list)

@@ -57,6 +57,30 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 GOCEAN_API = "gocean1.0"
 
 
+def test_node_list_error():
+    ''' Test that applying ExtractRegionTrans on a Kernel or Built-in call
+    without its parent Loop raises a TransformationError. '''
+    etrans = ExtractRegionTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "15.1.2_builtin_and_normal_kernel_"
+                                        "invoke.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # Supply object which is not a Node or a list of nodes
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.apply("somestring")
+    assert ("Error in ExtractRegionTrans: Argument must be a single Node "
+            "in a Schedule or a list of Nodes in a Schedule but have "
+            "been passed an object of type: ") in str(excinfo)
+    # Python 3 reports 'class', python 2 'type' - so just check for both
+    assert "<type 'str'>" in str(excinfo) or "<class 'str'>" in str(excinfo)
+    #- Add more tests...
+
+
 def test_distmem_error():
     ''' Test that applying ExtractRegionTrans with distributed memory
     enabled raises a TransformationError. '''
@@ -89,7 +113,7 @@ def test_distmem_error():
             "supported.") in str(excinfo.value)
 
 
-def test_repeat_extract_error():
+def test_repeat_extract():
     ''' Test that applying ExtractRegionTrans on a node list that already
     contains an ExtractNode raises a TransformationError. '''
     etrans = ExtractRegionTrans()
@@ -127,7 +151,7 @@ def test_repeat_extract_error():
         in str(excinfo.value)
 
 
-def test_kern_builtin_no_loop_error():
+def test_kern_builtin_no_loop():
     ''' Test that applying ExtractRegionTrans on a Kernel or Built-in call
     without its parent Loop raises a TransformationError. '''
     etrans = ExtractRegionTrans()
@@ -215,11 +239,10 @@ def test_loop_no_directive_gocean1p0():
             "allowed.") in str(excinfo.value)
 
 
-def test_orphaned_directive_dynamo0p3():
-    ''' Test that applying ExtractRegionTrans on an orphaned Directive
-    without its parent Directive when optimisations are applied raises
-    a TransformationError.
-    Note: Needs examples for GOcean and NEMO (ACCLoopDirective) !!!!'''
+def test_no_parent_ompdirective():
+    ''' Test that applying ExtractRegionTrans on an orphaned
+    OMPDoDirective without its ancestor OMPRegionDirective when
+    optimisations are applied raises a TransformationError. '''
     from psyclone.transformations import OMPParallelTrans, \
         Dynamo0p3OMPLoopTrans
 
@@ -234,16 +257,52 @@ def test_orphaned_directive_dynamo0p3():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
 
-    # Apply the OpenMP Loop transformation to every loop in the schedule
+    # Apply the OpenMP Loop transformation to every loop in the Schedule
     for child in schedule.children:
-        newschedule, _ = ltrans.apply(child)
+        if isinstance(child, Loop):
+            newschedule, _ = ltrans.apply(child)
     # Enclose all of these loops within a single OpenMP Parallel region
     schedule, _ = otrans.apply(newschedule.children)
 
     orphaned_directive = schedule.children[0].children[1]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(orphaned_directive)
-    assert ("Extraction of an orphaned Directive without its parent "
+    assert ("Extraction of an orphaned Directive without its ancestor "
+            "Directive is not allowed.") in str(excinfo.value)
+
+
+def test_no_parent_accdirective():
+    ''' Test that applying ExtractRegionTrans on an orphaned
+    ACCLoopDirective without its ancestor ACCParallelDirective
+    when optimisations are applied raises a TransformationError. '''
+    from psyclone.transformations import ACCParallelTrans, ACCDataTrans, \
+        ACCLoopTrans
+
+    etrans = ExtractRegionTrans()
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCDataTrans()
+
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
+                                        "single_invoke_three_kernels.f90"),
+                           api=GOCEAN_API)
+    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+
+    # Apply the OpenACC Loop transformation to every loop in the Schedule
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            schedule, _ = acclpt.apply(child)
+    # Enclose all of these loops within a single ACC Parallel region
+    schedule, _ = accpara.apply(schedule.children)
+    # Add a mandatory ACC data region
+    schedule, _ = accdata.apply(schedule)
+
+    orphaned_directive = schedule.children[1].children[0]
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = etrans.apply(orphaned_directive)
+    assert ("Extraction of an orphaned Directive without its ancestor "
             "Directive is not allowed.") in str(excinfo.value)
 
 
@@ -328,11 +387,13 @@ def test_extract_node():
     pos = 1
     child = schedule.children[pos]
     abspos = child.abs_position
+    dpth = child.depth
     schedule, _ = etrans.apply(child)
     extract_node = schedule.walk(schedule.children, ExtractNode)
     # The result is only one ExtractNode in the list with position 1
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos
+    assert extract_node[0].depth == dpth
 
     # Test Dynamo0.3 API for extraction of a list of Nodes
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
@@ -349,11 +410,13 @@ def test_extract_node():
     pos = 0
     children = schedule.children[pos:pos+3]
     abspos = children[0].abs_position
+    dpth = children[0].depth
     schedule, _ = etrans.apply(children)
     extract_node = schedule.walk(schedule.children, ExtractNode)
     # The result is only one ExtractNode in the list with position 0
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos
+    assert extract_node[0].depth == dpth
 
 
 def test_single_node_dynamo0p3():
