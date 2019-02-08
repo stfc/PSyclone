@@ -198,7 +198,7 @@ class GenerationError(Exception):
         self.value = "Generation Error: "+value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 class FieldNotFoundError(Exception):
@@ -209,7 +209,7 @@ class FieldNotFoundError(Exception):
         self.value = "Field not found error: "+value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 class InternalError(Exception):
@@ -4548,24 +4548,17 @@ class Fparser2ASTProcessor(object):
 
         new_schedule = KernelSchedule(name)
 
-        try:
-            # Assume just 1 Fortran module definition in the file
-            if len(module_ast.content) > 1:
-                raise GenerationError("Unexpected AST when generating '{0}' "
-                                      "kernel schedule. Just one "
-                                      "module definition per file supported."
-                                      "".format(name))
-            mod_content = module_ast.content[0].content
-            # TODO: Metadata can be also accessed for validation (issue #288)
-            # using:
-            # mod_spec = first_type_match(mod_content,
-            #                            Fortran2003.Specification_Part)
-        except (ValueError, IndexError):
-            raise GenerationError("Unexpected kernel AST when generating "
-                                  "'{0}' kernel schedule. Could not find the "
-                                  "specification part.".format(name))
+        # Assume just 1 Fortran module definition in the file
+        if len(module_ast.content) > 1:
+            raise GenerationError("Unexpected AST when generating '{0}' "
+                                  "kernel schedule. Just one "
+                                  "module definition per file supported."
+                                  "".format(name))
+
+        # TODO: Metadata can be also accessed for validation (issue #288)
 
         try:
+            mod_content = module_ast.content[0].content
             subroutines = first_type_match(mod_content,
                                            Fortran2003.Module_Subprogram_Part)
             subroutine = search_subroutine(subroutines.content, name)
@@ -5029,7 +5022,7 @@ class Symbol(object):
                             "'integer' or 'None'.")
         self._shape = shape
 
-        # Attributes have setter methods (with error checking)
+        # The following attributes have setter methods (with error checking)
         self.scope = scope
         self.is_input = is_input
         self.is_output = is_output
@@ -5363,7 +5356,7 @@ class Reference(Node):
     :param parent: the parent node of this Reference in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, reference_name, parent=None):
+    def __init__(self, reference_name, parent):
         super(Reference, self).__init__(parent=parent)
         self._reference = reference_name
 
@@ -5445,7 +5438,7 @@ class Array(Reference):
     :param parent: the parent node of this Array in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, reference_name, parent=None):
+    def __init__(self, reference_name, parent):
         super(Array, self).__init__(reference_name, parent=parent)
 
     @property

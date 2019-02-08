@@ -2576,11 +2576,8 @@ def test_codeblock_can_be_printed():
 def test_assignment_view(capsys):
     ''' Check the view and colored_text methods of the Assignment class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+
     assignment = Assignment()
-    lhs = Reference("x", parent=assignment)
-    rhs = Literal("1", parent=assignment)
-    assignment.addchild(lhs)
-    assignment.addchild(rhs)
     coloredtext = colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
     assignment.view()
     output, _ = capsys.readouterr()
@@ -2591,10 +2588,6 @@ def test_assignment_can_be_printed():
     '''Test that an Assignment instance can always be printed (i.e. is
     initialised fully)'''
     assignment = Assignment()
-    lhs = Reference("x", parent=assignment)
-    rhs = Literal("1", parent=assignment)
-    assignment.addchild(lhs)
-    assignment.addchild(rhs)
     assert "Assignment[]\n" in str(assignment)
 
 
@@ -2604,7 +2597,10 @@ def test_assignment_can_be_printed():
 def test_reference_view(capsys):
     ''' Check the view and colored_text methods of the Reference class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    ref = Reference("rname")
+    kschedule = KernelSchedule("kname")
+    kschedule.symbol_table.declare("rname", "integer")
+    assignment = Assignment(parent=kschedule)
+    ref = Reference("rname", assignment)
     coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
     ref.view()
     output, _ = capsys.readouterr()
@@ -2614,7 +2610,10 @@ def test_reference_view(capsys):
 def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
-    ref = Reference("rname")
+    kschedule = KernelSchedule("kname")
+    kschedule.symbol_table.declare("rname", "integer")
+    assignment = Assignment(parent=kschedule)
+    ref = Reference("rname", assignment)
     assert "Reference[name:'rname']\n" in str(ref)
 
 
@@ -2624,7 +2623,10 @@ def test_reference_can_be_printed():
 def test_array_view(capsys):
     ''' Check the view and colored_text methods of the Array class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    array = Array("aname")
+    kschedule = KernelSchedule("kname")
+    kschedule.symbol_table.declare("aname", "integer", [None])
+    assignment = Assignment(parent=kschedule)
+    array = Array("aname", parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
     array.view()
     output, _ = capsys.readouterr()
@@ -2634,7 +2636,10 @@ def test_array_view(capsys):
 def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
-    array = Array("aname")
+    kschedule = KernelSchedule("kname")
+    kschedule.symbol_table.declare("aname", "integer")
+    assignment = Assignment(parent=kschedule)
+    array = Array("aname", assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
 
 
@@ -2693,12 +2698,13 @@ def test_kernelschedule_view(capsys):
     '''Test the view method of the KernelSchedule part.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
+    kschedule.symbol_table.declare("x", "integer")
     assignment = Assignment()
+    kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
     rhs = Literal("1", parent=assignment)
     assignment.addchild(lhs)
     assignment.addchild(rhs)
-    kschedule.addchild(assignment)
     kschedule.view()
     coloredtext = colored("Schedule",
                           SCHEDULE_COLOUR_MAP["Schedule"])
@@ -2711,12 +2717,13 @@ def test_kernelschedule_can_be_printed():
     '''Test that a KernelSchedule instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
+    kschedule.symbol_table.declare("x", "integer")
     assignment = Assignment()
+    kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
     rhs = Literal("1", parent=assignment)
     assignment.addchild(lhs)
     assignment.addchild(rhs)
-    kschedule.addchild(assignment)
     assert "Schedule[name:'kname']:\n" in str(kschedule)
     assert "Assignment" in str(kschedule)  # Check children are printed
     assert "End Schedule" in str(kschedule)
@@ -2779,6 +2786,45 @@ def test_symbol_scope_setter():
     assert ("Symbol scope attribute can only be one of " +
             str(Symbol.valid_scope_types) +
             " but got 'invalidscope'.") in str(error.value)
+
+
+def test_symbol_is_input_setter():
+    '''Test that a Symbol is_input can be set if given a new valid
+    value, otherwise it raises a relevant exception'''
+
+    sym = Symbol('a', 'real', [], 'global_argument', False, False)
+    sym.is_input = True
+    assert sym.is_input is True
+
+    with pytest.raises(TypeError) as error:
+        sym.is_input = 3
+    assert "Symbol 'is_input' attribute must be a boolean." in \
+           str(error.value)
+
+    sym = Symbol('a', 'real', [], 'local')
+    with pytest.raises(ValueError) as error:
+        sym.is_input = True
+    assert ("Symbol with 'local' scope can not have 'is_input' attribute"
+            " set to True.") in str(error.value)
+
+
+def test_symbol_is_output_setter():
+    '''Test that a Symbol is_output can be set if given a new valid
+    value, otherwise it raises a relevant exception'''
+    sym = Symbol('a', 'real', [], 'global_argument', False, False)
+    sym.is_output = True
+    assert sym.is_output is True
+
+    with pytest.raises(TypeError) as error:
+        sym.is_output = 3
+    assert "Symbol 'is_output' attribute must be a boolean." in \
+           str(error.value)
+
+    sym = Symbol('a', 'real', [], 'local')
+    with pytest.raises(ValueError) as error:
+        sym.is_output = True
+    assert ("Symbol with 'local' scope can not have 'is_output' attribute"
+            " set to True.") in str(error.value)
 
 
 def test_symbol_can_be_printed():
@@ -2884,12 +2930,6 @@ def test_fparser2astprocessor_generate_schedule_empty_subroutine():
         schedule = processor.generate_schedule("dummy_code", ast2)
     assert "Unexpected kernel AST. Could not find " \
            "subroutine: dummy_code" in str(error.value)
-
-    # Test corrupting ast by deleting specification part
-    del ast2.content[0].content[1]
-    with pytest.raises(GenerationError) as error:
-        schedule = processor.generate_schedule("dummy_code", ast2)
-    assert "Unexpected kernel AST. Could not find specification part."
 
 
 def test_fparser2astprocessor_generate_schedule_two_modules():
@@ -3118,6 +3158,13 @@ def test_fparser2astprocessor_process_not_supported_declarations(f2008_parser):
     from fparser.two.Fortran2003 import Specification_Part
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
+
+    reader = FortranStringReader("integer, external :: arg1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(NotImplementedError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process " in str(error.value)
+    assert ". Unrecognized attribute " in str(error.value)
 
     reader = FortranStringReader("integer, save :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
