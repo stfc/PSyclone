@@ -2491,7 +2491,7 @@ def test_node_abstract_methods():
     print(loop)
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop)
-    assert ("Please implementzzz me" in str(err))
+    assert ("Please implement me" in str(err))
     with pytest.raises(NotImplementedError) as err:
         Node.view(loop)
     assert ("BaseClass of a Node must implement the view method" in str(err))

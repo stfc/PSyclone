@@ -1823,7 +1823,7 @@ class ExtractRegionTrans(RegionTrans):
                                      Kernel or a BuiltIn call without its \
                                      parent Loop.
         :raises TransformationError: if transformation is applied to a Loop \
-                                     and its parent Directive when \
+                                     without its parent Directive when \
                                      optimisations are applied.
         :raises TransformationError: if transformation is applied to an \
                                      orphaned Directive without its parent \
@@ -1831,9 +1831,9 @@ class ExtractRegionTrans(RegionTrans):
         :raises TransformationError: if transformation is applied to a Loop \
                                      over cells in a colour without its \
                                      parent Loop over colours in Dynamo0.3 API.
-        :raises TransformationError: if transformation is applied to an inner \
-                                     Loop without its parent Loop in \
-                                     GOcean1.0 API.
+        :raises TransformationError: if transformation is applied to an \
+                                     inner Loop without its parent outer \
+                                     Loop in GOcean1.0 API.
         '''
 
         # First check constraints on nodes in the node_list common to

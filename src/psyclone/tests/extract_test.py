@@ -290,9 +290,8 @@ def test_no_colours_loop_dynamo0p3():
 
 
 def test_no_outer_loop_gocean1p0():
-    ''' Test that applying ExtractRegionTrans on an inner Loop
-    without its parent Loop over colours in GOcean1p0 API raises
-    a TransformationError. '''
+    ''' Test that applying ExtractRegionTrans on an inner Loop without its
+    parent outer Loop in GOcean1p0 API raises a TransformationError. '''
     etrans = ExtractRegionTrans()
 
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
