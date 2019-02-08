@@ -111,7 +111,8 @@ FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 # therefore distinguish from array accesses)
 FORTRAN_INTRINSICS = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM",
                       "CEILING", "REAL", "KIND", "EXP", "SQRT",
-                      "SIN", "COS", "TAN", "LOG", "LOG10", "NINT",
+                      "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN",
+                      "LOG", "LOG10", "NINT",
                       "MINVAL", "MAXVAL", "MINLOC", "MAXLOC", "TRIM",
                       "RESHAPE"]
 

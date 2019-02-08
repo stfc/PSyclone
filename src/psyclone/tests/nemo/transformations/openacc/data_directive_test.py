@@ -41,11 +41,11 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
-from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranStringReader
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, TransInfo, \
-    GenerationError
+from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.transformations import TransformationError
+
 
 # Constants
 API = "nemo"
@@ -291,10 +291,9 @@ def test_array_section():
     assert ("!$ACC DATA COPYIN(b,c) COPYOUT(a)") in gen_code
 
 
-def test_kind_parameter():
+def test_kind_parameter(parser):
     ''' Check that we don't attempt to put kind parameters into the list
     of variables to copyin/out. '''
-    parser = ParserFactory().create()
     reader = FortranStringReader("program kind_param\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
@@ -311,10 +310,9 @@ def test_kind_parameter():
     assert "copyin(wp)" not in gen_code.lower()
 
 
-def test_fn_call():
+def test_fn_call(parser):
     ''' Check that we don't attempt to put function names into the list
     of variables we copyin/out. '''
-    parser = ParserFactory().create()
     reader = FortranStringReader("program fn_call\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
@@ -328,3 +326,49 @@ def test_fn_call():
     schedule, _ = acc_trans.apply(schedule.children[0:1])
     gen_code = str(psy.gen)
     assert "copyin(my_func)" not in gen_code.lower()
+
+
+def test_no_copyin_intrinsics(parser):
+    ''' Check that we don't generate a copyin/out for Fortran instrinsic
+    functions (i.e. we don't mistake them for array accesses). '''
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    for intrinsic in ["cos(ji)", "sin(ji)", "tan(ji)", "atan(ji)",
+                      "mod(ji, 5)"]:
+        reader = FortranStringReader(
+            "program call_intrinsic\n"
+            "real(kind=wp) :: sto_tmp(5)\n"
+            "do ji = 1,jpj\n"
+            "sto_tmp(ji) = {0}\n"
+            "end do\n"
+            "end program call_intrinsic\n".format(intrinsic))
+        code = parser(reader)
+        psy = PSyFactory(API, distributed_memory=False).create(code)
+        schedule = psy.invokes.invoke_list[0].schedule
+        schedule, _ = acc_trans.apply(schedule.children[0:1])
+        gen_code = str(psy.gen)
+        idx = intrinsic.index("(")
+        assert "copyin({0})".format(intrinsic[0:idx]) not in gen_code.lower()
+
+
+def test_no_code_blocks(parser):
+    ''' Check that we refuse to include CodeBlocks (i.e. code that we
+    don't recognise) within a data region. '''
+    reader = FortranStringReader("program write_out\n"
+                                 "real(kind=wp) :: sto_tmp(5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "read(*,*) sto_tmp(ji)\n"
+                                 "end do\n"
+                                 "do ji = 1,jpj\n"
+                                 "write(*,*) sto_tmp(ji)\n"
+                                 "end do\n"
+                                 "end program write_out\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    with pytest.raises(TransformationError) as err:
+        _, _ = acc_trans.apply(schedule.children[0:1])
+    assert "cannot enclose CodeBlock'>' in ACCDataTrans" in str(err)
+    with pytest.raises(TransformationError) as err:
+        _, _ = acc_trans.apply(schedule.children[1:2])
+    assert "cannot enclose CodeBlock'>' in ACCDataTrans" in str(err)
