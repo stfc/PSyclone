@@ -573,6 +573,7 @@ def test_sched_ocl_setter():
         psy.invokes.invoke_list[0].schedule.opencl = "a string"
     assert "Schedule.opencl must be a bool but got " in str(err)
 
+
 # Kern class test
 
 def test_kern_get_kernel_schedule():
@@ -2727,15 +2728,18 @@ def test_symbol_initialization():
     given, otherwise raise relevant exceptions.'''
 
     # Test with valid arguments
+    assert isinstance(Symbol('a', 'real'), Symbol)
+    assert isinstance(Symbol('a', 'integer'), Symbol)
+    assert isinstance(Symbol('a', 'character'), Symbol)
+    assert isinstance(Symbol('a', 'real', [None]), Symbol)
+    assert isinstance(Symbol('a', 'real', [3]), Symbol)
+    assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'local'), Symbol)
-    assert isinstance(Symbol('a', 'integer', [], 'local'), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'read_arg'), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'external'), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'write_arg'), Symbol)
-    assert isinstance(Symbol('a', 'real', [], 'readwrite_arg'), Symbol)
-    assert isinstance(Symbol('a', 'real', [None], 'local'), Symbol)
-    assert isinstance(Symbol('a', 'real', [3], 'local'), Symbol)
-    assert isinstance(Symbol('a', 'real', [3, None], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'real', [], 'global_argument'), Symbol)
+    assert isinstance(Symbol('a', 'real', [], 'global_argument',
+                             True, True), Symbol)
+    assert isinstance(Symbol('a', 'real', [], 'global_argument',
+                             True, False), Symbol)
 
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
@@ -2744,10 +2748,10 @@ def test_symbol_initialization():
             "".format(str(Symbol.valid_data_types)))in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'real', [], 'invalidaccess')
-    assert ("Symbol access attribute can only be one of " +
-            str(Symbol.valid_access_types) +
-            " but got 'invalidaccess'.") in str(error.value)
+        Symbol('a', 'real', [], 'invalidscope')
+    assert ("Symbol scope attribute can only be one of " +
+            str(Symbol.valid_scope_types) +
+            " but got 'invalidscope'.") in str(error.value)
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', None, 'local')
@@ -2759,29 +2763,29 @@ def test_symbol_initialization():
             "'integer' or 'None'.") in str(error.value)
 
 
-def test_symbol_access_setter():
-    '''Test that a Symbol access can be set if given a new valid access
+def test_symbol_scope_setter():
+    '''Test that a Symbol scope can be set if given a new valid scope
     value, otherwise it raises a relevant exception'''
 
-    # Test with valid access value
+    # Test with valid scope value
     sym = Symbol('a', 'real', [], 'local')
-    assert sym.access == 'local'
-    sym.access = 'read_arg'
-    assert sym.access == 'read_arg'
+    assert sym.scope == 'local'
+    sym.scope = 'global_argument'
+    assert sym.scope == 'global_argument'
 
-    # Test with invalid access value
+    # Test with invalid scope value
     with pytest.raises(ValueError) as error:
-        sym.access = 'invalidaccess'
-    assert ("Symbol access attribute can only be one of " +
-            str(Symbol.valid_access_types) +
-            " but got 'invalidaccess'.") in str(error.value)
+        sym.scope = 'invalidscope'
+    assert ("Symbol scope attribute can only be one of " +
+            str(Symbol.valid_scope_types) +
+            " but got 'invalidscope'.") in str(error.value)
 
 
 def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed. (i.e. is
     initialised fully)'''
-    symbol = Symbol("sname", "real", [], "read_arg")
-    assert "sname<real, [], read_arg>" in str(symbol)
+    symbol = Symbol("sname", "real")
+    assert "sname<real, [], local>" in str(symbol)
 
 
 # Test SymbolTable Class
@@ -2793,15 +2797,17 @@ def test_symboltable_declare():
     sym_table = SymbolTable()
 
     # Declare a symbol
-    sym_table.declare("var1", "real", [5, 1], "read_arg")
+    sym_table.declare("var1", "real", [5, 1], "global_argument", True, True)
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
-    assert sym_table._symbols["var1"].access == "read_arg"
+    assert sym_table._symbols["var1"].scope == "global_argument"
+    assert sym_table._symbols["var1"].is_input is True
+    assert sym_table._symbols["var1"].is_output is True
 
     # Declare a duplicate name symbol
     with pytest.raises(KeyError) as error:
-        sym_table.declare("var1", "real", 0, "write_arg")
+        sym_table.declare("var1", "real")
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
 
@@ -2810,9 +2816,9 @@ def test_symboltable_lookup():
     '''Test that the lookup method retrives symbols from the symbol table
     if the name exists, otherwise it raises and error.'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", [None, None], "read_arg")
-    sym_table.declare("var2", "integer", [], "write_arg")
-    sym_table.declare("var3", "real", [], 'local')
+    sym_table.declare("var1", "real", [None, None])
+    sym_table.declare("var2", "integer", [])
+    sym_table.declare("var3", "real", [])
 
     assert isinstance(sym_table.lookup("var1"), Symbol)
     assert sym_table.lookup("var1").name == "var1"
@@ -2829,8 +2835,8 @@ def test_symboltable_view(capsys):
     '''Test the view method of the SymbolTable class, it should print to
     standard out a representation of the full SymbolTable.'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", [], "read_arg")
-    sym_table.declare("var2", "integer", [], "read_arg")
+    sym_table.declare("var1", "real")
+    sym_table.declare("var2", "integer")
     sym_table.view()
     output, _ = capsys.readouterr()
     assert "Symbol Table:\n" in output
@@ -2842,8 +2848,8 @@ def test_symboltable_can_be_printed():
     '''Test that a SymbolTable instance can always be printed. (i.e. is
     initialised fully)'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", [], "read_arg")
-    sym_table.declare("var2", "integer", [], "read_arg")
+    sym_table.declare("var1", "real")
+    sym_table.declare("var2", "integer")
     assert "Symbol Table:\n" in str(sym_table)
     assert "var1" in str(sym_table)
     assert "var2" in str(sym_table)
@@ -2942,7 +2948,9 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     assert isinstance(schedule, KernelSchedule)
 
     # Test argument intent is inferred when not available in the declaration
-    assert schedule.symbol_table.lookup('f3').access == 'readwrite_arg'
+    assert schedule.symbol_table.lookup('f3').scope == 'global_argument'
+    assert schedule.symbol_table.lookup('f3').is_input is True
+    assert schedule.symbol_table.lookup('f3').is_output is True
 
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule
@@ -3046,15 +3054,15 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l1").name == 'l1'
     assert fake_parent.symbol_table.lookup("l1").datatype == 'integer'
     assert fake_parent.symbol_table.lookup("l1").shape == []
-    assert fake_parent.symbol_table.lookup("l1").access == 'local'
+    assert fake_parent.symbol_table.lookup("l1").scope == 'local'
+    assert fake_parent.symbol_table.lookup("l1").is_input is False
+    assert fake_parent.symbol_table.lookup("l1").is_output is False
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
-    assert fake_parent.symbol_table.lookup("l2").shape == []
-    assert fake_parent.symbol_table.lookup("l2").access == 'local'
 
     # Test with unsupported data type
     reader = FortranStringReader("logical      ::      c2")
@@ -3131,34 +3139,30 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     reader = FortranStringReader("integer, intent(in) :: arg1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg1").name == "arg1"
-    assert fake_parent.symbol_table.lookup("arg1").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("arg1").shape == []
-    assert fake_parent.symbol_table.lookup("arg1").access == 'read_arg'
+    assert fake_parent.symbol_table.lookup("arg1").scope == 'global_argument'
+    assert fake_parent.symbol_table.lookup("arg1").is_input is True
+    assert fake_parent.symbol_table.lookup("arg1").is_output is False
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg2").name == "arg2"
-    assert fake_parent.symbol_table.lookup("arg2").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("arg2").shape == []
-    assert fake_parent.symbol_table.lookup("arg2").access == 'read_arg'
+    assert fake_parent.symbol_table.lookup("arg2").scope == 'global_argument'
+    assert fake_parent.symbol_table.lookup("arg2").is_input is True
+    assert fake_parent.symbol_table.lookup("arg2").is_output is False
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg3").name == "arg3"
-    assert fake_parent.symbol_table.lookup("arg3").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("arg3").shape == []
-    assert fake_parent.symbol_table.lookup("arg3").access == 'write_arg'
+    assert fake_parent.symbol_table.lookup("arg3").scope == 'global_argument'
+    assert fake_parent.symbol_table.lookup("arg3").is_input is False
+    assert fake_parent.symbol_table.lookup("arg3").is_output is True
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("arg4").name == "arg4"
-    assert fake_parent.symbol_table.lookup("arg4").datatype == 'integer'
-    assert fake_parent.symbol_table.lookup("arg4").shape == []
-    assert fake_parent.symbol_table.lookup("arg4").access == 'readwrite_arg'
+    assert fake_parent.symbol_table.lookup("arg4").scope == 'global_argument'
+    assert fake_parent.symbol_table.lookup("arg4").is_input is True
+    assert fake_parent.symbol_table.lookup("arg4").is_output is True
 
 
 def test_fparser2astprocessor_parse_array_dimensions_attributes(
@@ -3209,7 +3213,8 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     assert fake_parent.symbol_table.lookup("array3").name == "array3"
     assert fake_parent.symbol_table.lookup("array3").datatype == 'real'
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
-    assert fake_parent.symbol_table.lookup("array3").access == 'read_arg'
+    assert fake_parent.symbol_table.lookup("array3").scope == "global_argument"
+    assert fake_parent.symbol_table.lookup("array3").is_input is True
 
 
 def test_fparser2astprocessor_parse_array_dimensions_unhandled(

@@ -4696,20 +4696,28 @@ class Fparser2ASTProcessor(object):
                         "".format(str(decl.items)))
 
             # Parse declaration attributes
-            shape = []  # If no dimension is provided, it is a scalar
-            decltype = 'local'  # If no intent attribute is provided, it is
+            # If no dimension is provided, it is a scalar
+            shape = []
+            # If no intent attribute is provided, it is
             # provisionally marked as a local variable (when the argument
             # list is parsed, arguments with no explicit intent are updated
             # appropriately).
+            scope = 'local'
+            is_input = False
+            is_output = False
             for attr in iterateitems(attr_specs):
                 if isinstance(attr, Fortran2003.Attr_Spec):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if "intent(in)" in normalized_string:
-                        decltype = 'read_arg'
+                        scope = 'global_argument'
+                        is_input = True
                     elif "intent(out)" in normalized_string:
-                        decltype = 'write_arg'
+                        scope = 'global_argument'
+                        is_output = True
                     elif "intent(inout)" in normalized_string:
-                        decltype = 'readwrite_arg'
+                        scope = 'global_argument'
+                        is_input = True
+                        is_output = True
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
@@ -4741,7 +4749,7 @@ class Fparser2ASTProcessor(object):
                                               " are not supported."
                                               "".format(decl.items))
                 parent.symbol_table.declare(str(name), datatype, shape,
-                                            decltype)
+                                            scope, is_input, is_output)
 
         try:
             arg_strings = [x.string for x in arg_list]
@@ -4970,18 +4978,9 @@ class Fparser2ASTProcessor(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in row-major order) and the symbol
-    access characterisctics. The symbol access can be:
-        - 'local': Variable that just exist in the kernel scope.
-        - 'external': Global variable.
-        - 'read_arg': It is initialised on entry to the kernel and it remains \
-                      constant.
-        - 'write_arg': It is not initialised on entry to the kenrel (and \
-                       therefore it needs to be written before it can we \
-                       read) and it will be used to return data to the \
-                       kernel caller.
-        - 'readwrite_arg': It is initialised on entry to the kernel and it \
-                           will be used to return data to the kernel caller.
+    the datatype, the shape (in row-major order), the scope and for
+    global-scoped symbols whether the data is already defined and/or survives
+    after the kernel.
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
@@ -4991,27 +4990,36 @@ class Symbol(object):
                        dimension is unknown, otherwise it holds an integer \
                        with the extent. If it is an empy list then the symbol \
                        represents a scalar.
-    :param str access: String that specifies if the declaration \
-                       represents a 'local', 'external' or argument \
-                       variable, if it is an argument it also specifies \
-                       if it is 'read_arg', 'write_arg' or 'readwrite_arg'.
+    :param str scope: It is 'local' if the symbol just exists inside the \
+                      kernel scope or 'global_*' if the data survives outside \
+                      of the kernel scope. Note that global-scoped symbols \
+                      also have postfixed information about the sharing \
+                      mechanism, at the moment just 'global_argument' is \
+                      available for variables passed in/out of the kernel \
+                      by argument.
+    :param bool is_input: Whether it is an already existent data that is \
+                          passed into the kernel upon entry.
+    :param bool is_output: Whether it is passed outside the kernel upon exit.
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
     '''
 
     # Tuple with the valid values for the access attribute.
-    valid_access_types = ('local', 'external', 'read_arg', 'write_arg',
-                          'readwrite_arg')
+    valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.
     valid_data_types = ('real', 'integer', 'character')
 
-    def __init__(self, name, datatype, shape=[], access='local'):
+    def __init__(self, name, datatype, shape=[], scope='local',
+                 is_input=False, is_output=False):
+
+        self._name = name
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
                 "Symbol can only be initialized with {0} datatypes."
                 "".format(str(Symbol.valid_data_types)))
+        self._datatype = datatype
 
         if not isinstance(shape, list):
             raise TypeError("Symbol shape attribute must be a list.")
@@ -5019,18 +5027,12 @@ class Symbol(object):
         if False in [isinstance(x, (type(None), int)) for x in shape]:
             raise TypeError("Symbol shape list elements can only be "
                             "'integer' or 'None'.")
-
-        if access not in Symbol.valid_access_types:
-            raise ValueError("Symbol access attribute can only be one of {0}"
-                             " but got '{1}'."
-                             "".format(str(Symbol.valid_access_types),
-                                       str(access))
-                             )
-
-        self._name = name
-        self._datatype = datatype
         self._shape = shape
-        self._access = access
+
+        # Attributes have setter methods (with error checking)
+        self.scope = scope
+        self.is_input = is_input
+        self.is_output = is_output
 
     @property
     def name(self):
@@ -5049,6 +5051,52 @@ class Symbol(object):
         return self._datatype
 
     @property
+    def is_input(self):
+        '''
+        :return: Whether the data already exists before kernel entry.
+        :rtype: bool
+        '''
+        return self._is_input
+
+    @is_input.setter
+    def is_input(self, new_is_input):
+        '''
+        :param bool new_is_input: Whether it is an already existent data that \
+                                  is  passed into the kernel upon entry.
+        :raises TypeError: Provided parameters have invalid error type.
+        :raises ValueError: 'new_is_input' contains an invalid value.
+        '''
+        if not isinstance(new_is_input, bool):
+            raise TypeError("Symbol 'is_input' attribute must be a boolean.")
+        if self.scope == 'local' and new_is_input is True:
+            raise ValueError("Symbol with 'local' scope can not have "
+                             "'is_input' attribute set to True.")
+        self._is_input = new_is_input
+
+    @property
+    def is_output(self):
+        '''
+        :return: Whether the data survives after kernel exit.
+        :rtype: bool
+        '''
+        return self._is_output
+
+    @is_output.setter
+    def is_output(self, new_is_output):
+        '''
+        :param bool new_is_output: Whether it is survives outside the kernel \
+                                   upon exit.
+        :raises TypeError: Provided parameters have invalid error type.
+        :raises ValueError: 'new_is_output' contains an invalid value.
+        '''
+        if not isinstance(new_is_output, bool):
+            raise TypeError("Symbol 'is_output' attribute must be a boolean.")
+        if self.scope == 'local' and new_is_output is True:
+            raise ValueError("Symbol with 'local' scope can not have "
+                             "'is_output' attribute set to True.")
+        self._is_output = new_is_output
+
+    @property
     def shape(self):
         '''
         :return: Shape of the symbol in row-major order (leftmost \
@@ -5061,35 +5109,41 @@ class Symbol(object):
         return self._shape
 
     @property
-    def access(self):
+    def scope(self):
         '''
-        :return: Whether the variable is 'local', 'external' or an argument. In
-                 case it is argument it specifies whether it is a 'read_arg',
-                 'write_arg' or 'readwrite_arg' argument.
+        :return: Whether the symbol is 'local' (just exists inside the kernel \
+                 scope) or 'global_*' (data also lives outside the kernel). \
+                 Global-scoped symbols also have postfixed information about \
+                 the sharing mechanism, at the moment just 'global_argument' \
+                 is available for variables passed in/out of the kernel \
+                 by argument.
         :rtype: str
         '''
-        return self._access
+        return self._scope
 
-    @access.setter
-    def access(self, new_access):
+    @scope.setter
+    def scope(self, new_scope):
         '''
-        :param str new_access: New value of the access attribute, can be:
-                               'local', 'external', 'read_arg', 'write_arg'
-                               or 'readwrite_arg'.
-        :raises ValueError: New access parameter has an invalid value.
+        :param str scope: It is 'local' if the symbol just exists inside the \
+                          kernel scope or 'global_*' if the data survives \
+                          outside of the kernel scope. Note that \
+                          global-scoped symbols also have postfixed \
+                          information about the sharing mechanism, at the \
+                          moment just 'global_argument' is available for \
+                          variables passed in/out of the kernel by argument.
+        :raises ValueError: New scope parameter has an invalid value.
         '''
-        if new_access not in Symbol.valid_access_types:
-            raise ValueError("Symbol access attribute can only be one of {0}"
+        if new_scope not in Symbol.valid_scope_types:
+            raise ValueError("Symbol scope attribute can only be one of {0}"
                              " but got '{1}'."
-                             "".format(str(Symbol.valid_access_types),
-                                       str(new_access))
-                             )
+                             "".format(str(Symbol.valid_scope_types),
+                                       str(new_scope)))
 
-        self._access = new_access
+        self._scope = new_scope
 
     def __str__(self):
         return (self.name + "<" + self.datatype + ", " + str(self.shape) +
-                ", " + self.access + ">")
+                ", " + self.scope + ">")
 
 
 class SymbolTable(object):
@@ -5104,7 +5158,8 @@ class SymbolTable(object):
         # Ordered list of the arguments.
         self._argument_list = []
 
-    def declare(self, name, datatype, shape, access):
+    def declare(self, name, datatype, shape=[], scope='local',
+                is_input=False, is_output=False):
         '''
         Declare a new symbol in the symbol table.
 
@@ -5115,29 +5170,41 @@ class SymbolTable(object):
                        an array dimension. If not None then it holds the \
                        extent of that dimension. If it is an empy list it \
                        represents an scalar.
-        :param str access: String that specifies if the declaration \
-                       represents a 'local', 'external' or argument \
-                       variable, if it is an argument it also specifies \
-                       if it is 'read_arg', 'write_arg' or 'readwrite_arg'.
+        :param str scope: It is 'local' if the symbol just exists inside the \
+                          kernel scope or 'global_*' if the data survives \
+                          outside of the kernel scope. Note that \
+                          global-scoped symbols also have postfixed \
+                          information about the sharing mechanism, at the \
+                          moment just 'global_argument' is available for \
+                          variables passed in/out of the kernel by argument.
+        :param bool is_input: Whether it is an already existent data that is \
+                              passed into the kernel upon entry.
+        :param bool is_output: Whether it is passed outside the kernel upon \
+                               exit.
         :raises KeyError: The provided name can not be used as key in the
                           table.
         '''
         if name in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(name))
-        self._symbols[name] = Symbol(name, datatype, shape, access)
+
+        self._symbols[name] = Symbol(name, datatype, shape, scope, is_input,
+                                     is_output)
 
     def specify_argument_list(self, argument_name_list):
         '''
-        Keep track of the arguments order and provide the argument access
-        attribute if it was not available on the variable declaration.
+        Keep track of the arguments order and provide the scope, is_input and
+        is_ouput information if it was not available on the variable
+        declaration.
 
         :param list argument_name_list: Ordered list of the argument names.
         '''
         for name in argument_name_list:
             symbol = self.lookup(name)
-            if symbol.access == 'local':
-                symbol.access = 'readwrite_arg'
+            if symbol.scope == 'local':
+                symbol.scope = 'global_argument'
+                symbol.is_input = True
+                symbol.is_output = True
             self._argument_list.append(symbol)
 
     def lookup(self, name):
