@@ -2262,6 +2262,10 @@ class ProfileRegionTrans(RegionTrans):
     >>> newschedule.view()
 
     '''
+    from psyclone import psyGen, profiler
+    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
+                        psyGen.HaloExchange, psyGen.Directive,
+                        psyGen.GlobalSum, profiler.ProfileNode)
 
     def __str__(self):
         return "Insert a profile start and end call."
