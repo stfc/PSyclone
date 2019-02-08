@@ -1293,8 +1293,8 @@ class Node(object):
     def root_at_depth(self, depth):
         '''
         Recurse upwards to find the root of this Node at the specified
-        depth level, in the range between the depth of the main nodes
-        in the Schedule (1) and the Node's depth.
+        depth level, in the range between the depth of the Schedule (1)
+        and the Node's depth.
         :param depth: depth level to find the Node's root at
         :type depth: int
         :returns: root node at the specified depth level

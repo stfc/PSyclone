@@ -1771,7 +1771,7 @@ class MoveTrans(Transformation):
 
 class ExtractRegionTrans(RegionTrans):
     ''' Provides a transformation to extract code contained within one
-    or more nodes in the tree. For example:
+    or more Nodes in the tree. For example:
 
     >>> from psyclone.parse import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -1795,14 +1795,11 @@ class ExtractRegionTrans(RegionTrans):
     >>> newsched, _ = etrans.apply(schedule.children[0:3])
     >>> newsched.view()
 
-    Nodes to extract can be individual constructs within an invoke (e.g.
-    (kernel or built-in) or entire invokes. For now, this functionality
-    does not include distributed memory.
-
-    Extraction is subject to the following rules:
-
-    Colouring in the Dynamo 0.3 API
-
+    After applying the transformation the Nodes marked for extraction are
+    children of the ExtractNode.
+    Nodes to extract can be individual constructs within an Invoke (e.g.
+    (Kernel or BuiltIn) or entire Invokes. This functionality does not
+    include distributed memory.
     '''
 
     def __str__(self):
@@ -1819,9 +1816,24 @@ class ExtractRegionTrans(RegionTrans):
         :param node: the node we are checking.
         :type node: list of :py:class:`psyclone.psyGen.Node`.
         :raises TransformationError: if distributed memory is configured.
-        :raises TransformationError: if extraction starts with loop over
-                                     cells in a colour for Dynamo0.3 API
-                                     coloured loops.
+        :raises TransformationError: if transformation is applied to the \
+                                     list of Nodes which already contain \
+                                     an ExtractNode.
+        :raises TransformationError: if transformation is applied to a \
+                                     Kernel or a BuiltIn call without its \
+                                     parent Loop.
+        :raises TransformationError: if transformation is applied to a Loop \
+                                     and its parent Directive when \
+                                     optimisations are applied.
+        :raises TransformationError: if transformation is applied to an \
+                                     orphaned Directive without its parent \
+                                     Directive.
+        :raises TransformationError: if transformation is applied to a Loop \
+                                     over cells in a colour without its \
+                                     parent Loop over colours in Dynamo0.3 API.
+        :raises TransformationError: if transformation is applied to an inner \
+                                     Loop without its parent Loop in \
+                                     GOcean1.0 API.
         '''
 
         # First check constraints on nodes in the node_list common to
@@ -1829,11 +1841,12 @@ class ExtractRegionTrans(RegionTrans):
         super(ExtractRegionTrans, self)._validate(node_list)
 
         # Check ExtractRegionTrans specific constraints.
-        from psyclone.psyGen import Loop, Kern, BuiltIn, Directive, \
-            OMPDoDirective, ACCLoopDirective
-        from psyclone.dynamo0p3 import DynLoop
         from psyclone.extractor import ExtractNode
-        
+        from psyclone.psyGen import Loop, Kern, BuiltIn, Directive, \
+            OMPDoDirective, ACCLoopDirective, OMPParallelDoDirective
+        from psyclone.dynamo0p3 import DynLoop
+        from psyclone.gocean1p0 import GOLoop
+
         # Extracting distributed memory code is not supported. This
         # constraint covers the presence of HaloExchange and GlobalSum
         # classses as they are only generated when distributed memory
@@ -1856,8 +1869,8 @@ class ExtractRegionTrans(RegionTrans):
                     "contains another Extract region is not allowed."
                     .format(str(self.name)))
 
-            # Check that ExtractNode is not inserted between a Kernel
-            # call and its parent Loop.
+            # Check that ExtractNode is not inserted between a Kernel or
+            # a BuiltIn call and its parent Loop.
             if isinstance(node, (Kern, BuiltIn)) and \
                isinstance(node.parent, Loop):
                 raise TransformationError(
@@ -1865,8 +1878,10 @@ class ExtractRegionTrans(RegionTrans):
                     "call without its parent Loop is not allowed."
                     .format(str(self.name)))
 
-            # Check that ExtractNode is not inserted between a Loop and
-            # its parent Directive when optimisations are applied.
+            # Check that ExtractNode is not inserted between a Loop and its
+            # parent Directive when optimisations are applied, as this may
+            # result in including the end of Directive for extraction but
+            # not the beginning.
             if isinstance(node, Loop) and isinstance(node.parent, Directive):
                 raise TransformationError(
                     "Error in {0}: Extraction of a Loop without its parent "
@@ -1875,8 +1890,11 @@ class ExtractRegionTrans(RegionTrans):
             # Check that ExtractNode is not inserted between an orphaned
             # Directive (e.g. OMPDoDirective, ACCLoopDirective) and its
             # parent Directive (e.g. ACC or OMP Parallel Directive) when
-            # optimisations are applied. 
-            if isinstance(node, (OMPDoDirective, ACCLoopDirective)):
+            # optimisations are applied. Note that we need to explicitly
+            # exclude the OMPParallelDoDirective as it inherits from both
+            # OMPDoDirective and OMPParallelDirective.
+            if isinstance(node, (OMPDoDirective, ACCLoopDirective)) and \
+               not isinstance(node, OMPParallelDoDirective):
                 raise TransformationError(
                     "Error in {0}: Extraction of an orphaned Directive "
                     "without its parent Directive is not allowed."
@@ -1885,20 +1903,36 @@ class ExtractRegionTrans(RegionTrans):
             # Dynamo0.3 API constraint: Check that ExtractNode is not
             # inserted between a Loop over colours and a Loop over cells
             # in a colour when colouring is applied.
-            if isinstance(node, DynLoop) and node.loop_type == 'colour':
+            ancestor = node.ancestor(DynLoop)
+            if ancestor and ancestor.loop_type == 'colours':
                 raise TransformationError(
-                    "Error in {0}: Extraction of a Loop over cells in a "
-                    "colour without the parent Loop over colours is not "
+                    "Error in {0} for Dynamo0.3 API: Extraction of a Loop "
+                    "over cells in a colour without its ancestor Loop over "
+                    "colours is not allowed.".format(str(self.name)))
+
+            # GOcean1.0 API constraint: Check that ExtractNode is not
+            # inserted between an inner and an outer Loop.
+            ancestor = node.ancestor(GOLoop)
+            if ancestor and ancestor.loop_type == 'outer':
+                raise TransformationError(
+                    "Error in {0} for GOcean1.0 API: Extraction of an "
+                    "inner Loop without its ancestor outer Loop is not "
                     "allowed.".format(str(self.name)))
 
     def apply(self, nodes):
-        ''' Extract the nodes represented by :py:obj:`node`. Exceptions
-        are raised if distributed memory is enabled or transformation
-        tries to extract HaloExchange or GlobalSum nodes'''
+        # pylint: disable=arguments-differ
+        ''' Apply this transformation to a subset of the Nodes within a
+        Schedule - i.e. enclose the specified Loops in the Schedule within
+        a single Extract region.
+        :param nodes: a single Node or a list of Nodes.
+        :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
+        :raises TransformationError: if the Nodes argument is not of the \
+                                     correct type.
+        '''
 
-        # Check whether we've been passed a list of nodes or just a
-        # single node. If the latter then we create ourselves a
-        # list containing just that node.
+        # Check whether we've been passed a list of Nodes or just a
+        # single Node. If the latter then we create ourselves a list
+        # containing just that node.
         from psyclone.psyGen import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
@@ -1916,14 +1950,14 @@ class ExtractRegionTrans(RegionTrans):
         # Validate transformation
         self._validate(node_list)
 
-        # Keep a reference to the parent of the nodes that are to be
-        # enclosed within an extract region. Also keep the index of
+        # Keep a reference to the parent of the Nodes that are to be
+        # enclosed within an Extract region. Also keep the index of
         # the first child to be enclosed as that will be the position
-        # of the ExtractNode
+        # of the ExtractNode.
         node_parent = node_list[0].parent
         node_position = node_list[0].position
 
-        # Create a memento of the schedule and the proposed
+        # Create a Memento of the Schedule and the proposed
         # transformation
         schedule = node_list[0].root
 
@@ -1934,7 +1968,7 @@ class ExtractRegionTrans(RegionTrans):
 
         # Change all of the affected children so that they have
         # the ExtractNode as their parent. Use a slice
-        # of the list of nodes so that we're looping over a local
+        # of the list of Nodes so that we're looping over a local
         # copy of the list. Otherwise things get confused when
         # we remove children from the list.
         for child in node_list[:]:
@@ -1942,9 +1976,8 @@ class ExtractRegionTrans(RegionTrans):
             node_parent.children.remove(child)
             child.parent = extract_node
 
-        # Add the ExtractNode as a child of the parent
-        # of the nodes being enclosed and at the original location
-        # of the first of these nodes
+        # Add the ExtractNode as a child of the parent of the Nodes being
+        # enclosed at the original location of the first of these Nodes
         node_parent.addchild(extract_node,
                              index=node_position)
 
@@ -2477,7 +2510,7 @@ class ProfileRegionTrans(RegionTrans):
         profile_node = ProfileNode(parent=node_parent, children=node_list[:])
 
         # Change all of the affected children so that they have
-        # the ProfileNode astheir parent. Use a slice
+        # the ProfileNode as their parent. Use a slice
         # of the list of nodes so that we're looping over a local
         # copy of the list. Otherwise things get confused when
         # we remove children from the list.

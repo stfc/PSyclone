@@ -94,7 +94,8 @@ class ExtractNode(Node):
         :param int indent: Depth of indent for output text
         '''
         print(self.indent(indent) + self.coloured_text +
-              "[position='" + str(self.position) + "']")
+              "[position='" + str(self.position) +
+              "',depth='" + str(self.depth) + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
