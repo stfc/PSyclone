@@ -1480,11 +1480,10 @@ def test_acc_data_not_a_schedule():
 
     # Add a parallel region *around* the enter-data directive so that it
     # (erroneously) comes before it...
-    new_sched, _ = accpara.apply(new_sched.children[0])
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("An ACC parallel region must be preceeded by an ACC enter-data "
-            "directive but in invoke_0 this is not the case." in str(err))
+    with pytest.raises(TransformationError) as err:
+        _, _ = accpara.apply(new_sched.children[0])
+    assert ("GOACCDataDirective'>' cannot be enclosed by a ACCParallelTrans "
+            "transformation" in str(err))
 
 
 def test_acc_data_copyin():
