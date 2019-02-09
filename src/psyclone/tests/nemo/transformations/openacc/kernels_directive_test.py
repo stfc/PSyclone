@@ -71,6 +71,23 @@ def test_no_kernels_error(parser):
     assert "must contain blah blah" in str(err)
 
 
+def test_no_loops(parser):
+    ''' Check that the transformation refuses to generate a kernels region
+    if it contains no loops. '''
+    reader = FortranStringReader("program no_loop\n"
+                                 "integer :: jpk\n"
+                                 "jpk = 30\n"
+                                 "end program no_loop\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    with pytest.raises(TransformationError) as err:
+        _, _ = acc_trans.apply(schedule.children[0:1])
+    assert "must contain blah blah" in str(err)
+
+
 def test_implicit_loop(parser):
     ''' Check that the transformation generates correct code when applied
     to an implicit loop. '''
@@ -87,3 +104,33 @@ def test_implicit_loop(parser):
     gen_code = str(psy.gen)
     print(gen_code)
     assert 0
+
+
+def test_multikern_if(parser):
+    ''' Check that we can include an if-block containing multiple
+    loops within a kernels region. '''
+    reader = FortranStringReader("program implicit_loop\n"
+                                 "real(kind=wp) :: sto_tmp(5)\n"
+                                 "if(do_this)then\n"
+                                 "do jk = 1, 3\n"
+                                 "  sto_tmp(jk) = jk\n"
+                                 "end do\n"
+                                 "else\n"
+                                 "do jk = 1, 5\n"
+                                 "  sto_tmp(jk) = jk\n"
+                                 "end do\n"
+                                 "end if\n"
+                                 "end program implicit_loop\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0:1], default_present=True)
+    gen_code = str(psy.gen).lower()
+    assert ("!$acc kernels default(present)\n"
+            "  if (do_this) then\n"
+            "    do jk = 1, 3\n" in gen_code)
+    assert ("    end do\n"
+            "  end if\n"
+            "  !$acc end kernels\n"
+            "end program implicit_loop" in gen_code)
