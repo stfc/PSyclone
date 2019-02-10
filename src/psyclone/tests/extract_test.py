@@ -34,7 +34,9 @@
 # Author I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for PSyclone ExtractRegionTrans transformation '''
+''' Module containing tests for PSyclone ExtractRegionTrans transformation
+and ExtractNode.
+ '''
 
 from __future__ import absolute_import
 
@@ -56,29 +58,53 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "test_files", "gocean1p0")
 GOCEAN_API = "gocean1.0"
 
+# --------------------------------------------------------------------------- #
+# ================== ExtractRegionTrans tests =============================== #
+# --------------------------------------------------------------------------- #
+
 
 def test_node_list_error():
-    ''' Test that applying ExtractRegionTrans on a Kernel or Built-in call
-    without its parent Loop raises a TransformationError. '''
+    ''' Test that applying ExtractRegionTrans on objects which are not
+    Nodes or a list of Nodes raises a TransformationError. Also raise
+    transformation errors when the Nodes do not have the same parent
+    if they are incorrectly ordered. '''
     etrans = ExtractRegionTrans()
 
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "15.1.2_builtin_and_normal_kernel_"
-                                        "invoke.f90"),
-                           api=DYNAMO_API)
+    _, invoke_info = parse(
+        os.path.join(DYNAMO_BASE_PATH,
+                     "3.2_multi_functions_multi_named_invokes.f90"),
+        api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    invoke0 = psy.invokes.invoke_list[0]
+    invoke1 = psy.invokes.invoke_list[1]
 
-    # Supply object which is not a Node or a list of nodes
+    # Supply an object which is not a Node or a list of Nodes
     with pytest.raises(TransformationError) as excinfo:
-        etrans.apply("somestring")
+        etrans.apply(invoke0)
     assert ("Error in ExtractRegionTrans: Argument must be a single Node "
             "in a Schedule or a list of Nodes in a Schedule but have "
             "been passed an object of type: ") in str(excinfo)
-    # Python 3 reports 'class', python 2 'type' - so just check for both
-    assert "<type 'str'>" in str(excinfo) or "<class 'str'>" in str(excinfo)
-    #- Add more tests...
+    assert "<class \'psyclone.dynamo0p3.DynInvoke\'>" in str(excinfo)
+
+    # Supply Nodes in incorrect order or duplicate Nodes
+    node_list = [invoke0.schedule.children[0],
+                 invoke0.schedule.children[0],
+                 invoke0.schedule.children[1]]
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.apply(node_list)
+    assert "Children are not consecutive children of one parent:" \
+           in str(excinfo)
+    assert ("kern call: testkern_code\\nEndLoop\' has position 0, "
+            "but previous child had position 0.") in str(excinfo)
+
+    # Supply Nodes which are not children of the same parent
+    node_list = [invoke0.schedule.children[1],
+                 invoke1.schedule.children[0],
+                 invoke0.schedule.children[2]]
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.apply(node_list)
+    assert ("Error in ExtractRegionTrans transformation: supplied nodes "
+            "are not children of the same Schedule/parent.") in str(excinfo)
 
 
 def test_distmem_error():
@@ -157,10 +183,10 @@ def test_kern_builtin_no_loop():
     etrans = ExtractRegionTrans()
 
     # Test Dynamo0.3 API for Built-in call error
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "15.1.2_builtin_and_normal_kernel_"
-                                        "invoke.f90"),
-                           api=DYNAMO_API)
+    _, invoke_info = parse(
+        os.path.join(DYNAMO_BASE_PATH,
+                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+        api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -367,8 +393,12 @@ def test_no_outer_loop_gocean1p0():
     assert ("GOcean1.0 API: Extraction of an inner Loop without its "
             "ancestor outer Loop is not allowed.") in str(excinfo.value)
 
+# --------------------------------------------------------------------------- #
+# ================== ExtractNode tests ====================================== #
+# --------------------------------------------------------------------------- #
 
-def test_extract_node():
+
+def test_extract_node_position():
     '''
     Test that ExtractRegionTrans inserts the ExtractNode in the position
     of the first Node a Schedule in the Node list marked for extraction. '''
@@ -396,10 +426,10 @@ def test_extract_node():
     assert extract_node[0].depth == dpth
 
     # Test Dynamo0.3 API for extraction of a list of Nodes
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "15.1.2_builtin_and_normal_kernel_"
-                                        "invoke.f90"),
-                           api=DYNAMO_API)
+    _, invoke_info = parse(
+        os.path.join(DYNAMO_BASE_PATH,
+                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+        api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API,
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -417,6 +447,56 @@ def test_extract_node():
     assert extract_node[0].position == pos
     assert extract_node[0].abs_position == abspos
     assert extract_node[0].depth == dpth
+
+
+def test_extract_node_representation(capsys):
+    ''' Test that representation properties and methods of the ExtractNode
+    class: view, dag_name and __str__ produce the correct results. '''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+
+    etrans = ExtractRegionTrans()
+
+    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
+                                        "4.8_multikernel_invokes.f90"),
+                           api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    children = schedule.children[1:3]
+    schedule, _ = etrans.apply(children)
+
+    # Test view() method
+    schedule.view()
+    output, _ = capsys.readouterr()
+    expected_output = (colored("Extract",
+                               SCHEDULE_COLOUR_MAP["Extract"]) +
+                       "[position='1',depth='2']")
+    assert expected_output in output
+
+    # Test dag_name method
+    assert schedule.children[1].dag_name == "extract_1"
+
+    # Test __str__ method
+    correct = ("""Schedule:
+Loop[]: cell= lower=,,
+kern call: testkern_code
+EndLoop
+ExtractStart
+Loop[]: cell= lower=,,
+kern call: testkern_code
+EndLoop
+Loop[]: cell= lower=,,
+kern call: ru_code
+EndLoop
+ExtractEnd
+Loop[]: cell= lower=,,
+kern call: ru_code
+EndLoop
+Loop[]: cell= lower=,,
+kern call: testkern_code
+EndLoop
+End Schedule""")
+    assert correct in str(schedule)
 
 
 def test_single_node_dynamo0p3():
@@ -454,10 +534,10 @@ def test_node_list_dynamo0p3():
     the correct result in Dynamo0.3 API. '''
     etrans = ExtractRegionTrans()
 
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "15.1.2_builtin_and_normal_kernel_"
-                                        "invoke.f90"),
-                           api=DYNAMO_API)
+    _, invoke_info = parse(
+        os.path.join(DYNAMO_BASE_PATH,
+                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+        api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API,
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -584,28 +664,3 @@ def test_omp_kernels_invalid():
     output = str(psy.gen)
     # print(output)
     # assert "random_numbers :: qr\n" in output
-
-
-# def test_extract_view(capsys):
-    # ''' Test the view method in the ExtractNode class. '''
-    # from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    # from psyclone import dynamo0p3
-    # _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-    #                        "15.9.1_X_innerproduct_Y_builtin.f90"),
-    #                        api=DYNAMO_API)
-    # psy = PSyFactory(DYNAMO_API, distributed_memory=True).create(invoke_info)
-    # psy.invokes.invoke_list[0].schedule.view()
-    # output, _ = capsys.readouterr()
-    # print(output)
-    # expected_output = (colored("GlobalSum",
-    #                             SCHEDULE_COLOUR_MAP["GlobalSum"]) +
-    #                    "[scalar='asum']")
-    # assert expected_output in output
-    # gsum = None
-    # for child in psy.invokes.invoke_list[0].schedule.children:
-    #     if isinstance(child, dynamo0p3.DynGlobalSum):
-    #         gsum = child
-    #         break
-    # assert gsum
-    # ret_str = super(dynamo0p3.DynGlobalSum, gsum).coloured_text
-    # assert colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"]) in ret_str

@@ -48,6 +48,11 @@ from psyclone.transformations import ExtractRegionTrans
 
 
 class ExtractNode(Node):
+    ''' This class can be inserted into a Schedule to mark Nodes for code
+    extraction using the ExtractRegionTrans transformation. By applying
+    the transformation the Nodes marked for extraction become children
+    of an ExtractNode.
+    '''
 
     def __init__(self, children=None, parent=None):
         ''' Constructor for an ExtractNode that is inserted in a Schedule.
@@ -63,7 +68,7 @@ class ExtractNode(Node):
     def __str__(self):
         ''' Returns a string representation of the subtree starting at
         the Extract Node. '''
-        result = "ExtractStart"
+        result = "ExtractStart\n"
         for child in self.children:
             result += str(child)+"\n"
         return result+"ExtractEnd"
@@ -83,7 +88,7 @@ class ExtractNode(Node):
     @property
     def dag_name(self):
         ''' Return the base dag name for this Extract node '''
-        return "extract_" + str(self.abs_position)
+        return "extract_" + str(self.position)
 
     def view(self, indent=0):
         '''
@@ -161,7 +166,6 @@ class Extractor(object):
         print(extract_node_position)
         for idx in extract_node_position:
             print(idx, position)
-            schedule.children[idx]
             schedule, _ = etrans.apply(schedule.children[idx])
 
         return schedule
