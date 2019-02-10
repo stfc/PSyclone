@@ -1309,7 +1309,7 @@ class Node(object):
         node = self
         while node.parent.depth > depth:
             node = node.parent
-        return node
+        return node.parent
 
     def walk(self, children, my_type):
         ''' recurse through tree and return objects of mytype '''

@@ -1426,22 +1426,25 @@ def test_node_position(tmpdir, f90, f90flags):
 def test_node_root():
     '''
     Test that the Node class root and root_at_depth methods return
-    the correct instamces for a Node in a tree.
+    the correct instances for a Node in a tree.
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
         distributed_memory=False, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
+    ru_schedule = invoke.schedule
     # Select a loop and the kernel inside
-    ru_loop = schedule.children[1]
+    ru_loop = ru_schedule.children[1]
     ru_kern = ru_loop.children[0]
-    # Assert that the absolute root is Schedule
+    # Assert that the absolute root is a Schedule,
     from psyclone.psyGen import Schedule, Loop
     assert isinstance(ru_kern.root, Schedule)
-    # and the root at depth 1 is Loop
-    assert isinstance(ru_kern.root_at_depth(1), Loop)
+    # which is also the root at depth 1
+    assert ru_kern.root_at_depth(1) == ru_schedule
+    # and the root at depth 2 is a child of the ru_schedule, here ru_loop.
+    assert ru_kern.root_at_depth(2) == ru_loop
+    assert ru_loop.parent == ru_kern.root_at_depth(1)
     # Assert that specifying incorrect depth for root_at_depth method
     # raises an InternalError (for both 0 and Node's depth)
     with pytest.raises(InternalError) as excinfo:
