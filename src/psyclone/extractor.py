@@ -35,7 +35,7 @@
 # -----------------------------------------------------------------------------
 
 ''' This module provides support for extraction of code within a specified
-invoke. The extracted code may be a single kernel, multiple occurences of a
+invoke. The extracted code may be a single kernel, multiple occurrences of a
 kernel in an invoke, nodes in an invoke or the entire invoke (extraction
 applied to all Nodes).
 '''
@@ -74,12 +74,11 @@ class ExtractNode(Node):
 
     @property
     def coloured_text(self):
-        '''
-        Returns a string containing the name of this Node along with \
+        ''' Returns a string containing the name of this Node along with \
         control characters for colouring in terminals that supports it.
 
-        :returns: The name of this Node, possibly with control codes for \
-                  colouring
+        :returns: the name of this Node, possibly with control codes for \
+                  colouring.
         :rtype: string
         '''
         return colored("Extract", SCHEDULE_COLOUR_MAP["Extract"])
@@ -90,12 +89,11 @@ class ExtractNode(Node):
         return "extract_" + str(self.position)
 
     def view(self, indent=0):
-        '''
-        Print a text representation of this Extract schedule to stdout \
+        ''' Print a text representation of this Extract schedule to stdout \
         and then call the view() method of any children. The text \
         representation returns position of Extract Node(s) in the tree.
 
-        :param int indent: Depth of indent for output text
+        :param int indent: depth of indent for output text.
         '''
         print(self.indent(indent) + self.coloured_text +
               "[position='" + str(self.position) +
@@ -104,12 +102,11 @@ class ExtractNode(Node):
             entity.view(indent=indent + 1)
 
     def gen_code(self, parent):
-        '''
-        Marks region for code extraction as children of the ExtractNode. \
-        For now it inserts comments at the position of the ExtractNode \
-        and after all children of the ExtractNode. These comments will \
-        later be replaced by calls to write out arguments of extracted \
-        Node(s) or Kernel(s).
+        ''' Marks region for code extraction as children of the \
+        ExtractNode. For now it inserts comments at the position of the \
+        ExtractNode and after all children of the ExtractNode. These \
+        comments will later be replaced by calls to write out arguments \
+        of extracted Node(s) or Kernel(s).
 
         :param parent: the parent of this Node.
         :type parent: :py:class:`psyclone.psyGen.Node`.
@@ -135,14 +132,14 @@ class Extractor(object):
 
     @staticmethod
     def extract_kernel(schedule, kernel_name, position=None):
-        '''This function inserts ExtractNode(s) around one or more Nodes \
+        ''' This function inserts ExtractNode(s) around one or more Nodes \
         in a Schedule which contains calls to a particular Kernel. \
         First we construct the lists of relative and absolute positions \
         of root Nodes which contain the Kernel call within the Schedule. \
         The list of relative positions instructs the ExtractRegionTrans \
         where to insert an ExtractNode. The list of absolute positions is \
         used as a control mechanism for cases where two or more Kernels \
-        with the same name are descendandts of the same root Node (for \
+        with the same name are descendants of the same root Node (for \
         instance if they are enclosed within an OMPParallelDirective or \
         an OMPParallelDoDirective). In these cases the repeated values of \
         root Node(s)' absolute and the corresponding relative positions \
@@ -157,13 +154,15 @@ class Extractor(object):
         :param schedule: the supplied Schedule within which we are \
                          extracting one or more root Nodes containing \
                          calls to the specified Kernel.
-        :type schedule: :py:class:`psyclone.psyGen.Schedule`
+        :type schedule: :py:class:`psyclone.psyGen.Schedule`.
         :param str kernel_name: the name of the specified Kernel as \
                                 represented in a Kernel call (ending in \
                                 "_code", e.g. "ru_kernel_code").
         :param int position: optional argument to determine where to \
                              insert ExtractNode if there are multiple \
                              root Nodes with the specified Kernel calls.
+        :returns: the modified Schedule.
+        :rtype: :py:class:`psyclone.psyGen.Schedule`.
         :raises GenerationError: if there are no Kernels with the specified \
                                  name in the Schedule.
         :raises GenerationError: if the optional position argument does \

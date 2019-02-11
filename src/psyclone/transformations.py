@@ -484,8 +484,8 @@ class ParallelLoopTrans(Transformation):
         :type node: :py:class:`psyclone.psyGen.Node`.
         :param int collapse: number of loops to collapse into single \
                              iteration space or None.
-        :return: (:py:class:`psyclone.psyGen.Schedule`, \
-                  :py:class:`psyclone.undoredo.Memento`)
+        :returns: (:py:class:`psyclone.psyGen.Schedule`, \
+                   :py:class:`psyclone.undoredo.Memento`)
 
         '''
         self._validate(node, collapse)
@@ -678,7 +678,7 @@ class OMPLoopTrans(ParallelLoopTrans):
         (False). The default value is None which will cause PSyclone \
         to look up a default value
         :type reprod: Boolean or None
-        :return: (:py:class:`psyclone.psyGen.Schedule`, \
+        :returns: (:py:class:`psyclone.psyGen.Schedule`, \
         :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -801,8 +801,8 @@ class ACCLoopTrans(ParallelLoopTrans):
         :param bool independent: whether to add the "independent" clause to \
                                  the directive (not strictly necessary within \
                                  PARALLEL regions).
-        :return: (:py:class:`psyclone.psyGen.Schedule`, \
-                  :py:class:`psyclone.undoredo.Memento`)
+        :returns: (:py:class:`psyclone.psyGen.Schedule`, \
+                   :py:class:`psyclone.undoredo.Memento`)
 
         '''
         # Store sub-class specific options. These are used when
@@ -1799,7 +1799,7 @@ class ExtractRegionTrans(RegionTrans):
     children of the ExtractNode. \
     Nodes to extract can be individual constructs within an Invoke (e.g. \
     (Kernel or BuiltIn) or entire Invokes. This functionality does not \
-    include distributed memory.
+    support distributed memory.
     '''
 
     def __str__(self):
@@ -1813,8 +1813,8 @@ class ExtractRegionTrans(RegionTrans):
     def _validate(self, node_list):
         ''' Perform validation checks before applying the transformation
 
-        :param node: the node we are checking.
-        :type node: list of :py:class:`psyclone.psyGen.Node`.
+        :param node_list: the list of Node(s) we are checking.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
         :raises TransformationError: if distributed memory is configured.
         :raises TransformationError: if transformation is applied to the \
                                      list of Nodes which already contain \
@@ -1860,7 +1860,7 @@ class ExtractRegionTrans(RegionTrans):
         for node in node_list:
 
             # Check that an ExtractNode is not already in the node list
-            # marked for extraction. Otherwise we would have extract
+            # marked for extraction. Otherwise we would have extract a
             # region within another extract region.
             if node.walk(node.children, ExtractNode) or \
                isinstance(node, ExtractNode):
@@ -1921,18 +1921,22 @@ class ExtractRegionTrans(RegionTrans):
 
     def apply(self, nodes):
         # pylint: disable=arguments-differ
-        ''' Apply this transformation to a subset of the Nodes within a
-        Schedule - i.e. enclose the specified Loops in the Schedule within
-        a single Extract region.
+        ''' Apply this transformation to a subset of the Nodes within
+        a Schedule - i.e. enclose the specified Nodes in the Schedule
+        within a single Extract region.
         :param nodes: a single Node or a list of Nodes.
         :type nodes: (list of) :py:class:`psyclone.psyGen.Node`.
-        :raises TransformationError: if the Nodes argument is not of the \
+        :returns: Tuple of the modified Schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                 :py:class:`psyclone.undoredo.Memento`).
+        :raises TransformationError: if the nodes argument is not of the \
                                      correct type.
         '''
 
         # Check whether we've been passed a list of Nodes or just a
         # single Node. If the latter then we create ourselves a list
-        # containing just that node.
+        # containing just that Node.
         from psyclone.psyGen import Node
         if isinstance(nodes, list) and isinstance(nodes[0], Node):
             node_list = nodes
@@ -1966,11 +1970,10 @@ class ExtractRegionTrans(RegionTrans):
         from psyclone.extractor import ExtractNode
         extract_node = ExtractNode(parent=node_parent, children=node_list[:])
 
-        # Change all of the affected children so that they have
-        # the ExtractNode as their parent. Use a slice
-        # of the list of Nodes so that we're looping over a local
-        # copy of the list. Otherwise things get confused when
-        # we remove children from the list.
+        # Change all of the affected children so that they have the
+        # ExtractNode as their parent. Use a slice of the list of Nodes
+        # so that we're looping over a local copy of the list. Otherwise
+        # things get confused when we remove children from the list.
         for child in node_list[:]:
             # Remove child from the parent's list of children
             node_parent.children.remove(child)
@@ -2317,7 +2320,7 @@ class GOLoopSwapTrans(Transformation):
 
         :param outer: The node representing the outer loop.
         :type outer: :py:class:`psyclone.psyGen.Loop`
-        :return: A tuple consistent of the new schedule, and a Memento.
+        :returns: A tuple consistent of the new schedule, and a Memento.
         :raises TransformationError: if the supplied node does not
                                         allow a loop swap to be done.'''
         self._validate(outer)
