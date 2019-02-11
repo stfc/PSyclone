@@ -623,7 +623,7 @@ def test_cma_asm_cbanded_dofmap_error():
     for arg in calls[0].arguments.args:
         arg._type = 'gh_columnwise_operator'
     with pytest.raises(GenerationError) as excinfo:
-        invoke.dofmaps.__init__(invoke.schedule)
+        invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA operator argument "
             "for a CMA assembly kernel but found 2") in str(excinfo)
 
@@ -823,7 +823,7 @@ def test_cma_apply_indirection_dofmap_error():
     for arg in calls[0].arguments.args:
         arg._type = 'gh_columnwise_operator'
     with pytest.raises(GenerationError) as excinfo:
-        invoke.dofmaps.__init__(invoke.schedule)
+        invoke.dofmaps.__init__(invoke)
     assert ("Internal error: there should only be one CMA "
             "operator argument for a kernel that applies a "
             "CMA operator but found 3") in str(excinfo)
@@ -1013,7 +1013,7 @@ def test_cma_matrix_matrix(tmpdir, f90, f90flags):
         code = str(psy.gen)
         print(code)
         assert "INTEGER ncell_2d" in code
-        assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
+        assert "ncell_2d = cma_opa_proxy%ncell_2d" in code
 
         if distmem:
             # When distributed-memory is enabled then we compute operators
@@ -1042,50 +1042,50 @@ def test_cma_matrix_matrix(tmpdir, f90, f90flags):
             assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
-def test_cma_matrix_matrix_2scalars(tmpdir, f90, f90flags):
+def test_cma_matrix_matrix_2scalars(tmpdir, f90, f90flags, dist_mem):
     ''' Test that we generate correct code for an invoke containing
     a kernel that performs a matrix-matrix CMA calculation including
     scalar arguments. '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.2.1_cma_matrix_matrix.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert "INTEGER ncell_2d" in code
-        assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
 
-        if distmem:
-            # When distributed-memory is enabled then we compute operators
-            # redundantly (out to the L1 halo)
-            assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
-        else:
-            assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.2.1_cma_matrix_matrix.f90"),
+        distributed_memory=dist_mem,
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert "INTEGER ncell_2d" in code
+    assert "ncell_2d = cma_opa_proxy%ncell_2d" in code
 
-        assert ("CALL columnwise_op_mul_2scalars_kernel_code(cell, "
-                "ncell_2d, "
-                "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
-                "cma_opa_bandwidth, cma_opa_alpha, "
-                "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
-                "alpha, "
-                "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
-                "cma_opb_bandwidth, cma_opb_alpha, "
-                "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
-                "beta, "
-                "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
-                "cma_opc_bandwidth, cma_opc_alpha, "
-                "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
-        if distmem:
-            assert "_dirty(" not in code
+    if dist_mem:
+        # When distributed-memory is enabled then we compute operators
+        # redundantly (out to the L1 halo)
+        assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+    else:
+        assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert ("CALL columnwise_op_mul_2scalars_kernel_code(cell, "
+            "ncell_2d, "
+            "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
+            "cma_opa_bandwidth, cma_opa_alpha, "
+            "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
+            "alpha, "
+            "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
+            "cma_opb_bandwidth, cma_opb_alpha, "
+            "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
+            "beta, "
+            "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_bandwidth, cma_opc_alpha, "
+            "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
+    if dist_mem:
+        assert "_dirty(" not in code
+
+    if TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_cma_multi_kernel(tmpdir, f90, f90flags):
@@ -1192,11 +1192,10 @@ def test_cma_asm_stub_gen():
         "cbanded_map_any_space_2_op_1)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ncell_2d\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1_op_1\n"
-        "      INTEGER, intent(in) :: ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_1, "
+        "ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in) :: cell, ncell_2d\n"
         "      INTEGER, intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_1,"
         "ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
@@ -1235,12 +1234,14 @@ def test_cma_asm_with_field_stub_gen():
         "ndf_any_space_2_op_2, cbanded_map_any_space_2_op_2)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ncell_2d\n"
         "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
-        "      INTEGER, intent(in) :: undf_any_space_1_field_1\n"
-        "      INTEGER, intent(in) :: ndf_any_space_2_op_2\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
+        "map_any_space_1_field_1\n"
+        "      INTEGER, intent(in) :: undf_any_space_1_field_1, "
+        "ndf_any_space_2_op_2\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: ncell_2d\n"
         "      REAL(KIND=r_def), intent(in), dimension("
         "undf_any_space_1_field_1) :: field_1_any_space_1_field_1\n"
         "      INTEGER, intent(in) :: op_2_ncell_3d\n"
@@ -1251,8 +1252,6 @@ def test_cma_asm_with_field_stub_gen():
         " cma_op_3_gamma_p\n"
         "      REAL(KIND=r_def), intent(out), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
-        "map_any_space_1_field_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,"
         "nlayers) :: cbanded_map_any_space_1_field_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_2_op_2,"
@@ -1281,12 +1280,14 @@ def test_cma_asm_same_fs_stub_gen():
         "cbanded_map_any_space_2_op_1)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ncell_2d\n"
         "      INTEGER, intent(in) :: ndf_any_space_1_op_1\n"
-        "      INTEGER, intent(in) :: undf_any_space_1_op_1\n"
-        "      INTEGER, intent(in) :: ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_op_1) :: "
+        "map_any_space_1_op_1\n"
+        "      INTEGER, intent(in) :: undf_any_space_1_op_1, "
+        "ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in) :: cell\n"
+        "      INTEGER, intent(in) :: ncell_2d\n"
         "      INTEGER, intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_any_space_1_op_1,"
         "ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
@@ -1296,8 +1297,6 @@ def test_cma_asm_same_fs_stub_gen():
         "cma_op_3_alpha, cma_op_3_beta, cma_op_3_gamma_m, cma_op_3_gamma_p\n"
         "      REAL(KIND=r_def), intent(out), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1_op_1) :: "
-        "map_any_space_1_op_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_2_op_1,nlayers) "
         ":: cbanded_map_any_space_2_op_1\n")
     assert expected in str(result)
@@ -1324,12 +1323,16 @@ def test_cma_app_stub_gen():
         "map_any_space_2_field_2, cma_indirection_map_any_space_2_field_2)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
+        "map_any_space_1_field_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_2_field_2\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_2_field_2) :: "
+        "map_any_space_2_field_2\n"
+        "      INTEGER, intent(in) :: undf_any_space_1_field_1, "
+        "undf_any_space_2_field_2\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: ncell_2d\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
-        "      INTEGER, intent(in) :: undf_any_space_1_field_1\n"
-        "      INTEGER, intent(in) :: ndf_any_space_2_field_2\n"
-        "      INTEGER, intent(in) :: undf_any_space_2_field_2\n"
         "      REAL(KIND=r_def), intent(inout), "
         "dimension(undf_any_space_1_field_1) :: field_1_any_space_1_field_1\n"
         "      REAL(KIND=r_def), intent(in), "
@@ -1339,12 +1342,8 @@ def test_cma_app_stub_gen():
         "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
         "      REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
-        "map_any_space_1_field_1\n"
         "      INTEGER, intent(in), dimension(cma_op_3_nrow) :: "
         "cma_indirection_map_any_space_1_field_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_2_field_2) :: "
-        "map_any_space_2_field_2\n"
         "      INTEGER, intent(in), dimension(cma_op_3_ncol) :: "
         "cma_indirection_map_any_space_2_field_2\n"
         "    END SUBROUTINE columnwise_op_app_kernel_code\n"
@@ -1373,10 +1372,12 @@ def test_cma_app_same_space_stub_gen():
         "cma_indirection_map_any_space_2_field_1)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
+        "      INTEGER, intent(in) :: ndf_any_space_2_field_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_2_field_1) :: "
+        "map_any_space_2_field_1\n"
+        "      INTEGER, intent(in) :: undf_any_space_2_field_1\n"
         "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: ncell_2d\n"
-        "      INTEGER, intent(in) :: ndf_any_space_2_field_1\n"
-        "      INTEGER, intent(in) :: undf_any_space_2_field_1\n"
         "      REAL(KIND=r_def), intent(inout), "
         "dimension(undf_any_space_2_field_1) :: field_1_any_space_2_field_1\n"
         "      REAL(KIND=r_def), intent(in), "
@@ -1386,8 +1387,6 @@ def test_cma_app_same_space_stub_gen():
         "cma_op_3_gamma_m, cma_op_3_gamma_p\n"
         "      REAL(KIND=r_def), intent(in), dimension(cma_op_3_bandwidth,"
         "cma_op_3_nrow,ncell_2d) :: cma_op_3\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_2_field_1) :: "
-        "map_any_space_2_field_1\n"
         "      INTEGER, intent(in), dimension(cma_op_3_nrow) :: "
         "cma_indirection_map_any_space_2_field_1\n"
         "    END SUBROUTINE columnwise_op_app_same_fs_kernel_code\n"

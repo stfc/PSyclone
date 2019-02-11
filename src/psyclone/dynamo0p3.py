@@ -1842,6 +1842,7 @@ class DynInvokeDofmaps(DynInvokeCollection):
         '''
         from psyclone.f2pygen import DeclGen
         for dmap in sorted(self._unique_fs_maps):
+            # TODO merge this into declarations()?
             # We declare ndf first as some compilers require this
             ndf_name = get_fs_ndf_name(
                 self._unique_fs_maps[dmap].function_space)
@@ -1871,14 +1872,16 @@ class DynInvokeFunctionSpaces(DynInvokeCollection):
         # Loop over all unique function spaces used by our kernel(s)
         for function_space in self._function_spaces:
 
-            # Initialise ndf for this function space and add name to
-            # list to declare later.
-            if not self._dofs_only:
+            # We need ndf for a space if a kernel iterates over cells,
+            # has a field or operator on that space and is not a
+            # CMA kernel performing a matrix-matrix operation.
+            if self._invoke and not self._dofs_only or \
+               self._kernel and self._kernel.cma_operation != "matrix-matrix":
                 self._var_list.append(get_fs_ndf_name(function_space))
 
-            # If there is a field on this space then initialise undf
-            # for this function space and add name to list to declare
-            # later. However, if the invoke contains only kernels that iterate
+            # If there is a field on this space then add undf to list to
+            # declare later. However, if the invoke contains only kernels
+            # that iterate
             # over dofs and distributed memory is enabled then the
             # number of dofs is obtained from the field proxy and undf is
             # not required.
@@ -1891,6 +1894,9 @@ class DynInvokeFunctionSpaces(DynInvokeCollection):
 
     def declarations(self, parent):
         '''
+        :param parent: the node in the f2pygen AST to which to add \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
         if self._var_list:
@@ -2066,15 +2072,13 @@ class DynInvokeCellIterators(DynInvokeCollection):
         from psyclone.f2pygen import DeclGen
         # We only need the number of layers in the mesh if we are calling
         # one or more kernels that iterate over cells
-        if not self._dofs_only:
+        if self._invoke and not self._dofs_only:
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[self._nlayers_name]))
-
-    def stub_declarations(self, parent):
-        # TODO would it be better to fold this into the `declarations` method?
-        from psyclone.f2pygen import DeclGen
-        parent.add(DeclGen(parent, datatype="integer", intent="in",
-                           entity_decls=[self._nlayers_name]))
+        elif (self._kernel and
+              self._kernel.cma_operation not in ["apply", "matrix-matrix"]):
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=[self._nlayers_name]))
 
     def initialise(self, parent):
         '''
@@ -2177,9 +2181,7 @@ class DynInvokeCMAOperators(DynInvokeCollection):
     def __init__(self, invoke):
         super(DynInvokeCMAOperators, self).__init__(invoke)
 
-        schedule = invoke.schedule
-
-        # Look at every kernel call in this invoke and generate a set of
+        # Look at every kernel call and generate a set of
         # the unique CMA operators involved. For each one we create a
         # dictionary entry. The key is the name of the CMA argument in the
         # PSy layer and the entry is itself another dictionary containing
@@ -2188,8 +2190,8 @@ class DynInvokeCMAOperators(DynInvokeCollection):
         # that CMA operator. The contents of this list depend on whether
         # or not the to/from function spaces of the CMA operator are the
         # same.
-        self._cma_ops = {}
-        for call in schedule.calls():
+        self._cma_ops = OrderedDict()
+        for call in self._calls:
             if call.cma_operation:
                 # Get a list of all of the CMA arguments to this call
                 cma_args = psyGen.args_filter(
@@ -2208,8 +2210,9 @@ class DynInvokeCMAOperators(DynInvokeCollection):
                             self._cma_ops[arg.name] = {
                                 "arg": arg,
                                 "params": self.cma_same_fs_params}
+                        self._cma_ops[arg.name]["intent"] = arg.intent
 
-    def initialise_cma_ops(self, parent):
+    def initialise(self, parent):
         ''' Generates the calls to the LFRic infrastructure that look-up
         the various components of each CMA operator. Adds these as
         children of the supplied parent node. This must be an appropriate
@@ -2227,9 +2230,11 @@ class DynInvokeCMAOperators(DynInvokeCollection):
         parent.add(CommentGen(parent, ""))
         ncol_name = self._name_space_manager.create_name(
             root_name="ncell_2d", context="PSyVars", label="ncell_2d")
+        # Get the first kernel argument associated with a CMA operator
+        first_cma_arg = self._cma_ops.values()[0]["arg"]
         parent.add(
             AssignGen(parent, lhs=ncol_name,
-                      rhs=self._cma_ops[0].proxy_name_indexed + "%ncell_2d"))
+                      rhs=first_cma_arg.proxy_name_indexed + "%ncell_2d"))
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=[ncol_name]))
 
@@ -2261,10 +2266,14 @@ class DynInvokeCMAOperators(DynInvokeCollection):
     def declarations(self, parent):
         ''' Generate the necessary declarations for all column-wise operators
         and their associated parameters '''
-        from psyclone.f2pygen import DeclGen
+        from psyclone.f2pygen import DeclGen, TypeDeclGen
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
+            return
+
+        if self._kernel:
+            self._stub_declarations(parent)
             return
 
         # Add subroutine argument declarations for CMA operators that are
@@ -2303,6 +2312,44 @@ class DynInvokeCMAOperators(DynInvokeCollection):
                     label=op_name+"_"+param))
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=param_names))
+
+    def _stub_declarations(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import DeclGen
+
+        if self._cma_ops:
+            # CMA operators always need the current cell index and the number
+            # of columns in the mesh
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=["cell", "ncell_2d"]))
+
+        for op_name in self._cma_ops:
+            # Declare the associated scalar arguments before the array because
+            # some of them are used to dimension the latter (and some compilers
+            # get upset if this ordering is not followed)
+            _local_args = []
+            for param in self._cma_ops[op_name]["params"]:
+                param_name = self._name_space_manager.create_name(
+                    root_name=op_name+"_"+param,
+                    context="PSyVars",
+                    label=op_name+"_"+param)
+                _local_args.append(param_name)
+            parent.add(DeclGen(parent, datatype="integer",
+                               intent="in",
+                               entity_decls=_local_args))
+            # Declare the array that holds the CMA operator
+            # If this is the first argument in the kernel then keep a
+            # note so that we can put subsequent declarations in the
+            # correct location
+            bandwidth = op_name + "_bandwidth"
+            nrow = op_name + "_nrow"
+            intent = self._cma_ops[op_name]["intent"]
+            decl = DeclGen(parent, datatype="real", kind="r_def",
+                           dimension=",".join([bandwidth,
+                                               nrow, "ncell_2d"]),
+                           intent=intent, entity_decls=[op_name])
+            parent.add(decl)
 
 
 class DynMeshes(object):
@@ -3598,7 +3645,7 @@ class DynInvoke(Invoke):
         self.dofmaps.initialise_dofmaps(invoke_sub)
 
         # Initialise CMA operators and associated parameters
-        self.cma_ops.initialise_cma_ops(invoke_sub)
+        self.cma_ops.initialise(invoke_sub)
 
         # Initialise any boundary-condition arrays
         self.boundary_conditions.initialise(invoke_sub)
@@ -5757,11 +5804,7 @@ class DynKern(Kern):
                                  implicitnone=True)
 
         iter_cell = DynInvokeCellIterators(self)
-        iter_cell.stub_declarations(sub_stub)
-
-        # Scalar arguments
-        scalars = DynInvokeScalars(self)
-        scalars.declarations(sub_stub)
+        iter_cell.declarations(sub_stub)
 
         # Create the dofmap declarations
         arg_declns = DynInvokeDofmaps(self)
@@ -5769,6 +5812,13 @@ class DynKern(Kern):
 
         fspaces = DynInvokeFunctionSpaces(self)
         fspaces.declarations(sub_stub)
+
+        cma_ops = DynInvokeCMAOperators(self)
+        cma_ops.declarations(sub_stub)
+
+        # Scalar arguments
+        scalars = DynInvokeScalars(self)
+        scalars.declarations(sub_stub)
 
         # Create the arglist
         # TODO get rid of sub_stub argument below.
@@ -6612,16 +6662,12 @@ class KernStubArgList(ArgOrdering):
 
     def mesh_height(self):
         ''' add mesh height (nlayers) to the argument list if required '''
-        from psyclone.f2pygen import DeclGen
         self._arglist.append("nlayers")
 
     def mesh_ncell2d(self):
         ''' Add the number of columns in the mesh to the argument list if
         required '''
-        from psyclone.f2pygen import DeclGen
         self._arglist.append("ncell_2d")
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=["ncell_2d"]))
 
     def field_vector(self, argvect):
         '''add the field vector associated with the argument 'argvect' to the
@@ -6718,7 +6764,6 @@ class KernStubArgList(ArgOrdering):
 
     def cma_operator(self, arg):
         ''' add the CMA operator arguments to the argument list '''
-        from psyclone.f2pygen import DeclGen
         # The CMA operator itself
         self._arglist.append(arg.name)
         # Associated scalar parameters
@@ -6739,25 +6784,8 @@ class KernStubArgList(ArgOrdering):
         _local_args += [bandwidth, alpha, beta, gamma_m, gamma_p]
         self._arglist += _local_args
 
-        intent = arg.intent
-        # Declare the associated scalar arguments before the array because
-        # some of them are used to dimension the latter (and some compilers
-        # get upset if this ordering is not followed)
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 intent="in",
-                                 entity_decls=_local_args))
-        # Declare the array that holds the CMA operator
-        # If this is the first argument in the kernel then keep a
-        # note so that we can put subsequent declarations in the
-        # correct location
-        decl = DeclGen(self._parent, datatype="real", kind="r_def",
-                       dimension=",".join([bandwidth,
-                                           nrow, "ncell_2d"]),
-                       intent=intent, entity_decls=[arg.name])
-        self._parent.add(decl)
         if self._first_arg:
             self._first_arg = False
-            self._first_arg_decl = decl
 
     def banded_dofmap(self, function_space):
         ''' Declare the banded dofmap required for a CMA operator
