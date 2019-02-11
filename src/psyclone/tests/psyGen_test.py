@@ -1373,9 +1373,9 @@ def test_argument_backward_dependence(monkeypatch, annexed):
 
 def test_node_depth():
     '''
-    Test that the Node class depth method returns the correct value for
-    a Node in a tree. The start depth for to determine a Node's depth is
-    set to 0. Depth of a Schedule is 1 and increases for its descendants.
+    Test that the Node class depth method returns the correct value for a
+    Node in a tree. The start depth to determine a Node's depth is set to
+    0. Depth of a Schedule is 1 and increases for its descendants.
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -1449,7 +1449,7 @@ def test_node_root():
     # raises an InternalError (for both 0 and Node's depth)
     with pytest.raises(InternalError) as excinfo:
         _ = ru_kern.root_at_depth(0)
-    assert "Parent depth must be greater than 0" in str(excinfo.value)
+    assert "Node's parent depth must be greater than 0" in str(excinfo.value)
     with pytest.raises(InternalError) as excinfo:
         _ = ru_kern.root_at_depth(ru_kern.depth)
     assert "and less than the Node's depth (3)" in str(excinfo.value)

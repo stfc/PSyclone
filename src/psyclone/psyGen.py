@@ -1151,8 +1151,8 @@ class Node(object):
     @property
     def start_depth(self):
         '''
-        Returns starting depth (0) to calculate depth of all nodes in
-        the tree (1 for main nodes and increasing for their descendants).
+        Returns starting depth (0) to calculate depth of all Nodes in
+        the tree (1 for main Nodes and increasing for their descendants).
         :returns: start depth to determine a Node's depth
         :rtype: int
         '''
@@ -1207,8 +1207,8 @@ class Node(object):
     @property
     def position(self):
         '''
-        Find a Node's position relative to its parent node (starting
-        with 0 if it is does not have a parent).
+        Find a Node's position relative to its parent Node (starting
+        with 0 if it does not have a parent).
         :returns: relative position of a Node to its parent
         :rtype: int
         '''
@@ -1249,7 +1249,7 @@ class Node(object):
         '''
         Recurse through the tree depth first returning position of
         a Node if found.
-        :param children: list of nodes which are children of this Node
+        :param children: list of Nodes which are children of this Node
         :type children: list of :py:class:`psyclone.psyGen.Node`
         :param parent: the parent node of this Node
         :type parent: :py:class:`psyclone.psyGen.Node`
@@ -1297,15 +1297,15 @@ class Node(object):
         and the Node's depth.
         :param depth: depth level to find the Node's root at
         :type depth: int
-        :returns: root node at the specified depth level
+        :returns: root Node at the specified depth level
         :rtype: :py:class:`psyclone.psyGen.Node`
         :raises InternalError: if the starting depth is < 1
                                and >= node.depth
         '''
         if not (depth > self.start_depth and depth < self.depth):
-            raise InternalError(
-                "Parent depth must be greater than {0} and less than the "
-                "Node's depth ({1})".format(self.start_depth, self.depth))
+            raise InternalError("Node's parent depth must be greater than "
+                                "{0} and less than the Node's depth ({1})."
+                                .format(self.start_depth, self.depth))
         node = self
         while node.parent.depth > depth:
             node = node.parent
@@ -2154,7 +2154,7 @@ class OMPParallelDirective(OMPDirective):
         and any variables that have been declared private by a Call
         within the directive.
 
-        :return: list of variables to declare as thread private.
+        :returns: list of variables to declare as thread private.
         :rtype: list of str
 
         :raises InternalError: if a Call has local variable(s) but they \
