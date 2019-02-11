@@ -5988,8 +5988,7 @@ class ArgOrdering(object):
                     self.fs_intergrid(unique_fs)
                 else:
                     self.fs_compulsory_field(unique_fs)
-            cma_op = cma_on_space(unique_fs, self._kern.arguments,
-                                  "gh_columnwise_operator")
+            cma_op = cma_on_space(unique_fs, self._kern.arguments)
             if cma_op:
                 if self._kern.cma_operation == "assembly":
                     # CMA-assembly requires banded dofmaps
@@ -6796,7 +6795,18 @@ class KernStubArgList(ArgOrdering):
         self._arglist.append(map_name)
 
     def scalar(self, arg):
-        '''add the name associated with the scalar argument'''
+        '''
+        Add the name associated with the scalar argument to the argument list.
+
+        :param arg: the kernel argument.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises InternalError: if the argument is not a recognised scalar type.
+        '''
+        if arg.type not in VALID_SCALAR_NAMES:
+            raise InternalError(
+                "Expected argument type to be one of '{0}' but got '{1}'".
+                format(VALID_SCALAR_NAMES, arg.type))
         self._arglist.append(arg.name)
 
     def fs_common(self, function_space):
@@ -6808,23 +6818,10 @@ class KernStubArgList(ArgOrdering):
     def fs_compulsory_field(self, function_space):
         ''' Provide compulsory arguments if there is a field on this
         function space'''
-        from psyclone.f2pygen import DeclGen
-        ndf_name = get_fs_ndf_name(function_space)
         undf_name = get_fs_undf_name(function_space)
         self._arglist.append(undf_name)
         map_name = get_fs_map_name(function_space)
         self._arglist.append(map_name)
-        # ndf* declarations need to be before argument
-        # declarations as some compilers don't like
-        # declarations after they have been used. We place
-        # ndf* before the first argument declaration
-        # (field or operator) (rather than after nlayers)
-        # as this keeps the declarations in the order
-        # specified in the metadata and first used by
-        # fields/operators.
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 entity_decls=[undf_name]),
-                         position=["before", self._first_arg_decl.root])
 
     def basis(self, function_space):
         '''

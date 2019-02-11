@@ -2273,6 +2273,7 @@ def test_intent():
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
         "      INTEGER, intent(in) :: undf_w1\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
         "field_1_w1\n"
@@ -2280,7 +2281,6 @@ def test_intent():
         "field_2_w1\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w1) :: "
         "field_3_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print(output)
@@ -2318,7 +2318,7 @@ def test_spaces():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    generated_code = kernel.gen_stub
+    generated_code = str(kernel.gen_stub)
     output = (
         "  MODULE dummy_mod\n"
         "    IMPLICIT NONE\n"
@@ -2333,19 +2333,21 @@ def test_spaces():
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in) :: undf_w0\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
-        "      INTEGER, intent(in) :: undf_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
         "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in) :: undf_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in) :: undf_w3\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in) :: undf_wtheta\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      INTEGER, intent(in) :: ndf_w2h\n"
-        "      INTEGER, intent(in) :: undf_w2h\n"
+        "      INTEGER, intent(in), dimension(ndf_w2h) :: map_w2h\n"
         "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in) :: undf_w2v\n"
+        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
+        "      INTEGER, intent(in) :: ndf_w3\n"
+        "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
+        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
+        "      INTEGER, intent(in) :: undf_w0, undf_w1, undf_w2, undf_w3, "
+        "undf_wtheta, undf_w2h, undf_w2v\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
@@ -2360,18 +2362,11 @@ def test_spaces():
         "field_6_w2h\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) :: "
         "field_7_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
-        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
-        "      INTEGER, intent(in), dimension(ndf_w3) :: map_w3\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
-        "      INTEGER, intent(in), dimension(ndf_w2h) :: map_w2h\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print(output)
-    print(str(generated_code))
-    assert str(generated_code).find(output) != -1
+    print(generated_code)
+    assert output in generated_code
 
 
 # fields : vectors
@@ -2409,6 +2404,7 @@ def test_vectors():
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      INTEGER, intent(in) :: undf_w0\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0_v1\n"
@@ -2416,7 +2412,6 @@ def test_vectors():
         "field_1_w0_v2\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0_v3\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print(output)
@@ -2454,11 +2449,8 @@ ORIENTATION_OUTPUT = (
     "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
     "      INTEGER, intent(in) :: ndf_w2\n"
     "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
+    "      INTEGER, intent(in) :: undf_w0, ndf_w1, undf_w2, ndf_w3\n"
     "      INTEGER, intent(in) :: cell\n"
-    "      INTEGER, intent(in) :: undf_w0\n"
-    "      INTEGER, intent(in) :: ndf_w1\n"
-    "      INTEGER, intent(in) :: undf_w2\n"
-    "      INTEGER, intent(in) :: ndf_w3\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
     "field_1_w0\n"
     "      INTEGER, intent(in) :: op_2_ncell_3d\n"
@@ -2516,12 +2508,12 @@ def test_enforce_bc_kernel_stub_gen():
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: ndf_any_space_1_field_1\n"
+        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
+        "map_any_space_1_field_1\n"
         "      INTEGER, intent(in) :: undf_any_space_1_field_1\n"
         "      REAL(KIND=r_def), intent(inout), "
         "dimension(undf_any_space_1_field_1)"
         " :: field_1_any_space_1_field_1\n"
-        "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1) :: "
-        "map_any_space_1_field_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,2) :: "
         "boundary_dofs\n"
         "    END SUBROUTINE enforce_bc_code\n"
@@ -2548,10 +2540,10 @@ def test_enforce_op_bc_kernel_stub_gen():
         " op_1, ndf_any_space_1_op_1, ndf_any_space_2_op_1, boundary_dofs)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
-        "      INTEGER, intent(in) :: ndf_any_space_1_op_1\n"
-        "      INTEGER, intent(in) :: ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in) :: ndf_any_space_1_op_1, "
+        "ndf_any_space_2_op_1\n"
+        "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: op_1_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension("
         "ndf_any_space_1_op_1,ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
@@ -2605,10 +2597,10 @@ def test_sub_name():
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
         "      INTEGER, intent(in) :: undf_w1\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w1) :: "
         "field_1_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w1) :: map_w1\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     print(output)
@@ -4652,11 +4644,11 @@ def test_extent_name_clash():
             "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type")
         assert output2 in result
         output3 = (
-            "      INTEGER, intent(in) :: f2_extent, f3_stencil_size\n"
             "      TYPE(field_type), intent(inout) :: f2_stencil_map, "
             "f3_stencil_map\n"
             "      TYPE(field_type), intent(in) :: f2, f2_stencil_dofmap, "
-            "stencil_cross_1, f3, f3_stencil_dofmap\n")
+            "stencil_cross_1, f3, f3_stencil_dofmap\n"
+            "      INTEGER, intent(in) :: f2_extent, f3_stencil_size\n")
         assert output3 in result
         output4 = (
             "      INTEGER f3_stencil_size_1\n"
@@ -5723,10 +5715,10 @@ def test_kernel_stub_invalid_scalar_argument():
     # Now call KernStubArgList to raise an exception
     from psyclone.dynamo0p3 import KernStubArgList
     create_arg_list = KernStubArgList(kernel, module)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
     assert (
-        "Internal error: expected arg type to be one of '['gh_real', "
+        "Expected argument type to be one of '['gh_real', "
         "'gh_integer']' but got 'invalid'") in str(excinfo.value)
 
 
