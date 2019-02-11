@@ -4637,7 +4637,7 @@ class Fparser2ASTProcessor(object):
 
     def process_declarations(self, parent, nodes, arg_list):
         '''
-        Transform the variable declarations in fparser2 parse tree into
+        Transform the variable declarations in the fparser2 parse tree into
         symbols in the PSyIR parent node symbol table.
 
         :param parent: PSyIR node in which to insert the symbols found.
@@ -4990,9 +4990,11 @@ class Symbol(object):
                       mechanism, at the moment just 'global_argument' is \
                       available for variables passed in/out of the kernel \
                       by argument.
-    :param bool is_input: Whether it is an already existent data that is \
-                          passed into the kernel upon entry.
-    :param bool is_output: Whether it is passed outside the kernel upon exit.
+    :param bool is_input: Whether the symbol represents data that exists \
+                          before the kernel is entered and that is passed \
+                          into the kernel.
+    :param bool is_output: Whether the symbol represents data that is passed \
+                           outside the kernel upon exit.
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
@@ -5046,7 +5048,8 @@ class Symbol(object):
     @property
     def is_input(self):
         '''
-        :return: Whether the data already exists before kernel entry.
+        :return: Whether the symbol represents data that already exists \
+                 before kernel and is passed into upon entry.
         :rtype: bool
         '''
         return self._is_input
@@ -5054,8 +5057,9 @@ class Symbol(object):
     @is_input.setter
     def is_input(self, new_is_input):
         '''
-        :param bool new_is_input: Whether it is an already existent data that \
-                                  is  passed into the kernel upon entry.
+        :param bool new_is_input: Whether the symbol represents data that \
+                                  exists before the kernel is entered and \
+                                  that is passed into the kernel.
         :raises TypeError: Provided parameters have invalid error type.
         :raises ValueError: 'new_is_input' contains an invalid value.
         '''
@@ -5069,7 +5073,8 @@ class Symbol(object):
     @property
     def is_output(self):
         '''
-        :return: Whether the data survives after kernel exit.
+        :return: Whether the variable respresented by this symbol survives \
+                 outside the kernel upon exit.
         :rtype: bool
         '''
         return self._is_output
@@ -5077,7 +5082,8 @@ class Symbol(object):
     @is_output.setter
     def is_output(self, new_is_output):
         '''
-        :param bool new_is_output: Whether it is survives outside the kernel \
+        :param bool new_is_output: Whether the variable represented by this \
+                                   symbol survives outside the kernel \
                                    upon exit.
         :raises TypeError: Provided parameters have invalid error type.
         :raises ValueError: 'new_is_output' contains an invalid value.
@@ -5170,10 +5176,11 @@ class SymbolTable(object):
                           information about the sharing mechanism, at the \
                           moment just 'global_argument' is available for \
                           variables passed in/out of the kernel by argument.
-        :param bool is_input: Whether it is an already existent data that is \
-                              passed into the kernel upon entry.
-        :param bool is_output: Whether it is passed outside the kernel upon \
-                               exit.
+        :param bool is_input: Whether the symbol represents data that exists \
+                              before the kernel is entered and that is passed \
+                              into the kernel.
+        :param bool is_output: Whether the symbol represents data that is \
+                               survives outside the kernel upon exit.
         :raises KeyError: The provided name can not be used as key in the
                           table.
         '''
@@ -5186,14 +5193,17 @@ class SymbolTable(object):
 
     def specify_argument_list(self, argument_name_list):
         '''
-        Keep track of the arguments order and provide the scope, is_input and
-        is_ouput information if it was not available on the variable
-        declaration.
+        Keep track of the order of the arguments and provide the scope,
+        is_input and is_ouput information if it was not available on the
+        variable declaration.
 
         :param list argument_name_list: Ordered list of the argument names.
         '''
         for name in argument_name_list:
             symbol = self.lookup(name)
+            # Declarations without explicit intent are provisionally identified
+            # as 'local', but if they appear in the argument list the scope and
+            # input/output attributes need to be updated.
             if symbol.scope == 'local':
                 symbol.scope = 'global_argument'
                 symbol.is_input = True
@@ -5207,7 +5217,11 @@ class SymbolTable(object):
         :param str name: Name of the symbol
         :raises KeyError: If the given name is not in the Symbol Table.
         '''
-        return self._symbols[name]
+        try:
+            return self._symbols[name]
+        except KeyError:
+            raise KeyError("Could not find '{0}' in the Symbol Table."
+                           "".format(name))
 
     def view(self):
         '''
@@ -5237,7 +5251,7 @@ class KernelSchedule(Schedule):
     @property
     def symbol_table(self):
         '''
-        :return: Table containing symbol information of the kernel.
+        :return: Table containing symbol information for the kernel.
         :rtype: :py:class:`psyclone.psyGen.SymbolTable`
         '''
         return self._symbol_table

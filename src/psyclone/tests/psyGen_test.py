@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    BinaryOperation, KernelSchedule, Symbol, SymbolTable
+    KernelSchedule, Symbol, SymbolTable
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -76,6 +76,7 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 @pytest.fixture(scope="module")
 def f2008_parser():
+    '''Initialize fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
 
@@ -2860,7 +2861,7 @@ def test_symboltable_declare():
 
 def test_symboltable_lookup():
     '''Test that the lookup method retrives symbols from the symbol table
-    if the name exists, otherwise it raises and error.'''
+    if the name exists, otherwise it raises an error.'''
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", [None, None])
     sym_table.declare("var2", "integer", [])
@@ -2875,6 +2876,8 @@ def test_symboltable_lookup():
 
     with pytest.raises(KeyError) as error:
         sym_table.lookup("notdeclared")
+    assert "Could not find 'notdeclared' in the Symbol Table." in \
+        str(error.value)
 
 
 def test_symboltable_view(capsys):
@@ -2945,7 +2948,7 @@ def test_fparser2astprocessor_generate_schedule_two_modules():
 
     # Test kernel with two modules
     with pytest.raises(GenerationError) as error:
-        schedule = processor.generate_schedule("dummy_code", ast2)
+        _ = processor.generate_schedule("dummy_code", ast2)
     assert ("Unexpected AST when generating 'dummy_code' kernel schedule."
             " Just one module definition per file supported.") \
         in str(error.value)
@@ -2997,7 +3000,7 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
     del ast2.content[0].content[2].content[1].content[2]
     schedule = processor.generate_schedule("dummy_code", ast2)
     assert isinstance(schedule, KernelSchedule)
-    assert len(schedule.children) == 0
+    assert not schedule.children
 
 
 def test_fparser2astprocessor_generate_schedule_no_args_subroutine():
@@ -3071,7 +3074,7 @@ def test_fparser2astprocessor_generate_schedule_unmatching_arguments():
 
     # Test exception for unmatching argument list
     with pytest.raises(InternalError) as error:
-        schedule = processor.generate_schedule("dummy_code", ast2)
+        _ = processor.generate_schedule("dummy_code", ast2)
     assert "The kernel argument list" in str(error.value)
     assert "does not match the variable declarations for fparser nodes" \
         in str(error.value)
@@ -3274,7 +3277,9 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     import fparser
 
     def walk_ast_return(arg1, arg2):
-        class invalid:
+        '''Function that returns a unique object that will not be part
+        of the implemented handling in the walk_ast method caller.'''
+        class invalid(object):
             pass
         newobject = invalid()
         return [newobject]
