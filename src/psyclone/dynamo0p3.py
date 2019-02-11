@@ -1864,13 +1864,11 @@ class DynInvokeFunctionSpaces(DynInvokeCollection):
         if self._invoke:
             self._function_spaces = self._invoke.unique_fss()[:]
         else:
-            #import pdb; pdb.set_trace()
             self._function_spaces = self._calls[0].arguments.unique_fss
 
         self._var_list = []
 
-        # loop over all unique function spaces used by the kernels in
-        # the invoke
+        # Loop over all unique function spaces used by our kernel(s)
         for function_space in self._function_spaces:
 
             # Initialise ndf for this function space and add name to
@@ -1884,17 +1882,12 @@ class DynInvokeFunctionSpaces(DynInvokeCollection):
             # over dofs and distributed memory is enabled then the
             # number of dofs is obtained from the field proxy and undf is
             # not required.
-            if self._invoke:
-                # TODO if a kernel has an operator on this space then
-                # it DOES need undf!
+            if self._invoke and self._invoke.field_on_space(function_space):
                 if not (self._dofs_only and Config.get().distributed_memory):
                     self._var_list.append(get_fs_undf_name(function_space))
-            else:
-                # Does this kernel have an operator on this space?
-                for arg in self._calls[0].args:
-                    if (arg.type == "gh_operator" and
-                        function_space.orig_name in arg.function_spaces):
-                        self._var_list.append()
+            elif self._kernel and field_on_space(function_space,
+                                                 self._kernel.arguments):
+                self._var_list.append(get_fs_undf_name(function_space))
 
     def declarations(self, parent):
         '''
@@ -2151,6 +2144,7 @@ class DynInvokeLMAOperators(DynInvokeCollection):
         '''
         :param parent:
         '''
+        from psyclone.f2pygen import TypeDeclGen
         op_declarations_dict = self._invoke.unique_declns_by_intent(
             "gh_operator")
         for intent in FORTRAN_INTENT_NAMES:
@@ -2163,7 +2157,7 @@ class DynInvokeLMAOperators(DynInvokeCollection):
                 else:
                     fort_intent = intent
                 parent.add(
-                    TypeDeclGen(invoke_sub, datatype="operator_type",
+                    TypeDeclGen(parent, datatype="operator_type",
                                 entity_decls=op_declarations_dict[intent],
                                 intent=fort_intent))
 
@@ -2182,7 +2176,7 @@ class DynInvokeCMAOperators(DynInvokeCollection):
 
     def __init__(self, invoke):
         super(DynInvokeCMAOperators, self).__init__(invoke)
-        
+
         schedule = invoke.schedule
 
         # Look at every kernel call in this invoke and generate a set of
@@ -2220,17 +2214,16 @@ class DynInvokeCMAOperators(DynInvokeCollection):
         the various components of each CMA operator. Adds these as
         children of the supplied parent node. This must be an appropriate
         f2pygen object. '''
-        from psyclone.f2pygen import CommentGen, AssignGen
+        from psyclone.f2pygen import CommentGen, AssignGen, DeclGen
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
-        
+
         # If we have one or more CMA operators then we will need the number
         # of columns in the mesh
         parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent,
-                        " Initialise number of cols"))
+        parent.add(CommentGen(parent, " Initialise number of cols"))
         parent.add(CommentGen(parent, ""))
         ncol_name = self._name_space_manager.create_name(
             root_name="ncell_2d", context="PSyVars", label="ncell_2d")
@@ -2265,7 +2258,7 @@ class DynInvokeCMAOperators(DynInvokeCollection):
                                      rhs=self._cma_ops[op_name]["arg"].
                                      proxy_name_indexed+"%"+param))
 
-    def declare_cma_ops(self, parent):
+    def declarations(self, parent):
         ''' Generate the necessary declarations for all column-wise operators
         and their associated parameters '''
         from psyclone.f2pygen import DeclGen
@@ -2273,7 +2266,7 @@ class DynInvokeCMAOperators(DynInvokeCollection):
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
             return
-        
+
         # Add subroutine argument declarations for CMA operators that are
         # read or written (as with normal/LMA operators, they are never 'inc'
         # because they are discontinuous)
@@ -3364,9 +3357,10 @@ class DynInvoke(Invoke):
         # required by this invoke.
         self.dofmaps = DynInvokeDofmaps(self)
 
-        # Initialise information on all of the fields accessed in this Invoke
+        # Initialise information on all of the fields accessed in this Invoke.
         self.fields = DynInvokeFields(self)
 
+        # Initialise info. on all of the LMA operators used in this Invoke.
         self.lma_ops = DynInvokeLMAOperators(self)
 
         # Initialise the object holding all information on the column-
@@ -3521,10 +3515,8 @@ class DynInvoke(Invoke):
                        subroutine will be added
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
         '''
-        from psyclone.f2pygen import SubroutineGen, TypeDeclGen, AssignGen, \
+        from psyclone.f2pygen import SubroutineGen, AssignGen, \
             DeclGen, CommentGen
-        # Does this Invoke contain only kernels that iterate over dofs?
-        dofs_only = self.iterate_over_dofs_only
 
         # Create a namespace manager so we can avoid name clashes
         self._name_space_manager = NameSpaceFactory().create()
@@ -3536,6 +3528,12 @@ class DynInvoke(Invoke):
 
         # Add the subroutine argument declarations for real & integer scalars
         self.scalar_args.declarations(invoke_sub)
+
+        # Add the subroutine argument declarations for fields
+        self.fields.declarations(invoke_sub)
+
+        # LMA operator declarations.
+        self.lma_ops.declarations(invoke_sub)
 
         # declare any stencil arguments
         self.stencil.declare_unique_alg_vars(invoke_sub)
@@ -3550,18 +3548,10 @@ class DynInvoke(Invoke):
         self.dofmaps.declare_dofmaps(invoke_sub)
 
         # Declare any CMA operators and associated parameters
-        self.cma_ops.declare_cma_ops(invoke_sub)
+        self.cma_ops.declarations(invoke_sub)
 
         # Declare any arrays required for boundary conditions
         self.boundary_conditions.declarations(invoke_sub)
-
-        # Add the subroutine argument declarations for fields
-        self.fields.declarations(invoke_sub)
-
-        # Add the subroutine argument declarations for operators that
-        # are read or written (operators are always on discontinuous spaces
-        # and therefore are never 'inc')
-        self.cma_ops.declarations(invoke_sub)
 
         # Add the subroutine argument declarations for qr (quadrature
         # rules)
@@ -3615,7 +3605,7 @@ class DynInvoke(Invoke):
 
         # Initialise all entities related to function spaces
         self.function_spaces.initialise(invoke_sub)
-        
+
         # Initialise basis and/or differential-basis functions
         self.evaluators.initialise_basis_fns(invoke_sub)
 
@@ -5998,7 +5988,8 @@ class ArgOrdering(object):
                     self.fs_intergrid(unique_fs)
                 else:
                     self.fs_compulsory_field(unique_fs)
-            cma_op = cma_on_space(unique_fs, self._kern.arguments)
+            cma_op = cma_on_space(unique_fs, self._kern.arguments,
+                                  "gh_columnwise_operator")
             if cma_op:
                 if self._kern.cma_operation == "assembly":
                     # CMA-assembly requires banded dofmaps
