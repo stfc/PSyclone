@@ -196,6 +196,15 @@ and manipulated:
     cd eg11/
     psyclone -s ./async_script.py helmholtz_solver_alg_mod.x90
 
+Example 12: Kernel extraction
+------------------------------------------
+
+The twelfth example illustrates how to extract code from Nodes in an 
+Invoke Schedule or from one or more Kernels in Invokes:
+::
+    cd eg12/
+    TO FINISH....
+
 scripts
 -------
 
