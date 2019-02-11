@@ -1770,8 +1770,8 @@ class MoveTrans(Transformation):
 
 
 class ExtractRegionTrans(RegionTrans):
-    ''' Provides a transformation to extract code contained within one
-    or more Nodes in the tree. For example:
+    ''' Provides a transformation to extract code contained within one \
+    or more Nodes in a Schedule. For example:
 
     >>> from psyclone.parse import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -1791,14 +1791,14 @@ class ExtractRegionTrans(RegionTrans):
     >>>
     >>> etrans = ExtractRegionTrans()
     >>>
-    >>> # Apply Extract Transformation to selected Nodes
+    >>> # Apply ExtractRegionTrans transformation to selected Nodes
     >>> newsched, _ = etrans.apply(schedule.children[0:3])
     >>> newsched.view()
 
-    After applying the transformation the Nodes marked for extraction are
-    children of the ExtractNode.
-    Nodes to extract can be individual constructs within an Invoke (e.g.
-    (Kernel or BuiltIn) or entire Invokes. This functionality does not
+    After applying the transformation the Nodes marked for extraction are \
+    children of the ExtractNode. \
+    Nodes to extract can be individual constructs within an Invoke (e.g. \
+    (Kernel or BuiltIn) or entire Invokes. This functionality does not \
     include distributed memory.
     '''
 

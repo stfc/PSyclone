@@ -34,11 +34,10 @@
 # Author I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
-'''
-    This module provides support for extraction of code within a specified
-    invoke. The extracted code may be a single kernel, multiple occurences
-    of a kernel in an invoke, nodes in an invoke or the entire invoke
-    (extraction applied to all nodes).
+''' This module provides support for extraction of code within a specified
+invoke. The extracted code may be a single kernel, multiple occurences of a
+kernel in an invoke, nodes in an invoke or the entire invoke (extraction
+applied to all Nodes).
 '''
 
 from __future__ import absolute_import, print_function
@@ -48,10 +47,10 @@ from psyclone.transformations import ExtractRegionTrans
 
 
 class ExtractNode(Node):
-    ''' This class can be inserted into a Schedule to mark Nodes for code
-    extraction using the ExtractRegionTrans transformation. By applying
-    the transformation the Nodes marked for extraction become children
-    of an ExtractNode.
+    ''' This class can be inserted into a Schedule to mark Nodes for \
+    code extraction using the ExtractRegionTrans transformation. By \
+    applying the transformation the Nodes marked for extraction become \
+    children of an ExtractNode.
     '''
 
     def __init__(self, children=None, parent=None):
@@ -76,10 +75,10 @@ class ExtractNode(Node):
     @property
     def coloured_text(self):
         '''
-        Returns a string containing the name of this node along with
+        Returns a string containing the name of this Node along with \
         control characters for colouring in terminals that supports it.
 
-        :returns: The name of this node, possibly with control codes for \
+        :returns: The name of this Node, possibly with control codes for \
                   colouring
         :rtype: string
         '''
@@ -87,7 +86,7 @@ class ExtractNode(Node):
 
     @property
     def dag_name(self):
-        ''' Return the base dag name for this Extract node '''
+        ''' Return the base dag name for this ExtractNode '''
         return "extract_" + str(self.position)
 
     def view(self, indent=0):
@@ -107,7 +106,7 @@ class ExtractNode(Node):
     def gen_code(self, parent):
         '''
         Marks region for code extraction as children of the ExtractNode. \
-        For now it inserts comments at the position of the ExtractNode
+        For now it inserts comments at the position of the ExtractNode \
         and after all children of the ExtractNode. These comments will \
         later be replaced by calls to write out arguments of extracted \
         Node(s) or Kernel(s).
@@ -117,55 +116,105 @@ class ExtractNode(Node):
         '''
         from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
+        parent.add(CommentGen(parent, " ExtractStart"))
         parent.add(CommentGen(
             parent, " CALL write_extract_arguments(argument_list)"))
         parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " ExtractStart"))
         for child in self.children:
             child.gen_code(parent)
+        parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
+        parent.add(CommentGen(parent, ""))
 
 
 class Extractor(object):
-    ''' This class
-    1) wraps settings for code extraction,
-    2) provides view function about which kernel to extract
-    3) generates driver for the extracted code '''
+    ''' This class contains is helper functions for code extraction. \
+    For now it only provides the function to extract the specific Kernel \
+    from an Invoke Schedule. Another planned functionality is to wrap \
+    settings for generating driver for the extracted code. '''
 
     @staticmethod
     def extract_kernel(schedule, kernel_name, position=None):
-        ''' Extract function for a specific kernel and invoke '''
-        # Find the kernel and invoke to extract
+        '''This function inserts ExtractNode(s) around one or more Nodes \
+        in a Schedule which contains calls to a particular Kernel. \
+        First we construct the lists of relative and absolute positions \
+        of root Nodes which contain the Kernel call within the Schedule. \
+        The list of relative positions instructs the ExtractRegionTrans \
+        where to insert an ExtractNode. The list of absolute positions is \
+        used as a control mechanism for cases where two or more Kernels \
+        with the same name are descendandts of the same root Node (for \
+        instance if they are enclosed within an OMPParallelDirective or \
+        an OMPParallelDoDirective). In these cases the repeated values of \
+        root Node(s)' absolute and the corresponding relative positions \
+        are not counted. Otherwise the ExtractRegionTrans would try to \
+        insert and ExtractNode repeatedly and fail with the appropriate \
+        TransformationError. If the specified Kernel is called within \
+        more than one root Node then this function will insert ExtractNodes \
+        in all returned locations, unless the optional argument "position" \
+        specifies just one of these locations (relative positions of the \
+        root Nodes in the Schedule).
 
+        :param schedule: the supplied Schedule within which we are \
+                         extracting one or more root Nodes containing \
+                         calls to the specified Kernel.
+        :type schedule: :py:class:`psyclone.psyGen.Schedule`
+        :param str kernel_name: the name of the specified Kernel as \
+                                represented in a Kernel call (ending in \
+                                "_code", e.g. "ru_kernel_code").
+        :param int position: optional argument to determine where to \
+                             insert ExtractNode if there are multiple \
+                             root Nodes with the specified Kernel calls.
+        :raises GenerationError: if there are no Kernels with the specified \
+                                 name in the Schedule.
+        :raises GenerationError: if the optional position argument does \
+                                 not point to a location within the list \
+                                 which contains the root Node(s) with \
+                                 the specified Kernel calls.
+         '''
         etrans = ExtractRegionTrans()
 
-        # First construct the list of positions of Nodes which
-        # contain the kernel
-        extract_node_position = []
-        extract_node_absposition = []
+        # First construct the list of relative and absolute positions of
+        # Nodes which contain the Kernel call within the Schedule.
+        extract_node_pos = []
+        extract_node_abspos = []
         for kernel in schedule.walk(schedule.children, Kern):
-            if kernel.name == kernel_name:
-                extract_node = kernel.root_at_depth(1)
-                extract_node_position.append(extract_node.position)
-                extract_node_absposition.append(extract_node.abs_position)
-                print(type(extract_node))
-                print(extract_node.position, extract_node.abs_position)
+            if kernel.name.lower() == kernel_name:
+                # Root at depth 2 returns the root (ancestor) Node of this
+                # Kernel call in the Schedule
+                extract_node = kernel.root_at_depth(2)
+                # Check whether the absolute position of the root Node
+                # is already in the list and add it if it is not
+                if extract_node.abs_position not in extract_node_abspos:
+                    extract_node_pos.append(extract_node.position)
+                    extract_node_abspos.append(extract_node.abs_position)
 
-        if not extract_node_position:
-            raise GenerationError("No Kernels with the name of {0} were "
+        # Now insert ExtracNode at the relative positions returned in
+        # the extract_node_pos list
+        if not extract_node_pos:
+            # Raise an error if there are no Kernels with the specified
+            # name in the Schedule
+            raise GenerationError("No Kernels with the name of '{0}' were "
                                   "found to extract.".format(kernel_name))
         else:
+            # Check whether the optional relative position argument is
+            # is provided and assign its value to the extract_node_pos
+            # list if it points to a valid location inside the list
             if position:
-                if position not in extract_node_position:
+                if position not in extract_node_pos:
+                    # Raise an error if the optional position argument
+                    # does not correspond to any of the returned relative
+                    # positions of the Kernel's root Nodes
                     raise GenerationError(
                         "Provided position {0} is not the position of any "
-                        "Node which contains Kernel {1} call."
+                        "Node which contains Kernel '{1}' call."
                         .format(position, kernel_name))
                 else:
-                    extract_node_position = [position]
-        print(extract_node_position)
-        for idx in extract_node_position:
-            print(idx, position)
+                    # Assign the position argument if it is valid
+                    extract_node_pos = [position]
+
+        # Apply the ExtractRegionTrans to the selected Nodes
+        for idx in extract_node_pos:
             schedule, _ = etrans.apply(schedule.children[idx])
 
+        # Return modified Schedule
         return schedule
