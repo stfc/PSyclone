@@ -252,6 +252,31 @@ def basis_first_dim_name(function_space):
     '''
     return "dim_" + function_space.mangled_name
 
+def basis_first_dim_value(function_space):
+    '''
+    Get the size of the first dimension of a basis function.
+
+    :param function_space: the function space the basis function is for
+    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+    :return: an integer length.
+    :rtype: string
+
+    :raises GenerationError: if an unsupported function space is supplied.
+    '''
+    if function_space.orig_name.lower() in \
+       ["w0", "w3", "wtheta"]:
+        first_dim = "1"
+    elif (function_space.orig_name.lower() in
+          ["w1", "w2", "w2h", "w2v", "any_w2"]):
+        first_dim = "3"
+    else:
+        raise GenerationError(
+            "Unsupported space for basis function, "
+            "expecting one of {0} but found "
+            "'{1}'".format(VALID_FUNCTION_SPACES,
+                           function_space.orig_name))
+    return first_dim
+
 
 def get_fs_diff_basis_name(function_space, qr_var=None, on_space=None):
     '''
@@ -293,6 +318,30 @@ def diff_basis_first_dim_name(function_space):
     return "diff_dim_" + function_space.mangled_name
 
 
+def diff_basis_first_dim_value(function_space):
+    '''
+    Get the size of the first dimension of an array for a
+    differential basis function
+
+    :param function_space: the function space the diff-basis function is for
+    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+    :return: an integer length.
+    :rtype: str
+    '''
+    if function_space.orig_name.lower() in \
+       ["w2", "w2h", "w2v", "any_w2"]:
+        first_dim = "1"
+    elif (function_space.orig_name.lower() in
+          ["w0", "w1", "w3", "wtheta"]):
+        first_dim = "3"
+    else:
+        raise GenerationError(
+            "Unsupported space for differential basis function, expecting "
+            "one of {0} but found '{1}'".format(VALID_FUNCTION_SPACES,
+                                                function_space.orig_name))
+    return first_dim
+
+
 def qr_basis_alloc_args(first_dim, basis_fn):
     '''
     Generate the list of dimensions required to allocate the
@@ -314,9 +363,14 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     #     alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
     #          "np_xyz"+"_"+basis_fn["qr_var"]]
     if basis_fn["shape"] == "gh_quadrature_xyoz":
-        alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                      "np_xy"+"_"+basis_fn["qr_var"],
-                      "np_z"+"_"+basis_fn["qr_var"]]
+        alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"])]
+        if basis_fn["qr_var"]:
+            alloc_args += ["np_xy"+"_"+basis_fn["qr_var"],
+                           "np_z"+"_"+basis_fn["qr_var"]]
+        else:
+            # We have no name for the QR variable (as will be the case when
+            # generating a kernel stub).
+            alloc_args += ["np_xy", "np_z"]      
     # elif basis_fn["shape"] == "gh_quadrature_xoyoz":
     #     alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
     #                   "np_x"+"_"+basis_fn["qr_var"],
@@ -2922,6 +2976,46 @@ class DynInvokeBasisFns(DynInvokeCollection):
                        PSy-layer subroutine)
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         '''
+        if self._invoke:
+            self._invoke_declarations(parent)
+        elif self._kernel:
+            self._kernel_declarations(parent)
+        else:
+            raise InternalError("huh")
+
+    def _kernel_declarations(self, parent):
+        '''
+        Insert the variable declarations required by the basis functions into
+        the kernel stub.
+
+        :param parent:
+        :type parent:
+        '''
+        from psyclone.f2pygen import DeclGen
+        
+        if not self._qr_vars and not self._eval_targets:
+            return
+
+        # Get the lists of dimensioning variables and basis arrays
+        var_dims, basis_arrays, _ = self._basis_fn_decl_alloc_init()
+
+        if var_dims:
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=var_dims))
+        #basis_declarations = []
+        print(basis_arrays)
+        for basis in basis_arrays:
+            #basis_declarations.append(
+            #    "{0}({1})".format(basis, ",".join(basis_arrays[basis])))
+            print(basis)
+            parent.add(DeclGen(parent, datatype="real",
+                               kind="r_def", intent="in",
+                               dimension=",".join(basis_arrays[basis]),
+                               entity_decls=[basis]))
+
+    def _invoke_declarations(self, parent):
+        '''
+        '''
         from psyclone.f2pygen import TypeDeclGen
         # Create a single declaration for each quadrature type
         for shape in VALID_QUADRATURE_SHAPES:
@@ -3015,6 +3109,38 @@ class DynInvokeBasisFns(DynInvokeCollection):
             parent.add(CommentGen(parent, " Allocate basis/diff-basis arrays"))
             parent.add(CommentGen(parent, ""))
 
+        var_dims, basis_arrays, inits = self._basis_fn_decl_alloc_init()
+
+        for init in inits:
+            parent.add(AssignGen(parent, lhs=init[0], rhs=init[1]))
+    
+        if var_dims:
+            # declare dim and diff_dim for all function spaces
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=var_dims))
+            
+        basis_declarations = []
+        for basis in basis_arrays:
+            parent.add(
+                AllocateGen(parent, basis+"("+", ".join(basis_arrays[basis])+")"))
+            basis_declarations.append(op_name+"("+",".join([":"]*len(basis_arrays[basis]))+")")
+
+        # declare the basis function arrays
+        if basis_declarations:
+            parent.add(DeclGen(parent, datatype="real",
+                               allocatable=True,
+                               kind="r_def",
+                               entity_decls=basis_declarations))
+
+    def _basis_fn_decl_alloc_init(self):
+        '''
+        Extracts all information relating to the necessary declarations,
+        allocations and intialisations for basis function arrays.
+        '''
+        basis_arrays = OrderedDict()
+        inits = []
+        var_dim_list = []
+
         # Loop over the list of dicts describing each basis function
         # required by this Invoke.
         for basis_fn in self._basis_fns:
@@ -3024,26 +3150,43 @@ class DynInvokeBasisFns(DynInvokeCollection):
             # function and we store which we have in is_diff_basis. Should
             # further basis-function types be added in the future then the if
             # blocks that use if_diff_basis further down must be updated.
-            if basis_fn['type'] == "basis":
-                first_dim = basis_first_dim_name(basis_fn["fspace"])
-                dim_space = "get_dim_space()"
-                is_diff_basis = False
-            elif basis_fn['type'] == "diff-basis":
-                first_dim = diff_basis_first_dim_name(basis_fn["fspace"])
-                dim_space = "get_dim_space_diff()"
-                is_diff_basis = True
+            if self._invoke:
+                if basis_fn['type'] == "basis":
+                    first_dim = basis_first_dim_name(basis_fn["fspace"])
+                    dim_space = "get_dim_space()"
+                    is_diff_basis = False
+                elif basis_fn['type'] == "diff-basis":
+                    first_dim = diff_basis_first_dim_name(basis_fn["fspace"])
+                    dim_space = "get_dim_space_diff()"
+                    is_diff_basis = True
+                else:
+                    raise InternalError(
+                        "Unrecognised type of basis function: '{0}'. Should be "
+                        "either 'basis' or 'diff-basis'.".format(basis_fn['type']))
+
+                # We'll only need to initialise the dimensioning variables
+                # if we're generating a PSy layer
+                if first_dim not in var_dim_list:
+                    var_dim_list.append(first_dim)
+                    rhs = "%".join([basis_fn["arg"].proxy_name_indexed,
+                                    basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                                    dim_space])
+                    inits.append((first_dim, rhs))
+
+            elif self._kernel:
+                # We're dealing with a kernel stub so we don't have variables
+                # to hold the size of the first dimension
+                if basis_fn['type'] == "basis":
+                    first_dim = basis_first_dim_value(basis_fn["fspace"])
+                    is_diff_basis = False
+                elif basis_fn['type'] == "diff-basis":
+                    first_dim = diff_basis_first_dim_value(basis_fn["fspace"])
+                    is_diff_basis = True
+                else:
+                    raise InternalError("huh3")
             else:
-                raise InternalError(
-                    "Unrecognised type of basis function: '{0}'. Should be "
-                    "either 'basis' or 'diff-basis'.".format(basis_fn['type']))
-
-            if first_dim not in var_dim_list:
-                var_dim_list.append(first_dim)
-                rhs = "%".join([basis_fn["arg"].proxy_name_indexed,
-                                basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                                dim_space])
-                parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
-
+                raise InternalError("huh2")
+                    
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
 
                 if is_diff_basis:
@@ -3054,22 +3197,21 @@ class DynInvokeBasisFns(DynInvokeCollection):
                     op_name = get_fs_operator_name("gh_basis",
                                                    basis_fn["fspace"],
                                                    qr_var=basis_fn["qr_var"])
-                if op_name in op_name_list:
+                if op_name in basis_arrays:
+                    # We've already seen a basis with this name so skip
                     continue
-                # We haven't seen a basis with this name before so
-                # need to declare it and add allocate statement
-                op_name_list.append(op_name)
 
                 # Dimensionality of the basis arrays depends on the
                 # type of quadrature...
                 alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
-                parent.add(
-                    AllocateGen(parent, op_name+"("+", ".join(alloc_args)+")"))
-                # Add basis function variable to list to declare later.
-                # We use the length of alloc_args to determine how
-                # many dimensions this array has.
-                basis_declarations.append(
-                    op_name+"("+",".join([":"]*len(alloc_args))+")")
+                if self._invoke:
+                    var_dim_list += alloc_args
+                else:
+                    # In a kernel stub the first dimension of the array is
+                    # a numerical value so make sure we don't try and declare
+                    # it as a variable. TODO improve this!
+                    var_dim_list += alloc_args[1:]
+                basis_arrays[op_name] = alloc_args
 
             elif basis_fn["shape"].lower() == "gh_evaluator":
                 # This is an evaluator and thus may be required on more than
@@ -3095,25 +3237,21 @@ class DynInvokeBasisFns(DynInvokeCollection):
                     alloc_args_str = ", ".join(
                         [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
                          ndf_nodal_name])
-                    parent.add(AllocateGen(parent,
-                                           op_name+"("+alloc_args_str+")"))
+                    #parent.add(AllocateGen(parent,
+                    #                       op_name+"("+alloc_args_str+")"))
+                    #allocs.append(op_name+"("+alloc_args_str+")")
                     # add basis function variable to list to declare later
-                    basis_declarations.append(op_name+"(:,:,:)")
+                    # declarations.append(op_name+"(:,:,:)")
+                    basis_arrays[op_name] = [
+                        first_dim,
+                        get_fs_ndf_name(basis_fn["fspace"]),
+                        ndf_nodal_name]
             else:
                 raise InternalError(
                     "Unrecognised evaluator shape: '{0}'. Should be one of "
                     "{1}".format(basis_fn["shape"], VALID_EVALUATOR_SHAPES))
 
-        if var_dim_list:
-            # declare dim and diff_dim for all function spaces
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=var_dim_list))
-        if basis_declarations:
-            # declare the basis function arrays
-            parent.add(DeclGen(parent, datatype="real",
-                               allocatable=True,
-                               kind="r_def",
-                               entity_decls=basis_declarations))
+        return (var_dim_list, basis_arrays, inits)
 
     def _initialise_xyz_qr(self, parent):
         '''
@@ -5627,10 +5765,13 @@ class DynKern(Kern):
             # the context and label match and in this case return the
             # previous name. We use the full text of the original
             # as a label.
-            self._qr_name = self._name_space_manager.create_name(
-                root_name=qr_arg.varName, context="AlgArgs",
-                label=self._qr_text)
-            # dynamo 0.3 api kernels require quadrature rule arguments to be
+            if qr_arg.varName:
+                self._qr_name = self._name_space_manager.create_name(
+                    root_name=qr_arg.varName, context="AlgArgs",
+                    label=self._qr_text)
+            else:
+                self._qr_name = ""
+            # Dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
             # Currently only _xyoz is supported...
@@ -7043,18 +7184,7 @@ class KernStubArgList(ArgOrdering):
     def quad_rule(self):
         ''' provide quadrature information for this kernel stub (necessary
         arguments and declarations) '''
-        from psyclone.f2pygen import DeclGen
         self._arglist.extend(self._kern.qr_args)
-        #self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-        #                         entity_decls=["np_xy", "np_z"]))
-        #self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-        #                         intent="in",
-        #                         dimension="np_xy",
-        #                         entity_decls=["weights_xy"]))
-        #self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-        #                         intent="in",
-        #                         dimension="np_z",
-        #                         entity_decls=["weights_z"]))
 
     @property
     def arglist(self):
