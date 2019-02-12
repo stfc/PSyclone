@@ -56,7 +56,7 @@ This information can be returned by the 'find_kernel.py' script.
 Please note that if there are multiple instances of the same Kernel call
 in an Invoke all of them will be extracted. This can be prevented by
 specifying the relative position of the Kernel's ancestor Node in the
-'Extractor.extract_kernel' call (position can  also be returned by the
+'Extractor.extract_kernel' call (position can also be returned by the
 'find_kernel.py' script).
 '''
 
@@ -82,18 +82,18 @@ def trans(psy):
     import colouring_and_omp as optimisation
     psy = optimisation.trans(psy)
 
-    # Loop over all of the Invokes in the PSy object
-    for invoke in psy.invokes.invoke_list:
+    # Loop over the specified Invokes
+    for invoke_name in INVOKE_NAMES:
 
-        # Extract the specified Kernel call from selected Invokes
-        if invoke.name in INVOKE_NAMES:
+        # Get Invoke and its Schedule
+        invoke = psy.invokes.get(invoke_name)
+        schedule = invoke.schedule
 
-            print("\nExtracting Kernel '" + KERNEL_NAME + "' from "
-                  "Invoke '" + invoke.name + "'")
-            schedule = invoke.schedule
-
-            schedule = Extractor.extract_kernel(schedule, KERNEL_NAME)
-            schedule.view()
-            invoke.schedule = schedule
+        # Extract the specified Kernel call from this Invoke
+        print("\nExtracting Kernel '" + KERNEL_NAME + "' from "
+              "Invoke '" + invoke.name + "'")
+        schedule = Extractor.extract_kernel(schedule, KERNEL_NAME)
+        schedule.view()
+        invoke.schedule = schedule
 
     return psy

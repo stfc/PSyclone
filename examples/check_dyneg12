@@ -50,9 +50,9 @@ export KSTUBGEN=${PWD}/../bin/genkernelstub
 echo "Running example dynamo/eg12"
 cd dynamo/eg12
 algfile="gw_mixed_schur_preconditioner_alg_mod.x90"
-python find_kernel.py
-### ${PSYCLONE} -nodm -s ./extract_nodes.py $algfile -oalg algout.F90 -opsy psyout.F90
-${PSYCLONE} -nodm -s ./extract_single_kernel.py $algfile -oalg algout.F90 -opsy psyout.F90
-${PSYCLONE} -nodm -s ./extract_kernel_multi_invokes.py $algfile -oalg algout.F90 -opsy psyout.F90
+#python find_kernel.py
+#${PSYCLONE} -nodm -s ./extract_nodes.py $algfile -oalg algout.F90 -opsy psyout.F90
+#${PSYCLONE} -nodm -s ./extract_single_kernel.py $algfile -oalg algout.F90 -opsy psyout.F90
+#${PSYCLONE} -nodm -s ./extract_kernel_multi_invokes.py $algfile -oalg algout.F90 -opsy psyout.F90
 ${PSYCLONE} -nodm -s ./extract_kernel_with_optimisations.py $algfile -oalg algout.F90 -opsy psyout.F90
 cd -

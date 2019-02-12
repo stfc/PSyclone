@@ -36,57 +36,53 @@
 
 '''
 File containing a PSyclone transformation script for the Dynamo0p3 API to
-extract the single specified Kernel (there may be multiple instances of
-the same Kernel call in an Invoke).
+extract a list of Nodes in an Invoke.
 This script can be applied via the -s option when running PSyclone:
 
-$ psyclone -nodm -s extract_single_kernel.py alg_mod.x90
+$ psyclone -nodm -s extract_nodes.py alg_mod.x90
 
 Please note that distributed memory is not supported for code extraction
 (hence the '-nodm' option above).
 
 The user-specified settings are:
-KERNEL_NAME - Name of the Kernel to be extracted as it appears in the
-              PSy layer,
-ROOT_NODE_POSITION - relative position of ancestor Node containing the
-                     specified Kernel call in the Invoke Schedule,
-INVOKE_NAME - name of the Invoke containing the Kernel call.
+INVOKE_NAME - name of the Invoke containing the Kernel call,
+LBOUND - lower index in the list of Nodes to extract,
+UBOUND - upper index in the list of Nodes to extract.
 
-This information can be returned by the 'find_kernel.py' script.
+Please note that ExtractRegionTrans works for consecutive Nodes in an
+Invoke Schedule (the Nodes also need to be children of the same parent).
+
 '''
 
 from __future__ import print_function
-from psyclone.extractor import Extractor
+from psyclone.transformations import ExtractRegionTrans
 
-# Specify the Kernel name as it appears in the Kernel calls
-# (ending with "_code")
-KERNEL_NAME = "dg_matrix_vector_code"
-# Specify the relative position of the root (ancestor) Node of this
-# Kernel call in the Schedule (otherwise all Kernel calls with the
-# same name in an Invoke will be extracted)
-ROOT_NODE_POSITION = 1
-# Specify the name of the Invoke containing the Kernel call. If the
-# name does not correspond to PSy Invoke names in the Algorithm file
-# no Kernel will be extracted. If there is no specified Kernel call
-# in PSy Invokes the 'Extractor.extract_kernel' function will exit
-# with an error.
-INVOKE_NAME = "invoke_5"
+
+# Specify the name of the Invoke containing the Nodes to extract.
+# If the Invoke name does not correspond to PSy Invoke names in
+# the Algorithm file no Nodes will be extracted.
+INVOKE_NAME = "invoke_7"
+# Specify the lower index in the list of Nodes to extract
+LBOUND = 0
+# Specify the upper index in the list of Nodes to extract
+UBOUND = 2
 
 
 def trans(psy):
-    ''' PSyclone transformation script for the Dynamo0p3 API to
-    extract the specified Kernel. '''
+    ''' PSyclone transformation script for the Dynamo0p3 API to extract
+    the specified Nodes in an Invoke. '''
+
+    # Get instance of the ExtractRegionTrans transformation
+    etrans = ExtractRegionTrans()
 
     # Get Invoke and its Schedule
     invoke = psy.invokes.get(INVOKE_NAME)
     schedule = invoke.schedule
 
-    # Extract the selected Kernel
-    print("\nExtracting Kernel '" + KERNEL_NAME + "' from "
-          "Invoke '" + invoke.name + "'")
-    schedule = Extractor.extract_kernel(schedule, KERNEL_NAME,
-                                        ROOT_NODE_POSITION)
+    # Apply extract transformation to selected Nodes
+    print("\nExtracting Nodes '[" + str(LBOUND) + ":" + str(UBOUND) +
+          "]' from Invoke '" + invoke.name + "'")
+    schedule, _ = etrans.apply(schedule.children[LBOUND:UBOUND])
     schedule.view()
-    invoke.schedule = schedule
 
     return psy

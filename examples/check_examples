@@ -117,7 +117,7 @@ echo "Running example dynamo/eg12"
 cd dynamo/eg12
 algfile="gw_mixed_schur_preconditioner_alg_mod.x90"
 python find_kernel.py
-### ${PSYCLONE} -nodm -s ./extract_nodes.py $algfile
+${PSYCLONE} -nodm -s ./extract_nodes.py $algfile
 ${PSYCLONE} -nodm -s ./extract_single_kernel.py $algfile
 ${PSYCLONE} -nodm -s ./extract_kernel_multi_invokes.py $algfile
 ${PSYCLONE} -nodm -s ./extract_kernel_with_optimisations.py $algfile
