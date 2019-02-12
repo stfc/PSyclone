@@ -34,46 +34,100 @@
 # Author I. Kavcic, Met Office
 
 
-''' Python helper script which returns information useful for Kernel
+'''
+Python helper script which returns the information useful for Kernel
 extraction: names of one or more Invokes which contain calls to the specified
-Kernel and positions of the root Node containing the Kernel calls. '''
+Kernel and positions of the root Nodes containing the Kernel calls.
+
+Use: '$ python <path/to/script/>find_kernel.py'
+
+The user-specified settings can be modified in the first section:
+TEST_API - PSyclone API (the example here "dynamo0.3"
+ALG_NAME - Algorithm file name to be searched for Kernel calls,
+ALG_PATH - Relative or absolute path to the Algorithm file from the
+           location where this script is run,
+KERNEL_BASENAME - Base name of the Kernel to be searched (without the
+                  "_kernel_mod" and file extension),
+OPTIMISE - Switch for applying optimisations to PSy layer before
+           searching for the Kernel call,
+OPT_SCRIPT - Name of the optimisation script which applies PSyclone
+             transformations to the code. A valid script file must
+             contain a 'trans' function which modifies the PSy object.
+'''
 
 from __future__ import print_function
+import os
+import importlib
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, Kern
 
+# =============== 1. User-defined settings ================================== #
+#
 # Specify API
 TEST_API = "dynamo0.3"
 # Specify Algorithm file name
-ALG_FILE = "gw_mixed_schur_preconditioner_alg_mod.x90"
-# Specify Kernel base name without the "_kernel_mod" and
+ALG_NAME = "gw_mixed_schur_preconditioner_alg_mod.x90"
+# Specify path to the Algorithm file from this script's location
+ALG_PATH = "."
+# Specify the Kernel base name without the "_kernel_mod" and
 # file extension
-KERN_BASENAME = "matrix_vector"
+KERNEL_BASENAME = "dg_matrix_vector"
+# Specify whether to apply optimisations before looking for the Kernel call
+# position
+OPTIMISE = False
+# Specify name of the optimisation script
+OPT_SCRIPT = "colouring_and_omp"
 
+# =============== 2. Manage names, paths and optimisation script imports ==== #
+#
 # Formulate the Kernel name as it appears in the Kernel calls
-KERNEL_NAME = KERN_BASENAME + "_code"
-# Parse the algorithm file and return the Invoke Info objects
+KERNEL_NAME = KERNEL_BASENAME + "_code"
+# Join path to Algorithm file and its name
+ALG_FILE = os.path.join(ALG_PATH, ALG_NAME)
+
+# If optimisation option is enabled, try to import the specified optimisation
+# transformation script as a Python module
+OPTMOD = None
+if OPTIMISE:
+    try:
+        OPTMOD = importlib.import_module(OPT_SCRIPT)
+    except ImportError:
+        print("\nOptimisation error: did not find the optimisation script '"
+              + OPT_SCRIPT + "'. No optimisations will be applied.")
+
+# =============== 3. Search for the Kernel call ============================= #
+#
+# Parse the algorithm file and return the Invoke info objects
 _, INVOKE_INFO = parse(ALG_FILE, api=TEST_API)
-# Create the PSy-layer object using the Invoke info
+# Create the PSy object which contains all Invoke calls
 PSY = PSyFactory(TEST_API, distributed_memory=False).create(INVOKE_INFO)
 
-# Search through all Invokes and their Schedules for the specified Kernel
+# Apply optimisations to the PSy object if this option is enabled and
+# the optimisation script was loaded successfully
+if OPTMOD:
+    PSY = OPTMOD.trans(PSY)
+
+# Search through all Invokes and their Schedules for the specified
+# Kernel call. Create lists of Invoke names and relative positions
+# of ancestor Nodes which contain the specified Kernel call.
 INVOKE_NAME = []
-NODE_POSITION = []
+ROOT_NODE_POSITION = []
 for invoke in PSY.invokes.invoke_list:
     schedule = invoke.schedule
     for kernel in schedule.walk(schedule.children, Kern):
         if kernel.name.lower() == KERNEL_NAME:
+            # Root at depth 2 returns the root (ancestor) Node of this
+            # Kernel call in the Schedule
             INVOKE_NAME.append(invoke.name)
-            NODE_POSITION.append(kernel.root_at_depth(2).position)
+            ROOT_NODE_POSITION.append(kernel.root_at_depth(2).position)
 
-print(" ")
+# Print Invoke name(s) and root Node relative position(s)
 if INVOKE_NAME:
-    print("Kernel call " + KERNEL_NAME +
-          " was found in ")
+    print("\nKernel call '" + KERNEL_NAME +
+          "' was found in ")
     for idx, name in enumerate(INVOKE_NAME):
-        print("  - Invoke " + name + " at root Node position "
-              + str(NODE_POSITION[idx]))
+        print("  - " + name + " at root Node position "
+              + str(ROOT_NODE_POSITION[idx]))
 else:
-    print("Kernel call " + KERNEL_NAME + " was not found in "
-          + ALG_FILE)
+    print("Kernel call '" + KERNEL_NAME + "' was not found in "
+          + ALG_NAME)

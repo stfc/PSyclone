@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,16 +38,12 @@
 ''' File containing a PSyclone transformation script for the Dynamo0p3
 API to apply colouring and OpenMP generically. This can be applied via
 the -s option in the generator.py script. '''
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 from psyclone.transformations import Dynamo0p3ColourTrans, \
-    DynamoOMPParallelLoopTrans, ExtractRegionTrans
-from psyclone.psyGen import Loop, Kern, Node
+    DynamoOMPParallelLoopTrans
+from psyclone.psyGen import Loop
 from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
-from psyclone.extractor import Extractor
 
-invoke_extract_name = "compute_mt_lumped"
-invoke_name = "invoke_" + invoke_extract_name.lower()
-kernel_name = "matrix_vector_code"
 
 def trans(psy):
     ''' PSyclone transformation script for the dynamo0p3 api to apply
@@ -79,10 +75,7 @@ def trans(psy):
                 else:
                     schedule, _ = otrans.apply(child)
 
-        if invoke.name == invoke_name:
-            schedule = Extractor.extract_kernel(schedule, kernel_name)
-            schedule.view()
-
+        schedule.view()
         invoke.schedule = schedule
 
     return psy
