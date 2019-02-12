@@ -399,7 +399,7 @@ class Parser(object):
                 format(kernel_name,
                        self._arg_name_to_module_name[kernel_name],
                        alg_filename))
-        from parse_kernel import BuiltInKernelTypeFactory
+        from psyclone.parse_kernel import BuiltInKernelTypeFactory
         return BuiltInCall( BuiltInKernelTypeFactory(api=self._api).create(
             self._builtin_name_map.keys(), self._builtin_defs_file,
             name=kernel_name.lower()), args)

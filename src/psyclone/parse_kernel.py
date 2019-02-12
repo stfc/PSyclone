@@ -110,7 +110,7 @@ class KernelTypeFactory(object):
             _config = Config.get()
             self._type = _config.default_api
         else:
-            from parse import check_api
+            from psyclone.parse import check_api
             check_api(api)
             self._type = api
 
