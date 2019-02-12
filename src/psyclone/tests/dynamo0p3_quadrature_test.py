@@ -42,7 +42,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.parse import parse
+from psyclone.parse_algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynInvokeBasisFns
 from psyclone_test_utils import code_compiles, TEST_COMPILE
@@ -396,7 +396,7 @@ def test_dynkern_setup(monkeypatch):
     from psyclone.psyGen import Kern
     monkeypatch.setattr(Kern, "__init__",
                         lambda me, ktype, kcall, parent, check: None)
-    from psyclone.parse import KernelCall
+    from psyclone.parse_algorithm import KernelCall
     monkeypatch.setattr(KernelCall, "__init__",
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel

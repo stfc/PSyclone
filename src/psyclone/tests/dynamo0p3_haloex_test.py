@@ -38,7 +38,7 @@ implementation for gh_inc dependencies using pytest. '''
 
 from __future__ import absolute_import
 import os
-from psyclone.parse import parse
+from psyclone.parse_algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans

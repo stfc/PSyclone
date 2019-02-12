@@ -46,8 +46,7 @@ from __future__ import print_function, absolute_import
 import os
 from collections import OrderedDict
 import fparser
-from psyclone.parse_kernel import Descriptor, KernelType
-from psyclone.parse import ParseError
+from psyclone.parse_kernel import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -1328,7 +1327,7 @@ class DynamoPSy(PSy):
 
     :param invoke_info: object containing the required invocation information \
                         for code optimisation and generation.
-    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    :type invoke_info: :py:class:`psyclone.parse_algorithm.FileInfo`
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
@@ -2874,7 +2873,7 @@ class DynInvoke(Invoke):
     def __init__(self, alg_invocation, idx):
         '''
         :param alg_invocation: node in the AST describing the invoke call
-        :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
+        :type alg_invocation: :py:class:`psyclone.parse_algorithm.InvokeCall`
         :param int idx: the position of the invoke in the list of invokes \
                         contained in the Algorithm
         :raises GenerationError: if integer reductions are required in the \
@@ -5142,7 +5141,7 @@ class DynKern(Kern):
 
         :param call: The KernelCall object from which to extract information
                      about this kernel
-        :type call: :py:class:`psyclone.parse.KernelCall`
+        :type call: :py:class:`psyclone.parse_algorithm.KernelCall`
         :param parent: The parent node of the kernel call in the AST
                        we are constructing. This will be a loop.
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
@@ -5160,7 +5159,7 @@ class DynKern(Kern):
         :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
         '''
         # create a name for each argument
-        from psyclone.parse import Arg
+        from psyclone.parse_algorithm import Arg
         args = []
         for idx, descriptor in enumerate(ktype.arg_descriptors):
             pre = None
@@ -5226,12 +5225,12 @@ class DynKern(Kern):
                                 the source of this Kernel
         :param args: List of Arg objects produced by the parser for the
                      arguments of this kernel call
-        :type args: List of :py:class:`psyclone.parse.Arg` objects
+        :type args: List of :py:class:`psyclone.parse_algorithm.Arg` objects
         :param parent: the parent of this kernel call in the generated
                        AST (will be a loop object)
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
         '''
-        from psyclone.parse import KernelCall
+        from psyclone.parse_algorithm import KernelCall
         Kern.__init__(self, DynKernelArguments,
                       KernelCall(module_name, ktype, args),
                       parent, check=False)
@@ -6964,7 +6963,7 @@ def check_args(call):
 
     :param call: the object produced by the parser that describes the
                  kernel call to be checked.
-    :type call: :py:class:`psyclone.parse.KernelCall`
+    :type call: :py:class:`psyclone.parse_algorithm.KernelCall`
     :raises: GenerationError if the kernel arguments in the Algorithm layer
              do not match up with the kernel meta-data
     '''
@@ -7306,7 +7305,7 @@ class DynKernelArgument(KernelArgument):
         :type arg_meta_data: :py:class:`psyclone.dynamo0p3.DynArgDescriptor03`
         :param arg_info: Information on how this argument is specified in the
                          Algorithm layer
-        :type arg_info: :py:class:`psyclone.parse.Arg`
+        :type arg_info: :py:class:`psyclone.parse_algorithm.Arg`
         :param call: The kernel object with which this argument is associated
         :type call: :py:class:`psyclone.dynamo0p3.DynKern`
         '''

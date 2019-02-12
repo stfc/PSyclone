@@ -39,7 +39,7 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from psyclone.parse import parse
+from psyclone.parse_algorithm import parse
 from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.transformations import TransformationError, \

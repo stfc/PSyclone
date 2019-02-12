@@ -10,7 +10,7 @@
 
 from __future__ import absolute_import
 import os
-from psyclone.parse import parse
+from psyclone.parse_algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import OMPParallelTrans
 

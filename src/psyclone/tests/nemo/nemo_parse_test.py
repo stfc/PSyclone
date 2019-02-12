@@ -38,7 +38,7 @@
 from __future__ import print_function, absolute_import
 import os
 from fparser.two.utils import walk_ast
-from psyclone.parse import parse
+from psyclone.parse_algorithm import parse
 from psyclone import nemo
 
 # Constants

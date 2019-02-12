@@ -8,7 +8,7 @@ from pyparsing import ParseException
 import psyclone.expression as expr
 from fparser.one import parsefortran
 import fparser
-from psyclone.parse import ParseError
+from psyclone.parse_algorithm import ParseError
 from psyclone.psyGen import InternalError
 from psyclone.configuration import Config
 
@@ -110,7 +110,7 @@ class KernelTypeFactory(object):
             _config = Config.get()
             self._type = _config.default_api
         else:
-            from psyclone.parse import check_api
+            from psyclone.parse_algorithm import check_api
             check_api(api)
             self._type = api
 
@@ -146,7 +146,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
     def create(self, builtin_names, builtin_defs_file, name=None):
         ''' Create a built-in call object '''
         if name not in builtin_names:
-            from psyclone.parse import ParseError
+            from psyclone.parse_algorithm import ParseError
             raise ParseError(
                 "BuiltInKernelTypeFactory: unrecognised built-in name. "
                 "Got '{0}' but expected one of {1}".format(name,
@@ -157,7 +157,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             os.path.dirname(os.path.abspath(__file__)),
             builtin_defs_file)
         if not os.path.isfile(fname):
-            from psyclone.parse import ParseError
+            from psyclone.parse_algorithm import ParseError
             raise ParseError(
                 "Kernel '{0}' is a recognised Built-in but cannot "
                 "find file '{1}' containing the meta-data describing "
@@ -170,7 +170,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             fparser.logging.disable(fparser.logging.CRITICAL)
             ast = fpapi.parse(fname)
         except:
-            from psyclone.parse import ParseError
+            from psyclone.parse_algorithm import ParseError
             raise ParseError(
                 "Failed to parse the meta-data for PSyclone "
                 "built-ins in {0}".format(fname))
@@ -192,14 +192,14 @@ def get_mesh(metadata, valid_mesh_types):
     '''
     if not isinstance(metadata, expr.NamedArg) or \
        metadata.name.lower() != "mesh_arg":
-        from psyclone.parse import ParseError
+        from psyclone.parse_algorithm import ParseError
         raise ParseError(
             "{0} is not a valid mesh identifier (expected "
             "mesh_arg=MESH_TYPE where MESH_TYPE is one of {1}))".
             format(str(metadata), valid_mesh_types))
     mesh = metadata.value.lower()
     if mesh not in valid_mesh_types:
-        from psyclone.parse import ParseError
+        from psyclone.parse_algorithm import ParseError
         raise ParseError("mesh_arg must be one of {0} but got {1}".
                          format(valid_mesh_types, mesh))
     return mesh
@@ -223,43 +223,43 @@ def get_stencil(metadata, valid_types):
     '''
 
     if not isinstance(metadata, expr.FunctionVar):
-        from psyclone.parse import ParseError
+        from psyclone.parse_algorithm import ParseError
         raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but found the "
             "literal {0}".format(metadata))
     if metadata.name.lower() != "stencil" or not metadata.args:
-            from psyclone.parse import ParseError
+            from psyclone.parse_algorithm import ParseError
             raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but found {0}".
             format(metadata))
     if len(metadata.args) > 2:
-        from psyclone.parse import ParseError
+        from psyclone.parse_algorithm import ParseError
         raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but there must "
             "be at most two arguments inside the brackets {0}".
             format(metadata))
     if not isinstance(metadata.args[0], expr.FunctionVar):
         if isinstance(metadata.args[0], str):
-            from psyclone.parse import ParseError
+            from psyclone.parse_algorithm import ParseError
             raise ParseError(
                 "Expecting format stencil(<type>[,<extent>]). However, "
                 "the specified <type> '{0}' is a literal and therefore is "
                 "not one of the valid types '{1}'".
                 format(metadata.args[0], valid_types))
         else:
-            from psyclone.parse import ParseError
+            from psyclone.parse_algorithm import ParseError
             raise ParseError(
                 "Internal error, expecting either FunctionVar or "
                 "str from the expression analyser but found {0}".
                 format(type(metadata.args[0])))
     if metadata.args[0].args:
-        from psyclone.parse import ParseError
+        from psyclone.parse_algorithm import ParseError
         raise ParseError(
             "Expected format stencil(<type>[,<extent>]). However, the "
             "specified <type> '{0}' includes brackets")
     stencil_type = metadata.args[0].name
     if stencil_type not in valid_types:
-        from psyclone.parse import ParseError
+        from psyclone.parse_algorithm import ParseError
         raise ParseError(
             "Expected format stencil(<type>[,<extent>]). However, the "
             "specified <type> '{0}' is not one of the valid types '{1}'".
@@ -268,19 +268,19 @@ def get_stencil(metadata, valid_types):
     stencil_extent = None
     if len(metadata.args) == 2:
         if not isinstance(metadata.args[1], str):
-            from psyclone.parse import ParseError
+            from psyclone.parse_algorithm import ParseError
             raise ParseError(
                 "Expected format stencil(<type>[,<extent>]). However, the "
                 "specified <extent> '{0}' is not an integer".
                 format(metadata.args[1]))
         stencil_extent = int(metadata.args[1])
         if stencil_extent < 1:
-            from psyclone.parse import ParseError
+            from psyclone.parse_algorithm import ParseError
             raise ParseError(
                 "Expected format stencil(<type>[,<extent>]). However, the "
                 "specified <extent> '{0}' is less than 1".
                 format(str(stencil_extent)))
-        from psyclone.parse import ParseError
+        from psyclone.parse_algorithm import ParseError
         raise ParseError(
             "Kernels with fixed stencil extents are not currently "
             "supported")

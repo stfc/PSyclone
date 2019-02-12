@@ -39,7 +39,7 @@ GOcean 1.0 API.'''
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.parse import parse
+from psyclone.parse_algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
 

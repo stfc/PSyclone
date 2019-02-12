@@ -42,7 +42,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.parse import parse, ParseError
+from psyclone.parse_algorithm import parse, ParseError
 from psyclone.parse_kernel import KernelType, KernelTypeFactory, \
     BuiltInKernelTypeFactory
 from psyclone.psyGen import InternalError
@@ -81,7 +81,7 @@ def test_continuators_algorithm():
 def test_get_builtin_defs_wrong_api():
     ''' Check that we raise an appropriate error if we call
     get_builtin_defs() with an invalid API '''
-    import psyclone.parse as pparse
+    import psyclone.parse_algorithm as pparse
     with pytest.raises(ParseError) as excinfo:
         _, _ = pparse.get_builtin_defs('invalid_api')
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)

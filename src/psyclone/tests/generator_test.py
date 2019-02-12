@@ -47,7 +47,7 @@ import re
 import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
-from psyclone.parse import ParseError
+from psyclone.parse_algorithm import ParseError
 from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -315,7 +315,7 @@ def test_script_trans():
         transformations correctly. We use loop fusion as an
         example.'''
     # pylint: disable=too-many-locals
-    from psyclone.parse import parse
+    from psyclone.parse_algorithm import parse
     from psyclone.psyGen import PSyFactory
     from psyclone.transformations import LoopFuseTrans
     root_path = os.path.dirname(os.path.abspath(__file__))

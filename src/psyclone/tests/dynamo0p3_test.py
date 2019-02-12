@@ -43,7 +43,7 @@ import sys
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.parse import parse, ParseError
+from psyclone.parse_algorithm import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
