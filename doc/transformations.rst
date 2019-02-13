@@ -131,6 +131,12 @@ can be found in the API-specific sections).
     :members:
     :noindex:
 
+####
+
+.. autoclass:: psyclone.transformations.ExtractRegionTrans
+    :members:
+    :noindex:
+
 
 Kernels
 -------
