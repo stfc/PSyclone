@@ -220,9 +220,16 @@ As an example::
 Interface to Third Party Profiling Tools 
 ----------------------------------------
 PSyclone comes with wrapper libraries to support usage of
-dl_timer and a simple non-thread-safe timing
-library. Support for DrHook and TAU will be added in the
-future.
+Dr Hook, dl_timer and a simple non-thread-safe timing
+library. Support for further profiling libraries will be
+added in the future. To compile the wrapper libraries,
+change into the directory ``lib/profiling`` of PSyclone
+and type ``make`` to compile all wrapper. If only some
+of the wrapper are required, you can either use
+``make wrapper-name`` (e.g. ``make drhook``), or change
+into the corresponding directory and use ``make``. The
+corresponding README files contain additional parameters
+that can be set in order to find third party profiling tools.
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
