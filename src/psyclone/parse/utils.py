@@ -38,7 +38,10 @@ PSyclone-conformant Algorithm code.
 
 '''
 
+from psyclone.configuration import Config
+
 # Exceptions
+
 
 class ParseError(Exception):
     ''' xxx '''
@@ -48,3 +51,21 @@ class ParseError(Exception):
 
     def __str__(self):
         return repr(self.value)
+
+# support functions
+
+
+def check_api(api):
+    '''
+    Check that the supplied API is valid.
+    :param str api: The API to check.
+    :raises ParseError: if the supplied API is not recognised.
+
+    '''
+    _config = Config.get()
+
+    if api not in _config.supported_apis:
+        raise ParseError(
+            "check_api: Unsupported API '{0}' specified. "
+            "Supported types are {1}.".format(api,
+                                              _config.supported_apis))
