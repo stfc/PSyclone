@@ -50,7 +50,8 @@ import argparse
 import sys
 import os
 import traceback
-from psyclone.parse_algorithm import parse, ParseError
+from psyclone.parse_algorithm import parse
+from psyclone.parse_utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.algGen import NoInvokesError
 from psyclone.line_length import FortLineLength

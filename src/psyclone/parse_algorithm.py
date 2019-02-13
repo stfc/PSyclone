@@ -43,19 +43,7 @@ from psyclone.configuration import Config
 from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
 from psyclone.psyGen import InternalError
-
-
-# Exceptions
-
-class ParseError(Exception):
-    ''' xxx '''
-    
-    def __init__(self, value):
-        self.value = "Parse Error: " + value
-
-    def __str__(self):
-        return repr(self.value)
-
+from psyclone.parse_utils import ParseError
 
 # Capture algorithm information
 

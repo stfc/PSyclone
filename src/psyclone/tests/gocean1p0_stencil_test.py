@@ -41,7 +41,8 @@ import os
 import pytest
 from psyclone.parse_algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.generator import GenerationError, ParseError
+from psyclone.generator import GenerationError
+from psyclone.parse_utils import ParseError
 
 from psyclone.gocean1p0 import GOStencil
 from psyclone import expression as expr

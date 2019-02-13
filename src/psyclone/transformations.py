@@ -534,7 +534,8 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     For example:
 
-    >>> from psyclone.parse_algorithm import parse, ParseError
+    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse_utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
@@ -696,7 +697,8 @@ class ACCLoopTrans(ParallelLoopTrans):
 
     For example:
 
-    >>> from psyclone.parse_algorithm import parse, ParseError
+    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse_utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
@@ -1493,7 +1495,8 @@ class OMPParallelTrans(ParallelRegionTrans):
     Create an OpenMP PARALLEL region by inserting directives. For
     example:
 
-    >>> from psyclone.parse_algorithm import parse, ParseError
+    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse_utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
@@ -2226,7 +2229,8 @@ class ProfileRegionTrans(RegionTrans):
     ''' Create a profile region around a list of statements. For
     example:
 
-    >>> from psyclone.parse_algorithm import parse, ParseError
+    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse_utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"

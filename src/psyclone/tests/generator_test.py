@@ -47,7 +47,7 @@ import re
 import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
-from psyclone.parse_algorithm import ParseError
+from psyclone.parse_utils import ParseError
 from psyclone.configuration import Config
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),

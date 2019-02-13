@@ -42,7 +42,7 @@
 
 from psyclone import psyGen
 from psyclone.psyGen import BuiltIn, NameSpaceFactory
-from psyclone.parse_algorithm import ParseError
+from psyclone.parse_utils import ParseError
 from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
 
 # The name of the file containing the meta-data describing the

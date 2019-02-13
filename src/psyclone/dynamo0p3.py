@@ -46,7 +46,8 @@ from __future__ import print_function, absolute_import
 import os
 from collections import OrderedDict
 import fparser
-from psyclone.parse_kernel import Descriptor, KernelType, ParseError
+from psyclone.parse_kernel import Descriptor, KernelType
+from psyclone.parse_utils import ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
