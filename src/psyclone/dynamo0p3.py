@@ -1465,15 +1465,6 @@ def stencil_unique_str(arg, context):
     return unique
 
 
-def stencil_map_name(arg):
-    ''' returns a valid unique map name for a stencil in the PSy layer '''
-    root_name = arg.name + "_stencil_map"
-    unique = stencil_unique_str(arg, "map")
-    name_space_manager = NameSpaceFactory().create()
-    return name_space_manager.create_name(
-        root_name=root_name, context="PSyVars", label=unique)
-
-
 def stencil_dofmap_name(arg):
     ''' returns a valid unique dofmap name for a stencil in the PSy layer '''
     root_name = arg.name + "_stencil_dofmap"
@@ -1484,8 +1475,15 @@ def stencil_dofmap_name(arg):
 
 
 def stencil_size_name(arg):
-    ''' returns a valid unique name for the size (in cells) of a stencil
-    in the PSy layer '''
+    ''' Create a valid unique name for the size (in cells) of a stencil
+    in the PSy layer.
+
+    :param arg:
+    :type arg:
+
+    :returns: a Fortran variable name for the stencil size.
+    :rtype: str
+    '''
     root_name = arg.name + "_stencil_size"
     unique = stencil_unique_str(arg, "size")
     name_space_manager = NameSpaceFactory().create()
@@ -1537,14 +1535,14 @@ class DynInvokeCollection(object):
         raise NotImplementedError("")
 
 
-class DynInvokeStencil(DynInvokeCollection):
+class DynInvokeStencils(DynInvokeCollection):
     '''
     Stencil information and code generation associated with a
     DynInvoke call.
 
     '''
     def __init__(self, invoke):
-        super(DynInvokeStencil, self).__init__(invoke)
+        super(DynInvokeStencils, self).__init__(invoke)
 
         # list of arguments which have an extent value passed to this
         # invoke routine from the algorithm layer. Duplicate argument
@@ -1662,12 +1660,11 @@ class DynInvokeStencil(DynInvokeCollection):
 
     def initialise_stencil_maps(self, parent):
         '''adds in the required stencil dofmap code to the PSy layer'''
-        from psyclone.f2pygen import AssignGen, IfThenGen, TypeDeclGen, \
-            UseGen, CommentGen, DeclGen
+        from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen, UseGen
 
         if not self._kern_args:
             return
-        
+
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
         parent.add(CommentGen(parent, ""))
@@ -1675,7 +1672,7 @@ class DynInvokeStencil(DynInvokeCollection):
                           funcnames=["stencil_dofmap_type"]))
         stencil_map_names = []
         for arg in self._kern_args:
-            map_name = stencil_map_name(arg)
+            map_name = stencil_dofmap_name(arg)
             if map_name not in stencil_map_names:
                 # only initialise maps once
                 stencil_map_names.append(map_name)
@@ -1747,45 +1744,55 @@ class DynInvokeStencil(DynInvokeCollection):
 
         stencil_map_names = []
         for arg in self._kern_args:
-            map_name = stencil_map_name(arg)
-            
+            map_name = stencil_dofmap_name(arg)
+
             if map_name in stencil_map_names:
                 continue
-            
+
             stencil_map_names.append(map_name)
-            parent.add(
-                TypeDeclGen(parent, pointer=True,
-                            datatype="stencil_dofmap_type",
-                            entity_decls=[map_name+" => null()"]))
-            stencil_type = arg.descriptor.stencil['type']
-            if stencil_type == "xory1d":
-                parent.add(UseGen(parent, name="flux_direction_mod",
-                                  only=True,
-                                  funcnames=["x_direction",
-                                             "y_direction"]))
-                parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True,
-                                  funcnames=["STENCIL_1DX",
-                                             "STENCIL_1DY"]))
+
+            if self._invoke:
+                # We're putting declarations in a PSy routine
+                parent.add(
+                    TypeDeclGen(parent, pointer=True,
+                                datatype="stencil_dofmap_type",
+                                entity_decls=[map_name+" => null()"]))
+                stencil_type = arg.descriptor.stencil['type']
+                if stencil_type == "xory1d":
+                    parent.add(UseGen(parent, name="flux_direction_mod",
+                                      only=True,
+                                      funcnames=["x_direction",
+                                                 "y_direction"]))
+                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                      only=True,
+                                      funcnames=["STENCIL_1DX",
+                                                 "STENCIL_1DY"]))
+                else:
+                    try:
+                        stencil_name = STENCIL_MAPPING[stencil_type]
+                    except KeyError:
+                        raise GenerationError(
+                            "Unsupported stencil type '{0}' supplied. "
+                            "Supported mappings are {1}".
+                            format(arg.descriptor.stencil['type'],
+                                   str(STENCIL_MAPPING)))
+                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                      only=True,
+                                      funcnames=[stencil_name]))
+
+                    parent.add(DeclGen(parent, datatype="integer",
+                                       pointer=True,
+                                       entity_decls=[stencil_dofmap_name(arg) +
+                                                     "(:,:,:) => null()"]))
+            elif self._kernel:
+                # We're putting declarations in a kernel stub
+                parent.add(DeclGen(
+                    parent, datatype="integer", intent="in",
+                    dimension=",".join([get_fs_ndf_name(arg.function_space),
+                                        stencil_size_name(arg)]),
+                    entity_decls=[stencil_dofmap_name(arg)]))
             else:
-                try:
-                    stencil_name = STENCIL_MAPPING[stencil_type]
-                except KeyError:
-                    raise GenerationError(
-                        "Unsupported stencil type '{0}' supplied. "
-                        "Supported mappings are {1}".
-                        format(arg.descriptor.stencil['type'],
-                               str(STENCIL_MAPPING)))
-                parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                  only=True,
-                                  funcnames=[stencil_name]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               pointer=True,
-                               entity_decls=[stencil_dofmap_name(arg) +
-            # TODO specify explicit dimensions if this is a kernel stub!
-                                             "(:,:,:) => null()"]))
-            parent.add(DeclGen(parent, datatype="integer",
-                               entity_decls=[stencil_size_name(arg)]))
+                raise InternalError("blah3")
 
 
 class DynInvokeDofmaps(DynInvokeCollection):
@@ -3621,7 +3628,7 @@ class DynInvoke(Invoke):
         self.scalar_args = DynInvokeScalars(self)
 
         # initialise our invoke stencil information
-        self.stencil = DynInvokeStencil(self)
+        self.stencil = DynInvokeStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
         self.function_spaces = DynInvokeFunctionSpaces(self)
@@ -6054,7 +6061,7 @@ class DynKern(Kern):
         fields = DynInvokeFields(self)
         fields.declarations(sub_stub)
 
-        stencils = DynInvokeStencil(self)
+        stencils = DynInvokeStencils(self)
         stencils.declarations(sub_stub)
 
         basis = DynInvokeBasisFns(self)
@@ -6918,7 +6925,6 @@ class KernStubArgList(ArgOrdering):
                     "_v" + str(idx))
             if self._first_arg:
                 self._first_arg = False
-                self._first_arg_decl = decl
             self._arglist.append(text)
 
     def field(self, arg):
@@ -6934,57 +6940,43 @@ class KernStubArgList(ArgOrdering):
     def stencil_unknown_extent(self, arg):
         '''add stencil information associated with the argument 'arg' if the
         extent is unknown'''
-        #from psyclone.f2pygen import DeclGen
-        name = arg.name + "_stencil_size"
-        #self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-        #                         entity_decls=[name]))
+        name = stencil_size_name(arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
         '''add stencil information associated with the argument 'arg' if the
         direction is unknown'''
-        #from psyclone.f2pygen import DeclGen
         name = arg.name+"_direction"
-        #self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-        #                         entity_decls=[name]))
         self._arglist.append(name)
 
     def stencil(self, arg):
         '''add general stencil information associated with the argument
         'arg' '''
-        #from psyclone.f2pygen import DeclGen
-        name = arg.name+"_stencil_map"
-        ndf_name = get_fs_ndf_name(arg.function_space)
-        #self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-        #                         dimension=",".join(
-        #                             [ndf_name, arg.name + "_stencil_size"]),
-        #                         entity_decls=[name]))
-        self._arglist.append(name)
+        self._arglist.append(stencil_dofmap_name(arg))
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
         from psyclone.f2pygen import DeclGen
         size = arg.name + "_ncell_3d"
         self._arglist.append(size)
-        decl = DeclGen(self._parent, datatype="integer", intent="in",
-                       entity_decls=[size])
-        self._parent.add(decl)
+        #decl = DeclGen(self._parent, datatype="integer", intent="in",
+        #               entity_decls=[size])
+        #self._parent.add(decl)
         # If this is the first argument in the kernel then keep a
         # note so that we can put subsequent declarations in the
         # correct location
         if self._first_arg:
             self._first_arg = False
-            self._first_arg_decl = decl
         text = arg.name
         self._arglist.append(text)
 
-        intent = arg.intent
-        ndf_name_to = get_fs_ndf_name(arg.function_space_to)
-        ndf_name_from = get_fs_ndf_name(arg.function_space_from)
-        self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-                                 dimension=",".join([ndf_name_to,
-                                                     ndf_name_from, size]),
-                                 intent=intent, entity_decls=[text]))
+        #intent = arg.intent
+        #ndf_name_to = get_fs_ndf_name(arg.function_space_to)
+        #ndf_name_from = get_fs_ndf_name(arg.function_space_from)
+        #self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
+        #                         dimension=",".join([ndf_name_to,
+        #                                             ndf_name_from, size]),
+        #                         intent=intent, entity_decls=[text]))
 
     def cma_operator(self, arg):
         ''' add the CMA operator arguments to the argument list '''
@@ -7572,7 +7564,7 @@ class KernelDeclarations(object):
 
     def _add_use_stmts(self):
         '''
-        '''        
+        '''
 
 
 class DynKernelArguments(Arguments):
@@ -7602,32 +7594,11 @@ class DynKernelArguments(Arguments):
                                              parent_call)
             idx += 1
             if dyn_argument.descriptor.stencil:
+                # Create a stencil object and store a reference to it in our
+                # new DynKernelArgument object.
                 stencil = DynStencil(dyn_argument.descriptor.stencil['type'])
-                if dyn_argument.descriptor.stencil['extent']:
-                    raise GenerationError("extent metadata not yet supported")
-                    # if supported we would add the following
-                    # line. However, note there is currently no setter
-                    # for extent in DynStencil so this would need to
-                    # be added.  stencil.extent =
-                    # dyn_argument.descriptor.stencil['extent']
-                else:
-                    # an extent argument has been added
-                    stencil.extent_arg = call.args[idx]
-                    # extent_arg is not a standard dynamo argument, it is
-                    # an Arg object created by the parser. Therefore its
-                    # name may clash. We register and update the name here.
-                    if stencil.extent_arg.varName:
-                        root = stencil.extent_arg.varName
-                    else:
-                        # We don't have a variable name associated with this
-                        # stencil extent (i.e. we're generating a kernel stub)
-                        # so invent one.
-                        root = dyn_argument.name + "_stencil_size"
-                    unique_name = self._name_space_manager.create_name(
-                        root_name=root, context="AlgArgs",
-                        label=stencil.extent_arg.text)
-                    stencil.extent_arg.varName = unique_name
-                    idx += 1
+                dyn_argument.stencil = stencil
+
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil.direction_arg = call.args[idx]
@@ -7649,7 +7620,28 @@ class DynKernelArguments(Arguments):
                             label=stencil.direction_arg.text)
                         stencil.direction_arg.varName = unique_name
                     idx += 1
-                dyn_argument.stencil = stencil
+                if dyn_argument.descriptor.stencil['extent']:
+                    raise GenerationError("extent metadata not yet supported")
+                    # if supported we would add the following
+                    # line. However, note there is currently no setter
+                    # for extent in DynStencil so this would need to
+                    # be added.  stencil.extent =
+                    # dyn_argument.descriptor.stencil['extent']
+                else:
+                    # An extent argument has been added.
+                    stencil.extent_arg = call.args[idx]
+                    # extent_arg is not a standard dynamo argument, it is
+                    # an Arg object created by the parser. Therefore its
+                    # name may clash. We register and update the name here.
+                    if not stencil.extent_arg.varName:
+                        # We don't have a variable name associated with this
+                        # stencil extent (i.e. we're generating a kernel stub)
+                        # so invent one.
+                        stencil.extent_arg.text = dyn_argument.name + \
+                            "_stencil_size"
+                    stencil.extent_arg.varName = stencil_size_name(
+                        dyn_argument)
+                    idx += 1
             self._args.append(dyn_argument)
 
         self._dofs = []

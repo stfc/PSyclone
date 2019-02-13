@@ -40,9 +40,11 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
+import fparser
 from fparser import api as fpapi
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.psyGen import InternalError, GenerationError
+from psyclone.parse import ParseError
 from psyclone.gen_kernel_stub import generate
 
 # Constants
@@ -743,25 +745,24 @@ def test_stub_stencil_multi():
     print(generated_code)
     result1 = (
         "    SUBROUTINE testkern_stencil_multi_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_stencil_map, field_3_w2, "
-        "field_3_stencil_size, field_3_direction, field_3_stencil_map, "
-        "field_4_w3, field_4_stencil_size, field_4_stencil_map, ndf_w1, "
+        "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, field_3_w2,"
+        " field_3_stencil_size, field_3_direction, field_3_stencil_dofmap, "
+        "field_4_w3, field_4_stencil_size, field_4_stencil_dofmap, ndf_w1, "
         "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
     result2 = (
-        "      INTEGER, intent(in) :: field_2_stencil_size\n"
-        "      INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) :: "
-        "field_2_stencil_map\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
         "field_3_w2\n"
-        "      INTEGER, intent(in) :: field_3_stencil_size\n"
-        "      INTEGER, intent(in) :: field_3_direction\n"
-        "      INTEGER, intent(in), dimension(ndf_w2,field_3_stencil_size) :: "
-        "field_3_stencil_map\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
         "field_4_w3\n"
-        "      INTEGER, intent(in) :: field_4_stencil_size\n"
+        "      INTEGER, intent(in) :: field_2_stencil_size, "
+        "field_3_stencil_size, field_4_stencil_size\n"
+        "      INTEGER, intent(in) :: field_3_direction\n"
+        "      INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) :: "
+        "field_2_stencil_dofmap\n"
+        "      INTEGER, intent(in), dimension(ndf_w2,field_3_stencil_size) :: "
+        "field_3_stencil_dofmap\n"
         "      INTEGER, intent(in), dimension(ndf_w3,field_4_stencil_size) :: "
-        "field_4_stencil_map")
+        "field_4_stencil_dofmap")
 
     assert result2 in generated_code

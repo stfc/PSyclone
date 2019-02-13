@@ -888,6 +888,13 @@ class Arg(object):
     def text(self):
         return self._text
 
+    @text.setter
+    def text(self, value):
+        '''
+        :param str value: the string to store in the _text property.
+        '''
+        self._text = value[:]
+
     @property
     def varName(self):
         return self._varName
