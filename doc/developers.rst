@@ -379,9 +379,8 @@ TBD
 .. ============================
 .. 
 .. This section explains how to create a new API in PSyclone. PSyclone
-.. currently supports the following API's; the original prototype gungho
-.. implementation, dynamo versions 0.1 and 0.3, and gocean versions 0.1
-.. and 1.0.
+.. currently supports the following APIs; dynamo versions 0.1 and 0.3
+.. and gocean versions 0.1 and 1.0.
 .. 
 .. config.py
 .. ---------
@@ -1079,6 +1078,47 @@ appropriate names for the dag, colourmap, declaration etc.
    other. This is also the case for asynchronous halo exchanges. See
    issue #220.
 
+Evaluators
+----------
+
+Evaluators consist of basis and/or differential basis functions for a
+given function space, evaluated at the nodes of another, 'target',
+function space. A kernel can request evaluators on multiple target
+spaces through the use of the `gh_evaluator_targets` metadata entry.
+Every evaluator used by that kernel will then be provided on all of the
+target spaces.
+
+When constructing a `DynKernMetadata` object from the parsed kernel
+metadata, the list of target function-space names (as they appear in
+the meta-data) is stored in `DynKernMetadata._eval_targets`. This
+information is then used in the `DynKern._setup()` method which
+populates `DynKern._eval_targets`. This is an `OrderedDict` which has
+the (mangled) names of the target function spaces as keys and 2-tuples
+consisting of `FunctionSpace` and `DynKernelArgument` objects as
+values. The `DynKernelArgument` object provides the kernel argument
+from which to extract the function space and the `FunctionSpace` object
+holds full information on the target function space.
+
+The `DynInvokeBasisFunctions` class is responsible for managing the
+evaluators required by all of the kernels called from an Invoke.
+`DynInvokeBasisFunctions._eval_targets` collects all of the unique target
+function spaces from the `DynKern._eval_targets` of each kernel.
+
+`DynInvokeBasisFunctions._basis_fns` is a list holding information on
+each basis/differential basis function required by a kernel within the
+invoke. Each entry in this list is a `dict` with keys:
+
+============= =================================== ===================
+Key           Entry                      	  Type
+============= =================================== ===================
+shape         Shape of the evaluator              `str`
+type          Whether basis or differential basis `str`
+fspace        Function space             	  `FunctionSpace`
+arg           Associated kernel argument 	  `DynKernelArgument`
+qr_var        Quadrature argument name   	  `str`
+nodal_fspaces Target function spaces     	  list of `(FunctionSpace, DynKernelArgument)`
+============= =================================== ===================
+
 Modifying the Schedule
 ----------------------
 
@@ -1124,6 +1164,37 @@ an increase in depth will only increase the depth of an existing halo
 exchange before the loop) or add existing halo exchanges after a loop
 (as an increase in depth will only make it more likely that a halo
 exchange is no longer required after the loop).
+
+Kernel Transformations
+++++++++++++++++++++++
+
+Since PSyclone is invoked separately for each Algorithm file in an
+application, the naming of the new, transformed kernels is done with
+reference to the kernel output directory. All transformed kernels (and
+the modules that contain them) are re-named following the PSyclone
+Fortran naming conventions (:ref:`fortran_naming`). This enables the
+reliable identification of transformed versions of any given kernel
+within the output directory.
+
+If the "multiple" kernel-renaming scheme is in use, PSyclone simply
+appends an integer to the original kernel name, checks whether such a
+kernel is present in the output directory and if not, creates it. If a
+kernel with the generated name is present then the integer is
+incremented and the process repeated. If the "single" kernel-renaming
+scheme is in use, the same procedure is followed but if a matching
+kernel is already present in the output directory then the new kernel
+is not written (and we check that the contents of the existing kernel
+are the same as the one we would create).
+
+If an application is being built in parallel then it is possible that
+different invocations of PSyclone will happen simultaneously and
+therefore we must take care to avoid race conditions when querying the
+filesystem. For this reason we use ``os.open``::
+  
+    fd = os.open(<filename>, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
+
+The ``os.O_CREATE`` and ``os.O_EXCL`` flags in combination mean that
+``open()`` raises an error if the file in question already exists.
 
 Colouring
 +++++++++
@@ -1207,6 +1278,40 @@ TBD
 .. 
 .. Create third transformtion which goes over all loops in a schedule and
 .. applies the OpenMP loop transformation.
+
+NEMO
+====
+
+Implicit Loops
+--------------
+
+When constructing the PSyIR of NEMO source code, PSyclone identifies loops
+that are implied by the use of Fortran array notation. Such use of array
+notation is encouraged in the NEMO Coding Conventions :cite:`nemo_code_conv`
+and identifying these loops can be important when introducing, e.g. OpenMP.
+
+However, not all uses of Fortran array notation in NEMO imply a
+loop. For instance,
+::
+
+   ascalar = afunc(twodarray1(:,:))
+
+means that the function ``afunc`` is passed the (whole of the)
+``twodarray1`` and returns a scalar value. (The requirement for
+explicit array shapes in the NEMO Coding Convention means that any
+quantity without such a shape must therefore be a scalar.)
+
+Alternatively, a statement that assigns to an array must imply a loop::
+
+  twodarray2(:,:) = bfunc(twodarray1(:,:))
+
+but it can only be converted into an explicit loop by PSyclone if the
+function ``bfunc`` returns a scalar. Since PSyclone does not currently
+attempt to fully resolve all symbols when parsing NEMO code, this
+information is not available and therefore such statements are not
+identified as loops (issue
+https://github.com/stfc/PSyclone/issues/286). This may then mean that
+opportunities for optimisation are missed.
 
 Modules
 #######
@@ -1417,3 +1522,139 @@ Of course, a given field may already be on the device (and have been
 updated) due to a previous Invoke. In this case, the fact that the
 OpenACC run-time does not copy over the now out-dated host version of
 the field is essential for correctness.
+
+.. _opencl_dev:
+
+OpenCL Support
+##############
+
+PSyclone is able to generate an OpenCL :cite:`opencl` version of
+PSy-layer code for the GOcean 1.0 API. Such code may then be executed
+on devices such as GPUs and FPGAs (Field-Programmable Gate
+Arrays). Since OpenCL code is very different to that which PSyclone
+normally generates, its creation is handled by ``gen_ocl`` methods
+instead of the normal ``gen_code``. Which of these to use is
+determined by the value of the ``Schedule.opencl`` flag.  In turn,
+this is set at a user level by the ``transformations.OCLTrans``
+transformation.
+
+The PSyKAl model of calling kernels for pre-determined iteration
+spaces is a natural fit to OpenCL's concept of an
+``NDRangeKernel``. However, the kernels themselves must be created or
+loaded at runtime, their arguments explicitly set and any arrays
+copied to the compute device. All of this 'boilerplate' code is
+generated by PSyclone. In order to minimise the changes required, the
+generated code is still Fortran and makes use of the FortCL library
+(https://github.com/stfc/FortCL) to access OpenCL functionality. We
+could of course generate the PSy layer in C instead but this would
+require further extension of PSyclone.
+
+Consider the following invoke::
+
+    call invoke( compute_cu(CU_fld, p_fld, u_fld) )
+
+When creating the OpenCL PSy layer for this invoke, PSyclone creates
+three subroutines instead of the usual one. The first, ``psy_init``
+is responsible for ensuring that a valid kernel object is created
+for each kernel called by the invoke, e.g.::
+
+    use fortcl, only: ocl_env_init, add_kernels
+    ...
+    ! Initialise the OpenCL environment/device
+    CALL ocl_env_init
+    ! The kernels this PSy layer module requires
+    kernel_names(1) = "compute_cu_code"
+    ! Create the OpenCL kernel objects. Expects to find all of the
+    ! compiled kernels in PSYCLONE_KERNELS_FILE.
+    CALL add_kernels(1, kernel_names)
+
+As indicated in the comment, the ``FortCL::add_kernels`` routine
+expects to find all kernels in a pre-compiled file pointed to by the
+PSYCLONE_KERNELS_FILE environment variable. (A pre-compiled file is
+used instead of run-time kernel compilation in order to support
+execution on FPGAs.)
+
+The second routine created by PSyclone sets the kernel arguments, e.g.::
+
+    SUBROUTINE compute_cu_code_set_args(kernel_obj, nx, cu_fld, p_fld, u_fld)
+      USE clfortran, ONLY: clSetKernelArg
+      USE iso_c_binding, ONLY: c_sizeof, c_loc, c_intptr_t
+      ...
+      INTEGER(KIND=c_intptr_t), target :: cu_fld, p_fld, u_fld
+      INTEGER(KIND=c_intptr_t), target :: kernel_obj
+      INTEGER, target :: nx
+      ! Set the arguments for the compute_cu_code OpenCL Kernel
+      ierr = clSetKernelArg(kernel_obj, 0, C_SIZEOF(nx), C_LOC(nx))
+      ierr = clSetKernelArg(kernel_obj, 1, C_SIZEOF(cu_fld), C_LOC(cu_fld))
+      ...
+    END SUBROUTINE compute_cu_code_set_args
+
+The third routine generated is the ususal psy-layer routine that is
+responsible for calling all of the kernels. However, it must now also
+call ``psy_init``, create buffers on the compute device (if they are
+not already present) and copy data over::
+
+    SUBROUTINE invoke_compute_cu(...)
+      ...
+      IF (first_time) THEN
+        first_time = .false.
+        CALL psy_init
+        num_cmd_queues = get_num_cmd_queues()
+        cmd_queues => get_cmd_queues()
+        kernel_compute_cu_code = get_kernel_by_name("compute_cu_code")
+      END IF 
+      globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
+      ! Ensure field data is on device
+      IF (.NOT. cu_fld%data_on_device) THEN
+        size_in_bytes = int(p_fld%grid%nx*p_fld%grid%ny, 8)* &
+                        c_sizeof(cu_fld%data(1,1))
+        ! Create buffer on device
+        cu_fld%device_ptr = create_rw_buffer(size_in_bytes)
+        ierr = clEnqueueWriteBuffer(cmd_queues(1), cu_fld%device_ptr,  &
+                                    CL_TRUE, 0_8, size_in_bytes,       &
+      			            C_LOC(cu_fld%data), 0, C_NULL_PTR, &
+      			            C_LOC(write_event))
+        cu_fld%data_on_device = .true.
+      END IF 
+      ...
+
+Note that we use the ``data_on_device`` member of the field derived
+type (implemented in github.com/stfc/dl_esm_inf) to keep track of
+whether a given field has been copied to the compute device.  Once all
+of this setup is done, the kernel itself is launched by calling
+``clEnqueueNDRangeKernel``::
+
+    ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, &
+                                  2, C_NULL_PTR, C_LOC(globalsize),      &
+				  C_NULL_PTR, 0, C_NULL_PTR, C_NULL_PTR)
+
+Limitations
+===========
+
+Currently PSyclone can only generate the OpenCL version of the PSy
+layer.  Execution of the resulting code requires that the kernels
+themselves be converted from Fortran to OpenCL (a dialect of C) and at
+present this must be done manually. Since all data accessed by an
+OpenCL kernel must be passed as an argument, this conversion must also
+convert any accesses to module data into routine arguments. 
+Work is in progress to support kernel transformation and this will be
+made available in a future PSyclone release.
+
+In OpenCL, all tasks to be performed (whether copying data or kernel
+execution) are associated with a command queue. Tasks submitted to
+different command queues may then be executed concurrently,
+potentially giving greater performance. The OpenCL PSy code currently
+generated by PSyclone makes use of just one command queue but again,
+this could be extended in the future.
+
+The current implementation only supports the conversion of a whole
+Invoke to use OpenCL. In the future we may refine this functionality
+so that it may be applied to just a subset of kernels within an
+Invoke.
+
+Since PSyclone knows nothing about the I/O performed by a model, the
+task of ensuring that the correct data is written out by a model
+(including when doing halo exchanges for distributed memory) is left
+to the dl_esm_inf library since that has the information on whether
+field data is local or on a remote compute device.
+

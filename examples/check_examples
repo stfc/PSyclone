@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -113,13 +113,20 @@ cd dynamo/eg11
 ${PSYCLONE} -s ./async_script.py helmholtz_solver_alg_mod.x90
 cd -
 
-echo "Running gocean examples"
-cd gocean
+echo "Running gocean/eg1"
+cd gocean/eg1
 python runme.py
 python runme_openmp.py
 python runme_loop_fuse.py
 python runme_dag.py
 python runme_openacc.py
+cd -
+
+echo "Running gocean/eg2"
+cd gocean/eg2
+# We don't do the full compile because that requires a Fortran compiler
+# and the dl_esm_inf library
+${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
 cd -
 
 echo "Running example nemo/eg1"

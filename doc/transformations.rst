@@ -35,9 +35,9 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenACC transformations
-	  for the GOcean 1.0 API. Attempts to apply these
-	  transformations to (members of) Schedules from other
+.. note:: PSyclone currently only supports OpenACC and OpenCL
+	  transformations for the GOcean 1.0 API. Attempts to apply
+	  these transformations to (members of) Schedules from other
 	  APIs will be rejected.
 
 ####
@@ -71,6 +71,9 @@ can be found in the API-specific sections).
     :members:
     :noindex:
 
+.. note:: PSyclone does not currently permit module-inlining of
+	  transformed kernels (issue #229).
+
 ####
 
 .. autoclass:: psyclone.transformations.LoopFuseTrans
@@ -87,9 +90,12 @@ can be found in the API-specific sections).
 
 ####
 
-.. autoclass:: psyclone.transformations.ProfileRegionTrans
-    :members:
-    :noindex:
+.. autoclass:: psyclone.transformations.OCLTrans
+      :members:
+      :noindex:
+
+.. note:: OpenCL support is still under development. See
+          :ref:`opencl_dev` for more details.
 
 ####
 
@@ -119,16 +125,70 @@ can be found in the API-specific sections).
 	  :ref:`MoveTrans <sec_move_trans>` transformation may be used
           for this.
 
+####
+
+.. autoclass:: psyclone.transformations.ProfileRegionTrans
+    :members:
+    :noindex:
+
+
 Kernels
 -------
 
 PSyclone supports the transformation of Kernels as well as PSy-layer
-code. Currently just one transformation is provided for this purpose:
+code. However, the transformation of kernels to produce new kernels
+brings with it additional considerations, especialy regarding the
+naming of the resulting kernels. PSyclone supports two use cases:
+
+  1. the HPC expert wishes to optimise the same kernel in different ways,
+     depending on where/how it is called;
+  2. the HPC expert wishes to transform the kernel just once and have the
+     new version used throughout the Algorithm file.
+
+The second case is really an optimisation of the first for the case
+where the same set of transformations is applied to every instance of
+a given kernel. 
+
+Since PSyclone is run separately for each Algorithm in a given
+application, ensuring that there are no name clashes for kernels in
+the application as a whole requires that some state is maintained
+between PSyclone invocations. This is achieved by requiring that the
+same kernel output directory is used for every invocation of PSyclone
+when building a given application. However, this is under the control
+of the user and therefore it is possible to use the same output
+directory for a subset of algorithms that require the same kernel
+transformation and then a different directory for another subset
+requiring a different transformation. Of course, such use would
+require care when building and linking the application since the
+differently-optimised kernels would have the same names.
+
+By default, transformed kernels are written to the current working
+directory. Alternatively, the user may specify the location to which
+to write the modified code via the ``-okern`` command-line flag.
+
+In order to support the two use cases given above, PSyclone supports
+two different kernel-renaming schemes: "multiple" and "single"
+(specified via the ``--kernel-renaming`` command-line flag). In the
+default, "multiple" scheme, PSyclone ensures that each transformed
+kernel is given a unique name (with reference to the contents of the
+kernel output directory). In the "single" scheme, it is assumed that
+any given kernel that is transformed is always transformed in the same
+way (or left unchanged) and thus just one transformed version of it is
+created. This assumption is checked by examining the Fortran code for
+any pre-existing transformed version of that kernel. If another
+transformed version of that kernel exists and does not match that
+created by the current transformation then PSyclone will raise an
+exception.
+
+PSyclone currently provides just one kernel transformation:
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
    :noindex:
    :members:
-   
+
+.. note:: PSyclone does not currently permit transformed kernels to be
+	  module-inlined. (Issue #229.)
+
 Applying
 --------
 
@@ -336,3 +396,29 @@ region for a set of nodes that includes halo swaps or global sums will
 produce an error.  In such cases it may be possible to re-order the
 nodes in the Schedule using the :ref:`MoveTrans <sec_move_trans>`
 transformation.
+
+OpenCL
+------
+
+In common with OpenMP, the conversion of the generated code to use
+OpenCL is performed by a transformation (``OCLTrans`` - see the
+:ref:`sec_transformations_available` Section above). Currently this
+transformation is only supported for the GOcean1.0 API and is applied
+to the whole Schedule of an Invoke. This means that all kernels in
+that Invoke will be executed on the OpenCL device. At present the
+``OCLTrans`` transformation only alters the generated PSy-layer code. It
+is currently the user's responsibility to convert the actual kernel code
+from Fortran into OpenCL. Work is underway to extend PSyclone in
+order to perform this translation automatically.
+
+The OpenCL code generated by PSyclone is still Fortran and makes use
+of the FortCL library (https://github.com/stfc/FortCL) to access
+OpenCL functionality.  It also relies upon the OpenCL support provided
+by the dl_esm_inf library (https://github.com/stfc/dl_esm_inf).
+
+The introduction of OpenCL code generation in PSyclone has been
+largely motivated by the need to target Field Programmable Gate Array
+(FPGA) accelerator devices. It is not currently designed to target the other
+compute devices that OpenCL supports (such as GPUs and multi-core CPUs) but
+this is a potentially fruitful area for future work.
+
