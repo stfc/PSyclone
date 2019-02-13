@@ -38,14 +38,11 @@ PSyclone-conformant Algorithm code.
 
 '''
 
-import os
 from psyclone.configuration import Config
-from fparser.two import Fortran2003
-from fparser.two.utils import walk_ast
-from psyclone.psyGen import InternalError
 from psyclone.parse_utils import ParseError
 
 # Capture algorithm information
+
 
 class FileInfo(object):
     def __init__(self, name, calls):
@@ -199,6 +196,7 @@ class Arg(object):
 
 # parse algorithm
 
+
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
           kernel_path="", line_length=False,
           distributed_memory=None):
@@ -262,10 +260,10 @@ class Parser(object):
         else:
             check_api(api)
         self._api = api
-        
+
         self._arg_name_to_module_name = {}
         self._unique_invoke_labels = []
-        
+
         self._builtin_name_map, \
             self._builtin_defs_file = get_builtin_defs(self._api)
 
@@ -297,7 +295,7 @@ class Parser(object):
                                   Function_Subprogram)):
                 container_name = str(child.content[0].items[1])
                 break
-            
+
         if not container_name:
             # Nothing relevant found.
             raise ParseError(
@@ -319,7 +317,8 @@ class Parser(object):
                 call_name = str(statement.items[0])
                 if call_name.lower() == self._invoke_name.lower():
                     # The call statement is an invoke
-                    invoke_call = self.create_invoke_call(statement, alg_filename)
+                    invoke_call = self.create_invoke_call(statement,
+                                                          alg_filename)
                     invoke_calls.append(invoke_call)
 
         return alg_parse_tree, FileInfo(container_name, invoke_calls)
@@ -327,7 +326,8 @@ class Parser(object):
     def create_invoke_call(self, statement, alg_filename):
         ''' xxx '''
 
-        from fparser.two.Fortran2003 import Actual_Arg_Spec_List, Actual_Arg_Spec, Part_Ref
+        from fparser.two.Fortran2003 import Actual_Arg_Spec_List, \
+            Actual_Arg_Spec, Part_Ref
 
         # Extract argument list. This can be removed when
         # fparser#170 is implemented
@@ -373,9 +373,11 @@ class Parser(object):
         kernel_name, args = get_kernel(argument, alg_filename)
 
         if kernel_name.lower() in self._builtin_name_map.keys():
-            kernel_call = self.create_builtin_kernel_call(kernel_name, alg_filename, args)
+            kernel_call = self.create_builtin_kernel_call(
+                kernel_name, alg_filename, args)
         else:
-            kernel_call = self.create_coded_kernel_call(kernel_name, alg_filename, args)
+            kernel_call = self.create_coded_kernel_call(
+                kernel_name, alg_filename, args)
         return kernel_call
 
     def create_builtin_kernel_call(self, kernel_name, alg_filename, args):
@@ -388,7 +390,7 @@ class Parser(object):
                        self._arg_name_to_module_name[kernel_name],
                        alg_filename))
         from psyclone.parse_kernel import BuiltInKernelTypeFactory
-        return BuiltInCall( BuiltInKernelTypeFactory(api=self._api).create(
+        return BuiltInCall(BuiltInKernelTypeFactory(api=self._api).create(
             self._builtin_name_map.keys(), self._builtin_defs_file,
             name=kernel_name.lower()), args)
 
@@ -402,13 +404,17 @@ class Parser(object):
                 "in a use "
                 "statement (found {1}) or be a recognised built-in "
                 "(one of '{2}' for this API)".
-                format(kernel_name, list(self._arg_name_to_module_name.values()), list(self._builtin_name_map.keys())))
+                format(kernel_name,
+                       list(self._arg_name_to_module_name.values()),
+                       list(self._builtin_name_map.keys())))
         # coded kernel
         from psyclone.parse_kernel import get_kernel_ast
-        modast = get_kernel_ast(module_name, alg_filename, self._kernel_path, self._line_length)
+        modast = get_kernel_ast(module_name, alg_filename, self._kernel_path,
+                                self._line_length)
         from psyclone.parse_kernel import KernelTypeFactory
-        return KernelCall(module_name, KernelTypeFactory(api=self._api).create(modast, name=kernel_name), args)
-
+        return KernelCall(module_name,
+                          KernelTypeFactory(api=self._api).create(
+                              modast, name=kernel_name), args)
 
     def update_arg_to_module_map(self, statement):
         '''Takes a use statement and adds its contents to the
@@ -432,7 +438,6 @@ class Parser(object):
 
         for item in only_list:
             self._arg_name_to_module_name[str(item)] = use_name
-
 
     def check_invoke_label(self, argument, alg_filename):
         ''' xxx '''
@@ -528,7 +533,7 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
 
     if not isinstance(parse_tree, Actual_Arg_Spec):
         raise ParseError("xxx")
-    
+
     if len(parse_tree.items) != 2:
         raise ParseError("xxx")
 
@@ -538,10 +543,10 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
                          "found '{1}'".format(identifier, ident.lower()))
 
     if not isinstance(parse_tree.items[1], Char_Literal_Constant):
-        raise ParseError("The (optional) name of an invoke must be "
-                         "specified as a string, but found "
-                         "{0} in {1}".format(str(parse_tree.items[1]),
-                                                 alg_filename))
+        raise ParseError(
+            "The (optional) name of an invoke must be specified as a string, "
+            "but found {0} in {1}".format(str(parse_tree.items[1]),
+                                          alg_filename))
 
     invoke_label = parse_tree.items[1].items[0]
     invoke_label = invoke_label.lower()
@@ -562,6 +567,7 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
 
     return invoke_label
 
+
 def get_kernel(parse_tree, alg_filename):
     ''' xxx '''
     from fparser.two.Fortran2003 import Part_Ref, Section_Subscript_List, \
@@ -570,7 +576,7 @@ def get_kernel(parse_tree, alg_filename):
 
     if not isinstance(parse_tree, Part_Ref):
         raise ParseError("xxx")
-    
+
     kernel_name = str(parse_tree.items[0])
 
     # Extract argument list. This can be removed when
@@ -611,8 +617,9 @@ def get_kernel(parse_tree, alg_filename):
             arguments.append(Arg('variable', full_text, var_name))
         else:
             print ("Unsupported argument structure '{0}', value '{1}', "
-            "kernel '{2}' in file '{3}'.".format(type(argument), str(argument),
-                                                 parse_tree, alg_filename))
+                   "kernel '{2}' in file '{3}'.".format(
+                       type(argument), str(argument), parse_tree,
+                       alg_filename))
             exit(1)
     return kernel_name, arguments
 
