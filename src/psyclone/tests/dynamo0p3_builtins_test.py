@@ -427,7 +427,6 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.2_inc_X_plus_Y_builtin.f90"),
-                           distributed_memory=dist_mem,
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
@@ -893,7 +892,7 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.2.2_inc_X_minus_Y_builtin.f90"),
-        distributed_memory=dist_mem, api=API)
+        api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
@@ -1162,8 +1161,7 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.3.1_X_times_Y_builtin.f90"),
-        distributed_memory=dist_mem, api=API)
+                     "15.3.1_X_times_Y_builtin.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
@@ -1418,7 +1416,7 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.4.2_inc_a_times_X_builtin.f90"),
-        distributed_memory=dist_mem, api=API)
+        api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
@@ -1611,7 +1609,6 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.6.1_inc_X_powreal_a_builtin.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
@@ -1662,7 +1659,6 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.6.2_inc_X_powint_n_builtin.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
@@ -1848,7 +1844,6 @@ def test_X_innerproduct_Y(dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.1_X_innerproduct_Y_builtin.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
@@ -1915,7 +1910,6 @@ def test_X_innerproduct_X(dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.2_X_innerproduct_X_builtin.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
@@ -1982,8 +1976,7 @@ def test_sum_X(dist_mem):
     operation which sums elements of a field X as sumfld = sum(X(:)) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.8.1_sum_X_builtin.f90"),
-        distributed_memory=dist_mem, api=API)
+                     "15.8.1_sum_X_builtin.f90"), api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
     # Test string method
@@ -2063,7 +2056,6 @@ def test_X_times_Y_deduce_space(dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.11.1_X_times_Y_deduce_space.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
@@ -2483,7 +2475,7 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.18.1_builtins_reduction_fuse_error.f90"),
-        distributed_memory=dist_mem, api=API)
+        api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
     print(code)
@@ -2572,14 +2564,13 @@ def test_scalar_int_builtin_error(monkeypatch):
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
-    for dist_mem in [False, True]:
-        with pytest.raises(ParseError) as excinfo:
-            _, _ = parse(os.path.join(BASE_PATH,
-                                      "16.2_integer_scalar_sum.f90"),
-                         api=API, distributed_memory=dist_mem)
-        assert ("In the dynamo0.3 API a reduction access 'gh_sum' is "
-                "only valid with a real scalar argument, but 'gh_integer' "
-                "was found" in str(excinfo))
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  "16.2_integer_scalar_sum.f90"),
+                     api=API)
+    assert ("In the dynamo0.3 API a reduction access 'gh_sum' is "
+            "only valid with a real scalar argument, but 'gh_integer' "
+            "was found" in str(excinfo))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #

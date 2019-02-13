@@ -4757,7 +4757,7 @@ def test_derived_type_arg():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "1.6.2_single_invoke_1_int_from_derived_type.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
@@ -4803,7 +4803,7 @@ def test_multiple_derived_type_args():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "1.6.3_single_invoke_multiple_derived_types.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         gen = str(psy.gen)
@@ -4848,7 +4848,7 @@ def test_single_stencil_extent():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -4895,7 +4895,7 @@ def test_single_stencil_xory1d():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -4950,7 +4950,7 @@ def test_single_stencil_literal():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5001,7 +5001,7 @@ def test_stencil_region_unsupported():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.12_single_stencil_region.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         with pytest.raises(GenerationError) as excinfo:
@@ -5016,7 +5016,7 @@ def test_single_stencil_xory1d_literal():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.5_single_stencil_xory1d_literal.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5073,7 +5073,7 @@ def test_single_stencil_xory1d_literal_mixed():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.5.1_single_stencil_xory1d_literal.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5128,7 +5128,7 @@ def test_multiple_stencils():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.7_multiple_stencils.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5211,7 +5211,7 @@ def test_multiple_stencil_same_name():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5278,7 +5278,7 @@ def test_multi_stencil_same_name_direction():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5360,7 +5360,7 @@ def test_multi_kerns_stencils_diff_fields():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.20_multiple_kernels_stencils.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5430,7 +5430,7 @@ def test_extent_name_clash():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.13_single_stencil.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5509,7 +5509,7 @@ def test_two_stencils_same_field():
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "19.14_two_stencils_same_field.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5575,7 +5575,7 @@ def test_stencils_same_field_literal_extent():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.15_stencils_same_field_literal_extent.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5636,7 +5636,7 @@ def test_stencils_same_field_literal_direct():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.16_stencils_same_field_literal_direction.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5762,7 +5762,7 @@ def test_one_kern_multi_field_same_stencil():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.17_single_kernel_multi_field_same_stencil.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5828,7 +5828,7 @@ def test_single_kernel_any_space_stencil():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.18_anyspace_stencil_1.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5883,7 +5883,7 @@ def test_multi_kernel_any_space_stencil_1():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.19_anyspace_stencil_2.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5920,7 +5920,7 @@ def test_stencil_args_unique_1():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.21_stencil_names_clash.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -5970,7 +5970,7 @@ def test_stencil_args_unique_2():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.22_stencil_names_indexed.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)
@@ -6037,7 +6037,7 @@ def test_stencil_args_unique_3():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "19.23_stencil_names_deref.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
+            api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
         result = str(psy.gen)

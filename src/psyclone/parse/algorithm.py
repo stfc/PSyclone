@@ -41,169 +41,16 @@ PSyclone-conformant Algorithm code.
 from psyclone.configuration import Config
 from psyclone.parse.utils import ParseError
 
-# Capture algorithm information
-
-
-class FileInfo(object):
-    def __init__(self, name, calls):
-        self._name = name
-        self._calls = calls
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def calls(self):
-        return self._calls
-
-
-class InvokeCall(object):
-    def __init__(self, kcalls, name=None, myid=1, invoke_name="invoke"):
-        self._kcalls = kcalls
-        if name:
-            # Prefix the name with "invoke_" unless it already starts
-            # with that...
-            if not name.lower().startswith("invoke_"):
-                self._name = "invoke_" + name.lower()
-            else:
-                self._name = name.lower()
-        else:
-            self._name = None
-
-    @property
-    def name(self):
-        """Return the name of this invoke call"""
-        return self._name
-
-    @property
-    def kcalls(self):
-        """Return the list of kernel calls in this invoke call"""
-        return self._kcalls
-
-
-class ParsedCall(object):
-    ''' A call to either a user-supplied kernel or a built-in appearing
-    in an invoke. '''
-
-    def __init__(self, ktype, args):
-        self._ktype = ktype
-        self._args = args
-        if len(self._args) < self._ktype.nargs:
-            # we cannot test for equality here as API's may have extra
-            # arguments passed in from the algorithm layer (e.g. 'QR'
-            # in dynamo0.3), but we do expect there to be at least the
-            # same number of real arguments as arguments specified in
-            # the metadata.
-            raise ParseError(
-                "Kernel '{0}' called from the algorithm layer with an "
-                "insufficient number of arguments as specified by the "
-                "metadata. Expected at least '{1}' but found '{2}'.".
-                format(self._ktype.name, self._ktype.nargs, len(self._args)))
-
-    @property
-    def ktype(self):
-        return self._ktype
-
-    @property
-    def args(self):
-        return self._args
-
-    @property
-    def module_name(self):
-        return self._module_name
-
-
-class KernelCall(ParsedCall):
-    """A call to a user-supplied kernel (appearing in
-    `call invoke(kernel_name(field_name, ...))`"""
-
-    def __init__(self, module_name, ktype, args):
-        ParsedCall.__init__(self, ktype, args)
-        self._module_name = module_name
-
-    @property
-    def type(self):
-        return "kernelCall"
-
-    def __repr__(self):
-        return 'KernelCall(%s, %s)' % (self.ktype, self.args)
-
-
-class BuiltInCall(ParsedCall):
-    ''' A built-in call (appearing in
-    `call invoke(kernel_name(field_name, ...))` '''
-
-    def __init__(self, ktype, args):
-        ParsedCall.__init__(self, ktype, args)
-        self._func_name = ktype.name
-
-    @property
-    def func_name(self):
-        return self._func_name
-
-    @property
-    def type(self):
-        return "BuiltInCall"
-
-    def __repr__(self):
-        return 'BuiltInCall(%s, %s)' % (self.args)
-
-
-class Arg(object):
-    ''' Description of an argument as obtained from parsing the Fortran code
-        where a kernel is invoke'd '''
-    def __init__(self, form, text, varName=None):
-        formOptions = ["literal", "variable", "indexed_variable"]
-        self._form = form
-        self._text = text
-        # Replace any '%' chars in the supplied name with underscores so
-        # as to have a valid Fortran variable name (in the PSy layer).
-        if varName:
-            self._varName = varName.replace("%", "_")
-        else:
-            self._varName = None
-        if form not in formOptions:
-            raise ParseError(
-                "Unknown arg type provided. Expected one of {0} but found "
-                "{1}".format(str(formOptions), form))
-
-    def __str__(self):
-        return "Arg(form='{0}',text='{1}',varName='{2}'". \
-            format(self._form, self._text, str(self._varName))
-
-    @property
-    def form(self):
-        return self._form
-
-    @property
-    def text(self):
-        return self._text
-
-    @property
-    def varName(self):
-        return self._varName
-
-    @varName.setter
-    def varName(self, value):
-        ''' sets the varName value '''
-        self._varName = value
-
-    def is_literal(self):
-        if self._form == "literal":
-            return True
-        return False
-
-# parse algorithm
-
+#
+# parse the algorithm file
+#
 
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
-          kernel_path="", line_length=False,
-          distributed_memory=None):
-    '''Takes a GungHo algorithm specification as input and outputs an AST of
-    this specification and an object containing information about the
-    invocation calls in the algorithm specification and any associated kernel
-    implementations.
+          kernel_path="", line_length=False):
+    '''Takes a PSyclone conformant algorithm file as input and outputs a
+    parse tree of the code contained therein and an object containing
+    information about the 'invoke' calls in the algorithm file and any
+    associated kernels within the invoke calls.
 
     :param str alg_filename: The file containing the algorithm specification.
     :param str invoke_name: The expected name of the invocation calls in the
@@ -220,7 +67,8 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
                              to make sure that it conforms and an
                              error raised if not. The default is
                              False.
-    *** dist_mem arg ***
+    :param bool line_length: A logical flag specifying whether we ...
+
     :returns: 2-tuple consisting of the fparser2 parse tree of the \
               Algorithm file and an object holding details of the \
               invokes found.
@@ -237,8 +85,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     '''
 
-    my_parser = Parser(api, invoke_name, inf_name, kernel_path, line_length,
-                       distributed_memory)
+    my_parser = Parser(api, invoke_name, inf_name, kernel_path, line_length)
     return my_parser.parse(alg_filename)
 
 
@@ -246,13 +93,12 @@ class Parser(object):
     ''' xxx '''
 
     def __init__(self, api="", invoke_name="invoke", inf_name="inf",
-                 kernel_path="", line_length=False, distributed_memory=None):
+                 kernel_path="", line_length=False):
 
         self._invoke_name = invoke_name
         self._inf_name = inf_name
         self._kernel_path = kernel_path
         self._line_length = line_length
-        self._distributed_memory = distributed_memory
 
         _config = Config.get()
         if not api:
@@ -452,6 +298,8 @@ class Parser(object):
         return invoke_label
 
 
+# Support functions
+
 def check_api(api):
     '''
     Check that the supplied API is valid.
@@ -639,3 +487,158 @@ def create_var_name(arg_parse_tree):
     else:
         raise ParseError("unsupported structure '{0}'".format(type(tree)))
     return var_name
+
+#
+# Classes holding algorithm information.
+#
+
+
+class FileInfo(object):
+    def __init__(self, name, calls):
+        self._name = name
+        self._calls = calls
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def calls(self):
+        return self._calls
+
+
+class InvokeCall(object):
+    def __init__(self, kcalls, name=None, myid=1, invoke_name="invoke"):
+        self._kcalls = kcalls
+        if name:
+            # Prefix the name with "invoke_" unless it already starts
+            # with that...
+            if not name.lower().startswith("invoke_"):
+                self._name = "invoke_" + name.lower()
+            else:
+                self._name = name.lower()
+        else:
+            self._name = None
+
+    @property
+    def name(self):
+        """Return the name of this invoke call"""
+        return self._name
+
+    @property
+    def kcalls(self):
+        """Return the list of kernel calls in this invoke call"""
+        return self._kcalls
+
+
+class ParsedCall(object):
+    ''' A call to either a user-supplied kernel or a built-in appearing
+    in an invoke. '''
+
+    def __init__(self, ktype, args):
+        self._ktype = ktype
+        self._args = args
+        if len(self._args) < self._ktype.nargs:
+            # we cannot test for equality here as API's may have extra
+            # arguments passed in from the algorithm layer (e.g. 'QR'
+            # in dynamo0.3), but we do expect there to be at least the
+            # same number of real arguments as arguments specified in
+            # the metadata.
+            raise ParseError(
+                "Kernel '{0}' called from the algorithm layer with an "
+                "insufficient number of arguments as specified by the "
+                "metadata. Expected at least '{1}' but found '{2}'.".
+                format(self._ktype.name, self._ktype.nargs, len(self._args)))
+
+    @property
+    def ktype(self):
+        return self._ktype
+
+    @property
+    def args(self):
+        return self._args
+
+    @property
+    def module_name(self):
+        return self._module_name
+
+
+class KernelCall(ParsedCall):
+    """A call to a user-supplied kernel (appearing in
+    `call invoke(kernel_name(field_name, ...))`"""
+
+    def __init__(self, module_name, ktype, args):
+        ParsedCall.__init__(self, ktype, args)
+        self._module_name = module_name
+
+    @property
+    def type(self):
+        return "kernelCall"
+
+    def __repr__(self):
+        return 'KernelCall(%s, %s)' % (self.ktype, self.args)
+
+
+class BuiltInCall(ParsedCall):
+    ''' A built-in call (appearing in
+    `call invoke(kernel_name(field_name, ...))` '''
+
+    def __init__(self, ktype, args):
+        ParsedCall.__init__(self, ktype, args)
+        self._func_name = ktype.name
+
+    @property
+    def func_name(self):
+        return self._func_name
+
+    @property
+    def type(self):
+        return "BuiltInCall"
+
+    def __repr__(self):
+        return 'BuiltInCall(%s, %s)' % (self.args)
+
+
+class Arg(object):
+    ''' Description of an argument as obtained from parsing the Fortran code
+        where a kernel is invoke'd '''
+    def __init__(self, form, text, varName=None):
+        formOptions = ["literal", "variable", "indexed_variable"]
+        self._form = form
+        self._text = text
+        # Replace any '%' chars in the supplied name with underscores so
+        # as to have a valid Fortran variable name (in the PSy layer).
+        if varName:
+            self._varName = varName.replace("%", "_")
+        else:
+            self._varName = None
+        if form not in formOptions:
+            raise ParseError(
+                "Unknown arg type provided. Expected one of {0} but found "
+                "{1}".format(str(formOptions), form))
+
+    def __str__(self):
+        return "Arg(form='{0}',text='{1}',varName='{2}'". \
+            format(self._form, self._text, str(self._varName))
+
+    @property
+    def form(self):
+        return self._form
+
+    @property
+    def text(self):
+        return self._text
+
+    @property
+    def varName(self):
+        return self._varName
+
+    @varName.setter
+    def varName(self, value):
+        ''' sets the varName value '''
+        self._varName = value
+
+    def is_literal(self):
+        if self._form == "literal":
+            return True
+        return False

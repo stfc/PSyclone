@@ -1534,7 +1534,7 @@ def test_builtin_single_OpenMP_pdo(monkeypatch, annexed):
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.7.2_setval_X_builtin.f90"),
-                        api=TEST_API, distributed_memory=dist_mem)
+                        api=TEST_API)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -1581,7 +1581,7 @@ def test_builtin_multiple_OpenMP_pdo(monkeypatch, annexed):
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
-                        api=TEST_API, distributed_memory=dist_mem)
+                        api=TEST_API)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -1664,7 +1664,7 @@ def test_builtin_loop_fuse_pdo(monkeypatch, annexed):
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
-                        api=TEST_API, distributed_memory=dist_mem)
+                        api=TEST_API)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -1723,7 +1723,7 @@ def test_builtin_single_OpenMP_do(monkeypatch, annexed):
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.7.2_setval_X_builtin.f90"),
-                        api=TEST_API, distributed_memory=dist_mem)
+                        api=TEST_API)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -1780,7 +1780,7 @@ def test_builtin_multiple_OpenMP_do(monkeypatch, annexed):
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
-                        api=TEST_API, distributed_memory=dist_mem)
+                        api=TEST_API)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -1875,7 +1875,7 @@ def test_builtin_loop_fuse_do(monkeypatch, annexed):
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
-                        api=TEST_API, distributed_memory=dist_mem)
+                        api=TEST_API)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -1939,7 +1939,6 @@ def test_reduction_real_pdo():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.9.1_X_innerproduct_Y_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -1979,7 +1978,6 @@ def test_reduction_real_do():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.9.1_X_innerproduct_Y_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2023,7 +2021,6 @@ def test_multi_reduction_real_pdo():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.15.1_two_same_builtin_reductions.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2101,7 +2098,6 @@ def test_reduction_after_normal_real_do(monkeypatch, annexed):
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory(
             "dynamo0.3",
@@ -2185,7 +2181,6 @@ def test_reprod_red_after_normal_real_do(monkeypatch, annexed):
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory(
             "dynamo0.3",
@@ -2286,7 +2281,6 @@ def test_two_reductions_real_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory(
             "dynamo0.3",
@@ -2364,7 +2358,6 @@ def test_two_reprod_reductions_real_do():
     for distmem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, file_name),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory(
             "dynamo0.3",
@@ -2478,7 +2471,6 @@ def test_multi_reduction_same_name_real_do():
         for distmem in [False, True]:
             _, invoke_info = parse(
                 os.path.join(BASE_PATH, file_name),
-                distributed_memory=distmem,
                 api="dynamo0.3")
             psy = PSyFactory(
                 "dynamo0.3",
@@ -2516,7 +2508,6 @@ def test_multi_reduction_real_fuse():
         for distmem in [False, True]:
             _, invoke_info = parse(
                 os.path.join(BASE_PATH, file_name),
-                distributed_memory=distmem,
                 api="dynamo0.3")
             psy = PSyFactory("dynamo0.3",
                              distributed_memory=distmem).create(invoke_info)
@@ -2546,7 +2537,6 @@ def test_multi_different_reduction_real_pdo():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.16.1_two_different_builtin_reductions.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2625,7 +2615,6 @@ def test_multi_builtins_red_then_pdo(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.1_one_reduction_one_standard_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2700,7 +2689,6 @@ def test_multi_builtins_red_then_do(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.1_one_reduction_one_standard_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2786,7 +2774,6 @@ def test_multi_builtins_red_then_fuse_pdo(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.1_one_reduction_one_standard_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2870,7 +2857,6 @@ def test_multi_builtins_red_then_fuse_do(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.1_one_reduction_one_standard_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -2954,7 +2940,6 @@ def test_multi_builtins_usual_then_red_pdo(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.2_one_standard_builtin_one_reduction.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3033,7 +3018,6 @@ def test_builtins_usual_then_red_fuse_pdo(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.2_one_standard_builtin_one_reduction.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3107,7 +3091,6 @@ def test_builtins_usual_then_red_fuse_do(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.2_one_standard_builtin_one_reduction.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3184,7 +3167,6 @@ def test_multi_builtins_fuse_error():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.18.1_builtins_reduction_fuse_error.f90"),
-        distributed_memory=False,
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=False).create(invoke_info)
@@ -3207,7 +3189,7 @@ def test_loop_fuse_error():
     for dist_mem in [False, True]:
         _, info = parse(os.path.join(BASE_PATH,
                                      "15.14.2_multiple_set_kernels.f90"),
-                        api=TEST_API, distributed_memory=dist_mem)
+                        api=TEST_API)
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.invoke_list[0]
         schedule = invoke.schedule
@@ -3229,7 +3211,6 @@ def test_reprod_reduction_real_pdo():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.9.1_X_innerproduct_Y_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3251,7 +3232,6 @@ def test_reprod_reduction_real_do():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.9.1_X_innerproduct_Y_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3337,7 +3317,6 @@ def test_no_global_sum_in_parallel_region():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.1_one_reduction_one_standard_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3371,7 +3350,6 @@ def test_reprod_builtins_red_then_usual_do(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.1_one_reduction_one_standard_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3489,7 +3467,6 @@ def test_repr_bltins_red_then_usual_fuse_do(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.1_one_reduction_one_standard_builtin.f90"),
-            distributed_memory=distmem,
             api=TEST_API)
         psy = PSyFactory(TEST_API,
                          distributed_memory=distmem).create(invoke_info)
@@ -3610,7 +3587,6 @@ def test_repr_bltins_usual_then_red_fuse_do(monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.17.2_one_standard_builtin_one_reduction.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3706,7 +3682,6 @@ def test_repr_3_builtins_2_reductions_do():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.19.1_three_builtins_two_reductions.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3813,7 +3788,6 @@ def test_reprod_view(capsys, monkeypatch, annexed):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.19.1_three_builtins_two_reductions.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -3893,7 +3867,6 @@ def test_reductions_reprod():
             _, invoke_info = parse(
                 os.path.join(BASE_PATH,
                              "15.9.1_X_innerproduct_Y_builtin.f90"),
-                distributed_memory=distmem,
                 api="dynamo0.3")
             psy = PSyFactory("dynamo0.3",
                              distributed_memory=distmem).create(invoke_info)
@@ -3924,7 +3897,6 @@ def test_list_multiple_reductions():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.9.1_X_innerproduct_Y_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)

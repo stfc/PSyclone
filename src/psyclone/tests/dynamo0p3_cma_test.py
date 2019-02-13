@@ -612,7 +612,6 @@ def test_cma_asm_cbanded_dofmap_error():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.0_cma_assembly.f90"),
-        distributed_memory=True,
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
@@ -636,7 +635,6 @@ def test_cma_asm(tmpdir, f90, f90flags):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.0_cma_assembly.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -676,7 +674,6 @@ def test_cma_asm_field():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.3_cma_assembly_field.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -721,7 +718,6 @@ def test_cma_asm_scalar():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.0.1_cma_assembly_scalar.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -764,7 +760,6 @@ def test_cma_asm_field_same_fs():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.4_cma_assembly_field_same_fs.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -812,7 +807,6 @@ def test_cma_apply_indirection_dofmap_error():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1_cma_apply.f90"),
-        distributed_memory=True,
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
@@ -837,7 +831,6 @@ def test_cma_apply(tmpdir, f90, f90flags):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.1_cma_apply.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -885,7 +878,6 @@ def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.1.2_cma_apply_disc.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -970,7 +962,6 @@ def test_cma_apply_same_space():
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.1.1_cma_apply_same_spaces.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -1007,7 +998,6 @@ def test_cma_matrix_matrix(tmpdir, f90, f90flags):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.2_cma_matrix_matrix.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -1051,7 +1041,6 @@ def test_cma_matrix_matrix_2scalars(tmpdir, f90, f90flags):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.2.1_cma_matrix_matrix.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -1096,7 +1085,6 @@ def test_cma_multi_kernel(tmpdir, f90, f90flags):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "20.5_multi_cma_invoke.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
