@@ -7,7 +7,7 @@
 
 from __future__ import absolute_import, print_function
 import os
-from psyclone.parse_algorithm import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 
 API = "gocean0.1"

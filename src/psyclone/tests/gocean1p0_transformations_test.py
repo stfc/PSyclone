@@ -41,7 +41,7 @@ from __future__ import absolute_import
 import os
 import re
 import pytest
-from psyclone.parse_algorithm import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
     GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \

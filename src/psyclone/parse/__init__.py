@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,29 +31,3 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford and A. R. Porter, STFC Daresbury Lab
-
-''' Module containing py.test tests for the parsing of NEMO code. '''
-
-from __future__ import print_function, absolute_import
-import os
-from fparser.two.utils import walk_ast
-from psyclone.parse.algorithm import parse
-from psyclone import nemo
-
-# Constants
-API = "nemo"
-# Location of the Fortran files associated with these tests
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files")
-
-
-def test_identify_implicit_loop():
-    ''' Check that we correctly identify implicit loops in the fparser2 AST '''
-    from fparser.two import Fortran2003
-    _, ast = parse(os.path.join(BASE_PATH, "code_block.f90"),
-                   api=API, line_length=False)
-    assert not nemo.NemoImplicitLoop.match(ast)
-    stmts = walk_ast(ast.content, [Fortran2003.Assignment_Stmt])
-    assert not nemo.NemoImplicitLoop.match(stmts[1])
-    assert nemo.NemoImplicitLoop.match(stmts[0])

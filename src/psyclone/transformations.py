@@ -135,7 +135,7 @@ class LoopFuseTrans(Transformation):
     ''' Provides a loop-fuse transformation.
         For example:
 
-        >>> from psyclone.parse_algorithm import parse
+        >>> from psyclone.parse.algorithm import parse
         >>> from psyclone.psyGen import PSyFactory
         >>> ast,invokeInfo=parse("dynamo.F90")
         >>> psy=PSyFactory("dynamo0.1").create(invokeInfo)
@@ -534,8 +534,8 @@ class OMPLoopTrans(ParallelLoopTrans):
 
     For example:
 
-    >>> from psyclone.parse_algorithm import parse
-    >>> from psyclone.parse_utils import ParseError
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
@@ -697,8 +697,8 @@ class ACCLoopTrans(ParallelLoopTrans):
 
     For example:
 
-    >>> from psyclone.parse_algorithm import parse
-    >>> from psyclone.parse_utils import ParseError
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
@@ -821,7 +821,7 @@ class OMPParallelLoopTrans(OMPLoopTrans):
 
         For example:
 
-        >>> from psyclone.parse_algorithm import parse
+        >>> from psyclone.parse.algorithm import parse
         >>> from psyclone.psyGen import PSyFactory
         >>> ast, invokeInfo = parse("dynamo.F90")
         >>> psy = PSyFactory("dynamo0.1").create(invokeInfo)
@@ -1259,7 +1259,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
     '''Split a Dynamo 0.3 loop over cells into colours so that it can be
     parallelised. For example:
 
-    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> import transformations
     >>> import os
@@ -1495,8 +1495,8 @@ class OMPParallelTrans(ParallelRegionTrans):
     Create an OpenMP PARALLEL region by inserting directives. For
     example:
 
-    >>> from psyclone.parse_algorithm import parse
-    >>> from psyclone.parse_utils import ParseError
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
@@ -1567,7 +1567,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     region *must* come after an enter-data directive (see `ACCDataTrans`). For
     example:
 
-    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
@@ -1646,7 +1646,7 @@ class GOConstLoopBoundsTrans(Transformation):
     In practice, the application of the constant loop bounds looks
     something like, e.g.:
 
-    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> import os
     >>> TEST_API = "gocean1.0"
@@ -1706,7 +1706,7 @@ class MoveTrans(Transformation):
     '''Provides a transformation to move a node in the tree. For
     example:
 
-    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> ast,invokeInfo=parse("dynamo.F90")
     >>> psy=PSyFactory("dynamo0.3").create(invokeInfo)
@@ -2229,8 +2229,8 @@ class ProfileRegionTrans(RegionTrans):
     ''' Create a profile region around a list of statements. For
     example:
 
-    >>> from psyclone.parse_algorithm import parse
-    >>> from psyclone.parse_utils import ParseError
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.parse.utils import ParseError
     >>> from psyclone.psyGen import PSyFactory, GenerationError
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
@@ -2332,7 +2332,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
     '''Splits a synchronous halo exchange into a halo exchange start and
     halo exchange end. For example:
 
-    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "dynamo0.3"
     >>> ast, invokeInfo = parse("file.f90", api=api)
@@ -2425,7 +2425,7 @@ class ACCDataTrans(Transformation):
     Adds an OpenACC "enter data" directive to a Schedule.
     For example:
 
-    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"
@@ -2508,7 +2508,7 @@ class ACCRoutineTrans(Transformation):
     (causing it to be compiled for the OpenACC accelerator device).
     For example:
 
-    >>> from psyclone.parse_algorithm import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "gocean1.0"
     >>> filename = "nemolite2d_alg.f90"

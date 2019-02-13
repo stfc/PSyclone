@@ -39,7 +39,7 @@ PSyclone-conformant Algorithm code.
 '''
 
 from psyclone.configuration import Config
-from psyclone.parse_utils import ParseError
+from psyclone.parse.utils import ParseError
 
 # Capture algorithm information
 
@@ -389,7 +389,7 @@ class Parser(object):
                 format(kernel_name,
                        self._arg_name_to_module_name[kernel_name],
                        alg_filename))
-        from psyclone.parse_kernel import BuiltInKernelTypeFactory
+        from psyclone.parse.kernel import BuiltInKernelTypeFactory
         return BuiltInCall(BuiltInKernelTypeFactory(api=self._api).create(
             self._builtin_name_map.keys(), self._builtin_defs_file,
             name=kernel_name.lower()), args)
@@ -408,10 +408,10 @@ class Parser(object):
                        list(self._arg_name_to_module_name.values()),
                        list(self._builtin_name_map.keys())))
         # coded kernel
-        from psyclone.parse_kernel import get_kernel_ast
+        from psyclone.parse.kernel import get_kernel_ast
         modast = get_kernel_ast(module_name, alg_filename, self._kernel_path,
                                 self._line_length)
-        from psyclone.parse_kernel import KernelTypeFactory
+        from psyclone.parse.kernel import KernelTypeFactory
         return KernelCall(module_name,
                           KernelTypeFactory(api=self._api).create(
                               modast, name=kernel_name), args)

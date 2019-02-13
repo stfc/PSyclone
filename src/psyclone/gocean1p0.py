@@ -47,8 +47,8 @@
 '''
 
 from __future__ import print_function
-from psyclone.parse_kernel import Descriptor, KernelType
-from psyclone.parse_utils import ParseError
+from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
     GenerationError, InternalError, args_filter, NameSpaceFactory

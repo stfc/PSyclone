@@ -77,7 +77,7 @@ def test_failures(monkeypatch, capsys):
     '''
 
     from psyclone.gen_kernel_stub import generate, run
-    from psyclone.parse_algorithm import ParseError
+    from psyclone.parse.algorithm import ParseError
     from psyclone.psyGen import GenerationError
 
     # Test error handling of command line options

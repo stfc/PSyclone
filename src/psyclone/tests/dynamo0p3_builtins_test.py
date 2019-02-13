@@ -43,8 +43,8 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from psyclone.parse_algorithm import parse
-from psyclone.parse_utils import ParseError
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
