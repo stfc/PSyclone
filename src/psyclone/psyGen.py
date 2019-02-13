@@ -199,7 +199,7 @@ class GenerationError(Exception):
         self.value = "Generation Error: "+value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 class FieldNotFoundError(Exception):
@@ -210,7 +210,7 @@ class FieldNotFoundError(Exception):
         self.value = "Field not found error: "+value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 class InternalError(Exception):
@@ -225,7 +225,7 @@ class InternalError(Exception):
         self.value = "PSyclone internal error: "+value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 class PSyFactory(object):
@@ -874,11 +874,11 @@ class Invoke(object):
 
 class Node(object):
     '''
-    Base class for a node in the PSyIRe (schedule).
+    Base class for a node in the PSyIR (schedule).
 
-    :param children: the PSyIRe nodes that are children of this node.
+    :param children: the PSyIR nodes that are children of this node.
     :type children: :py:class:`psyclone.psyGen.Node`
-    :param parent: that parent of this node in the PSyIRe tree.
+    :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
@@ -894,7 +894,7 @@ class Node(object):
         raise NotImplementedError("Please implement me")
 
     def dag(self, file_name='dag', file_format='svg'):
-        '''Create a dag of this node and its children'''
+        '''Create a dag of this node and its children.'''
         try:
             import graphviz as gv
         except ImportError:
@@ -911,7 +911,7 @@ class Node(object):
         graph.render(filename=file_name)
 
     def dag_gen(self, graph):
-        '''output my node's graph (dag) information and call any
+        '''Output my node's graph (dag) information and call any
         children. Nodes with children are represented as two vertices,
         a start and an end. Forward dependencies are represented as
         green edges, backward dependencies are represented as red
@@ -983,7 +983,7 @@ class Node(object):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
+        '''Return the base dag name for this node.'''
         return "node_" + str(self.abs_position)
 
     @property
@@ -1312,7 +1312,7 @@ class Node(object):
         return node.parent
 
     def walk(self, children, my_type):
-        ''' recurse through tree and return objects of mytype '''
+        ''' Recurse through tree and return objects of 'my_type'. '''
         local_list = []
         for child in children:
             if isinstance(child, my_type):
@@ -1348,7 +1348,7 @@ class Node(object):
         return None
 
     def calls(self):
-        ''' return all calls that are descendants of this node '''
+        '''Return all calls that are descendants of this node.'''
         return self.walk(self.children, Call)
 
     def following(self):
@@ -1384,24 +1384,24 @@ class Node(object):
 
     @property
     def following_calls(self):
-        ''' return all calls after me in the schedule '''
+        '''Return all calls after me in the schedule.'''
         all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[position+1:]
 
     @property
     def preceding_calls(self):
-        ''' return all calls before me in the schedule '''
+        '''Return all calls before me in the schedule.'''
         all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[:position-1]
 
     def kern_calls(self):
-        '''return all user-supplied kernel calls in this schedule'''
+        '''Return all user-supplied kernel calls in this schedule.'''
         return self.walk(self._children, Kern)
 
     def loops(self):
-        ''' return all loops currently in this schedule '''
+        '''Return all loops currently in this schedule.'''
         return self.walk(self._children, Loop)
 
     def reductions(self, reprod=None):
@@ -1425,7 +1425,7 @@ class Node(object):
         return call_reduction_list
 
     def is_openmp_parallel(self):
-        '''Returns true if this Node is within an OpenMP parallel region
+        '''Returns true if this Node is within an OpenMP parallel region.
 
         '''
         omp_dir = self.ancestor(OMPParallelDirective)
@@ -2786,7 +2786,7 @@ class Loop(Node):
         control characters for colouring in terminals that support it.
 
         :returns: The name of this node, possibly with control codes for
-                 colouring
+                  colouring
         :rtype: string
         '''
         return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
@@ -3289,6 +3289,7 @@ class Kern(Call):
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  # The fparser2 AST for the kernel
+        self._kern_schedule = None  # PSyIR schedule for the kernel
         # Whether or not this kernel has been transformed
         self._modified = False
         # Whether or not to in-line this kernel into the module containing
@@ -3303,6 +3304,21 @@ class Kern(Call):
                        len(call.ktype.arg_descriptors),
                        len(call.args)))
         self.arg_descriptors = call.ktype.arg_descriptors
+
+    def get_kernel_schedule(self):
+        '''
+        Returns a PSyIR Schedule representing the kernel code. The Schedule
+        is just generated on first invocation, this allows us to retain
+        transformations that may subsequently be applied to the Schedule
+        (but will not adapt to transformations applied to the fparser2 AST).
+
+        :returns: Schedule representing the kernel code.
+        :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
+        '''
+        if self._kern_schedule is None:
+            astp = Fparser2ASTProcessor()
+            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+        return self._kern_schedule
 
     def __str__(self):
         return "kern call: "+self._name
@@ -3372,7 +3388,7 @@ class Kern(Call):
         Return text containing the (coloured) name of this node type
 
         :returns: the name of this node type, possibly with control codes
-                 for colour
+                  for colour
         :rtype: string
         '''
         return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
@@ -4550,7 +4566,7 @@ class Fparser2ASTProcessor(object):
         :param parent: Node in the PSyclone AST to which to add this code \
                        block.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :param list statements: List of fparser2 AST nodes consituting the \
+        :param list statements: List of fparser2 AST nodes constituting the \
                                 code block.
         :rtype: :py:class:`psyclone.CodeBlock`
         '''
@@ -4561,6 +4577,253 @@ class Fparser2ASTProcessor(object):
         parent.addchild(code_block)
         del statements[:]
         return code_block
+
+    def generate_schedule(self, name, module_ast):
+        '''
+        Create a KernelSchedule from the supplied fparser2 AST.
+
+        :param str name: Name of the subroutine representing the kernel.
+        :param module_ast: fparser2 AST of the full module where the kernel \
+                           code is located.
+        :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
+        :raises GenerationError: Unable to generate a kernel schedule from the
+                                 provided fpaser2 parse tree.
+        '''
+        from fparser.two import Fortran2003
+
+        def first_type_match(nodelist, typekind):
+            '''
+            Returns the first instance of the specified type in the given
+            node list.
+
+            :param list nodelist: List of fparser2 nodes.
+            :param type typekind: The fparse2 Type we are searching for.
+            '''
+            for node in nodelist:
+                if isinstance(node, typekind):
+                    return node
+            raise ValueError  # Type not found
+
+        def search_subroutine(nodelist, searchname):
+            '''
+            Returns the first instance of the specified subroutine in the given
+            node list.
+
+            :param list nodelist: List of fparser2 nodes.
+            :param str searchname: Name of the subroutine we are searching for.
+            '''
+            for node in nodelist:
+                if (isinstance(node, Fortran2003.Subroutine_Subprogram) and
+                   str(node.content[0].get_name()) == searchname):
+                    return node
+            raise ValueError  # Subroutine not found
+
+        new_schedule = KernelSchedule(name)
+
+        # Assume just 1 Fortran module definition in the file
+        if len(module_ast.content) > 1:
+            raise GenerationError("Unexpected AST when generating '{0}' "
+                                  "kernel schedule. Just one "
+                                  "module definition per file supported."
+                                  "".format(name))
+
+        # TODO: Metadata can be also accessed for validation (issue #288)
+
+        try:
+            mod_content = module_ast.content[0].content
+            subroutines = first_type_match(mod_content,
+                                           Fortran2003.Module_Subprogram_Part)
+            subroutine = search_subroutine(subroutines.content, name)
+        except (ValueError, IndexError):
+            raise GenerationError("Unexpected kernel AST. Could not find "
+                                  "subroutine: {0}".format(name))
+
+        try:
+            sub_spec = first_type_match(subroutine.content,
+                                        Fortran2003.Specification_Part)
+            decl_list = sub_spec.content
+            arg_list = subroutine.content[0].items[2].items
+        except ValueError:
+            # Subroutine without declarations, continue with empty lists.
+            decl_list = []
+            arg_list = []
+        except (IndexError, AttributeError):
+            # Subroutine without argument list, continue with empty list.
+            arg_list = []
+        finally:
+            self.process_declarations(new_schedule, decl_list, arg_list)
+
+        try:
+            sub_exec = first_type_match(subroutine.content,
+                                        Fortran2003.Execution_Part)
+        except ValueError:
+            pass
+        else:
+            self.process_nodes(new_schedule, sub_exec.content, sub_exec)
+
+        return new_schedule
+
+    @staticmethod
+    def _parse_dimensions(dimensions):
+        '''
+        Parse the fparser dimension attribute into a shape list with
+        the extent of each dimension.
+
+        :param dimensions: fparser dimension attribute
+        :type dimensions:
+            :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
+        :returns: Shape of the attribute in row-major order (leftmost \
+                  index is contiguous in memory). Each entry represents \
+                  an array dimension. If it is 'None' the extent of that \
+                  dimension is unknown, otherwise it holds an integer \
+                  with the extent. If it is an empy list then the symbol \
+                  represents a scalar.
+        :rtype: list
+        '''
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+        shape = []
+        for dim in walk_ast(dimensions.items, [Fortran2003.Assumed_Shape_Spec,
+                                               Fortran2003.Explicit_Shape_Spec,
+                                               Fortran2003.Assumed_Size_Spec]):
+            if isinstance(dim, Fortran2003.Assumed_Size_Spec):
+                raise NotImplementedError(
+                    "Could not process {0}. Assumed-size arrays"
+                    " are not supported.".format(dimensions))
+            elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
+                shape.append(None)
+            elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
+                if isinstance(dim.items[1],
+                              Fortran2003.Int_Literal_Constant):
+                    shape.append(int(dim.items[1].items[0]))
+                else:
+                    raise NotImplementedError(
+                        "Could not process {0}. Only integer "
+                        "literals are supported for explicit shape"
+                        " array declarations.".format(dimensions))
+            else:
+                raise InternalError(
+                    "Reached end of loop body and {0} has"
+                    " not been handled.".format(type(dim)))
+        return shape
+
+    def process_declarations(self, parent, nodes, arg_list):
+        '''
+        Transform the variable declarations in the fparser2 parse tree into
+        symbols in the PSyIR parent node symbol table.
+
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :param nodes: fparser2 AST nodes to search for declaration statements.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param arg_list: fparser2 AST node containing the argument list.
+        :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
+        :raises NotImplementedError: The provided declarations contain
+                                     attributes which are not supported yet.
+        '''
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+
+        def iterateitems(nodes):
+            '''
+            At the moment fparser nodes can be of type None, a single element
+            or a list of elements. This helper function provide a common
+            iteration interface. This could be improved when fpaser/#170 is
+            fixed.
+            :param nodes: fparser2 AST node.
+            :type nodes: None or List or :py:class:`fparser.two.utils.Base`
+            :returns: Returns nodes but always encapsulated in a list
+            :rtype: list
+            '''
+            if nodes is None:
+                return []
+            if type(nodes).__name__.endswith("_List"):
+                return nodes.items
+            return [nodes]
+
+        for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
+            (type_spec, attr_specs, entities) = decl.items
+
+            # Parse type_spec, currently just 'real', 'integer' and
+            # 'character' intrinsic types are supported.
+            datatype = None
+            if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+                if str(type_spec.items[0]).lower() == 'real':
+                    datatype = 'real'
+                elif str(type_spec.items[0]).lower() == 'integer':
+                    datatype = 'integer'
+                elif str(type_spec.items[0]).lower() == 'character':
+                    datatype = 'character'
+            if datatype is None:
+                raise NotImplementedError(
+                        "Could not process {0}. Only 'real', 'integer' "
+                        "and 'character' intrinsic types are supported."
+                        "".format(str(decl.items)))
+
+            # Parse declaration attributes
+            # If no dimension is provided, it is a scalar
+            shape = []
+            # If no intent attribute is provided, it is
+            # provisionally marked as a local variable (when the argument
+            # list is parsed, arguments with no explicit intent are updated
+            # appropriately).
+            scope = 'local'
+            is_input = False
+            is_output = False
+            for attr in iterateitems(attr_specs):
+                if isinstance(attr, Fortran2003.Attr_Spec):
+                    normalized_string = str(attr).lower().replace(' ', '')
+                    if "intent(in)" in normalized_string:
+                        scope = 'global_argument'
+                        is_input = True
+                    elif "intent(out)" in normalized_string:
+                        scope = 'global_argument'
+                        is_output = True
+                    elif "intent(inout)" in normalized_string:
+                        scope = 'global_argument'
+                        is_input = True
+                        is_output = True
+                    else:
+                        raise NotImplementedError(
+                            "Could not process {0}. Unrecognized attribute "
+                            "'{1}'.".format(decl.items, str(attr)))
+                elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
+                    shape = self._parse_dimensions(attr)
+                else:
+                    raise NotImplementedError(
+                            "Could not process {0}. Unrecognized attribute "
+                            "type {1}.".format(decl.items, str(type(attr))))
+
+            # Parse declarations RHS and declare new symbol into the
+            # parent symbol table for each entity found.
+            for entity in iterateitems(entities):
+                (name, array_spec, char_len, initialization) = entity.items
+                if (array_spec is not None):
+                    raise NotImplementedError("Could not process {0}. "
+                                              "Array specifications after the"
+                                              " variable name are not "
+                                              "supported.".format(decl.items))
+                if (initialization is not None):
+                    raise NotImplementedError("Could not process {0}. "
+                                              "Initializations on the"
+                                              " declaration statements are not"
+                                              " supported.".format(decl.items))
+                if (char_len is not None):
+                    raise NotImplementedError("Could not process {0}. "
+                                              "Character length specifications"
+                                              " are not supported."
+                                              "".format(decl.items))
+                parent.symbol_table.declare(str(name), datatype, shape,
+                                            scope, is_input, is_output)
+
+        try:
+            arg_strings = [x.string for x in arg_list]
+            parent.symbol_table.specify_argument_list(arg_strings)
+        except KeyError:
+            raise InternalError("The kernel argument "
+                                "list '{0}' does not match the variable "
+                                "declarations for fparser nodes {1}."
+                                "".format(str(arg_list), nodes))
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).
@@ -4777,6 +5040,314 @@ class Fparser2ASTProcessor(object):
         return Literal(node.items[0], parent=parent)
 
 
+class Symbol(object):
+    '''
+    Symbol item for the Symbol Table. It contains information about: the name,
+    the datatype, the shape (in row-major order), the scope and for
+    global-scoped symbols whether the data is already defined and/or survives
+    after the kernel.
+
+    :param str name: Name of the symbol.
+    :param str datatype: Data type of the symbol.
+    :param list shape: Shape of the symbol in row-major order (leftmost \
+                       index is contiguous in memory). Each entry represents \
+                       an array dimension. If it is 'None' the extent of that \
+                       dimension is unknown, otherwise it holds an integer \
+                       with the extent. If it is an empy list then the symbol \
+                       represents a scalar.
+    :param str scope: It is 'local' if the symbol just exists inside the \
+                      kernel scope or 'global_*' if the data survives outside \
+                      of the kernel scope. Note that global-scoped symbols \
+                      also have postfixed information about the sharing \
+                      mechanism, at the moment just 'global_argument' is \
+                      available for variables passed in/out of the kernel \
+                      by argument.
+    :param bool is_input: Whether the symbol represents data that exists \
+                          before the kernel is entered and that is passed \
+                          into the kernel.
+    :param bool is_output: Whether the symbol represents data that is passed \
+                           outside the kernel upon exit.
+    :raises NotImplementedError: Provided parameters are not supported yet.
+    :raises TypeError: Provided parameters have invalid error type.
+    :raises ValueError: Provided parameters contain invalid values.
+    '''
+
+    # Tuple with the valid values for the access attribute.
+    valid_scope_types = ('local', 'global_argument')
+    # Tuple with the valid datatypes.
+    valid_data_types = ('real', 'integer', 'character')
+
+    def __init__(self, name, datatype, shape=[], scope='local',
+                 is_input=False, is_output=False):
+
+        self._name = name
+
+        if datatype not in Symbol.valid_data_types:
+            raise NotImplementedError(
+                "Symbol can only be initialized with {0} datatypes."
+                "".format(str(Symbol.valid_data_types)))
+        self._datatype = datatype
+
+        if not isinstance(shape, list):
+            raise TypeError("Symbol shape attribute must be a list.")
+
+        if False in [isinstance(x, (type(None), int)) for x in shape]:
+            raise TypeError("Symbol shape list elements can only be "
+                            "'integer' or 'None'.")
+        self._shape = shape
+
+        # The following attributes have setter methods (with error checking)
+        self.scope = scope
+        self.is_input = is_input
+        self.is_output = is_output
+
+    @property
+    def name(self):
+        '''
+        :returns: Name of the Symbol.
+        :rtype: string
+        '''
+        return self._name
+
+    @property
+    def datatype(self):
+        '''
+        :returns: Datatype of the Symbol.
+        :rtype: string
+        '''
+        return self._datatype
+
+    @property
+    def is_input(self):
+        '''
+        :returns: Whether the symbol represents data that already exists \
+                  before kernel and is passed into upon entry.
+        :rtype: bool
+        '''
+        return self._is_input
+
+    @is_input.setter
+    def is_input(self, new_is_input):
+        '''
+        :param bool new_is_input: Whether the symbol represents data that \
+                                  exists before the kernel is entered and \
+                                  that is passed into the kernel.
+        :raises TypeError: Provided parameters have invalid error type.
+        :raises ValueError: 'new_is_input' contains an invalid value.
+        '''
+        if not isinstance(new_is_input, bool):
+            raise TypeError("Symbol 'is_input' attribute must be a boolean.")
+        if self.scope == 'local' and new_is_input is True:
+            raise ValueError("Symbol with 'local' scope can not have "
+                             "'is_input' attribute set to True.")
+        self._is_input = new_is_input
+
+    @property
+    def is_output(self):
+        '''
+        :returns: Whether the variable respresented by this symbol survives \
+                  outside the kernel upon exit.
+        :rtype: bool
+        '''
+        return self._is_output
+
+    @is_output.setter
+    def is_output(self, new_is_output):
+        '''
+        :param bool new_is_output: Whether the variable represented by this \
+                                   symbol survives outside the kernel \
+                                   upon exit.
+        :raises TypeError: Provided parameters have invalid error type.
+        :raises ValueError: 'new_is_output' contains an invalid value.
+        '''
+        if not isinstance(new_is_output, bool):
+            raise TypeError("Symbol 'is_output' attribute must be a boolean.")
+        if self.scope == 'local' and new_is_output is True:
+            raise ValueError("Symbol with 'local' scope can not have "
+                             "'is_output' attribute set to True.")
+        self._is_output = new_is_output
+
+    @property
+    def shape(self):
+        '''
+        :returns: Shape of the symbol in row-major order (leftmost \
+                  index is contiguous in memory). Each entry represents \
+                  an array dimension. If not None then it holds the \
+                  extent of that dimension. If it is an empy list it \
+                  represents an scalar.
+        :rtype: list
+        '''
+        return self._shape
+
+    @property
+    def scope(self):
+        '''
+        :returns: Whether the symbol is 'local' (just exists inside the kernel \
+                  scope) or 'global_*' (data also lives outside the kernel). \
+                  Global-scoped symbols also have postfixed information about \
+                  the sharing mechanism, at the moment just 'global_argument' \
+                  is available for variables passed in/out of the kernel \
+                  by argument.
+        :rtype: str
+        '''
+        return self._scope
+
+    @scope.setter
+    def scope(self, new_scope):
+        '''
+        :param str scope: It is 'local' if the symbol just exists inside the \
+                          kernel scope or 'global_*' if the data survives \
+                          outside of the kernel scope. Note that \
+                          global-scoped symbols also have postfixed \
+                          information about the sharing mechanism, at the \
+                          moment just 'global_argument' is available for \
+                          variables passed in/out of the kernel by argument.
+        :raises ValueError: New scope parameter has an invalid value.
+        '''
+        if new_scope not in Symbol.valid_scope_types:
+            raise ValueError("Symbol scope attribute can only be one of {0}"
+                             " but got '{1}'."
+                             "".format(str(Symbol.valid_scope_types),
+                                       str(new_scope)))
+
+        self._scope = new_scope
+
+    def __str__(self):
+        return (self.name + "<" + self.datatype + ", " + str(self.shape) +
+                ", " + self.scope + ">")
+
+
+class SymbolTable(object):
+    '''
+    Encapsulates the symbol table and provides methods to declare new symbols
+    and look up existing symbols. It is implemented as a single scope
+    symbol table (nested scopes not supported).
+    '''
+    def __init__(self):
+        # Dict of Symbol objects with the symbol names as keys.
+        self._symbols = {}
+        # Ordered list of the arguments.
+        self._argument_list = []
+
+    def declare(self, name, datatype, shape=[], scope='local',
+                is_input=False, is_output=False):
+        '''
+        Declare a new symbol in the symbol table.
+
+        :param str name: Name of the symbol.
+        :param str datatype: Datatype of the symbol.
+        :param list shape: Shape of the symbol in row-major order (leftmost \
+                       index is contiguous in memory). Each entry represents \
+                       an array dimension. If not None then it holds the \
+                       extent of that dimension. If it is an empy list it \
+                       represents an scalar.
+        :param str scope: It is 'local' if the symbol just exists inside the \
+                          kernel scope or 'global_*' if the data survives \
+                          outside of the kernel scope. Note that \
+                          global-scoped symbols also have postfixed \
+                          information about the sharing mechanism, at the \
+                          moment just 'global_argument' is available for \
+                          variables passed in/out of the kernel by argument.
+        :param bool is_input: Whether the symbol represents data that exists \
+                              before the kernel is entered and that is passed \
+                              into the kernel.
+        :param bool is_output: Whether the symbol represents data that is \
+                               survives outside the kernel upon exit.
+        :raises KeyError: The provided name can not be used as key in the
+                          table.
+        '''
+        if name in self._symbols:
+            raise KeyError("Symbol table already contains a symbol with"
+                           " name '{0}'.".format(name))
+
+        self._symbols[name] = Symbol(name, datatype, shape, scope, is_input,
+                                     is_output)
+
+    def specify_argument_list(self, argument_name_list):
+        '''
+        Keep track of the order of the arguments and provide the scope,
+        is_input and is_ouput information if it was not available on the
+        variable declaration.
+
+        :param list argument_name_list: Ordered list of the argument names.
+        '''
+        for name in argument_name_list:
+            symbol = self.lookup(name)
+            # Declarations without explicit intent are provisionally identified
+            # as 'local', but if they appear in the argument list the scope and
+            # input/output attributes need to be updated.
+            if symbol.scope == 'local':
+                symbol.scope = 'global_argument'
+                symbol.is_input = True
+                symbol.is_output = True
+            self._argument_list.append(symbol)
+
+    def lookup(self, name):
+        '''
+        Look up a symbol in the symbol table.
+
+        :param str name: Name of the symbol
+        :raises KeyError: If the given name is not in the Symbol Table.
+        '''
+        try:
+            return self._symbols[name]
+        except KeyError:
+            raise KeyError("Could not find '{0}' in the Symbol Table."
+                           "".format(name))
+
+    def view(self):
+        '''
+        Print a representation of this Symbol Table to stdout.
+        '''
+        print(str(self))
+
+    def __str__(self):
+        return ("Symbol Table:\n" +
+                "\n".join(map(str, self._symbols.values())) +
+                "\n")
+
+
+class KernelSchedule(Schedule):
+    '''
+    A kernelSchedule inherits the functionality from Schedule and adds a symbol
+    table to keep a record of the declared variables and their attributes.
+
+    :param str name: Kernel subroutine name
+    '''
+
+    def __init__(self, name):
+        super(KernelSchedule, self).__init__(None, None)
+        self._name = name
+        self._symbol_table = SymbolTable()
+
+    @property
+    def symbol_table(self):
+        '''
+        :returns: Table containing symbol information for the kernel.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+        '''
+        return self._symbol_table
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param int indent: Depth of indent for output text
+        '''
+        print(self.indent(indent) + self.coloured_text + "[name:'" + self._name
+              + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "Schedule[name:'" + self._name + "']:\n"
+        for entity in self._children:
+            result += str(entity)+"\n"
+        result += "End Schedule"
+        return result
+
+
 class CodeBlock(Node):
     '''
     Node representing some generic Fortran code that PSyclone does not attempt
@@ -4871,7 +5442,7 @@ class Reference(Node):
     :param parent: the parent node of this Reference in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, reference_name, parent=None):
+    def __init__(self, reference_name, parent):
         super(Reference, self).__init__(parent=parent)
         self._reference = reference_name
 
@@ -4953,7 +5524,7 @@ class Array(Reference):
     :param parent: the parent node of this Array in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, reference_name, parent=None):
+    def __init__(self, reference_name, parent):
         super(Array, self).__init__(reference_name, parent=parent)
 
     @property
