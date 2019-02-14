@@ -199,6 +199,41 @@ guidelines for performing a review (i.e. what is expected from the
 developer) are available on the GitHub PSyclone wiki pages:
 https://github.com/stfc/PSyclone/wiki.
 
+The PSyclone Internal Representation (PSyIR)
+############################################
+
+The PSyclone Internal Representation (PSyIR) is a language independent AST
+that PSyclone uses to represent the PSy layer and the kernel code. It can
+be constructed from scratch or produced from existing code using one of the
+ASTProcessors provided in PSyclone.
+
+All nodes in the AST are sub-classes of the abstract `Node` base class, which
+provides the following common interface:
+
+.. autoclass:: psyclone.psyGen.Node
+    :members:
+
+
+
+.. _kernel_schedule-label:
+
+Kernel Schedule
+===============
+
+The Kernel Schedule is a PSyIR node that represent a kernel subroutine. It
+extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
+(`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
+(`psyclone.psyGen.Symbol`) used in the kernel scope. A Symbol is defined as:
+
+.. autoclass:: psyclone.psyGen.Symbol
+
+
+The Symbol Table has the following interface:
+
+.. autoclass:: psyclone.psyGen.SymbolTable
+    :members:
+
+
 Generic Code
 ############
 
@@ -1443,7 +1478,7 @@ Kernel Transformations
 
 PSyclone is able to perform kernel transformations. Currently it has
 two ways to apply transformations: by directly manipulating the language
-AST or by translating the language AST to PSyIRe, apply the transformation,
+AST or by translating the language AST to PSyIR, apply the transformation,
 and producing the resulting language AST or code.
 
 For now, both methods only support fparser2 AST for kernel code.
@@ -1459,17 +1494,27 @@ stores the resulting AST in `Kern._fp2_ast` for return by future calls.
 See `psyclone.transformations.ACCRoutineTrans` for an example of directly
 manipulating the fparser2 AST.
 
-When a translation to PSyIRe is needed, an ASTProcessor can be used.
+Alternatively, one can call the `psyclone.psyGen.Kern.get_kernel_schedule()`
+to generate the PSyIR representation of the kernel code. 
+
+.. automethod:: psyclone.psyGen.Kern.get_kernel_schedule
+
+The AST to AST transformation is done using an ASTProcessor.
 At the moment, `psyclone.psyGen.Fparser2ASTProcessor` and its specialised
 version for Nemo `psyclone.nemo.NemoFparser2ASTProcessor` are available.
 (In the future we aim to have a generic ASTProcessor class, specialized
 for different language parsers: <parser>ASTProcessor, and specialized again
 for specific APIs when additional functionality is requiered
 <API><parser>ASTProcessor.)
-Each ASTProcessor is used with the `process_nodes` method:
 
 .. autoclass:: psyclone.psyGen.Fparser2ASTProcessor
     :members:
+
+The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
+`psyclone.psyGen.KernelSchedule` which has the same functionality as
+a PSy Schedule but with the addition of a Symbol Table
+(see :ref:`kernel_schedule-label`).
+
 
 OpenACC Support
 ---------------
