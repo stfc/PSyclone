@@ -350,6 +350,7 @@ def test_no_copyin_intrinsics(parser):
         assert "copyin({0})".format(intrinsic[0:idx]) not in gen_code.lower()
 
 
+@pytest.mark.xfail(reason="Needs updated RegionTrans.validate method, #292")
 def test_no_code_blocks(parser):
     ''' Check that we refuse to include CodeBlocks (i.e. code that we
     don't recognise) within a data region. '''
