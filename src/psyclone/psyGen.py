@@ -4630,9 +4630,9 @@ class ACCKernelsDirective(ACCDirective):
                       parent=parent)
         self._default_present = default_present
         if not self._default_present:
-            # TODO
-            raise NotImplementedError("Currently an OpenACC 'kernels' region "
-                                      "must have the default(present) clause.")
+            raise NotImplementedError(
+                "Currently an OpenACC 'kernels' region must have the "
+                "'default(present)' clause.")
 
     @property
     def dag_name(self):

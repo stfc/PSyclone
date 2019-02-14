@@ -50,6 +50,27 @@ from psyclone.transformations import TransformationError
 API = "nemo"
 
 
+def test_no_default_present(parser):
+    ''' Check that the transformation is rejected if default_present is
+    not True. '''
+    reader = FortranStringReader("program do_loop\n"
+                                 "real(kind=wp) :: sto_tmp(jpj)\n"
+                                 "do ji = 1,jpj\n"
+                                 "  sto_tmp(ji) = 1.0d0\n"
+                                 "end do\n"
+                                 "end program do_loop\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    with pytest.raises(NotImplementedError) as err:
+        _, _ = acc_trans.apply(schedule.children[0:2], default_present=False)
+    assert ("Currently an OpenACC 'kernels' region must have the "
+            "'default(present)' clause" in str(err))
+
+
+@pytest.mark.xfail(reason="Requires updated validate method in RegionTrans, #292")
 def test_no_kernels_error(parser):
     ''' Check that the transformation rejects an attempt to put things
     that aren't kernels inside a kernels region. '''
@@ -67,7 +88,7 @@ def test_no_kernels_error(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:2])
+        _, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
     assert "must contain blah blah" in str(err)
 
 
@@ -81,29 +102,29 @@ def test_no_loops(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:1])
-    assert "must contain blah blah" in str(err)
+        _, _ = acc_trans.apply(schedule.children[0:1], default_present=True)
+    assert "must enclose at least one loop but none were found" in str(err)
 
 
 def test_implicit_loop(parser):
     ''' Check that the transformation generates correct code when applied
     to an implicit loop. '''
     reader = FortranStringReader("program implicit_loop\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "sto_tmp(:) = 0.0_wp\n"
+                                 "real(kind=wp) :: sto_tmp(5,5)\n"
+                                 "sto_tmp(:,:) = 0.0_wp\n"
                                  "end program implicit_loop\n")
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     schedule.view()
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1])
+    schedule, _ = acc_trans.apply(schedule.children[0:1], default_present=True)
     gen_code = str(psy.gen)
-    print(gen_code)
-    assert 0
+    assert ("  !$ACC KERNELS DEFAULT(PRESENT)\n"
+            "  sto_tmp(:, :) = 0.0_wp\n"
+            "  !$ACC END KERNELS\n" in gen_code)
 
 
 def test_multikern_if(parser):

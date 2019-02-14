@@ -2720,7 +2720,19 @@ class ACCKernelsTrans(RegionTrans):
         Check that we can safely enclose the supplied list of nodes within
         OpenACC kernels ... end kernels directives.
         '''
+        from psyclone.psyGen import Loop
         super(ACCKernelsTrans, self)._validate(node_list)
+
+        # Check that we have at least one loop within the proposed region
+        found = False
+        for node in node_list:
+            loops = node.walk(node.children, Loop)
+            if loops or isinstance(node, Loop):
+                found = True
+                break
+        if not found:
+            raise TransformationError("A kernels transformation must enclose "
+                                      "at least one loop but none were found.")
 
 
 class ACCDataTrans(RegionTrans):
