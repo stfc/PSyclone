@@ -2720,7 +2720,13 @@ class ACCKernelsTrans(RegionTrans):
         Check that we can safely enclose the supplied list of nodes within
         OpenACC kernels ... end kernels directives.
         '''
+        from psyclone.nemo import NemoSchedule
         from psyclone.psyGen import Loop
+        # Check that the API is valid
+        sched = node_list[0].root
+        if not isinstance(sched, NemoSchedule):
+            raise NotImplementedError("OpenACC kernels regions are currently "
+                                      "only supported for the nemo API")
         super(ACCKernelsTrans, self)._validate(node_list)
 
         # Check that we have at least one loop within the proposed region

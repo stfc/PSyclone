@@ -1857,3 +1857,17 @@ def test_acc_loop_view(capsys):
     assert "[ACC Loop]" in output
     assert "[ACC Loop, independent]" in output
     assert "[ACC Loop, seq]" in output
+
+
+def test_acc_kernels_error():
+    ''' Check that we refuse to allow the kernels transformation
+    for this API. '''
+    from psyclone.transformations import ACCKernelsTrans
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                             name="invoke_0")
+    schedule = invoke.schedule
+    accktrans = ACCKernelsTrans()
+    with pytest.raises(NotImplementedError) as err:
+        _, _ = accktrans.apply(schedule.children)
+    assert ("kernels regions are currently only supported for the nemo API"
+            in str(err))
