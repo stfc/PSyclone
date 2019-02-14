@@ -126,8 +126,11 @@ transformations to eliminate and re-order halo exchanges.
 
 Example 9
 ^^^^^^^^^
+
 Demonstrates the behaviour of PSyclone for kernels that read and write
-quantities on horizontally-discontinuous function spaces.
+quantities on horizontally-discontinuous function spaces. In addition,
+this example demonstrates how to write a PSyclone transformation script
+that only colours loops over continuous spaces.
 
 Example 10
 ^^^^^^^^^^
@@ -142,3 +145,15 @@ Example of the use of transformations to introduce redundant computation,
 split synchronous halo exchanges into asynchronous exchanges (start and
 stop) and move the starts of those exchanges in order to overlap them
 with computation.
+
+Example 12
+^^^^^^^^^^
+
+Example of applying code extraction transformation to Nodes in an Invoke
+Schedule or to one or more Kernels in Invokes. For now it only inserts
+comments in appropriate locations (the full support for code extraction
+is being developed).
+This example also contains the Python helper script ``find_kernel`` which
+returns useful information for Kernel extraction: names of one or more
+Invokes which contain call to the specified Kernel and positions of the
+root Nodes containing the Kernel calls.

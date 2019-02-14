@@ -59,7 +59,7 @@
    fortran_naming_conventions
    api
    profiling
-   code_extraction
+   psyke
    system_specific_setup
    configuration
    developers

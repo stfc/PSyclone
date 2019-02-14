@@ -2867,9 +2867,9 @@ class ExtractRegionTrans(RegionTrans):
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`.
         :raises TransformationError: if distributed memory is configured.
-        :raises TransformationError: if transformation is applied to the \
-                                     list of Nodes which already contain \
-                                     an ExtractNode.
+        :raises TransformationError: if transformation is applied to a Node \
+                                     or a list of Nodes which already \
+                                     contain an ExtractNode.
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
                                      parent Loop.

@@ -199,12 +199,11 @@ and manipulated:
 Example 12: Code extraction
 ------------------------------------------
 
-The twelfth example demonstrates how to apply code extraction to Nodes
-in an Invoke Schedule or from one or more Kernels in Invokes. For now
-it only inserts an `ExtractNode` in appropriate locations. The full
-support for code extraction is being developed (please note that
-distributed memory will not be supported). This example can extract
-a list of Nodes:
+The twelfth example demonstrates how to apply code extraction to Nodes in
+an Invoke Schedule or to one or more Kernels in Invokes. For now it only
+inserts an `ExtractNode` in appropriate locations. The full support for
+code extraction is being developed (please note that distributed memory
+will not be supported). This example can extract a list of Nodes:
 ::
     cd eg12/
     ${PSYCLONE} -nodm -s ./extract_nodes.py \
@@ -230,7 +229,7 @@ call after applying optimisations (here colouring and OpenMP):
       gw_mixed_schur_preconditioner_alg_mod.x90
 
 The example also contains a Python helper script which returns
-information useful for Kernel extraction: names of one or more
+useful information for Kernel extraction: names of one or more
 Invokes which contain call to the specified Kernel and positions
 of the root Nodes containing the Kernel calls:
 ::
