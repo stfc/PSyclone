@@ -80,6 +80,19 @@ def f2008_parser():
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
 
+# Tests for utilities
+
+
+def test_object_index():
+    ''' Tests for the object_index() utility. '''
+    from psyclone.psyGen import object_index
+    two = "two"
+    my_list = ["one", two, "three"]
+    assert object_index(my_list, two) == 1
+    with pytest.raises(InternalError) as err:
+        _ = object_index(my_list, None)
+    assert "Cannot search for None item in list" in str(err)
+
 # PSyFactory class unit tests
 
 
