@@ -1832,11 +1832,6 @@ def test_acc_indep(capsys):
     schedule = invoke.schedule
     new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
     new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
-    # Check the view method
-    new_sched.view()
-    output, _ = capsys.readouterr()
-    assert "[ACC Loop]" in output
-    assert "[ACC Loop, independent]" in output
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
     # Check the generated code
@@ -1844,3 +1839,21 @@ def test_acc_indep(capsys):
     gen = str(psy.gen)
     assert "!$acc loop\n      DO j=2,jstop" in gen
     assert "!$acc loop independent\n      DO j=2,jstop+1" in gen
+
+
+def test_acc_loop_view(capsys):
+    ''' Test for the view() method of ACCLoopDirective. '''
+    acclpt = ACCLoopTrans()
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                             name="invoke_0")
+    schedule = invoke.schedule
+    new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
+    new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
+    new_sched, _ = acclpt.apply(schedule.children[2], sequential=True)
+    # Check the view method
+    new_sched.view()
+    output, _ = capsys.readouterr()
+    assert "[ACC Loop]" in output
+    assert "[ACC Loop, independent]" in output
+    assert "[ACC Loop, seq]" in output

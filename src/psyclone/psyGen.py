@@ -2073,10 +2073,10 @@ class ACCLoopDirective(ACCDirective):
             child.gen_code(parent)
 
     def update(self):
-
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-
+        '''
+        Update the existing fparser2 parse tree with the code associated with
+        this ACC LOOP directive.
+        '''
         text = "!$ACC LOOP"
         if self._sequential:
             text += " SEQ"

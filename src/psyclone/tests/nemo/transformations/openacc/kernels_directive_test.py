@@ -42,23 +42,25 @@ from __future__ import print_function, absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import PSyFactory, TransInfo, InternalError
 from psyclone.transformations import TransformationError
 
 
 # The PSyclone API under test
 API = "nemo"
 
+EXPLICIT_LOOP = ("program do_loop\n"
+                 "real(kind=wp) :: sto_tmp(jpj)\n"
+                 "do ji = 1,jpj\n"
+                 "  sto_tmp(ji) = 1.0d0\n"
+                 "end do\n"
+                 "end program do_loop\n")
+
 
 def test_no_default_present(parser):
     ''' Check that the transformation is rejected if default_present is
     not True. '''
-    reader = FortranStringReader("program do_loop\n"
-                                 "real(kind=wp) :: sto_tmp(jpj)\n"
-                                 "do ji = 1,jpj\n"
-                                 "  sto_tmp(ji) = 1.0d0\n"
-                                 "end do\n"
-                                 "end program do_loop\n")
+    reader = FortranStringReader(EXPLICIT_LOOP)
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -68,6 +70,41 @@ def test_no_default_present(parser):
         _, _ = acc_trans.apply(schedule.children[0:2], default_present=False)
     assert ("Currently an OpenACC 'kernels' region must have the "
             "'default(present)' clause" in str(err))
+
+
+def test_kernels_no_gen_code(parser):
+    ''' Check that the ACCKernels.gen_code() method raises the
+    expected error. '''
+    code = parser(FortranStringReader(EXPLICIT_LOOP))
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
+    with pytest.raises(InternalError) as err:
+        schedule.children[0].gen_code(schedule)
+    assert ("ACCKernelsDirective.gen_code should not have "
+            "been called" in str(err))
+
+
+def test_kernels_view(parser, capsys):
+    ''' Test the ACCKernelsDirective.view() method. '''
+    code = parser(FortranStringReader(EXPLICIT_LOOP))
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
+    schedule.view()
+    output, _ = capsys.readouterr()
+    assert "[ACC Kernels]" in output
+
+
+def test_kernels_dag_name(parser):
+    code = parser(FortranStringReader(EXPLICIT_LOOP))
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
+    assert schedule.children[0].dag_name == "ACC_kernels_1"
 
 
 @pytest.mark.xfail(reason="Requires updated validate method in RegionTrans, #292")

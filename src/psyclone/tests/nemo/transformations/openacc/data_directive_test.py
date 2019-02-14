@@ -77,6 +77,20 @@ def test_explicit():
             "END PROGRAM explicit_do") in gen_code
 
 
+def test_data_view(capsys):
+    ''' Check that the ACCDataDirective.view() method works as expected. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('explicit_do').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children)
+    schedule.view()
+    output, _ = capsys.readouterr()
+    assert "[ACC DATA]" in output
+    assert schedule.children[0].dag_name == "ACC_data_1"
+
+
 def test_explicit_directive():
     '''Check code generation for a single explicit loop containing a
     kernel with a pre-existing (openacc kernels) directive.
