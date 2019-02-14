@@ -789,16 +789,3 @@ class NemoIfClause(IfClause, NemoFparser2ASTProcessor):
         # If we get here it's an error as the NEMO API does not generate
         # code (we manipulate existing code instead).
         raise InternalError("This method should not have been called!")
-
-
-class NemoACCEnterDataDirective(ACCEnterDataDirective):
-    ''' '''
-    def data_on_device(self, parent):
-        ''' '''
-        return
-
-    def update(self):
-        ''' '''
-        # TODO this method is not used by any of the tests.
-        start_text = "!$ACC DATA"
-        self.add_region(start_text, start_index=0)
