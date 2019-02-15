@@ -1390,7 +1390,7 @@ def stencil_extent_value(field):
     if field.stencil.extent_arg.is_literal():
         extent = field.stencil.extent_arg.text
     else:
-        extent = field.stencil.extent_arg.varName
+        extent = field.stencil.extent_arg.varname
     return extent
 
 
@@ -1503,7 +1503,7 @@ class DynInvokeStencil(object):
         invoke call. '''
         names = []
         for arg in self._unique_extent_args:
-            names.append(arg.stencil.extent_arg.varName)
+            names.append(arg.stencil.extent_arg.varname)
         return names
 
     def _declare_unique_extent_vars(self, parent):
@@ -1523,7 +1523,7 @@ class DynInvokeStencil(object):
         invoke call.'''
         names = []
         for arg in self._unique_direction_args:
-            names.append(arg.stencil.direction_arg.varName)
+            names.append(arg.stencil.direction_arg.varname)
         return names
 
     def _declare_unique_direction_vars(self, parent):
@@ -1579,7 +1579,7 @@ class DynInvokeStencil(object):
                                           only=True,
                                           funcnames=["STENCIL_1DX",
                                                      "STENCIL_1DY"]))
-                        direction_name = arg.stencil.direction_arg.varName
+                        direction_name = arg.stencil.direction_arg.varname
                         for direction in ["x", "y"]:
                             if_then = IfThenGen(parent, direction_name +
                                                 " .eq. " + direction +
@@ -4426,7 +4426,7 @@ class HaloReadAccess(HaloDepth):
                         self._literal_depth += int(value_str)
                     else:
                         # a variable is specified
-                        self._var_depth = field.stencil.extent_arg.varName
+                        self._var_depth = field.stencil.extent_arg.varname
         # If this is an intergrid kernel and the field in question is on
         # the fine mesh then we must double the halo depth
         if call.is_intergrid and field.mesh == "gh_fine":
@@ -5260,7 +5260,7 @@ class DynKern(Kern):
             # previous name. We use the full text of the original
             # as a label.
             self._qr_name = self._name_space_manager.create_name(
-                root_name=qr_arg.varName, context="AlgArgs",
+                root_name=qr_arg.varname, context="AlgArgs",
                 label=self._qr_text)
             # dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
@@ -5281,7 +5281,7 @@ class DynKern(Kern):
             # If we're not a kernel stub then we will have a name for the qr
             # argument. We append this to the names of the qr-related
             # variables.
-            if qr_arg.varName:
+            if qr_arg.varname:
                 self._qr_args = [
                     arg + "_" + self._qr_name for arg in self._qr_args]
 
@@ -6041,7 +6041,7 @@ class KernCallArgList(ArgOrdering):
         '''add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown'''
         # the direction of the stencil is not known so pass the value in
-        name = arg.stencil.direction_arg.varName
+        name = arg.stencil.direction_arg.varname
         self._arglist.append(name)
 
     def stencil(self, arg):
@@ -7077,25 +7077,25 @@ class DynKernelArguments(Arguments):
                     # an Arg object created by the parser. Therefore its
                     # name may clash. We register and update the name here.
                     unique_name = self._name_space_manager.create_name(
-                        root_name=stencil.extent_arg.varName,
+                        root_name=stencil.extent_arg.varname,
                         context="AlgArgs",
                         label=stencil.extent_arg.text)
-                    stencil.extent_arg.varName = unique_name
+                    stencil.extent_arg.varname = unique_name
                     idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil.direction_arg = call.args[idx]
-                    if stencil.direction_arg.varName not in \
+                    if stencil.direction_arg.varname not in \
                        VALID_STENCIL_DIRECTIONS:
                         # direction_arg is not a standard dynamo
                         # argument, it is an Arg object created by the
                         # parser. Therefore its name may clash. We
                         # register and update the name here.
                         unique_name = self._name_space_manager.create_name(
-                            root_name=stencil.direction_arg.varName,
+                            root_name=stencil.direction_arg.varname,
                             context="AlgArgs",
                             label=stencil.direction_arg.text)
-                        stencil.direction_arg.varName = unique_name
+                        stencil.direction_arg.varname = unique_name
                     idx += 1
                 dyn_argument.stencil = stencil
             self._args.append(dyn_argument)

@@ -912,10 +912,10 @@ class Arg(object):
     value, standard variable or indexed variable. Supported options \
     are specified in the local formOptions list.
     :param str text: the original Fortran text of the argument.
-    :param varName: the extracted variable name from the text if the \
+    :param varname: the extracted variable name from the text if the \
     form is not literal otherwise it is set to None. This is optional \
     and defaults to None.
-    :value varName: str or NoneType
+    :value varname: str or NoneType
 
     :raises InternalError: if the form argument is not one one of the \
     supported types as specified in the local formOptions list.
@@ -923,14 +923,14 @@ class Arg(object):
     '''
     formOptions = ["literal", "variable", "indexed_variable"]
 
-    def __init__(self, form, text, varName=None):
+    def __init__(self, form, text, varname=None):
         self._form = form
         self._text = text
         # ***************** IS THIS NEEDED??? ******
         # Replace any '%' chars in the supplied name with underscores so
         # as to have a valid Fortran variable name (in the PSy layer).
-        if varName:
-            self._varname = varName.replace("%", "_")
+        if varname:
+            self._varname = varname.replace("%", "_")
         else:
             self._varname = None
         if form not in Arg.formOptions:
@@ -939,7 +939,7 @@ class Arg(object):
                 "{1}".format(str(Arg.formOptions), form))
 
     def __str__(self):
-        return "Arg(form='{0}',text='{1}',varName='{2}'". \
+        return "Arg(form='{0}',text='{1}',varname='{2}'". \
             format(self._form, self._text, str(self._varname))
 
     @property
@@ -963,7 +963,7 @@ class Arg(object):
         return self._text
 
     @property
-    def varName(self):
+    def varname(self):
         '''
         :returns: the extracted variable name from the text if the \
         form is not literal and None otherwise
@@ -972,8 +972,8 @@ class Arg(object):
         '''
         return self._varname
 
-    @varName.setter
-    def varName(self, value):
+    @varname.setter
+    def varname(self, value):
         '''Allows the setting or re-setting of the variable name value.
 
         :param str value: the new variable name

@@ -3892,7 +3892,7 @@ class Argument(object):
         '''
         self._call = call
         self._text = arg_info.text
-        self._orig_name = arg_info.varName
+        self._orig_name = arg_info.varname
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access
