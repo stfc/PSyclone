@@ -2721,7 +2721,7 @@ class ACCKernelsTrans(RegionTrans):
         OpenACC kernels ... end kernels directives.
         '''
         from psyclone.nemo import NemoSchedule
-        from psyclone.psyGen import Loop
+        from psyclone.psyGen import Loop, IfClause
         # Check that the API is valid
         sched = node_list[0].root
         if not isinstance(sched, NemoSchedule):
@@ -2739,6 +2739,14 @@ class ACCKernelsTrans(RegionTrans):
         if not found:
             raise TransformationError("A kernels transformation must enclose "
                                       "at least one loop but none were found.")
+        # Check that we aren't attempting to include any else/else if's without
+        # their parent 'if'.
+        # TODO this can go in RegionTrans._validate() once #292 is on master.
+        for node in node_list:
+            if isinstance(node, IfClause):
+                raise TransformationError(
+                    "Proposed transformation would split else/else-if clauses "
+                    "from their parent if-statement.")
 
 
 class ACCDataTrans(RegionTrans):

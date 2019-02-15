@@ -107,7 +107,8 @@ def test_kernels_dag_name(parser):
     assert schedule.children[0].dag_name == "ACC_kernels_1"
 
 
-@pytest.mark.xfail(reason="Requires updated validate method in RegionTrans, #292")
+@pytest.mark.xfail(reason="Requires updated validate method in RegionTrans, "
+                   "#292")
 def test_no_kernels_error(parser):
     ''' Check that the transformation rejects an attempt to put things
     that aren't kernels inside a kernels region. '''
@@ -192,3 +193,42 @@ def test_multikern_if(parser):
             "  end if\n"
             "  !$acc end kernels\n"
             "end program implicit_loop" in gen_code)
+
+
+def test_kernels_within_if(parser):
+    ''' Check that we can put a kernels region within an if block. '''
+    reader = FortranStringReader("program if_then\n"
+                                 "if(do_this)then\n"
+                                 "  do ji=1,jpi\n"
+                                 "    fld(ji) = 1.0\n"
+                                 "  end do\n"
+                                 "else\n"
+                                 "  fld2d(:,:) = 0.0\n"
+                                 "end if\n"
+                                 "end program if_then\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    schedule.view()
+    # Attempt to enclose the children of the if-block without the parent 'if'
+    with pytest.raises(TransformationError) as err:
+        acc_trans.apply(schedule.children[0].children[:], default_present=True)
+    assert ("would split else/else-if clauses from their parent "
+            "if-statement." in str(err))
+    schedule, _ = acc_trans.apply(schedule.children[0].children[0:1],
+                                  default_present=True)
+    schedule, _ = acc_trans.apply(schedule.children[0].children[1].children[:],
+                                  default_present=True)
+    schedule.view()
+    new_code = str(psy.gen)
+    assert ("  IF (do_this) THEN\n"
+            "    !$ACC KERNELS DEFAULT(PRESENT)\n"
+            "    DO ji = 1, jpi\n" in new_code)
+    assert ("    END DO\n"
+            "    !$ACC END KERNELS\n"
+            "  ELSE\n"
+            "    !$ACC KERNELS DEFAULT(PRESENT)\n"
+            "    fld2d(:, :) = 0.0\n"
+            "    !$ACC END KERNELS\n"
+            "  END IF\n" in new_code)
