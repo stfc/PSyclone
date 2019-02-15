@@ -42,10 +42,10 @@ Kernel and positions of the root Nodes containing the Kernel calls.
 Use: '$ python <path/to/script/>find_kernel.py'
 
 The user-specified settings can be modified in the first section:
-TEST_API - PSyclone API (the example here "dynamo0.3"
+TEST_API - PSyclone API (the example here "dynamo0.3"),
 ALG_NAME - Algorithm file name to be searched for Kernel calls,
-ALG_PATH - Relative or absolute path to the Algorithm file from the
-           location where this script is run,
+ALG_PATH - Path to the Algorithm file (absolute or relative from the
+           location where this script is run),
 KERNEL_BASENAME - Base name of the Kernel to be searched (without the
                   "_kernel_mod" and file extension),
 OPTIMISE - Switch for applying optimisations to PSy layer before

@@ -125,13 +125,13 @@ class ExtractNode(Node):
 
 
 class Extractor(object):
-    ''' This class contains is helper functions for code extraction. \
-    For now it only provides the function to extract the specific Kernel \
+    ''' This class contains helper functions for code extraction. For \
+    now it only provides the function to extract the specific Kernel \
     from an Invoke Schedule. Another planned functionality is to wrap \
     settings for generating driver for the extracted code. '''
 
     @staticmethod
-    def extract_kernel(schedule, kernel_name, position=None):
+    def extract_kernel(schedule, kernel_name, root_node_position=None):
         ''' This function inserts ExtractNode(s) around one or more Nodes \
         in a Schedule which contains calls to a particular Kernel. \
         First we construct the lists of relative and absolute positions \
@@ -158,17 +158,18 @@ class Extractor(object):
         :param str kernel_name: the name of the specified Kernel as \
                                 represented in a Kernel call (ending in \
                                 "_code", e.g. "ru_kernel_code").
-        :param int position: optional argument to determine where to \
-                             insert ExtractNode if there are multiple \
-                             root Nodes with the specified Kernel calls.
+        :param int root_node_position: optional argument to determine where \
+                                       to insert ExtractNode if there are \
+                                       multiple root Nodes with the \
+                                       specified Kernel calls.
         :returns: the modified Schedule.
         :rtype: :py:class:`psyclone.psyGen.Schedule`.
         :raises GenerationError: if there are no Kernels with the specified \
                                  name in the Schedule.
-        :raises GenerationError: if the optional position argument does \
-                                 not point to a location within the list \
-                                 which contains the root Node(s) with \
-                                 the specified Kernel calls.
+        :raises GenerationError: if the optional root_node_position \
+                                 argument does not point to a location \
+                                 within the list which contains the root \
+                                 Node(s) with the specified Kernel calls.
          '''
         etrans = ExtractRegionTrans()
 
@@ -198,18 +199,18 @@ class Extractor(object):
             # Check whether the optional relative position argument is
             # is provided and assign its value to the extract_node_pos
             # list if it points to a valid location inside the list
-            if position:
-                if position not in extract_node_pos:
-                    # Raise an error if the optional position argument
-                    # does not correspond to any of the returned relative
-                    # positions of the Kernel's root Nodes
+            if root_node_position:
+                if root_node_position not in extract_node_pos:
+                    # Raise an error if the optional root_node_position
+                    # argument does not correspond to any of the returned
+                    # relative positions of the Kernel's root Nodes
                     raise GenerationError(
                         "Provided position {0} is not the position of any "
                         "Node which contains Kernel '{1}' call."
-                        .format(position, kernel_name))
+                        .format(root_node_position, kernel_name))
                 else:
                     # Assign the position argument if it is valid
-                    extract_node_pos = [position]
+                    extract_node_pos = [root_node_position]
 
         # Apply the ExtractRegionTrans to the selected Nodes
         for idx in extract_node_pos:

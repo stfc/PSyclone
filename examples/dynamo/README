@@ -209,19 +209,19 @@ will not be supported). This example can extract a list of Nodes:
     ${PSYCLONE} -nodm -s ./extract_nodes.py \
       gw_mixed_schur_preconditioner_alg_mod.x90
 
-a specific Kernel from one Invoke:
+or the specific Kernel from one Invoke:
 ::
     cd eg12/
     ${PSYCLONE} -nodm -s ./extract_single_kernel.py \
       gw_mixed_schur_preconditioner_alg_mod.x90
 
-a specific Kernel from multiple Invokes which contain the Kernel call:
+or the specific Kernel from multiple Invokes which contain the Kernel call:
 ::
     cd eg12/
     ${PSYCLONE} -nodm -s ./extract_kernel_multi_invokes.py \
       gw_mixed_schur_preconditioner_alg_mod.x90
 
-or a specific Kernel from multiple Invokes which contain the Kernel
+or the specific Kernel from multiple Invokes which contain the Kernel
 call after applying optimisations (here colouring and OpenMP):
 ::
     cd eg12/
