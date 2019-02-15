@@ -1673,6 +1673,9 @@ class ACCDirective(Directive):
         return "ACC_directive_" + str(self.abs_position)
 
     def add_region(self, start_text, end_text=None):
+        # TODO should this functionality be in the update() method of
+        # the base class and if so, how do we deal with specifying
+        # "default(present)" or "copyin/out" clauses?
         '''
         Modifies the underlying fparser2 parse tree to include a subset
         of nodes within a region. (e.g. a 'kernels' or 'data' region.)
@@ -4617,13 +4620,21 @@ class IfClause(IfBlock):
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
 
-class ACCKernelsDirective(ACCDirective):
-    ''' Class for the !$ACC KERNELS directive. '''
+class ACCKernelsDirective(ACCDirective, Fparser2ASTProcessor):
+    '''
+    Class representing the !$ACC KERNELS directive in the PSyIR.
 
+    :param children:
+    :type children:
+    :param parent:
+    :type parent:
+    :param bool default_present:
+
+    :raise NotImplementedError: if default_present is False.
+    '''
     def __init__(self, children=[], parent=None, default_present=False):
-        Node.__init__(self,
-                      children=children,
-                      parent=parent)
+        super(ACCKernelsDirective, self).__init__(children=children,
+                                                  parent=parent)
         self._default_present = default_present
         if not self._default_present:
             raise NotImplementedError(
@@ -4660,6 +4671,7 @@ class ACCKernelsDirective(ACCDirective):
         :raises GenerationError: if the existing AST doesn't have the \
         correct structure to permit the insertion of the directive.
         '''
+        readers, writers = self.get_inputs_outputs()
 
         text = ("!$ACC KERNELS")
         if self._default_present:
@@ -4668,7 +4680,8 @@ class ACCKernelsDirective(ACCDirective):
             if writers:
                 text += " COPYIN({0})".format(" ".join("TBD"))
 
-        self.add_region(start_text=text, end_text="!$ACC END KERNELS")
+        self.add_region(start_text=text, end_text="!$ACC END KERNELS",
+                        default_present=self._default_present)
 
 
 class ACCDataDirective(ACCDirective):
@@ -4712,6 +4725,9 @@ class ACCDataDirective(ACCDirective):
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
 
+        self.add_region()
+        return # TODO
+
         # Ensure the fparser2 AST is up-to-date for all of our children
         Node.update(self)
 
@@ -4740,7 +4756,8 @@ class ACCDataDirective(ACCDirective):
 
         # Identify the inputs and outputs to the region (variables that
         # are read and written).
-        readers, writers = self.get_inputs_outputs(
+        processor = Fparser2ASTProcessor()
+        readers, writers = processor.get_inputs_outputs(
             fp_parent.content[ast_start_index:ast_end_index+1])
 
         # In the fparser2 AST, a directive is just a comment and does not
@@ -4778,55 +4795,6 @@ class ACCDataDirective(ACCDirective):
 
         self._ast = directive
         self._ast_start = directive
-
-    @staticmethod
-    def get_inputs_outputs(nodes):
-        '''
-        Identify variables that are inputs and outputs to the section of
-        Fortran code represented by the supplied list of nodes in the
-        fparser2 parse tree. Loop variables are ignored.
-
-        :param nodes: list of Nodes in the fparser2 AST to analyse.
-        :type nodes: list of :py:class:`fparser.two.utils.Base`
-
-        :return: 2-tuple of list of inputs, list of outputs
-        :rtype: (list of str, list of str)
-        '''
-        readers = OrderedSet()
-        writers = OrderedSet()
-        structure_name_str = None
-        from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
-            Section_Subscript_List, Loop_Control, Data_Ref, \
-            Structure_Constructor, Array_Section
-        from fparser.two.utils import walk_ast
-        for node in walk_ast(nodes):
-
-            if isinstance(node, Assignment_Stmt):
-                # found lhs = rhs
-                lhs = node.items[0]
-                rhs = node.items[2]
-                # do RHS first as we cull readers
-                # after writers but want to keep a = a + ... as the
-                # RHS is computed before assigning to the LHS
-                for node2 in walk_ast([rhs]):
-                    if isinstance(node2, Part_Ref):
-                        name = node2.items[0].string
-                        if name.upper() not in FORTRAN_INTRINSICS:
-                            if name not in writers:
-                                readers.add(name)
-                if isinstance(lhs, Data_Ref):
-                    # This is a structure which contains an array access.
-                    structure_name_str = lhs.items[0].string
-                    writers.add(structure_name_str)
-                    lhs = lhs.items[1]
-                if isinstance(lhs, (Part_Ref, Array_Section)):
-                    name_str = lhs.items[0].string
-                    if structure_name_str:
-                        name_str = "{0}%{1}".format(structure_name_str,
-                                                    name_str)
-                        structure_name_str = None
-                    writers.add(name_str)
-        return (readers.keys(), writers.keys())
 
 
 class Fparser2ASTProcessor(object):
@@ -4877,6 +4845,55 @@ class Fparser2ASTProcessor(object):
         parent.addchild(code_block)
         del statements[:]
         return code_block
+
+    @staticmethod
+    def get_inputs_outputs(nodes):
+        '''
+        Identify variables that are inputs and outputs to the section of
+        Fortran code represented by the supplied list of nodes in the
+        fparser2 parse tree. Loop variables are ignored.
+
+        :param nodes: list of Nodes in the fparser2 AST to analyse.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+
+        :return: 2-tuple of list of inputs, list of outputs
+        :rtype: (list of str, list of str)
+        '''
+        readers = OrderedSet()
+        writers = OrderedSet()
+        structure_name_str = None
+        from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
+            Section_Subscript_List, Loop_Control, Data_Ref, \
+            Structure_Constructor, Array_Section
+        from fparser.two.utils import walk_ast
+        for node in walk_ast(nodes):
+
+            if isinstance(node, Assignment_Stmt):
+                # found lhs = rhs
+                lhs = node.items[0]
+                rhs = node.items[2]
+                # do RHS first as we cull readers
+                # after writers but want to keep a = a + ... as the
+                # RHS is computed before assigning to the LHS
+                for node2 in walk_ast([rhs]):
+                    if isinstance(node2, Part_Ref):
+                        name = node2.items[0].string
+                        if name.upper() not in FORTRAN_INTRINSICS:
+                            if name not in writers:
+                                readers.add(name)
+                if isinstance(lhs, Data_Ref):
+                    # This is a structure which contains an array access.
+                    structure_name_str = lhs.items[0].string
+                    writers.add(structure_name_str)
+                    lhs = lhs.items[1]
+                if isinstance(lhs, (Part_Ref, Array_Section)):
+                    name_str = lhs.items[0].string
+                    if structure_name_str:
+                        name_str = "{0}%{1}".format(structure_name_str,
+                                                    name_str)
+                        structure_name_str = None
+                    writers.add(name_str)
+        return (readers.keys(), writers.keys())
 
     def generate_schedule(self, name, module_ast):
         '''
