@@ -4676,16 +4676,7 @@ class ACCDataDirective(ACCDirective):
     Class representing the !$ACC DATA ... !$ACC END DATA directive
     in the PSyIR.
 
-    :param children:
-    :type children:
-    :param parent:
-    :type parent:
     '''
-    def __init__(self, children=[], parent=None):
-        Node.__init__(self,
-                      children=children,
-                      parent=parent)
-
     @property
     def dag_name(self):
         ''' Return the name to use in a dag for this node'''
