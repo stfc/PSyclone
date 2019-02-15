@@ -133,3 +133,26 @@ def test_parallel_if_block(parser):
     assert ("    END DO\n"
             "  END IF\n"
             "  !$ACC END PARALLEL\n" in code)
+
+
+def test_parallel_repeat_update(parser):
+    ''' Check that calling ACCParallelDirective.update() a 2nd time
+    does not alter the fparser2 parse tree. '''
+    from psyclone.psyGen import ACCParallelDirective
+    reader = FortranStringReader(SINGLE_LOOP)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0:1])
+    accdir = schedule.children[0]
+    assert isinstance(accdir, ACCParallelDirective)
+    assert accdir._ast is None
+    # Generate the code in order to trigger the update of the fparser2 tree
+    _ = str(psy.gen)
+    # Store the content of a part of the fparser2 parse tree
+    orig_content = accdir._ast._parent.content[:]
+    # Call update() a second time and then check that nothing has changed
+    accdir.update()
+    for idx, item in enumerate(orig_content):
+        assert item is accdir._ast._parent.content[idx]

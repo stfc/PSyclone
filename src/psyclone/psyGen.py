@@ -1724,6 +1724,9 @@ class ACCDirective(Directive):
 
         self._ast = directive
         self._ast_start = directive
+        # Retro-fit parent information
+        # TODO remove/modify this once fparser/#102 is done.
+        self._ast._parent = parent_ast
 
 
 @six.add_metaclass(abc.ABCMeta)
