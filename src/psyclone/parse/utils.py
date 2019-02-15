@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
 
-'''Module that uses the Fortran parser fparser2 to parse
-PSyclone-conformant Algorithm code.
+'''Utility module containing classes and functions that are used by
+the parser modules.
 
 '''
 
@@ -44,9 +44,14 @@ from psyclone.configuration import Config
 
 
 class ParseError(Exception):
-    ''' xxx '''
-    
+    '''Provides a PSyclone-specific error class for the situation when
+    the PSyclone code parsing finds an error in the input.
+
+    :param str value: the message associated with the error.
+
+    '''
     def __init__(self, value):
+        Exception.__init__(self, value)
         self.value = "Parse Error: " + value
 
     def __str__(self):
@@ -56,8 +61,8 @@ class ParseError(Exception):
 
 
 def check_api(api):
-    '''
-    Check that the supplied API is valid.
+    '''Check that the supplied API is valid.
+
     :param str api: The API to check.
     :raises ParseError: if the supplied API is not recognised.
 
@@ -66,6 +71,6 @@ def check_api(api):
 
     if api not in _config.supported_apis:
         raise ParseError(
-            "check_api: Unsupported API '{0}' specified. "
+            "utils.py:check_api: Unsupported API '{0}' specified. "
             "Supported types are {1}.".format(api,
                                               _config.supported_apis))
