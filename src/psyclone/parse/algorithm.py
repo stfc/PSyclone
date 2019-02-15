@@ -41,8 +41,7 @@ PSyclone-conformant Algorithm code.
 from __future__ import absolute_import
 
 from psyclone.configuration import Config
-from psyclone.parse.utils import check_api, ParseError
-from psyclone.line_length import FortLineLength
+from psyclone.parse.utils import check_api, check_ll, ParseError
 from psyclone.psyGen import InternalError
 
 from fparser.common.readfortran import FortranFileReader
@@ -468,24 +467,6 @@ def parse_fp2(filename):
             "algorithm.py:parse_fp2 Syntax error in file '{0}':\n"
             "{1}".format(filename, str(msg)))
     return parse_tree
-
-
-def check_ll(alg_filename):
-    '''Checks that the code contained within the alg_filename file
-    conforms to the 132 line length limit.
-
-    :param str alg_filename: The file containing the algorithm code.
-    :except ParseError: if one of more lines are longer than the 132 \
-    line length limit.
-
-    '''
-    fll = FortLineLength()
-    with open(alg_filename, "r") as myfile:
-        code_str = myfile.read()
-    if fll.long_lines(code_str):
-        raise ParseError(
-            "the algorithm file does not conform to the specified {0} line "
-            "length limit".format(str(fll.length)))
 
 
 def get_builtin_defs(api):

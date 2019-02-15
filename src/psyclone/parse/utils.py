@@ -39,6 +39,7 @@ the parser modules.
 '''
 
 from psyclone.configuration import Config
+from psyclone.line_length import FortLineLength
 
 # Exceptions
 
@@ -74,3 +75,22 @@ def check_api(api):
             "utils.py:check_api: Unsupported API '{0}' specified. "
             "Supported types are {1}.".format(api,
                                               _config.supported_apis))
+
+
+def check_ll(alg_filename):
+    '''Check that the code contained within the alg_filename file
+    conforms to the 132 line length limit.
+
+    :param str alg_filename: The file containing the algorithm code.
+
+    :except ParseError: if one of more lines are longer than the 132 \
+    line length limit.
+
+    '''
+    fll = FortLineLength()
+    with open(alg_filename, "r") as myfile:
+        code_str = myfile.read()
+    if fll.long_lines(code_str):
+        raise ParseError(
+            "the algorithm file does not conform to the specified {0} line "
+            "length limit".format(str(fll.length)))

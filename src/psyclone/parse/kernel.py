@@ -1,101 +1,198 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors L. Mitchell Imperial College, R. W. Ford and A. R. Porter STFC
+# Daresbury Lab
+
+'''Module that uses the Fortran parser fparser1 to parse
+PSyclone-conformant Kernel code.
+
+'''
+
 import os
+import fparser
+
 from fparser.two.parser import ParserFactory
 from fparser.two import Fortran2003
 from fparser.two.utils import walk_ast
+
 from fparser import one as fparser1
 from fparser import api as fpapi
-from pyparsing import ParseException
-import psyclone.expression as expr
 from fparser.one import parsefortran
-import fparser
-from psyclone.parse.algorithm import ParseError
+
+import psyclone.expression as expr
 from psyclone.psyGen import InternalError
 from psyclone.configuration import Config
+from psyclone.parse.utils import check_ll, ParseError
 
-def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
-    ''' xxx '''
+from pyparsing import ParseException
 
-    import os
-    # Search for the file containing the kernel source
+
+def get_kernel_filepath(module_name, kernel_path, alg_filename):
+    '''Search for a kernel module file containing a module with
+    'module_name'. The assumed convention is that the name of the
+    kernel file is the name of the module with .f90 or .F90 appended.
+
+    Look in the directories and all subdirectories associated with the
+    supplied kernel paths or in the same directory as the algorithm
+    file if the kernel path is empty.
+
+    Return the filepath if the file is found.
+
+    :param str module_name: the name of the module to search for. The \
+    assumption is that the file containing the module will have the \
+    same name as the module name with .f90 or .F90 appended.
+    :param str kernel_path: directory in which to search for the module \
+    file. If nothing is supplied then look in the same directory as the \
+    algorithm file. Directories below the specified directory are \
+    recursively searched.
+    :param str alg_filename: the name of the algorithm file. This is \
+    used to determine its directory location if required.
+
+    :returns: a filepath to the file containing the specified module \
+    name.
+    :rtype: str
+
+    :except ParseError: if the supplied kernel directory does not exist
+    :except ParseError: if the file can not be found
+    :except ParseError: if more than one file with the specified name is found
+
+    '''
     import fnmatch
 
-    # We only consider files with the suffixes .f90 and .F90
+    # Only consider files with the suffixes .f90 and .F90
     # when searching for the kernel source.
     search_string = "{0}.[fF]90".format(module_name)
 
-    # Our list of matching files (should have length == 1)
+    # The list of matching files (should have length == 1).
     matches = []
 
-    # If a search path has been specified then we look there.
-    # Otherwise we look in the directory containing the
-    # algorithm definition file
-    if len(kernel_path) > 0:
+    # If a search path has been specified then look there.  Otherwise
+    # look in the directory containing the algorithm definition file.
+    if kernel_path:
+        # Look for the file in the supplied directory and recursively
+        # in any subdirectories.
         cdir = os.path.abspath(kernel_path)
 
         if not os.access(cdir, os.R_OK):
-            raise IOError(
+            raise ParseError(
                 "Supplied kernel search path does not exist "
                 "or cannot be read: {0}".format(cdir))
 
-        # We recursively search down through the directory
-        # tree starting at the specified path
+        # Recursively search down through the directory tree starting
+        # at the specified path
         if os.path.exists(cdir):
-            for root, dirnames, filenames in os.walk(cdir):
-                for filename in fnmatch.filter(filenames,
-                                               search_string):
-                    matches.append(os.path.join(root,
-                                                filename))
-
+            for root, _, filenames in os.walk(cdir):
+                for filename in fnmatch.filter(filenames, search_string):
+                    matches.append(os.path.join(root, filename))
     else:
-        # We look *only* in the directory that contained the
-        # algorithm file
+        # Look *only* in the directory that contained the algorithm
+        # file.
         cdir = os.path.abspath(os.path.dirname(alg_filename))
         filenames = os.listdir(cdir)
         for filename in fnmatch.filter(filenames,
                                        search_string):
             matches.append(os.path.join(cdir, filename))
 
-    # Check that we only found one match
-    if len(matches) != 1:
-        if len(matches) == 0:
-            raise IOError(
-                "Kernel file '{0}.[fF]90' not found in {1}".
-                format(module_name, cdir))
-        else:
-            raise IOError(
-                "More than one match for kernel file "
-                "'{0}.[fF]90' found!".
-                format(module_name))
-    else:
-        from fparser.one import parsefortran
-        import fparser
-        from fparser import api as fpapi
-        parsefortran.FortranParser.cache.clear()
-        fparser.logging.disable(fparser.logging.CRITICAL)
-        try:
-            modast = fpapi.parse(matches[0])
-            # ast includes an extra comment line which
-            # contains file details. This line can be
-            # long which can cause line length
-            # issues. Therefore set the information
-            # (name) to be empty.
-            modast.name = ""
-        except:
-            raise ParseError("Failed to parse kernel code "
-                             "'{0}'. Is the Fortran correct?".
-                             format(matches[0]))
-        if line_length:
-            from psyclone.line_length import FortLineLength
-            fll = FortLineLength()
-            with open(matches[0], "r") as myfile:
-                code_str = myfile.read()
-            if fll.long_lines(code_str):
-                raise ParseError(
-                    "parse: the kernel file '{0}' does not"
-                    " conform to the specified {1} line length"
-                    " limit".format(matches[0],
-                                    str(fll.length)))
-    return modast
+    if not matches:
+        # There were no matches.
+        raise ParseError(
+            "Kernel file '{0}.[fF]90' not found in {1}".
+            format(module_name, cdir))
+    if len(matches) > 1:
+        # There was more than one match
+        raise ParseError(
+            "More than one match for kernel file '{0}.[fF]90' found!".
+            format(module_name))
+    # There is a single match
+    return matches[0]
+
+
+def get_kernel_parse_tree(filepath):
+    '''Parse the file in filepath with fparser1 and return a parse tree.
+
+    :param str filepath: path to a file (hopefully) containing \
+    PSyclone kernel code.
+
+    :returns: Parse tree of the kernel code contained in the specified \
+    file.
+    :rtype: :py:class:`fparser.one.block_statements.BeginSource`
+
+    :raises ParseError: if fparser fails to parse the file
+
+    '''
+    parsefortran.FortranParser.cache.clear()
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    try:
+        parse_tree = fpapi.parse(filepath)
+        # parse_tree includes an extra comment line which contains
+        # file details. This line can be long which can cause line
+        # length issues. Therefore set the information (name) to be
+        # empty.
+        parse_tree.name = ""
+    except:
+        raise ParseError(
+            "Failed to parse kernel code '{0}'. Is the Fortran correct?".
+            format(filepath))
+    return parse_tree
+
+
+def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
+    '''Search for the kernel source code containing a module with the name
+    'module_name' looking in the directory and subdirectories
+    associated with the supplied 'kernel_path' or in the same
+    directory as the 'algorithm_filename' if the kernel path is
+    empty. If the file is found then check it conforms to the
+    'line_length' restriction if this is set and then parse this file
+    and return the parsed file.
+
+    :param str module_name: the name of the module to search for.
+    :param str alg_filename: the name of the algorithm file.
+    :param str kernel_path: directory in which to search for the module \
+    file.
+    :param bool line_length: whether to check that the kernel code \
+    conforms to the 132 character line length limit (True) or not \
+    (False).
+
+    :returns: Parse tree of the kernel module with the name 'module_name'
+    :rtype: :py:class:`fparser.one.block_statements.BeginSource`
+
+    '''
+    filepath = get_kernel_filepath(module_name, kernel_path, alg_filename)
+    if line_length:
+        check_ll(filepath)
+    parse_tree = get_kernel_parse_tree(filepath)
+    return parse_tree
 
 
 class KernelTypeFactory(object):
@@ -146,7 +243,6 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
     def create(self, builtin_names, builtin_defs_file, name=None):
         ''' Create a built-in call object '''
         if name not in builtin_names:
-            from psyclone.parse.algorithm import ParseError
             raise ParseError(
                 "BuiltInKernelTypeFactory: unrecognised built-in name. "
                 "Got '{0}' but expected one of {1}".format(name,
@@ -154,10 +250,9 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
         # The meta-data for these lives in a Fortran module file
         # passed in to this method.
         fname = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 
+            os.path.dirname(os.path.abspath(__file__)),
             builtin_defs_file)
         if not os.path.isfile(fname):
-            from psyclone.parse.algorithm import ParseError
             raise ParseError(
                 "Kernel '{0}' is a recognised Built-in but cannot "
                 "find file '{1}' containing the meta-data describing "
@@ -170,13 +265,13 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             fparser.logging.disable(fparser.logging.CRITICAL)
             ast = fpapi.parse(fname)
         except:
-            from psyclone.parse.algorithm import ParseError
             raise ParseError(
                 "Failed to parse the meta-data for PSyclone "
                 "built-ins in {0}".format(fname))
 
         # Now we have the AST, call our parent class to create the object
         return KernelTypeFactory.create(self, ast, name)
+
 
 def get_mesh(metadata, valid_mesh_types):
     '''
@@ -192,14 +287,12 @@ def get_mesh(metadata, valid_mesh_types):
     '''
     if not isinstance(metadata, expr.NamedArg) or \
        metadata.name.lower() != "mesh_arg":
-        from psyclone.parse.algorithm import ParseError
         raise ParseError(
             "{0} is not a valid mesh identifier (expected "
             "mesh_arg=MESH_TYPE where MESH_TYPE is one of {1}))".
             format(str(metadata), valid_mesh_types))
     mesh = metadata.value.lower()
     if mesh not in valid_mesh_types:
-        from psyclone.parse.algorithm import ParseError
         raise ParseError("mesh_arg must be one of {0} but got {1}".
                          format(valid_mesh_types, mesh))
     return mesh
@@ -223,43 +316,36 @@ def get_stencil(metadata, valid_types):
     '''
 
     if not isinstance(metadata, expr.FunctionVar):
-        from psyclone.parse.algorithm import ParseError
         raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but found the "
             "literal {0}".format(metadata))
     if metadata.name.lower() != "stencil" or not metadata.args:
-            from psyclone.parse.algorithm import ParseError
-            raise ParseError(
+        raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but found {0}".
             format(metadata))
     if len(metadata.args) > 2:
-        from psyclone.parse.algorithm import ParseError
         raise ParseError(
             "Expecting format stencil(<type>[,<extent>]) but there must "
             "be at most two arguments inside the brackets {0}".
             format(metadata))
     if not isinstance(metadata.args[0], expr.FunctionVar):
         if isinstance(metadata.args[0], str):
-            from psyclone.parse.algorithm import ParseError
             raise ParseError(
                 "Expecting format stencil(<type>[,<extent>]). However, "
                 "the specified <type> '{0}' is a literal and therefore is "
                 "not one of the valid types '{1}'".
                 format(metadata.args[0], valid_types))
         else:
-            from psyclone.parse.algorithm import ParseError
             raise ParseError(
                 "Internal error, expecting either FunctionVar or "
                 "str from the expression analyser but found {0}".
                 format(type(metadata.args[0])))
     if metadata.args[0].args:
-        from psyclone.parse.algorithm import ParseError
         raise ParseError(
             "Expected format stencil(<type>[,<extent>]). However, the "
             "specified <type> '{0}' includes brackets")
     stencil_type = metadata.args[0].name
     if stencil_type not in valid_types:
-        from psyclone.parse.algorithm import ParseError
         raise ParseError(
             "Expected format stencil(<type>[,<extent>]). However, the "
             "specified <type> '{0}' is not one of the valid types '{1}'".
@@ -268,19 +354,16 @@ def get_stencil(metadata, valid_types):
     stencil_extent = None
     if len(metadata.args) == 2:
         if not isinstance(metadata.args[1], str):
-            from psyclone.parse.algorithm import ParseError
             raise ParseError(
                 "Expected format stencil(<type>[,<extent>]). However, the "
                 "specified <extent> '{0}' is not an integer".
                 format(metadata.args[1]))
         stencil_extent = int(metadata.args[1])
         if stencil_extent < 1:
-            from psyclone.parse.algorithm import ParseError
             raise ParseError(
                 "Expected format stencil(<type>[,<extent>]). However, the "
                 "specified <extent> '{0}' is less than 1".
                 format(str(stencil_extent)))
-        from psyclone.parse.algorithm import ParseError
         raise ParseError(
             "Kernels with fixed stencil extents are not currently "
             "supported")
@@ -736,5 +819,3 @@ class GOKernelType(KernelType):
                     format(str(len(init.args)), init.args))
             self._arg_descriptors.append(GODescriptor(access, funcspace,
                                                       stencil))
-
-
