@@ -387,3 +387,32 @@ def test_no_code_blocks(parser):
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[1:2])
     assert "cannot enclose CodeBlock'>' in ACCDataTrans" in str(err)
+
+
+def test_kernels_in_data_region(parser):
+    ''' Check that directives end up in the correct locations when enclosing
+    a kernels region inside a data region. '''
+    reader = FortranStringReader("program one_loop\n"
+                                 "real(kind=wp) :: sto_tmp(5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "  sto_tmp(ji) = 0.0\n"
+                                 "end do\n"
+                                 "end program one_loop\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_dtrans = TransInfo().get_trans_name('ACCDataTrans')
+    acc_ktrans = TransInfo().get_trans_name('ACCKernelsTrans')
+    schedule, _ = acc_ktrans.apply(schedule.children[:], default_present=True)
+    schedule.view()
+    schedule, _ = acc_dtrans.apply(schedule.children[:])
+    schedule.view()
+    new_code = str(psy.gen)
+    print(new_code)
+    assert ("  !$ACC DATA COPYOUT(sto_tmp)\n"
+            "  !$ACC KERNELS DEFAULT(PRESENT)\n"
+            "  DO ji = 1, jpj\n" in new_code)
+    assert ("  END DO\n"
+            "  !$ACC END KERNELS\n"
+            "  !$ACC END DATA\n"
+            "END PROGRAM one_loop" in new_code)

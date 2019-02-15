@@ -1672,7 +1672,7 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
-    def add_region(self, start_text, end_text=None, start_index=None):
+    def add_region(self, start_text, end_text=None):
         '''
         Modifies the underlying fparser2 parse tree to include a subset
         of nodes within a region. (e.g. a 'kernels' or 'data' region.)
@@ -1681,8 +1681,6 @@ class ACCDirective(Directive):
                                beginning of the region.
         :param str end_text: the directive text to insert at the end of \
                              the region (or None).
-        :param int start_index: the position at which to insert the start \
-                                text (or None to include all children)
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
@@ -1694,39 +1692,45 @@ class ACCDirective(Directive):
         if self._ast:
             return
 
+        # The parent node in the PSyIR might be a directive so we need to
+        # go back up the tree to find the node corresponding to our parent
+        # node in the fparser2 parse tree. This is the first node that
+        # has the 'content' attribute.
         parent = self._parent
         while parent:
-            if hasattr(parent._ast, "content"):
+            if parent._ast and hasattr(parent._ast, "content"):
                 break
             parent = parent._parent
-        parent_ast = parent._ast
+        fp_parent = parent._ast
 
-        if start_index is None:
-            # Find the location of the AST of our first child node in the
-            # list of child AST nodes of our parent.
-            ast_start_index = object_index(parent_ast.content,
-                                           self.children[0]._ast)
-        else:
-            # TODO check that start_index is valid
-            ast_start_index = start_index
+        # Find the location of the AST of our first child node in the
+        # list of child nodes of our parent in the fparser parse tree.
+        ast_start_index = object_index(fp_parent.content,
+                                       self.children[0]._ast)
 
         if end_text:
-            ast_end_index = object_index(parent_ast.content,
+            ast_end_index = object_index(fp_parent.content,
                                          self.children[-1]._ast)
             directive = Comment(FortranStringReader(end_text,
                                                     ignore_comments=False))
-            parent_ast.content.insert(ast_end_index+1, directive)
+            fp_parent.content.insert(ast_end_index+1, directive)
+            # Retro-fit parent information. # TODO remove/modify this once
+            # fparser/#102 is done (i.e. probably supply parent info as option
+            # to the Comment() constructor).
+            directive._parent = fp_parent
             self._ast_end = directive
 
         directive = Comment(FortranStringReader(start_text,
                                                 ignore_comments=False))
-        parent_ast.content.insert(ast_start_index, directive)
+        fp_parent.content.insert(ast_start_index, directive)
+        # Retro-fit parent information. # TODO remove/modify this once
+        # fparser/#102 is done (i.e. probably supply parent info as option
+        # to the Comment() constructor).
+        directive._parent = fp_parent
 
         self._ast = directive
         self._ast_start = directive
-        # Retro-fit parent information
-        # TODO remove/modify this once fparser/#102 is done.
-        self._ast._parent = parent_ast
+
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -4656,50 +4660,6 @@ class ACCKernelsDirective(ACCDirective):
         :raises GenerationError: if the existing AST doesn't have the \
         correct structure to permit the insertion of the directive.
         '''
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-
-        # Ensure the fparser2 AST is up-to-date for all of our children
-        Node.update(self)
-
-        # Check that we haven't already been called
-        if self._ast:
-            return
-
-        # the parent might be a directive so we need to recurse up.
-        current = self.parent
-        while not current._ast or not hasattr(current._ast, "content"):
-            current = current.parent
-        parent_ast = current._ast
-
-        ast_start_index = object_index(parent_ast.content,
-                                       self.children[0]._ast)
-        ast_end_index = object_index(parent_ast.content,
-                                     self.children[-1]._ast)
-
-        # In the fparser2 AST, a directive is just a comment and does not
-        # have children. This means we can end up inserting the 'end kernels'
-        # directive between a previous directive and the loop to which it
-        # applies.
-        # Check whether the last node in the PSyIRe for this kernels region
-        # has children and, if so, whether their corresponding entries in
-        # the fparser2 AST are siblings of this directive and come after
-        # it in the AST.
-        for child in self.children[-1].children:
-            try:
-                idx = object_index(parent_ast.content, child._ast)
-                if idx > ast_end_index:
-                    ast_end_index = idx
-            except ValueError:
-                # The fparser2 AST for this child is not a sibling of
-                # this directive.
-                pass
-
-        text = ("!$ACC END KERNELS")
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        parent_ast.content.insert(ast_end_index+1, directive)
-        self._ast_end = directive
 
         text = ("!$ACC KERNELS")
         if self._default_present:
@@ -4707,12 +4667,8 @@ class ACCKernelsDirective(ACCDirective):
         else:
             if writers:
                 text += " COPYIN({0})".format(" ".join("TBD"))
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        parent_ast.content.insert(ast_start_index, directive)
 
-        self._ast = directive
-        self._ast_start = directive
+        self.add_region(start_text=text, end_text="!$ACC END KERNELS")
 
 
 class ACCDataDirective(ACCDirective):
@@ -4778,23 +4734,23 @@ class ACCDataDirective(ACCDirective):
         new_parent = self.parent
         while not hasattr(new_parent._ast, "content"):
             new_parent = new_parent.parent
-        parent_ast = new_parent._ast
+        fp_parent = new_parent._ast
 
         # TODO: We should have an _ast_start and _ast_end but in the
         # meantime we recurse down if the child is a directive.
-        ast_start_index = object_index(parent_ast.content,
+        ast_start_index = object_index(fp_parent.content,
                                        self.children[0]._ast)
         try:
-            ast_end_index = object_index(parent_ast.content,
+            ast_end_index = object_index(fp_parent.content,
                                          self.children[-1]._ast_end)
         except AttributeError:
-            ast_end_index = object_index(parent_ast.content,
+            ast_end_index = object_index(fp_parent.content,
                                          self.children[-1]._ast)
 
         # Identify the inputs and outputs to the region (variables that
         # are read and written).
         readers, writers = self.get_inputs_outputs(
-            parent_ast.content[ast_start_index:ast_end_index+1])
+            fp_parent.content[ast_start_index:ast_end_index+1])
 
         # In the fparser2 AST, a directive is just a comment and does not
         # have children. This means we can end up inserting the 'end data'
@@ -4806,7 +4762,7 @@ class ACCDataDirective(ACCDirective):
         # it in the AST.
         for child in self.children[-1].children:
             try:
-                idx = parent_ast.content.index(child._ast)
+                idx = fp_parent.content.index(child._ast)
                 if idx > ast_end_index:
                     ast_end_index = idx
             except ValueError:
@@ -4817,7 +4773,7 @@ class ACCDataDirective(ACCDirective):
         text = ("!$ACC END DATA")
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
-        parent_ast.content.insert(ast_end_index+1, directive)
+        fp_parent.content.insert(ast_end_index+1, directive)
         self._ast_end = directive
 
         text = ("!$ACC DATA")
@@ -4827,7 +4783,7 @@ class ACCDataDirective(ACCDirective):
             text += " COPYOUT({0})".format(",".join(writers))
         directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
-        parent_ast.content.insert(ast_start_index, directive)
+        fp_parent.content.insert(ast_start_index, directive)
 
         self._ast = directive
         self._ast_start = directive
