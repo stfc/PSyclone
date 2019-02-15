@@ -183,7 +183,7 @@ def test_wrong_named_invoke():
                          "test_files", "dynamo0p3",
                          "1.0.3_wrong_named_arg_invoke.f90"),
             api="dynamo0.3")
-    assert ("Expecting named identifier to be 'name' but found "
+    assert ("Expected named identifier to be 'name' but found "
             "'not_a_name'" in str(err))
 
 
@@ -210,7 +210,7 @@ def test_invalid_named_invoke():
                          "test_files", "dynamo0p3",
                          "1.0.6_invoke_name_invalid_chars.f90"),
             api="dynamo0.3")
-    assert ("The (optional) name of an invoke must be a string containing a "
+    assert ("the (optional) name of an invoke must be a string containing a "
             "valid Fortran name (with any spaces replaced by underscores) but "
             "got 'ja_ck(1)' " in str(err))
     assert "1.0.6_invoke_name_invalid_chars.f90" in str(err)

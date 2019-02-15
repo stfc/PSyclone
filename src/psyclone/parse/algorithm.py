@@ -60,6 +60,7 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
 # parse the algorithm file
 #
 
+
 def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
           kernel_path="", line_length=False):
     '''Takes a PSyclone conformant algorithm file as input and outputs a
@@ -763,9 +764,20 @@ class InvokeCall(object):
 
 
 class ParsedCall(object):
-    ''' A call to either a user-supplied kernel or a built-in appearing
-    in an invoke. '''
+    '''Base class for information about a user-supplied or built-in
+    kernel.
 
+    :param ktype: information about a kernel or builtin. Provides \
+    access to the PSyclone description metadata and the code if it \
+    exists.
+    :type ktype: APi-specific specialisation of \
+    :py:class:`psyclone.dynamo0p3.KernelType`
+    :param args: a list of Arg instances which capture the relevant \
+    information about the arguments associated with the call to the \
+    kernel or builtin
+    :type arg: list of :py:class:`psyclone.parse.algorithm.Arg`
+
+    '''
     def __init__(self, ktype, args):
         self._ktype = ktype
         self._args = args
@@ -783,27 +795,66 @@ class ParsedCall(object):
 
     @property
     def ktype(self):
+        '''
+        :returns: information about a kernel or builtin. Provides \
+        access to the PSyclone description metadata and the code if it \
+        exists.
+        :rtype: APi-specific specialisation of \
+        :py:class:`psyclone.dynamo0p3.KernelType`
+
+        '''
         return self._ktype
 
     @property
     def args(self):
+        '''
+        :returns: a list of Arg instances which capture the relevant \
+        information about the arguments associated with the call to the \
+        kernel or builtin
+        :rtype: list of :py:class:`psyclone.parse.algorithm.Arg`
+
+        '''
         return self._args
 
     @property
     def module_name(self):
+        '''This name is assumed to be set by the subclasses.
+
+        :returns: the module name of kernel code.
+        :rtype: str
+
+        '''
         return self._module_name
 
 
 class KernelCall(ParsedCall):
-    """A call to a user-supplied kernel (appearing in
-    `call invoke(kernel_name(field_name, ...))`"""
+    '''Store information about a user-supplied (coded) kernel. Specialises
+    the generic ParsedCall class adding a module name value and a
+    type for distinguishing this class.
 
+    :param str module_name: the name of the kernel module.
+    :param ktype: information about the kernel. Provides access to the \
+    PSyclone description metadata and the code.
+    :type ktype: APi-specific specialisation of \
+    :py:class:`psyclone.dynamo0p3.KernelType`
+    :param args: a list of Arg instances which capture the relevant \
+    information about the arguments associated with the call to the \
+    kernel.
+    :type arg: list of :py:class:`psyclone.parse.algorithm.Arg`
+
+    '''
     def __init__(self, module_name, ktype, args):
         ParsedCall.__init__(self, ktype, args)
         self._module_name = module_name
 
     @property
     def type(self):
+        '''Specifies that this is a kernel call.
+
+        :returns: the type of call as a string.
+        :rtype: str
+
+        '''
         return "kernelCall"
 
     def __repr__(self):
@@ -811,65 +862,132 @@ class KernelCall(ParsedCall):
 
 
 class BuiltInCall(ParsedCall):
-    ''' A built-in call (appearing in
-    `call invoke(kernel_name(field_name, ...))` '''
+    '''Store information about a system-supplied (builtin)
+    kernel. Specialises the generic ParsedCall class adding a function
+    name method (the name of the builtin) and a type for
+    distinguishing this class.
 
+    :param ktype: information about this builtin. Provides \
+    access to the PSyclone description metadata.
+    :type ktype: APi-specific specialisation of \
+    :py:class:`psyclone.dynamo0p3.KernelType`
+    :param args: a list of Arg instances which capture the relevant \
+    information about the arguments associated with the call to the \
+    kernel or builtin
+    :type arg: list of :py:class:`psyclone.parse.algorithm.Arg`
+
+    '''
     def __init__(self, ktype, args):
         ParsedCall.__init__(self, ktype, args)
         self._func_name = ktype.name
 
     @property
     def func_name(self):
+        '''
+        :returns: the name of this builtin.
+        :rtype: str
+
+        '''
         return self._func_name
 
     @property
     def type(self):
+        '''Specifies that this is a builtin call.
+
+        :returns: the type of call as a string.
+        :rtype: str
+
+        '''
         return "BuiltInCall"
 
     def __repr__(self):
-        return 'BuiltInCall(%s, %s)' % (self.args)
+        return 'BuiltInCall(%s)' % (self.args)
 
 
 class Arg(object):
-    ''' Description of an argument as obtained from parsing the Fortran code
-        where a kernel is invoke'd '''
+    '''Description of an argument as obtained from parsing kernel or
+    builtin arguments within invokes in a PSyclone algorithm code.
+
+    :param str form: describes whether the argument is a literal \
+    value, standard variable or indexed variable. Supported options \
+    are specified in the local formOptions list.
+    :param str text: the original Fortran text of the argument.
+    :param varName: the extracted variable name from the text if the \
+    form is not literal otherwise it is set to None. This is optional \
+    and defaults to None.
+    :value varName: str or NoneType
+
+    :raises InternalError: if the form argument is not one one of the \
+    supported types as specified in the local formOptions list.
+
+    '''
+    formOptions = ["literal", "variable", "indexed_variable"]
+
     def __init__(self, form, text, varName=None):
-        formOptions = ["literal", "variable", "indexed_variable"]
         self._form = form
         self._text = text
+        # ***************** IS THIS NEEDED??? ******
         # Replace any '%' chars in the supplied name with underscores so
         # as to have a valid Fortran variable name (in the PSy layer).
         if varName:
-            self._varName = varName.replace("%", "_")
+            self._varname = varName.replace("%", "_")
         else:
-            self._varName = None
-        if form not in formOptions:
-            raise ParseError(
+            self._varname = None
+        if form not in Arg.formOptions:
+            raise InternalError(
                 "Unknown arg type provided. Expected one of {0} but found "
-                "{1}".format(str(formOptions), form))
+                "{1}".format(str(Arg.formOptions), form))
 
     def __str__(self):
         return "Arg(form='{0}',text='{1}',varName='{2}'". \
-            format(self._form, self._text, str(self._varName))
+            format(self._form, self._text, str(self._varname))
 
     @property
     def form(self):
+        '''
+        :returns: a string indicating what type of variable this \
+        is. Supported options are specified in the local formOptions \
+        list.
+        :rtype: str
+
+        '''
         return self._form
 
     @property
     def text(self):
+        '''
+        :returns: the original Fortran text of the argument.
+        :rtype: str
+
+        '''
         return self._text
 
     @property
     def varName(self):
-        return self._varName
+        '''
+        :returns: the extracted variable name from the text if the \
+        form is not literal and None otherwise
+        :rtype: str or NoneType
+
+        '''
+        return self._varname
 
     @varName.setter
     def varName(self, value):
-        ''' sets the varName value '''
-        self._varName = value
+        '''Allows the setting or re-setting of the variable name value.
+
+        :param str value: the new variable name
+
+        '''
+        self._varname = value
 
     def is_literal(self):
+        ''' Indicates whether this argument is a literal or not.
+
+        :returns: True if this argument is a literal and False otherwise.
+        :rtype: bool
+
+        '''
         if self._form == "literal":
             return True
         return False
