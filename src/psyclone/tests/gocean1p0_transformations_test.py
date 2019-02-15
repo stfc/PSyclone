@@ -1841,6 +1841,26 @@ def test_acc_indep(capsys):
     assert "!$acc loop independent\n      DO j=2,jstop+1" in gen
 
 
+def test_acc_loop_seq():
+    ''' Check that we can apply the sequential clause to an ACC LOOP
+    directive. '''
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                             name="invoke_0")
+    schedule = invoke.schedule
+    new_sched, _ = acclpt.apply(schedule.children[0], sequential=True)
+    new_sched, _ = accpara.apply(new_sched.children)
+    new_sched, _ = accdata.apply(new_sched)
+    # Check the generated code
+    invoke.schedule = new_sched
+    gen = str(psy.gen).lower()
+    assert ("      !$acc parallel default(present)\n"
+            "      !$acc loop seq\n"
+            "      do j=2,jstop\n" in gen)
+
+
 def test_acc_loop_view(capsys):
     ''' Test for the view() method of ACCLoopDirective. '''
     acclpt = ACCLoopTrans()
