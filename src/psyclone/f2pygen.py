@@ -536,6 +536,41 @@ class ProgUnitGen(BaseGen):
         return end_index
 
 
+class ProgramGen(ProgUnitGen):
+    ''' Create a Fortran program '''
+    def __init__(self, name="", contains=False, implicitnone=True):
+        '''
+        :param parent: node in AST to which to add Program as a child
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+        :param str name: name of the Fortran program
+        :param bool contains: whether or not we should add "contains" \
+                              for any internal or module subprograms \
+                              this program may have.
+        :param bool implicitnone: whether or not we should specify \
+                                  "implicit none" for the body of this \
+                                  program.
+        '''
+        from fparser import api
+        code = '''\
+program vanilla
+'''
+        if contains:
+            code += '''\
+contains
+'''
+        code += '''\
+end program vanilla
+'''
+        tree = api.parse(code, ignore_comments=False)
+        program = tree.content[0]
+        program.name = name
+        endprog = program.content[len(program.content)-1]
+        endprog.name = name
+        ProgUnitGen.__init__(self, None, program)
+        if implicitnone:
+            self.add(ImplicitNoneGen(self))
+
+
 class ModuleGen(ProgUnitGen):
     ''' create a fortran module '''
     def __init__(self, name="", contains=True, implicitnone=True):
@@ -643,16 +678,17 @@ class ImplicitNoneGen(BaseGen):
     def __init__(self, parent):
         '''
         :param parent: node in AST to which to add 'implicit none' as a child
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen` or
-                      :py:class:`psyclone.f2pygen.SubroutineGen`
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`, \
+                      :py:class:`psyclone.f2pygen.SubroutineGen` or \
+                      :py:class:`psyclone.f2pygen.ProgramGen`
 
-        :raises Exception: if `parent` is not a ModuleGen or SubroutineGen
+        :raises Exception: if `parent` is not a ModuleGen, SubroutineGen \
+                           or a ProgramGen
         '''
-        if not isinstance(parent, ModuleGen) and not isinstance(parent,
-                                                                SubroutineGen):
+        if not isinstance(parent, (ModuleGen, SubroutineGen, ProgramGen)):
             raise Exception(
-                "The parent of ImplicitNoneGen must be a module or a "
-                "subroutine, but found {0}".format(type(parent)))
+                "The parent of ImplicitNoneGen must be a module, a subroutine "
+                "or a program but found {0}".format(type(parent)))
         reader = FortranStringReader("IMPLICIT NONE\n")
         reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()

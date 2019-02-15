@@ -39,7 +39,8 @@ from __future__ import absolute_import, print_function
 import pytest
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
-    CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
+    CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen, \
+    ProgramGen
 from psyclone.psyGen import InternalError
 from psyclone_test_utils import count_lines, line_number, string_compiles
 
@@ -896,6 +897,26 @@ def test_progunit_multiple_use3():
     assert count_lines(sub.root, "USE fred") == 2
     # ensure that the input list does not get modified
     assert funcnames == ["c", "d"]
+
+
+def test_programgen_stub():
+    '''Check that we correctly generate a simple stub program'''
+    program = ProgramGen(name="testprogram", contains=True)
+    # This is wrong, program or module should not allow
+    # adding subroutine without "contains" statement
+    subroutine = SubroutineGen(program, name="testsubroutine")
+    program.add(subroutine)
+    gen = str(program.root)
+    print(str(gen))
+    expected = (
+        "      USE fred, ONLY: d\n"
+        "      USE fred, ONLY: a, b, c")
+    assert expected in gen
+    #sub = SubroutineGen(module, name="testsubroutine")
+    #module.add(sub)
+    #sub.add(UseGen(sub, name="fred"))
+    #sub.add(UseGen(sub, name="fred"))
+    #assert count_lines(sub.root, "USE fred") == 1
 
 
 def test_adduse_empty_only():
