@@ -92,5 +92,5 @@ def check_ll(alg_filename):
         code_str = myfile.read()
     if fll.long_lines(code_str):
         raise ParseError(
-            "the algorithm file does not conform to the specified {0} line "
+            "the file does not conform to the specified {0} line "
             "length limit".format(str(fll.length)))

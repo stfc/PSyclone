@@ -113,7 +113,7 @@ def test_kerntypefactory_create_broken_type():
     test_builtin_name = "aX_plus_Y"
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(None, name=test_builtin_name.lower())
-    assert ("KernelTypeFactory: Internal Error: Unsupported kernel type"
+    assert ("KernelTypeFactory:create: Unsupported kernel type"
             in str(excinfo.value))
 
 

@@ -53,7 +53,7 @@ from fparser.one import parsefortran
 import psyclone.expression as expr
 from psyclone.psyGen import InternalError
 from psyclone.configuration import Config
-from psyclone.parse.utils import check_ll, ParseError
+from psyclone.parse.utils import check_api, check_ll, ParseError
 
 from pyparsing import ParseException
 
@@ -196,45 +196,47 @@ def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
 
 
 class KernelTypeFactory(object):
-    '''
-    Factory for objects in the PSyIR representing calls to user-supplied
-    Kernels.
+    '''Factory to create the required API-specific information about
+    coded-kernel metadata and a reference to its code.
 
-    :param str api: The API for which this factory is to create Kernels.
+    :param str api: The API for which this factory is to create Kernel \
+    information. If it is not supplied then the default API, as \
+    specified in the PSyclone config file is used.
+
     '''
     def __init__(self, api=""):
-        if api == "":
+        if not api:
             _config = Config.get()
             self._type = _config.default_api
         else:
-            from psyclone.parse.utils import check_api
             check_api(api)
             self._type = api
 
-    def create(self, ast, name=None):
-        '''
-        Create a Kernel object for the API supplied to the constructor
-        of this factory.
+    def create(self, parse_tree, name=None):
+        '''Create API-specific information about the kernel metadata and a
+        reference to its code. The API is set when the factory is
+        created.
 
-        :param ast: The fparser1 AST for the Kernel code.
-        :type ast: :py:class:`fparser.one.block_statements.BeginSource`
-        :param str name: the name of the Kernel or None.
+        :param parse_tree: The fparser1 parse tree for the Kernel code.
+        :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
+        :param str name: the name of the Kernel or None ***** ??? WHY
+
         '''
+        # ***** MOVE DynKernelType to dynamo0p1.py ****???
         if self._type == "dynamo0.1":
-            return DynKernelType(ast, name=name)
+            return DynKernelType(parse_tree, name=name)
         elif self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
-            return DynKernMetadata(ast, name=name)
+            return DynKernMetadata(parse_tree, name=name)
         elif self._type == "gocean0.1":
-            return GOKernelType(ast, name=name)
+            return GOKernelType(parse_tree, name=name)
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOKernelType1p0
-            return GOKernelType1p0(ast, name=name)
+            return GOKernelType1p0(parse_tree, name=name)
         else:
             raise ParseError(
-                "KernelTypeFactory: Internal Error: Unsupported "
-                "kernel type '{0}' found. Should not be possible.".
-                format(self._type))
+                "KernelTypeFactory:create: Unsupported kernel type '{0}' "
+                "found.".format(self._type))
 
 
 class BuiltInKernelTypeFactory(KernelTypeFactory):
