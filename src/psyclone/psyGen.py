@@ -1674,8 +1674,16 @@ class ACCDirective(Directive):
 
     def add_region(self, start_text, end_text=None, start_index=None):
         '''
+        Modifies the underlying fparser2 parse tree to include a subset
+        of nodes within a region. (e.g. a 'kernels' or 'data' region.)
+
+        :param str start_text: the directive text to insert at the \
+                               beginning of the region.
+        :param str end_text: the directive text to insert at the end of \
+                             the region (or None).
+        :param int start_index: the position at which to insert the start \
+                                text (or None to include all children)
         '''
-        # TODO can this whole method be removed?
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
 
@@ -1694,9 +1702,12 @@ class ACCDirective(Directive):
         parent_ast = parent._ast
 
         if start_index is None:
+            # Find the location of the AST of our first child node in the
+            # list of child AST nodes of our parent.
             ast_start_index = object_index(parent_ast.content,
                                            self.children[0]._ast)
         else:
+            # TODO check that start_index is valid
             ast_start_index = start_index
 
         if end_text:
@@ -1955,10 +1966,12 @@ class ACCParallelDirective(ACCDirective):
         return scalars
 
     def update(self):
-
-        start_text = "!$ACC PARALLEL"
-        end_text = "!$ACC END PARALLEL"
-        self.add_region(start_text, end_text)
+        '''
+        Update the underlying fparser2 parse tree with nodes for the start
+        and end of this parallel region.
+        '''
+        self.add_region(start_text="!$ACC PARALLEL",
+                        end_text="!$ACC END PARALLEL")
 
 
 class ACCLoopDirective(ACCDirective):
@@ -2061,7 +2074,7 @@ class ACCLoopDirective(ACCDirective):
                 text += " INDEPENDENT"
             if self._collapse:
                 text += " COLLAPSE({0})".format(self._collapse)
-        self.add_region(text)
+        self.add_region(start_text=text)
 
 
 class OMPDirective(Directive):
