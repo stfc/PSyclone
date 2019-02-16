@@ -35,11 +35,12 @@
 # Daresbury Lab
 
 '''Module that uses the Fortran parser fparser1 to parse
-PSyclone-conformant Kernel code.
+PSyclone-conformant kernel code.
 
 '''
 
 import os
+from pyparsing import ParseException
 import fparser
 
 from fparser.two.parser import ParserFactory
@@ -54,8 +55,6 @@ import psyclone.expression as expr
 from psyclone.psyGen import InternalError
 from psyclone.configuration import Config
 from psyclone.parse.utils import check_api, check_ll, ParseError
-
-from pyparsing import ParseException
 
 
 def get_kernel_filepath(module_name, kernel_path, alg_filename):
@@ -83,9 +82,11 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
     name.
     :rtype: str
 
-    :except ParseError: if the supplied kernel directory does not exist
+    :except ParseError: if the supplied kernel directory does not \
+    exist
     :except ParseError: if the file can not be found
-    :except ParseError: if more than one file with the specified name is found
+    :except ParseError: if more than one file with the specified name \
+    is found
 
     '''
     import fnmatch
@@ -201,7 +202,7 @@ class KernelTypeFactory(object):
 
     :param str api: The API for which this factory is to create Kernel \
     information. If it is not supplied then the default API, as \
-    specified in the PSyclone config file is used.
+    specified in the PSyclone config file, is used.
 
     '''
     def __init__(self, api=""):
@@ -219,16 +220,22 @@ class KernelTypeFactory(object):
 
         :param parse_tree: The fparser1 parse tree for the Kernel code.
         :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
-        :param str name: the name of the Kernel or None ***** ??? WHY
+
+        :param name: the name of the Kernel. Defaults to None if \
+        one is not provided.
+        :type name: str or NoneType
+
+        :raises ParseError: if the supplied API is not supported.
 
         '''
-        # ***** MOVE DynKernelType to dynamo0p1.py ****???
         if self._type == "dynamo0.1":
+            from psyclone.dynamo0p1 import DynKernelType
             return DynKernelType(parse_tree, name=name)
         elif self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
             return DynKernMetadata(parse_tree, name=name)
         elif self._type == "gocean0.1":
+            from psyclone.gocean0p1 import GOKernelType
             return GOKernelType(parse_tree, name=name)
         elif self._type == "gocean1.0":
             from psyclone.gocean1p0 import GOKernelType1p0
@@ -240,13 +247,37 @@ class KernelTypeFactory(object):
 
 
 class BuiltInKernelTypeFactory(KernelTypeFactory):
-    ''' Factory class for calls to built-ins '''
+    '''Create API-specific information about the builtin metadata. The API
+    is set when the factory is created. Subclasses KernelTypeFactory
+    and makes use of its init method.
 
+    '''
     def create(self, builtin_names, builtin_defs_file, name=None):
-        ''' Create a built-in call object '''
+        '''Create API-specific information about the builtin metadata. This
+        method finds and parses the metadata then makes use of the
+        KernelTypeFactory parent class to return the api-specific
+        information about the builtin.
+
+        :param builtin_names: a list of valid builtin names
+        :type builtin_names: list of str
+        :param str builtin_defs_file: the file containing builtin \
+        metadata
+        :param name: the name of the builtin. Defaults to None if \
+        one is not provided.
+        :type name: str or NoneType
+
+        :raises ParseError: if the supplied name is not one of the \
+        builtin names
+        :raises ParseError: if the supplied name is recognised as a \
+        builtin but the associated file containing the required \
+        metadata can not be found.
+        :raises ParseError: if the metadata for the supplied builtin \
+        can not be parsed.
+
+        '''
         if name not in builtin_names:
             raise ParseError(
-                "BuiltInKernelTypeFactory: unrecognised built-in name. "
+                "BuiltInKernelTypeFactory:create unrecognised built-in name. "
                 "Got '{0}' but expected one of {1}".format(name,
                                                            builtin_names))
         # The meta-data for these lives in a Fortran module file
@@ -256,36 +287,41 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             builtin_defs_file)
         if not os.path.isfile(fname):
             raise ParseError(
-                "Kernel '{0}' is a recognised Built-in but cannot "
-                "find file '{1}' containing the meta-data describing "
-                "the Built-in operations for API '{2}'".format(name,
-                                                               fname,
-                                                               self._type))
+                "BuiltInKernelTypeFactory:create Kernel '{0}' is a recognised "
+                "Built-in but cannot find file '{1}' containing the meta-data "
+                "describing the Built-in operations for API '{2}'"
+                .format(name, fname, self._type))
         # Attempt to parse the meta-data
         try:
             parsefortran.FortranParser.cache.clear()
             fparser.logging.disable(fparser.logging.CRITICAL)
-            ast = fpapi.parse(fname)
+            parse_tree = fpapi.parse(fname)
         except:
             raise ParseError(
-                "Failed to parse the meta-data for PSyclone "
-                "built-ins in {0}".format(fname))
+                "BuiltInKernelTypeFactory:create Failed to parse the "
+                "meta-data for PSyclone built-ins in {0}".format(fname))
 
-        # Now we have the AST, call our parent class to create the object
-        return KernelTypeFactory.create(self, ast, name)
+        # Now we have the parse tree, call our parent class to create \
+        # the object
+        return KernelTypeFactory.create(self, parse_tree, name)
 
 
 def get_mesh(metadata, valid_mesh_types):
     '''
     Returns the mesh-type described by the supplied meta-data
+
     :param  metadata: node in parser ast
     :type metadata: py:class:`psyclone.expression.NamedArg`
     :param valid_mesh_types: List of valid mesh types
     :type valid_mesh_types: list of strings
+
     :return: the name of the mesh
     :rtype: string
-    :raises ParseError: if the supplied meta-data is not a recognised
-                        mesh identifier
+
+    :raises ParseError: if the supplied meta-data is not a recognised \
+                        mesh identifier.
+    :raises ParseError: if the mesh type is unsupported.
+
     '''
     if not isinstance(metadata, expr.NamedArg) or \
        metadata.name.lower() != "mesh_arg":
@@ -301,20 +337,21 @@ def get_mesh(metadata, valid_mesh_types):
 
 
 def get_stencil(metadata, valid_types):
-    '''
-    Returns stencil_type and stencil_extent as a dictionary
+    '''Returns stencil_type and stencil_extent as a dictionary
     object from stencil metadata if the metadata conforms to the
     stencil(type[,extent]) format
 
-    :param metadata: Component of kernel meta-data stored as a node in the
-                     parser AST
+    :param metadata: Component of kernel meta-data stored as a node in \
+                     the parser AST
     :type metadata: :py:class:`psyclone.expression.FunctionVar`
     :param list valid_types: List of valid stencil types (strings)
+
     :return: The stencil type and extent described in the meta-data
     :rtype: dict with keys 'type' (str) and 'extent' (int)
 
-    :raises ParseError: if the supplied meta-data is not a recognised
+    :raises ParseError: if the supplied meta-data is not a recognised \
                         stencil specification
+
     '''
 
     if not isinstance(metadata, expr.FunctionVar):
@@ -373,15 +410,18 @@ def get_stencil(metadata, valid_types):
 
 
 class Descriptor(object):
-    """A description of how a kernel argument is accessed"""
+    '''A description of how a kernel argument is accessed
+
+    :param str access: whether argument is read/write etc.
+    :param str space: which function space/grid-point type argument is \
+    on
+    :param dict stencil: type of stencil access for this \
+    argument. Defaults to None if the argument is not supplied.
+    :param string mesh: which mesh this argument is on. Defaults to \
+    None if the argument is not supplied.
+
+    '''
     def __init__(self, access, space, stencil=None, mesh=None):
-        '''
-        :param string access: whether argument is read/write etc.
-        :param string space: which function space/grid-point type
-                             argument is on
-        :param dict stencil: type of stencil access for this argument
-        :param string mesh: which mesh this argument is on
-        '''
         self._access = access
         self._space = space
         self._stencil = stencil
@@ -389,72 +429,47 @@ class Descriptor(object):
 
     @property
     def access(self):
+        '''
+        :returns: whether argument is read/write etc.
+        :rtype: str
+
+        '''
         return self._access
 
     @property
     def function_space(self):
+        '''
+        :returns: which function space/grid-point type argument is on.
+        :rtype: str
+
+        '''
         return self._space
 
     @property
     def stencil(self):
+        '''
+        :returns: type of stencil access for this argument.
+        :rtype: dict or NoneType
+
+        '''
         return self._stencil
 
     @property
     def mesh(self):
         '''
-        :return: the mesh the argument is on (or None)
-        :rtype: string
+        :returns: the mesh the argument is on.
+        :rtype: str or NoneType
+
         '''
         return self._mesh
 
     def __repr__(self):
-        return 'Descriptor(%s, %s)' % (self.stencil, self.access)
-
-
-class GODescriptor(Descriptor):
-    def __init__(self, access, space, stencil):
-        Descriptor.__init__(self, access, space, stencil)
-
-
-class DynDescriptor(Descriptor):
-    def __init__(self, access, funcspace, stencil, basis, diff_basis,
-                 gauss_quad):
-        Descriptor.__init__(self, access, funcspace, stencil)
-        self._basis = basis
-        self._diff_basis = diff_basis
-        self._gauss_quad = gauss_quad
-
-    @property
-    def basis(self):
-        return self._basis
-
-    @property
-    def diff_basis(self):
-        return self._diff_basis
-
-    @property
-    def gauss_quad(self):
-        return self._gauss_quad
-
-
-class FunctionSpace(object):
-
-    def __init__(self, element, dimension):
-        self._element = element
-        self._dimension = dimension
-
-    @property
-    def element(self):
-        return self._element
-
-    @property
-    def dimension(self):
-        return self._dimension
+        return "Descriptor({0}, {1})".format(self.stencil, self.access)
 
 
 class KernelProcedure(object):
-    """
-    An elemental Kernel procedure.
+    '''
+    Captures the parse tree and name of a kernel subroutine.
 
     :param ktype_ast: the fparser1 parse tree for the Kernel meta-data.
     :type ktype_ast: :py:class:`fparser.one.block_statements.Type`
@@ -464,7 +479,7 @@ class KernelProcedure(object):
                    Kernel routine.
     :type modast: :py:class:`fparser.one.block_statements.BeginSource`
 
-    """
+    '''
     def __init__(self, ktype_ast, ktype_name, modast):
         self._ast, self._name = KernelProcedure.get_procedure(
             ktype_ast, ktype_name, modast)
@@ -554,10 +569,20 @@ class KernelProcedure(object):
 
     @property
     def name(self):
+        '''
+        :returns: the name of the kernel subroutine
+        :rtype" str
+
+        '''
         return self._name
 
     @property
     def ast(self):
+        '''
+        :returns: the parse tree of the kernel subroutine
+        :rtype: :py:class:`fparser.one.block_statements.Subroutine`
+
+        '''
         return self._ast
 
     def __repr__(self):
@@ -568,7 +593,7 @@ class KernelProcedure(object):
 
 
 class KernelType(object):
-    """
+    '''
     Base class for describing Kernel Metadata.
 
     This contains the name of the elemental procedure and metadata associated
@@ -581,7 +606,7 @@ class KernelType(object):
     :raises ParseError: if the supplied name does not follow the convention \
                         of ending in "_mod" or the AST does not contain a \
                         module definition.
-    """
+    '''
     def __init__(self, ast, name=None):
 
         if name is None:
@@ -625,8 +650,30 @@ class KernelType(object):
         self._arg_descriptors = []  # this is set up by the subclasses
 
     def getkerneldescriptors(self, ast, var_name='meta_args'):
+        '''Get the required argument metadata information for a
+        kernel.
+
+        :param ast: metadata describing kernel arguments
+        :type ast: :py:class:`fparser.one.block_statements.Type`
+        :param str var_name:
+
+        :returns: Argument metadata parsed using the expression parser
+        (as fparser1 will not parse expressions and arguments).
+        :rtype: :py:class:`psyclone.expression.LiteralArray`
+
+        :raises ParseError: if 'var_name' is not found in the metadata
+        :raises ParseError: if 'var_name' is not an array
+        :raises ParseError: if 'var_name' is not a 1D array
+        :raises ParseError: if the structure constructor uses '[...]' \
+        as only '(/.../)' is supported.
+        :raises ParseError: if 'var_name' is not a 1D array
+        :raises ParseError: if the argument metadata can't be parsed.
+        :raises ParseError: if the dimensions specified does not tally \
+        with the number of metadata arguments.
+
+        '''
         descs = ast.get_variable(var_name)
-        if descs is None:
+        if not descs:
             raise ParseError(
                 "kernel call does not contain a {0} type".format(var_name))
         try:
@@ -635,12 +682,12 @@ class KernelType(object):
             raise ParseError(
                 "kernel metadata {0}: {1} variable must be an array".
                 format(self._name, var_name))
-        if len(descs.shape) is not 1:
+        if len(descs.shape) != 1:
             raise ParseError(
                 "kernel metadata {0}: {1} variable must be a 1 dimensional "
                 "array".format(self._name, var_name))
         if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
-            # there is a bug in f2py
+            # there is a bug in fparser1
             raise ParseError(
                 "Parser does not currently support [...] initialisation for "
                 "{0}, please use (/.../) instead".format(var_name))
@@ -659,22 +706,47 @@ class KernelType(object):
 
     @property
     def name(self):
+        '''
+        :returns: the name of the kernel subroutine.
+        :rtype: str
+
+        '''
         return self._name
 
     @property
     def iterates_over(self):
+        '''
+        :returns: the name of the iteration space supported by this kernel
+        :rtype: str
+
+        '''
         return self._iterates_over
 
     @property
     def procedure(self):
+        ''' ****************** '''
         return self._procedure
 
     @property
     def nargs(self):
+        '''
+        :returns: the number of arguments specified in the metadata.
+        :rtype: int
+
+        '''
         return len(self._arg_descriptors)
 
     @property
     def arg_descriptors(self):
+        '''
+        :returns: a list of API-specific argument descriptors.
+        :rtype: list of ***************************
+
+        '''
+        print (type(self._arg_descriptors))
+        for desc in self._arg_descriptors:
+            print (type(desc))
+        exit(1)
         return self._arg_descriptors
 
     def __repr__(self):
@@ -782,42 +854,3 @@ class KernelType(object):
                                         "'{0}'".format(str(assign.items[2])))
                 return [str(name) for name in names]
         return []
-
-
-class DynKernelType(KernelType):
-    def __init__(self, ast, name=None):
-        KernelType.__init__(self, ast, name=name)
-        self._arg_descriptors = []
-        for init in self._inits:
-            if init.name != 'arg_type':
-                raise ParseError(
-                    "Each meta_arg value must be of type 'arg_type' for the "
-                    "dynamo0.1 api, but found '{0}'".format(init.name))
-            access = init.args[0].name
-            funcspace = init.args[1].name
-            stencil = init.args[2].name
-            x1 = init.args[3].name
-            x2 = init.args[4].name
-            x3 = init.args[5].name
-            self._arg_descriptors.append(DynDescriptor(access, funcspace,
-                                                       stencil, x1, x2, x3))
-
-
-class GOKernelType(KernelType):
-    def __init__(self, ast, name=None):
-        KernelType.__init__(self, ast, name=name)
-        self._arg_descriptors = []
-        for init in self._inits:
-            if init.name != 'arg':
-                raise ParseError(
-                    "Each meta_arg value must be of type 'arg' for the "
-                    "gocean0.1 api, but found '{0}'".format(init.name))
-            access = init.args[0].name
-            funcspace = init.args[1].name
-            stencil = init.args[2].name
-            if len(init.args) != 3:
-                raise ParseError(
-                    "'arg' type expects 3 arguments but found '{}' in '{}'".
-                    format(str(len(init.args)), init.args))
-            self._arg_descriptors.append(GODescriptor(access, funcspace,
-                                                      stencil))

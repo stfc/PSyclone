@@ -41,6 +41,48 @@
 from __future__ import absolute_import
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
         Arguments, Argument, GenerationError
+from psyclone.parse.kernel import KernelType, Descriptor
+
+
+class DynDescriptor(Descriptor):
+    def __init__(self, access, funcspace, stencil, basis, diff_basis,
+                 gauss_quad):
+        Descriptor.__init__(self, access, funcspace, stencil)
+        self._basis = basis
+        self._diff_basis = diff_basis
+        self._gauss_quad = gauss_quad
+
+    @property
+    def basis(self):
+        return self._basis
+
+    @property
+    def diff_basis(self):
+        return self._diff_basis
+
+    @property
+    def gauss_quad(self):
+        return self._gauss_quad
+
+
+class DynKernelType(KernelType):
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self, ast, name=name)
+        self._arg_descriptors = []
+        for init in self._inits:
+            if init.name != 'arg_type':
+                raise ParseError(
+                    "Each meta_arg value must be of type 'arg_type' for the "
+                    "dynamo0.1 api, but found '{0}'".format(init.name))
+            access = init.args[0].name
+            funcspace = init.args[1].name
+            stencil = init.args[2].name
+            x1 = init.args[3].name
+            x2 = init.args[4].name
+            x3 = init.args[5].name
+            self._arg_descriptors.append(DynDescriptor(access, funcspace,
+                                                       stencil, x1, x2, x3))
+
 
 class DynamoPSy(PSy):
     '''
