@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council.
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -98,42 +98,25 @@ def test_explicit_do_sched():
     assert isinstance(loops[2].children[0], nemo.NemoKern)
 
 
-def test_implicit_loop_sched1():
-    ''' Check that we get the correct schedule for an implicit loop '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "implicit_do.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    assert isinstance(psy, nemo.NemoPSy)
-    print(len(psy.invokes.invoke_list))
-    sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
-    loops = sched.walk(sched.children, nemo.NemoLoop)
-    assert len(loops) == 3
-    kerns = sched.kern_calls()
-    assert len(kerns) == 1
-
-
-def test_implicit_loop_sched2():
-    ''' Check that we get the correct schedule for an explicit loop over
-    levels containing an implicit loop over the i-j slab '''
+def test_array_valued_function():
+    ''' Check that we handle array notation used when there is no implicit
+    loop. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "explicit_over_implicit.f90"),
+                                        "array_valued_function.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     sched.view()
-    # We should have 3 loops (one from the explicit loop over levels and
-    # the other two from the implicit loops over ji and jj).
-    loops = sched.walk(sched.children, nemo.NemoLoop)
-    assert len(loops) == 3
-    kerns = sched.kern_calls()
-    assert len(kerns) == 1
+    assert len(sched.children) == 2
+    # We should just have two assignments and no Kernels
+    kernels = sched.walk(sched.children, nemo.NemoKern)
+    assert not kernels
 
 
 def test_multi_kern():
     ''' Test that having multiple kernels within a single loop raises
     the expected error. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "two_explicit_do.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
@@ -171,50 +154,6 @@ def test_implicit_loop_assign():
         assert gen.count("integer :: {0}".format(var)) == 1
 
 
-def test_unrecognised_implicit():
-    ''' Check that we raise the expected error if we encounter an
-    unrecognised form of implicit loop. '''
-    from psyclone.nemo import NemoImplicitLoop, NemoInvoke
-    # Array syntax used in an unsupported index location
-    reader = FortranStringReader("umask(:, :, :, :) = 0.0D0")
-    assign = Fortran2003.Assignment_Stmt(reader)
-    with pytest.raises(GenerationError) as err:
-        NemoImplicitLoop(assign)
-    assert ("Array section in unsupported dimension (4) for code "
-            "'umask(:, :, :, :) = 0.0D0'" in str(err))
-    # and now for the case where the Program unit doesn't have a
-    # specification section to modify. This is hard to trigger
-    # so we manually construct some objects and put them together
-    # to create an artificial example...
-    reader = FortranStringReader("umask(:, :, :) = 0.0D0")
-    assign = Fortran2003.Assignment_Stmt(reader)
-    reader = FortranStringReader("program atest\nreal :: umask(1,1,1,1)\n"
-                                 "umask(:, :, :) = 0.0\nend program atest")
-    prog = Fortran2003.Program_Unit(reader)
-    invoke = NemoInvoke(prog, name="atest")
-    loop = NemoImplicitLoop.__new__(NemoImplicitLoop)
-    loop._parent = None
-    loop.invoke = invoke
-    loop.root.invoke._ast = prog
-    spec = walk_ast(prog.content, [Fortran2003.Specification_Part])
-    prog.content.remove(spec[0])
-    with pytest.raises(InternalError) as err:
-        loop.__init__(assign)
-    assert "No specification part found for routine atest" in str(err)
-
-
-def test_implicit_range_err():
-    ''' Check that we raise the expected error if we encounter an implicit
-    loop with an explicit range (since we don't yet support that). '''
-    # Array syntax with an explicit range
-    reader = FortranStringReader("umask(1:jpi, 1, :) = 0.0D0")
-    assign = Fortran2003.Assignment_Stmt(reader)
-    with pytest.raises(NotImplementedError) as err:
-        nemo.NemoImplicitLoop(assign)
-    assert ("Support for implicit loops with specified bounds is not yet "
-            "implemented: 'umask(1 : jpi, 1, :) = 0.0D0'" in str(err))
-
-
 def test_complex_code():
     ''' Check that we get the right schedule when the code contains
     multiple statements of different types '''
@@ -227,7 +166,7 @@ def test_complex_code():
     cblocks = sched.walk(sched.children, CodeBlock)
     assert len(cblocks) == 4
     kerns = sched.kern_calls()
-    assert len(kerns) == 2
+    assert len(kerns) == 1
     # The last loop does not contain a kernel
     assert loops[-1].kernel is None
 
@@ -299,7 +238,7 @@ def test_kern_inside_if():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     kerns = sched.kern_calls()
-    assert len(kerns) == 6
+    assert len(kerns) == 4
     ifblock = sched.children[0].children[1]
     assert isinstance(ifblock, nemo.NemoIfBlock)
     assert str(ifblock) == "If-block: jk == 1"

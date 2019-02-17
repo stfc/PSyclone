@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -84,3 +84,13 @@ def have_graphviz():
     also have been installed for dag generation to work correctly. '''
     import sys
     return "graphviz" in sys.modules
+
+
+@pytest.fixture(scope="session")
+def parser():
+    '''
+    Creates and returns an fparser object. Since this is expensive we only
+    do this once per test session (scope="session" above).
+    '''
+    from fparser.two.parser import ParserFactory
+    return ParserFactory().create()
