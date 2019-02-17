@@ -408,7 +408,7 @@ def test_kernel_binding_missing():
     mdata = MDATA.replace(
         "contains\n    procedure, nopass :: code => testkern_eval_code\n", "")
     ast = fpapi.parse(mdata)
-    with pytest.raises(RuntimeError) as err:
+    with pytest.raises(ParseError) as err:
         _ = KernelType(ast)
     assert ("Kernel type testkern_eval_type does not bind a specific "
             "procedure" in str(err))

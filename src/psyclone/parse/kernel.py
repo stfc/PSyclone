@@ -161,7 +161,7 @@ def get_kernel_parse_tree(filepath):
         # length issues. Therefore set the information (name) to be
         # empty.
         parse_tree.name = ""
-    except:
+    except Exception:
         raise ParseError(
             "Failed to parse kernel code '{0}'. Is the Fortran correct?".
             format(filepath))
@@ -196,6 +196,7 @@ def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
     return parse_tree
 
 
+# pylint: disable=too-few-public-methods
 class KernelTypeFactory(object):
     '''Factory to create the required API-specific information about
     coded-kernel metadata and a reference to its code.
@@ -252,6 +253,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
     and makes use of its init method.
 
     '''
+    # pylint: disable=arguments-differ
     def create(self, builtin_names, builtin_defs_file, name=None):
         '''Create API-specific information about the builtin metadata. This
         method finds and parses the metadata then makes use of the
@@ -296,7 +298,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             parsefortran.FortranParser.cache.clear()
             fparser.logging.disable(fparser.logging.CRITICAL)
             parse_tree = fpapi.parse(fname)
-        except:
+        except Exception:
             raise ParseError(
                 "BuiltInKernelTypeFactory:create Failed to parse the "
                 "meta-data for PSyclone built-ins in {0}".format(fname))
@@ -304,6 +306,7 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
         # Now we have the parse tree, call our parent class to create \
         # the object
         return KernelTypeFactory.create(self, parse_tree, name)
+# pylint: enable=too-few-public-methods
 
 
 def get_mesh(metadata, valid_mesh_types):
@@ -484,6 +487,7 @@ class KernelProcedure(object):
         self._ast, self._name = KernelProcedure.get_procedure(
             ktype_ast, ktype_name, modast)
 
+    # pylint: disable=too-many-branches
     @staticmethod
     def get_procedure(ast, name, modast):
         '''
@@ -506,10 +510,10 @@ class KernelProcedure(object):
                   statement and the name of that Subroutine.
         :rtype: (:py:class:`fparser1.block_statements.Subroutine`, str)
 
-        :raises RuntimeError: if the supplied Kernel meta-data does not \
-                              have a type-bound procedure.
-        :raises RuntimeError: if no implementation is found for the \
-                              type-bound procedure.
+        :raises ParseError: if the supplied Kernel meta-data does not \
+                            have a type-bound procedure.
+        :raises ParseError: if no implementation is found for the \
+                             type-bound procedure.
         :raises ParseError: if the type-bound procedure specifies a binding \
                             name but the generic name is not "code".
         :raises ParseError: if the type-bound procedure is not public in the \
@@ -535,35 +539,17 @@ class KernelProcedure(object):
                     bname = statement.name
                 break
         if bname is None:
-            raise RuntimeError(
+            raise ParseError(
                 "Kernel type {0} does not bind a specific procedure".
                 format(name))
         if bname == '':
             raise InternalError(
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
-        code = None
-        default_public = True
-        declared_private = False
-        declared_public = False
-        for statement, depth in fpapi.walk(modast, -1):
-            if isinstance(statement, fparser1.statements.Private):
-                if len(statement.items) == 0:
-                    default_public = False
-                elif bname in statement.items:
-                    declared_private = True
-            if isinstance(statement, fparser1.statements.Public):
-                if len(statement.items) == 0:
-                    default_public = True
-                elif bname in statement.items:
-                    declared_public = True
-            if isinstance(statement, fparser1.block_statements.Subroutine) \
-               and statement.name == bname:
-                if statement.is_public():
-                    declared_public = True
-                code = statement
+        public, code = metadata_public(bname, modast,
+                                    fparser1.block_statements.Subroutine)
         if code is None:
-            raise RuntimeError("Kernel subroutine %s not implemented" % bname)
-        if declared_private or (not default_public and not declared_public):
+            raise ParseError("Kernel subroutine %s not implemented" % bname)
+        if not public:
             raise ParseError("Kernel subroutine '%s' is not public" % bname)
         return code, bname
 
@@ -592,6 +578,71 @@ class KernelProcedure(object):
         return self._ast.__str__()
 
 
+def metadata_public(name, ast, match_type):
+    '''Determine whether the metadata has been specified as being public
+    or private returning True if it is public and False of not.
+
+    :param str name: the metadata name (also the name referencing \
+    the kernel in the algorithm layer)
+    :param ast: parse tree of the kernel module code
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+
+    :returns: True if the metadata is not public and False if not
+    :rtype: bool
+
+    '''
+    code = None
+    default_public = True
+    declared_private = False
+    declared_public = False
+    for statement, _ in fpapi.walk(ast, -1):
+        if isinstance(statement, fparser1.statements.Private):
+            if not statement.items:
+                default_public = False
+            elif name in statement.items:
+                declared_private = True
+        if isinstance(statement, fparser1.statements.Public):
+            if not statement.items:
+                default_public = True
+            elif name in statement.items:
+                declared_public = True
+        if isinstance(statement, match_type) and statement.name == name:
+            if statement.is_public():
+                declared_public = True
+            code = statement
+    if declared_private or (not default_public and not declared_public):
+        return False, code
+    return True, code
+    #    raise ParseError("Kernel type '%s' is not public" % name)
+
+
+def get_kernel_metadata(name, ast):
+    '''Takes the kernel module parse tree and returns the metadata part
+    of the parse tree (a Fortran type) with the name 'name'.
+
+    :param str name: the metadata name (of a Fortran type). Also \
+    the name referencing the kernel in the algorithm layer)
+    :param ast: parse tree of the kernel module code
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+
+    :returns: Parse tree of the metadata (a Fortran type with name \
+    'name')
+    :rtype: :py:class:`fparser.one.block_statements.Type`
+
+    :raises ParseError: if the metadata type name is not found in \
+    the kernel code parse tree
+
+    '''
+    ktype = None
+    for statement, _ in fpapi.walk(ast, -1):
+        if isinstance(statement, fparser1.block_statements.Type) \
+           and statement.name == name:
+            ktype = statement
+    if ktype is None:
+        raise ParseError("Kernel type {0} does not exist".format(name))
+    return ktype
+
+
 class KernelType(object):
     '''
     Base class for describing Kernel Metadata.
@@ -615,7 +666,7 @@ class KernelType(object):
             # the module is called <name/>_mod and the type is called
             # <name/>_type
             found = False
-            for statement, depth in fpapi.walk(ast, -1):
+            for statement, _ in fpapi.walk(ast, -1):
                 if isinstance(statement, fparser1.block_statements.Module):
                     module_name = statement.name
                     found = True
@@ -642,8 +693,10 @@ class KernelType(object):
 
         self._name = name
         self._ast = ast
-        self.checkMetadataPublic(name, ast)
-        self._ktype = self.getKernelMetadata(name, ast)
+        public, _ = metadata_public(name, ast, fparser1.block_statements.Type)
+        if not public:
+            raise ParseError("Kernel type '{0}' is not public".format(name))
+        self._ktype = get_kernel_metadata(name, ast)
         self._iterates_over = self.get_integer_variable("iterates_over")
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits = self.getkerneldescriptors(self._ktype)
@@ -686,7 +739,7 @@ class KernelType(object):
             raise ParseError(
                 "kernel metadata {0}: {1} variable must be a 1 dimensional "
                 "array".format(self._name, var_name))
-        if descs.init.find("[") is not -1 and descs.init.find("]") is not -1:
+        if descs.init.find("[") != -1 and descs.init.find("]") != -1:
             # there is a bug in fparser1
             raise ParseError(
                 "Parser does not currently support [...] initialisation for "
@@ -724,7 +777,12 @@ class KernelType(object):
 
     @property
     def procedure(self):
-        ''' ****************** '''
+        '''
+        :returns: a kernelprocedure instance which contains a parse tree \
+        of the kernel subroutine and its name.
+        :rtype: :py:class:`psyclone.parse.kernel.KernelProcedure`
+
+        '''
         return self._procedure
 
     @property
@@ -740,57 +798,27 @@ class KernelType(object):
     def arg_descriptors(self):
         '''
         :returns: a list of API-specific argument descriptors.
-        :rtype: list of ***************************
+        :rtype: list of API-specific specialisation of \
+        :py:class:`psyclone.kernel.Descriptor`
 
         '''
-        print (type(self._arg_descriptors))
-        for desc in self._arg_descriptors:
-            print (type(desc))
-        exit(1)
         return self._arg_descriptors
 
     def __repr__(self):
         return 'KernelType(%s, %s)' % (self.name, self.iterates_over)
 
-    def checkMetadataPublic(self, name, ast):
-        default_public = True
-        declared_private = False
-        declared_public = False
-        for statement, depth in fpapi.walk(ast, -1):
-            if isinstance(statement, fparser1.statements.Private):
-                if len(statement.items) == 0:
-                    default_public = False
-                elif name in statement.items:
-                    declared_private = True
-            if isinstance(statement, fparser1.statements.Public):
-                if len(statement.items) == 0:
-                    default_public = True
-                elif name in statement.items:
-                    declared_public = True
-            if isinstance(statement, fparser1.block_statements.Type) \
-               and statement.name == name and statement.is_public():
-                declared_public = True
-        if declared_private or (not default_public and not declared_public):
-            raise ParseError("Kernel type '%s' is not public" % name)
-
-    def getKernelMetadata(self, name, ast):
-        ktype = None
-        for statement, depth in fpapi.walk(ast, -1):
-            if isinstance(statement, fparser1.block_statements.Type) \
-               and statement.name == name:
-                ktype = statement
-        if ktype is None:
-            raise RuntimeError("Kernel type %s does not exist" % name)
-        return ktype
-
     def get_integer_variable(self, name):
         ''' Parse the kernel meta-data and find the value of the
         integer variable with the supplied name. Return None if no
         matching variable is found.
+
         :param str name: the name of the integer variable to find.
+
         :returns: value of the specified integer variable or None.
         :rtype: str
+
         :raises ParseError: if the RHS of the assignment is not a Name.
+
         '''
         # Ensure the Fortran2003 parser is initialised
         _ = ParserFactory().create()
@@ -811,17 +839,19 @@ class KernelType(object):
         return None
 
     def get_integer_array(self, name):
-        ''' Parse the kernel meta-data and find the value of the
+        ''' Parse the kernel meta-data and find the values of the
         integer array variable with the supplied name. Returns an empty list
         if no matching variable is found.
 
         :param str name: the name of the integer array to find.
         :returns: list of values.
         :rtype: list of str.
+
         :raises InternalError: if we fail to parse the LHS of the array \
                                declaration or the array constructor.
         :raises ParseError: if the RHS of the declaration is not an array \
                             constructor.
+
         '''
         # Ensure the classes are setup for the Fortran2003 parser
         _ = ParserFactory().create()
