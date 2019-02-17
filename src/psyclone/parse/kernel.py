@@ -545,8 +545,8 @@ class KernelProcedure(object):
         if bname == '':
             raise InternalError(
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
-        public, code = metadata_public(bname, modast,
-                                    fparser1.block_statements.Subroutine)
+        public, code = construct_public(bname, modast,
+                                        fparser1.block_statements.Subroutine)
         if code is None:
             raise ParseError("Kernel subroutine %s not implemented" % bname)
         if not public:
@@ -578,17 +578,20 @@ class KernelProcedure(object):
         return self._ast.__str__()
 
 
-def metadata_public(name, ast, match_type):
-    '''Determine whether the metadata has been specified as being public
-    or private returning True if it is public and False of not.
+def construct_public(name, ast, match_type):
+    '''Determine whether the 'match_type' construct with name 'name' has
+    been specified as being public or private returning True if it is
+    public and False if not. Also return the the parse tree of this
+    construct if it exists.
 
-    :param str name: the metadata name (also the name referencing \
+    :param str name: the match_type name (also the name referencing \
     the kernel in the algorithm layer)
     :param ast: parse tree of the kernel module code
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
 
-    :returns: True if the metadata is not public and False if not
-    :rtype: bool
+    :returns: True if the 'match_type' is public and False if not and \
+    the parse tree of the construct if it is found and None if not.
+    :rtype: (bool, instance of 'match_type' or NoneType)
 
     '''
     code = None
@@ -613,7 +616,6 @@ def metadata_public(name, ast, match_type):
     if declared_private or (not default_public and not declared_public):
         return False, code
     return True, code
-    #    raise ParseError("Kernel type '%s' is not public" % name)
 
 
 def get_kernel_metadata(name, ast):
@@ -693,7 +695,7 @@ class KernelType(object):
 
         self._name = name
         self._ast = ast
-        public, _ = metadata_public(name, ast, fparser1.block_statements.Type)
+        public, _ = construct_public(name, ast, fparser1.block_statements.Type)
         if not public:
             raise ParseError("Kernel type '{0}' is not public".format(name))
         self._ktype = get_kernel_metadata(name, ast)
