@@ -1,6 +1,7 @@
+# -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-18, Science and Technology Facilities Council
+# Copyright (c) 2017-19, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +39,7 @@
     and generation. The classes in this method need to be specialised for a
     particular API and implementation. '''
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import abc
 import six
 from psyclone.configuration import Config
@@ -149,7 +150,8 @@ def zero_reduction_variables(red_call_list, parent):
         parent.add(CommentGen(parent, ""))
 
 
-def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
+def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
+                is_literal=True):
     '''
     Return all arguments in the supplied list that are of type
     arg_types and with access in arg_accesses. If these are not set
@@ -163,7 +165,8 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
     :type arg_accesses: list of str
     :param arg_meshes: List of meshes that arguments must be on
     :type arg_meshes: list of str
-
+    :param bool is_literal: Whether or not to include literal arguments in \
+                            the returned list.
     :returns: list of kernel arguments matching the requirements
     :rtype: list of :py:class:`psyclone.parse.Descriptor`
     '''
@@ -178,6 +181,11 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None):
         if arg_meshes:
             if argument.mesh not in arg_meshes:
                 continue
+        if not is_literal:
+            # We're not including literal arguments so skip this argument
+            # if it is literal.
+            if argument.is_literal:
+                continue
         arguments.append(argument)
     return arguments
 
@@ -190,7 +198,7 @@ class GenerationError(Exception):
         self.value = "Generation Error: "+value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 class FieldNotFoundError(Exception):
@@ -201,7 +209,7 @@ class FieldNotFoundError(Exception):
         self.value = "Field not found error: "+value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 class InternalError(Exception):
@@ -216,7 +224,7 @@ class InternalError(Exception):
         self.value = "PSyclone internal error: "+value
 
     def __str__(self):
-        return repr(self.value)
+        return str(self.value)
 
 
 class PSyFactory(object):
@@ -254,53 +262,47 @@ class PSyFactory(object):
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
         '''
-        if self._type == "gunghoproto":
-            from psyclone.ghproto import GHProtoPSy
-            return GHProtoPSy(invoke_info)
-        elif self._type == "dynamo0.1":
-            from psyclone.dynamo0p1 import DynamoPSy
-            return DynamoPSy(invoke_info)
+        if self._type == "dynamo0.1":
+            from psyclone.dynamo0p1 import DynamoPSy as PSyClass
         elif self._type == "dynamo0.3":
-            from psyclone.dynamo0p3 import DynamoPSy
-            return DynamoPSy(invoke_info)
+            from psyclone.dynamo0p3 import DynamoPSy as PSyClass
         elif self._type == "gocean0.1":
-            from psyclone.gocean0p1 import GOPSy
-            return GOPSy(invoke_info)
+            from psyclone.gocean0p1 import GOPSy as PSyClass
         elif self._type == "gocean1.0":
-            from psyclone.gocean1p0 import GOPSy
-            return GOPSy(invoke_info)
+            from psyclone.gocean1p0 import GOPSy as PSyClass
         elif self._type == "nemo":
-            from psyclone.nemo import NemoPSy
+            from psyclone.nemo import NemoPSy as PSyClass
             # For this API, the 'invoke_info' is actually the fparser2 AST
             # of the Fortran file being processed
-            return NemoPSy(invoke_info)
         else:
             raise GenerationError("PSyFactory: Internal Error: Unsupported "
                                   "api type '{0}' found. Should not be "
                                   "possible.".format(self._type))
+        return PSyClass(invoke_info)
 
 
 class PSy(object):
     '''
-        Base class to help manage and generate PSy code for a single
-        algorithm file. Takes the invocation information output from the
-        function :func:`parse.parse` as its input and stores this in a
-        way suitable for optimisation and code generation.
+    Base class to help manage and generate PSy code for a single
+    algorithm file. Takes the invocation information output from the
+    function :func:`parse.parse` as its input and stores this in a
+    way suitable for optimisation and code generation.
 
-        :param FileInfo invoke_info: An object containing the required
-                                     invocation information for code
-                                     optimisation and generation. Produced
-                                     by the function :func:`parse.parse`.
+    :param FileInfo invoke_info: An object containing the required \
+                                 invocation information for code \
+                                 optimisation and generation. Produced \
+                                 by the function :func:`parse.parse`.
+    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
 
-        For example:
+    For example:
 
-        >>> import psyclone
-        >>> from psyclone.parse import parse
-        >>> ast, info = parse("argspec.F90")
-        >>> from psyclone.psyGen import PSyFactory
-        >>> api = "..."
-        >>> psy = PSyFactory(api).create(info)
-        >>> print(psy.gen)
+    >>> import psyclone
+    >>> from psyclone.parse import parse
+    >>> ast, info = parse("argspec.F90")
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "..."
+    >>> psy = PSyFactory(api).create(info)
+    >>> print(psy.gen)
 
     '''
     def __init__(self, invoke_info):
@@ -367,12 +369,85 @@ class Invokes(object):
                                       str(self.names)))
 
     def gen_code(self, parent):
+        '''
+        Create the f2pygen AST for each Invoke in the PSy layer.
+
+        :param parent: the parent node in the AST to which to add content.
+        :type parent: `psyclone.f2pygen.ModuleGen`
+        '''
+        opencl_kernels = []
         for invoke in self.invoke_list:
             invoke.gen_code(parent)
+            # If we are generating OpenCL for an Invoke then we need to
+            # create routine(s) to set the arguments of the Kernel(s) it
+            # calls. We do it here as this enables us to prevent
+            # duplication.
+            if invoke.schedule.opencl:
+                for kern in invoke.schedule.kern_calls():
+                    if kern.name not in opencl_kernels:
+                        opencl_kernels.append(kern.name)
+                        kern.gen_arg_setter_code(parent)
+                # We must also ensure that we have a kernel object for
+                # each kernel called from the PSy layer
+                self.gen_ocl_init(parent, opencl_kernels)
+
+    @staticmethod
+    def gen_ocl_init(parent, kernels):
+        '''
+        Generates a subroutine to initialise the OpenCL environment and
+        construct the list of OpenCL kernel objects used by this PSy layer.
+
+        :param parent: the node in the f2pygen AST representing the module \
+                       that will contain the generated subroutine.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        :param kernels: List of kernel names called by the PSy layer.
+        :type kernels: list of str
+        '''
+        from psyclone.f2pygen import SubroutineGen, DeclGen, AssignGen, \
+            CallGen, UseGen, CommentGen, CharDeclGen, IfThenGen
+
+        sub = SubroutineGen(parent, "psy_init")
+        parent.add(sub)
+        sub.add(UseGen(sub, name="fortcl", only=True,
+                       funcnames=["ocl_env_init", "add_kernels"]))
+        # Add a logical variable used to ensure that this routine is only
+        # executed once.
+        sub.add(DeclGen(sub, datatype="logical", save=True,
+                        entity_decls=["initialised"],
+                        initial_values=[".False."]))
+        # Check whether or not this is our first time in the routine
+        sub.add(CommentGen(sub, " Check to make sure we only execute this "
+                           "routine once"))
+        ifthen = IfThenGen(sub, ".not. initialised")
+        sub.add(ifthen)
+        ifthen.add(AssignGen(ifthen, lhs="initialised", rhs=".True."))
+
+        # Initialise the OpenCL environment
+        ifthen.add(CommentGen(ifthen,
+                              " Initialise the OpenCL environment/device"))
+        ifthen.add(CallGen(ifthen, "ocl_env_init"))
+
+        # Create a list of our kernels
+        ifthen.add(CommentGen(ifthen,
+                              " The kernels this PSy layer module requires"))
+        nkernstr = str(len(kernels))
+
+        # Declare array of character strings
+        ifthen.add(CharDeclGen(
+            ifthen, length="30",
+            entity_decls=["kernel_names({0})".format(nkernstr)]))
+        for idx, kern in enumerate(kernels):
+            ifthen.add(AssignGen(ifthen, lhs="kernel_names({0})".format(idx+1),
+                                 rhs='"{0}"'.format(kern)))
+        ifthen.add(CommentGen(ifthen,
+                              " Create the OpenCL kernel objects. Expects "
+                              "to find all of the compiled"))
+        ifthen.add(CommentGen(ifthen, " kernels in PSYCLONE_KERNELS_FILE."))
+        ifthen.add(CallGen(ifthen, "add_kernels", [nkernstr, "kernel_names"]))
 
 
 class NameSpaceFactory(object):
-        # storage for the instance reference
+    # storage for the instance reference
     _instance = None
 
     def __init__(self, reset=False):
@@ -798,11 +873,11 @@ class Invoke(object):
 
 class Node(object):
     '''
-    Base class for a node in the PSyIRe (schedule).
+    Base class for a node in the PSyIR (schedule).
 
-    :param children: the PSyIRe nodes that are children of this node.
+    :param children: the PSyIR nodes that are children of this node.
     :type children: :py:class:`psyclone.psyGen.Node`
-    :param parent: that parent of this node in the PSyIRe tree.
+    :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
@@ -818,7 +893,7 @@ class Node(object):
         raise NotImplementedError("Please implement me")
 
     def dag(self, file_name='dag', file_format='svg'):
-        '''Create a dag of this node and its children'''
+        '''Create a dag of this node and its children.'''
         try:
             import graphviz as gv
         except ImportError:
@@ -835,7 +910,7 @@ class Node(object):
         graph.render(filename=file_name)
 
     def dag_gen(self, graph):
-        '''output my node's graph (dag) information and call any
+        '''Output my node's graph (dag) information and call any
         children. Nodes with children are represented as two vertices,
         a start and an end. Forward dependencies are represented as
         green edges, backward dependencies are represented as red
@@ -907,7 +982,7 @@ class Node(object):
 
     @property
     def dag_name(self):
-        ''' return the base dag name for this node '''
+        '''Return the base dag name for this node.'''
         return "node_" + str(self.abs_position)
 
     @property
@@ -1165,7 +1240,7 @@ class Node(object):
         return False
 
     def walk(self, children, my_type):
-        ''' recurse through tree and return objects of mytype '''
+        ''' Recurse through tree and return objects of 'my_type'. '''
         local_list = []
         for child in children:
             if isinstance(child, my_type):
@@ -1201,7 +1276,7 @@ class Node(object):
         return None
 
     def calls(self):
-        ''' return all calls that are descendents of this node '''
+        '''Return all calls that are descendents of this node.'''
         return self.walk(self.children, Call)
 
     def following(self):
@@ -1237,24 +1312,24 @@ class Node(object):
 
     @property
     def following_calls(self):
-        ''' return all calls after me in the schedule '''
+        '''Return all calls after me in the schedule.'''
         all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[position+1:]
 
     @property
     def preceding_calls(self):
-        ''' return all calls before me in the schedule '''
+        '''Return all calls before me in the schedule.'''
         all_calls = self.root.calls()
         position = all_calls.index(self)
         return all_calls[:position-1]
 
     def kern_calls(self):
-        '''return all user-supplied kernel calls in this schedule'''
+        '''Return all user-supplied kernel calls in this schedule.'''
         return self.walk(self._children, Kern)
 
     def loops(self):
-        ''' return all loops currently in this schedule '''
+        '''Return all loops currently in this schedule.'''
         return self.walk(self._children, Loop)
 
     def reductions(self, reprod=None):
@@ -1278,7 +1353,7 @@ class Node(object):
         return call_reduction_list
 
     def is_openmp_parallel(self):
-        '''Returns true if this Node is within an OpenMP parallel region
+        '''Returns true if this Node is within an OpenMP parallel region.
 
         '''
         omp_dir = self.ancestor(OMPParallelDirective)
@@ -1301,22 +1376,46 @@ class Node(object):
 
 
 class Schedule(Node):
+    '''
+    Stores schedule information for an invocation call. Schedules can be
+    optimised using transformations.
 
-    ''' Stores schedule information for an invocation call. Schedules can be
-        optimised using transformations.
+    >>> from parse import parse
+    >>> ast, info = parse("algorithm.f90")
+    >>> from psyGen import PSyFactory
+    >>> api = "..."
+    >>> psy = PSyFactory(api).create(info)
+    >>> invokes = psy.invokes
+    >>> invokes.names
+    >>> invoke = invokes.get("name")
+    >>> schedule = invoke.schedule
+    >>> schedule.view()
 
-        >>> from parse import parse
-        >>> ast, info = parse("algorithm.f90")
-        >>> from psyGen import PSyFactory
-        >>> api = "..."
-        >>> psy = PSyFactory(api).create(info)
-        >>> invokes = psy.invokes
-        >>> invokes.names
-        >>> invoke = invokes.get("name")
-        >>> schedule = invoke.schedule
-        >>> schedule.view()
+    :param type KernFactory: class instance of the factory to use when \
+     creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
+    :param type BuiltInFactory: class instance of the factory to use when \
+     creating built-ins. e.g. \
+     :py:class:`psyclone.dynamo0p3_builtins.DynBuiltInCallFactory`.
+    :param alg_calls: list of Kernel calls in the schedule.
+    :type alg_calls: list of :py:class:`psyclone.parse.KernelCall`
 
     '''
+    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
+        # we need to separate calls into loops (an iteration space really)
+        # and calls so that we can perform optimisations separately on the
+        # two entities.
+        sequence = []
+        from psyclone.parse import BuiltInCall
+        if alg_calls:
+            for call in alg_calls:
+                if isinstance(call, BuiltInCall):
+                    sequence.append(BuiltInFactory.create(call, parent=self))
+                else:
+                    sequence.append(KernFactory.create(call, parent=self))
+        Node.__init__(self, children=sequence)
+        self._invoke = None
+        self._opencl = False  # Whether or not to generate OpenCL
+        self._name_space_manager = NameSpaceFactory().create()
 
     @property
     def dag_name(self):
@@ -1340,21 +1439,6 @@ class Schedule(Node):
     @invoke.setter
     def invoke(self, my_invoke):
         self._invoke = my_invoke
-
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=[]):
-
-        # we need to separate calls into loops (an iteration space really)
-        # and calls so that we can perform optimisations separately on the
-        # two entities.
-        sequence = []
-        from psyclone.parse import BuiltInCall
-        for call in alg_calls:
-            if isinstance(call, BuiltInCall):
-                sequence.append(BuiltInFactory.create(call, parent=self))
-            else:
-                sequence.append(KernFactory.create(call, parent=self))
-        Node.__init__(self, children=sequence)
-        self._invoke = None
 
     def view(self, indent=0):
         '''
@@ -1388,8 +1472,101 @@ class Schedule(Node):
         return result
 
     def gen_code(self, parent):
+        '''
+        Generate the Nodes in the f2pygen AST for this schedule.
+
+        :param parent: the parent Node (i.e. the enclosing subroutine) to \
+                       which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import UseGen, DeclGen, AssignGen, CommentGen, \
+            IfThenGen, CallGen
+
+        if self._opencl:
+            parent.add(UseGen(parent, name="iso_c_binding"))
+            parent.add(UseGen(parent, name="clfortran"))
+            parent.add(UseGen(parent, name="fortcl", only=True,
+                              funcnames=["get_num_cmd_queues",
+                                         "get_cmd_queues",
+                                         "get_kernel_by_name"]))
+            # Command queues
+            nqueues = self._name_space_manager.create_name(
+                root_name="num_cmd_queues", context="PSyVars",
+                label="num_cmd_queues")
+            qlist = self._name_space_manager.create_name(
+                root_name="cmd_queues", context="PSyVars", label="cmd_queues")
+            first = self._name_space_manager.create_name(
+                root_name="first_time", context="PSyVars", label="first_time")
+            flag = self._name_space_manager.create_name(
+                root_name="ierr", context="PSyVars", label="ierr")
+            parent.add(DeclGen(parent, datatype="integer", save=True,
+                               entity_decls=[nqueues]))
+            parent.add(DeclGen(parent, datatype="integer", save=True,
+                               pointer=True, kind="c_intptr_t",
+                               entity_decls=[qlist + "(:)"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[flag]))
+            parent.add(DeclGen(parent, datatype="logical", save=True,
+                               entity_decls=[first],
+                               initial_values=[".true."]))
+            if_first = IfThenGen(parent, first)
+            parent.add(if_first)
+            if_first.add(AssignGen(if_first, lhs=first, rhs=".false."))
+            if_first.add(CommentGen(if_first,
+                                    " Ensure OpenCL run-time is initialised "
+                                    "for this PSy-layer module"))
+            if_first.add(CallGen(if_first, "psy_init"))
+            if_first.add(AssignGen(if_first, lhs=nqueues,
+                                   rhs="get_num_cmd_queues()"))
+            if_first.add(AssignGen(if_first, lhs=qlist, pointer=True,
+                                   rhs="get_cmd_queues()"))
+            # Kernel pointers
+            kernels = self.walk(self._children, Call)
+            for kern in kernels:
+                base = "kernel_" + kern.name
+                kernel = self._name_space_manager.create_name(
+                    root_name=base, context="PSyVars", label=base)
+                parent.add(
+                    DeclGen(parent, datatype="integer", kind="c_intptr_t",
+                            save=True, target=True, entity_decls=[kernel]))
+                if_first.add(
+                    AssignGen(
+                        if_first, lhs=kernel,
+                        rhs='get_kernel_by_name("{0}")'.format(kern.name)))
+
         for entity in self._children:
             entity.gen_code(parent)
+
+        if self.opencl:
+            # Ensure we block at the end of the invoke to ensure all
+            # kernels have completed before we return.
+            # This code ASSUMES only the first command queue is used for
+            # executing kernels.
+            parent.add(CommentGen(parent,
+                                  " Block until all kernels have finished"))
+            parent.add(AssignGen(parent, lhs=flag,
+                                 rhs="clFinish(" + qlist + "(1))"))
+
+    @property
+    def opencl(self):
+        '''
+        :return: Whether or not we are generating OpenCL for this Schedule.
+        :rtype: bool
+        '''
+        return self._opencl
+
+    @opencl.setter
+    def opencl(self, value):
+        '''
+        Setter for whether or not to generate the OpenCL version of this
+        schedule.
+
+        :param bool value: whether or not to generate OpenCL.
+        '''
+        if not isinstance(value, bool):
+            raise ValueError("Schedule.opencl must be a bool but got {0}".
+                             format(type(value)))
+        self._opencl = value
 
 
 class Directive(Node):
@@ -1903,26 +2080,32 @@ class OMPParallelDirective(OMPDirective):
                 call.reduction_sum_loop(parent)
 
     def _get_private_list(self):
-        '''Returns the variable names used for any loops within a directive
+        '''
+        Returns the variable names used for any loops within a directive
         and any variables that have been declared private by a Call
         within the directive.
 
+        :return: list of variables to declare as thread private.
+        :rtype: list of str
+
+        :raises InternalError: if a Call has local variable(s) but they \
+                               aren't named.
         '''
         result = []
         # get variable names from all loops that are a child of this node
         for loop in self.loops():
-            if loop._variable_name == "":
-                raise GenerationError("Internal error: name of loop "
-                                      "variable not set.")
-            if loop._variable_name.lower() not in result:
-                result.append(loop._variable_name.lower())
+            # We must allow for implicit loops (e.g. in the NEMO API) that
+            # have no associated variable name
+            if loop.variable_name and \
+               loop.variable_name.lower() not in result:
+                result.append(loop.variable_name.lower())
         # get variable names from all calls that are a child of this node
         for call in self.calls():
             for variable_name in call.local_vars():
                 if variable_name == "":
-                    raise GenerationError("Internal error: call has a "
-                                          "local variable but its name "
-                                          "is not set.")
+                    raise InternalError(
+                        "call '{0}' has a local variable but its "
+                        "name is not set.".format(call.name))
                 if variable_name.lower() not in result:
                     result.append(variable_name.lower())
         return result
@@ -2631,6 +2814,14 @@ class Loop(Node):
         '''
         self._kern = kern
 
+    @property
+    def variable_name(self):
+        '''
+        :returns: the name of the control variable for this loop.
+        :rtype: str
+        '''
+        return self._variable_name
+
     def __str__(self):
         result = "Loop[" + self._id + "]: " + self._variable_name + "=" + \
             self._id + " lower=" + self._start + "," + self._stop + "," + \
@@ -2684,12 +2875,19 @@ class Loop(Node):
         return all_args
 
     def gen_code(self, parent):
-        '''Generate the fortran Loop and any associated code '''
+        '''
+        Generate the Fortran Loop and any associated code.
+
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         if not self.is_openmp_parallel():
             calls = self.reductions()
             zero_reduction_variables(calls, parent)
 
-        if self._start == "1" and self._stop == "1":  # no need for a loop
+        if self.root.opencl or (self._start == "1" and self._stop == "1"):
+            # no need for a loop
             for child in self.children:
                 child.gen_code(parent)
         else:
@@ -2706,60 +2904,22 @@ class Loop(Node):
 
 
 class Call(Node):
+    '''
+    Represents a call to a sub-program unit from within the PSy layer.
 
-    @property
-    def args(self):
-        '''Return the list of arguments associated with this node. Overide the
-        base method and simply return our arguments. '''
-        return self.arguments.args
+    :param parent: parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :param call: information on the call itself, as obtained by parsing \
+                 the Algorithm layer code.
+    :type call: :py:class:`psyclone.parse.KernelCall`
+    :param str name: the name of the routine being called.
+    :param arguments: object holding information on the kernel arguments, \
+                      as extracted from kernel meta-data.
+    :type arguments: :py:class:`psyclone.psyGen.Arguments`
 
-    def view(self, indent=0):
-        '''
-        Write out a textual summary of this Call node to stdout
-        and then call the view() method of any children.
-
-        :param indent: Depth of indent for output text
-        :type indent: integer
-        '''
-        print(self.indent(indent) + self.coloured_text,
-              self.name + "(" + str(self.arguments.raw_arg_list) + ")")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    @property
-    def coloured_text(self):
-        ''' Return a string containing the (coloured) name of this node
-        type '''
-        return colored("Call", SCHEDULE_COLOUR_MAP["Call"])
-
-    @property
-    def width(self):
-        return self._width
-
-    @property
-    def height(self):
-        return self._height
-
-    def tkinter_delete(self):
-        if self._shape is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._shape)
-        if self._text is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._text)
-
-    def tkinter_display(self, canvas, x, y):
-        self.tkinter_delete()
-        self._canvas = canvas
-        self._x = x
-        self._y = y
-        self._shape = self._canvas.create_rectangle(
-            self._x, self._y, self._x+self._width, self._y+self._height,
-            outline="red", fill="yellow", activeoutline="blue", width=2)
-        self._text = self._canvas.create_text(self._x+self._width/2,
-                                              self._y+self._height/2,
-                                              text=self._name)
-
+    :raises GenerationError: if any of the arguments to the call are \
+                             duplicated.
+    '''
     def __init__(self, parent, call, name, arguments):
         Node.__init__(self, children=[], parent=parent)
         self._arguments = arguments
@@ -2802,6 +2962,59 @@ class Call(Node):
         else:
             self._reduction = False
             self._reduction_arg = None
+
+    @property
+    def args(self):
+        '''Return the list of arguments associated with this node. Overide the
+        base method and simply return our arguments. '''
+        return self.arguments.args
+
+    def view(self, indent=0):
+        '''
+        Write out a textual summary of this Call node to stdout
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print(self.indent(indent) + self.coloured_text,
+              self.name + "(" + self.arguments.names + ")")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    @property
+    def coloured_text(self):
+        ''' Return a string containing the (coloured) name of this node
+        type '''
+        return colored("Call", SCHEDULE_COLOUR_MAP["Call"])
+
+    @property
+    def width(self):
+        return self._width
+
+    @property
+    def height(self):
+        return self._height
+
+    def tkinter_delete(self):
+        if self._shape is not None:
+            assert self._canvas is not None, "Error"
+            self._canvas.delete(self._shape)
+        if self._text is not None:
+            assert self._canvas is not None, "Error"
+            self._canvas.delete(self._text)
+
+    def tkinter_display(self, canvas, x, y):
+        self.tkinter_delete()
+        self._canvas = canvas
+        self._x = x
+        self._y = y
+        self._shape = self._canvas.create_rectangle(
+            self._x, self._y, self._x+self._width, self._y+self._height,
+            outline="red", fill="yellow", activeoutline="blue", width=2)
+        self._text = self._canvas.create_text(self._x+self._width/2,
+                                              self._y+self._height/2,
+                                              text=self._name)
 
     @property
     def is_reduction(self):
@@ -2954,7 +3167,20 @@ class Call(Node):
 
     @property
     def name(self):
+        '''
+        :returns: the name of the kernel associated with this call.
+        :rtype: str
+        '''
         return self._name
+
+    @name.setter
+    def name(self, value):
+        '''
+        Set the name of the kernel that this call is for.
+
+        :param str value: The name of the kernel.
+        '''
+        self._name = value
 
     @property
     def iterates_over(self):
@@ -2994,7 +3220,11 @@ class Kern(Call):
         self._module_code = call.ktype._ast
         self._kernel_code = call.ktype.procedure
         self._fp2_ast = None  # The fparser2 AST for the kernel
-        self._kern_schedule = None  # PSyIRe schedule for the kernel
+        self._kern_schedule = None  # PSyIR schedule for the kernel
+        # Whether or not this kernel has been transformed
+        self._modified = False
+        # Whether or not to in-line this kernel into the module containing
+        # the PSy layer
         self._module_inline = False
         if check and len(call.ktype.arg_descriptors) != len(call.args):
             raise GenerationError(
@@ -3008,10 +3238,10 @@ class Kern(Call):
 
     def get_kernel_schedule(self):
         '''
-        Returns a PSyIRe Schedule representing the kernel code. The Schedule
-        is just generated on first invocation, this allows to retain
-        transformations applied to the Schedule but will not adapt to
-        transformations applied to the fparser2 AST.
+        Returns a PSyIR Schedule representing the kernel code. The Schedule
+        is just generated on first invocation, this allows us to retain
+        transformations that may subsequently be applied to the Schedule
+        (but will not adapt to transformations applied to the fparser2 AST).
 
         :return: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
@@ -3043,11 +3273,27 @@ class Kern(Call):
 
     @module_inline.setter
     def module_inline(self, value):
+        '''
+        Setter for whether or not to module-inline this kernel.
+
+        :param bool value: Whether or not to module-inline this kernel.
+        :raises NotImplementedError: if module-inlining is enabled and the \
+                                     kernel has been transformed.
+        '''
         # check all kernels in the same invoke as this one and set any
         # with the same name to the same value as this one. This is
         # required as inlining (or not) affects all calls to the same
         # kernel within an invoke. Note, this will set this kernel as
         # well so there is no need to set it locally.
+        if value and self._fp2_ast:
+            # TODO #229. We take the existence of an fparser2 AST for
+            # this kernel to mean that it has been transformed. Since
+            # kernel in-lining is currently implemented via
+            # manipulation of the fparser1 AST, there is at present no
+            # way to inline such a kernel.
+            raise NotImplementedError(
+                "Cannot module-inline a transformed kernel ({0}).".
+                format(self.name))
         my_schedule = self.ancestor(Schedule)
         for kernel in self.walk(my_schedule.children, Kern):
             if kernel.name == self.name:
@@ -3062,7 +3308,7 @@ class Kern(Call):
         :type indent: integer
         '''
         print(self.indent(indent) + self.coloured_text,
-              self.name + "(" + str(self.arguments.raw_arg_list) + ")",
+              self.name + "(" + self.arguments.names + ")",
               "[module_inline=" + str(self._module_inline) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -3079,20 +3325,46 @@ class Kern(Call):
         return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
 
     def gen_code(self, parent):
+        '''
+        Generates the f2pygen AST of the Fortran for this kernel call and
+        writes the kernel itself to file if it has been transformed.
+
+        :param parent: The parent of this kernel call in the f2pygen AST.
+        :type parent: :py:calls:`psyclone.f2pygen.LoopGen`
+        '''
         from psyclone.f2pygen import CallGen, UseGen
-        parent.add(CallGen(parent, self._name, self._arguments.arglist))
-        parent.add(UseGen(parent, name=self._module_name, only=True,
-                          funcnames=[self._name]))
+
+        # If the kernel has been transformed then we rename it. If it
+        # is *not* being module inlined then we also write it to file.
+        self.rename_and_write()
+
+        parent.add(CallGen(parent, self._name,
+                           self.arguments.raw_arg_list(parent)))
+
+        if not self.module_inline:
+            parent.add(UseGen(parent, name=self._module_name, only=True,
+                              funcnames=[self._name]))
+
+    def gen_arg_setter_code(self, parent):
+        '''
+        Creates a Fortran routine to set the arguments of the OpenCL
+        version of this kernel.
+
+        :param parent: Parent node of the set-kernel-arguments routine.
+        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
+        '''
+        raise NotImplementedError("gen_arg_setter_code must be implemented "
+                                  "by sub-class.")
 
     def incremented_arg(self, mapping={}):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
 
-        :param mapping: dictionary of access types (here INC) associated
+        :param mapping: dictionary of access types (here INC) associated \
                         with arguments with their metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
-        :rtype: string
+        :return: a Fortran argument name.
+        :rtype: str
         :raises FieldNotFoundError: if none is found.
 
         '''
@@ -3157,6 +3429,213 @@ class Kern(Call):
         self._fp2_ast = my_parser(reader)
         return self._fp2_ast
 
+    @staticmethod
+    def _new_name(original, tag, suffix):
+        '''
+        Construct a new name given the original, a tag and a suffix (which
+        may or may not terminate the original name). If suffix is present
+        in the original name then the `tag` is inserted before it.
+
+        :param str original: The original name
+        :param str tag: Tag to insert into new name
+        :param str suffix: Suffix with which to end new name.
+        :returns: New name made of original + tag + suffix
+        :rtype: str
+        '''
+        if original.endswith(suffix):
+            return original[:-len(suffix)] + tag + suffix
+        return original + tag + suffix
+
+    def rename_and_write(self):
+        '''
+        Writes the (transformed) AST of this kernel to file and resets the
+        'modified' flag to False. By default (config.kernel_naming ==
+        "multiple"), the kernel is re-named so as to be unique within
+        the kernel output directory stored within the configuration
+        object. Alternatively, if config.kernel_naming is "single"
+        then no re-naming and output is performed if there is already
+        a transformed copy of the kernel in the output dir. (In this
+        case a check is performed that the transformed kernel already
+        present is identical to the one that we would otherwise write
+        to file. If this is not the case then we raise a GenerationError.)
+
+        :raises GenerationError: if config.kernel_naming == "single" and a \
+                                 different, transformed version of this \
+                                 kernel is already in the output directory.
+        :raises NotImplementedError: if the kernel has been transformed but \
+                                     is also flagged for module-inlining.
+
+        '''
+        import os
+        from psyclone.line_length import FortLineLength
+
+        # If this kernel has not been transformed we do nothing
+        if not self.modified:
+            return
+
+        # Remove any "_mod" if the file follows the PSyclone naming convention
+        orig_mod_name = self.module_name[:]
+        if orig_mod_name.endswith("_mod"):
+            old_base_name = orig_mod_name[:-4]
+        else:
+            old_base_name = orig_mod_name[:]
+
+        # We could create a hash of a string built from the name of the
+        # Algorithm (module), the name/position of the Invoke and the
+        # index of this kernel within that Invoke. However, that creates
+        # a very long name so we simply ensure that kernel names are unique
+        # within the user-supplied kernel-output directory.
+        name_idx = -1
+        fdesc = None
+        while not fdesc:
+            name_idx += 1
+            new_suffix = "_{0}".format(name_idx)
+            new_name = old_base_name + new_suffix + "_mod.f90"
+            try:
+                # Atomically attempt to open the new kernel file (in case
+                # this is part of a parallel build)
+                fdesc = os.open(
+                    os.path.join(Config.get().kernel_output_dir, new_name),
+                    os.O_CREAT | os.O_WRONLY | os.O_EXCL)
+            except (OSError, IOError):
+                # The os.O_CREATE and os.O_EXCL flags in combination mean
+                # that open() raises an error if the file exists
+                if Config.get().kernel_naming == "single":
+                    # If the kernel-renaming scheme is such that we only ever
+                    # create one copy of a transformed kernel then we're done
+                    break
+                continue
+
+        # Use the suffix we have determined to rename all relevant quantities
+        # within the AST of the kernel code
+        self._rename_ast(new_suffix)
+
+        # Kernel is now self-consistent so unset the modified flag
+        self.modified = False
+
+        # If this kernel is being module in-lined then we do not need to
+        # write it to file.
+        if self.module_inline:
+            # TODO #229. We cannot currently inline transformed kernels
+            # (because that requires an fparser1 AST and we only have an
+            # fparser2 AST of the modified kernel) so raise an error.
+            raise NotImplementedError("Cannot module-inline a transformed "
+                                      "kernel ({0})".format(self.name))
+
+        # Generate the Fortran for this transformed kernel, ensuring that
+        # we limit the line lengths
+        fll = FortLineLength()
+        new_kern_code = fll.process(str(self.ast))
+
+        if not fdesc:
+            # If we've not got a file descriptor at this point then that's
+            # because the file already exists and the kernel-naming scheme
+            # ("single") means we're not creating a new one.
+            # Check that what we've got is the same as what's in the file
+            with open(os.path.join(Config.get().kernel_output_dir,
+                                   new_name), "r") as ffile:
+                kern_code = ffile.read()
+                if kern_code != new_kern_code:
+                    raise GenerationError(
+                        "A transformed version of this Kernel '{0}' already "
+                        "exists in the kernel-output directory ({1}) but is "
+                        "not the same as the current, transformed kernel and "
+                        "the kernel-renaming scheme is set to '{2}'. (If you "
+                        "wish to generate a new, unique kernel for every "
+                        "kernel that is transformed then use "
+                        "'--kernel-renaming multiple'.)".
+                        format(self._module_name+".f90",
+                               Config.get().kernel_output_dir,
+                               Config.get().kernel_naming))
+        else:
+            # Write the modified AST out to file
+            os.write(fdesc, new_kern_code.encode())
+            # Close the new kernel file
+            os.close(fdesc)
+
+    def _rename_ast(self, suffix):
+        '''
+        Renames all quantities (module, kernel routine, kernel derived type)
+        in the kernel AST by inserting the supplied suffix. The resulting
+        names follow the PSyclone naming convention (modules end with "_mod",
+        types with "_type" and kernels with "_code").
+
+        :param str suffix: the string to insert into the quantity names.
+        '''
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+
+        # Use the suffix we have determined to create a new kernel name.
+        # This will conform to the PSyclone convention of ending in "_code"
+        orig_mod_name = self.module_name[:]
+        orig_kern_name = self.name[:]
+
+        new_kern_name = self._new_name(orig_kern_name, suffix, "_code")
+        new_mod_name = self._new_name(orig_mod_name, suffix, "_mod")
+
+        # Query the fparser2 AST to determine the name of the type that
+        # contains the kernel subroutine as a type-bound procedure
+        orig_type_name = ""
+        new_type_name = ""
+        dtypes = walk_ast(self.ast.content, [Fortran2003.Derived_Type_Def])
+        for dtype in dtypes:
+            tbound_proc = walk_ast(dtype.content,
+                                   [Fortran2003.Type_Bound_Procedure_Part])
+            names = walk_ast(tbound_proc[0].content, [Fortran2003.Name])
+            if str(names[-1]) == self.name:
+                # This is the derived type for this kernel. Now we need
+                # its name...
+                tnames = walk_ast(dtype.content, [Fortran2003.Type_Name])
+                orig_type_name = str(tnames[0])
+
+                # The new name for the type containing kernel metadata will
+                # conform to the PSyclone convention of ending in "_type"
+                new_type_name = self._new_name(orig_type_name, suffix, "_type")
+                # Rename the derived type. We do this here rather than
+                # search for Type_Name in the AST again below. We loop over
+                # the list of type names so as to ensure we rename the type
+                # in the end-type statement too.
+                for name in tnames:
+                    if str(name) == orig_type_name:
+                        name.string = new_type_name
+
+        # Change the name of this kernel and the associated module
+        self.name = new_kern_name[:]
+        self._module_name = new_mod_name[:]
+
+        # Construct a dictionary for mapping from old kernel/type/module
+        # names to the corresponding new ones
+        rename_map = {orig_mod_name: new_mod_name,
+                      orig_kern_name: new_kern_name,
+                      orig_type_name: new_type_name}
+
+        # Re-write the values in the AST
+        names = walk_ast(self.ast.content, [Fortran2003.Name])
+        for name in names:
+            try:
+                new_value = rename_map[str(name)]
+                name.string = new_value[:]
+            except KeyError:
+                # This is not one of the names we are looking for
+                continue
+
+    @property
+    def modified(self):
+        '''
+        :returns: Whether or not this kernel has been modified (transformed).
+        :rtype: bool
+        '''
+        return self._modified
+
+    @modified.setter
+    def modified(self, value):
+        '''
+        Setter for whether or not this kernel has been modified.
+
+        :param bool value: True if kernel modified, False otherwise.
+        '''
+        self._modified = value
+
 
 class BuiltIn(Call):
     ''' Parent class for all built-ins (field operations for which the user
@@ -3188,21 +3667,43 @@ class BuiltIn(Call):
 
 
 class Arguments(object):
-    ''' arguments abstract base class '''
+    '''
+    Arguments abstract base class.
+
+    :param parent_call: the call with which the arguments are associated.
+    :type parent_call: sub-class of :py:class:`psyclone.psyGen.Call`
+    '''
     def __init__(self, parent_call):
         self._parent_call = parent_call
+        # The container object holding information on all arguments
+        # (derived from both kernel meta-data and the kernel call
+        # in the Algorithm layer).
         self._args = []
+        # The actual list of arguments that must be supplied to a
+        # subroutine call.
+        self._raw_arg_list = []
+
+    def raw_arg_list(self, parent=None):
+        '''
+        Abstract method to construct the class-specific argument list for a
+        kernel call. Must be overridden in API-specific sub-class.
+
+        :param parent: the parent (in the PSyIR) of the kernel call with \
+                       which this argument list is associated.
+        :type parent: sub-class of :py:class:`psyclone.psyGen.Call`
+        :raises NotImplementedError: abstract method.
+        '''
+        raise NotImplementedError("Arguments.raw_arg_list must be "
+                                  "implemented in sub-class")
 
     @property
-    def raw_arg_list(self):
-        ''' returns a comma separated list of the field arguments to the
-            kernel call '''
-        result = ""
-        for idx, arg in enumerate(self.args):
-            result += arg.name
-            if idx < (len(self.args) - 1):
-                result += ","
-        return result
+    def names(self):
+        '''
+        :returns: the Algorithm-visible kernel arguments in a \
+                  comma-delimited string.
+        :rtype: str
+        '''
+        return ",".join([arg.name for arg in self.args])
 
     @property
     def args(self):
@@ -3428,6 +3929,8 @@ class Argument(object):
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access
+        self._name_space_manager = NameSpaceFactory().create()
+
         if self._orig_name is None:
             # this is an infrastructure call literal argument. Therefore
             # we do not want an argument (_text=None) but we do want to
@@ -3435,7 +3938,6 @@ class Argument(object):
             self._name = arg_info.text
             self._text = None
         else:
-            self._name_space_manager = NameSpaceFactory().create()
             # Use our namespace manager to create a unique name unless
             # the context and label match in which case return the
             # previous name.
@@ -3503,6 +4005,31 @@ class Argument(object):
     def call(self, value):
         ''' set the node that this argument is associated with '''
         self._call = value
+
+    def set_kernel_arg(self, parent, index, kname):
+        '''
+        Generate the code to set this argument for an OpenCL kernel.
+
+        :param parent: the node in the Schedule to which to add the code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        :param int index: the (zero-based) index of this argument in the \
+                          list of kernel arguments.
+        :param str kname: the name of the OpenCL kernel.
+        '''
+        from psyclone.f2pygen import AssignGen, CallGen
+        # Look up variable names from name-space manager
+        err_name = self._name_space_manager.create_name(
+            root_name="ierr", context="PSyVars", label="ierr")
+        kobj = self._name_space_manager.create_name(
+            root_name="kernel_obj", context="ArgSetter", label="kernel_obj")
+        parent.add(AssignGen(
+            parent, lhs=err_name,
+            rhs="clSetKernelArg({0}, {1}, C_SIZEOF({2}), C_LOC({2}))".
+            format(kobj, index, self.name)))
+        parent.add(CallGen(
+            parent, "check_status",
+            ["'clSetKernelArg: arg {0} of {1}'".format(index, kname),
+             err_name]))
 
     def backward_dependence(self):
         '''Returns the preceding argument that this argument has a direct
@@ -3986,56 +4513,77 @@ class Fparser2ASTProcessor(object):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
-        :param name: Name of the subroutine representing the kernel.
-        :type name: string
-        :param module_ast: fparser2 AST of the full module where the kernel
+        :param str name: Name of the subroutine representing the kernel.
+        :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
-        :raises: InternalError: Unexpected fpaser2 AST format.
+        :raises GenerationError: Unable to generate a kernel schedule from the
+                                 provided fpaser2 parse tree.
         '''
         from fparser.two import Fortran2003
 
         def first_type_match(nodelist, typekind):
-            for x in nodelist:
-                if isinstance(x, typekind):
-                    return x
+            '''
+            Returns the first instance of the specified type in the given
+            node list.
+
+            :param list nodelist: List of fparser2 nodes.
+            :param type typekind: The fparse2 Type we are searching for.
+            '''
+            for node in nodelist:
+                if isinstance(node, typekind):
+                    return node
             raise ValueError  # Type not found
 
         def search_subroutine(nodelist, searchname):
-            for x in nodelist:
-                if (isinstance(x, Fortran2003.Subroutine_Subprogram) and
-                   str(x.content[0].get_name()) == searchname):
-                        return x
+            '''
+            Returns the first instance of the specified subroutine in the given
+            node list.
+
+            :param list nodelist: List of fparser2 nodes.
+            :param str searchname: Name of the subroutine we are searching for.
+            '''
+            for node in nodelist:
+                if (isinstance(node, Fortran2003.Subroutine_Subprogram) and
+                   str(node.content[0].get_name()) == searchname):
+                    return node
             raise ValueError  # Subroutine not found
 
         new_schedule = KernelSchedule(name)
 
-        try:
-            # Assume just 1 Fortran module definition in the file
-            mod_content = module_ast.content[0].content
-            mod_spec = first_type_match(mod_content,
-                                        Fortran2003.Specification_Part)
-        except (ValueError, IndexError):
-            raise InternalError("Unexpected kernel AST. Could not find "
-                                "specification part.")
+        # Assume just 1 Fortran module definition in the file
+        if len(module_ast.content) > 1:
+            raise GenerationError("Unexpected AST when generating '{0}' "
+                                  "kernel schedule. Just one "
+                                  "module definition per file supported."
+                                  "".format(name))
+
+        # TODO: Metadata can be also accessed for validation (issue #288)
 
         try:
+            mod_content = module_ast.content[0].content
             subroutines = first_type_match(mod_content,
                                            Fortran2003.Module_Subprogram_Part)
             subroutine = search_subroutine(subroutines.content, name)
         except (ValueError, IndexError):
-            raise InternalError("Unexpected kernel AST. Could not find "
-                                "subroutine: {0}".format(name))
+            raise GenerationError("Unexpected kernel AST. Could not find "
+                                  "subroutine: {0}".format(name))
 
         arg_list = []
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
-            arg_list = [x.string for x in subroutine.content[0].items[2].items]
+            decl_list = sub_spec.content
+            arg_list = subroutine.content[0].items[2].items
         except ValueError:
-            pass
-        else:
-            self.process_declarations(new_schedule, sub_spec.content)
+            # Subroutine without declarations, continue with empty lists.
+            decl_list = []
+            arg_list = []
+        except (IndexError, AttributeError):
+            # Subroutine without argument list, continue with empty list.
+            arg_list = []
+        finally:
+            self.process_declarations(new_schedule, decl_list, arg_list)
 
         try:
             new_schedule.symbol_table.specify_argument_list(arg_list)
@@ -4054,52 +4602,167 @@ class Fparser2ASTProcessor(object):
 
         return new_schedule
 
-    def process_declarations(self, parent, nodes):
+    @staticmethod
+    def _parse_dimensions(dimensions):
         '''
-        Transform the fparser2 AST declarations to symbols into the PSyIRe
-        parent node symbol table.
+        Parse the fparser dimension attribute into a shape list with
+        the extent of each dimension.
 
-        :param parent: PSyIRe node to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
-        :param nodes: fparser2 AST nodes to search for Declarations Statements
-        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param dimensions: fparser dimension attribute
+        :type dimensions:
+            :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
+        :return: Shape of the attribute in row-major order (leftmost \
+                 index is contiguous in memory). Each entry represents \
+                 an array dimension. If it is 'None' the extent of that \
+                 dimension is unknown, otherwise it holds an integer \
+                 with the extent. If it is an empy list then the symbol \
+                 represents a scalar.
+        :rtype: list
         '''
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
+        shape = []
+        for dim in walk_ast(dimensions.items, [Fortran2003.Assumed_Shape_Spec,
+                                               Fortran2003.Explicit_Shape_Spec,
+                                               Fortran2003.Assumed_Size_Spec]):
+            if isinstance(dim, Fortran2003.Assumed_Size_Spec):
+                raise NotImplementedError(
+                    "Could not process {0}. Assumed-size arrays"
+                    " are not supported.".format(dimensions))
+            elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
+                shape.append(None)
+            elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
+                if isinstance(dim.items[1],
+                              Fortran2003.Int_Literal_Constant):
+                    shape.append(int(dim.items[1].items[0]))
+                else:
+                    raise NotImplementedError(
+                        "Could not process {0}. Only integer "
+                        "literals are supported for explicit shape"
+                        " array declarations.".format(dimensions))
+            else:
+                raise InternalError(
+                    "Reached end of loop body and {0} has"
+                    " not been handled.".format(type(dim)))
+        return shape
+
+    def process_declarations(self, parent, nodes, arg_list):
+        '''
+        Transform the variable declarations in the fparser2 parse tree into
+        symbols in the PSyIR parent node symbol table.
+
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyGen.KernelSchedule`
+        :param nodes: fparser2 AST nodes to search for declaration statements.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param arg_list: fparser2 AST node containing the argument list.
+        :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
+        :raises NotImplementedError: The provided declarations contain
+                                     attributes which are not supported yet.
+        '''
+        from fparser.two.utils import walk_ast
+        from fparser.two import Fortran2003
+
+        def iterateitems(nodes):
+            '''
+            At the moment fparser nodes can be of type None, a single element
+            or a list of elements. This helper function provide a common
+            iteration interface. This could be improved when fpaser/#170 is
+            fixed.
+            :param nodes: fparser2 AST node.
+            :type nodes: None or List or :py:class:`fparser.two.utils.Base`
+            :return: Returns nodes but always encapsulated in a list
+            :rtype: list
+            '''
+            if nodes is None:
+                return []
+            if type(nodes).__name__.endswith("_List"):
+                return nodes.items
+            return [nodes]
+
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
-            # Parse data type, currently restricted to integers and reals.
-            datatype = 'unknown'
-            if str(decl.items[0]).lower().startswith('real'):
-                datatype = 'real'
-            elif str(decl.items[0]).lower().startswith('integer'):
-                datatype = 'integer'
+            (type_spec, attr_specs, entities) = decl.items
 
-            # Parse number of dimensions if it is an array
-            dimensions = 0
-            for attr in walk_ast(decl.items, [Fortran2003.Assumed_Shape_Spec]):
-                dimensions = dimensions + 1
-            for attr in walk_ast(decl.items,
-                                 [Fortran2003.Explicit_Shape_Spec]):
-                dimensions = dimensions + 1
+            # Parse type_spec, currently just 'real', 'integer' and
+            # 'character' intrinsic types are supported.
+            datatype = None
+            if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
+                if str(type_spec.items[0]).lower() == 'real':
+                    datatype = 'real'
+                elif str(type_spec.items[0]).lower() == 'integer':
+                    datatype = 'integer'
+                elif str(type_spec.items[0]).lower() == 'character':
+                    datatype = 'character'
+            if datatype is None:
+                raise NotImplementedError(
+                        "Could not process {0}. Only 'real', 'integer' "
+                        "and 'character' intrinsic types are supported."
+                        "".format(str(decl.items)))
 
-            # Parse intent attributes
-            decltype = 'local'  # If no intent attribute provided, it is a
-            # local variable.
-            for attr in walk_ast(decl.items, [Fortran2003.Attr_Spec]):
-                if "intent(in)" in str(attr).lower().replace(' ', ''):
-                    decltype = 'read_arg'
-                elif "intent(out)" in str(attr).lower().replace(' ', ''):
-                    decltype = 'write_arg'
-                elif "intent(inout)" in str(attr).lower().replace(' ', ''):
-                    decltype = 'rw_arg'
+            # Parse declaration attributes
+            # If no dimension is provided, it is a scalar
+            shape = []
+            # If no intent attribute is provided, it is
+            # provisionally marked as a local variable (when the argument
+            # list is parsed, arguments with no explicit intent are updated
+            # appropriately).
+            scope = 'local'
+            is_input = False
+            is_output = False
+            for attr in iterateitems(attr_specs):
+                if isinstance(attr, Fortran2003.Attr_Spec):
+                    normalized_string = str(attr).lower().replace(' ', '')
+                    if "intent(in)" in normalized_string:
+                        scope = 'global_argument'
+                        is_input = True
+                    elif "intent(out)" in normalized_string:
+                        scope = 'global_argument'
+                        is_output = True
+                    elif "intent(inout)" in normalized_string:
+                        scope = 'global_argument'
+                        is_input = True
+                        is_output = True
+                    else:
+                        raise NotImplementedError(
+                            "Could not process {0}. Unrecognized attribute "
+                            "'{1}'.".format(decl.items, str(attr)))
+                elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
+                    shape = self._parse_dimensions(attr)
+                else:
+                    raise NotImplementedError(
+                            "Could not process {0}. Unrecognized attribute "
+                            "type {1}.".format(decl.items, str(type(attr))))
 
-            # Get name and insert into the parent symbol table
-            for entity in walk_ast(decl.items, [Fortran2003.Entity_Decl]):
+            # Parse declarations RHS and declare new symbol into the
+            # parent symbol table for each entity found.
+            for entity in iterateitems(entities):
                 (name, array_spec, char_len, initialization) = entity.items
-                if (array_spec is not None) or (initialization is not None):
-                    raise NotImplementedError()
-                parent.symbol_table.declare(str(name), datatype, dimensions,
-                                            decltype)
+                if (array_spec is not None):
+                    raise NotImplementedError("Could not process {0}. "
+                                              "Array specifications after the"
+                                              " variable name are not "
+                                              "supported.".format(decl.items))
+                if (initialization is not None):
+                    raise NotImplementedError("Could not process {0}. "
+                                              "Initializations on the"
+                                              " declaration statements are not"
+                                              " supported.".format(decl.items))
+                if (char_len is not None):
+                    raise NotImplementedError("Could not process {0}. "
+                                              "Character length specifications"
+                                              " are not supported."
+                                              "".format(decl.items))
+                parent.symbol_table.declare(str(name), datatype, shape,
+                                            scope, is_input, is_output)
+
+        try:
+            arg_strings = [x.string for x in arg_list]
+            parent.symbol_table.specify_argument_list(arg_strings)
+        except KeyError:
+            raise InternalError("The kernel argument "
+                                "list '{0}' does not match the variable "
+                                "declarations for fparser nodes {1}."
+                                "".format(str(arg_list), nodes))
 
     # TODO remove nodes_parent argument once fparser2 AST contains
     # parent information (fparser/#102).
@@ -4318,91 +4981,258 @@ class Fparser2ASTProcessor(object):
 
 class Symbol(object):
     '''
-    Symbol item for the Symbol Table. It contains information about: the name
-    of the symbol, its datatype, the number of dimensions and the symbol kind
-    (e.g. local, external, read_arg, write_arg, rw_arg).
+    Symbol item for the Symbol Table. It contains information about: the name,
+    the datatype, the shape (in row-major order), the scope and for
+    global-scoped symbols whether the data is already defined and/or survives
+    after the kernel.
 
-    :param name: Name of the symbol.
-    :type name: string
-    :param datatype: Data type of the symbol.
-    :type datatype: string
-    :param dimensions: Dimensions of the symbol (0 represents an scalar
-                       symbol).
-    :type dimensions: list of integers
-    :param kind: Information about the variable declaration attributes.
-    :type kind: string
+    :param str name: Name of the symbol.
+    :param str datatype: Data type of the symbol.
+    :param list shape: Shape of the symbol in row-major order (leftmost \
+                       index is contiguous in memory). Each entry represents \
+                       an array dimension. If it is 'None' the extent of that \
+                       dimension is unknown, otherwise it holds an integer \
+                       with the extent. If it is an empy list then the symbol \
+                       represents a scalar.
+    :param str scope: It is 'local' if the symbol just exists inside the \
+                      kernel scope or 'global_*' if the data survives outside \
+                      of the kernel scope. Note that global-scoped symbols \
+                      also have postfixed information about the sharing \
+                      mechanism, at the moment just 'global_argument' is \
+                      available for variables passed in/out of the kernel \
+                      by argument.
+    :param bool is_input: Whether the symbol represents data that exists \
+                          before the kernel is entered and that is passed \
+                          into the kernel.
+    :param bool is_output: Whether the symbol represents data that is passed \
+                           outside the kernel upon exit.
+    :raises NotImplementedError: Provided parameters are not supported yet.
+    :raises TypeError: Provided parameters have invalid error type.
+    :raises ValueError: Provided parameters contain invalid values.
     '''
-    def __init__(self, name, datatype=None, dimensions=0, kind=None):
+
+    # Tuple with the valid values for the access attribute.
+    valid_scope_types = ('local', 'global_argument')
+    # Tuple with the valid datatypes.
+    valid_data_types = ('real', 'integer', 'character')
+
+    def __init__(self, name, datatype, shape=[], scope='local',
+                 is_input=False, is_output=False):
+
         self._name = name
+
+        if datatype not in Symbol.valid_data_types:
+            raise NotImplementedError(
+                "Symbol can only be initialized with {0} datatypes."
+                "".format(str(Symbol.valid_data_types)))
         self._datatype = datatype
-        self._dimensions = dimensions
-        self._kind = kind
+
+        if not isinstance(shape, list):
+            raise TypeError("Symbol shape attribute must be a list.")
+
+        if False in [isinstance(x, (type(None), int)) for x in shape]:
+            raise TypeError("Symbol shape list elements can only be "
+                            "'integer' or 'None'.")
+        self._shape = shape
+
+        # The following attributes have setter methods (with error checking)
+        self.scope = scope
+        self.is_input = is_input
+        self.is_output = is_output
 
     @property
     def name(self):
+        '''
+        :return: Name of the Symbol.
+        :rtype: string
+        '''
         return self._name
 
     @property
     def datatype(self):
+        '''
+        :return: Datatype of the Symbol.
+        :rtype: string
+        '''
         return self._datatype
 
     @property
-    def dimensions(self):
-        return self._dimensions
+    def is_input(self):
+        '''
+        :return: Whether the symbol represents data that already exists \
+                 before kernel and is passed into upon entry.
+        :rtype: bool
+        '''
+        return self._is_input
+
+    @is_input.setter
+    def is_input(self, new_is_input):
+        '''
+        :param bool new_is_input: Whether the symbol represents data that \
+                                  exists before the kernel is entered and \
+                                  that is passed into the kernel.
+        :raises TypeError: Provided parameters have invalid error type.
+        :raises ValueError: 'new_is_input' contains an invalid value.
+        '''
+        if not isinstance(new_is_input, bool):
+            raise TypeError("Symbol 'is_input' attribute must be a boolean.")
+        if self.scope == 'local' and new_is_input is True:
+            raise ValueError("Symbol with 'local' scope can not have "
+                             "'is_input' attribute set to True.")
+        self._is_input = new_is_input
 
     @property
-    def kind(self):
-        return self._kind
+    def is_output(self):
+        '''
+        :return: Whether the variable respresented by this symbol survives \
+                 outside the kernel upon exit.
+        :rtype: bool
+        '''
+        return self._is_output
+
+    @is_output.setter
+    def is_output(self, new_is_output):
+        '''
+        :param bool new_is_output: Whether the variable represented by this \
+                                   symbol survives outside the kernel \
+                                   upon exit.
+        :raises TypeError: Provided parameters have invalid error type.
+        :raises ValueError: 'new_is_output' contains an invalid value.
+        '''
+        if not isinstance(new_is_output, bool):
+            raise TypeError("Symbol 'is_output' attribute must be a boolean.")
+        if self.scope == 'local' and new_is_output is True:
+            raise ValueError("Symbol with 'local' scope can not have "
+                             "'is_output' attribute set to True.")
+        self._is_output = new_is_output
+
+    @property
+    def shape(self):
+        '''
+        :return: Shape of the symbol in row-major order (leftmost \
+                 index is contiguous in memory). Each entry represents \
+                 an array dimension. If not None then it holds the \
+                 extent of that dimension. If it is an empy list it \
+                 represents an scalar.
+        :rtype: list
+        '''
+        return self._shape
+
+    @property
+    def scope(self):
+        '''
+        :return: Whether the symbol is 'local' (just exists inside the kernel \
+                 scope) or 'global_*' (data also lives outside the kernel). \
+                 Global-scoped symbols also have postfixed information about \
+                 the sharing mechanism, at the moment just 'global_argument' \
+                 is available for variables passed in/out of the kernel \
+                 by argument.
+        :rtype: str
+        '''
+        return self._scope
+
+    @scope.setter
+    def scope(self, new_scope):
+        '''
+        :param str scope: It is 'local' if the symbol just exists inside the \
+                          kernel scope or 'global_*' if the data survives \
+                          outside of the kernel scope. Note that \
+                          global-scoped symbols also have postfixed \
+                          information about the sharing mechanism, at the \
+                          moment just 'global_argument' is available for \
+                          variables passed in/out of the kernel by argument.
+        :raises ValueError: New scope parameter has an invalid value.
+        '''
+        if new_scope not in Symbol.valid_scope_types:
+            raise ValueError("Symbol scope attribute can only be one of {0}"
+                             " but got '{1}'."
+                             "".format(str(Symbol.valid_scope_types),
+                                       str(new_scope)))
+
+        self._scope = new_scope
 
     def __str__(self):
-        return (self.name + "<" + self.datatype + "," + str(self.dimensions) +
-                "," + self.kind + ">")
+        return (self.name + "<" + self.datatype + ", " + str(self.shape) +
+                ", " + self.scope + ">")
 
 
 class SymbolTable(object):
     '''
-    Encapsulates the symbols table and provides methods to declare new symbols
-    and look up existing symbols. It is implemented as a monolithic scope
-    symbol table.
+    Encapsulates the symbol table and provides methods to declare new symbols
+    and look up existing symbols. It is implemented as a single scope
+    symbol table (nested scopes not supported).
     '''
     def __init__(self):
+        # Dict of Symbol objects with the symbol names as keys.
         self._symbols = {}
+        # Ordered list of the arguments.
         self._argument_list = []
 
-    def declare(self, name, datatype, dimensions, kind):
+    def declare(self, name, datatype, shape=[], scope='local',
+                is_input=False, is_output=False):
         '''
-        Declare a new symbol in the symbols table.
+        Declare a new symbol in the symbol table.
 
-        :param name: Name of the symbol.
-        :type name: string
-        :param datatype: Data type of the symbol.
-        :type datatype: string
-        :param dimensions: Dimensions of the symbol (0 represents an scalar
-                           symbol).
-        :type dimensions: list of integers
-        :param kind: Information about the variable declaration attributes.
-        :type kind: string
+        :param str name: Name of the symbol.
+        :param str datatype: Datatype of the symbol.
+        :param list shape: Shape of the symbol in row-major order (leftmost \
+                       index is contiguous in memory). Each entry represents \
+                       an array dimension. If not None then it holds the \
+                       extent of that dimension. If it is an empy list it \
+                       represents an scalar.
+        :param str scope: It is 'local' if the symbol just exists inside the \
+                          kernel scope or 'global_*' if the data survives \
+                          outside of the kernel scope. Note that \
+                          global-scoped symbols also have postfixed \
+                          information about the sharing mechanism, at the \
+                          moment just 'global_argument' is available for \
+                          variables passed in/out of the kernel by argument.
+        :param bool is_input: Whether the symbol represents data that exists \
+                              before the kernel is entered and that is passed \
+                              into the kernel.
+        :param bool is_output: Whether the symbol represents data that is \
+                               survives outside the kernel upon exit.
+        :raises KeyError: The provided name can not be used as key in the
+                          table.
         '''
         if name in self._symbols:
-            raise InternalError("Multiple definition of symbol: '{0}'."
-                                "".format(name))
-        else:
-            self._symbols[name] = Symbol(name, datatype, dimensions, kind)
+            raise KeyError("Symbol table already contains a symbol with"
+                           " name '{0}'.".format(name))
+
+        self._symbols[name] = Symbol(name, datatype, shape, scope, is_input,
+                                     is_output)
+
+    def specify_argument_list(self, argument_name_list):
+        '''
+        Keep track of the order of the arguments and provide the scope,
+        is_input and is_ouput information if it was not available on the
+        variable declaration.
+
+        :param list argument_name_list: Ordered list of the argument names.
+        '''
+        for name in argument_name_list:
+            symbol = self.lookup(name)
+            # Declarations without explicit intent are provisionally identified
+            # as 'local', but if they appear in the argument list the scope and
+            # input/output attributes need to be updated.
+            if symbol.scope == 'local':
+                symbol.scope = 'global_argument'
+                symbol.is_input = True
+                symbol.is_output = True
+            self._argument_list.append(symbol)
 
     def lookup(self, name):
         '''
-        Look up a symbol in the symbols table.
+        Look up a symbol in the symbol table.
 
-        :param name: Name of the symbol
-        :type name: string
+        :param str name: Name of the symbol
         :raises KeyError: If the given name is not in the Symbol Table.
         '''
-        return self._symbols[name]
-
-    def specify_argument_list(self, argument_names_list):
-        for name in argument_names_list:
-            symbol = self.lookup(name)
-            self._argument_list.append(symbol)
+        try:
+            return self._symbols[name]
+        except KeyError:
+            raise KeyError("Could not find '{0}' in the Symbol Table."
+                           "".format(name))
 
     @property
     def argument_list(self):
@@ -4412,9 +5242,7 @@ class SymbolTable(object):
         '''
         Print a representation of this Symbol Table to stdout.
         '''
-        print("Symbol Table:")
-        for symbol in self._symbols.values():
-            print(str(symbol))
+        print(str(self))
 
     def __str__(self):
         return ("Symbol Table:\n" +
@@ -4427,8 +5255,7 @@ class KernelSchedule(Schedule):
     A kernelSchedule inherits the functionality from Schedule and adds a symbol
     table to keep a record of the declared variables and their attributes.
 
-    :param name: Kernel subroutine name
-    :type name: string
+    :param str name: Kernel subroutine name
     '''
 
     def __init__(self, name):
@@ -4438,6 +5265,10 @@ class KernelSchedule(Schedule):
 
     @property
     def symbol_table(self):
+        '''
+        :return: Table containing symbol information for the kernel.
+        :rtype: :py:class:`psyclone.psyGen.SymbolTable`
+        '''
         return self._symbol_table
 
     def view(self, indent=0):
@@ -4445,8 +5276,7 @@ class KernelSchedule(Schedule):
         Print a text representation of this node to stdout and then
         call the view() method of any children.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: Depth of indent for output text
         '''
         print(self.indent(indent) + self.coloured_text + "[name:'" + self._name
               + "']")
@@ -4644,7 +5474,7 @@ class Reference(Node):
     :param parent: the parent node of this Reference in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, reference_name, parent=None):
+    def __init__(self, reference_name, parent):
         super(Reference, self).__init__(parent=parent)
         self._reference = reference_name
 
@@ -4756,7 +5586,7 @@ class Array(Reference):
     :param parent: the parent node of this Array in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, reference_name, parent=None):
+    def __init__(self, reference_name, parent):
         super(Array, self).__init__(reference_name, parent=parent)
 
     @property

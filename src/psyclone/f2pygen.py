@@ -929,12 +929,12 @@ class BaseDeclGen(BaseGen):
             my_attrspec.append("intent({0})".format(intent))
         if pointer:
             my_attrspec.append("pointer")
+        if target:
+            my_attrspec.append("target")
         if allocatable:
             my_attrspec.append("allocatable")
         if save:
             my_attrspec.append("save")
-        if target:
-            my_attrspec.append("target")
         if dimension != "":
             my_attrspec.append("dimension({0})".format(dimension))
         self._decl.attrspec = my_attrspec

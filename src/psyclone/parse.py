@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -258,20 +258,6 @@ class DynDescriptor(Descriptor):
         return self._gauss_quad
 
 
-class GHProtoDescriptor(Descriptor):
-    def __init__(self, access, space, stencil):
-        self._space = FunctionSpace.unpack(space)
-        Descriptor.__init__(self, access, self._space, stencil)
-
-    @property
-    def element(self):
-        return self._space.element
-
-    def __repr__(self):
-        return 'Descriptor(%s, %s, %s)' % (self.stencil, self.element,
-                                           self.access)
-
-
 class FunctionSpace(object):
     @staticmethod
     def unpack(string):
@@ -359,35 +345,79 @@ class TensorProductElement(Element):
 
 
 class KernelProcedure(object):
-    """An elemental kernel procedure"""
+    """
+    An elemental Kernel procedure.
+
+    :param ktype_ast: the fparser1 parse tree for the Kernel meta-data.
+    :type ktype_ast: :py:class:`fparser.one.block_statements.Type`
+    :param str ktype_name: name of the Fortran type holding the Kernel \
+                           meta-data.
+    :param modast: the fparser1 parse tree for the module containing the \
+                   Kernel routine.
+    :type modast: :py:class:`fparser.one.block_statements.BeginSource`
+
+    """
     def __init__(self, ktype_ast, ktype_name, modast):
-        a, n = KernelProcedure.get_procedure(ktype_ast, ktype_name, modast)
-        self._ast = a
-        self._name = n
+        self._ast, self._name = KernelProcedure.get_procedure(
+            ktype_ast, ktype_name, modast)
 
     @staticmethod
     def get_procedure(ast, name, modast):
+        '''
+        Get the name of the subroutine associated with the Kernel. This is
+        a type-bound procedure in the meta-data which may take one of two
+        forms:
+                PROCEDURE, nopass :: code => <proc_name>
+        or
+                PROCEDURE, nopass :: <proc_name>
+
+        :param ast: the fparser1 parse tree for the Kernel meta-data.
+        :type ast: :py:class:`fparser.one.block_statements.Type`
+        :param str name: the name of the Fortran type holding the Kernel \
+                         meta-data.
+        :param modast: the fparser1 parse tree for the module containing the \
+                       Kernel routine.
+        :type modast: :py:class:`fparser.one.block_statements.BeginSource`
+
+        :returns: 2-tuple of the fparser1 parse tree of the Subroutine \
+                  statement and the name of that Subroutine.
+        :rtype: (:py:class:`fparser1.block_statements.Subroutine`, str)
+
+        :raises RuntimeError: if the supplied Kernel meta-data does not \
+                              have a type-bound procedure.
+        :raises RuntimeError: if no implementation is found for the \
+                              type-bound procedure.
+        :raises ParseError: if the type-bound procedure specifies a binding \
+                            name but the generic name is not "code".
+        :raises ParseError: if the type-bound procedure is not public in the \
+                            Fortran module.
+        :raises InternalError: if we get an empty string for the name of the \
+                               type-bound procedure.
+        '''
         bname = None
+        # Search the the meta-data for a SpecificBinding
         for statement in ast.content:
             if isinstance(statement, fparser1.statements.SpecificBinding):
-                if statement.name == "code" and statement.bname != "":
-                    # prototype gungho style
+                # We support either:
+                # PROCEDURE, nopass :: code => <proc_name> or
+                # PROCEDURE, nopass :: <proc_name>
+                if statement.bname:
+                    if statement.name.lower() != "code":
+                        raise ParseError(
+                            "Kernel type {0} binds to a specific procedure but"
+                            " does not use 'code' as the generic name.".
+                            format(name))
                     bname = statement.bname
-                elif statement.name.lower() != "code" \
-                        and statement.bname != "":
-                    raise ParseError(
-                        "Kernel type %s binds to a specific procedure but "
-                        "does not use 'code' as the generic name." % name)
                 else:
-                    # psyclone style
                     bname = statement.name
+                break
         if bname is None:
             raise RuntimeError(
-                "Kernel type %s does not bind a specific procedure" % name)
+                "Kernel type {0} does not bind a specific procedure".
+                format(name))
         if bname == '':
-            raise ParseError(
-                "Internal error: empty kernel name returned for Kernel type "
-                "%s." % name)
+            raise InternalError(
+                "Empty Kernel name returned for Kernel type {0}.".format(name))
         code = None
         default_public = True
         declared_private = False
@@ -431,9 +461,10 @@ class KernelProcedure(object):
 
 class KernelTypeFactory(object):
     '''
-    Factory for calls to user-supplied Kernels.
+    Factory for objects in the PSyIR representing calls to user-supplied
+    Kernels.
 
-    :param str api: The API to which this kernel conforms.
+    :param str api: The API for which this factory is to create Kernels.
     '''
     def __init__(self, api=""):
         if api == "":
@@ -444,10 +475,15 @@ class KernelTypeFactory(object):
             self._type = api
 
     def create(self, ast, name=None):
+        '''
+        Create a Kernel object for the API supplied to the constructor
+        of this factory.
 
-        if self._type == "gunghoproto":
-            return GHProtoKernelType(ast, name=name)
-        elif self._type == "dynamo0.1":
+        :param ast: The fparser1 AST for the Kernel code.
+        :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+        :param str name: the name of the Kernel or None.
+        '''
+        if self._type == "dynamo0.1":
             return DynKernelType(ast, name=name)
         elif self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
@@ -553,7 +589,7 @@ class KernelType(object):
         self._iterates_over = self.get_integer_variable("iterates_over")
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits = self.getkerneldescriptors(self._ktype)
-        self._arg_descriptors = None  # this is set up by the subclasses
+        self._arg_descriptors = []  # this is set up by the subclasses
 
     def getkerneldescriptors(self, ast, var_name='meta_args'):
         descs = ast.get_variable(var_name)
@@ -671,8 +707,9 @@ class KernelType(object):
 
     def get_integer_array(self, name):
         ''' Parse the kernel meta-data and find the value of the
-        integer array variable with the supplied name. Return None if no
-        matching variable is found.
+        integer array variable with the supplied name. Returns an empty list
+        if no matching variable is found.
+
         :param str name: the name of the integer array to find.
         :returns: list of values.
         :rtype: list of str.
@@ -711,7 +748,7 @@ class KernelType(object):
                     raise InternalError("Failed to parse array constructor: "
                                         "'{0}'".format(str(assign.items[2])))
                 return [str(name) for name in names]
-        return None
+        return []
 
 
 class DynKernelType(KernelType):
@@ -751,25 +788,6 @@ class GOKernelType(KernelType):
                     format(str(len(init.args)), init.args))
             self._arg_descriptors.append(GODescriptor(access, funcspace,
                                                       stencil))
-
-
-class GHProtoKernelType(KernelType):
-
-    def __init__(self, ast, name=None):
-        KernelType.__init__(self, ast, name=name)
-        self._arg_descriptors = []
-        for init in self._inits:
-            if init.name != 'arg':
-                raise ParseError(
-                    "Each meta_arg value must be of type 'arg' for the GungHo "
-                    "prototype API, but found '" + init.name + "'")
-            if len(init.args) != 3:
-                raise ParseError(
-                    "'arg' type expects 3 arguments but found '{}' in '{}'".
-                    format(str(len(init.args)), init.args))
-            self._arg_descriptors.append(GHProtoDescriptor(init.args[0].name,
-                                                           str(init.args[1]),
-                                                           init.args[2].name))
 
 
 class ParsedCall(object):
@@ -1246,6 +1264,9 @@ def parse_fp2(filename):
     from fparser.common.readfortran import FortranFileReader
 
     parser = ParserFactory().create()
-    reader = FortranFileReader(filename)
+    # We get the directories to search for any Fortran include files from
+    # our configuration object.
+    config = Config.get()
+    reader = FortranFileReader(filename, include_dirs=config.include_paths)
     ast = parser(reader)
     return ast
