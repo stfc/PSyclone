@@ -113,7 +113,9 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Assignment": "blue",
                        "Reference": "yellow",
                        "BinaryOperation": "blue",
+                       "UnaryOperation": "blue",
                        "Literal": "yellow",
+                       "Return": "yellow",
                        "CodeBlock": "red"}
 
 
@@ -4476,11 +4478,9 @@ class Fparser2ASTProcessor(object):
             utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
-            # TODO: Issue #256, to cover all nemolite2D kernels we need:
             # Fortran2003.If_Construct: self._if_construct_handler,
-            # Fortran2003.Return_Stmt: self._return_handler,
-            # Fortran2003.UnaryOpBase: self._unaryOp_handler,
-            # ... (some already partially implemented in nemo.py)
+            Fortran2003.Return_Stmt: self._return_handler,
+            Fortran2003.UnaryOpBase: self._unaryOp_handler,
         }
 
     @staticmethod
@@ -4853,6 +4853,18 @@ class Fparser2ASTProcessor(object):
                            nodes_parent=node)
         return ifblock
 
+    def _return_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Return_Stmt to the PSyIRe representation.
+         :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.Fortran2003.Return_Stmt`
+        :param parent: Parent node of the PSyIRe node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :return: PSyIRe representation of node
+        :rtype: :py:class:`psyclone.psyGen.Return`
+        '''
+        return Return(parent=parent)
+
     def _assignment_handler(self, node, parent):
         '''
         Transforms an fparser2 Assignment_Stmt to the PSyIRe representation.
@@ -4871,6 +4883,25 @@ class Fparser2ASTProcessor(object):
                            nodes_parent=node)
 
         return assignment
+
+    def _unary_op_handler(self, node, parent):
+        '''
+        Transforms an fparser2 UnaryOp to the PSyIRe representation.
+         :param child: node in fparser2 AST.
+        :type child:  :py:class:`fparser.two.utils.UnaryOpBase`
+        :param parent: Parent node of the PSyIRe node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :return: PSyIRe representation of node
+        :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+        '''
+        # Get the operator
+        operator = node.items[0]
+
+        unary_op = UnaryOperation(operator, parent=parent)
+        self.process_nodes(parent=unary_op, nodes=[node.items[1]],
+                           nodes_parent=node)
+
+        return unary_op
 
     def _binary_op_handler(self, node, parent):
         '''
@@ -4965,7 +4996,7 @@ class Fparser2ASTProcessor(object):
         :return: PSyIRe representation of node
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
-        return Literal(node.items[0], parent=parent)
+        return Literal(str(node.items[0]), parent=parent)
 
 
 class Symbol(object):
@@ -5398,6 +5429,61 @@ class Reference(Node):
         return "Reference[name:'" + self._reference + "']\n"
 
 
+class UnaryOperation(Node):
+    '''
+    Node representing a UnaryOperator expression. As such it has one operands
+    as children 0, and a attribute with the operator type.
+     :param ast: node in the fparser2 AST representing the unary operator.
+    :type ast: :py:class:`fparser.two.Fortran2003.UnaryOpBase.
+    :param parent: the parent node of this UnaryOperator in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, operator, parent=None):
+        super(UnaryOperation, self).__init__(parent=parent)
+        self._operator = operator
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+         return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("UnaryOperation",
+                       SCHEDULE_COLOUR_MAP["UnaryOperation"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+         :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "UnaryOperation[operator:'" + self._operator + "']\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+    def gen_c_code(self, indent=0, opencl=False):
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+         :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean:
+        :return: C language code representing the node.
+        :rtype: string
+        '''
+        return "(" + self._operator + " " \
+            + self._children[0].gen_c_code(indent, opencl) + ")"
+
+
 class BinaryOperation(Node):
     '''
     Node representing a BinaryOperator expression. As such it has two operands
@@ -5487,9 +5573,8 @@ class Literal(Node):
     '''
     Node representing a Literal
 
-    :param ast: node in the fparser2 AST representing the literal.
-    :type ast: :py:class:`fparser.two.Fortran2003.NumberBase.
-    :param parent: the parent node of this Literal in the PSyIRe.
+    :param str value: String representing the literal value.
+    :param parent: the parent node of this Literal in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, value, parent=None):
@@ -5518,3 +5603,46 @@ class Literal(Node):
 
     def __str__(self):
         return "Literal[value:'" + self._value + "']\n"
+
+
+class Return(Node):
+    '''
+    Node representing a Subroutine Return action
+     :param parent: the parent node of this Return in the PSyIRe.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, parent=None):
+        super(Return, self).__init__(parent=parent)
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+         return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+         :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+
+    def __str__(self):
+        return "Return[]\n"
+
+    def gen_c_code(self, indent=0, opencl=False):
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+         :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean:
+        :return: C language code representing the node.
+        :rtype: string
+        '''
+        return "return;\n"
