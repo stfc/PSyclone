@@ -4569,7 +4569,6 @@ class Fparser2ASTProcessor(object):
             raise GenerationError("Unexpected kernel AST. Could not find "
                                   "subroutine: {0}".format(name))
 
-        arg_list = []
         try:
             sub_spec = first_type_match(subroutine.content,
                                         Fortran2003.Specification_Part)
@@ -4584,13 +4583,6 @@ class Fparser2ASTProcessor(object):
             arg_list = []
         finally:
             self.process_declarations(new_schedule, decl_list, arg_list)
-
-        try:
-            new_schedule.symbol_table.specify_argument_list(arg_list)
-        except KeyError:
-            raise InternalError("Unexpected kernel AST. The argument list of"
-                                " '{0}' not match the variable declarations"
-                                "".format(name))
 
         try:
             sub_exec = first_type_match(subroutine.content,
@@ -5236,6 +5228,10 @@ class SymbolTable(object):
 
     @property
     def argument_list(self):
+        '''
+        :return: Ordered argument list.
+        :rtype: list of Symbols
+        '''
         return self._argument_list
 
     def view(self):
