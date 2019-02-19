@@ -4480,7 +4480,7 @@ class Fparser2ASTProcessor(object):
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
             # Fortran2003.If_Construct: self._if_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
-            Fortran2003.UnaryOpBase: self._unaryOp_handler,
+            Fortran2003.UnaryOpBase: self._unary_op_handler,
         }
 
     @staticmethod
