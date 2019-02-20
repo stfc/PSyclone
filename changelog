@@ -39,6 +39,8 @@
 	12) PR #255. Construct a KernelSchedule for kernel code with a
 	SymbolTable to hold information on variables used.
 
+	13) PR #302. Fix API's -> APIs typo in documentation.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
