@@ -39,6 +39,7 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse import parse
 from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
@@ -53,7 +54,7 @@ from psyclone.transformations import TransformationError, \
     Dynamo0p3RedundantComputationTrans, \
     Dynamo0p3AsyncHaloExchangeTrans
 from psyclone.configuration import Config
-from psyclone_test_utils import TEST_COMPILE, code_compiles
+from psyclone_test_utils import TEST_COMPILE
 
 
 # The version of the API that the tests in this file
@@ -101,7 +102,8 @@ def test_colour_trans_declarations(tmpdir, f90, f90flags, dist_mem):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_colour_trans(tmpdir, f90, f90flags, dist_mem):
@@ -171,7 +173,8 @@ def test_colour_trans(tmpdir, f90, f90flags, dist_mem):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_colour_trans_operator(tmpdir, f90, f90flags):
@@ -208,7 +211,8 @@ def test_colour_trans_operator(tmpdir, f90, f90flags):
         if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+            assert _compile.code_compiles(psy)
 
 
 def test_colour_trans_cma_operator(tmpdir, f90, f90flags, dist_mem):
@@ -266,7 +270,8 @@ def test_colour_trans_cma_operator(tmpdir, f90, f90flags, dist_mem):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_colour_trans_stencil():
@@ -468,7 +473,8 @@ def test_omp_colour_trans(tmpdir, f90, f90flags, dist_mem):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_omp_colour_orient_trans(monkeypatch, annexed):
@@ -676,7 +682,8 @@ def test_check_seq_colours_omp_do(tmpdir, f90, f90flags, monkeypatch, annexed):
             # If compilation testing has been enabled (--compile flag
             # to py.test) This test checks the code without OpenMP as
             # this transformation fails
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+            assert _compile.code_compiles(psy)
 
 
 def test_colouring_after_openmp():
@@ -1280,11 +1287,13 @@ def test_loop_fuse_omp_rwdisc(tmpdir, f90, f90flags, monkeypatch, annexed):
         if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+            assert _compile.code_compiles(psy)
 
 
 def test_fuse_colour_loops(tmpdir, f90, f90flags, monkeypatch, annexed,
                            dist_mem):
+    # pylint: disable=too-many-arguments
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP DO for both
     sequential and distributed-memory code. We also test when annexed
@@ -1390,7 +1399,8 @@ def test_fuse_colour_loops(tmpdir, f90, f90flags, monkeypatch, annexed,
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_loop_fuse_cma():
@@ -4295,7 +4305,8 @@ def test_rc_discontinuous_depth(tmpdir, f90, f90flags, monkeypatch, annexed):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_discontinuous_no_depth(monkeypatch, annexed):
@@ -4364,7 +4375,8 @@ def test_rc_all_discontinuous_depth(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_all_discontinuous_no_depth(tmpdir, f90, f90flags):
@@ -4395,7 +4407,8 @@ def test_rc_all_discontinuous_no_depth(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
@@ -4429,7 +4442,8 @@ def test_rc_all_discontinuous_vector_depth(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
@@ -4463,7 +4477,8 @@ def test_rc_all_discontinuous_vector_no_depth(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
@@ -4497,7 +4512,8 @@ def test_rc_all_disc_prev_depend_depth(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_all_disc_prev_depend_no_depth():
@@ -4562,7 +4578,8 @@ def test_rc_all_disc_prev_dep_depth_vector(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
@@ -4598,7 +4615,8 @@ def test_rc_all_disc_prev_dep_no_depth_vect(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir, f90, f90flags):
@@ -4640,7 +4658,8 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_dofs_depth():
@@ -5044,7 +5063,8 @@ def test_rc_remove_halo_exchange(tmpdir, f90, f90flags, monkeypatch):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
     #
     invoke = psy.invokes.invoke_list[0]
@@ -5117,7 +5137,8 @@ def test_rc_max_remove_halo_exchange(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled
         # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_continuous_halo_remove():
@@ -5815,7 +5836,8 @@ def test_rc_colour(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_max_colour(tmpdir, f90, f90flags):
@@ -5864,7 +5886,8 @@ def test_rc_max_colour(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_colour_discontinuous():
@@ -5949,7 +5972,8 @@ def test_rc_then_colour(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_then_colour2(tmpdir, f90, f90flags):
@@ -6005,7 +6029,8 @@ def test_rc_then_colour2(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
@@ -6066,7 +6091,8 @@ def test_loop_fuse_then_rc(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_haloex_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
@@ -6146,7 +6172,8 @@ def test_haloex_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
         if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+            assert _compile.code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -6246,7 +6273,8 @@ def test_haloex_rc1_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
         if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+            assert _compile.code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -6346,7 +6374,8 @@ def test_haloex_rc2_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
         if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+            assert _compile.code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -6444,7 +6473,8 @@ def test_haloex_rc3_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
         if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+            assert _compile.code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -6540,7 +6570,8 @@ def test_haloex_rc4_colouring(tmpdir, f90, f90flags, monkeypatch, annexed):
         if TEST_COMPILE:
             # If compilation testing has been enabled (--compile flag
             # to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+            _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+            assert _compile.code_compiles(psy)
 
         print("OK for iteration ", idx)
 
@@ -6660,7 +6691,8 @@ def test_intergrid_omp_parado(dist_mem, tmpdir, f90, f90flags):
         assert ("        DO cell=1,mesh_fld_c%get_last_edge_cell_per_colour("
                 "colour)\n" in gen)
     if TEST_COMPILE:
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_intergrid_omp_para_region1(dist_mem, tmpdir, f90, f90flags):
@@ -6702,7 +6734,8 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir, f90, f90flags):
             "        !$omp end parallel\n"
             "      END DO \n".format(upper_bound) in gen)
     if TEST_COMPILE:
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 @pytest.mark.xfail(reason="Loop-fusion not yet supported for inter-grid "
@@ -6725,7 +6758,8 @@ def test_intergrid_omp_para_region2(dist_mem, tmpdir, f90, f90flags):
     _, _ = ftrans.apply(loops[0], loops[2])
     schedule.view()
     if TEST_COMPILE:
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_intergrid_err(dist_mem):
@@ -6867,7 +6901,8 @@ def test_async_hex(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_async_hex_move_1(tmpdir, f90, f90flags):
@@ -6915,7 +6950,8 @@ def test_async_hex_move_1(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_async_hex_preserve_properties():
@@ -7021,7 +7057,8 @@ def test_async_hex_move_2(tmpdir, f90, f90flags, monkeypatch):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_async_hex_move_error_1():
@@ -7145,7 +7182,8 @@ def test_rc_remove_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
@@ -7236,7 +7274,8 @@ def test_rc_redund_async_halo_exchange(monkeypatch, tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 @pytest.mark.xfail(reason="dependence analysis thinks independent vectors "
@@ -7307,8 +7346,8 @@ def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
     # and set clean are still generated correctly
     ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
     for index in [5, 2, 1, 0]:
-        hex = schedule.children[index]
-        schedule, _ = ahex_trans.apply(hex)
+        my_hex = schedule.children[index]
+        schedule, _ = ahex_trans.apply(my_hex)
     result = str(psy.gen)
     for index in [1, 2, 3]:
         assert (
@@ -7355,7 +7394,8 @@ def test_vector_async_halo_exchange(tmpdir, f90, f90flags):
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag
         # to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        _compile = Dynamo0p3Build(f90, f90flags, tmpdir)
+        assert _compile.code_compiles(psy)
 
 
 def test_async_halo_exchange_nomatch1():
@@ -7386,7 +7426,7 @@ def test_async_halo_exchange_nomatch1():
     # for the first vector component after the loop (which is a
     # standard halo exchange). This should cause an exception to be
     # raised.
-    del(schedule.children[1])
+    del schedule.children[1]
 
     hex_start = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
@@ -7417,7 +7457,7 @@ def test_async_halo_exchange_nomatch2():
     # the halo exchange start will now match with nothing as it is the
     # last halo exchange in the schedule. This should cause an
     # exception to be raised.
-    del(schedule.children[1])
+    del schedule.children[1]
 
     hex_start = schedule.children[0]
     with pytest.raises(GenerationError) as excinfo:
