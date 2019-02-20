@@ -2299,7 +2299,41 @@ class DynInvokeLMAOperators(DynInvokeCollection):
         '''
         :param parent:
         '''
+        if self._invoke:
+            self._invoke_declarations(parent)
+        elif self._kernel:
+            self._kernel_declarations(parent)
+        else:
+            raise InternalError("lma op huh")
+
+    def _kernel_declarations(self, parent):
+        '''
+        TBD
+        '''
+        from psyclone.f2pygen import DeclGen
+        lma_args = psyGen.args_filter(
+            self._kernel.arguments.args, arg_types=["gh_operator"])
+        if lma_args:
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=["cell"]))
+        for arg in lma_args:
+            size = arg.name+"_ncell_3d"
+            parent.add(DeclGen(parent, datatype="integer",
+                               intent="in", entity_decls=[size]))
+            ndf_name_to = get_fs_ndf_name(arg.function_space_to)
+            ndf_name_from = get_fs_ndf_name(arg.function_space_from)
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               dimension=",".join([ndf_name_to,
+                                                   ndf_name_from, size]),
+                               intent=arg.intent,
+                               entity_decls=[arg.name]))
+
+    def _invoke_declarations(self, parent):
+        '''
+        TBD
+        '''
         from psyclone.f2pygen import TypeDeclGen
+
         op_declarations_dict = self._invoke.unique_declns_by_intent(
             "gh_operator")
         for intent in FORTRAN_INTENT_NAMES:
@@ -3059,7 +3093,7 @@ class DynInvokeBasisFns(DynInvokeCollection):
         :type parent:
         '''
         from psyclone.f2pygen import DeclGen
-        
+
         if not self._qr_vars and not self._eval_targets:
             return
 
@@ -3175,17 +3209,17 @@ class DynInvokeBasisFns(DynInvokeCollection):
 
         for init in inits:
             parent.add(AssignGen(parent, lhs=init[0], rhs=init[1]))
-    
+
         if var_dims:
             # declare dim and diff_dim for all function spaces
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=var_dims))
-            
+
         basis_declarations = []
         for basis in basis_arrays:
             parent.add(
                 AllocateGen(parent, basis+"("+", ".join(basis_arrays[basis])+")"))
-            basis_declarations.append(op_name+"("+",".join([":"]*len(basis_arrays[basis]))+")")
+            basis_declarations.append(basis+"("+",".join([":"]*len(basis_arrays[basis]))+")")
 
         # declare the basis function arrays
         if basis_declarations:
@@ -3223,16 +3257,18 @@ class DynInvokeBasisFns(DynInvokeCollection):
                     is_diff_basis = True
                 else:
                     raise InternalError(
-                        "Unrecognised type of basis function: '{0}'. Should be "
-                        "either 'basis' or 'diff-basis'.".format(basis_fn['type']))
+                        "Unrecognised type of basis function: '{0}'. Should "
+                        "be either 'basis' or 'diff-basis'.".format(
+                            basis_fn['type']))
 
                 # We'll only need to initialise the dimensioning variables
                 # if we're generating a PSy layer
                 if first_dim not in var_dim_list:
                     var_dim_list.append(first_dim)
-                    rhs = "%".join([basis_fn["arg"].proxy_name_indexed,
-                                    basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                                    dim_space])
+                    rhs = "%".join(
+                        [basis_fn["arg"].proxy_name_indexed,
+                         basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                         dim_space])
                     inits.append((first_dim, rhs))
 
             elif self._kernel:
@@ -3248,7 +3284,7 @@ class DynInvokeBasisFns(DynInvokeCollection):
                     raise InternalError("huh3")
             else:
                 raise InternalError("huh2")
-                    
+
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
 
                 if is_diff_basis:
@@ -3266,13 +3302,12 @@ class DynInvokeBasisFns(DynInvokeCollection):
                 # Dimensionality of the basis arrays depends on the
                 # type of quadrature...
                 alloc_args = qr_basis_alloc_args(first_dim, basis_fn)
-                if self._invoke:
-                    var_dim_list += alloc_args
-                else:
+                for arg in alloc_args:
                     # In a kernel stub the first dimension of the array is
                     # a numerical value so make sure we don't try and declare
-                    # it as a variable. TODO improve this!
-                    var_dim_list += alloc_args[1:]
+                    # it as a variable.
+                    if not arg[0].isdigit() and arg not in var_dim_list:
+                        var_dim_list.append(arg)
                 basis_arrays[op_name] = alloc_args
 
             elif basis_fn["shape"].lower() == "gh_evaluator":
@@ -3289,25 +3324,14 @@ class DynInvokeBasisFns(DynInvokeCollection):
                             "gh_basis", basis_fn["fspace"],
                             qr_var=basis_fn["qr_var"],
                             on_space=target_space)
-                    if op_name in op_name_list:
+                    if op_name in basis_arrays:
                         continue
                     # We haven't seen a basis with this name before so
-                    # need to declare it and add allocate statement
-                    op_name_list.append(op_name)
-
-                    ndf_nodal_name = get_fs_ndf_name(target_space)
-                    alloc_args_str = ", ".join(
-                        [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
-                         ndf_nodal_name])
-                    #parent.add(AllocateGen(parent,
-                    #                       op_name+"("+alloc_args_str+")"))
-                    #allocs.append(op_name+"("+alloc_args_str+")")
-                    # add basis function variable to list to declare later
-                    # declarations.append(op_name+"(:,:,:)")
+                    # need to store its dimensions
                     basis_arrays[op_name] = [
                         first_dim,
                         get_fs_ndf_name(basis_fn["fspace"]),
-                        ndf_nodal_name]
+                        get_fs_ndf_name(target_space)]
             else:
                 raise InternalError(
                     "Unrecognised evaluator shape: '{0}'. Should be one of "
@@ -6061,6 +6085,9 @@ class DynKern(Kern):
         fields = DynInvokeFields(self)
         fields.declarations(sub_stub)
 
+        lma_ops = DynInvokeLMAOperators(self)
+        lma_ops.declarations(sub_stub)
+
         stencils = DynInvokeStencils(self)
         stencils.declarations(sub_stub)
 
@@ -6956,12 +6983,8 @@ class KernStubArgList(ArgOrdering):
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
-        from psyclone.f2pygen import DeclGen
         size = arg.name + "_ncell_3d"
         self._arglist.append(size)
-        #decl = DeclGen(self._parent, datatype="integer", intent="in",
-        #               entity_decls=[size])
-        #self._parent.add(decl)
         # If this is the first argument in the kernel then keep a
         # note so that we can put subsequent declarations in the
         # correct location
@@ -6969,14 +6992,6 @@ class KernStubArgList(ArgOrdering):
             self._first_arg = False
         text = arg.name
         self._arglist.append(text)
-
-        #intent = arg.intent
-        #ndf_name_to = get_fs_ndf_name(arg.function_space_to)
-        #ndf_name_from = get_fs_ndf_name(arg.function_space_from)
-        #self._parent.add(DeclGen(self._parent, datatype="real", kind="r_def",
-        #                         dimension=",".join([ndf_name_to,
-        #                                             ndf_name_from, size]),
-        #                         intent=intent, entity_decls=[text]))
 
     def cma_operator(self, arg):
         ''' add the CMA operator arguments to the argument list '''
