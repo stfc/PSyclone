@@ -2935,6 +2935,9 @@ class DynInvokeBasisFns(DynInvokeCollection):
     :raises InternalError: if a call in the supplied Schedule has an \
                            unrecognised evaluator shape.
     '''
+    qr_dim_vars = {"xyoz": ["np_xy", "np_z"]}
+    qr_weight_vars = {"xyoz": ["weights_xy", "weights_z"]}
+
     def __init__(self, schedule):
         from psyclone.dynamo0p3_builtins import DynBuiltIn
 
@@ -3108,6 +3111,7 @@ class DynInvokeBasisFns(DynInvokeCollection):
                                kind="r_def", intent="in",
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
+        self._declare_xyoz_qr(parent)
 
     def _invoke_declarations(self, parent):
         '''
@@ -3136,6 +3140,25 @@ class DynInvokeBasisFns(DynInvokeCollection):
                         parent,
                         datatype=QUADRATURE_TYPE_MAP[shape]["proxy_type"],
                         entity_decls=var_names))
+
+    def _declare_xyoz_qr(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import DeclGen
+        if "gh_quadrature_xyoz" not in self._qr_vars:
+            return
+        if self._invoke:
+            # TODO move declarations out of initialisation code
+            pass
+        if self._kernel:
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               intent="in",
+                               dimension="np_xy", entity_decls=["weights_xy"]))
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               intent="in",
+                               dimension="np_z", entity_decls=["weights_z"]))
+        else:
+            raise InternalError("huh4")
 
     def initialise_basis_fns(self, parent):
         '''
@@ -3365,9 +3388,6 @@ class DynInvokeBasisFns(DynInvokeCollection):
         if "gh_quadrature_xyoz" not in self._qr_vars:
             return
 
-        qr_vars = ["np_xy", "np_z"]
-        qr_ptr_vars = ["weights_xy", "weights_z"]
-
         for qr_arg_name in self._qr_vars["gh_quadrature_xyoz"]:
 
             # We generate unique names for the integers holding the numbers
@@ -3376,9 +3396,10 @@ class DynInvokeBasisFns(DynInvokeCollection):
             parent.add(
                 DeclGen(
                     parent, datatype="integer",
-                    entity_decls=[name+"_"+qr_arg_name for name in qr_vars]))
+                    entity_decls=[name+"_"+qr_arg_name
+                                  for name in self.qr_dim_vars["xyoz"]]))
             decl_list = [name+"_"+qr_arg_name+"(:) => null()"
-                         for name in qr_ptr_vars]
+                         for name in self.qr_weight_vars["xyoz"]]
             parent.add(
                 DeclGen(parent, datatype="real", pointer=True,
                         kind="r_def", entity_decls=decl_list))
@@ -3388,12 +3409,12 @@ class DynInvokeBasisFns(DynInvokeCollection):
                 AssignGen(parent, lhs=proxy_name,
                           rhs=qr_arg_name+"%"+"get_quadrature_proxy()"))
             # Number of points in each dimension
-            for qr_var in qr_vars:
+            for qr_var in self.qr_dim_vars["xyoz"]:
                 parent.add(
                     AssignGen(parent, lhs=qr_var+"_"+qr_arg_name,
                               rhs=proxy_name+"%"+qr_var))
             # Pointers to the weights arrays
-            for qr_var in qr_ptr_vars:
+            for qr_var in self.qr_weight_vars["xyoz"]:
                 parent.add(
                     AssignGen(parent, pointer=True,
                               lhs=qr_var+"_"+qr_arg_name,
