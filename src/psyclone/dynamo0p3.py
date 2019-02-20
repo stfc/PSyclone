@@ -1822,7 +1822,7 @@ class DynInvokeDofmaps(DynInvokeCollection):
         # in this one are themselves dictionaries containing two entries:
         # "argument" - the object holding information on the CMA kernel
         #              argument
-        # "direction" - whether the dofmap is required for the "to" for
+        # "direction" - whether the dofmap is required for the "to" or
         #               "from" function space of the operator.
         self._unique_cbanded_maps = OrderedDict()
         # A dictionary of required CMA indirection dofmaps. As with the
@@ -1972,6 +1972,7 @@ class DynInvokeDofmaps(DynInvokeCollection):
         '''
         '''
         from psyclone.f2pygen import DeclGen
+        # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
             # TODO merge this into declarations()?
             # We declare ndf first as some compilers require this
@@ -1981,7 +1982,12 @@ class DynInvokeDofmaps(DynInvokeCollection):
                                entity_decls=[ndf_name]))
             parent.add(DeclGen(parent, datatype="integer", intent="in",
                                dimension=ndf_name, entity_decls=[dmap]))
-
+        # Column-banded dofmaps
+        for dmap in self._unique_cbanded_maps:
+            pass
+        # CMA operator indirection dofmaps
+        for dmap in self._unique_indirection_maps:
+            pass
 
 class DynInvokeFunctionSpaces(DynInvokeCollection):
     '''
@@ -2381,6 +2387,9 @@ class DynInvokeCMAOperators(DynInvokeCollection):
         # or not the to/from function spaces of the CMA operator are the
         # same.
         self._cma_ops = OrderedDict()
+        # You can't index into an OrderedDict so we keep a separate ref
+        # to the first CMA argument we find.
+        self._first_cma_arg = None
         for call in self._calls:
             if call.cma_operation:
                 # Get a list of all of the CMA arguments to this call
@@ -2401,6 +2410,9 @@ class DynInvokeCMAOperators(DynInvokeCollection):
                                 "arg": arg,
                                 "params": self.cma_same_fs_params}
                         self._cma_ops[arg.name]["intent"] = arg.intent
+                        # Keep a reference to the first CMA argument
+                        if not self._first_cma_arg:
+                            self._first_cma_arg = arg
 
     def initialise(self, parent):
         ''' Generates the calls to the LFRic infrastructure that look-up
@@ -2420,11 +2432,10 @@ class DynInvokeCMAOperators(DynInvokeCollection):
         parent.add(CommentGen(parent, ""))
         ncol_name = self._name_space_manager.create_name(
             root_name="ncell_2d", context="PSyVars", label="ncell_2d")
-        # Get the first kernel argument associated with a CMA operator
-        first_cma_arg = self._cma_ops.values()[0]["arg"]
         parent.add(
-            AssignGen(parent, lhs=ncol_name,
-                      rhs=first_cma_arg.proxy_name_indexed + "%ncell_2d"))
+            AssignGen(
+                parent, lhs=ncol_name,
+                rhs=self._first_cma_arg.proxy_name_indexed + "%ncell_2d"))
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=[ncol_name]))
 
@@ -2529,17 +2540,13 @@ class DynInvokeCMAOperators(DynInvokeCollection):
                                intent="in",
                                entity_decls=_local_args))
             # Declare the array that holds the CMA operator
-            # If this is the first argument in the kernel then keep a
-            # note so that we can put subsequent declarations in the
-            # correct location
             bandwidth = op_name + "_bandwidth"
             nrow = op_name + "_nrow"
             intent = self._cma_ops[op_name]["intent"]
-            decl = DeclGen(parent, datatype="real", kind="r_def",
-                           dimension=",".join([bandwidth,
-                                               nrow, "ncell_2d"]),
-                           intent=intent, entity_decls=[op_name])
-            parent.add(decl)
+            parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                               dimension=",".join([bandwidth,
+                                                   nrow, "ncell_2d"]),
+                               intent=intent, entity_decls=[op_name]))
 
 
 class DynMeshes(object):
@@ -7056,10 +7063,10 @@ class KernStubArgList(ArgOrdering):
         from psyclone.f2pygen import DeclGen
         ndf = get_fs_ndf_name(function_space)
         dofmap = get_cbanded_map_name(function_space)
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 dimension=",".join([ndf, "nlayers"]),
-                                 intent="in",
-                                 entity_decls=[dofmap]))
+        #self._parent.add(DeclGen(self._parent, datatype="integer",
+        #                         dimension=",".join([ndf, "nlayers"]),
+        #                         intent="in",
+        #                         entity_decls=[dofmap]))
         self._arglist.append(dofmap)
 
     def indirection_dofmap(self, function_space, operator=None):
@@ -7079,10 +7086,10 @@ class KernStubArgList(ArgOrdering):
         else:
             dim_name = operator.name + "_ncol"
         map_name = get_cma_indirection_map_name(function_space)
-        self._parent.add(DeclGen(self._parent, datatype="integer",
-                                 dimension=dim_name,
-                                 intent="in",
-                                 entity_decls=[map_name]))
+        #self._parent.add(DeclGen(self._parent, datatype="integer",
+        #                         dimension=dim_name,
+        #                         intent="in",
+        #                         entity_decls=[map_name]))
         self._arglist.append(map_name)
 
     def scalar(self, arg):
