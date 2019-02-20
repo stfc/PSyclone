@@ -357,6 +357,12 @@ def qr_basis_alloc_args(first_dim, basis_fn):
     :return: list of dimensions to use to allocate array
     :rtype: list of strings
     '''
+    if basis_fn["shape"] not in VALID_QUADRATURE_SHAPES:
+        raise InternalError(
+            "Unrecognised shape ({0}) specified in "
+            "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
+            "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
+
     # Dimensionality of the basis arrays depends on the
     # type of quadrature...
     # if basis_fn["shape"] == "gh_quadrature_xyz":
@@ -370,17 +376,16 @@ def qr_basis_alloc_args(first_dim, basis_fn):
         else:
             # We have no name for the QR variable (as will be the case when
             # generating a kernel stub).
-            alloc_args += ["np_xy", "np_z"]      
+            alloc_args += ["np_xy", "np_z"]
     # elif basis_fn["shape"] == "gh_quadrature_xoyoz":
     #     alloc_args = [first_dim, get_fs_ndf_name(basis_fn["fspace"]),
     #                   "np_x"+"_"+basis_fn["qr_var"],
     #                   "np_y"+"_"+basis_fn["qr_var"],
     #                   "np_z"+"_"+basis_fn["qr_var"]]
     else:
-        raise GenerationError(
-            "Internal error: unrecognised shape ({0}) specified in "
-            "dynamo0p3.qr_basis_alloc_args(). Should be one of: "
-            "{1}".format(basis_fn["shape"], VALID_QUADRATURE_SHAPES))
+        raise NotImplementedError(
+            "Quadrature shape '{0}' not yet supported in "
+            "dynamo0p3.qr_basis_alloc_args().".format(basis_fn["shape"]))
     return alloc_args
 
 
@@ -3111,7 +3116,8 @@ class DynInvokeBasisFns(DynInvokeCollection):
                                kind="r_def", intent="in",
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
-        self._declare_xyoz_qr(parent)
+        for qr_shape in VALID_QUADRATURE_SHAPES:
+            self._declare_qr(qr_shape, parent)
 
     def _invoke_declarations(self, parent):
         '''
@@ -3141,24 +3147,29 @@ class DynInvokeBasisFns(DynInvokeCollection):
                         datatype=QUADRATURE_TYPE_MAP[shape]["proxy_type"],
                         entity_decls=var_names))
 
-    def _declare_xyoz_qr(self, parent):
+    def _declare_qr(self, shape, parent):
         '''
         '''
         from psyclone.f2pygen import DeclGen
-        if "gh_quadrature_xyoz" not in self._qr_vars:
-            return
-        if self._invoke:
-            # TODO move declarations out of initialisation code
-            pass
-        if self._kernel:
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
-                               intent="in",
-                               dimension="np_xy", entity_decls=["weights_xy"]))
-            parent.add(DeclGen(parent, datatype="real", kind="r_def",
-                               intent="in",
-                               dimension="np_z", entity_decls=["weights_z"]))
+        if shape.lower() == "gh_quadrature_xyoz":
+            if shape not in self._qr_vars:
+                return
+            if self._invoke:
+                # TODO move declarations out of initialisation code
+                pass
+            if self._kernel:
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in",
+                                   dimension="np_xy", entity_decls=["weights_xy"]))
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in",
+                                   dimension="np_z", entity_decls=["weights_z"]))
+            else:
+                raise InternalError("huh4")
         else:
-            raise InternalError("huh4")
+            raise GenerationError(
+                "Quadrature shapes other than GH_QUADRATURE_XYoZ are not yet "
+                "supported - got '{0}'".format(shape))
 
     def initialise_basis_fns(self, parent):
         '''

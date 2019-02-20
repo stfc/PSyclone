@@ -87,12 +87,12 @@ def test_field_xyoz(tmpdir, f90, f90flags):
         "      REAL(KIND=r_def), pointer :: weights_xy_qr(:) => null(), "
         "weights_z_qr(:) => null()\n"
         "      INTEGER np_xy_qr, np_z_qr\n"
-        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n"
         "      INTEGER nlayers\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER, pointer :: map_w1(:,:) => null(), "
-        "map_w2(:,:) => null(), map_w3(:,:) => null()\n")
+        "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
+        "      INTEGER ndf_w1, undf_w1, ndf_w2, undf_w2, ndf_w3, undf_w3\n")
     assert output_decls in generated_code
     init_output = (
         "      !\n"
@@ -145,13 +145,13 @@ def test_field_xyoz(tmpdir, f90, f90flags):
         "      ! Allocate basis/diff-basis arrays\n"
         "      !\n"
         "      dim_w1 = f1_proxy%vspace%get_dim_space()\n"
-        "      ALLOCATE (basis_w1_qr(dim_w1, ndf_w1, np_xy_qr, np_z_qr))\n"
         "      diff_dim_w2 = f2_proxy%vspace%get_dim_space_diff()\n"
+        "      dim_w3 = m2_proxy%vspace%get_dim_space()\n"
+        "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
+        "      ALLOCATE (basis_w1_qr(dim_w1, ndf_w1, np_xy_qr, np_z_qr))\n"
         "      ALLOCATE (diff_basis_w2_qr(diff_dim_w2, ndf_w2, np_xy_qr, "
         "np_z_qr))\n"
-        "      dim_w3 = m2_proxy%vspace%get_dim_space()\n"
         "      ALLOCATE (basis_w3_qr(dim_w3, ndf_w3, np_xy_qr, np_z_qr))\n"
-        "      diff_dim_w3 = m2_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (diff_basis_w3_qr(diff_dim_w3, ndf_w3, np_xy_qr, "
         "np_z_qr))\n"
         "      !\n"
@@ -258,9 +258,9 @@ def test_dyninvokebasisfns(monkeypatch):
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
     from psyclone import dynamo0p3
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = dynamo0p3.qr_basis_alloc_args("size1", basis_dict)
-    assert "unrecognised shape (gh_wrong_shape) specified " in str(excinfo)
+    assert "Unrecognised shape (gh_wrong_shape) specified " in str(excinfo)
 
     # Monkey-patch it so that it doesn't have any quadrature args
     monkeypatch.setattr(evaluator, "_qr_vars", value=[])
@@ -273,12 +273,13 @@ def test_dyninvokebasisfns(monkeypatch):
 
     # Check that the constructor raises an internal error if it encounters
     # a shape it doesn't recognise
-    sched = psy.invokes.invoke_list[0].schedule
+    invoke = psy.invokes.invoke_list[0]
+    sched = invoke.schedule
     call = sched.children[0].children[0]
     assert isinstance(call, DynKern)
     monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
     with pytest.raises(InternalError) as err:
-        _ = DynInvokeBasisFns(sched)
+        _ = DynInvokeBasisFns(invoke)
     assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err)
 
 
@@ -293,7 +294,7 @@ def test_dyninvokebasisfns_setup(monkeypatch):
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].children[0]
     assert isinstance(call, DynKern)
-    dinf = DynInvokeBasisFns(sched)
+    dinf = DynInvokeBasisFns(psy.invokes.invoke_list[0])
     # Now we've created a DynInvokeBasisFns object, monkeypatch the call
     # to have the wrong shape and try and call setup_basis_fns_for_call()
     monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
@@ -315,8 +316,7 @@ def test_dyninvokebasisfns_initialise(monkeypatch):
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
-    dinf = DynInvokeBasisFns(sched)
+    dinf = DynInvokeBasisFns(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="testmodule")
     # Break the shape of the first basis function
     dinf._basis_fns[0]["shape"] = "not-a-shape"
@@ -341,8 +341,7 @@ def test_dyninvokebasisfns_compute(monkeypatch):
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
-    dinf = DynInvokeBasisFns(sched)
+    dinf = DynInvokeBasisFns(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="testmodule")
     # First supply an invalid shape for one of the basis functions
     dinf._basis_fns[0]["shape"] = "not-a-shape"
@@ -371,7 +370,7 @@ def test_dyninvokebasisfns_dealloc(monkeypatch):
     sched = psy.invokes.invoke_list[0].schedule
     call = sched.children[0].children[0]
     assert isinstance(call, DynKern)
-    dinf = DynInvokeBasisFns(sched)
+    dinf = DynInvokeBasisFns(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="testmodule")
     # Supply an invalid type for one of the basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
@@ -468,55 +467,50 @@ def test_qr_basis_stub():
         "basis_w2v, np_xy, np_z, weights_xy, weights_z)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
-        "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: nlayers\n"
         "      INTEGER, intent(in) :: ndf_w0\n"
-        "      INTEGER, intent(in) :: undf_w0\n"
-        "      INTEGER, intent(in) :: ndf_w1\n"
+        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
         "      INTEGER, intent(in) :: ndf_w2\n"
-        "      INTEGER, intent(in) :: undf_w2\n"
-        "      INTEGER, intent(in) :: ndf_w3\n"
-        "      INTEGER, intent(in) :: ndf_wtheta\n"
-        "      INTEGER, intent(in) :: undf_wtheta\n"
-        "      INTEGER, intent(in) :: ndf_w2h\n"
+        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      INTEGER, intent(in) :: ndf_w2v\n"
-        "      INTEGER, intent(in) :: undf_w2v\n"
+        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
+        "      INTEGER, intent(in) :: ndf_wtheta\n"
+        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
+        "      INTEGER, intent(in) :: undf_w0, ndf_w1, undf_w2, ndf_w3, "
+        "undf_wtheta, ndf_w2h, undf_w2v\n"
         "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
         "field_1_w0\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+        "field_3_w2\n"
+        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
+        "field_5_wtheta\n"
+        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
+        "field_7_w2v\n"
+        "      INTEGER, intent(in) :: cell\n"
         "      INTEGER, intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
         "      INTEGER, intent(in) :: op_4_ncell_3d\n"
         "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) :: "
-        "field_5_wtheta\n"
         "      INTEGER, intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
         "op_6_ncell_3d) :: op_6\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) :: "
-        "field_7_w2v\n"
-        "      INTEGER, intent(in), dimension(ndf_w0) :: map_w0\n"
+        "      INTEGER, intent(in) :: np_xy, np_z\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w0,np_xy,np_z) "
         ":: basis_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w1,np_xy,np_z) "
         ":: basis_w1\n"
-        "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) "
         ":: basis_w2\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,np_xy,np_z) "
         ":: basis_w3\n"
-        "      INTEGER, intent(in), dimension(ndf_wtheta) :: map_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(1,ndf_wtheta,np_xy,"
         "np_z) :: basis_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2h,np_xy,np_z) "
         ":: basis_w2h\n"
-        "      INTEGER, intent(in), dimension(ndf_w2v) :: map_w2v\n"
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_w2v,np_xy,np_z) "
         ":: basis_w2v\n"
-        "      INTEGER, intent(in) :: np_xy, np_z\n"
         "      REAL(KIND=r_def), intent(in), dimension(np_xy) :: weights_xy\n"
         "      REAL(KIND=r_def), intent(in), dimension(np_z) :: weights_z\n"
         "    END SUBROUTINE dummy_code\n"
@@ -539,15 +533,15 @@ def test_stub_basis_wrong_shape(monkeypatch):
                         value="gh_quadrature_wrong")
     with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
-    assert ("Unrecognised evaluator shape (gh_quadrature_wrong)"
+    assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
             in str(excinfo))
     monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
-    assert ("shapes other than GH_QUADRATURE_XYoZ are not yet supported" in
-            str(excinfo))
+    assert ("Quadrature shape 'gh_quadrature_wrong' not yet supported in "
+            "dynamo0p3.qr_basis_alloc_args" in str(excinfo))
 
 
 def test_stub_dbasis_wrong_shape(monkeypatch):
@@ -564,15 +558,14 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     kernel.load_meta(metadata)
     monkeypatch.setattr(kernel, "_eval_shape",
                         value="gh_quadrature_wrong")
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = kernel.gen_stub
-    assert (
-        "Internal error: unrecognised evaluator shape (gh_quadrature_wrong)"
-        in str(excinfo))
+    assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
+            in str(excinfo))
     monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     with pytest.raises(NotImplementedError) as excinfo:
         _ = kernel.gen_stub
-    assert ("diff-basis for quadrature shape 'gh_quadrature_wrong' not yet "
-            "implemented" in str(excinfo))
+    assert ("Quadrature shape 'gh_quadrature_wrong' not yet "
+            "supported in dynamo0p3.qr_basis_alloc_args" in str(excinfo))
