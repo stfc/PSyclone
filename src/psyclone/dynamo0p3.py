@@ -1496,7 +1496,7 @@ def stencil_size_name(arg):
         root_name=root_name, context="PSyVars", label=unique)
 
 
-class DynInvokeCollection(object):
+class DynCollection(object):
     '''
     Base class for managing the declaration and initialisation of a
     group of related entities within an Invoke.
@@ -1516,7 +1516,7 @@ class DynInvokeCollection(object):
             self._kernel = invoke
             self._calls = [invoke]
         else:
-            raise InternalError("DynInvokeCollection takes only a DynInvoke "
+            raise InternalError("DynCollection takes only a DynInvoke "
                                 "or a DynKern but got: {0}".format(
                                     type(invoke)))
 
@@ -1532,7 +1532,13 @@ class DynInvokeCollection(object):
     def declarations(self, parent):
         '''
         '''
-        raise NotImplementedError("")
+        if self._invoke:
+            self._invoke_declarations(parent)
+        elif self._kernel:
+            self._stub_declarations(parent)
+        else:
+            raise InternalError("DynCollection has neither a Kernel "
+                                "or an Invoke - should be impossible.")
 
     def initialisation(self, parent):
         '''
@@ -1540,7 +1546,7 @@ class DynInvokeCollection(object):
         raise NotImplementedError("")
 
 
-class DynInvokeStencils(DynInvokeCollection):
+class DynInvokeStencils(DynCollection):
     '''
     Stencil information and code generation associated with a
     DynInvoke call.
@@ -1800,7 +1806,7 @@ class DynInvokeStencils(DynInvokeCollection):
                 raise InternalError("blah3")
 
 
-class DynInvokeDofmaps(DynInvokeCollection):
+class DynInvokeDofmaps(DynCollection):
     '''
     Holds all information on the dofmaps (including column-banded and
     indirection) required by an invoke.
@@ -2009,7 +2015,77 @@ class DynInvokeDofmaps(DynInvokeCollection):
                                dimension=dim_name, entity_decls=[dmap]))
 
 
-class DynInvokeFunctionSpaces(DynInvokeCollection):
+class DynInvokeOrientation(DynCollection):
+    '''
+    '''
+    from collections import namedtuple
+    Orientation = namedtuple("Orientation", ["name", "field",
+                                             "function_space"])
+
+    def __init__(self, node):
+        super(DynInvokeOrientation, self).__init__(node)
+
+        self._orients = []
+
+        # Loop over each kernel call and check whether orientation is required.
+        # If it is then we create an Orientation object for it and store in
+        # our internal list.
+        for call in self._calls:
+            for unique_fs in call.arguments.unique_fss:
+                if call._fs_descriptors.exists(unique_fs):
+                    fs_descriptor = call._fs_descriptors.get_descriptor(
+                        unique_fs)
+                    if fs_descriptor.requires_orientation:
+                        field = call.arguments.get_arg_on_space(unique_fs)
+                        oname = get_fs_orientation_name(unique_fs)
+                        self._orients.append(self.Orientation(oname,
+                                                              field,
+                                                              unique_fs))
+
+    def declarations(self, parent):
+        '''
+        '''
+        if self._kernel:
+            self._stub_declarations(parent)
+        elif self._invoke:
+            self._invoke_declarations(parent)
+        else:
+            raise InternalError("Have neither a kernel or an invoke - should "
+                                "be impossible.")
+
+    def _stub_declarations(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import DeclGen
+        for orient in self._orients:
+            ndf_name = get_fs_ndf_name(orient.function_space)
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=ndf_name, entity_decls=[orient.name]))
+
+    def _invoke_declarations(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import DeclGen
+
+        declns = [orient.name+"(:) => null()" for orient in self._orients]
+        if declns:
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=declns))
+
+    def initialise(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import AssignGen
+        for orient in self._orients:
+            parent.add(
+                AssignGen(parent, pointer=True,
+                          lhs=orient.name,
+                          rhs=orient.field.proxy_name_indexed + "%" +
+                          orient.field.ref_name(unique_fs) +
+                          "%get_cell_orientation(" +
+                          cell_index + ")"))
+        
+class DynInvokeFunctionSpaces(DynCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
     quantities required by an Invoke.
@@ -2113,7 +2189,7 @@ class DynInvokeFunctionSpaces(DynInvokeCollection):
                                          "%get_undf()"))
 
 
-class DynInvokeFields(DynInvokeCollection):
+class DynInvokeFields(DynCollection):
     '''
     '''
 
@@ -2168,7 +2244,7 @@ class DynInvokeFields(DynInvokeCollection):
         '''
 
 
-class DynInvokeProxies(DynInvokeCollection):
+class DynInvokeProxies(DynCollection):
     '''
     '''
     def declarations(self, parent):
@@ -2220,7 +2296,7 @@ class DynInvokeProxies(DynInvokeCollection):
                                      rhs=arg.name+"%get_proxy()"))
 
 
-class DynInvokeCellIterators(DynInvokeCollection):
+class DynInvokeCellIterators(DynCollection):
     '''
     Handles all entities required by kernels that iterate over cells.
     '''
@@ -2276,7 +2352,7 @@ class DynInvokeCellIterators(DynInvokeCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
-class DynInvokeScalars(DynInvokeCollection):
+class DynInvokeScalars(DynCollection):
     '''
     Scalar kernel arguments appearing in the Invoke.
     '''
@@ -2322,7 +2398,7 @@ class DynInvokeScalars(DynInvokeCollection):
                                    intent=intent))
 
 
-class DynInvokeLMAOperators(DynInvokeCollection):
+class DynInvokeLMAOperators(DynCollection):
     '''
     Handles all entities required by kernels that iterate over cells.
     '''
@@ -2382,7 +2458,7 @@ class DynInvokeLMAOperators(DynInvokeCollection):
                                 intent=fort_intent))
 
 
-class DynInvokeCMAOperators(DynInvokeCollection):
+class DynInvokeCMAOperators(DynCollection):
     ''' Holds all information on the CMA operators required by an invoke '''
 
     # The scalar parameters that must be passed along with a CMA operator
@@ -2955,7 +3031,7 @@ class DynInterGrid(object):
         self.ncolours_var = ""
 
 
-class DynInvokeBasisFns(DynInvokeCollection):
+class DynInvokeBasisFns(DynCollection):
     ''' Holds all information on the basis and differential basis
     functions required by an invoke. This covers both those required for
     quadrature and for evaluators.
@@ -3634,15 +3710,23 @@ class DynInvokeBasisFns(DynInvokeCollection):
             # add the required deallocate call
             parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
 
-class DynInvokeBoundaryConditions(object):
+
+class DynInvokeBoundaryConditions(DynCollection):
     '''
     '''
-    def __init__(self, schedule):
+    # Define a BoundaryDofs namedtuple to help us manage the arrays that
+    # are required.
+    from collections import namedtuple
+    BoundaryDofs = namedtuple("BoundaryDofs", ["argument", "function_space"])
+
+    def __init__(self, node):
+        super(DynInvokeBoundaryConditions, self).__init__(node)
+
         self._boundary_dofs = []
         # Check through all the kernel calls to see whether any of them
         # require boundary conditions. Currently this is done by recognising
         # the kernel name.
-        for call in schedule.calls():
+        for call in self._calls:
             if call.name.lower() == "enforce_bc_code":
                 bc_fs = None
                 for fspace in call.arguments.unique_fss:
@@ -3654,19 +3738,36 @@ class DynInvokeBoundaryConditions(object):
                         "The enforce_bc_code kernel must have an argument on "
                         "ANY_SPACE_1 but failed to find such an argument.")
                 farg = call.arguments.get_arg_on_space(bc_fs)
-                self._boundary_dofs.append(farg)
+                self._boundary_dofs.append(self.BoundaryDofs(farg, bc_fs))
             elif call.name.lower() == "enforce_operator_bc_code":
                 # TODO check that the kernel only has one argument
                 op_arg = call.arguments.args[0]
-                self._boundary_dofs.append(op_arg)
+                bc_fs = op_arg.function_space_to
+                self._boundary_dofs.append(self.BoundaryDofs(op_arg, bc_fs))
 
-    def declarations(self, parent):
+    def _invoke_declarations(self, parent):
         '''
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
         :param parent: node in PSyIR to which to add declarations.
         :type parent: :py:class:`psyclone.psyGen.Node`
         '''
+        from psyclone.f2pygen import DeclGen
+        for dofs in self._boundary_dofs:
+            name = "boundary_dofs_" + dofs.argument.name
+            parent.add(DeclGen(parent, datatype="integer", pointer="True",
+                               entity_decls=[name+"(:,:) => null()"]))
+
+    def _stub_declarations(self, parent):
+        '''
+        '''
+        from psyclone.f2pygen import DeclGen
+        for dofs in self._boundary_dofs:
+            name = "boundary_dofs_" + dofs.argument.name
+            ndf_name = get_fs_ndf_name(dofs.function_space)
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=",".join([ndf_name, "2"]),
+                               entity_decls=[name]))
 
     def initialise(self, parent):
         '''
@@ -3675,6 +3776,14 @@ class DynInvokeBoundaryConditions(object):
         :param parent: node in PSyIR to which to add declarations.
         :type parent: :py:class:`psyclone.psyGen.Node`
         '''
+        from psyclone.f2pygen import AssignGen
+        for dofs in self._boundary_dofs:
+            name = "boundary_dofs_" + dofs.argument.name
+            parent.add(AssignGen(
+                parent, pointer=True, lhs=name,
+                rhs="%".join([dofs.argument.proxy_name,
+                              dofs.argument.ref_name(dofs.function_space),
+                              "get_boundary_dofs()"])))
 
 
 class DynInvoke(Invoke):
@@ -3740,7 +3849,7 @@ class DynInvoke(Invoke):
 
         # Initialise the object holding information on any boundary-condition
         # kernel calls
-        self.boundary_conditions = DynInvokeBoundaryConditions(self.schedule)
+        self.boundary_conditions = DynInvokeBoundaryConditions(self)
 
         # Information on all proxies required by this Invoke
         self.proxies = DynInvokeProxies(self)
@@ -6153,6 +6262,12 @@ class DynKern(Kern):
         basis = DynInvokeBasisFns(self)
         basis.declarations(sub_stub)
 
+        orient = DynInvokeOrientation(self)
+        orient.declarations(sub_stub)
+
+        boundary_conditions = DynInvokeBoundaryConditions(self)
+        boundary_conditions.declarations(sub_stub)
+
         # Create the arglist
         # TODO get rid of sub_stub argument below.
         create_arg_list = KernStubArgList(self)
@@ -6253,25 +6368,25 @@ class DynKern(Kern):
         parent.add(CommentGen(parent, ""))
 
         # orientation arrays initialisation and their declarations
-        orientation_decl_names = []
-        for unique_fs in self.arguments.unique_fss:
-            if self._fs_descriptors.exists(unique_fs):
-                fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-                if fs_descriptor.requires_orientation:
-                    field = self.arguments.get_arg_on_space(unique_fs)
-                    oname = get_fs_orientation_name(unique_fs)
-                    orientation_decl_names.append(oname+"(:) => null()")
-                    parent.add(
-                        AssignGen(parent, pointer=True,
-                                  lhs=oname,
-                                  rhs=field.proxy_name_indexed + "%" +
-                                  field.ref_name(unique_fs) +
-                                  "%get_cell_orientation(" +
-                                  cell_index + ")"))
-        if orientation_decl_names:
-            parent.add(DeclGen(parent, datatype="integer", pointer=True,
-                               entity_decls=orientation_decl_names))
-            parent.add(CommentGen(parent, ""))
+        #orientation_decl_names = []
+        #for unique_fs in self.arguments.unique_fss:
+        #    if self._fs_descriptors.exists(unique_fs):
+        #        fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
+        #        if fs_descriptor.requires_orientation:
+        #            field = self.arguments.get_arg_on_space(unique_fs)
+        #            oname = get_fs_orientation_name(unique_fs)
+        #            orientation_decl_names.append(oname+"(:) => null()")
+        #            parent.add(
+        #                AssignGen(parent, pointer=True,
+        #                          lhs=oname,
+        #                          rhs=field.proxy_name_indexed + "%" +
+        #                          field.ref_name(unique_fs) +
+        #                          "%get_cell_orientation(" +
+        #                          cell_index + ")"))
+        #if orientation_decl_names:
+        #    parent.add(DeclGen(parent, datatype="integer", pointer=True,
+        #                       entity_decls=orientation_decl_names))
+        #    parent.add(CommentGen(parent, ""))
 
         # dump = True
         # if dump:
@@ -6869,12 +6984,7 @@ class KernCallArgList(ArgOrdering):
 
     def field_bcs_kernel(self, function_space):
         ''' implement the boundary_dofs array fix for a field '''
-        from psyclone.f2pygen import DeclGen, AssignGen
-        self._arglist.append("boundary_dofs")
-        parent = self._parent
-        parent.add(DeclGen(parent, datatype="integer",
-                           pointer=True, entity_decls=[
-                               "boundary_dofs(:,:) => null()"]))
+        #from psyclone.f2pygen import DeclGen, AssignGen
         fspace = None
         for fspace in self._kern.arguments.unique_fss:
             if fspace.orig_name == "any_space_1":
@@ -6887,12 +6997,17 @@ class KernCallArgList(ArgOrdering):
                 "Expected a gh_field from which to look-up boundary dofs "
                 "for kernel {0} but got {1}".format(self._kern.name,
                                                     farg.type))
-        new_parent, position = parent.start_parent_loop()
-        new_parent.add(AssignGen(new_parent, pointer=True,
-                                 lhs="boundary_dofs",
-                                 rhs=farg.proxy_name +
-                                 "%vspace%get_boundary_dofs()"),
-                       position=["before", position])
+        self._arglist.append("boundary_dofs_"+farg.name)
+        #parent = self._parent
+        #parent.add(DeclGen(parent, datatype="integer",
+        #                   pointer=True, entity_decls=[
+        #                       "boundary_dofs(:,:) => null()"]))
+        #new_parent, position = parent.start_parent_loop()
+        #new_parent.add(AssignGen(new_parent, pointer=True,
+        #                         lhs="boundary_dofs",
+        #                         rhs=farg.proxy_name +
+        #                         "%vspace%get_boundary_dofs()"),
+        #               position=["before", position])
 
     def operator_bcs_kernel(self, function_space):
         ''' Supply necessary additional arguments for the kernel that
@@ -7288,12 +7403,12 @@ class KernStubArgList(ArgOrdering):
 
     def field_bcs_kernel(self, function_space):
         ''' implement the boundary_dofs array fix for fields '''
-        from psyclone.f2pygen import DeclGen
-        self._arglist.append("boundary_dofs")
-        ndf_name = get_fs_ndf_name(function_space)
-        self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-                                 dimension=",".join([ndf_name, "2"]),
-                                 entity_decls=["boundary_dofs"]))
+        arg = self._kern.arguments.get_arg_on_space(function_space)
+        self._arglist.append("boundary_dofs_"+arg.name)
+        #ndf_name = get_fs_ndf_name(function_space)
+        #self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
+        #                         dimension=",".join([ndf_name, "2"]),
+        #                         entity_decls=["boundary_dofs"]))
 
     def operator_bcs_kernel(self, function_space):
         ''' Implement the boundary_dofs array fix for operators. This is the

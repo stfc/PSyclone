@@ -53,6 +53,15 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 TEST_API = "dynamo0.3"
 
 
+def setup_function():
+    '''
+    pytest fixture that is called before every test function in this file. It
+    ensures that a new NameSpace is created for every test.
+    '''
+    from psyclone.psyGen import NameSpaceFactory
+    NameSpaceFactory._instance = None
+
+
 def test_kernel_stub_invalid_scalar_argument():
     '''Check that we raise an exception if an unexpected datatype is found
     when using the KernStubArgList scalar method'''
@@ -470,14 +479,14 @@ ORIENTATION_OUTPUT = (
     "      INTEGER, intent(in) :: ndf_w2\n"
     "      INTEGER, intent(in), dimension(ndf_w2) :: map_w2\n"
     "      INTEGER, intent(in) :: undf_w0, ndf_w1, undf_w2, ndf_w3\n"
-    "      INTEGER, intent(in) :: cell\n"
     "      REAL(KIND=r_def), intent(out), dimension(undf_w0) :: "
     "field_1_w0\n"
+    "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
+    "field_3_w2\n"
+    "      INTEGER, intent(in) :: cell\n"
     "      INTEGER, intent(in) :: op_2_ncell_3d\n"
     "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
     "op_2_ncell_3d) :: op_2\n"
-    "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-    "field_3_w2\n"
     "      INTEGER, intent(in) :: op_4_ncell_3d\n"
     "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
     "op_4_ncell_3d) :: op_4\n"
@@ -523,7 +532,7 @@ def test_enforce_bc_kernel_stub_gen():
         "    CONTAINS\n"
         "    SUBROUTINE enforce_bc_code(nlayers, field_1_any_space_1_field_1, "
         "ndf_any_space_1_field_1, undf_any_space_1_field_1, "
-        "map_any_space_1_field_1, boundary_dofs)\n"
+        "map_any_space_1_field_1, boundary_dofs_field_1)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
@@ -535,7 +544,7 @@ def test_enforce_bc_kernel_stub_gen():
         "dimension(undf_any_space_1_field_1)"
         " :: field_1_any_space_1_field_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_1_field_1,2) :: "
-        "boundary_dofs\n"
+        "boundary_dofs_field_1\n"
         "    END SUBROUTINE enforce_bc_code\n"
         "  END MODULE enforce_bc_mod")
     print(str(generated_code))
@@ -557,7 +566,8 @@ def test_enforce_op_bc_kernel_stub_gen():
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, op_1_ncell_3d,"
-        " op_1, ndf_any_space_1_op_1, ndf_any_space_2_op_1, boundary_dofs)\n"
+        " op_1, ndf_any_space_1_op_1, ndf_any_space_2_op_1, "
+        "boundary_dofs_op_1)\n"
         "      USE constants_mod, ONLY: r_def\n"
         "      IMPLICIT NONE\n"
         "      INTEGER, intent(in) :: nlayers\n"
@@ -568,7 +578,7 @@ def test_enforce_op_bc_kernel_stub_gen():
         "      REAL(KIND=r_def), intent(inout), dimension("
         "ndf_any_space_1_op_1,ndf_any_space_2_op_1,op_1_ncell_3d) :: op_1\n"
         "      INTEGER, intent(in), dimension(ndf_any_space_1_op_1,2) :: "
-        "boundary_dofs\n"
+        "boundary_dofs_op_1\n"
         "    END SUBROUTINE enforce_operator_bc_code\n"
         "  END MODULE enforce_operator_bc_mod")
     print(generated_code)
@@ -670,8 +680,8 @@ def test_stub_stencil_extent():
     generated_code = str(kernel.gen_stub)
     print(generated_code)
     result1 = (
-        "    SUBROUTINE testkern_stencil_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_stencil_map, field_3_w2, "
+        "SUBROUTINE testkern_stencil_code(nlayers, field_1_w1, "
+        "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, field_3_w2, "
         "field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
         "ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
@@ -679,7 +689,7 @@ def test_stub_stencil_extent():
     assert result2 in generated_code
     assert (
         "INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) "
-        ":: field_2_stencil_map" in generated_code)
+        ":: field_2_stencil_dofmap" in generated_code)
 
 
 def test_stub_stencil_direction():
@@ -696,14 +706,14 @@ def test_stub_stencil_direction():
     result1 = (
         "    SUBROUTINE testkern_stencil_xory1d_code(nlayers, field_1_w1, "
         "field_2_w2, field_2_stencil_size, field_2_direction, "
-        "field_2_stencil_map, field_3_w2, field_4_w3, ndf_w1, undf_w1, "
+        "field_2_stencil_dofmap, field_3_w2, field_4_w3, ndf_w1, undf_w1, "
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
     result2 = (
         "      INTEGER, intent(in) :: field_2_stencil_size\n"
         "      INTEGER, intent(in) :: field_2_direction\n"
         "      INTEGER, intent(in), dimension(ndf_w2,field_2_stencil_size) :: "
-        "field_2_stencil_map")
+        "field_2_stencil_dofmap")
     assert result2 in generated_code
 
 
@@ -722,13 +732,13 @@ def test_stub_stencil_vector():
         "    SUBROUTINE testkern_stencil_vector_code(nlayers, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2, "
         "field_2_w3_v3, field_2_w3_v4, field_2_stencil_size, "
-        "field_2_stencil_map, ndf_w0, undf_w0, map_w0, ndf_w3, undf_w3, "
+        "field_2_stencil_dofmap, ndf_w0, undf_w0, map_w0, ndf_w3, undf_w3, "
         "map_w3)")
     assert result1 in generated_code
     result2 = (
         "      INTEGER, intent(in) :: field_2_stencil_size\n"
         "      INTEGER, intent(in), dimension(ndf_w3,field_2_stencil_size) "
-        ":: field_2_stencil_map")
+        ":: field_2_stencil_dofmap")
     assert result2 in generated_code
 
 
