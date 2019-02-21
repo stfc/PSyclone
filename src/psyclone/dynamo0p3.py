@@ -1983,11 +1983,31 @@ class DynInvokeDofmaps(DynInvokeCollection):
             parent.add(DeclGen(parent, datatype="integer", intent="in",
                                dimension=ndf_name, entity_decls=[dmap]))
         # Column-banded dofmaps
-        for dmap in self._unique_cbanded_maps:
-            pass
+        for dmap, cma in self._unique_cbanded_maps.items():
+            if cma["direction"] == "to":
+                ndf_name = get_fs_ndf_name(cma["argument"].function_space_to)
+            elif cma["direction"] == "from":
+                ndf_name = get_fs_ndf_name(cma["argument"].function_space_from)
+            else:
+                raise InternalError("hohum1")
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=[ndf_name]))
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=",".join([ndf_name, "nlayers"]),
+                               entity_decls=[dmap]))
         # CMA operator indirection dofmaps
-        for dmap in self._unique_indirection_maps:
-            pass
+        for dmap, cma in self._unique_indirection_maps.items():
+            if cma["direction"] == "to":
+                dim_name = cma["argument"].name + "_nrow"
+            elif cma["direction"] == "from":
+                dim_name = cma["argument"].name + "_ncol"
+            else:
+                raise InternalError("hohom2")
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=[dim_name]))
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               dimension=dim_name, entity_decls=[dmap]))
+
 
 class DynInvokeFunctionSpaces(DynInvokeCollection):
     '''
@@ -7060,7 +7080,6 @@ class KernStubArgList(ArgOrdering):
     def banded_dofmap(self, function_space):
         ''' Declare the banded dofmap required for a CMA operator
         that maps to/from the specified function space '''
-        from psyclone.f2pygen import DeclGen
         ndf = get_fs_ndf_name(function_space)
         dofmap = get_cbanded_map_name(function_space)
         #self._parent.add(DeclGen(self._parent, datatype="integer",
