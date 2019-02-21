@@ -2075,16 +2075,10 @@ class DynInvokeOrientation(DynCollection):
     def initialise(self, parent):
         '''
         '''
-        from psyclone.f2pygen import AssignGen
-        for orient in self._orients:
-            parent.add(
-                AssignGen(parent, pointer=True,
-                          lhs=orient.name,
-                          rhs=orient.field.proxy_name_indexed + "%" +
-                          orient.field.ref_name(unique_fs) +
-                          "%get_cell_orientation(" +
-                          cell_index + ")"))
-        
+        # Initialisation is on a per-cell basis and therefore happens
+        # inside the loop over cells, not at the Invoke level.
+
+
 class DynInvokeFunctionSpaces(DynCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
@@ -3856,6 +3850,8 @@ class DynInvoke(Invoke):
 
         self.cell_iterators = DynInvokeCellIterators(self)
 
+        self.orientation = DynInvokeOrientation(self)
+
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
@@ -4010,6 +4006,8 @@ class DynInvoke(Invoke):
         # declare any stencil arguments
         self.stencil.declarations(invoke_sub)
 
+        self.orientation.declarations(invoke_sub)
+
         # Declare any mesh objects (including those for inter-grid kernels)
         self.meshes.declarations(invoke_sub)
 
@@ -4064,6 +4062,8 @@ class DynInvoke(Invoke):
 
         # Initialise any stencil maps
         self.stencil.initialise_stencil_maps(invoke_sub)
+
+        self.orientation.initialise(invoke_sub)
 
         # Initialise dofmaps (one for each function space that is used
         # in this invoke)
@@ -6367,32 +6367,20 @@ class DynKern(Kern):
 
         parent.add(CommentGen(parent, ""))
 
-        # orientation arrays initialisation and their declarations
-        #orientation_decl_names = []
-        #for unique_fs in self.arguments.unique_fss:
-        #    if self._fs_descriptors.exists(unique_fs):
-        #        fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
-        #        if fs_descriptor.requires_orientation:
-        #            field = self.arguments.get_arg_on_space(unique_fs)
-        #            oname = get_fs_orientation_name(unique_fs)
-        #            orientation_decl_names.append(oname+"(:) => null()")
-        #            parent.add(
-        #                AssignGen(parent, pointer=True,
-        #                          lhs=oname,
-        #                          rhs=field.proxy_name_indexed + "%" +
-        #                          field.ref_name(unique_fs) +
-        #                          "%get_cell_orientation(" +
-        #                          cell_index + ")"))
-        #if orientation_decl_names:
-        #    parent.add(DeclGen(parent, datatype="integer", pointer=True,
-        #                       entity_decls=orientation_decl_names))
-        #    parent.add(CommentGen(parent, ""))
-
-        # dump = True
-        # if dump:
-        #    new_parent, position = parent.start_parent_loop()
-        #    create_dump = DinoWriters(self, new_parent, position)
-        #    create_dump.generate()
+        # Orientation array lookup is done for each cell
+        for unique_fs in self.arguments.unique_fss:
+            if self._fs_descriptors.exists(unique_fs):
+                fs_descriptor = self._fs_descriptors.get_descriptor(unique_fs)
+                if fs_descriptor.requires_orientation:
+                    field = self.arguments.get_arg_on_space(unique_fs)
+                    oname = get_fs_orientation_name(unique_fs)
+                    parent.add(
+                        AssignGen(parent, pointer=True,
+                                  lhs=oname,
+                                  rhs=field.proxy_name_indexed + "%" +
+                                  field.ref_name(unique_fs) +
+                                  "%get_cell_orientation(" +
+                                  cell_index + ")"))
 
         super(DynKern, self).gen_code(parent)
 
