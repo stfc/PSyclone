@@ -20,7 +20,7 @@ FFLAGS        -g                        Flags to use when compiling.
 Using
 make clean
 will clean all compiled library interfaces. You can also compile each library
-by interface changing into the corresponding directory and invoking 'make'.
+interface by changing into the corresponding directory and invoking 'make'.
 
 template
 --------
