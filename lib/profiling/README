@@ -3,12 +3,13 @@ PSyclone's profiling interface.
 
 Compilation
 -----------
-The top level makefile can be used to compile some or all profiling libraries:
+The top level makefile can be used to compile some or all profiling-library
+interfaces:
 make all
-will compile all profiling libraries included in PSyclone. The command
+will compile all profiling-library interfaces included in PSyclone. The command
 make TARGET
 where TARGET is one of 'template', 'simple_timing' 'drhook' or 'dl_timer' will
-only comnpile the corresponding library. The following makefile variables
+only compile the corresponding library interface. The following makefile variables
 are used and can be overwritten on the command line (e.g. make F90=mpif90):
 --------------------------------------------------------------------------
 Variable      Default                   Description
@@ -18,8 +19,8 @@ FFLAGS        -g                        Flags to use when compiling.
 
 Using
 make clean
-will clean all compiled libraries. You can also compile each library by
-changing into the corresponding directory and invoking 'make'.
+will clean all compiled library interfaces. You can also compile each library
+by interface changing into the corresponding directory and invoking 'make'.
 
 template
 --------
@@ -34,6 +35,7 @@ This is a simple, stand-alone library that measures the real time of
 a region, and prints a summary at the end. It is NOT thread-safe.
 The ProfileData type is used to store module name and region,
 and time accumulators.
+
 Example output:
 ===========================================
  module::region                                         count           sum                     min             average                 max
@@ -92,10 +94,10 @@ Dr Hook
 -------
 This wrapper library interfaces with ECMWF's Dr Hook library. This library
 appears not to be available as open source on a public server. It provides more
-functionality than just profiling, see the Dr Hook documentations for details.
+functionality than just profiling, see the Dr Hook documentation for details.
 In the version tested (1.0.0) it appears that the installation target in the
 Dr Hook distribution is broken, so the following instructions and the default
-values assume that Dr Hook is comiled in a drhook subdirectory called 'build' and not
+values assume that Dr Hook is compiled in a drhook subdirectory called 'build' and not
 installed.
 
 To compile the PSyclone wrapper library for Dr Hook, chose one of the following
@@ -106,9 +108,9 @@ two options to specify the path to the Dr Hook installation:
   found by default. This will set DRHOOK_INCLUDE to .../drhook/include
   and DRHOOK_MODULES to .../drhook/build/module, so that the .mod files
   created in the build processes are found.
-- DRHOOK_INCLUDE and DRHOOK_MODULES Setting those environment variables
-  explicitely will allow you to flexibly point to an existing Dr Hook installation.
-  It is not known if a proper Dr Hook installation will install include
+- DRHOOK_INCLUDE and DRHOOK_MODULES Setting these environment variables
+  explicitly will allow you to flexibly point to an existing Dr Hook installation.
+  It is not known whether a proper Dr Hook installation will install include
   and mod files in a separate directory.
 
 

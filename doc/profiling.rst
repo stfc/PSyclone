@@ -211,7 +211,7 @@ As an example::
     newschedule.view()
 
 .. warning::
-
+ 
     It is the responsibility of the user to make sure that a profile
     region is only created inside a multi-threaded region if the
     profiling library used is thread-safe!
@@ -224,8 +224,8 @@ Dr Hook, dl_timer and a simple non-thread-safe timing
 library. Support for further profiling libraries will be
 added in the future. To compile the wrapper libraries,
 change into the directory ``lib/profiling`` of PSyclone
-and type ``make`` to compile all wrapper. If only some
-of the wrapper are required, you can either use
+and type ``make`` to compile all wrappers. If only some
+of the wrappers are required, you can either use
 ``make wrapper-name`` (e.g. ``make drhook``), or change
 into the corresponding directory and use ``make``. The
 corresponding README files contain additional parameters
