@@ -1704,13 +1704,13 @@ def test_field_bc_kernel(tmpdir, f90, f90flags):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = psy.gen
-    output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
+    output1 = "INTEGER, pointer :: boundary_dofs_a(:,:) => null()"
     assert str(generated_code).find(output1) != -1
-    output2 = "boundary_dofs => a_proxy%vspace%get_boundary_dofs()"
+    output2 = "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()"
     assert str(generated_code).find(output2) != -1
     output3 = (
         "CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1_a, "
-        "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs)")
+        "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs_a)")
     assert str(generated_code).find(output3) != -1
 
     if TEST_COMPILE:
@@ -2960,10 +2960,12 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
         for idx in range(1, 4):
             assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
     for idx in range(1, 4):
-        assert "f2_proxy("+str(idx)+")%halo_exchange(depth=f2_extent+1)" \
-            in result
-    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent+1)) THEN\n"
-                "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
+        assert ("f2_proxy("+str(idx)+")%halo_exchange("
+                "depth=f2_stencil_size+1)" in result)
+    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_stencil_size+1)) "
+                "THEN\n"
+                "        CALL f2_proxy(4)%halo_exchange(depth="
+                "f2_stencil_size+1)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
@@ -3021,16 +3023,16 @@ def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
         "      END IF \n"
         "      !\n")
     expected2 = (
-        "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
+        "      IF (f2_proxy%is_dirty(depth=f2_stencil_size+1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_stencil_size+1)\n"
         "      END IF \n"
         "      !\n"
-        "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
-        "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
+        "      IF (f3_proxy%is_dirty(depth=f3_stencil_size+1)) THEN\n"
+        "        CALL f3_proxy%halo_exchange(depth=f3_stencil_size+1)\n"
         "      END IF \n"
         "      !\n"
-        "      IF (f4_proxy%is_dirty(depth=f4_extent+1)) THEN\n"
-        "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
+        "      IF (f4_proxy%is_dirty(depth=f4_stencil_size+1)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=f4_stencil_size+1)\n"
         "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n")
@@ -3116,7 +3118,7 @@ def test_halo_exchange_view(capsys):
 
     expected = (
         sched + "[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
-        "    " + exch + "[field='f2', type='region', depth=f2_extent+1, "
+        "    " + exch + "[field='f2', type='region', depth=f2_stencil_size+1, "
         "check_dirty=True]\n"
         "    " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
@@ -3415,51 +3417,48 @@ def test_multiple_derived_type_args():
             "undf_w3, map_w3(:,cell))" in gen)
 
 
-def test_single_stencil_extent():
+def test_single_stencil_extent(dist_mem):
     '''test a single stencil access with an extent value passed from the
     algorithm layer is treated correctly in the PSy layer. Test both
     sequential and distributed memory '''
-    for dist_mem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
-            api=TEST_API, distributed_memory=dist_mem)
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        result = str(psy.gen)
-        print(result)
-        output1 = (
-            "SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
-            "f2_extent)")
-        assert output1 in result
-        output2 = (
-            "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
-            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
-        assert output2 in result
-        output3 = ("      INTEGER, intent(in) :: f2_extent\n")
-        assert output3 in result
-        output4 = (
-            "      INTEGER f2_stencil_size\n"
-            "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
-            "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
-            "null()\n")
-        assert output4 in result
-        output5 = (
-            "      !\n"
-            "      ! Initialise stencil dofmaps\n"
-            "      !\n"
-            "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
-            "STENCIL_CROSS,f2_extent)\n"
-            "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
-            "      f2_stencil_size = f2_stencil_map%get_size()\n"
-            "      !\n")
-        assert output5 in result
-        output6 = (
-            "        CALL testkern_stencil_code(nlayers, f1_proxy%data,"
-            " f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell),"
-            " f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
-            "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
-            "map_w3(:,cell))")
-        assert output6 in result
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+        api=TEST_API, distributed_memory=dist_mem)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+    print(result)
+    output1 = (
+        "SUBROUTINE invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
+        "f2_extent)")
+    assert output1 in result
+    assert "USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n" in result
+    assert "USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n" in result
+    output3 = ("      INTEGER, intent(in) :: f2_extent\n")
+    assert output3 in result
+    output4 = (
+        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n"
+        "      INTEGER f2_stencil_size\n")
+    assert output4 in result
+    output5 = (
+        "      !\n"
+        "      ! Initialise stencil dofmaps\n"
+        "      !\n"
+        "      f2_stencil_map => f2_proxy%vspace%get_stencil_dofmap("
+        "STENCIL_CROSS,f2_extent)\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size = f2_stencil_map%get_size()\n"
+        "      !\n")
+    assert output5 in result
+    output6 = (
+        "        CALL testkern_stencil_code(nlayers, f1_proxy%data,"
+        " f2_proxy%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell),"
+        " f3_proxy%data, f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
+        "map_w3(:,cell))")
+    assert output6 in result
 
 
 def test_single_stencil_xory1d():
@@ -3479,9 +3478,9 @@ def test_single_stencil_xory1d():
             "f4, f2_extent, f2_direction)")
         assert output1 in result
         output2 = (
+            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n"
             "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
-            "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
-            "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n")
+            "      USE flux_direction_mod, ONLY: x_direction, y_direction\n")
         assert output2 in result
         output3 = (
             "      INTEGER, intent(in) :: f2_extent\n"
