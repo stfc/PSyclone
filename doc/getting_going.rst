@@ -57,7 +57,7 @@ target machine. PSyclone has been tested under Python 2.6.5, 2.7.3 and 3.6.
 
 PSyclone immediately relies on four external Python packages; ``six``,
 ``configparser``, ``fparser`` and ``pyparsing``. In order to run the
-test suite ``py.test`` is required. The easiest way to satisfy the
+test suite ``pytest`` is required. The easiest way to satisfy the
 Python dependencies is to use the Python Package Index (pypi.org) and
 ``pip``. See https://packaging.python.org/installing/ for more
 information.
@@ -212,19 +212,19 @@ Installation (and uninstallation) of this package can be done via
 ``pip`` in exactly the same way as for graphviz, as described above.
 
 
-py.test
+pytest
 ^^^^^^^
 
-The PSyclone test suite uses py.test. This is not needed to use
+The PSyclone test suite uses pytest. This is not needed to use
 PSyclone but is useful to check whether PSyclone is working correctly
 on your system. You can test whether it is already installed by simply
-typing ``py.test`` at a shell prompt. If it is present you will get
+typing ``pytest`` at a shell prompt. If it is present you will get
 output that begins with
 ::
 
     ======================== test session starts ==================
 
-If you do not have it then py.test can again be installed using
+If you do not have it then pytest can again be installed using
 ``pip`` or from here http://pytest.org/latest/ (or specifically here
 http://pytest.org/latest/getting-started.html).
 
@@ -312,8 +312,7 @@ the PSyclone test suite. These tests are not required and can be
 skipped if preferred:
 ::
 
-   > cd <PSYCLONEHOME>/src/psyclone/tests
-   > py.test
+   > pytest <PSYCLONEHOME>/src/psyclone/tests
 
 If everything is working as expected then you should see output similar to:
 ::
@@ -340,12 +339,16 @@ Most of the tests use Fortran source files in the
 during the testing process. To enable compilation testing run:
 ::
 
-   > py.test --compile --f90="<compiler_name>" --f90flags="<compiler_flags_list>"
+   > pytest --compile --f90="<compiler_name>" --f90flags="<compiler_flags_list>"
 
 ``"<compiler_name>"`` and ``"<compiler_flags_list>"`` are optional arguments.
 The default value for ``"<compiler_name>"`` is ``"gfortran"`` and there are
 no defaults for the ``"<compiler_flags_list>"``. Please note that the onus
 is on the user to provide correct values for these options.
+
+In order to run the tests in parallel, install pytest-xdist and run with::
+
+   > pytest -n <POOL_SIZE>
 
 .. _getting-going-run:
 
