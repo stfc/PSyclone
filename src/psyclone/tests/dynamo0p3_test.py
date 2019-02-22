@@ -2961,11 +2961,10 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
             assert "f1_proxy("+str(idx)+")%halo_exchange(depth=1)" in result
     for idx in range(1, 4):
         assert ("f2_proxy("+str(idx)+")%halo_exchange("
-                "depth=f2_stencil_size+1)" in result)
-    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_stencil_size+1)) "
+                "depth=f2_extent+1)" in result)
+    expected = ("      IF (f2_proxy(4)%is_dirty(depth=f2_extent+1)) "
                 "THEN\n"
-                "        CALL f2_proxy(4)%halo_exchange(depth="
-                "f2_stencil_size+1)\n"
+                "        CALL f2_proxy(4)%halo_exchange(depth=f2_extent+1)\n"
                 "      END IF \n"
                 "      !\n"
                 "      DO cell=1,mesh%get_last_halo_cell(1)\n")
@@ -3023,16 +3022,16 @@ def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
         "      END IF \n"
         "      !\n")
     expected2 = (
-        "      IF (f2_proxy%is_dirty(depth=f2_stencil_size+1)) THEN\n"
-        "        CALL f2_proxy%halo_exchange(depth=f2_stencil_size+1)\n"
+        "      IF (f2_proxy%is_dirty(depth=f2_extent+1)) THEN\n"
+        "        CALL f2_proxy%halo_exchange(depth=f2_extent+1)\n"
         "      END IF \n"
         "      !\n"
-        "      IF (f3_proxy%is_dirty(depth=f3_stencil_size+1)) THEN\n"
-        "        CALL f3_proxy%halo_exchange(depth=f3_stencil_size+1)\n"
+        "      IF (f3_proxy%is_dirty(depth=f3_extent+1)) THEN\n"
+        "        CALL f3_proxy%halo_exchange(depth=f3_extent+1)\n"
         "      END IF \n"
         "      !\n"
-        "      IF (f4_proxy%is_dirty(depth=f4_stencil_size+1)) THEN\n"
-        "        CALL f4_proxy%halo_exchange(depth=f4_stencil_size+1)\n"
+        "      IF (f4_proxy%is_dirty(depth=f4_extent+1)) THEN\n"
+        "        CALL f4_proxy%halo_exchange(depth=f4_extent+1)\n"
         "      END IF \n"
         "      !\n"
         "      DO cell=1,mesh%get_last_halo_cell(1)\n")
@@ -3118,7 +3117,7 @@ def test_halo_exchange_view(capsys):
 
     expected = (
         sched + "[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
-        "    " + exch + "[field='f2', type='region', depth=f2_stencil_size+1, "
+        "    " + exch + "[field='f2', type='region', depth=f2_extent+1, "
         "check_dirty=True]\n"
         "    " + exch + "[field='f3', type='region', depth=1, "
         "check_dirty=True]\n"
