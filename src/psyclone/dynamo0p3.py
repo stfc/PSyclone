@@ -1604,8 +1604,8 @@ class DynInvokeStencils(DynCollection):
         ''' Create a valid unique name for the size (in cells) of a stencil
         dofmap in the PSy layer.
 
-        :param arg:
-        :type arg:
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         :returns: a Fortran variable name for the stencil size.
         :rtype: str
@@ -1622,6 +1622,11 @@ class DynInvokeStencils(DynCollection):
         Returns the name associated with the extent of the stencil on
         the supplied argument.
         '''
+        root_name = arg.name + "_extent"
+        unique = self.stencil_unique_str(arg, "extent")
+        name_space_manager = NameSpaceFactory().create()
+        return name_space_manager.create_name(
+            root_name=root_name, context="PSyVars", label=unique)
 
     @property
     def _unique_extent_vars(self):
@@ -1634,8 +1639,8 @@ class DynInvokeStencils(DynCollection):
                 names.append(arg.stencil.extent_arg.varName)
             else:
                 if self._invoke:
-                    # An invoke is passed the stencil extent ('depth')
-                    names.append(arg.name+"_stencil_extent")
+                    # An invoke is passed the stencil extent
+                    names.append(self.stencil_extent_name(arg))
                 elif self._kernel:
                     # A kernel is passed the size of the stencil map
                     names.append(arg.name+"_stencil_size")
@@ -7841,14 +7846,19 @@ class DynKernelArguments(Arguments):
                     # extent_arg is not a standard dynamo argument, it is
                     # an Arg object created by the parser. Therefore its
                     # name may clash. We register and update the name here.
-                    if not stencil.extent_arg.varName and \
-                       not stencil.extent_arg.is_literal():
-                        # We don't have a variable name associated with this
-                        # stencil extent and it's not a literal so we must
-                        # be generating a kernel stub - create a name.
-                        stencil.extent_arg.text = dyn_argument.name + \
-                            "_stencil_size"
-                        stencil.extent_arg.varName = stencil.extent_arg.text[:]
+                    if not stencil.extent_arg.is_literal():
+                        if stencil.extent_arg.varName:
+                            root = stencil.extent_arg.varName
+                        else:
+                            # We don't have a variable name associated with this
+                            # stencil extent and it's not a literal so we must
+                            # be generating a kernel stub - create a name.
+                            root = dyn_argument.name + "_stencil_size"
+                            stencil.extent_arg.text = root[:]
+                        stencil.extent_arg.varName = \
+                            self._name_space_manager.create_name(
+                                root_name=root, context="AlgArgs",
+                                label=stencil.extent_arg.text)
                     idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
