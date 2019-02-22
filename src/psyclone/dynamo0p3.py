@@ -1712,16 +1712,13 @@ class DynInvokeStencils(DynCollection):
 
         :param parent: XXX
         '''
-        from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen, UseGen
-
+        from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen
         if not self._kern_args:
             return
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Initialise stencil dofmaps"))
         parent.add(CommentGen(parent, ""))
-        parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
-                          funcnames=["stencil_dofmap_type"]))
         stencil_map_names = []
         for arg in self._kern_args:
             map_name = self.stencil_map_name(arg)
@@ -1796,6 +1793,9 @@ class DynInvokeStencils(DynCollection):
         from psyclone.f2pygen import TypeDeclGen, DeclGen, UseGen
         if not self._kern_args:
             return
+
+        parent.add(UseGen(parent, name="stencil_dofmap_mod", only=True,
+                          funcnames=["stencil_dofmap_type"]))
 
         stencil_map_names = []
         for arg in self._kern_args:
@@ -7841,15 +7841,14 @@ class DynKernelArguments(Arguments):
                     # extent_arg is not a standard dynamo argument, it is
                     # an Arg object created by the parser. Therefore its
                     # name may clash. We register and update the name here.
-                    if not stencil.extent_arg.varName:
+                    if not stencil.extent_arg.varName and \
+                       not stencil.extent_arg.is_literal():
                         # We don't have a variable name associated with this
-                        # stencil extent (i.e. we're generating a kernel stub)
-                        # so invent one.
+                        # stencil extent and it's not a literal so we must
+                        # be generating a kernel stub - create a name.
                         stencil.extent_arg.text = dyn_argument.name + \
                             "_stencil_size"
                         stencil.extent_arg.varName = stencil.extent_arg.text[:]
-                        # stencil.extent_arg.varName = stencil_size_name(
-                        #    dyn_argument)
                     idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
