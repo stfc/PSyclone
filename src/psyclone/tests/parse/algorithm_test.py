@@ -86,8 +86,8 @@ def test_parser_updateargtomodulemap_invalid():
     tmp = Parser()
     with pytest.raises(InternalError) as excinfo:
         tmp.update_arg_to_module_map("invalid")
-    assert ("Expected a use statement but found instance of '<type 'str'>"
-            "'.") in str(excinfo.value)
+    assert ("Expected a use statement but found instance of") \
+        in str(excinfo.value)
 
 # function parse_fp2() tests
 
@@ -134,7 +134,7 @@ def test_getinvokelabel_invalid_tree():
         _ = get_invoke_label("invalid", "dummy.f90")
     assert (
         "Expected a Fortran argument of the form name=xxx but found instance "
-        "of '<type 'str'>'.") in str(excinfo.value)
+        "of") in str(excinfo.value)
 
 
 def test_getinvokelabel_invalid_items(monkeypatch):
@@ -168,8 +168,8 @@ def test_getkernel_invalid_tree():
     with pytest.raises(InternalError) as excinfo:
         _ = get_kernel("invalid", "dummy.f90")
     assert (
-        "Expected a parse tree (type Part_Ref) but found instance of "
-        "'<type 'str'>'.") in str(excinfo.value)
+        "Expected a parse tree (type Part_Ref) but found instance of ") \
+        in str(excinfo.value)
 
 
 def test_getkernel_invalid_arg(monkeypatch):
@@ -188,8 +188,10 @@ def test_getkernel_invalid_arg(monkeypatch):
     with pytest.raises(InternalError) as excinfo:
         _ = get_kernel(parse_tree, "dummy.f90")
     assert (
-        "Unsupported argument structure '<type 'str'>', value 'invalid', "
-        "kernel 'None(invalid)' in file 'dummy.f90'.") in str(excinfo.value)
+        "Unsupported argument structure") in str(excinfo.value)
+    assert (
+        "value 'invalid', kernel 'None(invalid)' in file 'dummy.f90'.") \
+        in str(excinfo.value)
 
 # function create_var_name() tests
 
@@ -202,7 +204,7 @@ def test_createvarname_unknown_content():
     '''
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name("invalid")
-    assert "unrecognised structure '<type 'str'>'" in str(excinfo.value)
+    assert "unrecognised structure" in str(excinfo.value)
     
 # class KernelCall() tests
 
