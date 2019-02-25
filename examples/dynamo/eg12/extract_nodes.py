@@ -35,8 +35,9 @@
 
 
 '''
-File containing a PSyclone transformation script for the Dynamo0p3 API to
-extract a list of Nodes in an Invoke.
+An example of PSyclone transformation script to extract a list of Nodes from
+"invoke_7" of the algorithm gw_mixed_schur_preconditioner_alg_mod.x90.
+
 This script can be applied via the -s option when running PSyclone:
 
 $ psyclone -nodm -s extract_nodes.py alg_mod.x90

@@ -37,15 +37,15 @@
 '''
 Python helper script which returns the information useful for Kernel
 extraction: names of one or more Invokes which contain calls to the specified
-Kernel and positions of the root Nodes containing the Kernel calls.
+Kernel and schedules of those Invokes.
 
 Use: '$ python <path/to/script/>find_kernel.py'
 
 The user-specified settings can be modified in the first section:
 TEST_API - PSyclone API (the example here "dynamo0.3"),
+ALG_PATH - Relative path to the Algorithm file from the location
+           where this script is run,
 ALG_NAME - Algorithm file name to be searched for Kernel calls,
-ALG_PATH - Path to the Algorithm file (absolute or relative from the
-           location where this script is run),
 KERNEL_BASENAME - Base name of the Kernel to be searched (without the
                   "_kernel_mod" and file extension),
 OPTIMISE - Switch for applying optimisations to PSy layer before
@@ -65,13 +65,13 @@ from psyclone.psyGen import PSyFactory, Kern
 #
 # Specify API
 TEST_API = "dynamo0.3"
-# Specify Algorithm file name
-ALG_NAME = "gw_mixed_schur_preconditioner_alg_mod.x90"
 # Specify path to the Algorithm file from this script's location
 ALG_PATH = "."
+# Specify Algorithm file name
+ALG_NAME = "gw_mixed_schur_preconditioner_alg_mod.x90"
 # Specify the Kernel base name without the "_kernel_mod" and
 # file extension
-KERNEL_BASENAME = "dg_matrix_vector"
+KERNEL_BASENAME = "matrix_vector"
 # Specify whether to apply optimisations before looking for the Kernel call
 # position
 OPTIMISE = False
@@ -83,7 +83,7 @@ OPT_SCRIPT = "colouring_and_omp"
 # Formulate the Kernel name as it appears in the Kernel calls
 KERNEL_NAME = KERNEL_BASENAME + "_code"
 # Join path to Algorithm file and its name
-ALG_FILE = os.path.join(ALG_PATH, ALG_NAME)
+ALG_FILE = os.path.join(os.path.abspath(ALG_PATH), ALG_NAME)
 
 # If optimisation option is enabled, try to import the specified optimisation
 # transformation script as a Python module
@@ -107,27 +107,25 @@ PSY = PSyFactory(TEST_API, distributed_memory=False).create(INVOKE_INFO)
 if OPTMOD:
     PSY = OPTMOD.trans(PSY)
 
-# Search through all Invokes and their Schedules for the specified
-# Kernel call. Create lists of Invoke names and relative positions
-# of ancestor Nodes which contain the specified Kernel call.
+# Search through all Invokes and their Schedules for the specified Kernel
+# call. Create lists of Invoke names which contain the specified call.
 INVOKE_NAME = []
-ROOT_NODE_POSITION = []
 for invoke in PSY.invokes.invoke_list:
     schedule = invoke.schedule
     for kernel in schedule.walk(schedule.children, Kern):
-        if kernel.name.lower() == KERNEL_NAME:
-            # Root at depth 2 returns the root (ancestor) Node of this
-            # Kernel call in the Schedule
+        if kernel.name.lower() == KERNEL_NAME and \
+          invoke.name not in INVOKE_NAME:
             INVOKE_NAME.append(invoke.name)
-            ROOT_NODE_POSITION.append(kernel.root_at_depth(2).position)
 
-# Print Invoke name(s) and root Node relative position(s)
+# Print names and schedules of Invokes which contain the call to the
+# specified Kernel
 if INVOKE_NAME:
     print("\nKernel call '" + KERNEL_NAME +
           "' was found in ")
     for idx, name in enumerate(INVOKE_NAME):
-        print("  - " + name + " at root Node position "
-              + str(ROOT_NODE_POSITION[idx]))
+        print("\n- Invoke '" + name + "' with the Schedule: ")
+        schedule = PSY.invokes.get(name).schedule
+        schedule.view()
 else:
     print("Kernel call '" + KERNEL_NAME + "' was not found in "
           + ALG_NAME)
