@@ -7306,17 +7306,18 @@ class KernStubArgList(ArgOrdering):
     def banded_dofmap(self, function_space):
         ''' Declare the banded dofmap required for a CMA operator
         that maps to/from the specified function space '''
-        ndf = get_fs_ndf_name(function_space)
         dofmap = get_cbanded_map_name(function_space)
-        #self._parent.add(DeclGen(self._parent, datatype="integer",
-        #                         dimension=",".join([ndf, "nlayers"]),
-        #                         intent="in",
-        #                         entity_decls=[dofmap]))
         self._arglist.append(dofmap)
 
     def indirection_dofmap(self, function_space, operator=None):
-        ''' Declare the indirection dofmaps required when applying a
-        CMA operator '''
+        '''
+        Declare the indirection dofmaps required when applying a
+        CMA operator.
+
+        :param function_space:
+        :param operator:
+
+        '''
         from psyclone.f2pygen import DeclGen
         if not operator:
             raise GenerationError("Internal error: no CMA operator supplied.")
@@ -7324,17 +7325,7 @@ class KernStubArgList(ArgOrdering):
             raise GenerationError(
                 "Internal error: a CMA operator (gh_columnwise_operator) must "
                 "be supplied but got {0}".format(operator.type))
-        # The extent of the (1D) dofmap depends on whether it is for the 'to'
-        # or 'from' function space of the operator
-        if operator.function_space_to.orig_name == function_space.orig_name:
-            dim_name = operator.name + "_nrow"
-        else:
-            dim_name = operator.name + "_ncol"
         map_name = get_cma_indirection_map_name(function_space)
-        #self._parent.add(DeclGen(self._parent, datatype="integer",
-        #                         dimension=dim_name,
-        #                         intent="in",
-        #                         entity_decls=[map_name]))
         self._arglist.append(map_name)
 
     def scalar(self, arg):
@@ -7379,42 +7370,11 @@ class KernStubArgList(ArgOrdering):
                                  Function Space.
         :raises GenerationError: if a quadrature other than XYoZ is required.
         :raises InternalError: if the evaluator shape is not recognised.
-        '''
-        from psyclone.f2pygen import DeclGen
-        # the size of the first dimension for a
-        # basis array depends on the
-        # function space. The values are
-        # w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3
-        first_dim = None
-        if function_space.orig_name.lower() in \
-           ["w0", "w3", "wtheta"]:
-            first_dim = "1"
-        elif (function_space.orig_name.lower() in
-              ["w1", "w2", "w2h", "w2v", "any_w2"]):
-            first_dim = "3"
-        else:
-            raise GenerationError(
-                "Unsupported space for basis function, "
-                "expecting one of {0} but found "
-                "'{1}'".format(VALID_FUNCTION_SPACES,
-                               function_space.orig_name))
-        ndf_name = get_fs_ndf_name(function_space)
 
+        '''
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
             basis_name = get_fs_basis_name(function_space)
             self._arglist.append(basis_name)
-
-            if self._kern.eval_shape == "gh_quadrature_xyoz":
-                dim_list = ",".join([first_dim, ndf_name,
-                                     "np_xy", "np_z"])
-            else:
-                raise GenerationError(
-                    "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
-                    "yet supported")
-            #self._parent.add(DeclGen(self._parent, datatype="real",
-            #                         kind="r_def", intent="in",
-            #                         dimension=dim_list,
-            #                         entity_decls=[basis_name]))
         elif self._kern.eval_shape in VALID_EVALUATOR_SHAPES:
             # Need a basis array for each target space upon which the basis
             # functions have been evaluated. _kern.eval_targets is a dict
@@ -7423,13 +7383,6 @@ class KernStubArgList(ArgOrdering):
                 basis_name = get_fs_basis_name(function_space,
                                                on_space=target[0])
                 self._arglist.append(basis_name)
-
-                nodal_ndf_name = get_fs_ndf_name(target[0])
-                dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
-                #self._parent.add(DeclGen(self._parent, datatype="real",
-                #                         kind="r_def", intent="in",
-                #                         dimension=dim_list,
-                #                         entity_decls=[basis_name]))
         else:
             raise InternalError(
                 "Unrecognised evaluator shape ({0}). Expected one of: {1}".
@@ -7461,25 +7414,11 @@ class KernStubArgList(ArgOrdering):
                 "function, expecting one of {0} but found "
                 "'{1}'".format(VALID_FUNCTION_SPACES,
                                function_space.orig_name))
-        ndf_name = get_fs_ndf_name(function_space)
 
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
             # We need differential basis functions for quadrature
             diff_basis_name = get_fs_diff_basis_name(function_space)
             self._arglist.append(diff_basis_name)
-
-            if self._kern.eval_shape == "gh_quadrature_xyoz":
-                dim_list = ",".join([first_dim, ndf_name,
-                                     "np_xy", "np_z"])
-            else:
-                raise NotImplementedError(
-                    "Internal error: diff-basis for quadrature shape '{0}' "
-                    "not yet implemented".format(self._kern.eval_shape))
-
-            #self._parent.add(DeclGen(self._parent, datatype="real",
-            #                         kind="r_def",
-            #                         intent="in", dimension=dim_list,
-            #                         entity_decls=[diff_basis_name]))
 
         elif self._kern.eval_shape in VALID_EVALUATOR_SHAPES:
             # We need differential basis functions for an evaluator,
@@ -7490,12 +7429,6 @@ class KernStubArgList(ArgOrdering):
                 diff_basis_name = get_fs_diff_basis_name(function_space,
                                                          on_space=target[0])
                 self._arglist.append(diff_basis_name)
-                nodal_ndf_name = get_fs_ndf_name(target[0])
-                dim_list = ",".join([first_dim, ndf_name, nodal_ndf_name])
-                #self._parent.add(DeclGen(self._parent, datatype="real",
-                #                         kind="r_def",
-                #                         intent="in", dimension=dim_list,
-                #                         entity_decls=[diff_basis_name]))
         else:
             raise GenerationError(
                 "Internal error: unrecognised evaluator shape ({0}). Expected "
@@ -7503,23 +7436,18 @@ class KernStubArgList(ArgOrdering):
                                      VALID_EVALUATOR_SHAPES))
 
     def orientation(self, function_space):
-        ''' provide orientation information for the function space '''
-        from psyclone.f2pygen import DeclGen
-        ndf_name = get_fs_ndf_name(function_space)
+        '''
+        Provide orientation information for the function space.
+
+        :param function_space:
+        '''
         orientation_name = get_fs_orientation_name(function_space)
         self._arglist.append(orientation_name)
-        #self._parent.add(DeclGen(self._parent, datatype="integer",
-        #                         intent="in", dimension=ndf_name,
-        #                         entity_decls=[orientation_name]))
 
     def field_bcs_kernel(self, function_space):
         ''' implement the boundary_dofs array fix for fields '''
         arg = self._kern.arguments.get_arg_on_space(function_space)
         self._arglist.append("boundary_dofs_"+arg.name)
-        #ndf_name = get_fs_ndf_name(function_space)
-        #self._parent.add(DeclGen(self._parent, datatype="integer", intent="in",
-        #                         dimension=",".join([ndf_name, "2"]),
-        #                         entity_decls=["boundary_dofs"]))
 
     def operator_bcs_kernel(self, function_space):
         ''' Implement the boundary_dofs array fix for operators. This is the
