@@ -200,8 +200,9 @@ class Parser(object):
         if not container_name:
             # Nothing relevant found.
             raise ParseError(
-                "Error, program, module, function or subroutine not found in "
-                "parse tree for file '{0}'".format(alg_filename))
+                "algorithm.py:parser:parse: Program, module, function or "
+                "subroutine not found in parse tree for file "
+                "'{0}'".format(alg_filename))
 
         self._unique_invoke_labels = []
         self._arg_name_to_module_name = {}
@@ -257,9 +258,9 @@ class Parser(object):
                 # This should be the invoke label.
                 if invoke_label:
                     raise ParseError(
-                        "An invoke must contain one or zero 'name=xxx' "
-                        "arguments but found more than one in: {0} in "
-                        "file {1}".
+                        "algorithm.py:Parser():create_invoke_call: An invoke "
+                        "must contain one or zero 'name=xxx' arguments but "
+                        "found more than one in: {0} in file {1}".
                         format(str(statement), self._alg_filename))
                 invoke_label = self.check_invoke_label(argument)
 
@@ -272,9 +273,10 @@ class Parser(object):
             else:
                 # Unknown and/or unsupported argument type
                 raise ParseError(
-                    "Expecting argument to be of the form 'name=xxx' or a "
+                    "algorithm.py:Parser():create_invoke_call: Expecting "
+                    "argument to be of the form 'name=xxx' or a "
                     "Kernel call but found '{0}' in file "
-                    "'{1}".format(argument, self._alg_filename))
+                    "'{1}'.".format(argument, self._alg_filename))
 
         return InvokeCall(kernel_calls, name=invoke_label)
 
@@ -392,7 +394,7 @@ class Parser(object):
         # make sure statement is a use
         if not isinstance(statement, Use_Stmt):
             raise InternalError(
-                "algorithm.py:Parser:update_arg_to_module_map expected "
+                "algorithm.py:Parser:update_arg_to_module_map: Expected "
                 "a use statement but found instance of "
                 "'{0}'.".format(type(statement)))
 
@@ -458,13 +460,13 @@ def parse_fp2(filename):
         reader = FortranFileReader(filename, include_dirs=config.include_paths)
     except IOError as error:
         raise ParseError(
-            "algorithm.py:parse_fp2 failed to parse file '{0}'. Error "
-            "returned was '{1}'".format(filename, error))
+            "algorithm.py:parse_fp2: Failed to parse file '{0}'. Error "
+            "returned was ' {1} '.".format(filename, error))
     try:
         parse_tree = parser(reader)
     except FortranSyntaxError as msg:
         raise ParseError(
-            "algorithm.py:parse_fp2 Syntax error in file '{0}':\n"
+            "algorithm.py:parse_fp2: Syntax error in file '{0}':\n"
             "{1}".format(filename, str(msg)))
     return parse_tree
 
@@ -519,13 +521,13 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     '''
     if not isinstance(parse_tree, Actual_Arg_Spec):
         raise InternalError(
-            "algorithm.py:Parser:get_invoke_label expected a fortran "
+            "algorithm.py:Parser:get_invoke_label: Expected a Fortran "
             "argument of the form name=xxx but found instance of "
             "'{0}'.".format(type(parse_tree)))
 
     if len(parse_tree.items) != 2:
         raise InternalError(
-            "algorithm.py:Parser:get_invoke_label expected the fortran "
+            "algorithm.py:Parser:get_invoke_label: Expected the Fortran "
             "argument to have two items but found "
             "'{0}'.".format(len(parse_tree.items)))
 
@@ -580,9 +582,8 @@ def get_kernel(parse_tree, alg_filename):
     '''
     if not isinstance(parse_tree, Part_Ref):
         raise InternalError(
-            "algorithm.py:get_kernel expected a PSyclone kernel "
-            "argument (type Part_Ref) but found instance of "
-            "'{0}'.".format(type(parse_tree)))
+            "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref) "
+            "but found instance of '{0}'.".format(type(parse_tree)))
 
     # ********** TODO CHECK items size etc.
 
@@ -626,8 +627,8 @@ def get_kernel(parse_tree, alg_filename):
             arguments.append(Arg('variable', full_text, var_name))
         else:
             raise InternalError(
-                "Unsupported argument structure '{0}', value '{1}', "
-                "kernel '{2}' in file '{3}'.".format(
+                "algorithm.py:get_kernel: Unsupported argument structure "
+                "'{0}', value '{1}', kernel '{2}' in file '{3}'.".format(
                     type(argument), str(argument), parse_tree, alg_filename))
 
     return kernel_name, arguments
@@ -846,7 +847,7 @@ class KernelCall(ParsedCall):
         return "kernelCall"
 
     def __repr__(self):
-        return 'KernelCall(%s, %s)' % (self.ktype, self.args)
+        return "KernelCall('{0}', {1})".format(self.ktype.name, self.args)
 
 
 class BuiltInCall(ParsedCall):
@@ -889,7 +890,7 @@ class BuiltInCall(ParsedCall):
         return "BuiltInCall"
 
     def __repr__(self):
-        return 'BuiltInCall(%s)' % (self.args)
+        return "BuiltInCall('{0}', {1})".format(self.ktype.name, self.args)
 
 
 class Arg(object):
@@ -923,11 +924,12 @@ class Arg(object):
             self._varname = None
         if form not in Arg.formOptions:
             raise InternalError(
-                "Unknown arg type provided. Expected one of {0} but found "
-                "{1}".format(str(Arg.formOptions), form))
+                "algorithm.py:Alg:__init__: Unknown arg type provided. "
+                "Expected one of {0} but found "
+                "'{1}'.".format(str(Arg.formOptions), form))
 
     def __str__(self):
-        return "Arg(form='{0}',text='{1}',varname='{2}'". \
+        return "Arg(form='{0}',text='{1}',varname='{2}')". \
             format(self._form, self._text, str(self._varname))
 
     @property
