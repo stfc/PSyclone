@@ -5242,7 +5242,7 @@ class DynKern(Kern):
         if self.name.lower().endswith("_code"):
             self._base_name = self.name[:-5]
         else:
-            # TODO: add a warning here when logging is added
+            # TODO: #11 add a warning here when logging is added
             self._base_name = self.name
         self._func_descriptors = ktype.func_descriptors
         # Keep a record of the type of CMA kernel identified when
@@ -5451,7 +5451,10 @@ class DynKern(Kern):
 
     @property
     def base_name(self):
-        " Returns a base name for this kernel "
+        '''
+        :returns: a base name for this kernel.
+        :rtype: str
+        '''
         return self._base_name
 
     @property

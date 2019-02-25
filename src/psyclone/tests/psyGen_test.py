@@ -1405,7 +1405,7 @@ def test_node_depth():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # Assert that start_depth of any Node (including Schedule) is 0
-    assert schedule.start_depth == 0
+    assert schedule.START_DEPTH == 0
     # Assert that Schedule depth is 1
     assert schedule.depth == 1
     # Depth increases by 1 for descendants at each level
@@ -1429,7 +1429,7 @@ def test_node_position(tmpdir, f90, f90flags):
     schedule = invoke.schedule
     child = schedule.children[6]
     # Assert that start_position of any Node is 0
-    assert child.start_position == 0
+    assert child.START_POSITION == 0
     # Assert that relative and absolute positions return correct values
     assert child.position == 6
     assert child.abs_position == 7
@@ -1446,8 +1446,8 @@ def test_node_position(tmpdir, f90, f90flags):
 
 def test_node_root():
     '''
-    Test that the Node class root and root_at_depth methods return
-    the correct instances for a Node in a tree.
+    Test that the Node class root method returns the correct instance
+    for a Node in a tree.
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
@@ -1458,22 +1458,9 @@ def test_node_root():
     # Select a loop and the kernel inside
     ru_loop = ru_schedule.children[1]
     ru_kern = ru_loop.children[0]
-    # Assert that the absolute root is a Schedule,
-    from psyclone.psyGen import Schedule, Loop
+    # Assert that the absolute root is a Schedule
+    from psyclone.psyGen import Schedule
     assert isinstance(ru_kern.root, Schedule)
-    # which is also the root at depth 1
-    assert ru_kern.root_at_depth(1) == ru_schedule
-    # and the root at depth 2 is a child of the ru_schedule, here ru_loop.
-    assert ru_kern.root_at_depth(2) == ru_loop
-    assert ru_loop.parent == ru_kern.root_at_depth(1)
-    # Assert that specifying incorrect depth for root_at_depth method
-    # raises an InternalError (for both 0 and Node's depth)
-    with pytest.raises(InternalError) as excinfo:
-        _ = ru_kern.root_at_depth(0)
-    assert "Node's parent depth must be greater than 0" in str(excinfo.value)
-    with pytest.raises(InternalError) as excinfo:
-        _ = ru_kern.root_at_depth(ru_kern.depth)
-    assert "and less than the Node's depth (3)" in str(excinfo.value)
 
 
 def test_node_args():

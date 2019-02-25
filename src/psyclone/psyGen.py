@@ -708,14 +708,14 @@ class Invoke(object):
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
 
-        :param string datatype: the type of the kernel argument for the
-                                particular API for which the intent is
+        :param string datatype: the type of the kernel argument for the \
+                                particular API for which the intent is \
                                 required
-        :returns: dictionary containing 'intent' keys holding the kernel
-                  argument intent and declarations of all kernel arguments
+        :returns: dictionary containing 'intent' keys holding the kernel \
+                  argument intent and declarations of all kernel arguments \
                   for each type of intent
         :rtype: dict
-        :raises GenerationError: if the kernel argument is not a valid
+        :raises GenerationError: if the kernel argument is not a valid \
                                  datatype for the particular API.
 
         '''
@@ -882,6 +882,14 @@ class Node(object):
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
+    # Define two class constants: START_DEPTH and START_POSITION
+    # START_DEPTH is used to calculate depth of all Nodes in the tree
+    # (1 for main Nodes and increasing for their descendants).
+    START_DEPTH = 0
+    # START_POSITION is used to to calculate position of all Nodes in
+    # the tree (absolute or relative to a parent).
+    START_POSITION = 0
+
     def __init__(self, children=None, parent=None):
         if not children:
             self._children = []
@@ -1141,22 +1149,12 @@ class Node(object):
         :returns: depth of the Node in the tree
         :rtype: int
         '''
-        my_depth = self.start_depth
+        my_depth = self.START_DEPTH
         node = self
         while node is not None:
             node = node.parent
             my_depth += 1
         return my_depth
-
-    @property
-    def start_depth(self):
-        '''
-        Returns starting depth (0) to calculate depth of all Nodes in
-        the tree (1 for main Nodes and increasing for their descendants).
-        :returns: start depth to determine a Node's depth
-        :rtype: int
-        '''
-        return 0
 
     def view(self):
         raise NotImplementedError("BaseClass of a Node must implement the "
@@ -1213,18 +1211,8 @@ class Node(object):
         :rtype: int
         '''
         if self.parent is None:
-            return self.start_position
+            return self.START_POSITION
         return self.parent.children.index(self)
-
-    @property
-    def start_position(self):
-        '''
-        Returns starting position (0) to calculate position of all
-        nodes in the tree (absolute or relative to a parent).
-        :returns: starting position to determine a Node's position
-        :rtype: int
-        '''
-        return 0
 
     @property
     def abs_position(self):
@@ -1237,9 +1225,9 @@ class Node(object):
         :rtype: int
         '''
         if self.root == self:
-            return self.start_position
+            return self.START_POSITION
         found, position = self._find_position(self.root.children,
-                                              self.start_position)
+                                              self.START_POSITION)
         if not found:
             raise InternalError("Error in search for Node position "
                                 "in the tree")
@@ -1257,10 +1245,10 @@ class Node(object):
         :rtype: int
         :raises InternalError: if the starting position is < 0
         '''
-        if position < self.start_position:
+        if position < self.START_POSITION:
             raise InternalError(
                 "Search for Node position started from {0} "
-                "instead of {1}.".format(position, self.start_position))
+                "instead of {1}.".format(position, self.START_POSITION))
         for child in children:
             position += 1
             if child == self:
@@ -1289,27 +1277,6 @@ class Node(object):
         if self.parent == node_2.parent:
             return True
         return False
-
-    def root_at_depth(self, depth):
-        '''
-        Recurse upwards to find the root of this Node at the specified
-        depth level, in the range between the depth of the Schedule (1)
-        and the Node's depth.
-        :param depth: depth level to find the Node's root at
-        :type depth: int
-        :returns: root Node at the specified depth level
-        :rtype: :py:class:`psyclone.psyGen.Node`
-        :raises InternalError: if the starting depth is < 1
-                               and >= node.depth
-        '''
-        if not (depth > self.start_depth and depth < self.depth):
-            raise InternalError("Node's parent depth must be greater than "
-                                "{0} and less than the Node's depth ({1})."
-                                .format(self.start_depth, self.depth))
-        node = self
-        while node.parent.depth > depth:
-            node = node.parent
-        return node.parent
 
     def walk(self, children, my_type):
         ''' Recurse through tree and return objects of 'my_type'. '''
@@ -5182,12 +5149,12 @@ class Symbol(object):
     @property
     def scope(self):
         '''
-        :returns: Whether the symbol is 'local' (just exists inside the kernel \
-                  scope) or 'global_*' (data also lives outside the kernel). \
-                  Global-scoped symbols also have postfixed information about \
-                  the sharing mechanism, at the moment just 'global_argument' \
-                  is available for variables passed in/out of the kernel \
-                  by argument.
+        :returns: Whether the symbol is 'local' (just exists inside the \
+                  kernel scope) or 'global_*' (data also lives outside the \
+                  kernel). Global-scoped symbols also have postfixed \
+                  information about the sharing mechanism, at the moment \
+                  just 'global_argument' is available for variables passed \
+                  in/out of the kernel by argument.
         :rtype: str
         '''
         return self._scope
