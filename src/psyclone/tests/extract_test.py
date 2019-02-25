@@ -44,8 +44,8 @@ import os
 import pytest
 
 from psyclone.parse import parse
-from psyclone.extractor import ExtractNode, Extractor
-from psyclone.psyGen import PSyFactory, Loop, GenerationError
+from psyclone.extractor import ExtractNode
+from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import ExtractRegionTrans, TransformationError
 from psyclone_test_utils import code_compiles, TEST_COMPILE
 
@@ -63,7 +63,7 @@ GOCEAN_API = "gocean1.0"
 # --------------------------------------------------------------------------- #
 
 
-def test_node_list_error():
+def test_node_list_error(tmpdir, f90, f90flags):
     ''' Test that applying ExtractRegionTrans on objects which are not
     Nodes or a list of Nodes raises a TransformationError. Also raise
     transformation errors when the Nodes do not have the same parent
@@ -105,6 +105,11 @@ def test_node_list_error():
         etrans.apply(node_list)
     assert ("Error in ExtractRegionTrans transformation: supplied nodes "
             "are not children of the same Schedule/parent.") in str(excinfo)
+
+    if TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
 
 
 def test_distmem_error():
@@ -466,9 +471,8 @@ def test_extract_node_representation(capsys):
     # Test view() method
     schedule.view()
     output, _ = capsys.readouterr()
-    expected_output = (colored("Extract",
-                               SCHEDULE_COLOUR_MAP["Extract"]) +
-                       "[position='1',depth='2']")
+    expected_output = (colored("Extract", SCHEDULE_COLOUR_MAP["Extract"]) +
+                       "[position='1']")
     assert expected_output in output
 
     # Test dag_name method
@@ -754,229 +758,16 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir, f90, f90flags):
         # (--compile --f90="<compiler_name>" flags to py.test)
         assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
 
-# --------------------------------------------------------------------------- #
-# ================== Extractor.extract_kernel tests ========================= #
-# --------------------------------------------------------------------------- #
 
-
-def test_wrong_kernel_name():
-    ''' Test that trying to extract a Kernel with an incorrect name
-    supplied to the extract_kernel method raises a GenerationError. '''
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    # Set an incorrect name of the Kernel to extract
-    kernel_name = "somekern_code"
-    with pytest.raises(GenerationError) as excinfo:
-        _ = Extractor.extract_kernel(schedule, kernel_name)
-    assert ("No Kernels with the name of 'somekern_code' were found "
-            "to extract.") in str(excinfo)
-
-
-def test_wrong_kernel_position():
-    ''' Test that trying to extract a Kernel with an incorrect
-    optional position argument supplied to the extract_kernel
-    method raises a GenerationError. '''
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.8_multikernel_invokes.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    # Set the correct name but an incorrect position of the Kernel to extract
-    kernel_name = "testkern_code"
-    kernel_position = 3
-    with pytest.raises(GenerationError) as excinfo:
-        _ = Extractor.extract_kernel(schedule, kernel_name, kernel_position)
-    assert ("Provided position 3 is not the position of any Node which "
-            "contains Kernel 'testkern_code' call.") in str(excinfo)
-
-
-def test_extract_single_kernel(tmpdir, f90, f90flags):
-    ''' Test that extraction of a single Kernels within an Invoke
-    will apply Extraction only to that Kernel if there are no other
-    Kernels with the same name. '''
-    _, invoke_info = parse(
-        os.path.join(DYNAMO_BASE_PATH,
-                     "3.2_multi_functions_multi_named_invokes.f90"),
-        api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    # Define the name of the Kernel to extract
-    kernel_name = "testkern_qr_code"
-    schedule = Extractor.extract_kernel(schedule, kernel_name)
-
-    code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO cell=1,f1_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        CALL testkern_qr_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, "
-        "undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
-        "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
-        "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, np_xy_qr, np_z_qr, "
-        "weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
-    assert output in code
-
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
-
-
-def test_extract_single_identical_kernel(tmpdir, f90, f90flags):
-    ''' Test that extraction of a single Kernels within an Invoke will
-    apply Extraction only to that Kernel if the optional position
-    argument is correctly specified when there are other Kernels with
-    the same name. '''
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.8_multikernel_invokes.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    # Define the name and the relative position of the Kernel to extract
-    kernel_name = "ru_code"
-    kernel_position = 3
-    schedule = Extractor.extract_kernel(schedule, kernel_name, kernel_position)
-
-    code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO cell=1,g_proxy%vspace%get_ncell()\n"
-        "        !\n"
-        "        CALL ru_code(nlayers, g_proxy%data, a_proxy%data, istp, "
-        "rdt, c_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cell), basis_w2_qr, "
-        "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
-        "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, diff_basis_w0_qr, "
-        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
-    assert output in code
-
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
-
-
-def test_extract_different_kernels():
-    ''' Test the extraction of two different Kernels within an Invoke. '''
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    # Extract the first Kernel
-    kernel1_name = "compute_cu_code"
-    schedule = Extractor.extract_kernel(schedule, kernel1_name)
-    # Extract the second Kernel
-    kernel2_name = "time_smooth_code"
-    schedule = Extractor.extract_kernel(schedule, kernel2_name)
-
-    code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop+1\n"
-        "          CALL compute_cu_code(i, j, cu_fld%data, "
-        "p_fld%data, u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n"
-        "      !\n"
-        "      DO j=2,jstop+1\n"
-        "        DO i=2,istop\n"
-        "          CALL compute_cv_code(i, j, cv_fld%data, "
-        "p_fld%data, v_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO j=1,jstop+1\n"
-        "        DO i=1,istop+1\n"
-        "          CALL time_smooth_code(i, j, u_fld%data, "
-        "unew_fld%data, uold_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
-    assert output in code
-
-
-def test_extract_all_identical_kernels():
-    ''' Test that extraction of two Kernels with the same name in
-    an Invoke without specifying the optional position argument
-    will apply Extraction to each Kernel separately. '''
-    _, invoke_info = parse(
-        os.path.join(GOCEAN_BASE_PATH,
-                     "single_invoke_two_identical_kernels.f90"),
-        api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    # Define name of the kernel to extract
-    kernel_name = "compute_cu_code"
-    schedule = Extractor.extract_kernel(schedule, kernel_name)
-
-    code = str(psy.gen)
-    output = (
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop+1\n"
-        "          CALL compute_cu_code(i, j, cu_fld%data, "
-        "p_fld%data, u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n"
-        "      !\n"
-        "      !\n"
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop+1\n"
-        "          CALL compute_cu_code(i, j, cu_fld%data, "
-        "p_fld%data, u_fld%data)\n"
-        "        END DO \n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
-    assert output in code
-
-
-def test_extract_colouringomp_identical_kernels():
-    ''' Test that extraction of multiple Kernels with the same name
-    in an Invoke after applying optimisations and without specifying
-    the optional position argument will will apply Extraction to each
-    Kernel separately together with the applied optimisations. '''
+def test_extract_colouring_omp_dynamo0p3(tmpdir, f90, f90flags):
+    ''' Test that extraction of a Kernel in an Invoke after applying
+    colouring and OpenMP optimisations produces the correct result
+    in Dynamo0.3 API. '''
     from psyclone.transformations import Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans
     from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
 
+    etrans = ExtractRegionTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
@@ -1004,9 +795,10 @@ def test_extract_colouringomp_identical_kernels():
             else:
                 schedule, _ = otrans.apply(child)
 
-    # Define name of the Kernel to extract
-    kernel_name = "ru_code"
-    schedule = Extractor.extract_kernel(schedule, kernel_name)
+    # Extract the second instance of ru_kernel_type after colouring
+    # and OpenMP are applied
+    child = schedule.children[2]
+    schedule, _ = etrans.apply(child)
 
     code = str(psy.gen)
     output = (
@@ -1027,29 +819,10 @@ def test_extract_colouringomp_identical_kernels():
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "        END DO \n"
         "        !$omp end parallel do\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n"
-        "      !\n"
-        "      !\n"
-        "      ! ExtractStart\n"
-        "      ! CALL write_extract_arguments(argument_list)\n"
-        "      !\n"
-        "      DO colour=1,ncolour\n"
-        "        !$omp parallel do default(shared), private(cell), "
-        "schedule(static)\n"
-        "        DO cell=1,mesh%get_last_edge_cell_per_colour(colour)\n"
-        "          !\n"
-        "          CALL ru_code(nlayers, g_proxy%data, a_proxy%data, istp, "
-        "rdt, c_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        "e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), "
-        "basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        "map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
-        "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
-        "        END DO \n"
-        "        !$omp end parallel do\n"
-        "      END DO \n"
-        "      !\n"
-        "      ! ExtractEnd\n")
+        "      END DO \n")
     assert output in code
+
+    if TEST_COMPILE:
+        # If compilation testing has been enabled
+        # (--compile --f90="<compiler_name>" flags to py.test)
+        assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
