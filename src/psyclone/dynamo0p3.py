@@ -2232,7 +2232,6 @@ class DynInvokeFunctionSpaces(DynCollection):
             # Initialise ndf for this function space.
             if not self._dofs_only:
                 ndf_name = get_fs_ndf_name(function_space)
-                self._var_list.append(ndf_name)
                 parent.add(AssignGen(parent, lhs=ndf_name,
                                      rhs=name +
                                      "%" + arg.ref_name(function_space) +

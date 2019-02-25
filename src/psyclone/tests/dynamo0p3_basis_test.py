@@ -177,9 +177,8 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    # If compilation testing has been enabled (--compile flag to py.test)
+    assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
     # First, check the declarations
     expected_decl = (
