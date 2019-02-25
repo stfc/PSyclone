@@ -107,8 +107,8 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
 
         if not os.access(cdir, os.R_OK):
             raise ParseError(
-                "Supplied kernel search path does not exist "
-                "or cannot be read: {0}".format(cdir))
+                "kernel.py:get_kernel_filepath: Supplied kernel search path "
+                "does not exist or cannot be read: {0}".format(cdir))
 
         # Recursively search down through the directory tree starting
         # at the specified path
@@ -133,7 +133,8 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
     if len(matches) > 1:
         # There was more than one match
         raise ParseError(
-            "More than one match for kernel file '{0}.[fF]90' found!".
+            "kernel.py:get_kernel_filepath: More than one match for kernel "
+            "file '{0}.[fF]90' found!".
             format(module_name))
     # There is a single match
     return matches[0]
@@ -163,8 +164,8 @@ def get_kernel_parse_tree(filepath):
         parse_tree.name = ""
     except Exception:
         raise ParseError(
-            "Failed to parse kernel code '{0}'. Is the Fortran correct?".
-            format(filepath))
+            "Failed to parse kernel code '{0}'. Is the Fortran "
+            "correct?".format(filepath))
     return parse_tree
 
 
@@ -300,8 +301,8 @@ class BuiltInKernelTypeFactory(KernelTypeFactory):
             parse_tree = fpapi.parse(fname)
         except Exception:
             raise ParseError(
-                "BuiltInKernelTypeFactory:create Failed to parse the "
-                "meta-data for PSyclone built-ins in {0}".format(fname))
+                "BuiltInKernelTypeFactory:create: Failed to parse the meta-"
+                "data for PSyclone built-ins in file '{0}'.".format(fname))
 
         # Now we have the parse tree, call our parent class to create \
         # the object
@@ -467,7 +468,7 @@ class Descriptor(object):
         return self._mesh
 
     def __repr__(self):
-        return "Descriptor({0}, {1})".format(self.stencil, self.access)
+        return "Descriptor({0}, {1})".format(self.access, self.function_space)
 
 
 class KernelProcedure(object):
@@ -516,8 +517,6 @@ class KernelProcedure(object):
                              type-bound procedure.
         :raises ParseError: if the type-bound procedure specifies a binding \
                             name but the generic name is not "code".
-        :raises ParseError: if the type-bound procedure is not public in the \
-                            Fortran module.
         :raises InternalError: if we get an empty string for the name of the \
                                type-bound procedure.
         '''
@@ -545,12 +544,16 @@ class KernelProcedure(object):
         if bname == '':
             raise InternalError(
                 "Empty Kernel name returned for Kernel type {0}.".format(name))
-        public, code = construct_public(bname, modast,
-                                        fparser1.block_statements.Subroutine)
-        if code is None:
-            raise ParseError("Kernel subroutine %s not implemented" % bname)
-        if not public:
-            raise ParseError("Kernel subroutine '%s' is not public" % bname)
+        code = None
+        for statement, _ in fpapi.walk(modast, -1):
+            if isinstance(statement, fparser1.block_statements.Subroutine) \
+               and statement.name == bname:
+                code = statement
+                break
+        if not code:
+            raise ParseError(
+                "kernel.py:KernelProcedure:get_procedure: Kernel subroutine "
+                "'{0}' not found.".format(bname))
         return code, bname
 
     @property
@@ -572,50 +575,10 @@ class KernelProcedure(object):
         return self._ast
 
     def __repr__(self):
-        return 'KernelProcedure(%s, %s)' % (self.name, self.ast)
+        return "KernelProcedure({0})".format(self.name)
 
     def __str__(self):
         return self._ast.__str__()
-
-
-def construct_public(name, ast, match_type):
-    '''Determine whether the 'match_type' construct with name 'name' has
-    been specified as being public or private returning True if it is
-    public and False if not. Also return the the parse tree of this
-    construct if it exists.
-
-    :param str name: the match_type name (also the name referencing \
-    the kernel in the algorithm layer)
-    :param ast: parse tree of the kernel module code
-    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
-
-    :returns: True if the 'match_type' is public and False if not and \
-    the parse tree of the construct if it is found and None if not.
-    :rtype: (bool, instance of 'match_type' or NoneType)
-
-    '''
-    code = None
-    default_public = True
-    declared_private = False
-    declared_public = False
-    for statement, _ in fpapi.walk(ast, -1):
-        if isinstance(statement, fparser1.statements.Private):
-            if not statement.items:
-                default_public = False
-            elif name in statement.items:
-                declared_private = True
-        if isinstance(statement, fparser1.statements.Public):
-            if not statement.items:
-                default_public = True
-            elif name in statement.items:
-                declared_public = True
-        if isinstance(statement, match_type) and statement.name == name:
-            if statement.is_public():
-                declared_public = True
-            code = statement
-    if declared_private or (not default_public and not declared_public):
-        return False, code
-    return True, code
 
 
 def get_kernel_metadata(name, ast):
@@ -695,9 +658,6 @@ class KernelType(object):
 
         self._name = name
         self._ast = ast
-        public, _ = construct_public(name, ast, fparser1.block_statements.Type)
-        if not public:
-            raise ParseError("Kernel type '{0}' is not public".format(name))
         self._ktype = get_kernel_metadata(name, ast)
         self._iterates_over = self.get_integer_variable("iterates_over")
         self._procedure = KernelProcedure(self._ktype, name, ast)
@@ -728,24 +688,30 @@ class KernelType(object):
 
         '''
         descs = ast.get_variable(var_name)
-        if not descs:
+        if "INTEGER" in str(descs):  # fparser1 hack as get_variable()
+                                     # returns an integer if it can't
+                                     # find the variable.
             raise ParseError(
-                "kernel call does not contain a {0} type".format(var_name))
+                "kernel.py:KernelType():getkerneldescriptors: No kernel "
+                "metadata with type name '{0}' found.".format(var_name))
         try:
             nargs = int(descs.shape[0])
         except AttributeError:
             raise ParseError(
-                "kernel metadata {0}: {1} variable must be an array".
+                "kernel.py:KernelType():getkerneldescriptors: In kernel "
+                "metadata '{0}': '{1}' variable must be an array.".
                 format(self._name, var_name))
         if len(descs.shape) != 1:
             raise ParseError(
-                "kernel metadata {0}: {1} variable must be a 1 dimensional "
+                "kernel.py:KernelType():getkerneldescriptors: In kernel "
+                "metadata '{0}': '{1}' variable must be a 1 dimensional "
                 "array".format(self._name, var_name))
         if descs.init.find("[") != -1 and descs.init.find("]") != -1:
             # there is a bug in fparser1
             raise ParseError(
-                "Parser does not currently support [...] initialisation for "
-                "{0}, please use (/.../) instead".format(var_name))
+                "kernel.py:KernelType():getkerneldescriptors: Parser does "
+                "not currently support [...] initialisation for "
+                "'{0}', please use (/.../) instead.".format(var_name))
         try:
             inits = expr.FORT_EXPRESSION.parseString(descs.init)[0]
         except ParseException:
@@ -754,9 +720,9 @@ class KernelType(object):
         nargs = int(descs.shape[0])
         if len(inits) != nargs:
             raise ParseError(
-                "Error, in {0} specification, the number of args {1} and "
-                "number of dimensions {2} do not match".
-                format(var_name, nargs, len(inits)))
+                "kernel.py:KernelType():getkerneldescriptors: In the '{0}' "
+                "metadata, the number of args '{1}' and number of dimensions "
+                "'{2}' do not match.".format(var_name, nargs, len(inits)))
         return inits
 
     @property
