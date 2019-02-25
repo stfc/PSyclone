@@ -297,7 +297,6 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
         "      TYPE(field_type), intent(in) :: chi(3)\n"
         "      TYPE(operator_type), intent(inout) :: mapping\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
-        "      INTEGER, pointer :: orientation_w2(:) => null()\n"
         "      INTEGER cell\n"
         "      REAL(KIND=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:), "
         "basis_w3_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
@@ -311,7 +310,8 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER, pointer :: map_w0(:,:) => null()\n"
         "      INTEGER ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
-        "      TYPE(mesh_type), pointer :: mesh => null()\n")
+        "      TYPE(mesh_type), pointer :: mesh => null()\n"
+        "      INTEGER, pointer :: orientation_w2(:) => null()\n")
     assert decl_output in generated_code
     output = (
         "      !\n"
