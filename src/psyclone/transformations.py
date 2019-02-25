@@ -67,8 +67,8 @@ class TransformationError(Exception):
 @six.add_metaclass(abc.ABCMeta)
 class RegionTrans(Transformation):
     '''
-    This abstract class is a base class for all transforms that act on
-    a list of nodes. It gives access to a _validate function that
+    This abstract class is a base class for all transformations that act
+    on a list of nodes. It gives access to a _validate function that
     makes sure that the nodes in the list are in the same order as in
     the original AST, no node is duplicated, and that all nodes have
     the same parent. We also check that all nodes to be enclosed are
@@ -91,9 +91,8 @@ class RegionTrans(Transformation):
         :raises TransformationError: If the nodes in the list are not \
                 in the original order in which they are in the AST, \
                 a node is duplicated or the nodes have different parents.
-        :raises TransformationError: if any of the type of any of the nodes \
-                                     to be enclosed in the region are not \
-                                     supported.
+        :raises TransformationError: if any of the nodes to be enclosed in \
+                the region are of an un-supported type.
 
         '''
         node_parent = node_list[0].parent
@@ -120,7 +119,6 @@ class RegionTrans(Transformation):
                     raise TransformationError(
                         "Nodes of type '{0}' cannot be enclosed by a {1} "
                         "transformation".format(type(item), self.name))
-
 
 
 # =============================================================================
