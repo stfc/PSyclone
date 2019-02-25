@@ -1444,22 +1444,24 @@ class DynamoInvokes(Invokes):
 class DynCollection(object):
     '''
     Base class for managing the declaration and initialisation of a
-    group of related entities within an Invoke.
+    group of related entities within an Invoke or Kernel stub
 
-    :param invoke:
-    :type invoke:
+    :param node: the Kernel or Invoke for which to manage arguments and \
+                 declarations.
+    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
     '''
-    def __init__(self, invoke):
-        if isinstance(invoke, DynInvoke):
+    def __init__(self, node):
+        if isinstance(node, DynInvoke):
             # We are handling declarations/initialisations for an Invoke
-            self._invoke = invoke
+            self._invoke = node
             self._kernel = None
-            self._calls = invoke.schedule.calls()
-        elif isinstance(invoke, DynKern):
+            self._calls = node.schedule.calls()
+        elif isinstance(node, DynKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
-            self._kernel = invoke
-            self._calls = [invoke]
+            self._kernel = node
+            self._calls = [node]
         else:
             raise InternalError("DynCollection takes only a DynInvoke "
                                 "or a DynKern but got: {0}".format(
@@ -1476,6 +1478,12 @@ class DynCollection(object):
 
     def declarations(self, parent):
         '''
+        Insert declarations for all necessary variables into the AST of
+        the generated code.
+
+        :param parent: the node in the f2pygen AST representing the routine \
+                       in which to insert the declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         if self._invoke:
             self._invoke_declarations(parent)
@@ -1497,7 +1505,8 @@ class DynInvokeStencils(DynCollection):
     routine or Kernel stub.
 
     :param node: the Invoke or Kernel stub for which to provide stencil info.
-    :type node: :py:class:`psyclone.XXXX`
+    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
     '''
     def __init__(self, node):
         super(DynInvokeStencils, self).__init__(node)
@@ -1554,9 +1563,15 @@ class DynInvokeStencils(DynCollection):
 
     @staticmethod
     def stencil_extent_value(field):
-        '''Returns the content of the stencil extent. This may be a literal
+        '''
+        Returns the content of the stencil extent which may be a literal
         value (a number) or a variable name. This function simplifies this
-        problem by returning a string in either case'''
+        problem by returning a string in either case.
+
+        :returns: the content of the stencil extent.
+        :rtype: str
+
+        '''
         if field.stencil.extent_arg.is_literal():
             extent = field.stencil.extent_arg.text
         else:
@@ -1565,10 +1580,21 @@ class DynInvokeStencils(DynCollection):
 
     @staticmethod
     def stencil_unique_str(arg, context):
-        '''Returns a string that uniquely identifies a stencil. As a stencil
+        '''
+        Creates a unique identifier for a stencil. As a stencil
         differs due to the function space it operates on, type of
         stencil and extent of stencil, we concatenate these things together
-        to return a unique string '''
+        to create a unique string.
+
+        :param arg: kernel argument with which stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param str context: a context for this stencil (e.g. "size" or \
+                            "direction").
+
+        :returns: unique string identifying the stencil for this argument.
+        :rtype: str
+
+        '''
         unique = context
         unique += arg.function_space.mangled_name
         unique += arg.descriptor.stencil['type']
@@ -1582,7 +1608,16 @@ class DynInvokeStencils(DynCollection):
         return unique
 
     def stencil_map_name(self, arg):
-        ''' returns a valid unique map name for a stencil in the PSy layer '''
+        ''' 
+        Creates and registers a name for the stencil map associated with the
+        supplied kernel argument.
+
+        :param arg: kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a valid unique map name for a stencil in the PSy layer.
+        :rtype: str
+        '''
         root_name = arg.name + "_stencil_map"
         unique = DynInvokeStencils.stencil_unique_str(arg, "map")
         name_space_manager = NameSpaceFactory().create()
@@ -1591,8 +1626,14 @@ class DynInvokeStencils(DynCollection):
 
     def stencil_dofmap_name(self, arg):
         '''
-        Returns a valid unique dofmap name for a stencil in the PSy
-        layer.
+        Creates and registers a name for the stencil dofmap associated with
+        the supplied kernel argument.
+
+        :param arg: kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a valid unique dofmap name for a stencil in the PSy layer.
+        :rtype: str
         '''
         root_name = arg.name + "_stencil_dofmap"
         unique = self.stencil_unique_str(arg, "dofmap")
@@ -1601,11 +1642,12 @@ class DynInvokeStencils(DynCollection):
             root_name=root_name, context="PSyVars", label=unique)
 
     def stencil_dofmap_size_name(self, arg):
-        ''' Create a valid unique name for the size (in cells) of a stencil
+        '''
+        Create a valid unique name for the size (in cells) of a stencil
         dofmap in the PSy layer.
 
         :param arg: the kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynArgument`
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :returns: a Fortran variable name for the stencil size.
         :rtype: str
@@ -1620,8 +1662,16 @@ class DynInvokeStencils(DynCollection):
     @staticmethod
     def stencil_extent_name(arg):
         '''
-        Returns the name associated with the extent of the stencil on
-        the supplied argument.
+        Creates and registers a variable name for the extent of the stencil
+        associated with the supplied kernel argument.
+
+        :param arg: kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: the name associated with the extent of the stencil on \
+                  the supplied argument.
+        :rtype: str
+
         '''
         root_name = arg.name + "_extent"
         unique = DynInvokeStencils.stencil_unique_str(arg, "extent")
