@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -49,8 +50,8 @@ class GOcean1p0Build(Compile):
 
     _infrastructure_built = False
 
-    def __init__(self, f90, f90flags, tmpdir):
-        super(GOcean1p0Build, self).__init__(f90, f90flags, tmpdir)
+    def __init__(self, tmpdir):
+        super(GOcean1p0Build, self).__init__(tmpdir)
 
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "gocean1p0")

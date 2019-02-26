@@ -66,8 +66,8 @@ class Dynamo0p3Build(Compile):
                               "quadrature_mod",
                               "operator_mod"]
 
-    def __init__(self, f90, f90flags, tmpdir):
-        super(Dynamo0p3Build, self).__init__(f90, f90flags, tmpdir)
+    def __init__(self, tmpdir):
+        super(Dynamo0p3Build, self).__init__(tmpdir)
 
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3")

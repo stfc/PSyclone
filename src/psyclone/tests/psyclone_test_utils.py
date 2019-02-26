@@ -117,7 +117,7 @@ def code_compiles(psy_ast, tmpdir, f90, f90flags):
     :rtype: bool
 
     '''
-    compile_obj = Compile(f90, f90flags, tmpdir)
+    compile_obj = Compile(tmpdir)
     return compile_obj.code_compiles(psy_ast)
 
 
@@ -130,7 +130,7 @@ def compile_file(filename, f90, f90flags):
     :return: True if generated code compiles, False otherwise
     :rtype: bool
     '''
-    compile_obj = Compile(f90, f90flags)
+    compile_obj = Compile()
     return compile_obj.compile_file(filename)
 
 
@@ -142,7 +142,7 @@ class Compile(object):
     of the corresponding infrastructure library.
     '''
 
-    def __init__(self, f90, f90flags, tmpdir=None):
+    def __init__(self, tmpdir=None):
         '''
         Constructor for the Compile base class. Thie comiler, flags
         and tmpdir specified here will be used as required by all
@@ -155,8 +155,8 @@ class Compile(object):
         :type tmpdir: :py:class:`LocalPath`
         '''
         self._tmpdir = tmpdir
-        self._f90 = f90
-        self._f90flags = f90flags
+        self._f90 = pytest.config.getoption("--f90")
+        self._f90flags = pytest.config.getoption("--f90flags")
         self._base_path = None
 
     @property
@@ -216,6 +216,11 @@ class Compile(object):
         :type filename: string
         :return: True if compilation succeeds
         '''
+
+        if not TEST_COMPILE:
+            # Compilation testing is not enabled
+            return
+
         # Build the command to execute. Note that the f90 flags are a string
         # and so must be split into individual parts for popen (otherwise
         # "-I /some/path" will result in the compiler trying to compile the

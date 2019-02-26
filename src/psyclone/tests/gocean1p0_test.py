@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -46,13 +47,12 @@ from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOSchedule
 from psyclone_test_utils import get_invoke
-from psyclone_test_utils import TEST_COMPILE
 
 
 API = "gocean1.0"
 
 
-def test_field(tmpdir, f90, f90flags):
+def test_field(tmpdir):
     ''' Tests that a kernel call with only fields produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -91,13 +91,10 @@ def test_field(tmpdir, f90, f90flags):
 
     assert generated_code.find(expected_output) != -1
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_two_kernels(tmpdir, f90, f90flags):
+def test_two_kernels(tmpdir):
     ''' Tests that an invoke containing two kernel calls with only
     fields as arguments produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -144,13 +141,10 @@ def test_two_kernels(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_two_kernels")
 
     assert str(generated_code).find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_grid_property(tmpdir, f90, f90flags):
+def test_grid_property(tmpdir):
     ''' Tests that an invoke containing a kernel call requiring
     a property of the grid produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -196,13 +190,10 @@ def test_grid_property(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_with_grid_props_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_scalar_int_arg(tmpdir, f90, f90flags):
+def test_scalar_int_arg(tmpdir):
     ''' Tests that an invoke containing a kernel call requiring
     an integer, scalar argument produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -242,13 +233,10 @@ def test_scalar_int_arg(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_scalar_int_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_scalar_float_arg(tmpdir, f90, f90flags):
+def test_scalar_float_arg(tmpdir):
     ''' Tests that an invoke containing a kernel call requiring
     a real, scalar argument produces correct code '''
     _, invoke_info = parse(os.path.join(os.path.
@@ -288,13 +276,10 @@ def test_scalar_float_arg(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_scalar_float_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_cf_points(tmpdir, f90, f90flags):
+def test_ne_offset_cf_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on CF points '''
     _, invoke_info = parse(os.path.
@@ -335,13 +320,10 @@ def test_ne_offset_cf_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_ct_points(tmpdir, f90, f90flags):
+def test_ne_offset_ct_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on CT points '''
     _, invoke_info = parse(os.path.
@@ -381,13 +363,10 @@ def test_ne_offset_ct_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_all_cu_points(tmpdir, f90, f90flags):
+def test_ne_offset_all_cu_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CU points '''
     _, invoke_info = parse(os.path.
@@ -426,13 +405,10 @@ def test_ne_offset_all_cu_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_all_cv_points(tmpdir, f90, f90flags):
+def test_ne_offset_all_cv_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CV points '''
     _, invoke_info = parse(os.path.
@@ -471,13 +447,10 @@ def test_ne_offset_all_cv_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_ne_offset_all_cf_points(tmpdir, f90, f90flags):
+def test_ne_offset_all_cf_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a NE
     offset and writes to a field on all CF points '''
     _, invoke_info = parse(os.path.
@@ -516,13 +489,10 @@ def test_ne_offset_all_cf_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_cf_points(tmpdir, f90, f90flags):
+def test_sw_offset_cf_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CF points '''
     _, invoke_info = parse(
@@ -559,13 +529,10 @@ def test_sw_offset_cf_points(tmpdir, f90, f90flags):
         "    END SUBROUTINE invoke_0_compute_z\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_all_cf_points(tmpdir, f90, f90flags):
+def test_sw_offset_all_cf_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CF points '''
     _, invoke_info = parse(os.path.
@@ -606,13 +573,10 @@ def test_sw_offset_all_cf_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_ct_points(tmpdir, f90, f90flags):
+def test_sw_offset_ct_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on internal CT points '''
     _, invoke_info = parse(os.path.
@@ -652,13 +616,10 @@ def test_sw_offset_ct_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_all_ct_points(tmpdir, f90, f90flags):
+def test_sw_offset_all_ct_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CT points '''
     _, invoke_info = parse(os.path.
@@ -699,13 +660,10 @@ def test_sw_offset_all_ct_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_all_cu_points(tmpdir, f90, f90flags):
+def test_sw_offset_all_cu_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CU points '''
     _, invoke_info = parse(os.path.
@@ -745,13 +703,10 @@ def test_sw_offset_all_cu_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_sw_offset_all_cv_points(tmpdir, f90, f90flags):
+def test_sw_offset_all_cv_points(tmpdir):
     ''' Test that we can generate code for a kernel that expects a SW
     offset and writes to a field on all CV points '''
     _, invoke_info = parse(os.path.
@@ -791,13 +746,10 @@ def test_sw_offset_all_cv_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_offset_any_all_cu_points(tmpdir, f90, f90flags):
+def test_offset_any_all_cu_points(tmpdir):
     ''' Test that we can generate code for a kernel that will operate
     with any offset and writes to a field on all cu points '''
     _, invoke_info = parse(os.path.
@@ -838,13 +790,10 @@ def test_offset_any_all_cu_points(tmpdir, f90, f90flags):
         "  END MODULE psy_single_invoke_test")
 
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_offset_any_all_points(tmpdir, f90, f90flags):
+def test_offset_any_all_points(tmpdir):
     ''' Test that we can generate code for a kernel that will operate
     with any offset and writes to a field on all points '''
     _, invoke_info = parse(os.path.
@@ -883,10 +832,7 @@ def test_offset_any_all_points(tmpdir, f90, f90flags):
         "    END SUBROUTINE invoke_0_copy\n"
         "  END MODULE psy_single_invoke_test")
     assert generated_code.find(expected_output) != -1
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        _compile = GOcean1p0Build(f90, f90flags, tmpdir)
-        assert _compile.code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_goschedule_view(capsys):
