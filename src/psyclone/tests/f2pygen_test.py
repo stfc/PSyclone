@@ -968,7 +968,7 @@ def test_basedecl_errors():
             "they have INTENT(in)" in str(err))
 
 
-def test_decl_logical(tmpdir, f90, f90flags):
+def test_decl_logical(tmpdir):
     ''' Check that we can create a declaration for a logical variable '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -984,11 +984,10 @@ def test_decl_logical(tmpdir, f90, f90flags):
     assert "logical var2" in gen
     assert gen.count("logical first_time") == 1
     # Check that the generated code compiles (if enabled)
-    _compile = Compile(f90, f90flags, tmpdir)
-    assert _compile.string_compiles(gen)
+    assert Compile(tmpdir).string_compiles(gen)
 
 
-def test_decl_char(tmpdir, f90, f90flags):
+def test_decl_char(tmpdir):
     ''' Check that we can create a declaration for a character variable '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -1007,8 +1006,7 @@ def test_decl_char(tmpdir, f90, f90flags):
     assert "character(len=28) :: my_string3='this is a string'" in gen
     # Check that the generated Fortran compiles (if compilation testing is
     # enabled)
-    _compile = Compile(f90, f90flags, tmpdir)
-    assert _compile.string_compiles(gen)
+    assert Compile(tmpdir).string_compiles(gen)
     # Finally, check initialisation using a variable name. Since this
     # variable isn't declared, we can't include it in the compilation test.
     sub.add(CharDeclGen(sub, length="my_len",
@@ -1018,7 +1016,7 @@ def test_decl_char(tmpdir, f90, f90flags):
     assert "character(len=my_len) :: my_string4=some_variable" in gen
 
 
-def test_decl_save(tmpdir, f90, f90flags):
+def test_decl_save(tmpdir):
     ''' Check that we can declare variables with the save attribute '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -1039,11 +1037,10 @@ def test_decl_save(tmpdir, f90, f90flags):
     # manually add a declaration for "field_type".
     parts = gen.split("implicit none")
     gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
-    _compile = Compile(f90, f90flags, tmpdir)
-    assert _compile.string_compiles(gen)
+    assert Compile(tmpdir).string_compiles(gen)
 
 
-def test_decl_target(tmpdir, f90, f90flags):
+def test_decl_target(tmpdir):
     ''' Check that we can declare variables with the target attribute '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -1064,11 +1061,10 @@ def test_decl_target(tmpdir, f90, f90flags):
     # must manually add a definition for the derived type.
     parts = gen.split("implicit none")
     gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
-    _compile = Compile(f90, f90flags, tmpdir)
-    assert _compile.string_compiles(gen)
+    assert Compile(tmpdir).string_compiles(gen)
 
 
-def test_decl_initial_vals(tmpdir, f90, f90flags):
+def test_decl_initial_vals(tmpdir):
     ''' Check that we can specify initial values for a declaration '''
     module = ModuleGen(name="testmodule")
     sub = SubroutineGen(module, name="testsubroutine")
@@ -1093,7 +1089,7 @@ def test_decl_initial_vals(tmpdir, f90, f90flags):
     assert "integer, save :: ivar=1" in gen
     assert "real, save :: var=1.0" in gen
     # Check that the generated code compiles (if enabled)
-    _compile = Compile(f90, f90flags, tmpdir)
+    _compile = Compile(tmpdir)
     assert _compile.string_compiles(gen)
 
     # Multiple variables
@@ -1111,7 +1107,6 @@ def test_decl_initial_vals(tmpdir, f90, f90flags):
     assert "integer, save :: ivar1=1, ivar2=2" in gen
     assert "real, save :: var1=1.0, var2=-1.0" in gen
     # Check that the generated code compiles (if enabled)
-    _compile = Compile(f90, f90flags, tmpdir)
     assert _compile.string_compiles(gen)
 
 
