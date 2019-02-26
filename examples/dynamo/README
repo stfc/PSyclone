@@ -200,38 +200,25 @@ Example 12: Code extraction
 ------------------------------------------
 
 The twelfth example demonstrates how to apply code extraction to Nodes in
-an Invoke Schedule or to one or more Kernels in Invokes. For now it only
-inserts an `ExtractNode` in appropriate locations. The full support for
-code extraction is being developed (please note that distributed memory
-will not be supported). This example can extract a list of Nodes:
+an Invoke Schedule or to a Kernel in an Invoke. For now it only inserts an
+`ExtractNode` in appropriate locations. The full support for code
+extraction is being developed (please note that distributed memory will not
+be supported). This example can extract a list of Nodes:
 ::
     cd eg12/
     ${PSYCLONE} -nodm -s ./extract_nodes.py \
       gw_mixed_schur_preconditioner_alg_mod.x90
 
-or the specific Kernel from one Invoke:
+or the specific Kernel from one Invoke which contains the Kernel
+call after applying transformations (here colouring and OpenMP):
 ::
     cd eg12/
-    ${PSYCLONE} -nodm -s ./extract_single_kernel.py \
+    ${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
       gw_mixed_schur_preconditioner_alg_mod.x90
 
-or the specific Kernel from multiple Invokes which contain the Kernel call:
-::
-    cd eg12/
-    ${PSYCLONE} -nodm -s ./extract_kernel_multi_invokes.py \
-      gw_mixed_schur_preconditioner_alg_mod.x90
-
-or the specific Kernel from multiple Invokes which contain the Kernel
-call after applying optimisations (here colouring and OpenMP):
-::
-    cd eg12/
-    ${PSYCLONE} -nodm -s ./extract_kernel_with_optimisations.py \
-      gw_mixed_schur_preconditioner_alg_mod.x90
-
-The example also contains a Python helper script which returns
-useful information for Kernel extraction: names of one or more
-Invokes which contain call to the specified Kernel and positions
-of the root Nodes containing the Kernel calls:
+This example also contains a Python helper script which displays
+useful information for Kernel extraction: names and Schedules of
+one or more Invokes which contain call to the specified Kernel:
 ::
     cd eg12/
     python find_kernel.py

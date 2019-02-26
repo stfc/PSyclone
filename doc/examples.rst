@@ -150,11 +150,27 @@ with computation.
 Example 12
 ^^^^^^^^^^
 
-Example of applying code extraction transformation to Nodes in an Invoke
-Schedule or to one or more Kernels in Invokes. For now it only inserts
-comments in appropriate locations (the full support for code extraction
-is being developed).
-This example also contains the Python helper script ``find_kernel`` which
-returns useful information for Kernel extraction: names of one or more
-Invokes which contain call to the specified Kernel and positions of the
-root Nodes containing the Kernel calls.
+Example of applying code extraction to Nodes in an Invoke Schedule:
+
+.. code-block:: bash
+
+  > psyclone -nodm -s ./extract_nodes.py \
+      gw_mixed_schur_preconditioner_alg_mod.x90
+
+or to a Kernel in an Invoke after applying transformations:
+
+.. code-block:: bash
+
+  > psyclone -nodm -s ./extract_kernel_with_transformations.py \
+      gw_mixed_schur_preconditioner_alg_mod.x90
+
+For now it only inserts comments in appropriate locations while the
+the full support for code extraction is being developed.
+
+This example also contains a Python helper script ``find_kernel.py``
+which displays useful information for Kernel extraction: names and
+Schedules of Invokes containing call to the specified Kernel:
+
+.. code-block:: bash
+
+  > python find_kernel.py

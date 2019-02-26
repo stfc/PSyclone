@@ -84,21 +84,22 @@ containing a Kernel call in Dynamo0.3 API generates:
       ! ExtractEnd
 
 The ``! CALL write_extract_arguments(argument_list)`` comment will be replaced
-by appropriate calls to write out arguments of extracted Node(s) or Kernel(s).
+by appropriate calls to write out arguments of extracted Node(s) or Kernel(s)
+in Issue #234.
 Both **ExtractRegionTrans** and **ExtractNode** are base classes that can be
-added to both Dynamo0.3 and GOcean1.0 APIs. However, generating argument list
-of extracted Nodes is API-specific so it will be delegated to children of
-the **ExtractNode** base class.
+sub-classed by API-specific code. This will be required for constructing the
+list of quantities required by Kernel (and Built-In) calls in the extracted
+Nodes.
 
 .. _psyke-intro-restrictions:
 
 Restrictions
 ++++++++++++
 
-Code extraction can be applied to unoptimised or optimised code. Hence, it
-is reasonable to introduce restrictions that prevent failures of optimising
-transformations when extraction is applied. It is also reasonable to introduce
-restrictions that eliminate dependence on the specific model infrastructure.
+Code extraction can be applied to unoptimised or optimised code. There are
+restrictions that check for correctness of optimising transformations when
+extraction is applied, as well as restrictions that eliminate dependence on
+the specific model infrastructure.
 
 .. _psyke-intro-restrictions-gen:
 
@@ -124,7 +125,7 @@ Distributed memory
 ##################
 
 As noted in the :ref:`distributed_memory` section, support for distributed
-memory in PSyclone is currently limited the Dynamo0.3 API. Since the
+memory in PSyclone is currently limited to the Dynamo0.3 API. Since the
 implementation depends on the LFRic infrastructure, code extraction when
 distributed memory is enabled is not allowed.
 
@@ -133,8 +134,6 @@ distributed memory is enabled is not allowed.
 Shared memory and API-specific
 ##############################
 
-As noted above, optimisations in the extracted code may fail if the extract
-region is defined without correctnes checks for optimisation transformations. 
 The restrictions below do not allow the **ExtractRegionTrans** to be
 applied on:
 
@@ -237,7 +236,7 @@ This modifies the above Schedule as:
   ...
 
 As said above, extraction can be performed on optimised code. For example,
-the below example of transformation script first adds ``!$OMP PARALLEL DO``
+the following example transformation script first adds ``!$OMP PARALLEL DO``
 directive and then extracts the optimised code in Dynamo0.3 API test
 example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
 
@@ -282,142 +281,6 @@ The generated code is now:
       !
       ! ExtractEnd
 
-.. _psyke-utilities:
-
-Utilites
---------
-
-.. _psyke-utilites-extractor:
-
-Extractor Module
-++++++++++++++++
-
-This module contains helper functions for code extraction. For now it
-provides the function to extract the specific Kernel from an Invoke Schedule
-(:ref:`psyke-utilites-extract-kernel` below). Another planned
-functionality is to wrap settings for generating Driver for the extracted
-code.
-
-.. _psyke-utilites-extract-kernel:
-
-``extract_kernel`` Function
-###########################
-
-This function marks one or more Kernel call (with its parent Loop) within
-a specified Invoke for extraction. It takes two mandatory and one optional
-argument:
-
-* ``schedule`` - Invoke schedule to extract the Kernel from,
-
-* ``kernel_name`` - Name of the specified Kernel as represented in a Kernel
-  call (ending in ``_code`` instead of ``_type``, e.g. ``ru_kernel_code``),
-
-* ``root_node_position`` (optional) - position of the Kernel call root Node.
-
-For example, the transformation script which extracts the second
-``ru_kernel_type`` Kernel call in Dynamo0.3 API test example
-``4.8_multikernel_invokes.f90`` would be written as:
-
-.. code-block:: python
-
-  from psyclone.extractor import Extractor
-
-  # Get Invoke and its Schedule
-  invoke = psy.invokes.get("invoke_0")
-  schedule = invoke.schedule
-
-  # Extract the selected Kernel
-  schedule = Extractor.extract_kernel(schedule, "ru_kernel_code", 3)
-  schedule.view()
-
-If there are multiple calls to the specified Kernel within the Invoke
-and ``root_node_position`` argument is not provided, this function will
-extract all of them. Finally, the function will raise **GenerationError**:
-
-* If there are no Kernels with the specified name in the Invoke Schedule,
-
-* If the optional ``root_node_position`` argument does not point to a
-  valid root Node location for the specified Kernel call.
-
-Names of Invokes containing calls to the specified Kernel, as well as
-positions of the Kernel calls' root Nodes, can be found using the Python
-helper script ``find_kernel.py`` described in more detail in
-:ref:`psyke-utilites-find-kernel` section below.
-
-.. _psyke-examples:
-
-Examples
-++++++++
-
 Examples in ``examples/dynamo/eg12`` directory demonstrate how to
-apply code extraction by utilising PSyclone transformation scripts.
-
-The first example marks a list of Nodes for extraction:
-
-.. code-block:: bash
-
-  > psyclone -nodm -s ./extract_nodes.py \
-      gw_mixed_schur_preconditioner_alg_mod.x90
-
-The second marks the specific Kernel:
-
-.. code-block:: bash
-
-  > psyclone -nodm -s ./extract_single_kernel.py \
-      gw_mixed_schur_preconditioner_alg_mod.x90
-
-The third marks the specific Kernel in multiple Invokes which contain
-the Kernel call:
-
-.. code-block:: bash
-
-  > psyclone -nodm -s ./extract_kernel_multi_invokes.py \
-      gw_mixed_schur_preconditioner_alg_mod.x90
-
-The fourth example marks the specific Kernel in multiple Invokes which
-contain the Kernel call after applying optimisations (here colouring
-and OpenMP):
-
-.. code-block:: bash
-
-  > psyclone -nodm -s ./extract_kernel_with_optimisations.py \
-      gw_mixed_schur_preconditioner_alg_mod.x90
-
-.. _psyke-utilites-find-kernel:
-
-``find_kernel`` Script
-######################
-
-The ``examples/dynamo/eg12`` directory also contains a Python helper
-script which returns the information useful for Kernel extraction: the
-names of Invokes which contain calls to the specified Kernel and
-positions of the root Nodes containing the Kernel calls. Use:
-
-.. code-block:: bash
-
-  > python <path/to/script/>find_kernel.py
-
-Input parameters can be specified or modified in the first section of
-the script:
-
-* ``TEST_API`` - PSyclone API (the example here is "dynamo0.3"),
-
-* ``ALG_NAME`` - Algorithm file name to be searched for Kernel calls,
-
-* ``ALG_PATH`` - Path to the Algorithm file (absolute or relative from
-  the location where this script is run),
-
-* ``KERNEL_BASENAME`` - Base name of the Kernel to be found (without the
-  ``_kernel_mod`` and file extension),
-
-* ``OPTIMISE`` - Switch for applying optimisations to PSy layer before
-  searching for the Kernel call,
-
-* ``OPT_SCRIPT`` - Name of the optimisation script which applies PSyclone
-  transformations to the code. As pointed out in Transformations
-  :ref:`sec_transformations_script` section, a valid script file must
-  contain a **trans** function which modifies the **PSy** object.
-
-If ``OPTIMISE`` switch is enabled, the specified ``OPT_SCRIPT``
-transformation script will be imported as a Python module and relevant
-optimisations will be applied before looking for the specified Kernel call.
+apply code extraction by utilising PSyclone transformation scripts
+(see :ref:`examples` section for more information).
