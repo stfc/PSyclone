@@ -240,44 +240,6 @@ def get_fs_basis_name(function_space, qr_var=None, on_space=None):
     return name
 
 
-def basis_first_dim_name(function_space):
-    '''
-    Get the name of the variable holding the first dimension of a
-    basis function
-
-    :param function_space: the function space the basis function is for
-    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :return: a Fortran variable name
-    :rtype: string
-    '''
-    return "dim_" + function_space.mangled_name
-
-def basis_first_dim_value(function_space):
-    '''
-    Get the size of the first dimension of a basis function.
-
-    :param function_space: the function space the basis function is for
-    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :return: an integer length.
-    :rtype: string
-
-    :raises GenerationError: if an unsupported function space is supplied.
-    '''
-    if function_space.orig_name.lower() in \
-       ["w0", "w3", "wtheta"]:
-        first_dim = "1"
-    elif (function_space.orig_name.lower() in
-          ["w1", "w2", "w2h", "w2v", "any_w2"]):
-        first_dim = "3"
-    else:
-        raise GenerationError(
-            "Unsupported space for basis function, "
-            "expecting one of {0} but found "
-            "'{1}'".format(VALID_FUNCTION_SPACES,
-                           function_space.orig_name))
-    return first_dim
-
-
 def get_fs_diff_basis_name(function_space, qr_var=None, on_space=None):
     '''
     Returns a name for the differential basis function on the
@@ -303,43 +265,6 @@ def get_fs_diff_basis_name(function_space, qr_var=None, on_space=None):
     if on_space:
         name += "_on_" + on_space.mangled_name
     return name
-
-
-def diff_basis_first_dim_name(function_space):
-    '''
-    Get the name of the variable holding the first dimension of a
-    differential basis function
-
-    :param function_space: the function space the diff-basis function is for
-    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :return: a Fortran variable name
-    :rtype: string
-    '''
-    return "diff_dim_" + function_space.mangled_name
-
-
-def diff_basis_first_dim_value(function_space):
-    '''
-    Get the size of the first dimension of an array for a
-    differential basis function
-
-    :param function_space: the function space the diff-basis function is for
-    :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
-    :return: an integer length.
-    :rtype: str
-    '''
-    if function_space.orig_name.lower() in \
-       ["w2", "w2h", "w2v", "any_w2"]:
-        first_dim = "1"
-    elif (function_space.orig_name.lower() in
-          ["w0", "w1", "w3", "wtheta"]):
-        first_dim = "3"
-    else:
-        raise GenerationError(
-            "Unsupported space for differential basis function, expecting "
-            "one of {0} but found '{1}'".format(VALID_FUNCTION_SPACES,
-                                                function_space.orig_name))
-    return first_dim
 
 
 def qr_basis_alloc_args(first_dim, basis_fn):
@@ -2418,7 +2343,6 @@ class DynFields(DynCollection):
                     parent.add(DeclGen(parent, datatype="real",
                                        kind="r_def", dimension=undf_name,
                                        intent=intent, entity_decls=[text]))
-
             else:
                 parent.add(
                     DeclGen(parent, datatype="real", kind="r_def",
@@ -3359,6 +3283,87 @@ class DynBasisFunctions(DynCollection):
             # this call.
             self._setup_basis_fns_for_call(call)
 
+    @staticmethod
+    def basis_first_dim_name(function_space):
+        '''
+        Get the name of the variable holding the first dimension of a
+        basis function
+
+        :param function_space: the function space the basis function is for
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: a Fortran variable name
+        :rtype: str
+
+        '''
+        return "dim_" + function_space.mangled_name
+
+    @staticmethod
+    def basis_first_dim_value(function_space):
+        '''
+        Get the size of the first dimension of a basis function.
+
+        :param function_space: the function space the basis function is for
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: an integer length.
+        :rtype: string
+
+        :raises GenerationError: if an unsupported function space is supplied.
+        '''
+        if function_space.orig_name.lower() in \
+           ["w0", "w3", "wtheta"]:
+            first_dim = "1"
+        elif (function_space.orig_name.lower() in
+              ["w1", "w2", "w2h", "w2v", "any_w2"]):
+            first_dim = "3"
+        else:
+            raise GenerationError(
+                "Unsupported space for basis function, "
+                "expecting one of {0} but found "
+                "'{1}'".format(VALID_FUNCTION_SPACES,
+                               function_space.orig_name))
+        return first_dim
+
+    @staticmethod
+    def diff_basis_first_dim_name(function_space):
+        '''
+        Get the name of the variable holding the first dimension of a
+        differential basis function.
+
+        :param function_space: the function space the diff-basis function \
+                               is for.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: a Fortran variable name.
+        :rtype: str
+
+        '''
+        return "diff_dim_" + function_space.mangled_name
+
+    @staticmethod
+    def diff_basis_first_dim_value(function_space):
+        '''
+        Get the size of the first dimension of an array for a
+        differential basis function.
+
+        :param function_space: the function space the diff-basis function \
+                               is for.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :return: an integer length.
+        :rtype: str
+
+        '''
+        if function_space.orig_name.lower() in \
+           ["w2", "w2h", "w2v", "any_w2"]:
+            first_dim = "1"
+        elif (function_space.orig_name.lower() in
+              ["w0", "w1", "w3", "wtheta"]):
+            first_dim = "3"
+        else:
+            raise GenerationError(
+                "Unsupported space for differential basis function, expecting "
+                "one of {0} but found '{1}'".format(VALID_FUNCTION_SPACES,
+                                                    function_space.orig_name))
+        return first_dim
+
     def _setup_basis_fns_for_call(self, call):
         '''
         Populates self._basis_fns with entries describing the basis
@@ -3579,8 +3584,10 @@ class DynBasisFunctions(DynCollection):
         basis_declarations = []
         for basis in basis_arrays:
             parent.add(
-                AllocateGen(parent, basis+"("+", ".join(basis_arrays[basis])+")"))
-            basis_declarations.append(basis+"("+",".join([":"]*len(basis_arrays[basis]))+")")
+                AllocateGen(parent,
+                            basis+"("+", ".join(basis_arrays[basis])+")"))
+            basis_declarations.append(
+                basis+"("+",".join([":"]*len(basis_arrays[basis]))+")")
 
         # declare the basis function arrays
         if basis_declarations:
@@ -3589,13 +3596,24 @@ class DynBasisFunctions(DynCollection):
                                kind="r_def",
                                entity_decls=basis_declarations))
 
+        # Compute the values for any basis arrays
+        self._compute_basis_fns(parent)
+
     def _basis_fn_decl_alloc_init(self):
         '''
         Extracts all information relating to the necessary declarations,
-        allocations and intialisations for basis function arrays.
+        allocations and intialisations for basis-function arrays.
+
+        :returns: a 3-tuple containing a list of dimensioning variables, a \
+                  dict of basis arrays and a list of intialisation statements.
+        :rtype: (list of str, dict, list of str)
         '''
+        # Dictionary of basis arrays where key values are the array names and
+        # entries are a list of dimensions.
         basis_arrays = OrderedDict()
+        # List of initialisation statements
         inits = []
+        # List of names of dimensioning (scalar) variables
         var_dim_list = []
 
         # Loop over the list of dicts describing each basis function
@@ -3609,11 +3627,12 @@ class DynBasisFunctions(DynCollection):
             # blocks that use if_diff_basis further down must be updated.
             if self._invoke:
                 if basis_fn['type'] == "basis":
-                    first_dim = basis_first_dim_name(basis_fn["fspace"])
+                    first_dim = self.basis_first_dim_name(basis_fn["fspace"])
                     dim_space = "get_dim_space()"
                     is_diff_basis = False
                 elif basis_fn['type'] == "diff-basis":
-                    first_dim = diff_basis_first_dim_name(basis_fn["fspace"])
+                    first_dim = self.diff_basis_first_dim_name(
+                        basis_fn["fspace"])
                     dim_space = "get_dim_space_diff()"
                     is_diff_basis = True
                 else:
@@ -3636,10 +3655,11 @@ class DynBasisFunctions(DynCollection):
                 # We're dealing with a kernel stub so we don't have variables
                 # to hold the size of the first dimension
                 if basis_fn['type'] == "basis":
-                    first_dim = basis_first_dim_value(basis_fn["fspace"])
+                    first_dim = self.basis_first_dim_value(basis_fn["fspace"])
                     is_diff_basis = False
                 elif basis_fn['type'] == "diff-basis":
-                    first_dim = diff_basis_first_dim_value(basis_fn["fspace"])
+                    first_dim = self.diff_basis_first_dim_value(
+                        basis_fn["fspace"])
                     is_diff_basis = True
                 else:
                     raise InternalError("huh3")
@@ -3770,7 +3790,7 @@ class DynBasisFunctions(DynCollection):
         # This shape is not yet supported so we do nothing
         return
 
-    def compute_basis_fns(self, parent):
+    def _compute_basis_fns(self, parent):
         '''
         Generates the necessary Fortran to compute the values of
         any basis/diff-basis arrays required
@@ -3822,13 +3842,13 @@ class DynBasisFunctions(DynCollection):
                     args = ["DIFF_BASIS",
                             basis_fn["arg"].proxy_name_indexed + "%" +
                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                            diff_basis_first_dim_name(basis_fn["fspace"]),
+                            self.diff_basis_first_dim_name(basis_fn["fspace"]),
                             get_fs_ndf_name(basis_fn["fspace"]), op_name]
                 else:
                     args = ["BASIS",
                             basis_fn["arg"].proxy_name_indexed + "%" +
                             basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                            basis_first_dim_name(basis_fn["fspace"]),
+                            self.basis_first_dim_name(basis_fn["fspace"]),
                             get_fs_ndf_name(basis_fn["fspace"]), op_name]
                 # insert the basis array call
                 parent.add(
@@ -4313,11 +4333,9 @@ class DynInvoke(Invoke):
         # Initialise all entities related to function spaces
         self.function_spaces.initialise(invoke_sub)
 
-        # Initialise basis and/or differential-basis functions
+        # Initialise basis and/or differential-basis functions and add
+        # calls to compute the values of any basis arrays.
         self.evaluators.initialise(invoke_sub)
-
-        # add calls to compute the values of any basis arrays
-        self.evaluators.compute_basis_fns(invoke_sub)
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
         if Config.get().distributed_memory:
