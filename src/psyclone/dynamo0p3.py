@@ -2059,7 +2059,7 @@ class DynDofmaps(DynCollection):
                             "argument": cma_args[0],
                             "direction": "from"}
 
-    def initialise_dofmaps(self, parent):
+    def initialise(self, parent):
         ''' Generates the calls to the LFRic infrastructure that
         look-up the necessary dofmaps. Adds these calls as children
         of the supplied parent node. This must be an appropriate
@@ -2101,11 +2101,15 @@ class DynDofmaps(DynCollection):
                                      rhs=cma["argument"].proxy_name_indexed +
                                      "%indirection_dofmap_"+cma["direction"]))
 
-    def declare_dofmaps(self, parent):
-        ''' Declare all unique function space dofmaps as pointers to
-        integer arrays of rank 2. The declarations are added as
-        children of the supplied parent argument. This must be an
-        appropriate f2pygen object. '''
+    def _invoke_declarations(self, parent):
+        '''
+        Declare all unique function space dofmaps in the PSy layer as pointers
+        to integer arrays of rank 2.
+
+        :param parent: the f2pygen node to which to add the declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         from psyclone.f2pygen import DeclGen
 
         # Function space dofmaps
@@ -2130,13 +2134,17 @@ class DynDofmaps(DynCollection):
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=decl_ind_map_names))
 
-    def stub_declarations(self, parent):
+    def _stub_declarations(self, parent):
         '''
+        Add dofmap-related declarations to a Kernel stub.
+
+        :param parent: node in the f2pygen AST representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import DeclGen
         # Function space dofmaps
         for dmap in sorted(self._unique_fs_maps):
-            # TODO merge this into declarations()?
             # We declare ndf first as some compilers require this
             ndf_name = get_fs_ndf_name(
                 self._unique_fs_maps[dmap].function_space)
@@ -2365,6 +2373,8 @@ class DynFields(DynCollection):
     '''
     def _invoke_declarations(self, parent):
         '''
+        Add field-related declarations to the PSy-layer routine.
+
         :param parent: the node in the f2pygen AST representing the PSy-layer \
                        routine to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -2387,6 +2397,8 @@ class DynFields(DynCollection):
 
     def _stub_declarations(self, parent):
         '''
+        Add field-related declarations to a Kernel stub.
+
         :param parent: the node in the f2pygen AST representing the Kernel \
                        stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
@@ -2485,6 +2497,11 @@ class DynProxies(DynCollection):
 class DynCellIterators(DynCollection):
     '''
     Handles all entities required by kernels that iterate over cells.
+
+    :param kern_or_invoke: the Kernel or Invoke for which to manage cell \
+                           iterators.
+    :type kern_or_invoke: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                          :py:class:`psyclone.dynamo0p3.DynInvoke`
     '''
     def __init__(self, kern_or_invoke):
         super(DynCellIterators, self).__init__(kern_or_invoke)
@@ -2499,7 +2516,7 @@ class DynCellIterators(DynCollection):
             return
 
         # Store a reference to the first field/operator object that
-        # we can use to look-up nlayers.
+        # we can use to look-up nlayers in the PSy layer.
         first_var = None
         for var in self._invoke.psy_unique_vars:
             if var.type not in VALID_SCALAR_NAMES:
@@ -2725,10 +2742,15 @@ class DynCMAOperators(DynCollection):
                             self._first_cma_arg = arg
 
     def initialise(self, parent):
-        ''' Generates the calls to the LFRic infrastructure that look-up
+        '''
+        Generates the calls to the LFRic infrastructure that look-up
         the various components of each CMA operator. Adds these as
-        children of the supplied parent node. This must be an appropriate
-        f2pygen object. '''
+        children of the supplied parent node.
+
+        :param parent: f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen
 
         # If we have no CMA operators then we do nothing
@@ -2871,7 +2893,8 @@ class DynCMAOperators(DynCollection):
 
 
 class DynMeshes(object):
-    '''Holds all mesh-related information (including colour maps if
+    '''
+    Holds all mesh-related information (including colour maps if
     required).  If there are no inter-grid kernels then there is only
     one mesh object required (when colouring or doing distributed memory).
     However, kernels performing inter-grid operations require multiple mesh
@@ -3271,10 +3294,10 @@ class DynBasisFunctions(DynCollection):
     qr_dim_vars = {"xyoz": ["np_xy", "np_z"]}
     qr_weight_vars = {"xyoz": ["weights_xy", "weights_z"]}
 
-    def __init__(self, schedule):
+    def __init__(self, node):
         from psyclone.dynamo0p3_builtins import DynBuiltIn
 
-        super(DynBasisFunctions, self).__init__(schedule)
+        super(DynBasisFunctions, self).__init__(node)
 
         # Construct a list of all the basis/diff-basis functions required
         # by this invoke. Each entry in the list is a dictionary holding
@@ -3402,31 +3425,14 @@ class DynBasisFunctions(DynCollection):
                 diff_entry["type"] = "diff-basis"
                 self._basis_fns.append(diff_entry)
 
-    def declarations(self, parent):
-        '''
-        Create the declarations for any quadrature objects passed
-        in to an invoke. These are added as children of the supplied
-        parent node.
-
-        :param parent: the node in the f2pygen AST that will be the
-                       parent of all of the declarations (i.e. the
-                       PSy-layer subroutine)
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-        '''
-        if self._invoke:
-            self._invoke_declarations(parent)
-        elif self._kernel:
-            self._kernel_declarations(parent)
-        else:
-            raise InternalError("huh")
-
-    def _kernel_declarations(self, parent):
+    def _stub_declarations(self, parent):
         '''
         Insert the variable declarations required by the basis functions into
-        the kernel stub.
+        the Kernel stub.
 
-        :param parent:
-        :type parent:
+        :param parent: the f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import DeclGen
 
@@ -3445,10 +3451,27 @@ class DynBasisFunctions(DynCollection):
                                dimension=",".join(basis_arrays[basis]),
                                entity_decls=[basis]))
         for qr_shape in VALID_QUADRATURE_SHAPES:
-            self._declare_qr(qr_shape, parent)
+            if qr_shape.lower() == "gh_quadrature_xyoz":
+                if qr_shape not in self._qr_vars:
+                    continue
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in", dimension="np_xy",
+                                   entity_decls=["weights_xy"]))
+                parent.add(DeclGen(parent, datatype="real", kind="r_def",
+                                   intent="in", dimension="np_z",
+                                   entity_decls=["weights_z"]))
+            else:
+                raise GenerationError(
+                    "Quadrature shapes other than GH_QUADRATURE_XYoZ are not "
+                    "yet supported - got '{0}'".format(qr_shape))
 
     def _invoke_declarations(self, parent):
         '''
+        Add basis-function declarations to the PSy layer.
+
+        :param parent: f2pygen node represening the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import TypeDeclGen
         # Create a single declaration for each quadrature type
@@ -3475,31 +3498,7 @@ class DynBasisFunctions(DynCollection):
                         datatype=QUADRATURE_TYPE_MAP[shape]["proxy_type"],
                         entity_decls=var_names))
 
-    def _declare_qr(self, shape, parent):
-        '''
-        '''
-        from psyclone.f2pygen import DeclGen
-        if shape.lower() == "gh_quadrature_xyoz":
-            if shape not in self._qr_vars:
-                return
-            if self._invoke:
-                # TODO move declarations out of initialisation code
-                pass
-            if self._kernel:
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
-                                   intent="in",
-                                   dimension="np_xy", entity_decls=["weights_xy"]))
-                parent.add(DeclGen(parent, datatype="real", kind="r_def",
-                                   intent="in",
-                                   dimension="np_z", entity_decls=["weights_z"]))
-            else:
-                raise InternalError("huh4")
-        else:
-            raise GenerationError(
-                "Quadrature shapes other than GH_QUADRATURE_XYoZ are not yet "
-                "supported - got '{0}'".format(shape))
-
-    def initialise_basis_fns(self, parent):
+    def initialise(self, parent):
         '''
         Create the declarations and assignments required for the
         basis-functions required by an invoke. These are added as children
@@ -4251,7 +4250,7 @@ class DynInvoke(Invoke):
         self.function_spaces.declarations(invoke_sub)
 
         # Declare any dofmaps
-        self.dofmaps.declare_dofmaps(invoke_sub)
+        self.dofmaps.declarations(invoke_sub)
 
         # Declare any CMA operators and associated parameters
         self.cma_ops.declarations(invoke_sub)
@@ -4303,7 +4302,7 @@ class DynInvoke(Invoke):
 
         # Initialise dofmaps (one for each function space that is used
         # in this invoke)
-        self.dofmaps.initialise_dofmaps(invoke_sub)
+        self.dofmaps.initialise(invoke_sub)
 
         # Initialise CMA operators and associated parameters
         self.cma_ops.initialise(invoke_sub)
@@ -4315,7 +4314,7 @@ class DynInvoke(Invoke):
         self.function_spaces.initialise(invoke_sub)
 
         # Initialise basis and/or differential-basis functions
-        self.evaluators.initialise_basis_fns(invoke_sub)
+        self.evaluators.initialise(invoke_sub)
 
         # add calls to compute the values of any basis arrays
         self.evaluators.compute_basis_fns(invoke_sub)
@@ -6473,8 +6472,8 @@ class DynKern(Kern):
         iter_cell.declarations(sub_stub)
 
         # Create the dofmap declarations
-        arg_declns = DynDofmaps(self)
-        arg_declns.stub_declarations(sub_stub)
+        dofmaps = DynDofmaps(self)
+        dofmaps.declarations(sub_stub)
 
         fspaces = DynFunctionSpaces(self)
         fspaces.declarations(sub_stub)

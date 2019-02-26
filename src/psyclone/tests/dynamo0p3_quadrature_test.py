@@ -309,7 +309,7 @@ def test_dynbasisfns_setup(monkeypatch):
 
 
 def test_dynbasisfns_initialise(monkeypatch):
-    ''' Check that the DynBasisFunctions.initialise_basis_fns() method
+    ''' Check that the DynBasisFunctions.initialise() method
     raises the expected InternalErrors. '''
     from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -321,13 +321,13 @@ def test_dynbasisfns_initialise(monkeypatch):
     # Break the shape of the first basis function
     dinf._basis_fns[0]["shape"] = "not-a-shape"
     with pytest.raises(InternalError) as err:
-        dinf.initialise_basis_fns(mod)
+        dinf.initialise(mod)
     assert ("Unrecognised evaluator shape: 'not-a-shape'. Should be "
             "one of " in str(err))
     # Break the internal list of basis functions
     monkeypatch.setattr(dinf, "_basis_fns", [{'type': 'not-a-type'}])
     with pytest.raises(InternalError) as err:
-        dinf.initialise_basis_fns(mod)
+        dinf.initialise(mod)
     assert ("Unrecognised type of basis function: 'not-a-type'. Should be "
             "either 'basis' or 'diff-basis'" in str(err))
 
