@@ -1588,10 +1588,8 @@ class DynStencils(DynCollection):
 
         '''
         if arg.stencil.extent_arg.is_literal():
-            extent = arg.stencil.extent_arg.text
-        else:
-            extent = arg.stencil.extent_arg.varName
-        return extent
+            return arg.stencil.extent_arg.text
+        return arg.stencil.extent_arg.varName
 
     @staticmethod
     def stencil_unique_str(arg, context):
@@ -1812,7 +1810,7 @@ class DynStencils(DynCollection):
         '''
         self._declare_unique_extent_vars(parent)
         self._declare_unique_direction_vars(parent)
-        self._declare_maps(parent)
+        self._declare_maps_invoke(parent)
 
     def _stub_declarations(self, parent):
         '''
@@ -1822,7 +1820,9 @@ class DynStencils(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        self._invoke_declarations(parent)
+        self._declare_unique_extent_vars(parent)
+        self._declare_unique_direction_vars(parent)
+        self._declare_maps_stub(parent)
 
     def initialise(self, parent):
         '''
@@ -1886,9 +1886,9 @@ class DynStencils(DynCollection):
                                      lhs=self.dofmap_size_name(arg),
                                      rhs=map_name + "%get_size()"))
 
-    def _declare_maps(self, parent):
+    def _declare_maps_invoke(self, parent):
         '''
-        Declare all stencil maps.
+        Declare all stencil maps in the PSy layer.
 
         :param parent: the node in the f2pygen AST to which to add \
                        declarations.
@@ -1911,55 +1911,55 @@ class DynStencils(DynCollection):
 
             stencil_map_names.append(map_name)
 
-            if self._invoke:
-                # We're putting declarations in a PSy routine
-                parent.add(TypeDeclGen(parent, pointer=True,
-                                       datatype="stencil_dofmap_type",
-                                       entity_decls=[map_name+" => null()"]))
-                parent.add(DeclGen(
-                    parent, datatype="integer", pointer=True,
-                    entity_decls=[self.dofmap_name(arg) +
-                                  "(:,:,:) => null()"]))
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            entity_decls=[self.dofmap_size_name(arg)]))
+            parent.add(TypeDeclGen(parent, pointer=True,
+                                   datatype="stencil_dofmap_type",
+                                   entity_decls=[map_name+" => null()"]))
+            parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                               entity_decls=[self.dofmap_name(arg) +
+                                             "(:,:,:) => null()"]))
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=[self.dofmap_size_name(arg)]))
 
-                stencil_type = arg.descriptor.stencil['type']
-                if stencil_type == "xory1d":
-                    parent.add(UseGen(parent, name="flux_direction_mod",
-                                      only=True,
-                                      funcnames=["x_direction",
-                                                 "y_direction"]))
-                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                      only=True,
-                                      funcnames=["STENCIL_1DX",
-                                                 "STENCIL_1DY"]))
-                else:
-                    try:
-                        stencil_name = STENCIL_MAPPING[stencil_type]
-                    except KeyError:
-                        raise GenerationError(
-                            "Unsupported stencil type '{0}' supplied. "
-                            "Supported mappings are {1}".
-                            format(arg.descriptor.stencil['type'],
-                                   str(STENCIL_MAPPING)))
-                    parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                                      only=True,
-                                      funcnames=[stencil_name]))
-
-                    parent.add(
-                        DeclGen(parent, datatype="integer", pointer=True,
-                                entity_decls=[self.dofmap_name(arg) +
-                                              "(:,:,:) => null()"]))
-            elif self._kernel:
-                # We're putting declarations in a kernel stub
-                parent.add(DeclGen(
-                    parent, datatype="integer", intent="in",
-                    dimension=",".join([get_fs_ndf_name(arg.function_space),
-                                        self.dofmap_size_name(arg)]),
-                    entity_decls=[self.dofmap_name(arg)]))
+            stencil_type = arg.descriptor.stencil['type']
+            if stencil_type == "xory1d":
+                parent.add(UseGen(parent, name="flux_direction_mod",
+                                  only=True, funcnames=["x_direction",
+                                                        "y_direction"]))
+                parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                  only=True, funcnames=["STENCIL_1DX",
+                                                        "STENCIL_1DY"]))
             else:
-                raise InternalError("blah3")
+                try:
+                    stencil_name = STENCIL_MAPPING[stencil_type]
+                except KeyError:
+                    raise GenerationError(
+                        "Unsupported stencil type '{0}' supplied. "
+                        "Supported mappings are {1}".
+                        format(arg.descriptor.stencil['type'],
+                               str(STENCIL_MAPPING)))
+                parent.add(UseGen(parent, name="stencil_dofmap_mod",
+                                  only=True, funcnames=[stencil_name]))
+                parent.add(DeclGen(parent, datatype="integer", pointer=True,
+                                   entity_decls=[self.dofmap_name(arg) +
+                                                 "(:,:,:) => null()"]))
+
+    def _declare_maps_stub(self, parent):
+        '''
+        Add declarations for all stencil maps to a Kernel stub.
+
+        :param parent: the node in the f2pygen AST representing the Kernel \
+                       stub routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+
+        for arg in self._kern_args:
+            parent.add(DeclGen(
+                parent, datatype="integer", intent="in",
+                dimension=",".join([get_fs_ndf_name(arg.function_space),
+                                    self.dofmap_size_name(arg)]),
+                entity_decls=[self.dofmap_name(arg)]))
 
 
 class DynDofmaps(DynCollection):
@@ -4016,7 +4016,7 @@ class DynInvoke(Invoke):
 
         self.orientation = DynOrientations(self)
 
-        # extend arg list
+        # Extend arg list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
         # adding in qr arguments
