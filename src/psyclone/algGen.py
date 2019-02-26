@@ -173,7 +173,16 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
     from fparser.two.Fortran2003 import Main_Program, Module, \
         Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
         Specification_Part
+    from psyclone.psyGen import GenerationError
 
+    if location is None:
+        raise GenerationError("algGen.py:adduse: Location argument must "
+                              "not be None.")
+    if funcnames and not only:
+        raise GenerationError(
+            "algGen.py:adduse: If the 'funcnames' argument is provided then "
+            "the 'only' argument must be 'True'.")
+        
     # Create the specified use statement
     only_str = ""
     if only:
@@ -188,26 +197,31 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
     parent_prog_statement = None
     found = False
     for child in walk_ast(parse_tree.content):
-        if isinstance(child, (Main_Program, Module, Subroutine_Subprogram,
-                              Function_Subprogram)):
-            parent_prog_statement = child
         if child == location:
             found = True
             break
+        if isinstance(child, (Main_Program, Module, Subroutine_Subprogram,
+                              Function_Subprogram)):
+            parent_prog_statement = child
 
     if not found:
-        raise Exception("location is not in parse tree")
+        raise GenerationError("algGen.py:adduse: The specified location is "
+                              "not in the parse tree.")
     if not parent_prog_statement:
-        raise Exception("location has no program parent in parse tree")
+        raise GenerationError(
+            "algGen.py:adduse: The specified location has no parent in the "
+            "parse tree that is a program, module, subroutine or function.")
     if not isinstance(parent_prog_statement, (Main_Program,
                                               Subroutine_Subprogram)):
         # We currently only support program and subroutine as ancestors
         raise NotImplementedError(
-            "Unsupported code unit found '{0}'".
+            "algGen.py:adduse: Unsupported parent code found '{0}'. Currently "
+            "support is limited to subroutine and program.".
             format(str(type(parent_prog_statement))))
     if not isinstance(parent_prog_statement.content[1], Specification_Part):
         raise NotImplementedError(
-            "content entry 1 is expected to be a specification part but "
+            "algGen.py:adduse: The second child of the parent code "
+            "(content[1]) is expected to be a specification part but "
             "found '{0}'".format(parent_prog_statement.content[1]))
 
     # add the use statement as the first child of the specification
