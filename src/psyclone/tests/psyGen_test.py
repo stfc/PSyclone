@@ -1026,7 +1026,8 @@ def test_invalid_reprod_pad_size(monkeypatch):
     set to an invalid value '''
     # Make sure we monkey patch the correct Config object
     from psyclone.configuration import Config
-    monkeypatch.setattr(Config._instance, "_reprod_pad_size", 0)
+    config = Config.get()
+    monkeypatch.setattr(config._instance, "_reprod_pad_size", 0)
     for distmem in [True, False]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH,

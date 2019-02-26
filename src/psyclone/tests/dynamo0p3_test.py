@@ -4287,8 +4287,8 @@ def test_stencil_extent_specified():
     stencil_arg = kernel.arguments.args[1]
     # artificially add an extent to the stencil metadata info
     stencil_arg.descriptor.stencil['extent'] = 1
-    from psyclone.dynamo0p3 import DynInvokeStencils
-    stencils = DynInvokeStencils(psy.invokes.invoke_list[0])
+    from psyclone.dynamo0p3 import DynStencils
+    stencils = DynStencils(psy.invokes.invoke_list[0])
     with pytest.raises(GenerationError) as err:
         stencils.stencil_unique_str(stencil_arg, "")
     assert ("Found a stencil with an extent specified in the metadata. "

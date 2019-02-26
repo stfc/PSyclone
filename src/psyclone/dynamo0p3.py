@@ -1450,6 +1450,9 @@ class DynCollection(object):
                  declarations.
     :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises InternalError: if the supplied node is not a DynInvoke or a \
+                           DynKern.
     '''
     def __init__(self, node):
         if isinstance(node, DynInvoke):
@@ -1484,6 +1487,8 @@ class DynCollection(object):
         :param parent: the node in the f2pygen AST representing the routine \
                        in which to insert the declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if neither self._invoke or self._kernel are set.
         '''
         if self._invoke:
             self._invoke_declarations(parent)
@@ -1499,7 +1504,7 @@ class DynCollection(object):
         raise NotImplementedError("")
 
 
-class DynInvokeStencils(DynCollection):
+class DynStencils(DynCollection):
     '''
     Stencil information and code generation associated with a PSy-layer
     routine or Kernel stub.
@@ -1509,7 +1514,7 @@ class DynInvokeStencils(DynCollection):
                 :py:class:`psyclone.dynamo0p3.DynKern`
     '''
     def __init__(self, node):
-        super(DynInvokeStencils, self).__init__(node)
+        super(DynStencils, self).__init__(node)
 
         # List of arguments which have an extent value passed to this
         # invoke routine from the algorithm layer. Duplicate argument
@@ -1619,12 +1624,13 @@ class DynInvokeStencils(DynCollection):
         :rtype: str
         '''
         root_name = arg.name + "_stencil_map"
-        unique = DynInvokeStencils.stencil_unique_str(arg, "map")
+        unique = DynStencils.stencil_unique_str(arg, "map")
         name_space_manager = NameSpaceFactory().create()
         return name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
 
-    def stencil_dofmap_name(self, arg):
+    @staticmethod
+    def stencil_dofmap_name(arg):
         '''
         Creates and registers a name for the stencil dofmap associated with
         the supplied kernel argument.
@@ -1636,12 +1642,13 @@ class DynInvokeStencils(DynCollection):
         :rtype: str
         '''
         root_name = arg.name + "_stencil_dofmap"
-        unique = self.stencil_unique_str(arg, "dofmap")
+        unique = DynStencils.stencil_unique_str(arg, "dofmap")
         name_space_manager = NameSpaceFactory().create()
         return name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
 
-    def stencil_dofmap_size_name(self, arg):
+    @staticmethod
+    def stencil_dofmap_size_name(arg):
         '''
         Create a valid unique name for the size (in cells) of a stencil
         dofmap in the PSy layer.
@@ -1653,7 +1660,7 @@ class DynInvokeStencils(DynCollection):
         :rtype: str
         '''
         root_name = arg.name + "_stencil_size"
-        unique = self.stencil_unique_str(arg, "size")
+        unique = DynStencils.stencil_unique_str(arg, "size")
         name_space_manager = NameSpaceFactory().create()
         name = name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
@@ -1674,7 +1681,7 @@ class DynInvokeStencils(DynCollection):
 
         '''
         root_name = arg.name + "_extent"
-        unique = DynInvokeStencils.stencil_unique_str(arg, "extent")
+        unique = DynStencils.stencil_unique_str(arg, "extent")
         name_space_manager = NameSpaceFactory().create()
         return name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
@@ -1686,7 +1693,7 @@ class DynInvokeStencils(DynCollection):
         if arg.stencil.direction_arg.varName:
             return arg.stencil.direction_arg.varName
         root_name = arg.name + "_direction"
-        unique = DynInvokeStencils.stencil_unique_str(arg, "direction")
+        unique = DynStencils.stencil_unique_str(arg, "direction")
         name_space_manager = NameSpaceFactory().create()
         return name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
@@ -1709,7 +1716,7 @@ class DynInvokeStencils(DynCollection):
                     names.append(self.stencil_dofmap_size_name(arg))
                 else:
                     raise InternalError(
-                        "DynInvokeStencils: both self._invoke and self._kernel"
+                        "DynStencils: both self._invoke and self._kernel"
                         " are None. Should be impossible.")
         return names
 
@@ -3937,7 +3944,7 @@ class DynInvoke(Invoke):
         self.scalar_args = DynInvokeScalars(self)
 
         # initialise our invoke stencil information
-        self.stencil = DynInvokeStencils(self)
+        self.stencil = DynStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
         self.function_spaces = DynInvokeFunctionSpaces(self)
@@ -6379,7 +6386,7 @@ class DynKern(Kern):
         lma_ops = DynInvokeLMAOperators(self)
         lma_ops.declarations(sub_stub)
 
-        stencils = DynInvokeStencils(self)
+        stencils = DynStencils(self)
         stencils.declarations(sub_stub)
 
         basis = DynInvokeBasisFns(self)
@@ -6516,9 +6523,6 @@ class ArgOrdering(object):
     a Kernel call.'''
     def __init__(self, kern):
         self._kern = kern
-        # Object to manage stencil-related arguments
-        # TODO is this the right thing to do?
-        self._stencils = DynInvokeStencils(kern)
 
     def generate(self):
         '''
@@ -6955,21 +6959,21 @@ class KernCallArgList(ArgOrdering):
         '''add stencil information to the argument list associated with the
         argument 'arg' if the extent is unknown'''
         # The extent is not specified in the metadata so pass the value in
-        name = self._stencils.stencil_dofmap_size_name(arg)
+        name = DynStencils.stencil_dofmap_size_name(arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
         '''add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown'''
         # the direction of the stencil is not known so pass the value in
-        name = self._stencils.stencil_direction_name(arg)
+        name = DynStencils.stencil_direction_name(arg)
         self._arglist.append(name)
 
     def stencil(self, arg):
         '''add general stencil information associated with the argument 'arg'
         to the argument list'''
         # add in stencil dofmap
-        var_name = self._stencils.stencil_dofmap_name(arg)
+        var_name = DynStencils.stencil_dofmap_name(arg)
         name = var_name + "(:,:," + self._cell_ref_name + ")"
         self._arglist.append(name)
 
@@ -7236,7 +7240,7 @@ class KernStubArgList(ArgOrdering):
     def stencil_unknown_extent(self, arg):
         '''add stencil information associated with the argument 'arg' if the
         extent is unknown'''
-        name = self._stencils.stencil_dofmap_size_name(arg)
+        name = DynStencils.stencil_dofmap_size_name(arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
@@ -7248,7 +7252,7 @@ class KernStubArgList(ArgOrdering):
     def stencil(self, arg):
         '''add general stencil information associated with the argument
         'arg' '''
-        self._arglist.append(self._stencils.stencil_dofmap_name(arg))
+        self._arglist.append(DynStencils.stencil_dofmap_name(arg))
 
     def operator(self, arg):
         ''' add the operator arguments to the argument list '''
@@ -7820,30 +7824,10 @@ class DynKernelArguments(Arguments):
                 else:
                     # An extent argument has been added.
                     stencil.extent_arg = call.args[idx]
-                    # extent_arg is not a standard dynamo argument, it is
-                    # an Arg object created by the parser. Therefore its
-                    # name may clash. This is handled in DynInvokeStencils.
                     idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil.direction_arg = call.args[idx]
-                    #if stencil.direction_arg.varName not in \
-                    #   VALID_STENCIL_DIRECTIONS:
-                    #    # direction_arg is not a standard dynamo
-                    #    # argument, it is an Arg object created by the
-                    #    # parser. Therefore its name may clash. We
-                    #    # register and update the name here.
-                    #    if stencil.direction_arg.varName:
-                    #        root = stencil.direction_arg.varName
-                    #    else:
-                    #        # We don't have a variable name associated with
-                    #        # stencil direction (i.e. we're generating a kernel
-                    #        # stub) so invent one.
-                    #        root = dyn_argument.name + "_direction"
-                    #    unique_name = self._name_space_manager.create_name(
-                    #        root_name=root, context="AlgArgs",
-                    #        label=stencil.direction_arg.text)
-                    #    stencil.direction_arg.varName = unique_name
                     idx += 1
             self._args.append(dyn_argument)
 
