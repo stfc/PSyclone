@@ -1,7 +1,8 @@
 # ----------------------------------------------------------------------------
-# (c) Science and Technology Facilities Council, 2016
+# (c) Science and Technology Facilities Council, 2016-2019
 # ----------------------------------------------------------------------------
 # Author A. Porter, STFC Daresbury Laboratory
+# Modified by R. W. Ford, STFC Daresbury Laboratory
 
 ''' This module tests the GOcean 0.1 API using pytest. '''
 
@@ -9,6 +10,7 @@ from __future__ import absolute_import, print_function
 import os
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
+from psyclone.gocean0p1 import GODescriptor, GOKernelType
 
 API = "gocean0.1"
 
@@ -52,3 +54,51 @@ def test_gobuiltin_call_factory():
     builtin = GOBuiltInCallFactory.create()
     # pylint:enable=assignment-from-none
     assert builtin is None
+
+
+def test_godescriptor():
+    '''Test that a GOcean descriptor class can be created
+    successfully.
+
+    '''
+    tmp = GODescriptor("read", "every", "pointwise")
+    assert tmp.access == "read"
+    assert tmp.function_space == "every"
+    assert tmp.stencil == "pointwise"
+
+
+CODE = (
+    "module test_mod\n"
+    "  type, extends(kernel_type) :: test_type\n"
+    "    type(arg_type), dimension(1) :: meta_args =    &\n"
+    "          (/ arg(READ,EVERY,POINTWISE) /)\n"
+    "     integer :: iterates_over = dofs\n"
+    "   contains\n"
+    "     procedure, nopass :: code => test_code\n"
+    "  end type test_type\n"
+    "contains\n"
+    "  subroutine test_code()\n"
+    "  end subroutine test_code\n"
+    "end module test_mod\n"
+
+    )
+
+
+def test_gokerneltype():
+    '''Test that a GOcean kernel type class can be created
+    succesfully.
+
+    '''
+    from fparser.api import parse
+    my_code = CODE
+    parse_tree = parse(my_code)
+    tmp = GOKernelType(parse_tree)
+    assert tmp.iterates_over == "dofs"
+    assert tmp.nargs == 1
+    # ***********************
+    #assert tmp.name is None
+    descriptor = tmp.arg_descriptors[0]
+    assert descriptor.access == "read"
+    assert descriptor.function_space == "every"
+    assert descriptor.stencil == "pointwise"
+

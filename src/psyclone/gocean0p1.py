@@ -45,11 +45,35 @@ from psyclone.parse.kernel import KernelType, Descriptor
 
 
 class GODescriptor(Descriptor):
+    '''The GOcean specific Descriptor class. This captures kernel
+    argument descriptor information specified in kernel
+    metadata. Currently this class is just a wrapper around the base
+    class.
+
+    :param str access: Whether the argument is read, written etc.
+    :param str space: Specifies the grid points accessed using this \
+    field within the kernel. Currently the value is limited to 'every' \
+    which means that all points are accessed.
+    :param str stencil: Specifies any stencil accesses that are \
+    performed on this argument in the kernel. Currently the value is \
+    limited to 'pointwise' which indicates that no stencil access is \
+    specified.
+
+    '''
     def __init__(self, access, space, stencil):
         Descriptor.__init__(self, access, space, stencil)
 
 
 class GOKernelType(KernelType):
+    '''The GOcean specific KernelType class. This captures kernel metadata
+    for this API.
+
+    :param ast: fparser1 parse tree for the parsed kernel meta-data.
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+    :param str name: The name of the metadata. If not supplied it \
+    defaults to None.
+
+    '''
     def __init__(self, ast, name=None):
         KernelType.__init__(self, ast, name=name)
         self._arg_descriptors = []
