@@ -42,6 +42,7 @@ from __future__ import absolute_import
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
     Arguments, KernelArgument
 from psyclone.parse.kernel import KernelType, Descriptor
+from psyclone.parse.utils import ParseError
 
 
 class GODescriptor(Descriptor):
@@ -80,14 +81,16 @@ class GOKernelType(KernelType):
         for init in self._inits:
             if init.name != 'arg':
                 raise ParseError(
-                    "Each meta_arg value must be of type 'arg' for the "
-                    "gocean0.1 api, but found '{0}'".format(init.name))
+                    "gocean0p1.py:GOKernelType:__init__: Each meta_arg value "
+                    "must be of type 'arg' for the gocean0.1 api, but found "
+                    "'{0}'.".format(init.name))
             access = init.args[0].name
             funcspace = init.args[1].name
             stencil = init.args[2].name
             if len(init.args) != 3:
                 raise ParseError(
-                    "'arg' type expects 3 arguments but found '{}' in '{}'".
+                    "gocean0p1.py:GOKernelType:__init__: 'arg' type expects "
+                    "3 arguments but found {0} in '{1}'".
                     format(str(len(init.args)), init.args))
             self._arg_descriptors.append(GODescriptor(access, funcspace,
                                                       stencil))

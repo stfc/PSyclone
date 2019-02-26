@@ -42,7 +42,7 @@ from __future__ import absolute_import
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
         Arguments, Argument, GenerationError
 from psyclone.parse.kernel import KernelType, Descriptor
-
+from psyclone.parse.utils import ParseError
 
 class DynDescriptor(Descriptor):
     def __init__(self, access, funcspace, stencil, basis, diff_basis,
@@ -72,8 +72,9 @@ class DynKernelType(KernelType):
         for init in self._inits:
             if init.name != 'arg_type':
                 raise ParseError(
-                    "Each meta_arg value must be of type 'arg_type' for the "
-                    "dynamo0.1 api, but found '{0}'".format(init.name))
+                    "dynamo0p1.py:DynKernelType:__init__: Each meta_arg "
+                    "value must be of type 'arg_type' for the "
+                    "dynamo0.1 api, but found '{0}'.".format(init.name))
             access = init.args[0].name
             funcspace = init.args[1].name
             stencil = init.args[2].name

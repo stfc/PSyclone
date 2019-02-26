@@ -8,13 +8,16 @@
 
 from __future__ import absolute_import, print_function
 import os
-from psyclone.parse.algorithm import parse
+import pytest
 from psyclone.psyGen import PSyFactory
 from psyclone.gocean0p1 import GODescriptor, GOKernelType
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
+from fparser.api import parse as parse1
 
 API = "gocean0.1"
 
-
+# pylint: disable=invalid-name
 def test_loop_bounds_gen_multiple_loops():
     ''' Test that we only generate one assignment for a loop-bounds
     variable when we have multiple loops '''
@@ -25,7 +28,6 @@ def test_loop_bounds_gen_multiple_loops():
                     api=API)
     psy = PSyFactory(API).create(info)
     gen = str(psy.gen)
-    print(gen)
 
     expected = (
         "      DO j=1,SIZE(uold, 2)\n"
@@ -44,6 +46,7 @@ def test_loop_bounds_gen_multiple_loops():
         "        END DO \n"
         "      END DO ")
     assert expected in gen
+# pylint: enable=invalid-name
 
 
 def test_gobuiltin_call_factory():
@@ -85,20 +88,43 @@ CODE = (
 
 
 def test_gokerneltype():
-    '''Test that a GOcean kernel type class can be created
+    '''Test that a GOcean kerneltype class can be created
     succesfully.
 
     '''
-    from fparser.api import parse
     my_code = CODE
-    parse_tree = parse(my_code)
+    parse_tree = parse1(my_code)
     tmp = GOKernelType(parse_tree)
     assert tmp.iterates_over == "dofs"
     assert tmp.nargs == 1
-    # ***********************
-    #assert tmp.name is None
+    assert tmp.name == "test_type"
     descriptor = tmp.arg_descriptors[0]
     assert descriptor.access == "read"
     assert descriptor.function_space == "every"
     assert descriptor.stencil == "pointwise"
 
+
+def test_gokerneltype_argname():
+    '''Test that a GOcean kerneltype class raises an appropriate exception
+    if the meta_arg name is not 'arg'.
+
+    '''
+    my_code = CODE.replace("arg(", "invalid(")
+    parse_tree = parse1(my_code)
+    with pytest.raises(ParseError) as excinfo:
+        _ = GOKernelType(parse_tree)
+    assert ("Each meta_arg value must be of type 'arg' for the gocean0.1 "
+            "api, but found 'invalid'.") in str(excinfo.value)
+
+
+def test_gokerneltype_nargs():
+    '''Test that a GOcean kerneltype class raises an appropriate exception
+    if a meta_arg has more than 3 entries.
+
+    '''
+    my_code = CODE.replace("E)", "E, INVALID)")
+    parse_tree = parse1(my_code)
+    with pytest.raises(ParseError) as excinfo:
+        _ = GOKernelType(parse_tree)
+    assert "'arg' type expects 3 arguments but found 4" \
+        in str(excinfo.value)
