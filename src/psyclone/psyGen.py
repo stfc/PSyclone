@@ -5307,18 +5307,24 @@ class KernelSchedule(Schedule):
         # Generate kernel arguments
         array_arguments = []
         for symbol in self.symbol_table.argument_list:
-            if symbol.kind in ('read_arg', 'write_arg'):
-                code = code + self.indent(indent + 1)
-                if opencl:
-                    code = code + "__global "
-                if symbol.datatype == "real":
-                    code = code + "double "
-                elif symbol.datatype == "integer":
-                    code = code + "int "
-                if symbol.dimensions > 0:
-                    code = code + "* restrict "
-                    array_arguments.append((symbol.name, symbol.dimensions))
-                code = code + symbol.name + ",\n"
+            code = code + self.indent(indent + 1)
+            if opencl:
+                code = code + "__global "
+
+            if symbol.datatype == "real":
+                code = code + "double "
+            elif symbol.datatype == "integer":
+                code = code + "int "
+            elif symbol.datatype == "character":
+                code = code + "char "
+            else:
+                raise NotImplemented()
+
+            if len(symbol.shape) > 0:
+                code = code + "* restrict "
+                array_arguments.append((symbol.name, len(symbol.shape)))
+
+            code = code + symbol.name + ",\n"
 
         # Generate a LEN arguments for each array
         for name, dimensions in array_arguments:
@@ -5331,13 +5337,13 @@ class KernelSchedule(Schedule):
 
         # Declare local variables
         for symbol in self.symbol_table._symbols.values():
-            if symbol.kind in ('local'):
+            if symbol not in self.symbol_table.argument_list:
                 code = code + self.indent(indent + 1)
                 if symbol.datatype == 'real':
                     code = code + "double "
                 elif symbol.datatype == 'integer':
                     code = code + "int "
-                if symbol.dimensions > 0:
+                if len(symbol.shape) > 0:
                     code = code + "*"
                 code = code + symbol.name + ";\n"
 
@@ -5399,9 +5405,9 @@ class CodeBlock(Node):
         :type indent: integer
         :param opencl: Flag to enable the generation of OpenCL code.
         :type opencl: boolean
-        :raises InternalError: gen_c_code always fails for CodeBlocks.
+        :raises GenerationError: gen_c_code always fails for CodeBlocks.
         '''
-        raise InternalError("CodeBlock can not be translated to C")
+        raise GenerationError("CodeBlock can not be translated to C")
 
 
 class Assignment(Node):
