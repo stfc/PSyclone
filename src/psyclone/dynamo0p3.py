@@ -3825,6 +3825,11 @@ class DynInvokeBasisFns(DynCollection):
 
 class DynInvokeBoundaryConditions(DynCollection):
     '''
+    Manages declarations and initialisation of quantities required by
+    kernels that need boundary condition information.
+
+    :param node:
+    :type node:
     '''
     # Define a BoundaryDofs namedtuple to help us manage the arrays that
     # are required.
@@ -6874,12 +6879,9 @@ class KernCallArgList(ArgOrdering):
 
     :param kern: The kernel that is being called.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
-    :param parent: parent of this kernel-call node in the PSyIRe.
-    :type parent: :py:class:`psyclone.f2pygen.DoGen`
     '''
-    def __init__(self, kern, parent=None):
+    def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
-        self._parent = parent
         self._arglist = []
         self._name_space_manager = NameSpaceFactory().create()
 
@@ -7109,35 +7111,17 @@ class KernCallArgList(ArgOrdering):
                 "for kernel {0} but got {1}".format(self._kern.name,
                                                     farg.type))
         self._arglist.append("boundary_dofs_"+farg.name)
-        #parent = self._parent
-        #parent.add(DeclGen(parent, datatype="integer",
-        #                   pointer=True, entity_decls=[
-        #                       "boundary_dofs(:,:) => null()"]))
-        #new_parent, position = parent.start_parent_loop()
-        #new_parent.add(AssignGen(new_parent, pointer=True,
-        #                         lhs="boundary_dofs",
-        #                         rhs=farg.proxy_name +
-        #                         "%vspace%get_boundary_dofs()"),
-        #               position=["before", position])
 
     def operator_bcs_kernel(self, function_space):
-        ''' Supply necessary additional arguments for the kernel that
-        applies boundary conditions to a LMA operator '''
+        '''
+        Supply necessary additional arguments for the kernel that
+        applies boundary conditions to a LMA operator.
+        '''
         from psyclone.f2pygen import DeclGen, AssignGen
         # This kernel has only a single LMA operator as argument.
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
-        self._arglist.append("boundary_dofs")
-        parent = self._parent
-        parent.add(DeclGen(parent, datatype="integer",
-                           pointer=True, entity_decls=[
-                               "boundary_dofs(:,:) => null()"]))
-        new_parent, position = parent.start_parent_loop()
-        new_parent.add(AssignGen(new_parent, pointer=True,
-                                 lhs="boundary_dofs",
-                                 rhs=op_arg.proxy_name +
-                                 "%fs_to%get_boundary_dofs()"),
-                       position=["before", position])
+        self._arglist.append("boundary_dofs_"+op_arg.name)
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
@@ -8071,7 +8055,7 @@ class DynKernelArguments(Arguments):
                   kernel call.
         :rtype: list of str.
         '''
-        create_arg_list = KernCallArgList(self._parent_call, parent)
+        create_arg_list = KernCallArgList(self._parent_call)
         create_arg_list.generate()
         # TODO #268 the functionality of KernCallArgList and
         # DynKernelArguments needs revisiting. In particular,

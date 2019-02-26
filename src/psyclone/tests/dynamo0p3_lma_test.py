@@ -667,20 +667,19 @@ def test_operator_bc_kernel(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
-    output1 = "INTEGER, pointer :: boundary_dofs(:,:) => null()"
+    output1 = "INTEGER, pointer :: boundary_dofs_op_a(:,:) => null()"
     assert output1 in generated_code
-    output2 = "boundary_dofs => op_a_proxy%fs_to%get_boundary_dofs()"
+    output2 = "boundary_dofs_op_a => op_a_proxy%fs_to%get_boundary_dofs()"
     assert output2 in generated_code
     output3 = (
         "CALL enforce_operator_bc_code(cell, nlayers, op_a_proxy%ncell_3d, "
         "op_a_proxy%local_stencil, ndf_any_space_1_op_a, "
-        "ndf_any_space_2_op_a, boundary_dofs)")
+        "ndf_any_space_2_op_a, boundary_dofs_op_a)")
     assert output3 in generated_code
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    # If compilation testing has been enabled
+    # (--compile --f90="<compiler_name>" flags to py.test)
+    assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_operator_bc_kernel_fld_err(monkeypatch):
