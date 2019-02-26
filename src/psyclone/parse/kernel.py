@@ -688,9 +688,10 @@ class KernelType(object):
 
         '''
         descs = ast.get_variable(var_name)
-        if "INTEGER" in str(descs):  # fparser1 hack as get_variable()
-                                     # returns an integer if it can't
-                                     # find the variable.
+        if "INTEGER" in str(descs):
+            # INTEGER in above if test is an fparser1 hack as
+            # get_variable() returns an integer if it can't find the
+            # variable.
             raise ParseError(
                 "kernel.py:KernelType():getkerneldescriptors: No kernel "
                 "metadata with type name '{0}' found.".format(var_name))

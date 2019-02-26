@@ -141,7 +141,7 @@ class Alg(object):
 
         return self._ast
 
-
+# pylint: disable=too-many-locals
 def adduse(parse_tree, location, name, only=False, funcnames=None):
     '''Add a Fortran 'use' statement to an existing fparser2 parse
     tree. This will be added at the first valid location before the
@@ -182,7 +182,7 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
         raise GenerationError(
             "algGen.py:adduse: If the 'funcnames' argument is provided then "
             "the 'only' argument must be 'True'.")
-        
+
     # Create the specified use statement
     only_str = ""
     if only:
@@ -230,3 +230,4 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
     spec_part.content.insert(0, use)
 
     return parse_tree
+# pylint: enable=too-many-locals
