@@ -1488,7 +1488,8 @@ class DynCollection(object):
                        in which to insert the declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises InternalError: if neither self._invoke or self._kernel are set.
+        :raises InternalError: if neither self._invoke or self._kernel \
+                               are set.
         '''
         if self._invoke:
             self._invoke_declarations(parent)
@@ -1500,8 +1501,14 @@ class DynCollection(object):
 
     def initialisation(self, parent):
         '''
+        Add code to initialise the entities being managed by this class.
+        By default we do nothing - it is up to the sub-class to override
+        this method if initialisation is required.
+
+        :param parent: the node in the f2pygen AST to which to add \
+                       initialisation code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        raise NotImplementedError("")
 
 
 class DynStencils(DynCollection):
@@ -1662,9 +1669,8 @@ class DynStencils(DynCollection):
         root_name = arg.name + "_stencil_size"
         unique = DynStencils.stencil_unique_str(arg, "size")
         name_space_manager = NameSpaceFactory().create()
-        name = name_space_manager.create_name(
+        return name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
-        return name
 
     @staticmethod
     def stencil_extent_name(arg):
@@ -1689,6 +1695,16 @@ class DynStencils(DynCollection):
     @staticmethod
     def stencil_direction_name(arg):
         '''
+        Creates and registers a variable name for the direction of the stencil
+        associated with the supplied kernel argument.
+
+        :param arg: kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: the variable name for the direction of the stencil on \
+                  the supplied argument.
+        :rtype: str
+
         '''
         if arg.stencil.direction_arg.varName:
             return arg.stencil.direction_arg.varName
@@ -1702,7 +1718,11 @@ class DynStencils(DynCollection):
     def _unique_extent_vars(self):
         '''
         :returns: list of all the unique extent argument names in this \
-                  invoke call. '''
+                  invoke call.
+        :rtype: list of str
+
+        :raises InternalError: if neither self._kernel or self._invoke are set.
+        '''
         names = []
         for arg in self._unique_extent_args:
             if arg.stencil.extent_arg.varName:
@@ -1721,10 +1741,16 @@ class DynStencils(DynCollection):
         return names
 
     def _declare_unique_extent_vars(self, parent):
-        '''Declare all unique extent arguments as integers with intent in and
+        '''
+        Declare all unique extent arguments as integers with intent in and
         add the declaration as a child of the parent argument passed
-        in. The parent argument should be an appropriate f2pygen
-        object. '''
+        in.
+
+        :param parent: the node in the f2pygen AST to which to add the \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         from psyclone.f2pygen import DeclGen
         if self._unique_extent_vars:
             parent.add(DeclGen(parent, datatype="integer",
@@ -1733,8 +1759,11 @@ class DynStencils(DynCollection):
 
     @property
     def _unique_direction_vars(self):
-        '''return a list of all the unique direction argument names in this
-        invoke call.'''
+        '''
+        :returns: a list of all the unique direction argument names in this \
+                  invoke call.
+        :rtype: list of str
+        '''
         names = []
         for arg in self._unique_direction_args:
             if arg.stencil.direction_arg.varName:
@@ -1744,10 +1773,16 @@ class DynStencils(DynCollection):
         return names
 
     def _declare_unique_direction_vars(self, parent):
-        '''Declare all unique direction arguments as integers with intent in
+        '''
+        Declare all unique direction arguments as integers with intent in
         and add the declaration as a child of the parent argument
-        passed in. The parent argument should be an appropriate
-        f2pygen object. '''
+        passed in.
+
+        :param parent: the node in the f2pygen AST to which to add the \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         from psyclone.f2pygen import DeclGen
         if self._unique_direction_vars:
             parent.add(DeclGen(parent, datatype="integer",
@@ -1783,9 +1818,13 @@ class DynStencils(DynCollection):
 
     def initialise(self, parent):
         '''
-        Adds in the required stencil dofmap code to the PSy layer.
+        Adds in the code to initialise stencil dofmaps to the PSy layer.
 
-        :param parent: XXX
+        :param parent: the node in the f2pygen AST to which to add the \
+                       initialisations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises GenerationError: if an unsupported stencil type is encountered.
         '''
         from psyclone.f2pygen import AssignGen, IfThenGen, CommentGen
         if not self._kern_args:
@@ -1800,20 +1839,8 @@ class DynStencils(DynCollection):
             if map_name not in stencil_map_names:
                 # Only initialise maps once.
                 stencil_map_names.append(map_name)
-                #parent.add(
-                #    TypeDeclGen(parent, pointer=True,
-                #                datatype="stencil_dofmap_type",
-                #                entity_decls=[map_name+" => null()"]))
                 stencil_type = arg.descriptor.stencil['type']
                 if stencil_type == "xory1d":
-                    #parent.add(UseGen(parent, name="flux_direction_mod",
-                    #                  only=True,
-                    #                  funcnames=["x_direction",
-                    #                             "y_direction"]))
-                    #parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                    #                  only=True,
-                    #                  funcnames=["STENCIL_1DX",
-                    #                             "STENCIL_1DY"]))
                     direction_name = arg.stencil.direction_arg.varName
                     for direction in ["x", "y"]:
                         if_then = IfThenGen(parent, direction_name +
@@ -1835,26 +1862,18 @@ class DynStencils(DynCollection):
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
                                    str(STENCIL_MAPPING)))
-                    #parent.add(UseGen(parent, name="stencil_dofmap_mod",
-                    #                  only=True,
-                    #                  funcnames=[stencil_name]))
                     parent.add(
                         AssignGen(parent, pointer=True, lhs=map_name,
                                   rhs=arg.proxy_name +
                                   "%vspace%get_stencil_dofmap(" +
                                   stencil_name + "," +
                                   self.stencil_extent_value(arg) + ")"))
-                #parent.add(DeclGen(parent, datatype="integer",
-                #                   pointer=True,
-                #                   entity_decls=[stencil_dofmap_name(arg) +
-                #                                 "(:,:,:) => null()"]))
+
                 parent.add(AssignGen(parent, pointer=True,
                                      lhs=self.stencil_dofmap_name(arg),
                                      rhs=map_name + "%get_whole_dofmap()"))
 
                 # Add declaration and look-up of stencil size
-                #parent.add(DeclGen(parent, datatype="integer",
-                #                   entity_decls=[stencil_size_name(arg)]))
                 parent.add(AssignGen(parent,
                                      lhs=self.stencil_dofmap_size_name(arg),
                                      rhs=map_name + "%get_size()"))
@@ -1863,7 +1882,10 @@ class DynStencils(DynCollection):
         '''
         Declare all stencil maps.
 
-        :param parent: XXX
+        :param parent: the node in the f2pygen AST to which to add \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import TypeDeclGen, DeclGen, UseGen
         if not self._kern_args:
@@ -1932,7 +1954,7 @@ class DynStencils(DynCollection):
                 raise InternalError("blah3")
 
 
-class DynInvokeDofmaps(DynCollection):
+class DynDofmaps(DynCollection):
     '''
     Holds all information on the dofmaps (including column-banded and
     indirection) required by an invoke.
@@ -1943,7 +1965,7 @@ class DynInvokeDofmaps(DynCollection):
     '''
     def __init__(self, invoke):
 
-        super(DynInvokeDofmaps, self).__init__(invoke)
+        super(DynDofmaps, self).__init__(invoke)
 
         # Look at every kernel call in this invoke and generate a list
         # of the unique function spaces involved.
@@ -2141,7 +2163,7 @@ class DynInvokeDofmaps(DynCollection):
                                dimension=dim_name, entity_decls=[dmap]))
 
 
-class DynInvokeOrientation(DynCollection):
+class DynOrientations(DynCollection):
     '''
     '''
     from collections import namedtuple
@@ -2149,7 +2171,7 @@ class DynInvokeOrientation(DynCollection):
                                              "function_space"])
 
     def __init__(self, node):
-        super(DynInvokeOrientation, self).__init__(node)
+        super(DynOrientations, self).__init__(node)
 
         self._orients = []
 
@@ -2205,7 +2227,7 @@ class DynInvokeOrientation(DynCollection):
         # inside the loop over cells, not at the Invoke level.
 
 
-class DynInvokeFunctionSpaces(DynCollection):
+class DynFunctionSpaces(DynCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
     quantities required by an Invoke.
@@ -2213,7 +2235,7 @@ class DynInvokeFunctionSpaces(DynCollection):
     :param invoke: the Invoke or Kernel object.
     '''
     def __init__(self, kern_or_invoke):
-        super(DynInvokeFunctionSpaces, self).__init__(kern_or_invoke)
+        super(DynFunctionSpaces, self).__init__(kern_or_invoke)
 
         if self._invoke:
             self._function_spaces = self._invoke.unique_fss()[:]
@@ -2308,62 +2330,66 @@ class DynInvokeFunctionSpaces(DynCollection):
                                          "%get_undf()"))
 
 
-class DynInvokeFields(DynCollection):
+class DynFields(DynCollection):
     '''
-    '''
+    Manages the declarationss for all field arguments required by an Invoke
+    or Kernel stub.
 
-    def declarations(self, parent):
+    '''
+    def _invoke_declarations(self, parent):
         '''
-        :param parent:
-        :type parent:
+        :param parent: the node in the f2pygen AST representing the PSy-layer \
+                       routine to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
-        from psyclone.f2pygen import TypeDeclGen, DeclGen
+        from psyclone.f2pygen import TypeDeclGen
         # Add the subroutine argument declarations for fields
-        if self._invoke:
-            fld_args = self._invoke.unique_declns_by_intent("gh_field")
-            for intent in FORTRAN_INTENT_NAMES:
-                if fld_args[intent]:
-                    if intent == "out":
-                        # The data part of a field might have intent(out) but
-                        # in order to preserve the state of the whole
-                        # derived-type object it must be declared as inout.
-                        fort_intent = "inout"
-                    else:
-                        fort_intent = intent
-                    parent.add(TypeDeclGen(parent, datatype="field_type",
-                                           entity_decls=fld_args[intent],
-                                           intent=fort_intent))
-        elif self._kernel:
-            fld_args = psyGen.args_filter(self._kernel.args,
-                                          arg_types=["gh_field"])
-            for fld in fld_args:
-                undf_name = get_fs_undf_name(fld.function_space)
-                intent = fld.intent
-
-                if fld.vector_size > 1:
-                    for idx in range(1, fld.vector_size+1):
-                        text = (fld.name + "_" +
-                                fld.function_space.mangled_name +
-                                "_v" + str(idx))
-                        parent.add(DeclGen(parent, datatype="real",
-                                           kind="r_def", dimension=undf_name,
-                                           intent=intent, entity_decls=[text]))
-
+        fld_args = self._invoke.unique_declns_by_intent("gh_field")
+        for intent in FORTRAN_INTENT_NAMES:
+            if fld_args[intent]:
+                if intent == "out":
+                    # The data part of a field might have intent(out) but
+                    # in order to preserve the state of the whole
+                    # derived-type object it must be declared as inout.
+                    fort_intent = "inout"
                 else:
-                    parent.add(DeclGen(parent, datatype="real", kind="r_def",
-                                       intent=fld.intent,
-                                       dimension=undf_name,
-                                       entity_decls=[fld.name + "_" +
-                                                     fld.function_space.mangled_name]))
-        else:
-            raise InternalError("blah")
+                    fort_intent = intent
+                parent.add(TypeDeclGen(parent, datatype="field_type",
+                                       entity_decls=fld_args[intent],
+                                       intent=fort_intent))
 
-    def initialise(self, parent):
+    def _stub_declarations(self, parent):
         '''
+        :param parent: the node in the f2pygen AST representing the Kernel \
+                       stub to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
+        from psyclone.f2pygen import DeclGen
+        fld_args = psyGen.args_filter(self._kernel.args,
+                                      arg_types=["gh_field"])
+        for fld in fld_args:
+            undf_name = get_fs_undf_name(fld.function_space)
+            intent = fld.intent
+
+            if fld.vector_size > 1:
+                for idx in range(1, fld.vector_size+1):
+                    text = (fld.name + "_" +
+                            fld.function_space.mangled_name +
+                            "_v" + str(idx))
+                    parent.add(DeclGen(parent, datatype="real",
+                                       kind="r_def", dimension=undf_name,
+                                       intent=intent, entity_decls=[text]))
+
+            else:
+                parent.add(
+                    DeclGen(parent, datatype="real", kind="r_def",
+                            intent=fld.intent,
+                            dimension=undf_name,
+                            entity_decls=[fld.name + "_" +
+                                          fld.function_space.mangled_name]))
 
 
-class DynInvokeProxies(DynCollection):
+class DynProxies(DynCollection):
     '''
     '''
     def declarations(self, parent):
@@ -2415,12 +2441,12 @@ class DynInvokeProxies(DynCollection):
                                      rhs=arg.name+"%get_proxy()"))
 
 
-class DynInvokeCellIterators(DynCollection):
+class DynCellIterators(DynCollection):
     '''
     Handles all entities required by kernels that iterate over cells.
     '''
     def __init__(self, invoke):
-        super(DynInvokeCellIterators, self).__init__(invoke)
+        super(DynCellIterators, self).__init__(invoke)
 
         # Use our namespace manager to create a unique name unless
         # the context and label match and in this case return the
@@ -2471,14 +2497,14 @@ class DynInvokeCellIterators(DynCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
-class DynInvokeScalars(DynCollection):
+class DynScalarArgs(DynCollection):
     '''
     Scalar kernel arguments appearing in the Invoke.
     '''
     def __init__(self, invoke):
         '''
         '''
-        super(DynInvokeScalars, self).__init__(invoke)
+        super(DynScalarArgs, self).__init__(invoke)
 
         if self._invoke:
             self._real_scalars = self._invoke.unique_declns_by_intent(
@@ -2517,7 +2543,7 @@ class DynInvokeScalars(DynCollection):
                                    intent=intent))
 
 
-class DynInvokeLMAOperators(DynCollection):
+class DynLMAOperators(DynCollection):
     '''
     Handles all entities required by kernels that iterate over cells.
     '''
@@ -2577,7 +2603,7 @@ class DynInvokeLMAOperators(DynCollection):
                                 intent=fort_intent))
 
 
-class DynInvokeCMAOperators(DynCollection):
+class DynCMAOperators(DynCollection):
     ''' Holds all information on the CMA operators required by an invoke '''
 
     # The scalar parameters that must be passed along with a CMA operator
@@ -2590,7 +2616,7 @@ class DynInvokeCMAOperators(DynCollection):
                           "beta", "gamma_m", "gamma_p"]
 
     def __init__(self, invoke):
-        super(DynInvokeCMAOperators, self).__init__(invoke)
+        super(DynCMAOperators, self).__init__(invoke)
 
         # Look at every kernel call and generate a set of
         # the unique CMA operators involved. For each one we create a
@@ -3150,7 +3176,7 @@ class DynInterGrid(object):
         self.ncolours_var = ""
 
 
-class DynInvokeBasisFns(DynCollection):
+class DynBasisFunctions(DynCollection):
     ''' Holds all information on the basis and differential basis
     functions required by an invoke. This covers both those required for
     quadrature and for evaluators.
@@ -3168,7 +3194,7 @@ class DynInvokeBasisFns(DynCollection):
     def __init__(self, schedule):
         from psyclone.dynamo0p3_builtins import DynBuiltIn
 
-        super(DynInvokeBasisFns, self).__init__(schedule)
+        super(DynBasisFunctions, self).__init__(schedule)
 
         # Construct a list of all the basis/diff-basis functions required
         # by this invoke. Each entry in the list is a dictionary holding
@@ -3830,7 +3856,7 @@ class DynInvokeBasisFns(DynCollection):
             parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
 
 
-class DynInvokeBoundaryConditions(DynCollection):
+class DynBoundaryConditions(DynCollection):
     '''
     Manages declarations and initialisation of quantities required by
     kernels that need boundary condition information.
@@ -3844,7 +3870,7 @@ class DynInvokeBoundaryConditions(DynCollection):
     BoundaryDofs = namedtuple("BoundaryDofs", ["argument", "function_space"])
 
     def __init__(self, node):
-        super(DynInvokeBoundaryConditions, self).__init__(node)
+        super(DynBoundaryConditions, self).__init__(node)
 
         self._boundary_dofs = []
         # Check through all the kernel calls to see whether any of them
@@ -3941,31 +3967,31 @@ class DynInvoke(Invoke):
         # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
 
-        self.scalar_args = DynInvokeScalars(self)
+        self.scalar_args = DynScalarArgs(self)
 
         # initialise our invoke stencil information
         self.stencil = DynStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
-        self.function_spaces = DynInvokeFunctionSpaces(self)
+        self.function_spaces = DynFunctionSpaces(self)
 
         # Initialise the object holding all information on the dofmaps
         # required by this invoke.
-        self.dofmaps = DynInvokeDofmaps(self)
+        self.dofmaps = DynDofmaps(self)
 
         # Initialise information on all of the fields accessed in this Invoke.
-        self.fields = DynInvokeFields(self)
+        self.fields = DynFields(self)
 
         # Initialise info. on all of the LMA operators used in this Invoke.
-        self.lma_ops = DynInvokeLMAOperators(self)
+        self.lma_ops = DynLMAOperators(self)
 
         # Initialise the object holding all information on the column-
         # -matrix assembly operators required by this invoke.
-        self.cma_ops = DynInvokeCMAOperators(self)
+        self.cma_ops = DynCMAOperators(self)
 
         # Initialise the object holding all information on the quadrature
         # and/or evaluators required by this invoke
-        self.evaluators = DynInvokeBasisFns(self)
+        self.evaluators = DynBasisFunctions(self)
 
         # Initialise the object holding all information related to meshes
         # and inter-grid operations
@@ -3973,14 +3999,14 @@ class DynInvoke(Invoke):
 
         # Initialise the object holding information on any boundary-condition
         # kernel calls
-        self.boundary_conditions = DynInvokeBoundaryConditions(self)
+        self.boundary_conditions = DynBoundaryConditions(self)
 
         # Information on all proxies required by this Invoke
-        self.proxies = DynInvokeProxies(self)
+        self.proxies = DynProxies(self)
 
-        self.cell_iterators = DynInvokeCellIterators(self)
+        self.cell_iterators = DynCellIterators(self)
 
-        self.orientation = DynInvokeOrientation(self)
+        self.orientation = DynOrientations(self)
 
         # extend arg list
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
@@ -6363,49 +6389,49 @@ class DynKern(Kern):
         sub_stub.add(UseGen(sub_stub, name="constants_mod", only=True,
                             funcnames=["r_def"]))
 
-        iter_cell = DynInvokeCellIterators(self)
+        iter_cell = DynCellIterators(self)
         iter_cell.declarations(sub_stub)
 
         # Create the dofmap declarations
-        arg_declns = DynInvokeDofmaps(self)
+        arg_declns = DynDofmaps(self)
         arg_declns.stub_declarations(sub_stub)
 
-        fspaces = DynInvokeFunctionSpaces(self)
+        fspaces = DynFunctionSpaces(self)
         fspaces.declarations(sub_stub)
 
-        cma_ops = DynInvokeCMAOperators(self)
+        cma_ops = DynCMAOperators(self)
         cma_ops.declarations(sub_stub)
 
         # Scalar arguments
-        scalars = DynInvokeScalars(self)
+        scalars = DynScalarArgs(self)
         scalars.declarations(sub_stub)
 
-        fields = DynInvokeFields(self)
+        fields = DynFields(self)
         fields.declarations(sub_stub)
 
-        lma_ops = DynInvokeLMAOperators(self)
+        lma_ops = DynLMAOperators(self)
         lma_ops.declarations(sub_stub)
 
         stencils = DynStencils(self)
         stencils.declarations(sub_stub)
 
-        basis = DynInvokeBasisFns(self)
+        basis = DynBasisFunctions(self)
         basis.declarations(sub_stub)
 
-        orient = DynInvokeOrientation(self)
+        orient = DynOrientations(self)
         orient.declarations(sub_stub)
 
-        boundary_conditions = DynInvokeBoundaryConditions(self)
+        boundary_conditions = DynBoundaryConditions(self)
         boundary_conditions.declarations(sub_stub)
 
         # Create the arglist
-        # TODO get rid of sub_stub argument below.
         create_arg_list = KernStubArgList(self)
         create_arg_list.generate()
 
-        # add the arglist
+        # Add the arglist
         sub_stub.args = create_arg_list.arglist
-        # add the subroutine to the parent module
+
+        # Add the subroutine to the parent module
         psy_module.add(sub_stub)
         return psy_module.root
 
@@ -6989,9 +7015,9 @@ class KernCallArgList(ArgOrdering):
         list '''
         if arg.function_space_to.orig_name != \
            arg.function_space_from.orig_name:
-            components = ["matrix"] + DynInvokeCMAOperators.cma_diff_fs_params
+            components = ["matrix"] + DynCMAOperators.cma_diff_fs_params
         else:
-            components = ["matrix"] + DynInvokeCMAOperators.cma_same_fs_params
+            components = ["matrix"] + DynCMAOperators.cma_same_fs_params
         for component in components:
             self._arglist.append(
                 self._name_space_manager.create_name(
@@ -8028,13 +8054,10 @@ class DynKernelArguments(Arguments):
         and remove the need for this property (#279). '''
         return self._dofs
 
-    def raw_arg_list(self, parent):
+    def raw_arg_list(self):
         '''
         Constructs the class-specific argument list for a kernel.
 
-        :param parent: the parent (in the PSyIR) of the kernel call with \
-                       which this argument list is associated.
-        :type parent: sub-class of :py:class:`psyclone.psyGen.Call`
         :returns: a list of all of the actual arguments to the \
                   kernel call.
         :rtype: list of str.
