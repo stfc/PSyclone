@@ -1967,13 +1967,13 @@ class DynDofmaps(DynCollection):
     Holds all information on the dofmaps (including column-banded and
     indirection) required by an invoke.
 
-    :param kernels: list of kernel objects.
-    :type kernels: list of :py:class:`psyclone.dynamo0p3.DynKern`
+    :param node: Kernel or Invoke for which to manage dofmaps.
+    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                :py:class:`psyclone.dynamo0p3.DynInvoke`
 
     '''
-    def __init__(self, invoke):
-
-        super(DynDofmaps, self).__init__(invoke)
+    def __init__(self, node):
+        super(DynDofmaps, self).__init__(node)
 
         # Look at every kernel call in this invoke and generate a list
         # of the unique function spaces involved.
@@ -2173,6 +2173,8 @@ class DynDofmaps(DynCollection):
 
 class DynOrientations(DynCollection):
     '''
+    Handle the declaration and initialisation of any orientation arrays.
+
     '''
     from collections import namedtuple
     Orientation = namedtuple("Orientation", ["name", "field",
@@ -2198,19 +2200,13 @@ class DynOrientations(DynCollection):
                                                               field,
                                                               unique_fs))
 
-    def declarations(self, parent):
-        '''
-        '''
-        if self._kernel:
-            self._stub_declarations(parent)
-        elif self._invoke:
-            self._invoke_declarations(parent)
-        else:
-            raise InternalError("Have neither a kernel or an invoke - should "
-                                "be impossible.")
-
     def _stub_declarations(self, parent):
         '''
+        Insert declarations for any orientation quantities into a Kernel stub.
+
+        :param parent: the f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import DeclGen
         for orient in self._orients:
@@ -2220,6 +2216,12 @@ class DynOrientations(DynCollection):
 
     def _invoke_declarations(self, parent):
         '''
+        Insert declarations for any orientation quantities into a PSy-layer
+        routine.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import DeclGen
 
@@ -2230,9 +2232,10 @@ class DynOrientations(DynCollection):
 
     def initialise(self, parent):
         '''
+        Orientation arrays are initialised on a per-cell basis (within the
+        loop over cells) and this is therefore handled by the kernel-call
+        generation.
         '''
-        # Initialisation is on a per-cell basis and therefore happens
-        # inside the loop over cells, not at the Invoke level.
 
 
 class DynFunctionSpaces(DynCollection):
@@ -2275,27 +2278,43 @@ class DynFunctionSpaces(DynCollection):
                                                  self._kernel.arguments):
                 self._var_list.append(get_fs_undf_name(function_space))
 
-    def declarations(self, parent):
+    def _stub_declarations(self, parent):
         '''
-        :param parent: the node in the f2pygen AST to which to add \
-                       declarations.
+        Add function-space-related declarations to a Kernel stub.
+
+        :param parent: the node in the f2pygen AST representing the kernel \
+                       stub to which to add declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
         if self._var_list:
-            # declare ndf and undf for all function spaces
-            if self._kernel:
-                parent.add(DeclGen(parent, datatype="integer", intent="in",
-                                   entity_decls=self._var_list))
-            else:
-                parent.add(DeclGen(parent, datatype="integer",
-                                   entity_decls=self._var_list))
+            # Declare ndf and undf for all function spaces
+            parent.add(DeclGen(parent, datatype="integer", intent="in",
+                               entity_decls=self._var_list))
+
+    def _invoke_declarations(self, parent):
+        '''
+        Add function-space-related declarations to a PSy-layer routine.
+
+        :param parent: the node in the f2pygen AST to which to add \
+                       declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+        from psyclone.f2pygen import DeclGen
+        if self._var_list:
+            # Declare ndf and undf for all function spaces
+            parent.add(DeclGen(parent, datatype="integer",
+                               entity_decls=self._var_list))
 
     def initialise(self, parent):
         '''
         Create the code that initialises function-space quantities.
 
-        :param parent:
+        :param parent: the node in the f2pygen AST representing the PSy-layer \
+                       routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import CommentGen, AssignGen
         # Loop over all unique function spaces used by the kernels in
@@ -2340,7 +2359,7 @@ class DynFunctionSpaces(DynCollection):
 
 class DynFields(DynCollection):
     '''
-    Manages the declarationss for all field arguments required by an Invoke
+    Manages the declarations for all field arguments required by an Invoke
     or Kernel stub.
 
     '''
@@ -2399,10 +2418,18 @@ class DynFields(DynCollection):
 
 class DynProxies(DynCollection):
     '''
+    Handles all proxy-related declarations and initialisation. Unlike other
+    sub-classes of DynCollection, we do not have to handle Kernel-stub
+    generation since Kernels know nothing about proxies.
+
     '''
-    def declarations(self, parent):
+    def _invoke_declarations(self, parent):
         '''
-        :param parent:
+        Insert declarations of all proxy-related quantities into the PSy layer.
+
+        :param parent: the node in the f2pygen AST representing the PSy- \
+                       layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
         from psyclone.f2pygen import TypeDeclGen
@@ -2425,6 +2452,12 @@ class DynProxies(DynCollection):
 
     def initialise(self, parent):
         '''
+        Insert code into the PSy layer to initialise all necessary proxies.
+
+        :param parent: node in the f2pygen AST representing the PSy-layer \
+                       routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import CommentGen, AssignGen
         parent.add(CommentGen(parent, ""))
@@ -2453,8 +2486,8 @@ class DynCellIterators(DynCollection):
     '''
     Handles all entities required by kernels that iterate over cells.
     '''
-    def __init__(self, invoke):
-        super(DynCellIterators, self).__init__(invoke)
+    def __init__(self, kern_or_invoke):
+        super(DynCellIterators, self).__init__(kern_or_invoke)
 
         # Use our namespace manager to create a unique name unless
         # the context and label match and in this case return the
@@ -2477,22 +2510,40 @@ class DynCellIterators(DynCollection):
                 "Cannot create an Invoke with no field/operator arguments")
         self._first_var = first_var
 
-    def declarations(self, parent):
+    def _invoke_declarations(self, parent):
         '''
+        Declare entities required for iterating over cells in the Invoke.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import DeclGen
         # We only need the number of layers in the mesh if we are calling
         # one or more kernels that iterate over cells
-        if self._invoke and not self._dofs_only:
+        if not self._dofs_only:
             parent.add(DeclGen(parent, datatype="integer",
                                entity_decls=[self._nlayers_name]))
-        elif (self._kernel and
-              self._kernel.cma_operation not in ["apply", "matrix-matrix"]):
+
+    def _stub_declarations(self, parent):
+        '''
+        Declare entities required for a kernel stub that iterates over cells.
+
+        :param parent: the f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        from psyclone.f2pygen import DeclGen
+        if self._kernel.cma_operation not in ["apply", "matrix-matrix"]:
             parent.add(DeclGen(parent, datatype="integer", intent="in",
                                entity_decls=[self._nlayers_name]))
 
     def initialise(self, parent):
         '''
+        Look-up the number of vertical layers in the mesh in the PSy layer.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import CommentGen, AssignGen
         if not self._dofs_only:
@@ -2507,12 +2558,15 @@ class DynCellIterators(DynCollection):
 
 class DynScalarArgs(DynCollection):
     '''
-    Scalar kernel arguments appearing in the Invoke.
+    Handles the declaration of scalar kernel arguments appearing in the Invoke.
+
+    :param node: the Kernel stub or Invoke for which to manage the scalar \
+                 arguments.
+    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+                :py:class:`psyclone.dynamo0p3.DynInvoke`
     '''
-    def __init__(self, invoke):
-        '''
-        '''
-        super(DynScalarArgs, self).__init__(invoke)
+    def __init__(self, node):
+        super(DynScalarArgs, self).__init__(node)
 
         if self._invoke:
             self._real_scalars = self._invoke.unique_declns_by_intent(
@@ -2520,6 +2574,7 @@ class DynScalarArgs(DynCollection):
             self._int_scalars = self._invoke.unique_declns_by_intent(
                 "gh_integer")
         else:
+            # We have a kernel stub.
             self._real_scalars = {}
             self._int_scalars = {}
             for intent in FORTRAN_INTENT_NAMES:
@@ -2532,10 +2587,15 @@ class DynScalarArgs(DynCollection):
                     elif arg.type == "gh_integer":
                         self._int_scalars[arg.intent].append(arg.name)
                     else:
-                        raise InternalError("TBD")
+                        raise InternalError("Unrecognised scalar type: "
+                                            "'{0}'".format(arg.type))
 
     def declarations(self, parent):
         '''
+        Insert declarations for all of the scalar arguments.
+
+        :param parent: the f2pygen node in which to insert declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
         '''
         from psyclone.f2pygen import DeclGen
         for intent in FORTRAN_INTENT_NAMES:
@@ -2553,22 +2613,15 @@ class DynScalarArgs(DynCollection):
 
 class DynLMAOperators(DynCollection):
     '''
-    Handles all entities required by kernels that iterate over cells.
+    Handles all entities associated with Local-Matrix-Assembly Operators.
     '''
-    def declarations(self, parent):
+    def _stub_declarations(self, parent):
         '''
-        :param parent:
-        '''
-        if self._invoke:
-            self._invoke_declarations(parent)
-        elif self._kernel:
-            self._kernel_declarations(parent)
-        else:
-            raise InternalError("lma op huh")
+        Declare all LMA-related quantities in a Kernel stub.
 
-    def _kernel_declarations(self, parent):
-        '''
-        TBD
+        :param parent: the f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import DeclGen
         lma_args = psyGen.args_filter(
@@ -2590,7 +2643,11 @@ class DynLMAOperators(DynCollection):
 
     def _invoke_declarations(self, parent):
         '''
-        TBD
+        Declare all LMA-related quantities in a PSy-layer routine.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import TypeDeclGen
 
@@ -2612,7 +2669,11 @@ class DynLMAOperators(DynCollection):
 
 
 class DynCMAOperators(DynCollection):
-    ''' Holds all information on the CMA operators required by an invoke '''
+    '''
+    Holds all information on the Column-Matrix-Assembly operators
+    required by an Invoke or Kernel stub.
+
+    '''
 
     # The scalar parameters that must be passed along with a CMA operator
     # if its 'to' and 'from' spaces are the same
@@ -2623,8 +2684,8 @@ class DynCMAOperators(DynCollection):
     cma_diff_fs_params = ["nrow", "ncol", "bandwidth", "alpha",
                           "beta", "gamma_m", "gamma_p"]
 
-    def __init__(self, invoke):
-        super(DynCMAOperators, self).__init__(invoke)
+    def __init__(self, node):
+        super(DynCMAOperators, self).__init__(node)
 
         # Look at every kernel call and generate a set of
         # the unique CMA operators involved. For each one we create a
@@ -2713,17 +2774,19 @@ class DynCMAOperators(DynCollection):
                                      rhs=self._cma_ops[op_name]["arg"].
                                      proxy_name_indexed+"%"+param))
 
-    def declarations(self, parent):
-        ''' Generate the necessary declarations for all column-wise operators
-        and their associated parameters '''
+    def _invoke_declarations(self, parent):
+        '''
+        Generate the necessary PSy-layer declarations for all column-wise
+        operators and their associated parameters.
+
+        :param parent: the f2pygen node representing the PSy-layer routine.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
         from psyclone.f2pygen import DeclGen, TypeDeclGen
 
         # If we have no CMA operators then we do nothing
         if not self._cma_ops:
-            return
-
-        if self._kernel:
-            self._stub_declarations(parent)
             return
 
         # Add subroutine argument declarations for CMA operators that are
@@ -2765,14 +2828,23 @@ class DynCMAOperators(DynCollection):
 
     def _stub_declarations(self, parent):
         '''
+        Generate all necessary declarations for CMA operators being passed to
+        a Kernel stub.
+
+        :param parent: f2pygen node representing the Kernel stub.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
         from psyclone.f2pygen import DeclGen
 
-        if self._cma_ops:
-            # CMA operators always need the current cell index and the number
-            # of columns in the mesh
-            parent.add(DeclGen(parent, datatype="integer", intent="in",
-                               entity_decls=["cell", "ncell_2d"]))
+        # If we have no CMA operators then we do nothing
+        if not self._cma_ops:
+            return
+
+        # CMA operators always need the current cell index and the number
+        # of columns in the mesh
+        parent.add(DeclGen(parent, datatype="integer", intent="in",
+                           entity_decls=["cell", "ncell_2d"]))
 
         for op_name in self._cma_ops:
             # Declare the associated scalar arguments before the array because
