@@ -35,12 +35,15 @@
 
 
 '''
-File containing a PSyclone transformation script for the Dynamo0p3 API to
-extract the single specified Kernel (there may be multiple instances of
-the same Kernel call in an Invoke).
-This script can be applied via the -s option when running PSyclone:
+An example of PSyclone transformation script to extract the specified
+Kernel after applying PSyclone transformations to the algorithm code in
+gw_mixed_schur_preconditioner_alg_mod.x90. Transformations are applied
+via another transformation script which is imported as a Python module.
 
-$ psyclone -nodm -s extract_single_kernel.py alg_mod.x90
+This script can be applied via the '-s' option when running PSyclone:
+
+$ psyclone -nodm -s extract_kernel_with_transformations.py \
+    gw_mixed_schur_preconditioner_alg_mod.x90
 
 Please note that distributed memory is not supported for code extraction
 (hence the '-nodm' option above).
@@ -48,45 +51,60 @@ Please note that distributed memory is not supported for code extraction
 The user-specified settings are:
 KERNEL_NAME - Name of the Kernel to be extracted as it appears in the
               PSy layer,
-ROOT_NODE_POSITION - relative position of ancestor Node containing the
-                     specified Kernel call in the Invoke Schedule,
-INVOKE_NAME - name of the Invoke containing the Kernel call.
+INVOKE_NAME - Name of the Invoke containing the Kernel call,
+NODE_POSITION - Position of the Node containing the Kernel call.
 
-This information can be returned by the 'find_kernel.py' script.
+Names of Invokes and positions of Nodes containing the Kernel call can
+be found using the 'find_kernel.py' script.
 '''
 
 from __future__ import print_function
-from psyclone.extractor import Extractor
+from psyclone.transformations import ExtractRegionTrans
 
 # Specify the Kernel name as it appears in the Kernel calls
 # (ending with "_code")
 KERNEL_NAME = "dg_matrix_vector_code"
-# Specify the relative position of the root (ancestor) Node of this
-# Kernel call in the Schedule (otherwise all Kernel calls with the
-# same name in an Invoke will be extracted)
-ROOT_NODE_POSITION = 1
-# Specify the name of the Invoke containing the Kernel call. If the
-# name does not correspond to PSy Invoke names in the Algorithm file
-# no Kernel will be extracted. If there is no specified Kernel call
-# in PSy Invokes the 'Extractor.extract_kernel' function will exit
-# with an error.
-INVOKE_NAME = "invoke_5"
+# Specify the name of Invoke containing the Kernel call. If the name
+# does not correspond to Invoke names in the Algorithm file no Kernels
+# will be extracted.
+INVOKE_NAME = "invoke_2"
+# Specify the position of the Node containing the Kernel call. If the
+# specified Node does not contain the Kernel call nothing will be
+# extracted. Please note that if the Invoke contains more than one Kernel
+# call with the same name specifying a wrong position may still extract
+# the Kernel call, albeit not the one planned originally.
+NODE_POSITION = 1
 
 
 def trans(psy):
-    ''' PSyclone transformation script for the Dynamo0p3 API to
-    extract the specified Kernel. '''
+    ''' PSyclone transformation script for the Dynamo0.3 API to
+    extract the specified Kernel after applying transformations. '''
+
+    # Get instance of the ExtractRegionTrans transformation
+    etrans = ExtractRegionTrans()
+
+    # Import transformation script and apply transformations
+    import colouring_and_omp as transformation
+    psy = transformation.trans(psy)
 
     # Get Invoke and its Schedule
     invoke = psy.invokes.get(INVOKE_NAME)
     schedule = invoke.schedule
 
-    # Extract the selected Kernel
-    print("\nExtracting Kernel '" + KERNEL_NAME + "' from "
-          "Invoke '" + invoke.name + "'")
-    schedule = Extractor.extract_kernel(schedule, KERNEL_NAME,
-                                        ROOT_NODE_POSITION)
+    # Loop over Nodes and check whether they contain the call to
+    # the specified Kernel
+    for child in schedule.children:
+        for kernel in child.kern_calls():
+            # Extract the Node with the specified Kernel call from
+            # this Invoke
+            if kernel.name.lower() == KERNEL_NAME and \
+              child.position == NODE_POSITION:
+                print("\nExtracting Node '[" + str(child.position) +
+                      "]' with Kernel call '" + KERNEL_NAME +
+                      "' from Invoke '" + invoke.name + "'\n")
+                schedule, _ = etrans.apply(child)
+
+    # Take a look at the transformed Schedule
     schedule.view()
-    invoke.schedule = schedule
 
     return psy

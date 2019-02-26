@@ -48,11 +48,11 @@ ALG_PATH - Relative path to the Algorithm file from the location
 ALG_NAME - Algorithm file name to be searched for Kernel calls,
 KERNEL_BASENAME - Base name of the Kernel to be searched (without the
                   "_kernel_mod" and file extension),
-OPTIMISE - Switch for applying optimisations to PSy layer before
+TRANSFORM - Switch for applying transformations to PSy layer before
            searching for the Kernel call,
-OPT_SCRIPT - Name of the optimisation script which applies PSyclone
-             transformations to the code. A valid script file must
-             contain a 'trans' function which modifies the PSy object.
+TRANS_SCRIPT - Name of the transformation script which applies PSyclone
+               transformations to the code. A valid script file must
+               contain a 'trans' function which modifies the PSy object.
 '''
 
 from __future__ import print_function
@@ -61,7 +61,7 @@ import importlib
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, Kern
 
-# =============== 1. User-defined settings ================================== #
+# ============= 1. User-defined settings ==================================== #
 #
 # Specify API
 TEST_API = "dynamo0.3"
@@ -72,40 +72,40 @@ ALG_NAME = "gw_mixed_schur_preconditioner_alg_mod.x90"
 # Specify the Kernel base name without the "_kernel_mod" and
 # file extension
 KERNEL_BASENAME = "matrix_vector"
-# Specify whether to apply optimisations before looking for the Kernel call
+# Specify whether to apply transformations before looking for the Kernel call
 # position
-OPTIMISE = False
-# Specify name of the optimisation script
-OPT_SCRIPT = "colouring_and_omp"
+TRANSFORM = False
+# Specify name of the transformation script
+TRANS_SCRIPT = "colouring_and_omp"
 
-# =============== 2. Manage names, paths and optimisation script imports ==== #
+# ============= 2. Manage names, paths and transformation script imports ==== #
 #
 # Formulate the Kernel name as it appears in the Kernel calls
 KERNEL_NAME = KERNEL_BASENAME + "_code"
 # Join path to Algorithm file and its name
 ALG_FILE = os.path.join(os.path.abspath(ALG_PATH), ALG_NAME)
 
-# If optimisation option is enabled, try to import the specified optimisation
+# If transformation option is enabled, try to import the specified
 # transformation script as a Python module
-OPTMOD = None
-if OPTIMISE:
+TRANSMOD = None
+if TRANSFORM:
     try:
-        OPTMOD = importlib.import_module(OPT_SCRIPT)
+        TRANSMOD = importlib.import_module(TRANS_SCRIPT)
     except ImportError:
-        print("\nOptimisation error: did not find the optimisation script '"
-              + OPT_SCRIPT + "'. No optimisations will be applied.")
+        print("\nOptimisation error: did not find the transformation script '"
+              + TRANS_SCRIPT + "'. No transformations will be applied.")
 
-# =============== 3. Search for the Kernel call ============================= #
+# ============= 3. Search for the Kernel call =============================== #
 #
 # Parse the algorithm file and return the Invoke info objects
 _, INVOKE_INFO = parse(ALG_FILE, api=TEST_API)
 # Create the PSy object which contains all Invoke calls
 PSY = PSyFactory(TEST_API, distributed_memory=False).create(INVOKE_INFO)
 
-# Apply optimisations to the PSy object if this option is enabled and
-# the optimisation script was loaded successfully
-if OPTMOD:
-    PSY = OPTMOD.trans(PSY)
+# Apply transformations to the PSy object if this option is enabled and
+# the transformation script was loaded successfully
+if TRANSMOD:
+    PSY = TRANSMOD.trans(PSY)
 
 # Search through all Invokes and their Schedules for the specified Kernel
 # call. Create lists of Invoke names which contain the specified call.

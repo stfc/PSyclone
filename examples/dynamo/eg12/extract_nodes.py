@@ -36,23 +36,23 @@
 
 '''
 An example of PSyclone transformation script to extract a list of Nodes from
-"invoke_7" of the algorithm gw_mixed_schur_preconditioner_alg_mod.x90.
+"invoke_1" of the algorithm gw_mixed_schur_preconditioner_alg_mod.x90.
 
-This script can be applied via the -s option when running PSyclone:
+This script can be applied via the '-s' option when running PSyclone:
 
-$ psyclone -nodm -s extract_nodes.py alg_mod.x90
+$ psyclone -nodm -s extract_nodes.py \
+    gw_mixed_schur_preconditioner_alg_mod.x90
 
 Please note that distributed memory is not supported for code extraction
 (hence the '-nodm' option above).
 
 The user-specified settings are:
-INVOKE_NAME - name of the Invoke containing the Kernel call,
+INVOKE_NAME - name of the Invoke containing the Nodes to extract,
 LBOUND - lower index in the list of Nodes to extract,
 UBOUND - upper index in the list of Nodes to extract.
 
 Please note that ExtractRegionTrans works for consecutive Nodes in an
 Invoke Schedule (the Nodes also need to be children of the same parent).
-
 '''
 
 from __future__ import print_function
@@ -62,15 +62,16 @@ from psyclone.transformations import ExtractRegionTrans
 # Specify the name of the Invoke containing the Nodes to extract.
 # If the Invoke name does not correspond to PSy Invoke names in
 # the Algorithm file no Nodes will be extracted.
-INVOKE_NAME = "invoke_7"
+INVOKE_NAME = "invoke_1"
 # Specify the lower index in the list of Nodes to extract
 LBOUND = 0
-# Specify the upper index in the list of Nodes to extract
-UBOUND = 2
+# Specify the upper index in the list of Nodes to extract (please note
+# that the corresponding Node index is UBOUND - 1)
+UBOUND = 3
 
 
 def trans(psy):
-    ''' PSyclone transformation script for the Dynamo0p3 API to extract
+    ''' PSyclone transformation script for the Dynamo0.3 API to extract
     the specified Nodes in an Invoke. '''
 
     # Get instance of the ExtractRegionTrans transformation
@@ -82,8 +83,10 @@ def trans(psy):
 
     # Apply extract transformation to selected Nodes
     print("\nExtracting Nodes '[" + str(LBOUND) + ":" + str(UBOUND) +
-          "]' from Invoke '" + invoke.name + "'")
+          "]' from Invoke '" + invoke.name + "'\n")
     schedule, _ = etrans.apply(schedule.children[LBOUND:UBOUND])
+
+    # Take a look at the transformed Schedule
     schedule.view()
 
     return psy
