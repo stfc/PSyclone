@@ -296,7 +296,6 @@ class PSy(object):
 
     For example:
 
-    >>> import psyclone
     >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("argspec.F90")
     >>> from psyclone.psyGen import PSyFactory
@@ -1377,9 +1376,9 @@ class Schedule(Node):
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
 
-    >>> from parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("algorithm.f90")
-    >>> from psyGen import PSyFactory
+    >>> from psyclone.psyGen import PSyFactory
     >>> api = "..."
     >>> psy = PSyFactory(api).create(info)
     >>> invokes = psy.invokes

@@ -2023,14 +2023,14 @@ class GOLoopSwapTrans(Transformation):
 
     This transform is used as follows:
 
-     >>> from parse import parse
-     >>> from psyGen import PSyFactory
+     >>> from psyclone.parse.algorithm import parse
+     >>> from psyclone.psyGen import PSyFactory
      >>> ast,invokeInfo=parse("shallow_alg.f90")
      >>> psy=PSyFactory("gocean1.0").create(invokeInfo)
      >>> schedule=psy.invokes.get('invoke_0').schedule
      >>> schedule.view()
      >>>
-     >>> from transformations import GOLoopSwapTrans
+     >>> from psyclone.transformations import GOLoopSwapTrans
      >>> swap=GOLoopSwapTrans()
      >>> new_schedule,memento=swap.apply(schedule.children[0])
      >>> new_schedule.view()

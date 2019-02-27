@@ -30,7 +30,7 @@ algorithm and Kernel files can be checked by setting the
 :func:`parse.parse` function's "line_length" argument to "True".
 ::
 
-    >>> from parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("argspec.F90", line_length=True)
 
 Similarly the "line_length" argument can be set to "True" if calling the
@@ -47,7 +47,7 @@ code has been generated. This is done by an instance of the
 ::
 
     >>> from psyclone.generator import generate
-    >>> from line_length import FortLineLength
+    >>> from psyclone.line_length import FortLineLength
     >>> psy, alg = generate("algspec.f90", line_length=True)
     >>> line_length = FortLineLength()
     >>> psy_str = line_length.process(str(psy))

@@ -94,7 +94,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     For example:
 
-    >>> from psyclone.parser.algorithm import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("alg.f90")
 
     '''
@@ -128,7 +128,7 @@ class Parser(object):
                              False.
     For example:
 
-    >>> from psyclone.parser.algorithm import Parser
+    >>> from psyclone.parse.algorithm import Parser
     >>> parser = Parser()
     >>> ast, info = parser.parse("alg.f90")
 

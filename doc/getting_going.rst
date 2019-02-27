@@ -395,7 +395,7 @@ therefore cannot be compiled stand-alone.
 You can also use the runme.py example to see the interactive
 API in action. This script contains::
 
-   from psyclone.parse import parse
+   from psyclone.parse.algorithm import parse
    from psyclone.psyGen import PSyFactory
    
    # This example uses version 0.1 of the Dynamo API
