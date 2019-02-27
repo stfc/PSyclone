@@ -99,8 +99,8 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     '''
 
-    # Parsing is now encapsulated in the Parser class. However we keep
-    # this function for compatibility.
+    # Parsing is encapsulated in the Parser class. We keep this
+    # function for compatibility.
     my_parser = Parser(api, invoke_name, inf_name, kernel_path, line_length)
     return my_parser.parse(alg_filename)
 
@@ -188,8 +188,7 @@ class Parser(object):
 
         # Find the first program, module, subroutine or function in the
         # parse tree. The assumption here is that the first is the one
-        # that is required.
-        # **************** TODO: Fix this or add issue
+        # that is required. See issue #307.
         container_name = None
         for child in alg_parse_tree.content:
             if isinstance(child, (Main_Program, Module, Subroutine_Subprogram,
@@ -295,7 +294,6 @@ class Parser(object):
         :py:class:`psyclone.parse.algorithm.BuiltInCall`
 
         '''
-
         kernel_name, args = get_kernel(argument, self._alg_filename)
 
         if kernel_name.lower() in self._builtin_name_map.keys():
@@ -425,7 +423,6 @@ class Parser(object):
         another invoke in this algorithm code.
 
         '''
-
         invoke_label = get_invoke_label(argument, self._alg_filename)
         if invoke_label in self._unique_invoke_labels:
             raise ParseError(
@@ -451,7 +448,6 @@ def parse_fp2(filename):
     :raises ParseError: if the file could not be parsed.
 
     '''
-
     parser = ParserFactory().create()
     # We get the directories to search for any Fortran include files from
     # our configuration object.
@@ -568,7 +564,7 @@ def get_kernel(parse_tree, alg_filename):
     kernel.
 
     :param parse_tree: Parse tree of an invoke argument. This \
-    should contains a kernel name and associated arguments.
+    should contain a kernel name and associated arguments.
     :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref`
     :param str alg_filename: The file containing the algorithm code.
     :returns: a 2-tuple with the name of the builtin kernel being \
@@ -585,7 +581,10 @@ def get_kernel(parse_tree, alg_filename):
             "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref) "
             "but found instance of '{0}'.".format(type(parse_tree)))
 
-    # ********** TODO CHECK items size etc.
+    if len(parse_tree.items) != 2:
+        raise InternalError(
+            "algorithm.py:get_kernel: Expected Part_Ref to have 2 children "
+            "but found {0}.".format(len(parse_tree.items)))
 
     kernel_name = str(parse_tree.items[0])
 
@@ -915,13 +914,7 @@ class Arg(object):
     def __init__(self, form, text, varname=None):
         self._form = form
         self._text = text
-        # ***************** IS THIS NEEDED??? ******
-        # Replace any '%' chars in the supplied name with underscores so
-        # as to have a valid Fortran variable name (in the PSy layer).
-        if varname:
-            self._varname = varname.replace("%", "_")
-        else:
-            self._varname = None
+        self._varname = varname
         if form not in Arg.formOptions:
             raise InternalError(
                 "algorithm.py:Alg:__init__: Unknown arg type provided. "

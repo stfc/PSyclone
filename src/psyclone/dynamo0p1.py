@@ -44,6 +44,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
 
+
 class DynDescriptor(Descriptor):
     def __init__(self, access, funcspace, stencil, basis, diff_basis,
                  gauss_quad):

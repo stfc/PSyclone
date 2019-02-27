@@ -98,7 +98,7 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
     # The list of matching files (should have length == 1).
     matches = []
 
-    # If a search path has been specified then look there.  Otherwise
+    # If a search path has been specified then look there. Otherwise
     # look in the directory containing the algorithm definition file.
     if kernel_path:
         # Look for the file in the supplied directory and recursively
@@ -111,7 +111,7 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
                 "does not exist or cannot be read: {0}".format(cdir))
 
         # Recursively search down through the directory tree starting
-        # at the specified path
+        # at the specified path.
         if os.path.exists(cdir):
             for root, _, filenames in os.walk(cdir):
                 for filename in fnmatch.filter(filenames, search_string):

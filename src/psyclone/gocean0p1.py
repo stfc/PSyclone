@@ -52,11 +52,11 @@ class GODescriptor(Descriptor):
     class.
 
     :param str access: Whether the argument is read, written etc.
-    :param str space: Specifies the grid points accessed using this \
+    :param str space: Specifies the grid points accessed with this \
     field within the kernel. Currently the value is limited to 'every' \
     which means that all points are accessed.
     :param str stencil: Specifies any stencil accesses that are \
-    performed on this argument in the kernel. Currently the value is \
+    performed by the kernel on this argument. Currently the value is \
     limited to 'pointwise' which indicates that no stencil access is \
     specified.
 
@@ -71,8 +71,8 @@ class GOKernelType(KernelType):
 
     :param ast: fparser1 parse tree for the parsed kernel meta-data.
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
-    :param str name: The name of the metadata. If not supplied it \
-    defaults to None.
+    :param str name: The name of the metadata. This is an optional \
+    argument which defaults to None.
 
     '''
     def __init__(self, ast, name=None):

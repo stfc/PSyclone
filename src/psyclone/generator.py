@@ -145,7 +145,7 @@ def generate(filename, api="", kernel_path="", script_name=None,
     '''Takes a GungHo algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and GungHo
-    infrastructure. Uses the :func:`parse_algorithm.parse` function to
+    infrastructure. Uses the :func:`parse.algorithm.parse` function to
     parse the algorithm specification, the :class:`psyGen.PSy` class
     to generate the PSy code and the :class:`algGen.Alg` class to
     generate the modified algorithm code.

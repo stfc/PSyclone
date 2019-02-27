@@ -172,6 +172,25 @@ def test_getkernel_invalid_tree():
         in str(excinfo.value)
 
 
+def test_getkernel_invalid_children(monkeypatch):
+    '''Test that if the get_kernel function finds Part_Ref as the top
+    level of the parse tree but this does not have two children then
+    it raises an exception in the expected way. Create the parse_tree
+    in-place rather than running PSyclone. Once created make the
+    parse_tree content invalid using monkeypatch.
+
+    '''
+    from fparser.two.Fortran2003 import Part_Ref
+    from fparser.two.parser import ParserFactory
+    _ = ParserFactory().create(std="f2003")
+    parse_tree = Part_Ref("kernel(arg)")
+    monkeypatch.setattr(parse_tree, "items", [None, None, None])
+    with pytest.raises(InternalError) as excinfo:
+        _ = get_kernel(parse_tree, "dummy.f90")
+    assert "Expected Part_Ref to have 2 children but found 3." \
+        in str(excinfo.value)
+
+
 def test_getkernel_invalid_arg(monkeypatch):
     '''Test that if the get_kernel function does not recognise the type of
     argument inside a kernel passed to it, then it raises an exception
