@@ -141,6 +141,7 @@ class Alg(object):
 
         return self._ast
 
+
 # pylint: disable=too-many-locals
 def adduse(parse_tree, location, name, only=False, funcnames=None):
     '''Add a Fortran 'use' statement to an existing fparser2 parse

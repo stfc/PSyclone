@@ -43,6 +43,9 @@ from psyclone.parse.algorithm import Parser, parse_fp2, get_invoke_label, \
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import InternalError
 
+# pylint: disable=invalid-name
+# pylint: disable=too-few-public-methods
+
 # class parser() tests
 
 
@@ -86,7 +89,7 @@ def test_parser_updateargtomodulemap_invalid():
     tmp = Parser()
     with pytest.raises(InternalError) as excinfo:
         tmp.update_arg_to_module_map("invalid")
-    assert ("Expected a use statement but found instance of") \
+    assert "Expected a use statement but found instance of" \
         in str(excinfo.value)
 
 # function parse_fp2() tests
@@ -99,8 +102,8 @@ def test_parsefp2_invalid_file(tmpdir):
     '''
     with pytest.raises(ParseError) as excinfo:
         _ = parse_fp2(str(tmpdir.join("does_not_exist.f90")))
-    assert ("Failed to parse file") in str(excinfo.value)
-    assert ("Error returned was ' [Errno 2] No such file or directory") \
+    assert "Failed to parse file" in str(excinfo.value)
+    assert "Error returned was ' [Errno 2] No such file or directory" \
         in str(excinfo.value)
 
 
@@ -224,14 +227,14 @@ def test_createvarname_unknown_content():
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name("invalid")
     assert "unrecognised structure" in str(excinfo.value)
-    
+
 # class KernelCall() tests
 
 
 def test_kernelcall_repr():
     '''Test that the __repr__ method in KernelCall() behaves as expected.'''
 
-    class ktype_dummy():
+    class ktype_dummy(object):
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.
@@ -251,7 +254,7 @@ def test_kernelcall_repr():
 def test_builtincall_repr():
     '''Test that the __repr__ method in BuiltInCall() behaves as expected.'''
 
-    class ktype_dummy():
+    class ktype_dummy(object):
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.
@@ -285,7 +288,7 @@ def test_arg_str():
     # without the optional varname argument
     tmp = Arg("literal", "0.0")
     assert str(tmp) == "Arg(form='literal',text='0.0',varname='None')"
-    
+
     # with the optional varname argument
     tmp = Arg("indexed_variable", "my_arg(2)", "my_arg")
     assert str(tmp) == ("Arg(form='indexed_variable',text='my_arg(2)',"

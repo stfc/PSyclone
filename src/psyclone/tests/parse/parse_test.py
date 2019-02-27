@@ -50,6 +50,10 @@ from psyclone.psyGen import InternalError
 TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                          "test_files", "dynamo0p3")
 
+# pylint: disable=invalid-name
+# pylint: disable=protected-access
+
+
 def test_default_api():
     ''' Check that parse() picks up the default API if none is specified
     by the caller. We do this simply by checking that it returns OK
@@ -207,7 +211,7 @@ def test_duplicate_named_invoke():
     with pytest.raises(ParseError) as err:
         _, _ = parse(os.path.join(
             TEST_PATH, "3.3_multi_functions_multi_invokes_name_clash.f90"),
-            api="dynamo0.3")
+                     api="dynamo0.3")
     assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err))
     assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
@@ -220,7 +224,7 @@ def test_duplicate_named_invoke_case():
     with pytest.raises(ParseError) as err:
         _, _ = parse(os.path.join(
             TEST_PATH, "3.4_multi_invoke_name_clash_case_insensitive.f90"),
-            api="dynamo0.3")
+                     api="dynamo0.3")
     assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err))
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
@@ -326,6 +330,7 @@ def test_get_int_array_err1(monkeypatch):
     # routine under test now has the broken tuple of items.
 
     def my_init(self, _):
+        ''' dummy class '''
         self.items = broken_items
     monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
 
@@ -364,6 +369,7 @@ def test_get_int_array_err2(monkeypatch):
     # when we attempt to use fparser2 from within the routine under test
 
     def my_init(self, _):
+        ''' dummy class '''
         self.items = assign.items
     monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
 

@@ -37,13 +37,15 @@
 file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
+import os
 import pytest
 from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
     KernelProcedure, Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath
 from psyclone.parse.utils import ParseError
 from fparser.api import parse
-from fparser import one as fparser1
-import os
+
+# pylint: disable=invalid-name
+
 
 CODE = (
     "module test_mod\n"
@@ -113,9 +115,9 @@ def test_builtinfactory_metadataerror(monkeypatch):
     factory = BuiltInKernelTypeFactory()
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(builtins.keys(), fname, "setval_c")
-    assert ("Failed to parse the meta-data for PSyclone built-ins") \
+    assert "Failed to parse the meta-data for PSyclone built-ins" \
         in str(excinfo.value)
-    
+
 # class Descriptor() test
 
 
@@ -149,7 +151,7 @@ def create_kernelprocedure(code):
                                                  module_parse_tree)
     return KernelProcedure(kernel_type_parse_tree, kernel_type_name,
                            module_parse_tree)
-    
+
 # class KernelProcedure():get_procedure tests
 
 
@@ -161,8 +163,8 @@ def test_kernelprocedure_notfound():
     '''
     with pytest.raises(ParseError) as excinfo:
         my_code = CODE.replace("=> test_code", "=> non_existant_code")
-        tmp = create_kernelprocedure(my_code)
-    assert ("Kernel subroutine 'non_existant_code' not found.") \
+        _ = create_kernelprocedure(my_code)
+    assert "Kernel subroutine 'non_existant_code' not found." \
         in str(excinfo.value)
 
 # class KernelProcedure() tests
@@ -265,6 +267,6 @@ def test_kerneltype_repr():
     '''Test that the __repr__ method in KernelType() behaves as expected.'''
 
     parse_tree = parse(CODE)
-                
+
     tmp = KernelType(parse_tree)
     assert repr(tmp) == "KernelType(test_type, cells)"
