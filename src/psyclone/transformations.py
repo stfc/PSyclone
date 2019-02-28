@@ -2498,7 +2498,6 @@ class ACCEnterDataTrans(Transformation):
         from psyclone.psyGen import Schedule, Directive, \
             ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOSchedule
-        from psyclone.nemo import NemoSchedule
 
         super(ACCEnterDataTrans, self)._validate(sched)
 
@@ -2507,7 +2506,7 @@ class ACCEnterDataTrans(Transformation):
                                       "directive to something that is "
                                       "not a Schedule")
 
-        if not isinstance(sched, (GOSchedule, NemoSchedule)):
+        if not isinstance(sched, GOSchedule):
             raise NotImplementedError(
                 "ACCEnterDataTrans: ACCEnterDataDirective not implemented for "
                 "a schedule of type {0}".format(type(sched)))
