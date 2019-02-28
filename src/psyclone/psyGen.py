@@ -1672,7 +1672,7 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
-    def add_region(self, start_text, end_text=None):
+    def add_region(self, start_text, end_text=None, data_movement=None):
         # TODO should this functionality be in the update() method of
         # the base class and if so, how do we deal with specifying
         # "default(present)" or "copyin/out" clauses?
@@ -1687,6 +1687,7 @@ class ACCDirective(Directive):
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
+        valid_data_movement = ["present", "analyse"]
 
         # Ensure the fparser2 AST is up-to-date for all of our children
         Node.update(self)
@@ -1710,10 +1711,31 @@ class ACCDirective(Directive):
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
                                        self.children[0]._ast)
-
         if end_text:
-            ast_end_index = object_index(fp_parent.content,
-                                         self.children[-1]._ast)
+            try:
+                ast_end_index = object_index(fp_parent.content,
+                                             self.children[-1]._ast_end)
+            except AttributeError:
+                ast_end_index = object_index(fp_parent.content,
+                                             self.children[-1]._ast)
+            # In the fparser2 AST, a directive is just a comment and does not
+            # have children. This means we can end up inserting the 'end data'
+            # directive between a previous directive and the loop to which it
+            # applies.
+            # Check whether the last node in the PSyIR for this kernels region
+            # has children and, if so, whether their corresponding entries in
+            # the fparser2 AST are siblings of this directive and come after
+            # it in the AST.
+            for child in self.children[-1].children:
+                try:
+                    idx = fp_parent.content.index(child._ast)
+                    if idx > ast_end_index:
+                        ast_end_index = idx
+                except ValueError:
+                    # The fparser2 AST for this child is not a sibling of
+                    # this directive.
+                    pass
+
             directive = Comment(FortranStringReader(end_text,
                                                     ignore_comments=False))
             fp_parent.content.insert(ast_end_index+1, directive)
@@ -1723,7 +1745,27 @@ class ACCDirective(Directive):
             directive._parent = fp_parent
             self._ast_end = directive
 
-        directive = Comment(FortranStringReader(start_text,
+        text = start_text
+        if data_movement:
+            if data_movement == "analyse":
+                # Identify the inputs and outputs to the region (variables that
+                # are read and written).
+                processor = Fparser2ASTProcessor()
+                readers, writers = processor.get_inputs_outputs(
+                    fp_parent.content[ast_start_index:ast_end_index+1])
+
+                if readers:
+                    text += " COPYIN({0})".format(",".join(readers))
+                if writers:
+                    text += " COPYOUT({0})".format(",".join(writers))
+            elif data_movement == "present":
+                text += " DEFAULT(PRESENT)"
+            else:
+                raise InternalError(
+                    "add_region: the optional data_movement argument must be "
+                    "one of {0} but got '{1}'".format(valid_data_movement,
+                                                      data_movement))
+        directive = Comment(FortranStringReader(text,
                                                 ignore_comments=False))
         fp_parent.content.insert(ast_start_index, directive)
         # Retro-fit parent information. # TODO remove/modify this once
@@ -4620,7 +4662,7 @@ class IfClause(IfBlock):
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
 
-class ACCKernelsDirective(ACCDirective, Fparser2ASTProcessor):
+class ACCKernelsDirective(ACCDirective):
     '''
     Class representing the !$ACC KERNELS directive in the PSyIR.
 
@@ -4671,17 +4713,9 @@ class ACCKernelsDirective(ACCDirective, Fparser2ASTProcessor):
         :raises GenerationError: if the existing AST doesn't have the \
         correct structure to permit the insertion of the directive.
         '''
-        readers, writers = self.get_inputs_outputs()
-
-        text = ("!$ACC KERNELS")
-        if self._default_present:
-            text += " DEFAULT(PRESENT)"
-        else:
-            if writers:
-                text += " COPYIN({0})".format(" ".join("TBD"))
-
-        self.add_region(start_text=text, end_text="!$ACC END KERNELS",
-                        default_present=self._default_present)
+        self.add_region(start_text="!$ACC KERNELS",
+                        end_text="!$ACC END KERNELS",
+                        data_movement="present")
 
 
 class ACCDataDirective(ACCDirective):
@@ -4722,79 +4756,10 @@ class ACCDataDirective(ACCDirective):
                                  of the OpenACC directive.
 
         '''
-        from fparser.common.readfortran import FortranStringReader
-        from fparser.two.Fortran2003 import Comment
-
-        self.add_region()
-        return # TODO
-
-        # Ensure the fparser2 AST is up-to-date for all of our children
-        Node.update(self)
-
-        # Check that we haven't already been called
-        if self._ast:
-            return
-
-        # Find the level in the fparser2 AST that has the current node
-        # as 'content' (we have to do this because nodes such as IF,
-        # ELSE IF etc. do not have 'content').
-        new_parent = self.parent
-        while not hasattr(new_parent._ast, "content"):
-            new_parent = new_parent.parent
-        fp_parent = new_parent._ast
-
-        # TODO: We should have an _ast_start and _ast_end but in the
-        # meantime we recurse down if the child is a directive.
-        ast_start_index = object_index(fp_parent.content,
-                                       self.children[0]._ast)
-        try:
-            ast_end_index = object_index(fp_parent.content,
-                                         self.children[-1]._ast_end)
-        except AttributeError:
-            ast_end_index = object_index(fp_parent.content,
-                                         self.children[-1]._ast)
-
-        # Identify the inputs and outputs to the region (variables that
-        # are read and written).
-        processor = Fparser2ASTProcessor()
-        readers, writers = processor.get_inputs_outputs(
-            fp_parent.content[ast_start_index:ast_end_index+1])
-
-        # In the fparser2 AST, a directive is just a comment and does not
-        # have children. This means we can end up inserting the 'end data'
-        # directive between a previous directive and the loop to which it
-        # applies.
-        # Check whether the last node in the PSyIR for this kernels region
-        # has children and, if so, whether their corresponding entries in
-        # the fparser2 AST are siblings of this directive and come after
-        # it in the AST.
-        for child in self.children[-1].children:
-            try:
-                idx = fp_parent.content.index(child._ast)
-                if idx > ast_end_index:
-                    ast_end_index = idx
-            except ValueError:
-                # The fparser2 AST for this child is not a sibling of
-                # this directive.
-                pass
-
-        text = ("!$ACC END DATA")
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        fp_parent.content.insert(ast_end_index+1, directive)
-        self._ast_end = directive
-
-        text = ("!$ACC DATA")
-        if readers:
-            text += " COPYIN({0})".format(",".join(readers))
-        if writers:
-            text += " COPYOUT({0})".format(",".join(writers))
-        directive = Comment(FortranStringReader(text,
-                                                ignore_comments=False))
-        fp_parent.content.insert(ast_start_index, directive)
-
-        self._ast = directive
-        self._ast_start = directive
+        self.add_region(start_text="!$ACC DATA",
+                        end_text="!$ACC END DATA",
+                        data_movement="analyse")
+        return
 
 
 class Fparser2ASTProcessor(object):
