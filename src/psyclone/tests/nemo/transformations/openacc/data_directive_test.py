@@ -77,6 +77,22 @@ def test_explicit():
             "END PROGRAM explicit_do") in gen_code
 
 
+def test_data_no_gen_code(parser):
+    ''' Check that the ACCDataDirective.gen_code() method raises the
+    expected error. '''
+    from psyclone.psyGen import InternalError
+    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children[0:2])
+    with pytest.raises(InternalError) as err:
+        schedule.children[0].gen_code(schedule)
+    assert ("ACCDataDirective.gen_code should not have "
+            "been called" in str(err))
+
+
 def test_data_view(capsys):
     ''' Check that the ACCDataDirective.view() method works as expected. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
