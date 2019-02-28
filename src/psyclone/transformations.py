@@ -2459,16 +2459,12 @@ class ACCEnterDataTrans(Transformation):
                 :py:class:`psyclone.undoredo.Memento`)
         '''
         from psyclone.gocean1p0 import GOSchedule
-        from psyclone.nemo import NemoSchedule
 
         # Ensure that the proposed transformation is valid
         self._validate(sched)
 
         if isinstance(sched, GOSchedule):
             from psyclone.gocean1p0 import GOACCEnterDataDirective as \
-                AccEnterDataDir
-        elif isinstance(sched, NemoSchedule):
-            from psyclone.nemo import NemoACCEnterDataDirective as \
                 AccEnterDataDir
         else:
             # Should not get here provided that _validate() has done its job

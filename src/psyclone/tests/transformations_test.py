@@ -70,6 +70,19 @@ def test_accenterdata():
     assert str(acct) == "Adds an OpenACC 'enter data' directive"
 
 
+def test_accenterdata_internalerr(monkeypatch):
+    ''' Check that the ACCEnterDataTrans.apply() method raises an internal
+    error if the _validate method fails to throw out an invalid type of
+    Schedule. '''
+    from psyclone.transformations import ACCEnterDataTrans
+    from psyclone.psyGen import InternalError
+    acct = ACCEnterDataTrans()
+    monkeypatch.setattr(acct, "_validate", lambda sched: None)
+    with pytest.raises(InternalError) as err:
+        _, _ = acct.apply("Not a schedule")
+    assert "validate() has not rejected an (unsupported) schedule" in str(err)
+  
+
 def test_omploop_no_collapse():
     ''' Check that the OMPLoopTrans.directive() method rejects the
     collapse argument '''
