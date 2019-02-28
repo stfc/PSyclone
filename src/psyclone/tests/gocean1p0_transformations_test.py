@@ -41,6 +41,7 @@ from __future__ import absolute_import
 import os
 import re
 import pytest
+from gocean1p0_build import GOcean1p0Build
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
@@ -69,7 +70,7 @@ def test_const_loop_bounds_not_schedule():
         _, _ = cbtrans.apply(schedule.children[0])
 
 
-def test_const_loop_bounds_toggle():
+def test_const_loop_bounds_toggle(tmpdir):
     ''' Check that we can toggle constant loop bounds on and off and
     that the default behaviour is "on" '''
     psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
@@ -110,6 +111,7 @@ def test_const_loop_bounds_toggle():
     assert "DO i=cv_fld%internal%xstart,cv_fld%internal%xstop" in gen
     assert "DO j=p_fld%whole%ystart,p_fld%whole%ystop" in gen
     assert "DO i=p_fld%whole%xstart,p_fld%whole%xstop" in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_const_loop_bounds_invalid_offset():
@@ -167,7 +169,7 @@ def test_loop_fuse_unexpected_error():
     assert 'Unexpected exception' in str(excinfo.value)
 
 
-def test_omp_parallel_loop():
+def test_omp_parallel_loop(tmpdir):
     '''Test that we can generate an OMP PARALLEL DO correctly,
     independent of whether or not we are generating constant loop bounds '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -206,6 +208,7 @@ def test_omp_parallel_loop():
         "      end do \n"
         "      !$omp end parallel do")
     assert expected in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_with_wrong_arg_type():
@@ -220,7 +223,7 @@ def test_omp_region_with_wrong_arg_type():
         _, _ = ompr.apply(invoke)
 
 
-def test_omp_region_with_single_loop():
+def test_omp_region_with_single_loop(tmpdir):
     ''' Test that we can pass the OpenMP PARALLEL region transformation
         a single node in a schedule '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -267,9 +270,10 @@ def test_omp_region_with_single_loop():
             call_count += 1
 
     assert call_count == 1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_with_slice():
+def test_omp_region_with_slice(tmpdir):
     ''' Test that we can pass the OpenMP PARALLEL region transformation
     a list of nodes specified as a slice '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -297,6 +301,7 @@ def test_omp_region_with_slice():
             call_count += 1
 
     assert call_count == 2
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_with_slice_change_order():
@@ -334,7 +339,7 @@ def test_omp_region_with_slice_change_order():
     assert "Children are not consecutive children of one parent" in str(err)
 
 
-def test_omp_region_no_slice():
+def test_omp_region_no_slice(tmpdir):
     ''' Test that we can pass the OpenMP PARALLEL region transformation
     a list of nodes specified as node.children '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -359,9 +364,10 @@ def test_omp_region_no_slice():
         if ' call ' in line and within_omp_region:
             call_count += 1
     assert call_count == 3
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_no_slice_no_const_bounds():
+def test_omp_region_no_slice_no_const_bounds(tmpdir):
     ''' Test that we generate the correct code when we apply an OpenMP
     PARALLEL region transformation to a list of nodes when the Schedule
     has been transformed to use loop-bound look-ups '''
@@ -390,9 +396,10 @@ def test_omp_region_no_slice_no_const_bounds():
         if ' call ' in line and within_omp_region:
             call_count += 1
     assert call_count == 3
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_retains_kernel_order1():
+def test_omp_region_retains_kernel_order1(tmpdir):
     ''' Test that applying the OpenMP PARALLEL region transformation
     to a sub-set of nodes (last 2 of three) does not change their
     ordering '''
@@ -444,9 +451,10 @@ def test_omp_region_retains_kernel_order1():
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
     assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_retains_kernel_order2():
+def test_omp_region_retains_kernel_order2(tmpdir):
     ''' Test that applying the OpenMP PARALLEL region transformation
     to a sub-set of nodes (first 2 of 3) does not change their
     ordering '''
@@ -478,9 +486,10 @@ def test_omp_region_retains_kernel_order2():
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
     assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_retains_kernel_order3():
+def test_omp_region_retains_kernel_order3(tmpdir):
     ''' Test that applying the OpenMP PARALLEL region transformation
     to a sub-set of nodes (middle 1 of 3) does not change their
     ordering '''
@@ -517,9 +526,10 @@ def test_omp_region_retains_kernel_order3():
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
     assert cu_idx < cv_idx and cv_idx < ts_idx
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_before_loops_trans():
+def test_omp_region_before_loops_trans(tmpdir):
     ''' Test of the OpenMP PARALLEL region transformation where
     we do the region transformation before the loop
     transformations. '''
@@ -559,9 +569,10 @@ def test_omp_region_before_loops_trans():
     assert omp_region_idx != -1
     assert omp_do_idx != -1
     assert omp_do_idx - omp_region_idx == 1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_after_loops_trans():
+def test_omp_region_after_loops_trans(tmpdir):
     ''' Test of the OpenMP PARALLEL region transformation where we
     do the loop transformations before the region transformation '''
     psy, invoke = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
@@ -599,9 +610,10 @@ def test_omp_region_after_loops_trans():
     assert omp_region_idx != -1
     assert omp_do_idx != -1
     assert omp_do_idx - omp_region_idx == 1
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_commutes_with_loop_trans():
+def test_omp_region_commutes_with_loop_trans(tmpdir):
     ''' Test that the OpenMP PARALLEL region and (orphan) loop
     transformations commute - i.e. we get the same result
     independent of the order in which they are applied. '''
@@ -651,9 +663,10 @@ def test_omp_region_commutes_with_loop_trans():
     region_before_loop_gen = str(psy.gen)
 
     assert region_before_loop_gen == loop_before_region_gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_region_commutes_with_loop_trans_bounds_lookup():
+def test_omp_region_commutes_with_loop_trans_bounds_lookup(tmpdir):
     ''' Test that the OpenMP PARALLEL region and (orphan) loop
     transformations commute after constant bounds have been
     switched off - i.e. we get the same result
@@ -712,6 +725,7 @@ def test_omp_region_commutes_with_loop_trans_bounds_lookup():
     region_before_loop_gen = str(psy.gen)
 
     assert region_before_loop_gen == loop_before_region_gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_nodes_not_children_of_same_parent():
@@ -942,7 +956,7 @@ def test_omp_parallel_do_around_parallel_region():
 
 @pytest.mark.xfail(reason="OMP Region with children of different types "
                    "not yet implemented")
-def test_omp_region_with_children_of_different_types():
+def test_omp_region_with_children_of_different_types(tmpdir):
     ''' Test that we can generate code if we have an
     OpenMP parallel region enclosing children of different types. '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -962,9 +976,10 @@ def test_omp_region_with_children_of_different_types():
 
     # Attempt to generate the transformed code
     _ = psy.gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_schedule_default_static():
+def test_omp_schedule_default_static(tmpdir):
     ''' Test that if no OMP schedule is specified then we default
     to "static" '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -987,9 +1002,10 @@ def test_omp_schedule_default_static():
     gen = str(psy.gen)
 
     assert '!$omp do schedule(static)' in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_do_schedule_runtime():
+def test_omp_do_schedule_runtime(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "runtime" '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1011,9 +1027,10 @@ def test_omp_do_schedule_runtime():
     gen = str(psy.gen)
 
     assert '!$omp do schedule(runtime)' in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_do_schedule_dynamic():
+def test_omp_do_schedule_dynamic(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "dynamic" '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1035,9 +1052,10 @@ def test_omp_do_schedule_dynamic():
     gen = str(psy.gen)
 
     assert '!$omp do schedule(dynamic)' in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_omp_do_schedule_guided():
+def test_omp_do_schedule_guided(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "guided" '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1059,6 +1077,7 @@ def test_omp_do_schedule_guided():
     gen = str(psy.gen)
 
     assert '!$omp do schedule(guided)' in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_omp_schedule_guided_with_empty_chunk():
@@ -1068,7 +1087,7 @@ def test_omp_schedule_guided_with_empty_chunk():
         _ = GOceanOMPLoopTrans(omp_schedule="guided, ")
 
 
-def test_omp_schedule_guided_with_chunk():
+def test_omp_schedule_guided_with_chunk(tmpdir):
     ''' Test that we can specify the schedule of an OMP do as
     "guided,n" where n is some chunk size'''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1090,6 +1109,7 @@ def test_omp_schedule_guided_with_chunk():
     gen = str(psy.gen)
 
     assert '!$omp do schedule(guided,10)' in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_omp_invalid_schedule():
@@ -1106,7 +1126,7 @@ def test_omp_schedule_auto_with_chunk():
         _ = GOceanOMPLoopTrans(omp_schedule="auto,4")
 
 
-def test_module_noinline_default():
+def test_module_noinline_default(tmpdir):
     ''' Test that by default there is no module inlining '''
     psy, _ = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     gen = str(psy.gen)
@@ -1115,9 +1135,10 @@ def test_module_noinline_default():
     # check that the associated use exists (as this is removed when
     # inlining)
     assert 'USE compute_cu_mod, ONLY: compute_cu_code' in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_module_inline():
+def test_module_inline(tmpdir):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module by directly setting inline to
     true for the specified kernel. '''
@@ -1133,9 +1154,10 @@ def test_module_inline():
     assert expected in gen
     # check that the associated use no longer exists
     assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_module_inline_with_transformation():
+def test_module_inline_with_transformation(tmpdir):
     ''' Test that we can succesfully inline a basic kernel subroutine
     routine into the PSy layer module using a transformation '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1148,9 +1170,10 @@ def test_module_inline_with_transformation():
     assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
     # check that the associated use no longer exists
     assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_module_no_inline_with_transformation():
+def test_module_no_inline_with_transformation(tmpdir):
     ''' Test that we can switch off the inlining of a kernel routine
     into the PSy layer module using a transformation. Relies on the
     test_module_inline() test being successful to be a valid test. '''
@@ -1168,6 +1191,7 @@ def test_module_no_inline_with_transformation():
     # check that the associated use exists (as this is removed when
     # inlining)
     assert 'USE compute_cu_mod, ONLY: compute_cu_code' in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 # we can not test if someone accidentally sets module_inline to True
@@ -1223,10 +1247,28 @@ def test_module_inline_same_kernel():
     # check that the subroutine has only been inlined once
     count = count_lines(psy.gen, "SUBROUTINE time_smooth_code(")
     assert count == 1, "Expecting subroutine to be inlined once"
+    # No compilation test here, see test_module _inline_and_compile
+
+
+@pytest.mark.xfail(reason="Inline function uses a module variable")
+def test_module_inline_and_compile(tmpdir):
+    '''ATM incorrect code is produced if a kernel is inlined, that
+    uses variable from the original module. Proper solution would
+    likely be to add a 'use' statement to the inline kernel (which
+    again only works if the module variable is accessible outside
+    of the module)
+    '''
+    psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
+                             idx=0)
+    schedule = invoke.schedule
+    kern_call = schedule.children[0].children[0].children[0]
+    inline_trans = KernelModuleInlineTrans()
+    _, _ = inline_trans.apply(kern_call)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_module_inline_warning_no_change():
-    ''' test of the warning clause in the Kernel transformation when
+    '''Test of the warning clause in the Kernel transformation when
     no change is made to the inlining of a Kernel i.e. the inlining
     request is already what is happening. No warning is currently made
     as we have not added logging to the code but this test covers the
@@ -1238,7 +1280,7 @@ def test_module_inline_warning_no_change():
     _, _ = inline_trans.apply(kern_call, inline=False)
 
 
-def test_loop_swap_correct():
+def ctest_loop_swap_correct(tmpdir):
     ''' Testing correct loop swapping transform. Esp. try first, middle, and
     last invokes to make sure the inserting of the inner loop happens at
     the right place.'''
@@ -1295,7 +1337,7 @@ kern call: bc_solid_u_code'''
 Loop[]: j= lower=1,jstop,1
 kern call: bc_solid_v_code'''
     assert expected_schedule in schedule_str
-    return
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_go_loop_swap_errors():
@@ -1386,6 +1428,8 @@ def test_ocl_apply():
 
     gen = str(psy.gen)
     assert "USE clfortran" in gen
+    # ATM no support for opencl compilation
+    # assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_acc_parallel_not_a_loop():
@@ -1402,7 +1446,7 @@ def test_acc_parallel_not_a_loop():
         _, _ = acct.apply(schedule)
 
 
-def test_acc_parallel_trans():
+def test_acc_parallel_trans(tmpdir):
     ''' Test that we can apply an OpenACC parallel transformation
     to a loop '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1438,6 +1482,7 @@ def test_acc_parallel_trans():
     assert acc_idx != -1 and acc_end_idx != -1
     assert acc_end_idx > acc_idx
     assert do_idx == (acc_idx + 1)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_acc_incorrect_parallel_trans():
@@ -1487,7 +1532,7 @@ def test_acc_data_not_a_schedule():
             "directive but in invoke_0 this is not the case." in str(err))
 
 
-def test_acc_data_copyin():
+def test_acc_data_copyin(tmpdir):
     ''' Test that we correctly generate the arguments to the copyin
     clause of an OpenACC data region '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1522,9 +1567,10 @@ def test_acc_data_copyin():
         assert "{0}%data_on_device = .true.".format(obj) in code
     assert ("        uold_fld%data_on_device = .true.\n"
             "      END IF \n" in code)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_data_grid_copyin():
+def test_acc_data_grid_copyin(tmpdir):
     ''' Test that we correctly generate the arguments to the copyin
     clause of an OpenACC data region when grid properties are required '''
     psy, invoke = get_invoke("single_invoke_grid_props.f90", API, idx=0)
@@ -1557,9 +1603,10 @@ def test_acc_data_grid_copyin():
         assert "{0}%data_on_device = .true.".format(obj) in code
     # Check that we have no acc_update_device calls
     assert "CALL acc_update_device" not in code
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_rscalar_update():
+def test_acc_rscalar_update(tmpdir):
     '''
     Check that we generate code to update any real scalar kernel arguments on
     the device.
@@ -1590,9 +1637,10 @@ def test_acc_rscalar_update():
       !$acc parallel default(present)
       DO j=1,jstop+1'''
     assert expected in code
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_iscalar_update():
+def test_acc_iscalar_update(tmpdir):
     '''
     Check that we generate code to update any integer scalar kernel arguments
     on the device.
@@ -1623,9 +1671,10 @@ def test_acc_iscalar_update():
       !$acc parallel default(present)
       DO j=1,jstop+1'''
     assert expected in code
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_update_two_scalars():
+def test_acc_update_two_scalars(tmpdir):
     '''
     Check that we generate two separate acc_update_device() calls when
     we have two scalars.
@@ -1659,9 +1708,10 @@ def test_acc_update_two_scalars():
       !$acc parallel default(present)
       DO j=1,jstop+1'''
     assert expected in code
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_data_parallel_commute():
+def test_acc_data_parallel_commute(tmpdir):
     '''Test that we can apply the OpenACC parallel and data
     transformations in either order'''
     accpt = ACCParallelTrans()
@@ -1698,6 +1748,7 @@ def test_acc_data_parallel_commute():
     code2 = str(psy.gen)
 
     assert code1 == code2
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_accdata_duplicate():
@@ -1722,7 +1773,7 @@ def test_accdata_duplicate():
         _, _ = accdt.apply(new_sched)
 
 
-def test_accloop():
+def test_accloop(tmpdir):
     ''' Tests that we can apply a '!$acc loop' directive to a loop '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
@@ -1772,9 +1823,10 @@ def test_accloop():
     assert ("END DO \n"
             "      !$acc loop independent\n"
             "      DO j=2,jstop+1" in gen)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_collapse():
+def test_acc_collapse(tmpdir):
     ''' Tests for the collapse clause to a loop directive '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
@@ -1819,9 +1871,10 @@ def test_acc_collapse():
             "        DO i=2,istop+1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n" in gen)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_indep(capsys):
+def test_acc_indep(capsys, tmpdir):
     ''' Tests for the independent clause to a loop directive. '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
@@ -1844,3 +1897,4 @@ def test_acc_indep(capsys):
     gen = str(psy.gen)
     assert "!$acc loop\n      DO j=2,jstop" in gen
     assert "!$acc loop independent\n      DO j=2,jstop+1" in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
