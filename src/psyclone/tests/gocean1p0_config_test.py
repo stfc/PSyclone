@@ -234,3 +234,9 @@ def test_valid_config_files():
         END DO 
       END DO '''   # nopep8
     assert new_loop3 in gen
+
+    # Note that this file can not be compiled, since the new iteration space
+    # is not defined in any fortran file, so the line:
+    # integer :: ITERATES_OVER = internal_ns_halo
+    # causes the compilation to abort.
+    # assert GOcean1p0Build(tmpdir).code_compiles(psy)
