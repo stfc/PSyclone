@@ -1728,7 +1728,7 @@ class ACCDirective(Directive):
             # it in the AST.
             for child in self.children[-1].children:
                 try:
-                    idx = fp_parent.content.index(child._ast)
+                    idx = object_index(fp_parent.content, child._ast)
                     if idx > ast_end_index:
                         ast_end_index = idx
                 except ValueError:
@@ -4751,15 +4751,10 @@ class ACCDataDirective(ACCDirective):
         Updates the fparser2 AST by inserting nodes for this OpenACC Data
         directive.
 
-        :raises GenerationError: if the existing AST doesn't have the \
-                                 correct structure to permit the insertion \
-                                 of the OpenACC directive.
-
         '''
         self.add_region(start_text="!$ACC DATA",
                         end_text="!$ACC END DATA",
                         data_movement="analyse")
-        return
 
 
 class Fparser2ASTProcessor(object):

@@ -44,7 +44,7 @@ from __future__ import print_function, absolute_import
 import copy
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, \
     Loop, Kern, InternalError, IfBlock, IfClause, \
-    NameSpaceFactory, Fparser2ASTProcessor, ACCEnterDataDirective, \
+    NameSpaceFactory, Fparser2ASTProcessor, \
     SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
