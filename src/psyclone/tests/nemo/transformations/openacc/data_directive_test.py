@@ -43,7 +43,7 @@ import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.parse import parse
-from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyGen import PSyFactory, TransInfo, InternalError
 from psyclone.transformations import TransformationError
 
 
@@ -80,7 +80,6 @@ def test_explicit():
 def test_data_no_gen_code(parser):
     ''' Check that the ACCDataDirective.gen_code() method raises the
     expected error. '''
-    from psyclone.psyGen import InternalError
     _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
@@ -91,6 +90,22 @@ def test_data_no_gen_code(parser):
         schedule.children[0].gen_code(schedule)
     assert ("ACCDataDirective.gen_code should not have "
             "been called" in str(err))
+
+
+def test_add_region_invalid_data_move():
+    ''' Check that add_region() raises the expected error if an invalid
+    value for data_movement is supplied. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    schedule = psy.invokes.get('explicit_do').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children)
+    datadir = schedule.children[0]
+    with pytest.raises(InternalError) as err:
+        datadir.add_region("DATA", "END DATA", data_movement="invalid")
+    assert ("optional data_movement argument must be one of ['present', "
+            "'analyse'] but got 'invalid'" in str(err))
 
 
 def test_data_view(capsys):

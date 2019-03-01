@@ -1673,17 +1673,23 @@ class ACCDirective(Directive):
         return "ACC_directive_" + str(self.abs_position)
 
     def add_region(self, start_text, end_text=None, data_movement=None):
-        # TODO should this functionality be in the update() method of
-        # the base class and if so, how do we deal with specifying
-        # "default(present)" or "copyin/out" clauses?
         '''
         Modifies the underlying fparser2 parse tree to include a subset
         of nodes within a region. (e.g. a 'kernels' or 'data' region.)
 
         :param str start_text: the directive text to insert at the \
-                               beginning of the region.
+                               beginning of the region. "!$ACC " is \
+                               prepended if it is not already present.
         :param str end_text: the directive text to insert at the end of \
-                             the region (or None).
+                             the region (or None). "!$ACC " is \
+                             prepended if it is not already present.
+        :param str data_movement: whether to include data-movement clauses and\
+                                  if so, whether to determine them by analysing\
+                                  the code within the region ("analyse") or to \
+                                  specify 'default(present)' ("present").
+
+        :raises InternalError: if data_movement is not None and not one of \
+                               "present" or "analyse".
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
@@ -1719,7 +1725,11 @@ class ACCDirective(Directive):
                 ast_end_index = object_index(fp_parent.content,
                                              self.children[-1]._ast)
 
-            directive = Comment(FortranStringReader(end_text,
+            if not end_text.upper().startswith("!$ACC"):
+                text = "!$ACC " + end_text
+            else:
+                text = end_text
+            directive = Comment(FortranStringReader(text,
                                                     ignore_comments=False))
             fp_parent.content.insert(ast_end_index+1, directive)
             # Retro-fit parent information. # TODO remove/modify this once
@@ -1730,7 +1740,10 @@ class ACCDirective(Directive):
             # belonging to this PSyIR node.
             self._ast_end = directive
 
-        text = start_text
+        if not start_text.upper().startswith("!$ACC"):
+            text = "!$ACC " + start_text
+        else:
+            text = start_text
         if data_movement:
             if data_movement == "analyse":
                 # Identify the inputs and outputs to the region (variables that
@@ -4694,9 +4707,6 @@ class ACCKernelsDirective(ACCDirective):
         '''
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
-
-        :raises GenerationError: if the existing AST doesn't have the \
-        correct structure to permit the insertion of the directive.
         '''
         self.add_region(start_text="!$ACC KERNELS",
                         end_text="!$ACC END KERNELS",
