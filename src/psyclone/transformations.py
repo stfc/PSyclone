@@ -64,13 +64,21 @@ class TransformationError(Exception):
         return repr(self.value)
 
 
-# =============================================================================
+@six.add_metaclass(abc.ABCMeta)
 class RegionTrans(Transformation):
-    '''This class is a base class for all transforms that act on list of
-    nodes. It gives access to a _validate function that makes sure that
-    the nodes in the list are in the same order as in the original AST,
-    no node is duplicated, and that all nodes have the same parent.
     '''
+    This abstract class is a base class for all transformations that act
+    on a list of nodes. It gives access to a _validate function that
+    makes sure that the nodes in the list are in the same order as in
+    the original AST, no node is duplicated, and that all nodes have
+    the same parent. We also check that all nodes to be enclosed are
+    valid for this transformation - this requires that the sub-class
+    populate the `valid_node_types` tuple.
+
+    '''
+    # The types of Node that we support within this region. Must be
+    # populated by sub-class.
+    valid_node_types = ()
 
     # Avoid pylint warning about abstract functions (apply, name) not
     # overwritten:
@@ -79,12 +87,14 @@ class RegionTrans(Transformation):
     def _validate(self, node_list):
         '''Test if the nodes in node_list are in the original order.
 
-        :param list node_list: List of nodes.
-        :raises TransformationError: If the nodes in the list are not\
-                in the original order in which they are in the AST,\
+        :param list node_list: List of PSyIR nodes.
+        :raises TransformationError: If the nodes in the list are not \
+                in the original order in which they are in the AST, \
                 a node is duplicated or the nodes have different parents.
-        '''
+        :raises TransformationError: if any of the nodes to be enclosed in \
+                the region are of an unsupported type.
 
+        '''
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -100,6 +110,15 @@ class RegionTrans(Transformation):
                     "position {2}."
                     .format(str(child), child.position, prev_position))
             prev_position = child.position
+
+        # Check that the proposed region contains only supported node types
+        for child in node_list:
+            flat_list = [child] + child.walk(child.children, object)
+            for item in flat_list:
+                if not isinstance(item, self.valid_node_types):
+                    raise TransformationError(
+                        "Nodes of type '{0}' cannot be enclosed by a {1} "
+                        "transformation".format(type(item), self.name))
 
 
 # =============================================================================
@@ -1520,6 +1539,11 @@ class OMPParallelTrans(ParallelRegionTrans):
     >>> newschedule.view()
 
     '''
+    from psyclone import psyGen
+    # The types of node that this transformation can enclose
+    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
+                        psyGen.OMPDirective, psyGen.GlobalSum)
+
     def __init__(self):
         super(OMPParallelTrans, self).__init__()
         from psyclone.psyGen import OMPParallelDirective
@@ -1584,6 +1608,10 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> newschedule, _ = dtrans.apply(newschedule)
     >>> newschedule.view()
     '''
+    from psyclone import gocean1p0, psyGen
+    valid_node_types = (gocean1p0.GOLoop, gocean1p0.GOKern,
+                        psyGen.ACCLoopDirective)
+
     def __init__(self):
         super(ACCParallelTrans, self).__init__()
         from psyclone.psyGen import ACCParallelDirective
@@ -1856,7 +1884,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         '''
         # check node is a loop
-        from psyclone.psyGen import Loop
+        from psyclone.psyGen import Loop, Schedule, Directive
         if not isinstance(node, Loop):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -1869,10 +1897,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # it actually makes sense to require redundant computation
         # transformations to be applied before adding directives so it
         # is not particularly important.
-        from psyclone.psyGen import Schedule
-        if not (isinstance(node.parent, Schedule) or
-                (isinstance(node.parent, Loop))):
-            from psyclone.psyGen import Directive
+        if not isinstance(node.parent, (Schedule, Loop)):
             if isinstance(node.parent, Directive):
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
@@ -2177,8 +2202,7 @@ class OCLTrans(Transformation):
         '''
         if opencl:
             self._validate(sched)
-        # create a memento of the schedule and the proposed transformation
-        from psyclone.undoredo import Memento
+        # Create a memento of the schedule and the proposed transformation
         keep = Memento(sched, self, [sched, opencl])
         # All we have to do here is set the flag in the Schedule. When this
         # flag is True PSyclone produces OpenCL at code-generation time.
@@ -2241,6 +2265,10 @@ class ProfileRegionTrans(RegionTrans):
     >>> newschedule.view()
 
     '''
+    from psyclone import psyGen, profiler
+    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
+                        psyGen.HaloExchange, psyGen.Directive,
+                        psyGen.GlobalSum, profiler.ProfileNode)
 
     def __str__(self):
         return "Insert a profile start and end call."

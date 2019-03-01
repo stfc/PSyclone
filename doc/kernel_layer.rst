@@ -84,10 +84,10 @@ generate the PSy layer. The content of Kernel metadata differs
 depending on the particular API and this information can be found in
 the API-specific sections of this document.
 
-In all API's the kernel metadata is implemented as an extension of the
+In all APIs the kernel metadata is implemented as an extension of the
 `kernel_type` type. The reason for using a type to specify metadata is
 that it allows the metadata to be kept with the code and for it to be
-compilable. In addition, currently all API's will contain information
+compilable. In addition, currently all APIs will contain information
 about the arguments in an array called ``meta_args``, a specification
 of what the kernel code iterates over in a variable called
 ``iterates_over`` and a reference to the kernel code as a type bound

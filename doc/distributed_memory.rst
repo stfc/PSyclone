@@ -92,6 +92,6 @@ Status
 ------
 
 Distributed memory support is currently limited to the ``dynamo0.3``
-API.  The remaining API's ignore the distributed memory flag and
+API.  The remaining APIs ignore the distributed memory flag and
 continue to produce code without any distributed memory functionality,
 irrespective of its value.
