@@ -146,22 +146,12 @@ def trans(psy):
             # We only need a data region if we've added any directives
             continue
 
-        # Enclose all children in the schedule within a data region. We must
-        # ensure that the allocate/deallocate's are done outside this region
-        # and so we search for the first and last loops
-        first_idx = -1
-        last_idx = -1
-        for idx, child in enumerate(sched.children):
-            if not isinstance(child, CodeBlock):
-                first_idx = idx
-                break
-        for child in reversed(sched.children):
-            if not isinstance(child, CodeBlock):
-                last_idx = sched.children.index(child)
-                break
-        if first_idx > -1 and last_idx > -1:
-            sched, _ = ACC_DATA_TRANS.apply(
-                sched.children[first_idx:last_idx+1])
+        # Since we've already taken care to only include recognised code within
+        # 'kernels' directives, we simply put each of those directives inside
+        # a data region. In reality we would want to try and make the data
+        # regions bigger but this is only an example.
+        for directive in directives:
+            sched, _ = ACC_DATA_TRANS.apply([directive])
 
         sched.view()
 
