@@ -27,7 +27,7 @@ Available
 Most transformations are generic as the schedule structure is
 independent of the API, however it often makes sense to specialise
 these for a particular API by adding API-specific errors checks. Some
-transformations are API-specific (or specific to a set of API's
+transformations are API-specific (or specific to a set of APIs
 e.g. dynamo). Currently these different types of transformation are
 indicated by their names.
 
@@ -348,7 +348,7 @@ Parallel** directive, an **OpenMP Do** directive and an **OpenMP
 Parallel Do** directive, respectively, to a code.
 
 The generic versions of these three transformations (i.e. ones that
-theoretically work for all API's) were given in the
+theoretically work for all APIs) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
 this document.

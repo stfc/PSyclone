@@ -16,9 +16,9 @@ for two-dimensional domains.  However, the approach is not specific to
 ocean models and can potentially be applied to any finite-difference
 code.
 
-As with all PSyclone API's, the GOcean 1.0 API specifies how a user
+As with all PSyclone APIs, the GOcean 1.0 API specifies how a user
 must write the Algorithm Layer and the Kernel Layer to allow PSyclone
-to generate the PSy Layer. These Algorithm and Kernel API's are
+to generate the PSy Layer. These Algorithm and Kernel APIs are
 discussed separately in the sections below. Before these we
 describe the functionality provided by the GOcean Library.
 
