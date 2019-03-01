@@ -1677,17 +1677,19 @@ class ACCDirective(Directive):
         Modifies the underlying fparser2 parse tree to include a subset
         of nodes within a region. (e.g. a 'kernels' or 'data' region.)
 
-        :param str start_text: the directive text to insert at the \
+        :param str start_text: the directive body to insert at the \
                                beginning of the region. "!$ACC " is \
-                               prepended if it is not already present.
-        :param str end_text: the directive text to insert at the end of \
+                               prepended to the supplied text.
+        :param str end_text: the directive body to insert at the end of \
                              the region (or None). "!$ACC " is \
-                             prepended if it is not already present.
+                             prepended to the supplied text.
         :param str data_movement: whether to include data-movement clauses and\
                                   if so, whether to determine them by analysing\
                                   the code within the region ("analyse") or to \
                                   specify 'default(present)' ("present").
 
+        :raises InternalError: if either start_text or end_text already
+                               begin with '!'.
         :raises InternalError: if data_movement is not None and not one of \
                                "present" or "analyse".
         '''
@@ -1701,6 +1703,17 @@ class ACCDirective(Directive):
         # Check that we haven't already been called
         if self._ast:
             return
+
+        # Sanity check the supplied begin/end text
+        if start_text.lstrip()[0] == "!":
+            raise InternalError(
+                "_add_region: start_text must be a plain label without "
+                "directive or comment characters but got: '{0}'".
+                format(start_text))
+        if end_text and end_text.lstrip()[0] == "!":
+            raise InternalError(
+                "_add_region: end_text must be a plain label without directive"
+                " or comment characters but got: '{0}'".format(end_text))
 
         # The parent node in the PSyIR might be a directive so we need to
         # go back up the tree to find the node corresponding to our parent
@@ -1725,10 +1738,7 @@ class ACCDirective(Directive):
                 ast_end_index = object_index(fp_parent.content,
                                              self.children[-1]._ast)
 
-            if not end_text.upper().startswith("!$ACC"):
-                text = "!$ACC " + end_text
-            else:
-                text = end_text
+            text = "!$ACC " + end_text
             directive = Comment(FortranStringReader(text,
                                                     ignore_comments=False))
             fp_parent.content.insert(ast_end_index+1, directive)
@@ -1740,10 +1750,8 @@ class ACCDirective(Directive):
             # belonging to this PSyIR node.
             self._ast_end = directive
 
-        if not start_text.upper().startswith("!$ACC"):
-            text = "!$ACC " + start_text
-        else:
-            text = start_text
+        text = "!$ACC " + start_text
+
         if data_movement:
             if data_movement == "analyse":
                 # Identify the inputs and outputs to the region (variables that
@@ -2115,7 +2123,7 @@ class ACCLoopDirective(ACCDirective):
         Update the existing fparser2 parse tree with the code associated with
         this ACC LOOP directive.
         '''
-        text = "!$ACC LOOP"
+        text = "LOOP"
         if self._sequential:
             text += " SEQ"
         else:
