@@ -1584,8 +1584,8 @@ class OMPParallelTrans(ParallelRegionTrans):
 class ACCParallelTrans(ParallelRegionTrans):
     '''
     Create an OpenACC parallel region by inserting directives. This parallel
-    region *must* come after an enter-data directive (see `ACCDataTrans`). For
-    example:
+    region *must* come after an enter-data directive (see `ACCEnterDataTrans`)
+    or within a data region (see `ACCDataTrans`). For example:
 
     >>> from psyclone.parse import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -2455,7 +2455,7 @@ class ACCEnterDataTrans(Transformation):
     >>>
     >>> from psyclone.psyGen import TransInfo
     >>> t = TransInfo()
-    >>> dtrans = t.get_trans_name('ACCDataTrans')
+    >>> dtrans = t.get_trans_name('ACCEnterDataTrans')
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
@@ -2671,6 +2671,7 @@ class ACCKernelsTrans(RegionTrans):
     '''
     Enclose a sub-set of nodes from a Schedule within an OpenACC kernels
     region (i.e. within "!$acc kernels" ... "!$acc end kernels" directives).
+    Currently only supported for the NEMO API.
 
     For example:
 
@@ -2706,8 +2707,8 @@ class ACCKernelsTrans(RegionTrans):
 
     def apply(self, node_list, default_present=False):
         '''
-        Add an '!$acc kernels' OpenACC directive to the start of a NEMO
-        api schedule.
+        Enclose the supplied list of PSyIR nodes within an OpenACC
+        Kernels region.
 
         :param node_list: The list of nodes in the PSyIR to enclose.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`

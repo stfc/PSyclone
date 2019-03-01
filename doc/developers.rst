@@ -1536,10 +1536,11 @@ initial values.) Fortunately OpenACC provides support for this kind of
 situation with the ``enter data`` directive. This may be used to
 "define scalars, arrays and subarrays to be allocated in the current
 device memory for the remaining duration of the program"
-:cite:`openacc_enterdata`. The ``ACCDataTrans`` transformation adds
+:cite:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
 an ``enter data`` directive to an Invoke:
 
 .. autoclass:: psyclone.transformations.ACCDataTrans
+   :noindex:
 
 The resulting generated code will then contain an ``enter data``
 directive protected by an ``IF(this is the first time in this

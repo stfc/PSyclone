@@ -35,14 +35,27 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenACC and OpenCL
-	  transformations for the GOcean 1.0 API. Attempts to apply
+.. note:: PSyclone currently only supports OpenCL transformations for
+	  the GOcean 1.0 API and OpenACC transformations for that and
+	  the NEMO API. Attempts to apply
 	  these transformations to (members of) Schedules from other
-	  APIs will be rejected.
+	  APIs will be rejected. 
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCDataTrans
+    :noindex:
+    :members:
+
+####
+
+.. autoclass:: psyclone.transformations.ACCEnterDataTrans
+    :noindex:
+    :members:
+
+####
+
+.. autoclass:: psyclone.transformations.ACCKernelsTrans
     :noindex:
     :members:
 
