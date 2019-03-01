@@ -197,94 +197,6 @@ def test_explicit_directive(parser):
             "END PROGRAM explicit_do") in gen_code
 
 
-def test_code_block():
-    '''Check code generation for a mixture of loops and code blocks.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('code_block').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen)
-
-    assert ("  REAL, ALLOCATABLE, DIMENSION(:, :, :) :: umask\n"
-            "  !$ACC DATA COPYOUT(umask)\n"
-            "  WRITE(*, FMT = *) \"Hello world\"") in gen_code
-
-    assert ("  DEALLOCATE(umask)\n"
-            "  !$ACC END DATA\n"
-            "END PROGRAM code_block") in gen_code
-
-
-def test_code_block_noalloc():
-    '''Check code generation for a mixture of loops and code blocks,
-    skipping allocate and deallocate statements.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('code_block').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children[1:5])
-    gen_code = str(psy.gen)
-
-    assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
-            "  !$ACC DATA COPYOUT(umask)\n"
-            "  umask(1, 1, :) = 0.0D0\n") in gen_code
-
-    assert ("  END DO\n"
-            "  !$ACC END DATA\n"
-            "  WRITE(*, FMT = *) \"Goodbye world\"") in gen_code
-
-
-def test_code_block_noalloc_kernels():
-    '''Check code generation for a mixture of loops and code blocks,
-    skipping allocate and deallocate statements and with a kernels
-    directive. Apply kernels transformations second in this example.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "code_block.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('code_block').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children[1:4])
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule, _ = acc_trans.apply(schedule.children[1].children[0:3],
-                                  default_present=True)
-    gen_code = str(psy.gen)
-
-    assert ("  ALLOCATE(umask(jpi, jpj, jpk))\n"
-            "  !$ACC DATA COPYOUT(umask)\n"
-            "  !$ACC KERNELS DEFAULT(PRESENT)\n"
-            "  umask(1, 1, :) = 0.0D0\n") in gen_code
-
-    assert ("  END DO\n"
-            "  !$ACC END KERNELS\n"
-            "  !$ACC END DATA\n"
-            "  DO iloop = 1, jpi") in gen_code
-
-
-def test_single_code_block():
-    '''Check code generation for a mixture of loops and code blocks.'''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "afunction.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    schedule = psy.invokes.get('afunction').schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
-    gen_code = str(psy.gen)
-
-    assert ("  INTEGER :: num\n"
-            "  !$ACC DATA\n"
-            "  IF (iarg > 0) THEN") in gen_code
-
-    assert ("  END IF\n"
-            "  !$ACC END DATA\n"
-            "END FUNCTION afunction") in gen_code
-
-
 def test_array_syntax():
     '''Check code generation for a mixture of loops and code blocks.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "array_syntax.f90"),
@@ -292,15 +204,19 @@ def test_array_syntax():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('tra_ldf_iso').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children)
+    # We do not permit arbitrary code blocks to be included in data
+    # regions so just put the two loops into regions.
+    schedule, _ = acc_trans.apply([schedule.children[0]])
+    schedule, _ = acc_trans.apply([schedule.children[-1]])
     gen_code = str(psy.gen)
 
     assert ("  REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdit, zdjt, "
             "zftu, zftv, ztfw\n"
-            "  !$ACC DATA COPYOUT(zftv,zftu)\n"
+            "  !$ACC DATA COPYOUT(zftv)\n"
             "  zftv(:, :, :) = 0.0D0" in gen_code)
 
-    assert ("  zftu(:, :, 1) = 1.0D0\n"
+    assert ("  !$ACC DATA COPYOUT(zftu)\n"
+            "  zftu(:, :, 1) = 1.0D0\n"
             "  !$ACC END DATA\n"
             "END SUBROUTINE tra_ldf_iso" in gen_code)
 
@@ -467,7 +383,6 @@ def test_no_copyin_intrinsics(parser):
         assert "copyin({0})".format(intrinsic[0:idx]) not in gen_code.lower()
 
 
-@pytest.mark.xfail(reason="Needs updated RegionTrans.validate method, #292")
 def test_no_code_blocks(parser):
     ''' Check that we refuse to include CodeBlocks (i.e. code that we
     don't recognise) within a data region. '''
@@ -486,10 +401,10 @@ def test_no_code_blocks(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[0:1])
-    assert "cannot enclose CodeBlock'>' in ACCDataTrans" in str(err)
+    assert "CodeBlock'>' cannot be enclosed by a ACCDataTrans" in str(err)
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[1:2])
-    assert "cannot enclose CodeBlock'>' in ACCDataTrans" in str(err)
+    assert "CodeBlock'>' cannot be enclosed by a ACCDataTrans" in str(err)
 
 
 def test_kernels_in_data_region(parser):
@@ -519,3 +434,21 @@ def test_kernels_in_data_region(parser):
             "  !$ACC END KERNELS\n"
             "  !$ACC END DATA\n"
             "END PROGRAM one_loop" in new_code)
+
+
+@pytest.mark.xfail(reason="ACCEnterDataTrans not yet supported for the "
+                   "NEMO API. Issue 310.")
+def test_no_enter_data(parser):
+    ''' Check that we refuse to allow a data region to be created in a
+    Schedule that has already had an Enter Data node added to it. '''
+    reader = FortranStringReader(EXPLICIT_DO)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.get('explicit_do').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    enter_trans = TransInfo().get_trans_name('ACCEnterDataTrans')
+    schedule, _ = enter_trans.apply(schedule)
+    with pytest.raises(TransformationError) as err:
+        _, _ = acc_trans.apply(schedule.children)
+    assert ("Cannot add an OpenACC data region to a schedule that already "
+            "contains an 'enter data' directive" in str(err)
