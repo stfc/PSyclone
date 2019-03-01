@@ -451,4 +451,4 @@ def test_no_enter_data(parser):
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
     assert ("Cannot add an OpenACC data region to a schedule that already "
-            "contains an 'enter data' directive" in str(err)
+            "contains an 'enter data' directive" in str(err))

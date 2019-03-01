@@ -2704,8 +2704,7 @@ class ACCKernelsTrans(RegionTrans):
     from psyclone import nemo, psyGen
     valid_node_types = (nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
                         nemo.NemoIfClause, psyGen.BinaryOperation,
-                        psyGen.CodeBlock, psyGen.Literal, psyGen.Assignment,
-                        psyGen.Reference)
+                        psyGen.Literal, psyGen.Assignment, psyGen.Reference)
     @property
     def name(self):
         '''
