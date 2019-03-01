@@ -50,7 +50,8 @@ from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
-    GenerationError, InternalError, args_filter, NameSpaceFactory
+    GenerationError, InternalError, args_filter, NameSpaceFactory, \
+    KernelSchedule
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -1151,6 +1152,17 @@ class GOKern(Kern):
         parent.add(AssignGen(parent, lhs=flag,
                              rhs="clFinish(" + qlist + "(1))"))
 
+    def get_kernel_schedule(self):
+        '''
+        Returns a PSyIR Schedule representing the GOcean kernel code.
+
+        :return: Schedule representing the kernel code.
+        :rtype: :py:class:`psyclone.psyGen.GOKernelSchedule`
+        '''
+        newkernel = super(GOKern, self).get_kernel_schedule()
+        newkernel.__class__ = GOKernelSchedule
+        return newkernel
+
 
 class GOKernelArguments(Arguments):
     '''Provides information about GOcean kernel-call arguments
@@ -1865,3 +1877,86 @@ class GOACCDataDirective(ACCDataDirective):
                                          rhs=".true."))
                     obj_list.append(var)
         return
+
+
+class GOKernelSchedule(KernelSchedule):
+
+    def gen_ocl(self, indent=0):
+        '''
+        Generate a string representation of this node using C language (or
+        the OpenCL C extension if the 'opencl' flag argument is set to True).
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :param opencl: Flag to enable the generation of OpenCL code.
+        :type opencl: boolean:
+        :return: C language code representing the node.
+        :rtype: string
+        '''
+
+        # TODO: Check assumptions to generate this opencl implementation.
+
+        code = self.indent(indent)
+        code = code + "__kernel "
+        code = code + "void " + self._name + "(\n"
+
+        # Generate kernel arguments
+        array_arguments = []
+        # GOcean API, first 2 arguments are the iteration indices.
+        for symbol in self.symbol_table.argument_list[2:]:
+            code = code + self.indent(indent + 1)
+            code = code + "__global "
+
+            if symbol.datatype == "real":
+                code = code + "double "
+            elif symbol.datatype == "integer":
+                code = code + "int "
+            elif symbol.datatype == "character":
+                code = code + "char "
+            else:
+                raise NotImplemented()
+
+            if len(symbol.shape) > 0:
+                code = code + "* restrict "
+                array_arguments.append((symbol.name, len(symbol.shape)))
+
+            code = code + symbol.name + ",\n"
+
+        # Generate a LEN arguments for each array
+        # for name, dimensions in array_arguments:
+        #     for dim in range(1, dimensions + 1):
+        #         code = code + self.indent(indent + 1) + "int " + name \
+        #                + "LEN" + str(dim) + ",\n"
+
+        code = code[:-2]   # Remove last ",\n"
+        code = code + "\n" + self.indent(indent + 1) + "){\n"
+
+        # Declare local variables
+        for symbol in self.symbol_table._symbols.values():
+            if symbol not in self.symbol_table.argument_list:
+                code = code + self.indent(indent + 1)
+                if symbol.datatype == 'real':
+                    code = code + "double "
+                elif symbol.datatype == 'integer':
+                    code = code + "int "
+                if len(symbol.shape) > 0:
+                    code = code + "*"
+                code = code + symbol.name + ";\n"
+
+        # Generate a LEN variable for each array
+        for name, dimensions in array_arguments:
+            for dim in range(2, dimensions + 1):
+                code = code + self.indent(indent + 1) + "int " + name
+                code = code + "LEN" + str(dim) + " = get_global_size("
+                code = code + str(dim - 1) + ");\n"
+
+        index = 0
+        for symbol in self.symbol_table.argument_list[:2]:
+            code = code + self.indent(indent + 1) + "int " + symbol.name
+            code = code + " = get_global_id(" + str(index) + ");\n"
+            index = index + 1
+
+        for child in self._children:
+            code = code + child.gen_c_code(indent + 1) + ";\n"
+        code = code + "}\n"
+        return code

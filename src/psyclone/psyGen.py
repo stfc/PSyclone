@@ -5286,72 +5286,6 @@ class KernelSchedule(Schedule):
         result += "End Schedule"
         return result
 
-    def gen_c_code(self, indent=0, opencl=False):
-        '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
-
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean:
-        :return: C language code representing the node.
-        :rtype: string
-        '''
-
-        code = self.indent(indent)
-        if opencl:
-            code = code + "__kernel "
-        code = code + "void " + self._name + "(\n"
-
-        # Generate kernel arguments
-        array_arguments = []
-        for symbol in self.symbol_table.argument_list:
-            code = code + self.indent(indent + 1)
-            if opencl:
-                code = code + "__global "
-
-            if symbol.datatype == "real":
-                code = code + "double "
-            elif symbol.datatype == "integer":
-                code = code + "int "
-            elif symbol.datatype == "character":
-                code = code + "char "
-            else:
-                raise NotImplemented()
-
-            if len(symbol.shape) > 0:
-                code = code + "* restrict "
-                array_arguments.append((symbol.name, len(symbol.shape)))
-
-            code = code + symbol.name + ",\n"
-
-        # Generate a LEN arguments for each array
-        for name, dimensions in array_arguments:
-            for dim in range(1, dimensions + 1):
-                code = code + self.indent(indent + 1) + "int " + name \
-                       + "LEN" + str(dim) + ",\n"
-
-        code = code[:-2]   # Remove last ",\n"
-        code = code + "\n" + self.indent(indent + 1) + "){\n"
-
-        # Declare local variables
-        for symbol in self.symbol_table._symbols.values():
-            if symbol not in self.symbol_table.argument_list:
-                code = code + self.indent(indent + 1)
-                if symbol.datatype == 'real':
-                    code = code + "double "
-                elif symbol.datatype == 'integer':
-                    code = code + "int "
-                if len(symbol.shape) > 0:
-                    code = code + "*"
-                code = code + symbol.name + ";\n"
-
-        for child in self._children:
-            code = code + child.gen_c_code(indent + 1, opencl) + ";\n"
-        code = code + "}\n"
-        return code
-
 
 class CodeBlock(Node):
     '''
@@ -5396,15 +5330,12 @@ class CodeBlock(Node):
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
 
-    def gen_c_code(self, indent=0, opencl=False):
+    def gen_c_code(self, indent=0):
         '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
+        Generate a string representation of this node using C language.
 
         :param indent: Depth of indent for the output string.
         :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean
         :raises GenerationError: gen_c_code always fails for CodeBlocks.
         '''
         raise GenerationError("CodeBlock can not be translated to C")
@@ -5450,21 +5381,18 @@ class Assignment(Node):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0, opencl=False):
+    def gen_c_code(self, indent=0):
         '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
+        Generate a string representation of this node using C language.
 
         :param indent: Depth of indent for the output string.
         :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean:
         :return: C language code representing the node.
         :rtype: string
         '''
         return self.indent(indent) \
-            + self.children[0].gen_c_code(indent, opencl) + " = " \
-            + self.children[1].gen_c_code(indent, opencl)
+            + self.children[0].gen_c_code(indent) + " = " \
+            + self.children[1].gen_c_code(indent)
 
 
 class Reference(Node):
@@ -5503,15 +5431,12 @@ class Reference(Node):
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
 
-    def gen_c_code(self, indent=0, opencl=False):
+    def gen_c_code(self, indent=0):
         '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
+        Generate a string representation of this node using C language.
 
         :param indent: Depth of indent for the output string.
         :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean:
         :return: C language code representing the node.
         :rtype: string
         '''
@@ -5561,21 +5486,18 @@ class BinaryOperation(Node):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0, opencl=False):
+    def gen_c_code(self, indent=0):
         '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
+        Generate a string representation of this node using C language.
 
         :param indent: Depth of indent for the output string.
         :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean:
         :return: C language code representing the node.
         :rtype: string
         '''
-        return "(" + self._children[0].gen_c_code(indent, opencl) + " " \
+        return "(" + self._children[0].gen_c_code(indent) + " " \
             + self._operator + " " \
-            + self._children[1].gen_c_code(indent, opencl) + ")"
+            + self._children[1].gen_c_code(indent) + ")"
 
 
 class Array(Reference):
@@ -5618,27 +5540,24 @@ class Array(Reference):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0, opencl=False):
+    def gen_c_code(self, indent=0):
         '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
+        Generate a string representation of this node using C language.
 
         :param indent: Depth of indent for the output string.
         :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean:
         :return: C language code representing the node.
         :rtype: string
         '''
-        code = super(Array, self).gen_c_code(indent, opencl) + "["
+        code = super(Array, self).gen_c_code(indent) + "["
 
         # In C array expressions should be reversed (row-major order)
         # and flattened.
         num_dimensions = len(self._children)
         for child in reversed(self._children):
-            code = code + child.gen_c_code(indent, opencl)
+            code = code + child.gen_c_code(indent)
             if num_dimensions > 1:
-                dimstring = super(Array, self).gen_c_code(indent, opencl)
+                dimstring = super(Array, self).gen_c_code(indent)
                 dimstring = dimstring + "LEN" + str(num_dimensions)
                 code = code + " * " + dimstring
                 num_dimensions = num_dimensions - 1
@@ -5684,15 +5603,12 @@ class Literal(Node):
     def __str__(self):
         return "Literal[value:'" + self._value + "']\n"
 
-    def gen_c_code(self, indent=0, opencl=False):
+    def gen_c_code(self, indent=0):
         '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
+        Generate a string representation of this node using C language.
 
         :param indent: Depth of indent for the output string.
         :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean:
         :return: C language code representing the node.
         :rtype: string
         '''
