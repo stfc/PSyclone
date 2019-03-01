@@ -945,7 +945,7 @@ def test_omp_parallel_do_around_parallel_region():
 def test_omp_region_invalid_node():
     ''' Check that the OMPParallelTrans transformation rejects nodes
     of the wrong type. We use an OpenACC directive to trigger this error. '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 
     ompr = OMPParallelTrans()

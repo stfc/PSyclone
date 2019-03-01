@@ -92,7 +92,7 @@ class RegionTrans(Transformation):
                 in the original order in which they are in the AST, \
                 a node is duplicated or the nodes have different parents.
         :raises TransformationError: if any of the nodes to be enclosed in \
-                the region are of an un-supported type.
+                the region are of an unsupported type.
 
         '''
         node_parent = node_list[0].parent
