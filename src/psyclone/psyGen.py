@@ -1718,23 +1718,6 @@ class ACCDirective(Directive):
             except AttributeError:
                 ast_end_index = object_index(fp_parent.content,
                                              self.children[-1]._ast)
-            # In the fparser2 AST, a directive is just a comment and does not
-            # have children. This means we can end up inserting the 'end data'
-            # directive between a previous directive and the loop to which it
-            # applies.
-            # Check whether the last node in the PSyIR for this kernels region
-            # has children and, if so, whether their corresponding entries in
-            # the fparser2 AST are siblings of this directive and come after
-            # it in the AST.
-            for child in self.children[-1].children:
-                try:
-                    idx = object_index(fp_parent.content, child._ast)
-                    if idx > ast_end_index:
-                        ast_end_index = idx
-                except ValueError:
-                    # The fparser2 AST for this child is not a sibling of
-                    # this directive.
-                    pass
 
             directive = Comment(FortranStringReader(end_text,
                                                     ignore_comments=False))
@@ -1743,6 +1726,8 @@ class ACCDirective(Directive):
             # fparser/#102 is done (i.e. probably supply parent info as option
             # to the Comment() constructor).
             directive._parent = fp_parent
+            # Ensure this end directive is included with the set of statements
+            # belonging to this PSyIR node.
             self._ast_end = directive
 
         text = start_text
