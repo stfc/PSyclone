@@ -284,14 +284,18 @@ def test_multi_data():
             "  END DO") in gen_code
 
 
-def test_replicated_loop():
+def test_replicated_loop(parser):
     '''Check code generation with two loops that have the same
     structure.
 
     '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "replicated.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    reader = FortranStringReader("subroutine replicate()\n"
+                                 "   INTEGER :: dummy\n"
+                                 "   zwx(:,:) = 0.e0\n"
+                                 "   zwx(:,:) = 0.e0\n"
+                                 "END subroutine replicate\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('replicate').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children[0:1])
