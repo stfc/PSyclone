@@ -1608,9 +1608,10 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> newschedule, _ = dtrans.apply(newschedule)
     >>> newschedule.view()
     '''
-    from psyclone import gocean1p0, psyGen
+    from psyclone import gocean1p0, nemo, psyGen
     valid_node_types = (gocean1p0.GOLoop, gocean1p0.GOKern,
-                        psyGen.ACCLoopDirective)
+                        nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
+                        nemo.NemoIfClause, psyGen.ACCLoopDirective)
 
     def __init__(self):
         super(ACCParallelTrans, self).__init__()
@@ -2688,6 +2689,10 @@ class ACCKernelsTrans(RegionTrans):
     >>> new_sched, _ = ktrans.apply(kernels)
 
     '''
+    from psyclone import nemo, psyGen
+    valid_node_types = (nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
+                        nemo.NemoIfClause, psyGen.CodeBlock,
+                        psyGen.Literal, psyGen.Assignment, psyGen.Reference)
     @property
     def name(self):
         '''
@@ -2795,6 +2800,11 @@ class ACCDataTrans(RegionTrans):
     >>> new_sched, _ = dtrans.apply(kernels)
 
     '''
+    from psyclone import psyGen
+    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
+                        psyGen.Directive, psyGen.IfBlock, psyGen.IfClause,
+                        psyGen.Literal, psyGen.Assignment, psyGen.Reference,
+                        psyGen.CodeBlock)
     @property
     def name(self):
         '''
@@ -2861,16 +2871,6 @@ class ACCDataTrans(RegionTrans):
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
                 "already contains an 'enter data' directive.")
-        for node in node_list:
-            if isinstance(node, ACCDataDirective):
-                raise TransformationError(
-                    "Cannot enclose an OpenACC data region within another "
-                    "OpenACC data region.")
-            data_dirs = node.walk(node.children, ACCDataDirective)
-            if data_dirs:
-                raise TransformationError(
-                    "Cannot enclose an OpenACC data region within another "
-                    "OpenACC data region.")
 
 
 class NemoExplicitLoopTrans(Transformation):
