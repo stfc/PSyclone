@@ -39,8 +39,7 @@ psyclone_test_utils.'''
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone_test_utils import COMPILE, compile_file, \
-    CompileError, get_invoke, Compile
+from psyclone_test_utils import COMPILE, CompileError, get_invoke, Compile
 
 
 HELLO_CODE = '''
@@ -51,21 +50,22 @@ end program hello
 
 
 @COMPILE
-def test_compiler_works(tmpdir, f90, f90flags):
+def test_compiler_works(tmpdir):
     ''' Check that the specified compiler works for a hello-world
     example '''
     old_pwd = tmpdir.chdir()
+    _compile = Compile(tmpdir)
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
-            success = compile_file("hello_world.f90", f90, f90flags)
+            success = _compile.compile_file("hello_world.f90")
     finally:
         os.chdir(str(old_pwd))
     assert success
 
 
 @COMPILE
-def test_compiler_with_flags(tmpdir, f90):
+def test_compiler_with_flags(tmpdir):
     ''' Check that we can pass through flags to the Fortran compiler.
     Since correct flags are compiler-dependent and hard to test,
     we pass something that is definitely not a flag and check that
@@ -75,19 +75,22 @@ def test_compiler_with_flags(tmpdir, f90):
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
+        _compile = Compile(tmpdir)
+        _compile._f90flags = "not-a-flag"
         with pytest.raises(CompileError) as excinfo:
-            _ = compile_file("hello_world.f90", f90, "not-a-flag")
+            _ = _compile.compile_file("hello_world.f90")
         assert "not-a-flag" in str(excinfo)
         # For completeness we also try with a valid flag although we
         # can't actually check its effect.
-        success = compile_file("hello_world.f90", f90, "-g")
+        _compile._f90flags = "-g"
+        success = _compile.compile_file("hello_world.f90")
     finally:
         os.chdir(str(old_pwd))
     assert success
 
 
 @COMPILE
-def test_build_invalid_fortran(tmpdir, f90, f90flags):
+def test_build_invalid_fortran(tmpdir):
     ''' Check that we raise the expected error when attempting
     to compile some invalid Fortran. Skips test if --compile not
     supplied to py.test on command-line. '''
@@ -96,8 +99,9 @@ def test_build_invalid_fortran(tmpdir, f90, f90flags):
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(invalid_code)
+        _compile = Compile(tmpdir)
         with pytest.raises(CompileError) as excinfo:
-            _ = compile_file("hello_world.f90", f90, f90flags)
+            _ = _compile.compile_file("hello_world.f90")
     finally:
         os.chdir(str(old_pwd))
     assert "Compile error" in str(excinfo)
@@ -121,10 +125,10 @@ def test_find_fortran_file(tmpdir):
 
 
 @COMPILE
-def test_compile_str(monkeypatch, tmpdir, f90, f90flags):
+def test_compile_str(monkeypatch, tmpdir):
     ''' Checks for the routine that compiles Fortran supplied as a string '''
     # Check that we always return True if compilation testing is disabled
-    _compile = Compile(f90, f90flags, tmpdir)
+    _compile = Compile(tmpdir)
     monkeypatch.setattr("psyclone_test_utils.TEST_COMPILE", False)
     assert _compile.string_compiles("not fortran")
     # Re-enable compilation testing and check that we can build hello world
