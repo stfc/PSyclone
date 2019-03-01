@@ -5390,6 +5390,11 @@ class Assignment(Node):
         :return: C language code representing the node.
         :rtype: string
         '''
+        if len(self.children) != 2:
+            raise GenerationError("Assignment malformed or "
+                                  "incomplete. It should have exactly 2 "
+                                  "children.")
+
         return self.indent(indent) \
             + self.children[0].gen_c_code(indent) + " = " \
             + self.children[1].gen_c_code(indent)
@@ -5495,6 +5500,12 @@ class BinaryOperation(Node):
         :return: C language code representing the node.
         :rtype: string
         '''
+
+        if len(self.children) != 2:
+            raise GenerationError("BinaryOperation malformed or "
+                                  "incomplete. It should have exactly 2 "
+                                  "children.")
+
         return "(" + self._children[0].gen_c_code(indent) + " " \
             + self._operator + " " \
             + self._children[1].gen_c_code(indent) + ")"
@@ -5551,9 +5562,12 @@ class Array(Reference):
         '''
         code = super(Array, self).gen_c_code(indent) + "["
 
-        # In C array expressions should be reversed (row-major order)
-        # and flattened.
         num_dimensions = len(self._children)
+        if num_dimensions < 1:
+            raise GenerationError("Array must have at least 1 dimension.")
+
+        # In C array expressions should be reversed from the PSyIR order
+        # (column-major to row-major order) and flattened (1D).
         for child in reversed(self._children):
             code = code + child.gen_c_code(indent)
             if num_dimensions > 1:
@@ -5563,7 +5577,7 @@ class Array(Reference):
                 num_dimensions = num_dimensions - 1
             code = code + " + "
 
-        code = code[:-3] + "]"
+        code = code[:-3] + "]"  # Delete last ' + ' and close bracket
         return code
 
 

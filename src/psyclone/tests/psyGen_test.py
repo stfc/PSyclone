@@ -2565,11 +2565,20 @@ def test_codeblock_view(capsys):
 
 
 def test_codeblock_can_be_printed():
-    '''Test that an CodeBlck instance can always be printed (i.e. is
+    '''Test that a CodeBlock instance can always be printed (i.e. is
     initialised fully)'''
     cblock = CodeBlock([])
     assert "CodeBlock[" in str(cblock)
     assert "]" in str(cblock)
+
+
+def test_codeblock_gen_c_code():
+    '''Test that a CodeBlock node fails to generate c code with a
+    GenerationError'''
+    cblock = CodeBlock([])
+    with pytest.raises(GenerationError) as err:
+        cblock.gen_c_code()
+    assert("CodeBlock can not be translated to C" in str(err.value))
 
 # Test Assignment class
 
@@ -2591,6 +2600,21 @@ def test_assignment_can_be_printed():
     assignment = Assignment()
     assert "Assignment[]\n" in str(assignment)
 
+
+def test_assignment_gen_c_code():
+    '''Test that an Assignment node can generate its C representation'''
+
+    # Test with 'a=1'
+    assignment = Assignment()
+    with pytest.raises(GenerationError) as err:
+        code = assignment.gen_c_code()
+    assert("Assignment malformed or incomplete. It should have "
+           "exactly 2 children." in str(err.value))
+    ref = Reference("a", assignment)
+    lit = Literal("1", assignment)
+    assignment.addchild(ref)
+    assignment.addchild(lit)
+    assert assignment.gen_c_code() == 'a = 1'
 
 # Test Reference class
 
@@ -2616,6 +2640,12 @@ def test_reference_can_be_printed():
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     assert "Reference[name:'rname']\n" in str(ref)
+
+
+def test_reference_gen_c_code():
+    '''Test that a Reference node can generate its C representation'''
+    ref = Reference("a", None)
+    assert ref.gen_c_code() == 'a'
 
 
 # Test Array class
@@ -2644,6 +2674,30 @@ def test_array_can_be_printed():
     assert "ArrayReference[name:'aname']\n" in str(array)
 
 
+def test_array_gen_c_code():
+    '''Test that an Array node can generate its C representation'''
+
+    # Test 0 dimensions
+    array = Array("array1", None)
+    with pytest.raises(GenerationError) as err:
+        code = array.gen_c_code()
+    assert("Array must have at least 1 dimension." in str(err.value))
+
+    # Test 1 dimension
+    lit = Literal("1", array)
+    array.addchild(lit)
+    assert array.gen_c_code() == 'array1[1]'
+
+    # Test 2 dimension
+    lit2 = Literal("2", array)
+    array.addchild(lit2)
+    assert array.gen_c_code() == 'array1[2 * array1LEN2 + 1]'
+
+    # Test 3 dimension
+    lit3 = Literal("3", array)
+    array.addchild(lit3)
+    assert array.gen_c_code() == 'array1[3 * array1LEN3 + 2 * array1LEN2 + 1]'
+
 # Test Literal class
 
 
@@ -2662,6 +2716,12 @@ def test_literal_can_be_printed():
     initialised fully)'''
     literal = Literal("1")
     assert "Literal[value:'1']\n" in str(literal)
+
+
+def test_literal_gen_c_code():
+    '''Test that a Literal node can generate its C representation'''
+    lit = Literal("1", None)
+    assert lit.gen_c_code() == '1'
 
 
 # Test BinaryOperation class
@@ -2691,6 +2751,21 @@ def test_binaryoperation_can_be_printed():
     binaryOp.addchild(op1)
     binaryOp.addchild(op2)
     assert "BinaryOperation[operator:'+']\n" in str(binaryOp)
+
+
+def test_binaryoperation_gen_c_code():
+    '''Test that a BinaryOperation node can generate its C representation'''
+
+    biOp = BinaryOperation("+")
+    with pytest.raises(GenerationError) as err:
+        code = biOp.gen_c_code()
+    assert("BinaryOperation malformed or incomplete. It should have "
+           "exactly 2 children." in str(err.value))
+    lit1 = Literal("1", biOp)
+    lit2 = Literal("2", biOp)
+    biOp.addchild(lit1)
+    biOp.addchild(lit2)
+    assert biOp.gen_c_code() == '(1 + 2)'
 
 
 # Test KernelSchedule Class
