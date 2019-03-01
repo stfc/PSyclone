@@ -93,7 +93,7 @@ def test_data_no_gen_code(parser):
 
 
 def test_add_region_invalid_data_move():
-    ''' Check that add_region() raises the expected error if an invalid
+    ''' Check that _add_region() raises the expected error if an invalid
     value for data_movement is supplied. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
                            api=API, line_length=False)
@@ -103,7 +103,7 @@ def test_add_region_invalid_data_move():
     schedule, _ = acc_trans.apply(schedule.children)
     datadir = schedule.children[0]
     with pytest.raises(InternalError) as err:
-        datadir.add_region("DATA", "END DATA", data_movement="invalid")
+        datadir._add_region("DATA", "END DATA", data_movement="invalid")
     assert ("optional data_movement argument must be one of ['present', "
             "'analyse'] but got 'invalid'" in str(err))
 

@@ -1672,7 +1672,7 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
-    def add_region(self, start_text, end_text=None, data_movement=None):
+    def _add_region(self, start_text, end_text=None, data_movement=None):
         '''
         Modifies the underlying fparser2 parse tree to include a subset
         of nodes within a region. (e.g. a 'kernels' or 'data' region.)
@@ -1760,7 +1760,7 @@ class ACCDirective(Directive):
                 text += " DEFAULT(PRESENT)"
             else:
                 raise InternalError(
-                    "add_region: the optional data_movement argument must be "
+                    "_add_region: the optional data_movement argument must be "
                     "one of {0} but got '{1}'".format(valid_data_movement,
                                                       data_movement))
         directive = Comment(FortranStringReader(text,
@@ -2020,8 +2020,7 @@ class ACCParallelDirective(ACCDirective):
         Update the underlying fparser2 parse tree with nodes for the start
         and end of this parallel region.
         '''
-        self.add_region(start_text="!$ACC PARALLEL",
-                        end_text="!$ACC END PARALLEL")
+        self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
 
 
 class ACCLoopDirective(ACCDirective):
@@ -2124,7 +2123,7 @@ class ACCLoopDirective(ACCDirective):
                 text += " INDEPENDENT"
             if self._collapse:
                 text += " COLLAPSE({0})".format(self._collapse)
-        self.add_region(start_text=text)
+        self._add_region(start_text=text)
 
 
 class OMPDirective(Directive):
@@ -4708,9 +4707,8 @@ class ACCKernelsDirective(ACCDirective):
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
         '''
-        self.add_region(start_text="!$ACC KERNELS",
-                        end_text="!$ACC END KERNELS",
-                        data_movement="present")
+        self._add_region(start_text="KERNELS", end_text="END KERNELS",
+                         data_movement="present")
 
 
 class ACCDataDirective(ACCDirective):
@@ -4747,9 +4745,8 @@ class ACCDataDirective(ACCDirective):
         directive.
 
         '''
-        self.add_region(start_text="!$ACC DATA",
-                        end_text="!$ACC END DATA",
-                        data_movement="analyse")
+        self._add_region(start_text="DATA", end_text="END DATA",
+                         data_movement="analyse")
 
 
 class Fparser2ASTProcessor(object):
