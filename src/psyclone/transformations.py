@@ -1611,7 +1611,9 @@ class ACCParallelTrans(ParallelRegionTrans):
     from psyclone import gocean1p0, nemo, psyGen
     valid_node_types = (gocean1p0.GOLoop, gocean1p0.GOKern,
                         nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
-                        nemo.NemoIfClause, psyGen.ACCLoopDirective)
+                        nemo.NemoIfClause, psyGen.ACCLoopDirective,
+                        psyGen.Assignment, psyGen.Reference, psyGen.Literal,
+                        psyGen.BinaryOperation)
 
     def __init__(self):
         super(ACCParallelTrans, self).__init__()
@@ -2691,8 +2693,9 @@ class ACCKernelsTrans(RegionTrans):
     '''
     from psyclone import nemo, psyGen
     valid_node_types = (nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
-                        nemo.NemoIfClause, psyGen.CodeBlock,
-                        psyGen.Literal, psyGen.Assignment, psyGen.Reference)
+                        nemo.NemoIfClause, psyGen.BinaryOperation,
+                        psyGen.CodeBlock, psyGen.Literal, psyGen.Assignment,
+                        psyGen.Reference)
     @property
     def name(self):
         '''
@@ -2804,7 +2807,7 @@ class ACCDataTrans(RegionTrans):
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
                         psyGen.Directive, psyGen.IfBlock, psyGen.IfClause,
                         psyGen.Literal, psyGen.Assignment, psyGen.Reference,
-                        psyGen.CodeBlock)
+                        psyGen.CodeBlock, psyGen.BinaryOperation)
     @property
     def name(self):
         '''

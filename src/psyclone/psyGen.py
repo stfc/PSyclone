@@ -4834,6 +4834,7 @@ class Fparser2ASTProcessor(object):
                             if name not in writers:
                                 readers.add(name)
                     if isinstance(node2, Data_Ref):
+                        # TODO we need a robust implementation - issue #309.
                         raise NotImplementedError(
                             "get_inputs_outputs: derived-type references on "
                             "the RHS of assignments are not yet supported.")
