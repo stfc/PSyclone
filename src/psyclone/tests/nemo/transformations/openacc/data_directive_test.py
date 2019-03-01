@@ -302,8 +302,27 @@ def test_data_ref():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
+    assert ("!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)" in gen_code)
 
-    assert ("!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)") in gen_code
+
+def test_no_data_ref_read(parser):
+    ''' Check that we reject code that reads from a derived type. This
+    limitation will be addressed in #309. '''
+    reader = FortranStringReader("program dtype_read\n"
+                                 "real(kind=wp) :: sto_tmp(5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "sto_tmp(ji) = fld%data(ji) + 1._wp\n"
+                                 "end do\n"
+                                 "end program dtype_read\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule, _ = acc_trans.apply(schedule.children)
+    with pytest.raises(NotImplementedError) as err:
+        _ = str(psy.gen)
+    assert ("derived-type references on the RHS of assignments are not yet "
+            "supported" in str(err))
 
 
 def test_array_section():

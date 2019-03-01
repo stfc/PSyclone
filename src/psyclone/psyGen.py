@@ -4804,28 +4804,33 @@ class Fparser2ASTProcessor(object):
         :return: 2-tuple of list of inputs, list of outputs
         :rtype: (list of str, list of str)
         '''
-        readers = OrderedSet()
-        writers = OrderedSet()
-        structure_name_str = None
         from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
             Section_Subscript_List, Loop_Control, Data_Ref, \
             Structure_Constructor, Array_Section
         from fparser.two.utils import walk_ast
+        readers = OrderedSet()
+        writers = OrderedSet()
+        structure_name_str = None
         for node in walk_ast(nodes):
 
             if isinstance(node, Assignment_Stmt):
-                # found lhs = rhs
+                # Found lhs = rhs
                 lhs = node.items[0]
                 rhs = node.items[2]
-                # do RHS first as we cull readers
-                # after writers but want to keep a = a + ... as the
-                # RHS is computed before assigning to the LHS
+                # Do RHS first as we cull readers after writers but want to
+                # keep a = a + ... as the RHS is computed before assigning
+                # to the LHS
                 for node2 in walk_ast([rhs]):
                     if isinstance(node2, Part_Ref):
                         name = node2.items[0].string
                         if name.upper() not in FORTRAN_INTRINSICS:
                             if name not in writers:
                                 readers.add(name)
+                    if isinstance(node2, Data_Ref):
+                        raise NotImplementedError(
+                            "get_inputs_outputs: derived-type references on "
+                            "the RHS of assignments are not yet supported.")
+                # Now do LHS
                 if isinstance(lhs, Data_Ref):
                     # This is a structure which contains an array access.
                     structure_name_str = lhs.items[0].string
