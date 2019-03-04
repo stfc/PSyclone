@@ -1412,12 +1412,26 @@ Provides the base classes for PSy-layer code generation.
 Module: dynamo0p3
 =================
 
-Specialises various classes `psyclone.psyGen` module
+Specialises various classes from the `psyclone.psyGen` module
 in order to support the Dynamo 0.3 API.
 
-Constructing the list of arguments for a kernel (or kernel stub) is a
-complex task. The `psyclone.dynamo0p3.ArgOrdering` base class
-provides support for this:
+When constructing the PSy-layer routine for each Invoke, there are
+various groups of related quantities for which variables must be
+declared and initialised. Each of these groupings is managed by
+a distinct sub-class of the `DynCollection` class:
+
+.. autoclass:: psyclone.dynamo0p3.DynCollection
+   :members:
+   :private-members:
+   :noindex:
+
+For instance, the `psyclone.dynamo0p3.DynDofmaps` class is responsible
+for managing all dofmap-related quantities.
+
+Although instances of `DynCollection` handle all declarations and
+initialisation, there remains the problem of constructing the list of
+arguments for a kernel (or kernel stub). The
+`psyclone.dynamo0p3.ArgOrdering` base class provides support for this:
 
 .. autoclass:: psyclone.dynamo0p3.ArgOrdering
     :members:
@@ -1427,19 +1441,10 @@ provides support for this:
 This class is then sub-classed in order to support the generation of
 argument lists when *calling* kernels (`KernCallArgList`) and when
 *creating* kernel stubs (`KernStubArgList`).
-
-Unlike the base class, both of these classes allow the parent PSyIR
-node to be passed in to the constructor. This information is then used
-to modify the PSyIR in order to add declarations of various quantities
-associated with kernel arguments. *This aspect needs to be removed.*
-
 `KernCallArgList` is only used in `DynKernelArguments.raw_arg_list()`.
-`KernStubArgList` is only used in `DynKern.gen_stub()`.
-
-.. autoclass:: psyclone.dynamo0p3.DynCollection
-   :members:
-   :private-members:
-   :noindex:
+`KernStubArgList` is only used in `DynKern.gen_stub()`. These classes make
+use of some of the `DynCollection` sub-classes in order to ensure that
+argument naming is consistent.
 
 Kernel Transformations
 ----------------------
