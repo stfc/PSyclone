@@ -207,13 +207,15 @@ class Compile(object):
         raise IOError("Cannot find a Fortran file '{0}' with suffix in {1}".
                       format(name, FORTRAN_SUFFIXES))
 
-    def compile_file(self, filename):
+    def compile_file(self, filename, link=False):
         ''' Compiles the specified Fortran file into an object file (in
         the current working directory) using the specified Fortran compiler
         and flags. Raises a CompileError if the compilation fails.
 
         :param filename: Full path to the Fortran file to compile
         :type filename: string
+        :param bool link: If true will also try to compile and link the file.
+            Used in testing
         :return: True if compilation succeeds
         '''
 
@@ -225,7 +227,9 @@ class Compile(object):
         # and so must be split into individual parts for popen (otherwise
         # "-I /some/path" will result in the compiler trying to compile the
         # file "-I /some/path").
-        arg_list = [self._f90, '-c', filename] + self._f90flags.split()
+        arg_list = [self._f90, filename] + self._f90flags.split()
+        if not link:
+            arg_list.append("-c")
         if self.get_infrastructure_flags():
             arg_list += self.get_infrastructure_flags()
 

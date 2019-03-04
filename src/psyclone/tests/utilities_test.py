@@ -58,7 +58,7 @@ def test_compiler_works(tmpdir):
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
-            success = _compile.compile_file("hello_world.f90")
+            success = _compile.compile_file("hello_world.f90", link=True)
     finally:
         os.chdir(str(old_pwd))
     assert success
@@ -83,7 +83,7 @@ def test_compiler_with_flags(tmpdir):
         # For completeness we also try with a valid flag although we
         # can't actually check its effect.
         _compile._f90flags = "-g"
-        success = _compile.compile_file("hello_world.f90")
+        success = _compile.compile_file("hello_world.f90", link=True)
     finally:
         os.chdir(str(old_pwd))
     assert success
