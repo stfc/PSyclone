@@ -1623,72 +1623,27 @@ class DynStencils(DynCollection):
         return name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
 
-    @staticmethod
-    def extent_name(arg):
-        '''
-        Creates and registers a variable name for the extent of the stencil
-        associated with the supplied kernel argument.
-
-        :param arg: kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        :returns: the name associated with the extent of the stencil on \
-                  the supplied argument.
-        :rtype: str
-
-        '''
-        root_name = arg.name + "_extent"
-        unique = DynStencils.stencil_unique_str(arg, "extent")
-        name_space_manager = NameSpaceFactory().create()
-        return name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
-
-    @staticmethod
-    def direction_name(arg):
-        '''
-        Creates and registers a variable name for the direction of the stencil
-        associated with the supplied kernel argument.
-
-        :param arg: kernel argument with which the stencil is associated.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-
-        :returns: the variable name for the direction of the stencil on \
-                  the supplied argument.
-        :rtype: str
-
-        '''
-        if arg.stencil.direction_arg.varName:
-            return arg.stencil.direction_arg.varName
-        root_name = arg.name + "_direction"
-        unique = DynStencils.stencil_unique_str(arg, "direction")
-        name_space_manager = NameSpaceFactory().create()
-        return name_space_manager.create_name(
-            root_name=root_name, context="PSyVars", label=unique)
         
     @property
     def _unique_extent_vars(self):
         '''
         :returns: list of all the unique extent argument names in this \
-                  invoke call.
+                  invoke or kernel call.
         :rtype: list of str
 
         :raises InternalError: if neither self._kernel or self._invoke are set.
+
         '''
-        names = []
-        for arg in self._unique_extent_args:
-            if arg.stencil.extent_arg.varName:
-                names.append(arg.stencil.extent_arg.varName)
-            else:
-                if self._invoke:
-                    # An invoke is passed the stencil extent
-                    names.append(self.extent_name(arg))
-                elif self._kernel:
-                    # A kernel is passed the size of the stencil map
-                    names.append(self.dofmap_size_name(arg))
-                else:
-                    raise InternalError(
-                        "DynStencils: both self._invoke and self._kernel"
-                        " are None. Should be impossible.")
+        if self._invoke:
+            names = [arg.stencil.extent_arg.varName for arg in
+                     self._unique_extent_args]
+        elif self._kernel:
+            # A kernel is passed the size of the stencil map
+            names = [self.dofmap_size_name(arg) for arg in
+                     self._unique_extent_args]
+        else:
+            raise InternalError("_unique_extent_vars: have neither Invoke "
+                                "or Kernel. Should be impossible.")
         return names
 
     def _declare_unique_extent_vars(self, parent):
@@ -7135,7 +7090,7 @@ class KernCallArgList(ArgOrdering):
 
         '''
         # the direction of the stencil is not known so pass the value in
-        name = DynStencils.direction_name(arg)
+        name = arg.stencil.direction_arg.varName
         self._arglist.append(name)
 
     def stencil(self, arg):

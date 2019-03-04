@@ -5875,3 +5875,20 @@ def test_dyncollection_err2(monkeypatch):
     with pytest.raises(InternalError) as err:
         proxies.declarations(ModuleGen(name="testmodule"))
     assert "DynCollection has neither a Kernel or an Invoke" in str(err)
+
+
+def test_dynstencils_extent_vars_err(monkeypatch):
+    ''' Check that the _unique_extent_vars method of DynStencils raises
+    the expected internal error. '''
+    from psyclone.dynamo0p3 import DynStencils
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    stencils = DynStencils(invoke)
+    # Monkeypatch it to break internal state
+    monkeypatch.setattr(stencils, "_invoke", None)
+    with pytest.raises(InternalError) as err:
+        _ = stencils._unique_extent_vars
+    assert "_unique_extent_vars: have neither Invoke or Kernel" in str(err)
+    
