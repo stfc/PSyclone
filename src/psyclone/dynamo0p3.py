@@ -43,6 +43,7 @@
 
 # Imports
 from __future__ import print_function, absolute_import
+import abc
 import os
 from collections import OrderedDict
 import fparser
@@ -1407,7 +1408,9 @@ class DynCollection(object):
     def declarations(self, parent):
         '''
         Insert declarations for all necessary variables into the AST of
-        the generated code.
+        the generated code. Simply calls either _invoke_declarations() or
+        _stub_declarations() depending on whether we're handling an Invoke
+        or a Kernel stub.
 
         :param parent: the node in the f2pygen AST representing the routine \
                        in which to insert the declarations.
@@ -1424,15 +1427,37 @@ class DynCollection(object):
             raise InternalError("DynCollection has neither a Kernel "
                                 "or an Invoke - should be impossible.")
 
-    def initialisation(self, parent):
+    def initialise(self, parent):
         '''
         Add code to initialise the entities being managed by this class.
-        By default we do nothing - it is up to the sub-class to override
+        We do nothing by default - it is up to the sub-class to override
         this method if initialisation is required.
 
         :param parent: the node in the f2pygen AST to which to add \
                        initialisation code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+
+    @abc.abstractmethod
+    def _invoke_declarations(self, parent):
+        '''
+        Add all necessary declarations for an Invoke.
+
+        :param parent: node in the f2pygen AST representing the Invoke to \
+                       which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+
+    def _stub_declarations(self, parent):
+        '''
+        Add all necessary declarations for a Kernel stub. Not abstract because
+        not all entities need representing within a Kernel.
+
+        :param parent: node in the f2pygen AST representing the Kernel stub \
+                       to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
 
 
@@ -1546,7 +1571,7 @@ class DynStencils(DynCollection):
         return unique
 
     def map_name(self, arg):
-        ''' 
+        '''
         Creates and registers a name for the stencil map associated with the
         supplied kernel argument.
 
@@ -2106,7 +2131,9 @@ class DynDofmaps(DynCollection):
 
 class DynOrientations(DynCollection):
     '''
-    Handle the declaration and initialisation of any orientation arrays.
+    Handle the declaration of any orientation arrays. Orientation arrays
+    are initialised on a per-cell basis (within the loop over cells) and
+    this is therefore handled by the kernel-call generation.
 
     '''
     from collections import namedtuple
@@ -2162,13 +2189,6 @@ class DynOrientations(DynCollection):
         if declns:
             parent.add(DeclGen(parent, datatype="integer", pointer=True,
                                entity_decls=declns))
-
-    def initialise(self, parent):
-        '''
-        Orientation arrays are initialised on a per-cell basis (within the
-        loop over cells) and this is therefore handled by the kernel-call
-        generation.
-        '''
 
 
 class DynFunctionSpaces(DynCollection):
@@ -2499,7 +2519,8 @@ class DynCellIterators(DynCollection):
 
 class DynScalarArgs(DynCollection):
     '''
-    Handles the declaration of scalar kernel arguments appearing in the Invoke.
+    Handles the declaration of scalar kernel arguments appearing in either
+    an Invoke or Kernel stub.
 
     :param node: the Kernel stub or Invoke for which to manage the scalar \
                  arguments.
@@ -2531,7 +2552,7 @@ class DynScalarArgs(DynCollection):
                         raise InternalError("Unrecognised scalar type: "
                                             "'{0}'".format(arg.type))
 
-    def declarations(self, parent):
+    def _invoke_declarations(self, parent):
         '''
         Insert declarations for all of the scalar arguments.
 
@@ -2550,6 +2571,17 @@ class DynScalarArgs(DynCollection):
                 parent.add(DeclGen(parent, datatype="integer",
                                    entity_decls=self._int_scalars[intent],
                                    intent=intent))
+
+    def _stub_declarations(self, parent):
+        '''
+        Declarations for scalars in Kernel stubs are the same as for those
+        in Invokes.
+
+        :param parent: node in the f2pygen AST representing the Kernel stub \
+                       to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        self._invoke_declarations(parent)
 
 
 class DynLMAOperators(DynCollection):
@@ -3960,8 +3992,10 @@ class DynBoundaryConditions(DynCollection):
     Manages declarations and initialisation of quantities required by
     kernels that need boundary condition information.
 
-    :param node:
-    :type node:
+    :param node: the Invoke or Kernel stub for which we are to handle \
+                 any boundary conditions.
+    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
     '''
     # Define a BoundaryDofs namedtuple to help us manage the arrays that
     # are required.
@@ -6569,8 +6603,7 @@ class DynKern(Kern):
                                  an OpenMP parallel region.
 
         '''
-        from psyclone.f2pygen import CallGen, DeclGen, AssignGen, UseGen, \
-            CommentGen
+        from psyclone.f2pygen import DeclGen, AssignGen, CommentGen
         parent.add(DeclGen(parent, datatype="integer",
                            entity_decls=["cell"]))
 
@@ -6988,7 +7021,7 @@ class ArgOrdering(object):
         raise NotImplementedError("Error: ArgOrdering.banded_dofmap() must"
                                   " be implemented by subclass")
 
-    def indirection_dofmap(self, arg, operator=None):
+    def indirection_dofmap(self, function_space, operator=None):
         '''
         Add indirection dofmap required when applying a CMA operator
 
@@ -7248,8 +7281,11 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(orientation_name)
 
     def field_bcs_kernel(self, function_space):
-        ''' implement the boundary_dofs array fix for a field '''
-        #from psyclone.f2pygen import DeclGen, AssignGen
+        '''
+        Implement the boundary_dofs array fix for a field.
+
+        :param function_space: unused argument.
+        '''
         fspace = None
         for fspace in self._kern.arguments.unique_fss:
             if fspace.orig_name == "any_space_1":
@@ -7269,7 +7305,6 @@ class KernCallArgList(ArgOrdering):
         Supply necessary additional arguments for the kernel that
         applies boundary conditions to a LMA operator.
         '''
-        from psyclone.f2pygen import DeclGen, AssignGen
         # This kernel has only a single LMA operator as argument.
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
@@ -7361,8 +7396,8 @@ class KernStubArgList(ArgOrdering):
         '''Add the field vector associated with the argument 'argvect' to the
         argument list.
 
-        :param argvect:
-        :type argvect:
+        :param argvect: the corresponding kernel argument.
+        :type argvect:  :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
         # the range function below returns values from
         # 1 to the vector size which is what we
@@ -7454,7 +7489,6 @@ class KernStubArgList(ArgOrdering):
         :param operator:
 
         '''
-        from psyclone.f2pygen import DeclGen
         if not operator:
             raise GenerationError("Internal error: no CMA operator supplied.")
         if operator.type != "gh_columnwise_operator":
@@ -7533,24 +7567,6 @@ class KernStubArgList(ArgOrdering):
                                differential basis function
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
         '''
-        # the size of the first dimension for a
-        # differential basis array depends on the
-        # function space. The values are
-        # w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1
-        first_dim = None
-        if function_space.orig_name.lower() in \
-           ["w2", "w2h", "w2v", "any_w2"]:
-            first_dim = "1"
-        elif (function_space.orig_name.lower() in
-              ["w0", "w1", "w3", "wtheta"]):
-            first_dim = "3"
-        else:
-            raise GenerationError(
-                "Unsupported space for differential basis "
-                "function, expecting one of {0} but found "
-                "'{1}'".format(VALID_FUNCTION_SPACES,
-                               function_space.orig_name))
-
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
             # We need differential basis functions for quadrature
             diff_basis_name = get_fs_diff_basis_name(function_space)
@@ -8332,8 +8348,7 @@ class DynKernelArgument(KernelArgument):
         dimensions added if required. '''
         if self._vector_size > 1:
             return self.proxy_name+"("+str(self._vector_size)+")"
-        else:
-            return self.proxy_name
+        return self.proxy_name
 
     @property
     def declaration_name(self):
@@ -8341,8 +8356,7 @@ class DynKernelArgument(KernelArgument):
         dimensions added if required. '''
         if self._vector_size > 1:
             return self._name+"("+str(self._vector_size)+")"
-        else:
-            return self._name
+        return self._name
 
     @property
     def proxy_name_indexed(self):
@@ -8351,8 +8365,7 @@ class DynKernelArgument(KernelArgument):
         argument. '''
         if self._vector_size > 1:
             return self._name+"_proxy(1)"
-        else:
-            return self._name+"_proxy"
+        return self._name+"_proxy"
 
     @property
     def name_indexed(self):
@@ -8361,8 +8374,7 @@ class DynKernelArgument(KernelArgument):
         argument. '''
         if self._vector_size > 1:
             return self._name+"(1)"
-        else:
-            return self._name
+        return self._name
 
     @property
     def function_space(self):
@@ -8374,8 +8386,7 @@ class DynKernelArgument(KernelArgument):
         if self._type == "gh_operator":
             # We return the 'from' space for an operator argument
             return self.function_space_from
-        else:
-            return self._function_spaces[0]
+        return self._function_spaces[0]
 
     @property
     def function_space_to(self):
