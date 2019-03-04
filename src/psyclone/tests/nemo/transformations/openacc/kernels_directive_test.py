@@ -232,3 +232,23 @@ def test_kernels_within_if(parser):
             "    fld2d(:, :) = 0.0\n"
             "    !$ACC END KERNELS\n"
             "  END IF\n" in new_code)
+
+
+def test_no_code_block_kernels(parser):
+    ''' Check that we reject attempts to enclose CodeBlocks within a
+    Kernels region. '''
+    reader = FortranStringReader("program cb_mix\n"
+                                 "  do ji=1,jpi\n"
+                                 "    fld(ji) = 1.0\n"
+                                 "  end do\n"
+                                 "  write(*,*) 'Hello'\n"
+                                 "end program cb_mix\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    schedule.view()
+    with pytest.raises(TransformationError) as err:
+        _, _ = acc_trans.apply(schedule.children)
+    assert "CodeBlock'>' cannot be enclosed by a ACCKernelsTrans " in str(err)
+
