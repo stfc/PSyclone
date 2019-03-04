@@ -5845,3 +5845,15 @@ def test_haloex_not_required(monkeypatch):
     for index in range(3):
         haloex = schedule.children[index]
         assert haloex.required() == (False, True)
+
+
+def test_dyncollection_err():
+    ''' Check that the DynCollection constructor raises the expected
+    error if it is not provided with a DynKern or DynInvoke. '''
+    from psyclone.dynamo0p3 import DynProxies
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    with pytest.raises(InternalError) as err:
+        _ = DynProxies(psy)
+    assert "DynCollection takes only a DynInvoke or a DynKern but" in str(err)

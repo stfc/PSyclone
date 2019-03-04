@@ -1394,7 +1394,7 @@ class DynCollection(object):
         else:
             raise InternalError("DynCollection takes only a DynInvoke "
                                 "or a DynKern but got: {0}".format(
-                                    type(invoke)))
+                                    type(node)))
 
         # Whether or not the associated Invoke contains only kernels that
         # iterate over dofs.
