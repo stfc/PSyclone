@@ -91,6 +91,24 @@ def have_graphviz():
     return "graphviz" in sys.modules
 
 
+@pytest.fixture(scope="session", autouse=True)
+def infra_compile(tmpdir_factory):
+    '''A per-session initialisation file that makes sure that the
+    infrastructure files for dynamo0p3 API are compiled.
+    '''
+
+    from dynamo0p3_build import Dynamo0p3Build
+    # Create a temporary directory to store the compiled files.
+    # Note that this directory is unique even if compiled in
+    # parallel, i.e. each process has its own copy of the
+    # compiled infrastructure file, which avoids the problem
+    # of synchronisation between the processes.
+    tmpdir = tmpdir_factory.mktemp('dynamo_wrapper')
+    # This is the first instance created. This will trigger
+    # compilation of the infrastructure files.
+    Dynamo0p3Build(tmpdir)
+
+
 @pytest.fixture(scope="session")
 def parser():
     '''
