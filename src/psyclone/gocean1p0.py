@@ -1899,6 +1899,12 @@ class GOKernelSchedule(KernelSchedule):
         # - First arguments are the iteration indices in column-major order.
         # - All array have the same size and it is given by the
         #   global_work_size argument to clEnqueueNDRangeKernel.
+        # - Assumes no dependencies among kernels called concurrently.
+
+        # TODO: At the moment, the method caller is responsible to ensure
+        # these assumptions. KernelSchedule access to the kernel
+        # meta-arguments could be used to check them and also improve the
+        # generated code.
 
         # Error checking
         if len(self.symbol_table.argument_list) < 2:
