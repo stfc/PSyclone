@@ -1364,7 +1364,7 @@ class Node(object):
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
-    def gen_c_code(self, indent=0, opencl=False):
+    def gen_c_code(self, indent=0):
         raise NotImplementedError("Please implement me")
 
     def update(self):
