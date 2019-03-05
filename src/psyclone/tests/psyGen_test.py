@@ -2446,6 +2446,9 @@ def test_node_abstract_methods():
         Node.gen_code(loop)
     assert ("Please implement me" in str(err))
     with pytest.raises(NotImplementedError) as err:
+        Node.gen_c_code(loop)
+    assert ("Please implement me" in str(err))
+    with pytest.raises(NotImplementedError) as err:
         Node.view(loop)
     assert ("BaseClass of a Node must implement the view method" in str(err))
 
@@ -2977,6 +2980,24 @@ def test_symboltable_can_be_printed():
     assert "Symbol Table:\n" in str(sym_table)
     assert "var1" in str(sym_table)
     assert "var2" in str(sym_table)
+
+
+def test_symboltable_specify_argument_list():
+    '''Test that the specify argument list method sets the argument_list
+    with references to each Symbol and updates the Symbol attributes when
+    needed.'''
+    symTable = SymbolTable()
+    symTable.declare("var1", "real", [])
+    symTable.specify_argument_list(['var1'])
+
+    assert len(symTable.argument_list) == 1
+    assert symTable.argument_list[0].scope == 'global_argument'
+    assert symTable.argument_list[0].is_input is True
+    assert symTable.argument_list[0].is_output is True
+
+    # Test that repeated calls still produce a valid argument list
+    symTable.specify_argument_list(['var1'])
+    assert len(symTable.argument_list) == 1
 
 
 # Test Fparser2ASTProcessor

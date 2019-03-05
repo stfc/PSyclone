@@ -5202,6 +5202,7 @@ class SymbolTable(object):
 
         :param list argument_name_list: Ordered list of the argument names.
         '''
+        self._argument_list = []
         for name in argument_name_list:
             symbol = self.lookup(name)
             # Declarations without explicit intent are provisionally identified
