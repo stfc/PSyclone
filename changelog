@@ -1,12 +1,21 @@
-	10) #174 and PR #216. Adds the ability to generate an OpenCL PSy
-	layer in the gocean1.0 API (including an OpenCL transformation).
 
-	9) #207 and PR #280. Remove support for gunghoproto API.
+	1) #245 and PR #247. Extend PSyIR to support common kernel
+	constructs (e.g. asignments) and generalise ASTProcessor and
+	CodeBlocks.
 
-	8) #227 and PR #233. Add a gocean1.0 API OpenACC example.
+	2) #275 and PR #276. Update fparser submodule (to point to latest
+	version) as this was not done at the last release.
 
-	7) #126 and PR #283. Update xfailing tests in alggen_test.py which
-	require multiple quadrature objects in a single invoke to pass.
+	3) #269 and PR #273. Remove generation of unnecessary
+	infrastructure calls when an Invoke only contains calls to
+	built-ins.
+
+	4) #196 and PR #242. Add support for kernels with evaluators on
+	multiple target function spaces.
+
+	5) #270 and PR #271. Add ability to specify include directories in
+	PSyclone script to allow Fortran include files to be found when
+	transforming kernels.
 
 	6) #201 and PR #224. Add ability to write transformed kernels to
 	file. Also ensures that kernel and psy-layer names match, allows
@@ -14,23 +23,25 @@
 	options when the same kernel is transformed in more than one
 	location.
 
-	5) #270 and PR #271. Add ability to specify include directories in
-	PSyclone script to allow Fortran include files to be found when
-	transforming kernels.
+	7) #126 and PR #283. Update xfailing tests in alggen_test.py which
+	require multiple quadrature objects in a single invoke to pass.
 
-	4) #196 and PR #242. Add support for kernels with evaluators on
-	multiple target function spaces.
+	8) #227 and PR #233. Add a gocean1.0 API OpenACC example.
 
-	3) #269 and PR #273. Remove generation of unnecessary
-	infrastructure calls when an Invoke only contains calls to
-	built-ins.
+	9) #207 and PR #280. Remove support for gunghoproto API.
 
-	2) #275 and PR #276. Update fparser submodule (to point to latest
-	version) as this was not done at the last release.
+	10) #174 and PR #216. Adds the ability to generate an OpenCL PSy
+	layer in the gocean1.0 API (including an OpenCL transformation).
 
-	1) #245 and PR #247. Extend PSyIR to support common kernel
-	constructs (e.g. asignments) and generalise ASTProcessor and
-	CodeBlocks.
+	11) #272 and PR #277. Adds an implicit-to-explicit-loop
+	transformation for the nemo API.
+
+	12) PR #255. Construct a KernelSchedule for kernel code with a
+	SymbolTable to hold information on variables used.
+
+	13) PR #302. Fix API's -> APIs typo in documentation.
+
+	14) #292 and PR #293. Add allowed list of nodes to RegionTrans.
 
 release 1.7.0 20th December 2018
 

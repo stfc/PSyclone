@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
 if __name__ == "__main__":
-    from psyclone.nemo import NemoKern
+    from psyclone.nemo import NemoKern, NemoImplicitLoop
     API = "nemo"
     _, INVOKEINFO = parse("traldf_iso.F90", api=API)
     PSY = PSyFactory(API).create(INVOKEINFO)
@@ -67,7 +67,11 @@ if __name__ == "__main__":
     TRANS_INFO = TransInfo()
     print(TRANS_INFO.list)
     OMP_TRANS = TRANS_INFO.get_trans_name('OMPParallelLoopTrans')
-
+    DO_TRANS = TRANS_INFO.get_trans_name('NemoExplicitLoopTrans')
+    # Transform each implicit loop to make the outermost loop explicit
+    for loop in SCHED.loops():
+        if isinstance(loop, NemoImplicitLoop):
+            _, _ = DO_TRANS.apply(loop)
     for loop in SCHED.loops():
         # TODO loop.kernel method needs extending to cope with
         # multiple kernels
