@@ -57,11 +57,16 @@ def dist_mem(request):
 
 def pytest_addoption(parser):
     ''' Adds command-line options to py.test '''
+    # parser is already defined, and we can't rename the argument here
+    # (since pytest otherwise failes).
+    # pylint: disable=redefined-outer-name
     parser.addoption("--f90", action="store", default="gfortran",
                      help="The Fortran compiler to use")
     parser.addoption("--f90flags", action="store", default="",
                      help="Flags to pass to the Fortran compiler")
     parser.addoption("--compile", action="store_true", default=False,
+                     help="run tests for code compilation")
+    parser.addoption("--compileopencl", action="store_true", default=False,
                      help="run tests for code compilation")
 
 

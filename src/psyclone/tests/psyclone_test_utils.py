@@ -141,6 +141,9 @@ class Compile(object):
     API-specific classes are derived from this class to manage handling
     of the corresponding infrastructure library.
     '''
+    TEST_COMPILE_OPENCL = pytest.config.getoption("--compileopencl")
+    COMPILE_OPENCL = pytest.mark.skipif(not TEST_COMPILE_OPENCL,
+                                        reason="Need --compile option to run")
 
     def __init__(self, tmpdir=None):
         '''
@@ -219,9 +222,9 @@ class Compile(object):
         :return: True if compilation succeeds
         '''
 
-        if not TEST_COMPILE:
+        if not TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
             # Compilation testing is not enabled
-            return
+            return True
 
         # Build the command to execute. Note that the f90 flags are a string
         # and so must be split into individual parts for popen (otherwise
@@ -256,20 +259,18 @@ class Compile(object):
         else:
             return True
 
-    def code_compiles(self, psy_ast):
+    def _code_compiles(self, psy_ast):
         '''Attempts to build the Fortran code supplied as an AST of
         f2pygen objects. Returns True for success, False otherwise.
-        If no Fortran compiler is available then returns True. All files
-        produced are deleted.
+        It is meant for internal test uses only, and must only be
+        called when compilation is actually enabled (use code_compiles
+        otherwse). All files produced are deleted.
 
         :param psy_ast: The AST of the generated PSy layer
         :type psy_ast: Instance of :py:class:`psyGen.PSy`
         :return: True if generated code compiles, False otherwise
         :rtype: bool
         '''
-        if not TEST_COMPILE:
-            # Compilation testing is not enabled
-            return True
 
         kernel_modules = set()
         # Get the names of the modules associated with the kernels.
@@ -315,6 +316,23 @@ class Compile(object):
                 ofile.remove()
 
         return success
+
+    def code_compiles(self, psy_ast):
+        '''Attempts to build the Fortran code supplied as an AST of
+        f2pygen objects. Returns True for success, False otherwise.
+        If compilation is not enabled returns true. Uses _code_compiles
+        for the actual compilation. All files produced are deleted.
+
+        :param psy_ast: The AST of the generated PSy layer
+        :type psy_ast: Instance of :py:class:`psyGen.PSy`
+        :return: True if generated code compiles, False otherwise
+        :rtype: bool
+        '''
+        if not TEST_COMPILE:
+            # Compilation testing is not enabled
+            return True
+
+        return self._code_compiles(psy_ast)
 
     def string_compiles(self, code):
         '''

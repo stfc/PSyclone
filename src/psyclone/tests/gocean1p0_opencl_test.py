@@ -38,13 +38,14 @@ GOcean 1.0 API.'''
 
 from __future__ import print_function, absolute_import
 import pytest
+from gocean1p0_build import GOcean1p0OpenCLBuild
 from psyclone.transformations import OCLTrans
 from psyclone_test_utils import get_invoke
 
 API = "gocean1.0"
 
 
-def test_use_stmts():
+def test_use_stmts(tmpdir):
     ''' Test that generating code for OpenCL results in the correct
     module use statements. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -60,9 +61,10 @@ def test_use_stmts():
       use iso_c_binding'''
     assert expected in generated_code
     assert "if (first_time) then" in generated_code
+    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
-def test_psy_init():
+def test_psy_init(tmpdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -90,9 +92,10 @@ def test_psy_init():
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
-def test_set_kern_args():
+def test_set_kern_args(tmpdir):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -129,9 +132,10 @@ def test_set_kern_args():
     assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
             "p_fld%grid%nx, cu_fld%device_ptr, p_fld%device_ptr, "
             "u_fld%device_ptr)" in generated_code)
+    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
-def test_set_kern_float_arg():
+def test_set_kern_float_arg(tmpdir):
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
@@ -162,9 +166,10 @@ def test_set_kern_float_arg():
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
-def test_set_arg_const_scalar():
+def test_set_arg_const_scalar(tmpdir):
     ''' Check that an invoke that passes a scalar kernel argument by
     value is rejected. (We haven't yet implemented the necessary code for
     setting the value of such an argument in OpenCL.) '''
@@ -176,3 +181,4 @@ def test_set_arg_const_scalar():
         otrans.apply(sched)
     assert ("Cannot generate OpenCL for Invokes that contain kernels with "
             "arguments passed by value" in str(err))
+    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)

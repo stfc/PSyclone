@@ -68,3 +68,29 @@ class GOcean1p0Build(Compile):
         :rtpe: list
         '''
         return ["-I", self._infrastructure_path]
+
+
+# =============================================================================
+class GOcean1p0OpenCLBuild(GOcean1p0Build):
+    '''A simple class based on the GOcean1p0 compilation object, that will
+    only compile OpenCL code.
+    '''
+
+    def code_compiles(self, psy):
+        '''Attempts to build the OpenCL Fortran code supplied as an AST of
+        f2pygen objects. Returns True for success, False otherwise.
+        If no Fortran compiler is available then returns True. All files
+        produced are deleted.
+
+        :param psy_ast: The AST of the generated PSy layer
+        :type psy_ast: Instance of :py:class:`psyGen.PSy`
+        :return: True if generated code compiles, False otherwise
+        :rtype: bool
+        '''
+
+        if not Compile.TEST_COMPILE_OPENCL:
+            return True
+
+        # Call the internal _code_compile function, since it does
+        # not
+        return super(GOcean1p0OpenCLBuild, self)._code_compiles(psy)
