@@ -176,3 +176,29 @@ def test_set_arg_const_scalar():
         otrans.apply(sched)
     assert ("Cannot generate OpenCL for Invokes that contain kernels with "
             "arguments passed by value" in str(err))
+
+
+def test_opencl_kernel_code_generation():
+    ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
+    the expected OpenCL code.
+    '''
+
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    kernel = sched.children[0].children[0].children[0]
+    kschedule = kernel.get_kernel_schedule()
+
+    expected_code = (
+        "__kernel void compute_cu_code(\n"
+        "    __global double * restrict cu,\n"
+        "    __global double * restrict p,\n"
+        "    __global double * restrict u\n"
+        "    ){\n"
+        "    int cuLEN2 = get_global_size(1);\n"
+        "    int pLEN2 = get_global_size(1);\n"
+        "    int uLEN2 = get_global_size(1);\n"
+        "    int i = get_global_id(0);\n"
+        "    int j = get_global_id(1);\n"
+        )
+
+    assert expected_code in kschedule.gen_ocl()
