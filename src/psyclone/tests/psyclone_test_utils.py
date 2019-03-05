@@ -115,7 +115,9 @@ class Compile(object):
     API-specific classes are derived from this class to manage handling
     of the corresponding infrastructure library.
     '''
+    # pylint: disable=no-member
     TEST_COMPILE_OPENCL = pytest.config.getoption("--compileopencl")
+    # pylint: enable=no-member
     COMPILE_OPENCL = pytest.mark.skipif(not TEST_COMPILE_OPENCL,
                                         reason="Need --compile option to run")
 
@@ -132,8 +134,10 @@ class Compile(object):
         :type tmpdir: :py:class:`LocalPath`
         '''
         self._tmpdir = tmpdir
+        # pylint: disable=no-member
         self._f90 = pytest.config.getoption("--f90")
         self._f90flags = pytest.config.getoption("--f90flags")
+        # pylint: enable=no-member
         self._base_path = None
 
     @property
