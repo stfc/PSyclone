@@ -108,32 +108,6 @@ def print_diffs(expected, actual):
     pprint(diff_list)
 
 
-def code_compiles(psy_ast, tmpdir, f90, f90flags):
-    '''A small wrapper around the Compile class to provide a
-    backward compatible function for testing.
-    :param psy_ast: The AST of the generated PSy layer
-    :type psy_ast: Instance of :py:class:`psyGen.PSy`
-    :return: True if generated code compiles, False otherwise
-    :rtype: bool
-
-    '''
-    compile_obj = Compile(tmpdir)
-    return compile_obj.code_compiles(psy_ast)
-
-
-def compile_file(filename, f90, f90flags):
-    '''A small wrapper around the Compile class to provide
-    a backwards compatible function for testing.
-
-    :param psy_ast: The AST of the generated PSy layer
-    :type psy_ast: Instance of :py:class:`psyGen.PSy`
-    :return: True if generated code compiles, False otherwise
-    :rtype: bool
-    '''
-    compile_obj = Compile()
-    return compile_obj.compile_file(filename)
-
-
 class Compile(object):
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
