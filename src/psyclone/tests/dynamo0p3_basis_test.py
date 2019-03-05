@@ -1753,3 +1753,36 @@ def test_diff_basis_unsupp_space():
         _ = kernel.gen_stub
     assert 'Unsupported space for differential basis function' \
         in str(excinfo.value)
+
+
+def test_dynbasisfns_unsupp_qr(monkeypatch):
+    ''' Check that the expected error is raised in
+    DynBasisFunctions._stub_declarations() if an un-supported quadrature
+    shape is encountered. '''
+    from psyclone.dynamo0p3 import DynBasisFunctions
+    from psyclone.f2pygen import ModuleGen
+    from psyclone import dynamo0p3
+    ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    dbasis = DynBasisFunctions(kernel)
+    monkeypatch.setattr(
+        dynamo0p3, "VALID_QUADRATURE_SHAPES",
+        dynamo0p3.VALID_QUADRATURE_SHAPES + ["unsupported-shape"])
+    with pytest.raises(GenerationError) as err:
+        dbasis._stub_declarations(ModuleGen(name="my_mod"))
+    assert ("Quadrature shapes other than GH_QUADRATURE_XYoZ are not yet "
+            "supported - got 'unsupported-shape'" in str(err))
+
+
+def test_dynbasisfns_declns():
+    ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    dbasis = DynBasisFunctions(kernel)
+    for fn in dbasis._basis_fns:
+        fn['type'] = "broken"
+    with pytest.raises(InternalError) as err:
+        dbasis._basis_fn_declns()

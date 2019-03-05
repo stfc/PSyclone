@@ -3439,7 +3439,7 @@ class DynBasisFunctions(DynCollection):
             return
 
         # Get the lists of dimensioning variables and basis arrays
-        var_dims, basis_arrays, _ = self._basis_fn_decl_alloc_init()
+        var_dims, basis_arrays = self._basis_fn_declns()
 
         if var_dims:
             parent.add(DeclGen(parent, datatype="integer", intent="in",
@@ -3512,9 +3512,7 @@ class DynBasisFunctions(DynCollection):
         '''
         from psyclone.f2pygen import CommentGen, AssignGen, DeclGen, \
             AllocateGen, UseGen
-        var_dim_list = []
         basis_declarations = []
-        op_name_list = []
 
         # We need BASIS and/or DIFF_BASIS if any kernel requires quadrature
         # or an evaluator
@@ -3565,10 +3563,31 @@ class DynBasisFunctions(DynCollection):
             parent.add(CommentGen(parent, " Allocate basis/diff-basis arrays"))
             parent.add(CommentGen(parent, ""))
 
-        var_dims, basis_arrays, inits = self._basis_fn_decl_alloc_init()
+        var_dim_list = []
+        for basis_fn in self._basis_fns:
+            # Get the extent of the first dimension of the basis array. and
+            if basis_fn['type'] == "basis":
+                first_dim = self.basis_first_dim_name(basis_fn["fspace"])
+                dim_space = "get_dim_space()"
+            elif basis_fn['type'] == "diff-basis":
+                first_dim = self.diff_basis_first_dim_name(
+                    basis_fn["fspace"])
+                dim_space = "get_dim_space_diff()"
+            else:
+                raise InternalError(
+                    "Unrecognised type of basis function: '{0}'. Should "
+                    "be either 'basis' or 'diff-basis'.".format(
+                        basis_fn['type']))
 
-        for init in inits:
-            parent.add(AssignGen(parent, lhs=init[0], rhs=init[1]))
+            if first_dim not in var_dim_list:
+                var_dim_list.append(first_dim)
+                rhs = "%".join(
+                    [basis_fn["arg"].proxy_name_indexed,
+                     basis_fn["arg"].ref_name(basis_fn["fspace"]),
+                     dim_space])
+                parent.add(AssignGen(parent, lhs=first_dim, rhs=rhs))
+
+        var_dims, basis_arrays = self._basis_fn_declns()
 
         if var_dims:
             # declare dim and diff_dim for all function spaces
@@ -3586,27 +3605,24 @@ class DynBasisFunctions(DynCollection):
         # declare the basis function arrays
         if basis_declarations:
             parent.add(DeclGen(parent, datatype="real",
-                               allocatable=True,
-                               kind="r_def",
+                               allocatable=True, kind="r_def",
                                entity_decls=basis_declarations))
 
         # Compute the values for any basis arrays
         self._compute_basis_fns(parent)
 
-    def _basis_fn_decl_alloc_init(self):
+    def _basis_fn_declns(self):
         '''
-        Extracts all information relating to the necessary declarations,
-        allocations and intialisations for basis-function arrays.
+        Extracts all information relating to the necessary declarations
+        for basis-function arrays.
 
-        :returns: a 3-tuple containing a list of dimensioning variables, a \
-                  dict of basis arrays and a list of intialisation statements.
-        :rtype: (list of str, dict, list of str)
+        :returns: a 2-tuple containing a list of dimensioning variables & a \
+                  dict of basis arrays.
+        :rtype: (list of str, dict)
         '''
         # Dictionary of basis arrays where key values are the array names and
         # entries are a list of dimensions.
         basis_arrays = OrderedDict()
-        # List of initialisation statements
-        inits = []
         # List of names of dimensioning (scalar) variables
         var_dim_list = []
 
@@ -3635,15 +3651,8 @@ class DynBasisFunctions(DynCollection):
                         "be either 'basis' or 'diff-basis'.".format(
                             basis_fn['type']))
 
-                # We'll only need to initialise the dimensioning variables
-                # if we're generating a PSy layer
                 if first_dim not in var_dim_list:
                     var_dim_list.append(first_dim)
-                    rhs = "%".join(
-                        [basis_fn["arg"].proxy_name_indexed,
-                         basis_fn["arg"].ref_name(basis_fn["fspace"]),
-                         dim_space])
-                    inits.append((first_dim, rhs))
 
             elif self._kernel:
                 # We're dealing with a kernel stub so we don't have variables
@@ -3652,7 +3661,7 @@ class DynBasisFunctions(DynCollection):
                     first_dim = self.basis_first_dim_value(basis_fn["fspace"])
                     is_diff_basis = False
                 elif basis_fn['type'] == "diff-basis":
-                    first_dim = self.diff_basis_first_dim_value(
+                    first_dim j= self.diff_basis_first_dim_value(
                         basis_fn["fspace"])
                     is_diff_basis = True
                 else:
@@ -3712,7 +3721,7 @@ class DynBasisFunctions(DynCollection):
                     "Unrecognised evaluator shape: '{0}'. Should be one of "
                     "{1}".format(basis_fn["shape"], VALID_EVALUATOR_SHAPES))
 
-        return (var_dim_list, basis_arrays, inits)
+        return (var_dim_list, basis_arrays)
 
     def _initialise_xyz_qr(self, parent):
         '''
