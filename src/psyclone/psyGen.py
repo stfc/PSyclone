@@ -1365,6 +1365,11 @@ class Node(object):
         raise NotImplementedError("Please implement me")
 
     def gen_c_code(self, indent=0):
+        '''Abstract method for the generation of C source code
+        
+        :param int indent: Depth of indent for the output string.
+        :raises NotImplementedError: is an abstract method.
+        '''
         raise NotImplementedError("Please implement me")
 
     def update(self):
@@ -5335,8 +5340,7 @@ class CodeBlock(Node):
         '''
         Generate a string representation of this node using C language.
 
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
+        :param int indent: Depth of indent for the output string.
         :raises GenerationError: gen_c_code always fails for CodeBlocks.
         '''
         raise GenerationError("CodeBlock can not be translated to C")
@@ -5386,8 +5390,7 @@ class Assignment(Node):
         '''
         Generate a string representation of this node using C language.
 
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
+        :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: string
         '''
@@ -5441,8 +5444,7 @@ class Reference(Node):
         '''
         Generate a string representation of this node using C language.
 
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
+        :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: string
         '''
@@ -5496,8 +5498,7 @@ class BinaryOperation(Node):
         '''
         Generate a string representation of this node using C language.
 
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
+        :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: string
         '''
@@ -5556,8 +5557,7 @@ class Array(Reference):
         '''
         Generate a string representation of this node using C language.
 
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
+        :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: string
         '''
@@ -5622,8 +5622,7 @@ class Literal(Node):
         '''
         Generate a string representation of this node using C language.
 
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
+        :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: string
         '''

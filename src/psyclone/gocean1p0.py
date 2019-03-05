@@ -1889,6 +1889,9 @@ class GOKernelSchedule(KernelSchedule):
         :type indent: integer
         :return: OpenCL language code representing the node.
         :rtype: string
+        :raises GenerationError: if the kernel can not be converted to OpenCL
+        :raises NotImplementedError: if there are some symbol types or nodes
+                                     which are not implemented yet.
         '''
 
         # Assumptions made to generate GOcean OpenCL kernels.
@@ -1900,8 +1903,8 @@ class GOKernelSchedule(KernelSchedule):
         # Error checking
         if len(self.symbol_table.argument_list) < 2:
             raise GenerationError(
-                "GOcean Kernel should always have at lest two "
-                "argumentents representing the iteration indices.")
+                "GOcean Kernel should always have at least two "
+                "arguments representing the iteration indices.")
 
         if (self.symbol_table.argument_list[0].datatype != "integer"
                 or len(self.symbol_table.argument_list[0].shape) != 0):

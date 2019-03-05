@@ -220,7 +220,7 @@ def test_opencl_kernel_gen_different_datatypes():
     kschedule.symbol_table.declare("intarg", "integer", [])
     kschedule.symbol_table.declare("realarg", "real", [])
     kschedule.symbol_table.declare("chararg", "character", [])
-    kschedule.symbol_table.declare("arrayarg", "character", [3, 4, 5, 3])
+    kschedule.symbol_table.declare("arrayarg", "real", [3, 4, 5, 3])
     kschedule.symbol_table.declare("intvar", "integer", [])
     kschedule.symbol_table.declare("realvar", "real", [])
     kschedule.symbol_table.declare("charvar", "character", [])
@@ -265,7 +265,7 @@ def test_opencl_kernel_gen_wrong_kernel():
     # Test gen_ocl without any kernel argument
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
-    assert ("GOcean Kernel should always have at lest two argumentents "
+    assert ("GOcean Kernel should always have at least two arguments "
             "representing the iteration indices.") in str(err)
 
     # Test gen_ocl with 1 kernel argument
@@ -274,7 +274,7 @@ def test_opencl_kernel_gen_wrong_kernel():
     kschedule.symbol_table.specify_argument_list(["arg1"])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
-    assert ("GOcean Kernel should always have at lest two argumentents "
+    assert ("GOcean Kernel should always have at least two arguments "
             "representing the iteration indices.") in str(err)
 
     # Test gen_ocl with 2 kernel argument
