@@ -1891,22 +1891,35 @@ class GOKernelSchedule(KernelSchedule):
         :rtype: string
         '''
 
-        # TODO: Check assumptions to generate this OpenCL implementation.
-        # - First 2 arguments are the iteration indices in column-major order
-        # - All array have the same size, and is obtained with global_size()
-        # - it is an OpenCL rangeNDKernel
+        # Assumptions made to generate GOcean OpenCL kernels.
+        # - It is a 2D domain.
+        # - First arguments are the iteration indices in column-major order.
+        # - All array have the same size and it is given by the
+        #   global_work_size argument to clEnqueueNDRangeKernel.
 
         # Error checking
         if len(self.symbol_table.argument_list) < 2:
-            raise GenerationError()
+            raise GenerationError(
+                "GOcean Kernel should always have at lest two "
+                "argumentents representing the iteration indices.")
 
+        if (self.symbol_table.argument_list[0].datatype != "integer"
+                or len(self.symbol_table.argument_list[0].shape) != 0):
+            raise GenerationError(
+                "GOcean kernel first argument should be a scalar integer.")
+
+        if (self.symbol_table.argument_list[1].datatype != "integer"
+                or len(self.symbol_table.argument_list[1].shape) != 0):
+            raise GenerationError(
+                "GOcean kernel second argument should be a scalar integer.")
+
+        # Declare OpenCL kernel
         code = self.indent(indent)
         code = code + "__kernel "
         code = code + "void " + self._name + "(\n"
 
-        # Generate kernel arguments
+        # Generate kernel arguments: iteration indices are implicit.
         array_arguments = []
-        # GOcean API, first 2 arguments are the iteration indices.
         for symbol in self.symbol_table.argument_list[2:]:
             code = code + self.indent(indent + 1)
             code = code + "__global "
@@ -1918,7 +1931,9 @@ class GOKernelSchedule(KernelSchedule):
             elif symbol.datatype == "character":
                 code = code + "char "
             else:
-                raise NotImplemented()
+                raise NotImplementedError(
+                    "Type '{0}' OpenCL declaration not supported."
+                    "".format(symbol.datatype))
 
             if len(symbol.shape) > 0:
                 code = code + "* restrict "
@@ -1926,16 +1941,10 @@ class GOKernelSchedule(KernelSchedule):
 
             code = code + symbol.name + ",\n"
 
-        # Generate a LEN arguments for each array
-        # for name, dimensions in array_arguments:
-        #     for dim in range(1, dimensions + 1):
-        #         code = code + self.indent(indent + 1) + "int " + name \
-        #                + "LEN" + str(dim) + ",\n"
-
         code = code[:-2]   # Remove last ",\n"
         code = code + "\n" + self.indent(indent + 1) + "){\n"
 
-        # Declare local variables
+        # Declare local variables.
         for symbol in self.symbol_table._symbols.values():
             if symbol not in self.symbol_table.argument_list:
                 code = code + self.indent(indent + 1)
@@ -1943,23 +1952,32 @@ class GOKernelSchedule(KernelSchedule):
                     code = code + "double "
                 elif symbol.datatype == 'integer':
                     code = code + "int "
+                elif symbol.datatype == 'character':
+                    code = code + "char "
+                else:
+                    raise NotImplementedError(
+                        "Type '{0}' OpenCL declaration not supported."
+                        "".format(symbol.datatype))
+
                 if len(symbol.shape) > 0:
                     code = code + "*"
                 code = code + symbol.name + ";\n"
 
-        # Generate a LEN variable for each array
+        # Generate a LEN variable for each array.
         for name, dimensions in array_arguments:
             for dim in range(2, dimensions + 1):
                 code = code + self.indent(indent + 1) + "int " + name
                 code = code + "LEN" + str(dim) + " = get_global_size("
                 code = code + str(dim - 1) + ");\n"
 
+        # Generate a variable for each iteration index.
         index = 0
         for symbol in self.symbol_table.argument_list[:2]:
             code = code + self.indent(indent + 1) + "int " + symbol.name
             code = code + " = get_global_id(" + str(index) + ");\n"
             index = index + 1
 
+        # Generate kernel body
         for child in self._children:
             code = code + child.gen_c_code(indent + 1) + ";\n"
         code = code + "}\n"
