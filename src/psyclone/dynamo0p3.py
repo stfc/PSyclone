@@ -2064,7 +2064,10 @@ class DynDofmaps(DynCollection):
             elif cma["direction"] == "from":
                 ndf_name = get_fs_ndf_name(cma["argument"].function_space_from)
             else:
-                raise InternalError("hohum1")
+                raise InternalError(
+                    "Invalid direction ('{0}') found for CMA operator when "
+                    "collecting column-banded dofmaps. Should "
+                    "be either 'to' or 'from'.".format(cma["direction"]))
             parent.add(DeclGen(parent, datatype="integer", intent="in",
                                entity_decls=[ndf_name]))
             parent.add(DeclGen(parent, datatype="integer", intent="in",
@@ -2077,7 +2080,10 @@ class DynDofmaps(DynCollection):
             elif cma["direction"] == "from":
                 dim_name = cma["argument"].name + "_ncol"
             else:
-                raise InternalError("hohom2")
+                raise InternalError(
+                    "Invalid direction ('{0}') found for CMA operator when "
+                    "collecting indirection dofmaps. Should "
+                    "be either 'to' or 'from'.".format(cma["direction"]))
             parent.add(DeclGen(parent, datatype="integer", intent="in",
                                entity_decls=[dim_name]))
             parent.add(DeclGen(parent, datatype="integer", intent="in",
@@ -2411,11 +2417,11 @@ class DynCellIterators(DynCollection):
         self._nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
 
-        if not self._invoke:
-            return
-
         # Store a reference to the first field/operator object that
         # we can use to look-up nlayers in the PSy layer.
+        if not self._invoke:
+            # We're not generating a PSy layer so we're done here.
+            return
         first_var = None
         for var in self._invoke.psy_unique_vars:
             if var.type not in VALID_SCALAR_NAMES:
@@ -2504,8 +2510,9 @@ class DynScalarArgs(DynCollection):
                     elif arg.type == "gh_integer":
                         self._int_scalars[arg.intent].append(arg.name)
                     else:
-                        raise InternalError("Unrecognised scalar type: "
-                                            "'{0}'".format(arg.type))
+                        raise InternalError(
+                            "Scalar type '{0}' is in VALID_SCALAR_NAMES but "
+                            "not handled in DynScalarArgs".format(arg.type))
 
     def _invoke_declarations(self, parent):
         '''

@@ -76,7 +76,6 @@ def test_kernel_stub_invalid_scalar_argument():
     arg._type = "invalid"
     # create a temporary module to add code into
     from psyclone.f2pygen import ModuleGen
-    module = ModuleGen("module_name")
     # Now call KernStubArgList to raise an exception
     from psyclone.dynamo0p3 import KernStubArgList
     create_arg_list = KernStubArgList(kernel)
@@ -85,6 +84,29 @@ def test_kernel_stub_invalid_scalar_argument():
     assert (
         "Expected argument type to be one of '['gh_real', "
         "'gh_integer']' but got 'invalid'") in str(excinfo.value)
+
+
+def test_dynscalars_err(monkeypatch):
+    ''' Check that the DynScalarArgs constructor raises the expected error
+    if it encounters an unrecognised type of scalar. '''
+    from psyclone.dynamo0p3 import DynScalarArgs
+    from psyclone import dynamo0p3
+    ast = fpapi.parse(os.path.join(BASE_PATH,
+                                   "testkern_one_int_scalar.f90"),
+                      ignore_comments=False)
+    metadata = DynKernMetadata(ast)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+    # Sabotage the scalar argument to make it have an invalid type.
+    arg = kernel.arguments.args[1]
+    arg._type = "invalid-scalar-type"
+    # Monkeypatch the list of supported scalar types to include this one
+    monkeypatch.setattr(dynamo0p3, "VALID_SCALAR_NAMES",
+                        ["gh_real", "gh_integer", "invalid-scalar-type"])
+    with pytest.raises(InternalError) as err:
+        _ = DynScalarArgs(kernel)
+    assert ("Scalar type 'invalid-scalar-type' is in VALID_SCALAR_NAMES but "
+            "not handled" in str(err))
 
 
 def test_kernel_stub_ind_dofmap_errors():

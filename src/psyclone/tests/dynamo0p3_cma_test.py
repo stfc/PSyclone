@@ -44,13 +44,15 @@ import fparser
 from fparser import api as fpapi
 from psyclone.parse import ParseError, parse
 from psyclone.dynamo0p3 import DynKernMetadata
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+
+TEST_API = "dynamo0.3"
 
 # Define LMA/CMA operator write accesses for testing purposes
 OP_WRITE_ACCESSES = ["gh_write", "gh_readwrite"]
@@ -1170,8 +1172,34 @@ def test_cma_multi_kernel(tmpdir, f90, f90flags):
             # (--compile --f90="<compiler_name>" flags to py.test)
             assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
-
 # Tests for the kernel-stub generator
+
+
+def test_dyndofmap_stubdecln_err():
+    ''' Check that DynDofmaps._stub_declarations raises the expected errors
+    if the stored CMA information is invalid. '''
+    from psyclone.dynamo0p3 import DynDofmaps
+    from psyclone.f2pygen import ModuleGen
+    _, invoke_info = parse(
+            os.path.join(BASE_PATH,
+                         "20.5_multi_cma_invoke.f90"),
+            distributed_memory=False,
+            api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    dofmaps = DynDofmaps(psy.invokes.invoke_list[0])
+    mod = ModuleGen(name="test_module")
+    for cma in dofmaps._unique_indirection_maps.values():
+        cma["direction"] = "not-a-direction"
+    with pytest.raises(InternalError) as err:
+        dofmaps._stub_declarations(mod)
+    assert ("Invalid direction ('not-a-direction') found for CMA operator "
+            "when collecting indirection dofmaps" in str(err))
+    for cma in dofmaps._unique_cbanded_maps.values():
+        cma["direction"] = "not-a-direction"
+    with pytest.raises(InternalError) as err:
+        dofmaps._stub_declarations(mod)
+    assert ("Invalid direction ('not-a-direction') found for CMA operator "
+            "when collecting column-banded dofmaps" in str(err))
 
 
 def test_cma_asm_stub_gen():

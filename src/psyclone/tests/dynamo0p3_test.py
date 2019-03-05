@@ -5891,4 +5891,35 @@ def test_dynstencils_extent_vars_err(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = stencils._unique_extent_vars
     assert "_unique_extent_vars: have neither Invoke or Kernel" in str(err)
-    
+
+
+def test_dynstencils_initialise_err():
+    ''' Check that DynStencils.initialise raises the expected InternalError
+    if an unsupported stencil type is encountered. '''
+    from psyclone.f2pygen import ModuleGen
+    from psyclone.dynamo0p3 import DynStencils
+    _, info = parse(os.path.join(BASE_PATH, "19.1_single_stencil.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    stencils = DynStencils(invoke)
+    # Break internal state
+    stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
+    with pytest.raises(GenerationError) as err:
+        _ = stencils.initialise(ModuleGen(name="testmodule"))
+    assert "Unsupported stencil type 'not-a-type' supplied." in str(err)
+
+
+def test_dyncelliterators_err(monkeypatch):
+    ''' Check that the DynCellIterators constructor raises the expected
+    error if it fails to find any field or operator arguments. '''
+    from psyclone.dynamo0p3 import DynCellIterators
+    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    monkeypatch.setattr(invoke, "_psy_unique_vars", [])
+    with pytest.raises(GenerationError) as err:
+        _ = DynCellIterators(invoke)
+    assert ("Cannot create an Invoke with no field/operator arguments"
+            in str(err))
