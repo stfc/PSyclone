@@ -1883,18 +1883,22 @@ class GOKernelSchedule(KernelSchedule):
 
     def gen_ocl(self, indent=0):
         '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
+        Generate a string representation of this node using OpenCL language.
 
         :param indent: Depth of indent for the output string.
         :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean:
-        :return: C language code representing the node.
+        :return: OpenCL language code representing the node.
         :rtype: string
         '''
 
-        # TODO: Check assumptions to generate this opencl implementation.
+        # TODO: Check assumptions to generate this OpenCL implementation.
+        # - First 2 arguments are the iteration indices in column-major order
+        # - All array have the same size, and is obtained with global_size()
+        # - it is an OpenCL rangeNDKernel
+
+        # Error checking
+        if len(self.symbol_table.argument_list) < 2:
+            raise GenerationError()
 
         code = self.indent(indent)
         code = code + "__kernel "
