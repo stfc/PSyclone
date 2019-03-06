@@ -1904,7 +1904,7 @@ class GOKernelSchedule(KernelSchedule):
         # TODO: At the moment, the method caller is responsible to ensure
         # these assumptions. KernelSchedule access to the kernel
         # meta-arguments could be used to check them and also improve the
-        # generated code.
+        # generated code. (Issue #288)
 
         # Error checking
         if len(self.symbol_table.argument_list) < 2:
@@ -1927,7 +1927,7 @@ class GOKernelSchedule(KernelSchedule):
         code = code + "__kernel "
         code = code + "void " + self._name + "(\n"
 
-        # Generate kernel arguments: iteration indices are implicit.
+        # Generate kernel arguments, first 2 iteration indices are implicit.
         array_arguments = []
         for symbol in self.symbol_table.argument_list[2:]:
             code = code + self.indent(indent + 1)
