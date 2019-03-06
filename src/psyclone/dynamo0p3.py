@@ -7900,25 +7900,6 @@ class DynStencil(object):
         self._direction_arg = value
 
 
-class KernelDeclarations(object):
-    '''
-    Handle the declaration of all quantities required by the kernel
-    arguments.
-
-    :param kernel: the kernel for which to add declarations.
-    :type kernel: TBD
-    :param parent: the node in the PSyIR to which to add declarations.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    def __init__(self, kernel, parent):
-        self._kern = kernel
-        self._parent = parent
-
-    def _add_use_stmts(self):
-        '''
-        '''
-
-
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments
     collectively, as specified by the kernel argument metadata. '''
