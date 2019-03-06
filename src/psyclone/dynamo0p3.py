@@ -3619,6 +3619,12 @@ class DynBasisFunctions(DynCollection):
         :returns: a 2-tuple containing a list of dimensioning variables & a \
                   dict of basis arrays.
         :rtype: (list of str, dict)
+
+        :raises InternalError: if neither self._invoke or self._kernel are set.
+        :raises InternalError: if an unrecognised type of basis function is \
+                               encountered.
+        :raises InternalError: if an unrecognised evaluator shape is \
+                               encountered.
         '''
         # Dictionary of basis arrays where key values are the array names and
         # entries are a list of dimensions.
@@ -3635,39 +3641,36 @@ class DynBasisFunctions(DynCollection):
             # function and we store which we have in is_diff_basis. Should
             # further basis-function types be added in the future then the if
             # blocks that use if_diff_basis further down must be updated.
-            if self._invoke:
-                if basis_fn['type'] == "basis":
+            if basis_fn['type'] == "basis":
+                if self._invoke:
                     first_dim = self.basis_first_dim_name(basis_fn["fspace"])
-                    dim_space = "get_dim_space()"
-                    is_diff_basis = False
-                elif basis_fn['type'] == "diff-basis":
+                elif self._kernel:
+                    first_dim = self.basis_first_dim_value(basis_fn["fspace"])
+                else:
+                    raise InternalError("Do not have either Kernel or "
+                                        "Invoke. Should be impossible.")
+                dim_space = "get_dim_space()"
+                is_diff_basis = False
+            elif basis_fn['type'] == "diff-basis":
+                if self._invoke:
                     first_dim = self.diff_basis_first_dim_name(
                         basis_fn["fspace"])
-                    dim_space = "get_dim_space_diff()"
-                    is_diff_basis = True
+                elif self._kernel:
+                    first_dim = self.diff_basis_first_dim_value(
+                        basis_fn["fspace"])                    
                 else:
-                    raise InternalError(
-                        "Unrecognised type of basis function: '{0}'. Should "
-                        "be either 'basis' or 'diff-basis'.".format(
-                            basis_fn['type']))
-
-                if first_dim not in var_dim_list:
-                    var_dim_list.append(first_dim)
-
-            elif self._kernel:
-                # We're dealing with a kernel stub so we don't have variables
-                # to hold the size of the first dimension
-                if basis_fn['type'] == "basis":
-                    first_dim = self.basis_first_dim_value(basis_fn["fspace"])
-                    is_diff_basis = False
-                elif basis_fn['type'] == "diff-basis":
-                    first_dim j= self.diff_basis_first_dim_value(
-                        basis_fn["fspace"])
-                    is_diff_basis = True
-                else:
-                    raise InternalError("huh3")
+                    raise InternalError("Do not have either Kernel or "
+                                        "Invoke. Should be impossible.")
+                dim_space = "get_dim_space_diff()"
+                is_diff_basis = True
             else:
-                raise InternalError("huh2")
+                raise InternalError(
+                    "Unrecognised type of basis function: '{0}'. Should "
+                    "be either 'basis' or 'diff-basis'.".format(
+                        basis_fn['type']))
+
+            if self._invoke and first_dim not in var_dim_list:
+                var_dim_list.append(first_dim)
 
             if basis_fn["shape"] in VALID_QUADRATURE_SHAPES:
 
@@ -4145,12 +4148,6 @@ class DynInvoke(Invoke):
                 for scalar in loop.args_filter(
                         arg_types=VALID_SCALAR_NAMES,
                         arg_accesses=VALID_REDUCTION_NAMES, unique=True):
-                    if scalar.type.lower() == "gh_integer":
-                        raise GenerationError(
-                            "Integer reductions are not currently supported "
-                            "by the LFRic infrastructure. Error found in "
-                            "Kernel '{0}', argument '{1}'".format(
-                                scalar.call.name, scalar.name))
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
 
@@ -4390,10 +4387,13 @@ class DynGlobalSum(GlobalSum):
     Dynamo specific global sum class which can be added to and
     manipulated in, a schedule.
 
-    :param scalar: the kernel argument for which to perform a global sum
+    :param scalar: the kernel argument for which to perform a global sum.
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
     :param parent: the parent node of this node in the Schedule
     :type parent: :py:class:`psyclone.psyGen.Node`
+
+    :raises GenerationError: if distributed memory is not enabled.
+    :raises GenerationError: if the scalar is not of type gh_real.
     '''
     def __init__(self, scalar, parent=None):
         if not Config.get().distributed_memory:
@@ -4402,9 +4402,11 @@ class DynGlobalSum(GlobalSum):
         # a list of scalar types that this class supports
         self._supported_scalars = ["gh_real"]
         if scalar.type not in self._supported_scalars:
-            raise GenerationError("DynGlobalSum currently only supports "
-                                  "'{0}', but found '{1}'.".
-                                  format(self._supported_scalars, scalar.type))
+            raise GenerationError(
+                "DynGlobalSum currently only supports '{0}', but found '{1}'. "
+                "Error found in Kernel '{2}', argument '{3}'".
+                format(self._supported_scalars, scalar.type,
+                       scalar.call.name, scalar.name))
         GlobalSum.__init__(self, scalar, parent=parent)
 
     def gen_code(self, parent):

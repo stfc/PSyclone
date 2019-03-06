@@ -43,7 +43,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
-from psyclone.psyGen import PSyFactory, GenerationError
+from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone_test_utils import code_compiles, print_diffs, TEST_COMPILE
 
@@ -1776,13 +1776,31 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
             "supported - got 'unsupported-shape'" in str(err))
 
 
-def test_dynbasisfns_declns():
+def test_dynbasisfns_declns(monkeypatch):
+    ''' Check the various internal errors that
+    DynBasisFunctions._basis_fn_declns can raise. '''
+    from psyclone.dynamo0p3 import DynBasisFunctions
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
+    dbasis._basis_fns[0]["shape"] = "not-a-shape"
+    with pytest.raises(InternalError) as err:
+        dbasis._basis_fn_declns()
+    assert "Unrecognised evaluator shape: 'not-a-shape'. Should" in str(err)
+    monkeypatch.setattr(dbasis, "_kernel", None)
+    dbasis._basis_fns[0]['type'] = "basis"
+    with pytest.raises(InternalError) as err:
+        dbasis._basis_fn_declns()
+    assert "Do not have either Kernel or Invoke. Should be" in str(err)
+    dbasis._basis_fns[0]['type'] = "diff-basis"
+    with pytest.raises(InternalError) as err:
+        dbasis._basis_fn_declns()
+    assert "Do not have either Kernel or Invoke. Should be" in str(err)
     for fn in dbasis._basis_fns:
         fn['type'] = "broken"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
+    assert ("Unrecognised type of basis function: 'broken'. Should be "
+            "either 'basis' or 'diff-basis'" in str(err))

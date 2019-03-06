@@ -1719,45 +1719,66 @@ def test_field_bc_kernel(tmpdir, f90, f90flags):
         assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
-def test_bc_kernel_field_only(monkeypatch, annexed):
+def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     '''Tests that the recognised boundary-condition kernel is rejected if
     it has an operator as argument instead of a field. Test with and
     without annexed as different numbers of halo exchanges are
     produced.
 
     '''
-
     config = Config.get()
     dyn_config = config.api_conf("dynamo0.3")
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
-    for dist_mem in [False, True]:
-        if dist_mem and not annexed:
-            idx = 1
-        else:
-            idx = 0
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        loop = schedule.children[idx]
-        call = loop.children[0]
-        arg = call.arguments.args[0]
-        # Monkeypatch the argument object so that it thinks it is an
-        # operator rather than a field
-        monkeypatch.setattr(arg, "_type", value="gh_operator")
-        # We have to monkey-patch the arg.ref_name() function too as
-        # otherwise the first monkey-patch causes it to break. Since
-        # it is a function we have to patch it with a temporary
-        # function which we create using lambda.
-        monkeypatch.setattr(arg, "ref_name",
-                            lambda function_space=None: "vspace")
-        with pytest.raises(GenerationError) as excinfo:
-            _ = psy.gen
-        assert ("Expected a gh_field from which to look-up boundary dofs "
-                "for kernel enforce_bc_code but got gh_operator"
-                in str(excinfo))
+    if dist_mem and not annexed:
+        idx = 1
+    else:
+        idx = 0
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[idx]
+    call = loop.children[0]
+    arg = call.arguments.args[0]
+    # Monkeypatch the argument object so that it thinks it is an
+    # operator rather than a field
+    monkeypatch.setattr(arg, "_type", value="gh_operator")
+    # We have to monkey-patch the arg.ref_name() function too as
+    # otherwise the first monkey-patch causes it to break. Since
+    # it is a function we have to patch it with a temporary
+    # function which we create using lambda.
+    monkeypatch.setattr(arg, "ref_name",
+                        lambda function_space=None: "vspace")
+    with pytest.raises(GenerationError) as excinfo:
+        _ = psy.gen
+    assert ("Expected a gh_field from which to look-up boundary dofs "
+            "for kernel enforce_bc_code but got gh_operator"
+            in str(excinfo))
+
+
+def test_bc_kernel_anyspace1_only(monkeypatch):
+    '''Tests that the recognised boundary-condition kernel is rejected if
+    its argument is not specified as being on ANY_SPACE_1.
+
+    '''
+    from psyclone.dynamo0p3 import DynBoundaryConditions, DynKern
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.2_enforce_bc_kernel.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernels = schedule.walk(schedule.children, DynKern)
+    # Ensure that none of the arguments are listed as being on ANY_SPACE_1
+    for fspace in kernels[0].arguments._unique_fss:
+        fspace._orig_name = "W2"
+    with pytest.raises(GenerationError) as err:
+        _ = DynBoundaryConditions(invoke)
+    assert ("enforce_bc_code kernel must have an argument on ANY_SPACE_1 but "
+            "failed to find such an argument" in str(err))
+    
 
 
 def test_multikernel_invoke_1():
