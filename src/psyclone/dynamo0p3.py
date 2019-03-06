@@ -1372,8 +1372,8 @@ class DynCollection(object):
     Base class for managing the declaration and initialisation of a
     group of related entities within an Invoke or Kernel stub
 
-    :param node: the Kernel or Invoke for which to manage arguments and \
-                 declarations.
+    :param node: the Kernel or Invoke for which to manage variable \
+                 declarations and initialisation.
     :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
 
@@ -1385,11 +1385,13 @@ class DynCollection(object):
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
             self._kernel = None
+            # The list of kernel calls we are responsible for
             self._calls = node.schedule.calls()
         elif isinstance(node, DynKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
+            # We only have a single kernel call in this case
             self._calls = [node]
         else:
             raise InternalError("DynCollection takes only a DynInvoke "

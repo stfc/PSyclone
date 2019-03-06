@@ -1481,26 +1481,28 @@ Provides the base classes for PSy-layer code generation.
 Module: dynamo0p3
 =================
 
-Specialises various classes from the `psyclone.psyGen` module
+Specialises various classes from the ``psyclone.psyGen`` module
 in order to support the Dynamo 0.3 API.
 
-When constructing the PSy-layer routine for each Invoke, there are
-various groups of related quantities for which variables must be
-declared and initialised. Each of these groupings is managed by
-a distinct sub-class of the `DynCollection` class:
+When constructing the the Fortran subroutine for either an Invoke or
+Kernel stub (see :ref:`stub-generation`), there are various groups of
+related quantities for which variables must be declared and
+(for Invokes) initialised. Each of these groupings is managed by a distinct
+sub-class of the ``DynCollection`` abstract class:
 
 .. autoclass:: psyclone.dynamo0p3.DynCollection
    :members:
    :private-members:
    :noindex:
 
-For instance, the `psyclone.dynamo0p3.DynDofmaps` class is responsible
-for managing all dofmap-related quantities.
+A concrete sub-class of ``DynCollection`` must provide implementations
+of the ``_stub_declarations``, ``_invoke_declarations`` and, if
+necessary, ``initialisation`` methods.
 
-Although instances of `DynCollection` handle all declarations and
+Although instances of ``DynCollection`` handle all declarations and
 initialisation, there remains the problem of constructing the list of
 arguments for a kernel (or kernel stub). The
-`psyclone.dynamo0p3.ArgOrdering` base class provides support for this:
+``psyclone.dynamo0p3.ArgOrdering`` base class provides support for this:
 
 .. autoclass:: psyclone.dynamo0p3.ArgOrdering
     :members:
@@ -1508,12 +1510,12 @@ arguments for a kernel (or kernel stub). The
     :noindex:
 
 This class is then sub-classed in order to support the generation of
-argument lists when *calling* kernels (`KernCallArgList`) and when
-*creating* kernel stubs (`KernStubArgList`).
-`KernCallArgList` is only used in `DynKernelArguments.raw_arg_list()`.
-`KernStubArgList` is only used in `DynKern.gen_stub()`. These classes make
-use of some of the `DynCollection` sub-classes in order to ensure that
-argument naming is consistent.
+argument lists when *calling* kernels (``KernCallArgList``) and when
+*creating* kernel stubs (``KernStubArgList``).  ``KernCallArgList`` is
+only used in ``DynKernelArguments.raw_arg_list()``.
+``KernStubArgList`` is only used in ``DynKern.gen_stub()``. These
+classes make use of some of the ``DynCollection`` sub-classes in order
+to ensure that argument naming is consistent.
 
 Kernel Transformations
 ----------------------
