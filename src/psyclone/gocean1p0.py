@@ -1931,7 +1931,8 @@ class GOKernelSchedule(KernelSchedule):
         array_arguments = []
         for symbol in self.symbol_table.argument_list[2:]:
             code = code + self.indent(indent + 1)
-            code = code + "__global "
+            if len(symbol.shape) > 0:
+                code = code + "__global "
 
             if symbol.datatype == "real":
                 code = code + "double "
@@ -1969,7 +1970,7 @@ class GOKernelSchedule(KernelSchedule):
                         "".format(symbol.datatype))
 
                 if len(symbol.shape) > 0:
-                    code = code + "*"
+                    code = code + "* "
                 code = code + symbol.name + ";\n"
 
         # Generate a LEN variable for each array.

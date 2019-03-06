@@ -224,6 +224,7 @@ def test_opencl_kernel_gen_different_datatypes():
     kschedule.symbol_table.declare("intvar", "integer", [])
     kschedule.symbol_table.declare("realvar", "real", [])
     kschedule.symbol_table.declare("charvar", "character", [])
+    kschedule.symbol_table.declare("arrayvar", "real", [3, 4, 5, 3])
     kschedule.symbol_table.specify_argument_list(["i", "j", "intarg",
                                                   "realarg", "chararg",
                                                   "arrayarg"])
@@ -232,9 +233,9 @@ def test_opencl_kernel_gen_different_datatypes():
     # Check Arguments are part (or not) of the generated opencl
     assert "int i," not in opencl
     assert "int j," not in opencl
-    assert "__global int intarg" in opencl
-    assert "__global double realarg" in opencl
-    assert "__global char chararg" in opencl
+    assert "int intarg" in opencl
+    assert "double realarg" in opencl
+    assert "char chararg" in opencl
     assert "__global double * restrict arrayarg" in opencl
 
     # Check local variables are declared
@@ -242,6 +243,7 @@ def test_opencl_kernel_gen_different_datatypes():
     assert "double realvar;" in opencl
     assert "char charvar;" in opencl
     assert "double realvar;" in opencl
+    assert "double * arrayvar;" in opencl
     assert "int arrayargLEN1 = get_global_size(0);" not in opencl
     assert "int arrayargLEN2 = get_global_size(1);" in opencl
     assert "int arrayargLEN3 = get_global_size(2);" in opencl
