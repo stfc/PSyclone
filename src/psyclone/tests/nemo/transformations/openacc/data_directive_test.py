@@ -475,10 +475,7 @@ def test_array_access_in_ifblock(parser):
     psy = PSyFactory(API, distributed_memory=False).create(ptree)
     schedule = psy.invokes.get('ifclause').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule.view()
     # Put the second loop nest inside a data region
     acc_trans.apply(schedule.children[1:])
-    schedule.view()
     gen_code = str(psy.gen).lower()
-    print(gen_code)
     assert " copyin(zmask)" in gen_code

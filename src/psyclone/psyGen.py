@@ -4820,7 +4820,7 @@ class Fparser2ASTProcessor(object):
         :rtype: (list of str, list of str)
         '''
         from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
-            Section_Subscript_List, Loop_Control, Data_Ref, \
+            Section_Subscript_List, Loop_Control, Data_Ref, If_Then_Stmt, \
             Structure_Constructor, Array_Section
         from fparser.two.utils import walk_ast
         readers = OrderedSet()
@@ -4859,6 +4859,19 @@ class Fparser2ASTProcessor(object):
                                                     name_str)
                         structure_name_str = None
                     writers.add(name_str)
+            elif isinstance(node, If_Then_Stmt):
+                # Check for array accesses in IF statements
+                array_refs = walk_ast([node], [Part_Ref])
+                for ref in array_refs:
+                    name = ref.items[0].string
+                    if name.upper() not in FORTRAN_INTRINSICS:
+                        if name not in writers:
+                            readers.add(name)
+            elif node:
+                # TODO #309 handle array accesses in other contexts, e.g. as
+                # loop bounds in DO statements.
+                pass
+
         return (readers.keys(), writers.keys())
 
     def generate_schedule(self, name, module_ast):
