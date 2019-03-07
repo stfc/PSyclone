@@ -4406,9 +4406,9 @@ class DummyTransformation(Transformation):
 
 class IfBlock(Node):
     '''
-    Class representing an if-block within the PSyIRe.
+    Class representing an if-block within the PSyIR.
 
-    :param parent: the parent of this node within the PSyIRe tree.
+    :param parent: the parent of this node within the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, parent=None):
@@ -4445,7 +4445,7 @@ class IfClause(IfBlock):
     '''
     Represents a sub-clause of an If block - e.g. an "else if()".
 
-    :param parent: the parent of this node in the PSyIRe tree.
+    :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`.
 
     '''
@@ -4468,7 +4468,7 @@ class IfClause(IfBlock):
 class Fparser2ASTProcessor(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
-    convert the nodes to PSyIRe.
+    convert the nodes to PSyIR.
     '''
 
     def __init__(self):
@@ -4496,7 +4496,7 @@ class Fparser2ASTProcessor(object):
         '''
         Create a CodeBlock for the supplied list of statements
         and then wipe the list of statements. A CodeBlock is a node
-        in the PSyIRe (Schedule) that represents a sequence of one or more
+        in the PSyIR (Schedule) that represents a sequence of one or more
         Fortran statements which PSyclone does not attempt to handle.
 
         :param parent: Node in the PSyclone AST to which to add this code \
@@ -4765,12 +4765,12 @@ class Fparser2ASTProcessor(object):
     # parent information (fparser/#102).
     def process_nodes(self, parent, nodes, nodes_parent):
         '''
-        Create the PSyIRe of the supplied list of nodes in the
+        Create the PSyIR of the supplied list of nodes in the
         fparser2 AST. Currently also inserts parent information back
         into the fparser2 AST. This is a workaround until fparser2
         itself generates and stores this information.
 
-        :param parent: Parent node in the PSyIRe we are constructing.
+        :param parent: Parent node in the PSyIR we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :param nodes: List of sibling nodes in fparser2 AST.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
@@ -4802,15 +4802,15 @@ class Fparser2ASTProcessor(object):
 
     def _create_child(self, child, parent=None):
         '''
-        Create a PSyIRe node representing the supplied fparser 2 node.
+        Create a PSyIR node representing the supplied fparser 2 node.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
                 child type.
-        :return: Returns the PSyIRe representation of child, which can be a
+        :return: Returns the PSyIR representation of child, which can be a
                  single node, a tree of nodes or None if the child can be
                  ignored.
         :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
@@ -4836,7 +4836,7 @@ class Fparser2ASTProcessor(object):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: None
         :rtype: NoneType
@@ -4845,13 +4845,13 @@ class Fparser2ASTProcessor(object):
 
     def _if_stmt_handler(self, node, parent):
         '''
-        Transforms an fparser2 If_Stmt to the PSyIRe representation.
+        Transforms an fparser2 If_Stmt to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.If_Stmt`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
         ifblock = IfBlock(parent=parent)
@@ -4863,13 +4863,13 @@ class Fparser2ASTProcessor(object):
 
     def _assignment_handler(self, node, parent):
         '''
-        Transforms an fparser2 Assignment_Stmt to the PSyIRe representation.
+        Transforms an fparser2 Assignment_Stmt to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Assignment`
         '''
         assignment = Assignment(parent=parent)
@@ -4882,13 +4882,13 @@ class Fparser2ASTProcessor(object):
 
     def _binary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 BinaryOp to the PSyIRe representation.
+        Transforms an fparser2 BinaryOp to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.BinaryOpBase`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
         '''
         # Get the operator
@@ -4904,28 +4904,28 @@ class Fparser2ASTProcessor(object):
 
     def _name_handler(self, node, parent):
         '''
-        Transforms an fparser2 Name to the PSyIRe representation.
+        Transforms an fparser2 Name to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Name`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Reference`
         '''
         return Reference(node.string, parent)
 
     def _parenthesis_handler(self, node, parent):
         '''
-        Transforms an fparser2 Parenthesis to the PSyIRe representation.
+        Transforms an fparser2 Parenthesis to the PSyIR representation.
         This means ignoring the parentheis and process the fparser2 children
         inside.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Parenthesis`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         # Use the items[1] content of the node as it contains the required
@@ -4935,13 +4935,13 @@ class Fparser2ASTProcessor(object):
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIRe representation.
+        Transforms an fparser2 Part_Ref to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Array`
         '''
         from fparser.two import Fortran2003
@@ -4964,13 +4964,13 @@ class Fparser2ASTProcessor(object):
 
     def _number_handler(self, node, parent):
         '''
-        Transforms an fparser2 NumberBase to the PSyIRe representation.
+        Transforms an fparser2 NumberBase to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.NumberBase`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
         return Literal(str(node.items[0]), parent=parent)
@@ -5148,6 +5148,33 @@ class Symbol(object):
 
         self._scope = new_scope
 
+    def gen_c_definition(self):
+        '''
+        Generates string representing the C definition of the symbol.
+
+        :return: The C definition of the symbol.
+        :rtype: str
+        '''
+        code = ""
+        if self.datatype == "real":
+            code = code + "double "
+        elif self.datatype == "integer":
+            code = code + "int "
+        elif self.datatype == "character":
+            code = code + "char "
+        else:
+            raise NotImplementedError(
+                "Type '{0}' is not supported."
+                "".format(self.datatype))
+
+        # If the argument is an array, in C language we define it
+        # as an unaliased pointer.
+        if len(self.shape) > 0:
+            code = code + "* restrict "
+
+        code = code + self.name
+        return code
+
     def __str__(self):
         return (self.name + "<" + self.datatype + ", " + str(self.shape) +
                 ", " + self.scope + ">")
@@ -5235,10 +5262,22 @@ class SymbolTable(object):
     @property
     def argument_list(self):
         '''
-        :return: Ordered argument list.
-        :rtype: list of Symbols
+        :return: Ordered list of arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
         return self._argument_list
+
+    @property
+    def local_symbols(self):
+        '''
+        :return:  List of local symbols.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        '''
+        locals_list = []
+        for symbol in self._symbols.values():
+            if symbol.scope == "local":
+                locals_list.append(symbol)
+        return locals_list
 
     def view(self):
         '''
@@ -5296,13 +5335,13 @@ class KernelSchedule(Schedule):
 class CodeBlock(Node):
     '''
     Node representing some generic Fortran code that PSyclone does not attempt
-    to manipulate. As such it is a leaf in the PSyIRe and therefore has no
+    to manipulate. As such it is a leaf in the PSyIR and therefore has no
     children.
 
     :param statements: list of fparser2 AST nodes representing the Fortran \
                        code constituting the code block.
     :type statements: list of :py:class:`fparser.two.utils.Base`
-    :param parent: the parent node of this code block in the PSyIRe.
+    :param parent: the parent node of this code block in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, statements, parent=None):
@@ -5310,7 +5349,7 @@ class CodeBlock(Node):
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
-        # from the fparser2 AST to the PSyIRe.
+        # from the fparser2 AST to the PSyIR.
         self._statements = statements[:]
 
     @property
@@ -5353,7 +5392,7 @@ class Assignment(Node):
 
     :param ast: node in the fparser2 AST representing the assignment.
     :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt.
-    :param parent: the parent node of this Assignment in the PSyIRe.
+    :param parent: the parent node of this Assignment in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, parent=None):
@@ -5392,7 +5431,7 @@ class Assignment(Node):
 
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
-        :rtype: string
+        :rtype: str
         '''
         if len(self.children) != 2:
             raise GenerationError("Assignment malformed or "
@@ -5400,8 +5439,8 @@ class Assignment(Node):
                                   "children.")
 
         return self.indent(indent) \
-            + self.children[0].gen_c_code(indent) + " = " \
-            + self.children[1].gen_c_code(indent)
+            + self.children[0].gen_c_code() + " = " \
+            + self.children[1].gen_c_code() + ";"
 
 
 class Reference(Node):
@@ -5410,7 +5449,7 @@ class Reference(Node):
 
     :param ast: node in the fparser2 AST representing the reference.
     :type ast: :py:class:`fparser.two.Fortran2003.Name.
-    :param parent: the parent node of this Reference in the PSyIRe.
+    :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, reference_name, parent):
@@ -5446,7 +5485,7 @@ class Reference(Node):
 
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
-        :rtype: string
+        :rtype: str
         '''
         return self._reference
 
@@ -5458,7 +5497,7 @@ class BinaryOperation(Node):
 
     :param ast: node in the fparser2 AST representing the binary operator.
     :type ast: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
-    :param parent: the parent node of this BinaryOperator in the PSyIRe.
+    :param parent: the parent node of this BinaryOperator in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, operator, parent=None):
@@ -5500,7 +5539,7 @@ class BinaryOperation(Node):
 
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
-        :rtype: string
+        :rtype: str
         '''
 
         if len(self.children) != 2:
@@ -5508,9 +5547,9 @@ class BinaryOperation(Node):
                                   "incomplete. It should have exactly 2 "
                                   "children.")
 
-        return "(" + self._children[0].gen_c_code(indent) + " " \
+        return "(" + self._children[0].gen_c_code() + " " \
             + self._operator + " " \
-            + self._children[1].gen_c_code(indent) + ")"
+            + self._children[1].gen_c_code() + ")"
 
 
 class Array(Reference):
@@ -5520,7 +5559,7 @@ class Array(Reference):
 
     :param ast: node in the fparser2 AST representing array.
     :type ast: :py:class:`fparser.two.Fortran2003.Part_Ref.
-    :param parent: the parent node of this Array in the PSyIRe.
+    :param parent: the parent node of this Array in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, reference_name, parent):
@@ -5559,23 +5598,26 @@ class Array(Reference):
 
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
-        :rtype: string
+        :rtype: str
         '''
-        code = super(Array, self).gen_c_code(indent) + "["
+        code = super(Array, self).gen_c_code() + "["
 
-        num_dimensions = len(self._children)
-        if num_dimensions < 1:
+        dimensions_remaining = len(self._children)
+        if dimensions_remaining < 1:
             raise GenerationError("Array must have at least 1 dimension.")
 
         # In C array expressions should be reversed from the PSyIR order
         # (column-major to row-major order) and flattened (1D).
         for child in reversed(self._children):
-            code = code + child.gen_c_code(indent)
-            if num_dimensions > 1:
-                dimstring = super(Array, self).gen_c_code(indent)
-                dimstring = dimstring + "LEN" + str(num_dimensions)
+            code = code + child.gen_c_code()
+            # For each dimension bigger than one, it needs to write the
+            # appropriate operation to flatten the array. By convention,
+            # the array dimensions are <name>LEN<DIM>.
+            # (e.g. A[3,5,2] -> A[3 * ALEN2 * ALEN1 + 5 * ALEN1 + 2])
+            for dim in reversed(range(1, dimensions_remaining)):
+                dimstring = self._reference + "LEN" + str(dim)
                 code = code + " * " + dimstring
-                num_dimensions = num_dimensions - 1
+            dimensions_remaining = dimensions_remaining - 1
             code = code + " + "
 
         code = code[:-3] + "]"  # Delete last ' + ' and close bracket
@@ -5586,9 +5628,8 @@ class Literal(Node):
     '''
     Node representing a Literal
 
-    :param value: string representing the literal value.
-    :type value: string
-    :param parent: the parent node of this Literal in the PSyIRe.
+    :param str value: string representing the literal value.
+    :param parent: the parent node of this Literal in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, value, parent=None):
@@ -5624,6 +5665,6 @@ class Literal(Node):
 
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
-        :rtype: string
+        :rtype: str
         '''
         return self._value

@@ -2617,7 +2617,7 @@ def test_assignment_gen_c_code():
     lit = Literal("1", assignment)
     assignment.addchild(ref)
     assignment.addchild(lit)
-    assert assignment.gen_c_code() == 'a = 1'
+    assert assignment.gen_c_code() == 'a = 1;'
 
 # Test Reference class
 
@@ -2686,20 +2686,21 @@ def test_array_gen_c_code():
         code = array.gen_c_code()
     assert("Array must have at least 1 dimension." in str(err.value))
 
-    # Test 1 dimension
+    # Test access element '1'
     lit = Literal("1", array)
     array.addchild(lit)
     assert array.gen_c_code() == 'array1[1]'
 
-    # Test 2 dimension
+    # Test access element (1,2)
     lit2 = Literal("2", array)
     array.addchild(lit2)
-    assert array.gen_c_code() == 'array1[2 * array1LEN2 + 1]'
+    assert array.gen_c_code() == 'array1[2 * array1LEN1 + 1]'
 
-    # Test 3 dimension
+    # Test access element (1,2,3)
     lit3 = Literal("3", array)
     array.addchild(lit3)
-    assert array.gen_c_code() == 'array1[3 * array1LEN3 + 2 * array1LEN2 + 1]'
+    assert array.gen_c_code() == 'array1[3 * array1LEN2 * '\
+        'array1LEN1 + 2 * array1LEN1 + 1]'
 
 # Test Literal class
 

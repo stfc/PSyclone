@@ -243,12 +243,11 @@ def test_opencl_kernel_gen_different_datatypes():
     assert "double realvar;" in opencl
     assert "char charvar;" in opencl
     assert "double realvar;" in opencl
-    assert "double * arrayvar;" in opencl
-    assert "int arrayargLEN1 = get_global_size(0);" not in opencl
+    assert "double * restrict arrayvar;" in opencl
+    assert "int arrayargLEN1 = get_global_size(0);" in opencl
     assert "int arrayargLEN2 = get_global_size(1);" in opencl
     assert "int arrayargLEN3 = get_global_size(2);" in opencl
     assert "int arrayargLEN4 = get_global_size(3);" in opencl
-    assert "int arrayargLEN4 = get_global_size(4);" not in opencl
 
     kschedule.symbol_table.lookup("realvar")._datatype = "invalid"
     with pytest.raises(NotImplementedError) as err:
