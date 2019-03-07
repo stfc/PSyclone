@@ -40,11 +40,37 @@ from __future__ import print_function, absolute_import
 import pytest
 from gocean1p0_build import GOcean1p0OpenCLBuild
 from psyclone.transformations import OCLTrans
-from psyclone_test_utils import get_invoke
+from psyclone_test_utils import Compile, get_invoke
 
 API = "gocean1.0"
 
 
+# ----------------------------------------------------------------------------
+@Compile.COMPILE_OPENCL
+def test_opencl_compiler_works(tmpdir):
+    ''' Check that the specified compiler works for a hello-world
+    opencl example. This is done in this file to alert the user
+    that all compiles tests are skipped if only the '--compile'
+    command line option is used (instead of --compileopencl)
+    '''
+    example_ocl_code = '''
+program hello
+  !USE fortcl
+  write (*,*) "Hello"
+end program hello
+'''
+    old_pwd = tmpdir.chdir()
+    try:
+        with open("hello_world_opencl.f90", "w") as ffile:
+            ffile.write(example_ocl_code)
+        success = Compile(tmpdir).compile_file("hello_world_opencl.f90",
+                                               link=True)
+    finally:
+        old_pwd.chdir()
+    assert success
+
+
+# ----------------------------------------------------------------------------
 def test_use_stmts(tmpdir):
     ''' Test that generating code for OpenCL results in the correct
     module use statements. '''

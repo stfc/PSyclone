@@ -64,28 +64,6 @@ def test_compiler_works(tmpdir):
     assert success
 
 
-# ----------------------------------------------------------------------------
-@Compile.COMPILE_OPENCL
-def test_opencl_compiler_works(tmpdir):
-    ''' Check that the specified compiler works for a hello-world
-    opencl example.'''
-    example_ocl_code = '''
-program hello
-  USE fortcl
-  write (*,*) "Hello"
-end program hello
-'''
-    old_pwd = tmpdir.chdir()
-    try:
-        with open("hello_world_opencl.f90", "w") as ffile:
-            ffile.write(example_ocl_code)
-        success = Compile(tmpdir).compile_file("hello_world_opencl.f90",
-                                               link=True)
-    finally:
-        os.chdir(str(old_pwd))
-    assert success
-
-
 @COMPILE
 def test_compiler_with_flags(tmpdir):
     ''' Check that we can pass through flags to the Fortran compiler.
