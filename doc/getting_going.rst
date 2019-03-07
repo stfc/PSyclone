@@ -345,7 +345,8 @@ during the testing process. To enable compilation testing run:
 ``"<compiler_name>"`` and ``"<compiler_flags_list>"`` are optional arguments.
 The default value for ``"<compiler_name>"`` is ``"gfortran"`` and there are
 no defaults for the ``"<compiler_flags_list>"``. Please note that the onus
-is on the user to provide correct values for these options.
+is on the user to provide correct values for these options. Full details
+are provided in the :ref:`compilation_testing` section.
 
 .. _getting-going-run:
 
