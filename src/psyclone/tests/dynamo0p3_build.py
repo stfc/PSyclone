@@ -87,6 +87,7 @@ class Dynamo0p3Build(Compile):
         import os
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3")
+        self.base_path = base_path
         self._infrastructure_path = os.path.join(base_path, "infrastructure")
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
