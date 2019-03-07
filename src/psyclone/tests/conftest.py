@@ -93,7 +93,7 @@ def have_graphviz():
 
 @pytest.fixture(scope="session", autouse=True)
 def infra_compile(tmpdir_factory):
-    '''A per-session initialisation file that makes sure that the
+    '''A per-session initialisation function that makes sure that the
     infrastructure files for dynamo0p3 API are compiled.
     '''
 

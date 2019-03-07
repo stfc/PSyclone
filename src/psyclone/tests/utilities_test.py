@@ -37,7 +37,6 @@
 psyclone_test_utils.'''
 
 from __future__ import absolute_import
-import os
 import pytest
 from psyclone_test_utils import COMPILE, CompileError, get_invoke, Compile
 
@@ -60,7 +59,7 @@ def test_compiler_works(tmpdir):
             ffile.write(HELLO_CODE)
         success = _compile.compile_file("hello_world.f90", link=True)
     finally:
-        os.chdir(str(old_pwd))
+        old_pwd.chdir()
     assert success
 
 
@@ -85,7 +84,7 @@ def test_compiler_with_flags(tmpdir):
         _compile._f90flags = "-g"
         success = _compile.compile_file("hello_world.f90", link=True)
     finally:
-        os.chdir(str(old_pwd))
+        old_pwd.chdir()
     assert success
 
 
@@ -103,7 +102,7 @@ def test_build_invalid_fortran(tmpdir):
         with pytest.raises(CompileError) as excinfo:
             _ = _compile.compile_file("hello_world.f90")
     finally:
-        os.chdir(str(old_pwd))
+        old_pwd.chdir()
     assert "Compile error" in str(excinfo)
 
 
@@ -121,7 +120,7 @@ def test_find_fortran_file(tmpdir):
         name = Compile.find_fortran_file([str(tmpdir)], "hello_world")
         assert name.endswith("hello_world.f90")
     finally:
-        os.chdir(str(old_pwd))
+        old_pwd.chdir()
 
 
 @COMPILE
