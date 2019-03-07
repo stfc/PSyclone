@@ -452,3 +452,33 @@ def test_no_enter_data(parser):
         _, _ = acc_trans.apply(schedule.children)
     assert ("Cannot add an OpenACC data region to a schedule that already "
             "contains an 'enter data' directive" in str(err))
+
+
+def test_array_access_in_ifblock(parser):
+    ''' Check that we generate the necessary copyin clause when a data region
+    contains an IF clause with an array access. '''
+    code = ("program ifclause\n"
+            "  real(kind=wp) :: zmask(8,8), zdta(8,8)\n"
+            "  integer :: ji, jj\n"
+            "  zmask(:,:) = 1.0\n"
+            "  do jj = 1, 8\n"
+            "    do ji = 1, 8\n"
+            "      if(zmask(ji,jj) < 0.0)then\n"
+            "        zdta(ji,jj) = 0.0\n"
+            "      end if\n"
+            "    end do\n"
+            "  end do\n"
+            "end program ifclause\n")
+    print(code)
+    reader = FortranStringReader(code)
+    ptree = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ptree)
+    schedule = psy.invokes.get('ifclause').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    schedule.view()
+    # Put the second loop nest inside a data region
+    acc_trans.apply(schedule.children[1:])
+    schedule.view()
+    gen_code = str(psy.gen).lower()
+    print(gen_code)
+    assert " copyin(zmask)" in gen_code
