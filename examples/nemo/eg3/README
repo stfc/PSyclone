@@ -60,3 +60,24 @@ tra_adv.F90 is a stand-alone version of one of the tracer-advection
 routines from the NEMO ocean model. It was originally extracted by
 Silvia Mocavero of CMCC. The code can be found in the ../code
 directory.
+
+Compiling and Execution
+
+If desired this example may be compiled and executed on a GPU device
+provided a suitable compiler with OpenACC support is available.
+Since tra_adv.F90 is instrumented for use with the dl_timer library,
+this library is also required. It is available from
+bitbucket.org/apeg/dl_timer.
+
+Once dl_timer has been downloaded, the supplied Makefile must be
+edited to supply the location of the library. The compiler and flags
+must be specified via the F90 and F90FLAGS environment variables, e.g.
+to use PGI and OpenACC:
+
+  export F90=pgf90
+  export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
+  export LDFLAGS="-acc -ta=tesla,cc70"
+
+The size of domain and number of time-steps are also picked-up from
+environment variables. Some example settings are provided in the
+domain_setup.sh file.

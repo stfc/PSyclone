@@ -35,7 +35,9 @@
 
 # Makefile for the 3rd NEMO example. Uses PSyclone (which must
 # be installed) to generate Fortran with OpenACC directives for
-# the tracer-advection benchmark.
+# the tracer-advection benchmark. Depends upon the dl_timer
+# library (bitbucket.org/apeg/dl_timer) which must be installed
+# and the location specified in SHARED_DIR below.
 #
 # The compiler to use must be specified via the F90 environment
 # variable. e.g. to use PGI and OpenACC:
@@ -44,8 +46,7 @@
 # export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
 # export LDFLAGS="-acc -ta=tesla,cc70"
 
-# Location of the infrastucture code (which is a submodule of the
-# PSyclone git repo).
+# Location of the dl_timer library
 SHARED_DIR = /home/aporter/MyInstalls
 TIMER_DIR = ${SHARED_DIR}/dl_timer
 TIMER_INC = ${TIMER_DIR}/src
