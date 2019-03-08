@@ -238,7 +238,7 @@ Generic Code
 ############
 
 PSyclone is designed to be configurable so that new front-ends (called
-API's) can be built, re-using as much existing code as possible. The
+APIs) can be built, re-using as much existing code as possible. The
 generic code is kept in the `psyGen.py` file for psy-code generation.
 
 Dependence Analysis
@@ -420,7 +420,7 @@ TBD
 .. config.py
 .. ---------
 .. 
-.. The names of the supported API's and the default API are specified in
+.. The names of the supported APIs and the default API are specified in
 .. `configuration.py`. When adding a new API you must add the name you would like
 .. to use to the ``_supported_api_list`` (and change the ``_default_api`` if
 .. required).
@@ -430,7 +430,7 @@ TBD
 .. 
 .. The parser reads the algorithm code and associated kernel metadata.
 .. 
-.. The parser currently assumes that all API's will use the `invoke()`
+.. The parser currently assumes that all APIs will use the `invoke()`
 .. API for the algorithm-to-psy layer but that the content and structure
 .. of the metadata in the kernel code may differ. If the algorithm API
 .. differs, then the parser will need to be refactored. This is beyond
@@ -550,8 +550,8 @@ TBD
 .. return this position. Therefore supports an arbitrary number of loops
 .. and directives.
 
-Existing API's
-##############
+Existing APIs
+#############
 
 .. _dynamo0.3-developers:
 
