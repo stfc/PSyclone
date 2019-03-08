@@ -5260,6 +5260,16 @@ class SymbolTable(object):
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))
 
+    def __contains__(self, key):
+        '''Check if the given key is part of the Symbol Table.
+
+        :param str key: key to check for existance.
+        :return: Wether the Symbol Table contains the given key.
+        :rtype: bool
+        '''
+        return key in self._symbols
+
+
     @property
     def argument_list(self):
         '''

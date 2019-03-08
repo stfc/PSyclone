@@ -292,11 +292,23 @@ def test_opencl_kernel_gen_wrong_kernel():
     assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
             " but got a scalar of type 'real' for kernel 'test'.")\
         in str(err)
+    kschedule.symbol_table.lookup("arg1")._datatype = "integer"  # restore
 
-    kschedule.symbol_table.lookup("arg1")._datatype = "integer"
     kschedule.symbol_table.lookup("arg2")._shape = [None]
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
     assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
             " but got an array of type 'integer' for kernel 'test'.")\
         in str(err)
+    kschedule.symbol_table.lookup("arg2")._shape = []  # restore
+
+    # Test gen_ocl with clashing variable names for array lengths.
+    kschedule.symbol_table.declare("array", "integer", [None],
+                                   "global_argument", True, True)
+    kschedule.symbol_table.declare("arrayLEN1", "integer", [])
+    kschedule.symbol_table.specify_argument_list(["arg1", "arg2", "array"])
+    with pytest.raises(GenerationError) as err:
+        kschedule.gen_ocl()
+    assert ("Unable to declare the variable 'arrayLEN1' to store the length"
+            " of 'array' because the kernel 'test' already contains a "
+            "symbol with the same name.") in str(err)

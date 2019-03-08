@@ -1961,8 +1961,18 @@ class GOKernelSchedule(KernelSchedule):
         for symbol in self.symbol_table.argument_list[2:]:
             dimensions = len(symbol.shape)
             for dim in range(1, dimensions + 1):
-                code = code + self.indent(indent + 1) + "int " + symbol.name
-                code = code + "LEN" + str(dim) + " = get_global_size("
+                code = code + self.indent(indent + 1) + "int "
+                varname = symbol.name + "LEN" + str(dim)
+
+                # Check there is no clash with other variables
+                if varname in self.symbol_table:
+                    raise GenerationError(
+                        "Unable to declare the variable '{0}' to store the "
+                        "length of '{1}' because the kernel '{2}' already "
+                        "contains a symbol with the same name."
+                        "".format(varname, symbol.name, self._name))
+
+                code = code + varname + " = get_global_size("
                 code = code + str(dim - 1) + ");\n"
 
         # Declare OpenCL iteration indices using the names of the first 2

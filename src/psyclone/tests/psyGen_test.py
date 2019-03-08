@@ -3021,6 +3021,19 @@ def test_symboltable_specify_argument_list():
     assert len(symTable.argument_list) == 1
 
 
+def test_symboltable_contains():
+    '''Test that the __contains__ method returns True if the given name
+    is in the SymbolTable, otherwise returns False.'''
+    symTable = SymbolTable()
+
+    symTable.declare("var1", "real", [])
+    symTable.declare("var2", "real", [None])
+
+    assert "var1" in symTable
+    assert "var2" in symTable
+    assert "var3" not in symTable
+
+
 def test_symboltable_local_symbols():
     '''Test that the local_symbols property returns a list with the
     symbols with local scope.'''
