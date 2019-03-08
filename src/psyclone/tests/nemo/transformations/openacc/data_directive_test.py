@@ -435,8 +435,6 @@ def test_kernels_in_data_region(parser):
             "END PROGRAM one_loop" in new_code)
 
 
-@pytest.mark.xfail(reason="ACCEnterDataTrans not yet supported for the "
-                   "NEMO API. Issue 310.")
 def test_no_enter_data(parser):
     ''' Check that we refuse to allow a data region to be created in a
     Schedule that has already had an Enter Data node added to it. '''
@@ -445,8 +443,11 @@ def test_no_enter_data(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.get('explicit_do').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    enter_trans = TransInfo().get_trans_name('ACCEnterDataTrans')
-    schedule, _ = enter_trans.apply(schedule)
+    # We don't yet support ACCEnterDataTrans for the NEMO API (Issue 310)
+    # so manually insert a GOACCEnterDataDirective in the Schedule.
+    from psyclone.gocean1p0 import GOACCEnterDataDirective
+    directive = GOACCEnterDataDirective(parent=schedule, children=[])
+    schedule.children.insert(0, directive)
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
     assert ("Cannot add an OpenACC data region to a schedule that already "
