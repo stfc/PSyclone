@@ -2872,10 +2872,6 @@ class ACCDataTrans(RegionTrans):
         schedule = node_list[0].root
         acc_dirs = schedule.walk(schedule.children, ACCEnterDataDirective)
         if acc_dirs:
-            # TODO this exception is not yet covered by a test because
-            # we don't yet have a single API that supports both data and
-            # enter-data regions. Issue 310 will fix this by adding
-            # support for enter-data to the NEMO API.
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
                 "already contains an 'enter data' directive.")
