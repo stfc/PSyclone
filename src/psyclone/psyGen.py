@@ -4825,11 +4825,17 @@ class Fparser2ASTProcessor(object):
         from fparser.two.utils import walk_ast
         readers = OrderedSet()
         writers = OrderedSet()
-        structure_name_str = None
+        # A dictionary of all array accesses that we encounter - used to
+        # sanity check the readers and writers we identify.
+        all_array_refs = {}
+
+        # Loop over a flat list of all the nodes in the supplied region
         for node in walk_ast(nodes):
 
             if isinstance(node, Assignment_Stmt):
                 # Found lhs = rhs
+                structure_name_str = None
+
                 lhs = node.items[0]
                 rhs = node.items[2]
                 # Do RHS first as we cull readers after writers but want to
@@ -4867,10 +4873,37 @@ class Fparser2ASTProcessor(object):
                     if name.upper() not in FORTRAN_INTRINSICS:
                         if name not in writers:
                             readers.add(name)
+            elif isinstance(node, Part_Ref):
+                # Keep a record of all array references to check that we
+                # haven't missed anything. Once #309 is done we should be
+                # able to get rid of this check.
+                name = node.items[0].string
+                if name.upper() not in FORTRAN_INTRINSICS and \
+                   name not in all_array_refs:
+                    all_array_refs[name] = node
             elif node:
                 # TODO #309 handle array accesses in other contexts, e.g. as
                 # loop bounds in DO statements.
                 pass
+
+        # Sanity check that we haven't missed anything. To be replaced when
+        # #309 is done.
+        accesses = list(readers.keys()) + list(writers.keys())
+        for name, node in all_array_refs.items():
+            if name not in accesses:
+                # A matching bare array access hasn't been found but it
+                # might have been part of a derived-type access so check
+                # for that.
+                found = False
+                for access in accesses:
+                    if "%"+name in access:
+                        found = True
+                        break
+                if not found:
+                    raise InternalError(
+                        "Array '{0}' present in source code ('{1}') but not "
+                        "identified as being read or written.".
+                        format(name, str(node)))
 
         return (readers.keys(), writers.keys())
 

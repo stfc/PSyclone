@@ -89,7 +89,7 @@ def test_explicit(parser):
             "END PROGRAM explicit_do") in gen_code
 
 
-def test_data_no_gen_code(parser):
+def test_data_no_gen_code():
     ''' Check that the ACCDataDirective.gen_code() method raises the
     expected error. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
@@ -132,9 +132,9 @@ def test_add_region(parser):
     datadir = schedule.children[0]
     datadir._add_region("data", "end data")
     assert isinstance(datadir._ast, Fortran2003.Comment)
-    assert(str(datadir._ast).lower() == "!$acc data")
+    assert str(datadir._ast).lower() == "!$acc data"
     assert isinstance(datadir._ast_end, Fortran2003.Comment)
-    assert(str(datadir._ast_end).lower() == "!$acc end data")
+    assert str(datadir._ast_end).lower() == "!$acc end data"
 
 
 def test_add_region_comment_err(parser):
@@ -286,7 +286,7 @@ def test_data_ref():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    assert ("!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)" in gen_code)
+    assert "!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)" in gen_code
 
 
 def test_no_data_ref_read(parser):
@@ -320,8 +320,7 @@ def test_array_section():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-
-    assert ("!$ACC DATA COPYIN(b,c) COPYOUT(a)") in gen_code
+    assert "!$ACC DATA COPYIN(b,c) COPYOUT(a)" in gen_code
 
 
 def test_kind_parameter(parser):
@@ -469,7 +468,6 @@ def test_array_access_in_ifblock(parser):
             "    end do\n"
             "  end do\n"
             "end program ifclause\n")
-    print(code)
     reader = FortranStringReader(code)
     ptree = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(ptree)
@@ -479,3 +477,59 @@ def test_array_access_in_ifblock(parser):
     acc_trans.apply(schedule.children[1:])
     gen_code = str(psy.gen).lower()
     assert " copyin(zmask)" in gen_code
+
+
+@pytest.mark.xfail(reason="Fail to identify array accesses in loop bounds, "
+                   "issue #309")
+def test_array_access_loop_bounds(parser):
+    ''' Check that we raise the expected error if our code that identifies
+    read and write accesses misses an array access. '''
+    code = ("program do_bound\n"
+            "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
+            "  integer :: ji, jj\n"
+            "  do jj = 1, trim_width(dom)\n"
+            "    do ji = 1, 8\n"
+            "      zdta(ji,jj) = 0.0\n"
+            "    end do\n"
+            "  end do\n"
+            "end program do_bound\n")
+    reader = FortranStringReader(code)
+    ptree = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ptree)
+    schedule = psy.invokes.get('do_bound').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    # Put the second loop nest inside a data region
+    acc_trans.apply(schedule.children)
+    gen_code = str(psy.gen).lower()
+    assert "copyin(trim_width)" in gen_code
+
+
+def test_missed_array_case(parser):
+    ''' Check that we raise the expected InternalError if our internal
+    sanity check spots that we've missed an array access. This test
+    should be eliminated as part of #309. '''
+    code = ("program do_bound\n"
+            "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
+            "  integer :: ji, jj\n"
+            "  do jj = 1, trim_width(dom)\n"
+            "    do ji = 1, 8\n"
+            "      select case(ice_mask(ji,jj))\n"
+            "      case(0)\n"
+            "        zdta(ji,jj) = 1.0\n"
+            "      case(1)\n"
+            "        zdta(ji,jj) = 0.0\n"
+            "      end select\n"
+            "    end do\n"
+            "  end do\n"
+            "end program do_bound\n")
+    reader = FortranStringReader(code)
+    ptree = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(ptree)
+    schedule = psy.invokes.get('do_bound').schedule
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    # Put the second loop nest inside a data region
+    acc_trans.apply(schedule.children)
+    with pytest.raises(InternalError) as err:
+        _ = str(psy.gen)
+    assert ("Array 'ice_mask' present in source code ('ice_mask(ji, jj)') "
+            "but not identified" in str(err))
