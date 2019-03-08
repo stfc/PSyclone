@@ -1909,9 +1909,9 @@ class GOKernelSchedule(KernelSchedule):
         # Check that there are at least 2 arguments
         if len(self.symbol_table.argument_list) < 2:
             raise GenerationError(
-                "GOcean kernels should always have at least two arguments "
-                "representing the iteration indices but Symbol Table for {0}"
-                " has only {1} arguments"
+                "GOcean 1.0 API kernels should always have at least two "
+                "arguments representing the iteration indices but the "
+                "Symbol Table for kernel '{0}' has only '{1}' argument(s)."
                 "".format(str(self._name),
                           str(len(self.symbol_table.argument_list)))
                 )
@@ -1926,9 +1926,9 @@ class GOKernelSchedule(KernelSchedule):
                 else:
                     shape_str = "an array"
                 raise GenerationError(
-                    "GOcean kernels first argument should be a scalar integer"
-                    " but got {0} of type {1} for kernel {2}."
-                    "".format(shape_str, str(dtype), self._name))
+                    "GOcean 1.0 API kernels {0} argument should be a scalar "
+                    "integer but got {1} of type '{2}' for kernel '{3}'."
+                    "".format(posstr, shape_str, str(dtype), self._name))
 
         # Start OpenCL kernel definition
         code = self.indent(indent)

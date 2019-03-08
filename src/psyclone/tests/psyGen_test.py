@@ -2612,7 +2612,7 @@ def test_assignment_gen_c_code():
     with pytest.raises(GenerationError) as err:
         code = assignment.gen_c_code()
     assert("Assignment malformed or incomplete. It should have "
-           "exactly 2 children." in str(err.value))
+           "exactly 2 children, but it found 0." in str(err.value))
     ref = Reference("a", assignment)
     lit = Literal("1", assignment)
     assignment.addchild(ref)
@@ -2764,7 +2764,7 @@ def test_binaryoperation_gen_c_code():
     with pytest.raises(GenerationError) as err:
         code = biOp.gen_c_code()
     assert("BinaryOperation malformed or incomplete. It should have "
-           "exactly 2 children." in str(err.value))
+           "exactly 2 children, but it found 0." in str(err.value))
     lit1 = Literal("1", biOp)
     lit2 = Literal("2", biOp)
     biOp.addchild(lit1)
@@ -2914,6 +2914,26 @@ def test_symbol_can_be_printed():
     assert "sname<real, [], local>" in str(symbol)
 
 
+def test_symbol_gen_c_definition():
+    '''Test that the Symbol gen_c_definition method generates the expected
+    C definitions, or raises an error if the type is not supported.
+    '''
+    s1 = Symbol("name", "integer", [])
+    assert "int name" == s1.gen_c_definition()
+
+    s2 = Symbol("name", "character", [None])
+    assert "char * restrict name" == s2.gen_c_definition()
+
+    s3 = Symbol("name", "real", [None, None])
+    assert "double * restrict name" == s3.gen_c_definition()
+
+    s1._datatype = "invalid"
+    with pytest.raises(NotImplementedError) as err:
+        code = s1.gen_c_definition()
+    assert ("Could not generate the C definition for the variable 'name', "
+            "type 'invalid' is currently not supported.") in str(err)
+
+
 # Test SymbolTable Class
 
 def test_symboltable_declare():
@@ -2999,6 +3019,29 @@ def test_symboltable_specify_argument_list():
     # Test that repeated calls still produce a valid argument list
     symTable.specify_argument_list(['var1'])
     assert len(symTable.argument_list) == 1
+
+
+def test_symboltable_local_symbols():
+    '''Test that the local_symbols property returns a list with the
+    symbols with local scope.'''
+    symTable = SymbolTable()
+    assert [] == symTable.local_symbols
+
+    symTable.declare("var1", "real", [])
+    symTable.declare("var2", "real", [None])
+    symTable.declare("var3", "real", [])
+
+    assert len(symTable.local_symbols) == 3
+    assert symTable.lookup("var1") in symTable.local_symbols
+    assert symTable.lookup("var2") in symTable.local_symbols
+    assert symTable.lookup("var3") in symTable.local_symbols
+
+    symTable.specify_argument_list(['var1'])
+
+    assert len(symTable.local_symbols) == 2
+    assert symTable.lookup("var1") not in symTable.local_symbols
+    assert symTable.lookup("var2") in symTable.local_symbols
+    assert symTable.lookup("var3") in symTable.local_symbols
 
 
 # Test Fparser2ASTProcessor

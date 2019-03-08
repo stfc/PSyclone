@@ -196,8 +196,11 @@ def test_opencl_kernel_code_generation():
         "    __global double * restrict p,\n"
         "    __global double * restrict u\n"
         "    ){\n"
+        "    int cuLEN1 = get_global_size(0);\n"
         "    int cuLEN2 = get_global_size(1);\n"
+        "    int pLEN1 = get_global_size(0);\n"
         "    int pLEN2 = get_global_size(1);\n"
+        "    int uLEN1 = get_global_size(0);\n"
         "    int uLEN2 = get_global_size(1);\n"
         "    int i = get_global_id(0);\n"
         "    int j = get_global_id(1);\n"
@@ -210,7 +213,7 @@ def test_opencl_kernel_code_generation():
     # this cause a line without coverage in the tests.
 
 
-def test_opencl_kernel_gen_different_datatypes():
+def test_opencl_kernel_variables_definitions():
     ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
     the expected OpenCL argument/variable declarations.
     '''
@@ -248,17 +251,8 @@ def test_opencl_kernel_gen_different_datatypes():
     assert "int arrayargLEN2 = get_global_size(1);" in opencl
     assert "int arrayargLEN3 = get_global_size(2);" in opencl
     assert "int arrayargLEN4 = get_global_size(3);" in opencl
-
-    kschedule.symbol_table.lookup("realvar")._datatype = "invalid"
-    with pytest.raises(NotImplementedError) as err:
-        opencl = kschedule.gen_ocl()
-    assert "Type 'invalid' OpenCL declaration not supported." in str(err)
-    kschedule.symbol_table.lookup("realvar")._datatype = "real"  # restore
-
-    kschedule.symbol_table.lookup("realarg")._datatype = "invalid"
-    with pytest.raises(NotImplementedError) as err:
-        opencl = kschedule.gen_ocl()
-    assert "Type 'invalid' OpenCL declaration not supported." in str(err)
+    assert "int i = get_global_id(0);" in opencl
+    assert "int j = get_global_id(1);" in opencl
 
 
 def test_opencl_kernel_gen_wrong_kernel():
@@ -271,8 +265,9 @@ def test_opencl_kernel_gen_wrong_kernel():
     # Test gen_ocl without any kernel argument
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
-    assert ("GOcean Kernel should always have at least two arguments "
-            "representing the iteration indices.") in str(err)
+    assert ("GOcean 1.0 API kernels should always have at least two "
+            "arguments representing the iteration indices but the Symbol "
+            "Table for kernel 'test' has only '0' argument(s).") in str(err)
 
     # Test gen_ocl with 1 kernel argument
     kschedule.symbol_table.declare("arg1", "integer", [], "global_argument",
@@ -280,8 +275,9 @@ def test_opencl_kernel_gen_wrong_kernel():
     kschedule.symbol_table.specify_argument_list(["arg1"])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
-    assert ("GOcean Kernel should always have at least two arguments "
-            "representing the iteration indices.") in str(err)
+    assert ("GOcean 1.0 API kernels should always have at least two "
+            "arguments representing the iteration indices but the Symbol "
+            "Table for kernel 'test' has only '1' argument(s).") in str(err)
 
     # Test gen_ocl with 2 kernel argument
     kschedule.symbol_table.declare("arg2", "integer", [], "global_argument",
@@ -293,12 +289,14 @@ def test_opencl_kernel_gen_wrong_kernel():
     kschedule.symbol_table.lookup("arg1")._datatype = "real"
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
-    assert "GOcean kernel first argument should be a scalar integer." \
+    assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
+            " but got a scalar of type 'real' for kernel 'test'.")\
         in str(err)
-    kschedule.symbol_table.lookup("arg1")._datatype = "integer"
 
+    kschedule.symbol_table.lookup("arg1")._datatype = "integer"
     kschedule.symbol_table.lookup("arg2")._shape = [None]
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
-    assert "GOcean kernel second argument should be a scalar integer." \
+    assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
+            " but got an array of type 'integer' for kernel 'test'.")\
         in str(err)

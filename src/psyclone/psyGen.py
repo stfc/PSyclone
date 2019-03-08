@@ -1366,7 +1366,7 @@ class Node(object):
 
     def gen_c_code(self, indent=0):
         '''Abstract method for the generation of C source code
-        
+
         :param int indent: Depth of indent for the output string.
         :raises NotImplementedError: is an abstract method.
         '''
@@ -5150,7 +5150,7 @@ class Symbol(object):
 
     def gen_c_definition(self):
         '''
-        Generates string representing the C definition of the symbol.
+        Generates string representing the C language definition of the symbol.
 
         :return: The C definition of the symbol.
         :rtype: str
@@ -5164,8 +5164,9 @@ class Symbol(object):
             code = code + "char "
         else:
             raise NotImplementedError(
-                "Type '{0}' is not supported."
-                "".format(self.datatype))
+                "Could not generate the C definition for the variable '{0}', "
+                "type '{1}' is currently not supported."
+                "".format(self.name, self.datatype))
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
@@ -5436,7 +5437,8 @@ class Assignment(Node):
         if len(self.children) != 2:
             raise GenerationError("Assignment malformed or "
                                   "incomplete. It should have exactly 2 "
-                                  "children.")
+                                  "children, but it found {0}."
+                                  "".format(str(len(self.children))))
 
         return self.indent(indent) \
             + self.children[0].gen_c_code() + " = " \
@@ -5545,7 +5547,8 @@ class BinaryOperation(Node):
         if len(self.children) != 2:
             raise GenerationError("BinaryOperation malformed or "
                                   "incomplete. It should have exactly 2 "
-                                  "children.")
+                                  "children, but it found {0}."
+                                  "".format(str(len(self.children))))
 
         return "(" + self._children[0].gen_c_code() + " " \
             + self._operator + " " \
