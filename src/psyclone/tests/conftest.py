@@ -108,6 +108,10 @@ def infra_compile(tmpdir_factory):
     # compilation of the infrastructure files.
     Dynamo0p3Build(tmpdir)
 
+    from gocean1p0_build import GOcean1p0Build
+    tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
+    GOcean1p0Build(tmpdir)
+
 
 @pytest.fixture(scope="session")
 def parser():

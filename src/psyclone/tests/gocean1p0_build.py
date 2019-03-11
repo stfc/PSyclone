@@ -38,9 +38,9 @@
 ''' Module containing configuration required to build code generated
 for the Dynamo0p3 API '''
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import os
-from psyclone_test_utils import Compile
+from psyclone_test_utils import Compile, CompileError
 
 
 class GOcean1p0Build(Compile):
@@ -49,6 +49,7 @@ class GOcean1p0Build(Compile):
     '''
 
     _infrastructure_built = False
+    _infrastructure_path = ""
 
     def __init__(self, tmpdir):
         super(GOcean1p0Build, self).__init__(tmpdir)
@@ -56,9 +57,12 @@ class GOcean1p0Build(Compile):
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "gocean1p0")
         self.base_path = base_path
-        self._infrastructure_path = \
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "../../../external/dl_esm_inf/finite_difference/src")
+
+        # On first instantiation (triggered by conftest.infra_compile)
+        # compile the infrastructure library files.
+        if not GOcean1p0Build._infrastructure_built:
+            self._build_infrastructure()
+            GOcean1p0Build._infrastructure_path = str(tmpdir)
 
     def get_infrastructure_flags(self):
         '''Returns the required flag to use the infrastructure library dl_esm_inf
@@ -68,6 +72,45 @@ class GOcean1p0Build(Compile):
         :rtpe: list
         '''
         return ["-I", self._infrastructure_path]
+
+    def _build_infrastructure(self):
+        '''Compile dl_esm_inf.
+        '''
+
+        old_pwd = self._tmpdir.chdir()
+
+        import subprocess
+        dl_esm_inf_path = \
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "../../../external/dl_esm_inf/finite_difference/src")
+
+        arg_list = ["make", "F90={0}".format(self._f90),
+                    "F90FLAGS={0}".format(self._f90flags),
+                    "-f", "{0}/Makefile".format(dl_esm_inf_path)]
+        try:
+            build = subprocess.Popen(arg_list,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT)
+            (output, error) = build.communicate()
+            GOcean1p0Build._infrastructure_built = True
+        except OSError as err:
+            print("Failed to run: {0}: ".format(" ".join(arg_list)))
+            print("Error was: ", str(err))
+            GOcean1p0Build._infrastructure_built = False
+            raise CompileError(str(err))
+        finally:
+            old_pwd.chdir()
+
+        # Check the return code
+        stat = build.returncode
+        if stat != 0:
+            print(output)
+            if error:
+                print("=========")
+                print(error)
+            raise CompileError(output)
+        else:
+            return True
 
 
 # =============================================================================

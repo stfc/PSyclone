@@ -50,7 +50,7 @@ class Dynamo0p3Build(Compile):
     _infrastructure_built = False
 
     # The temporary path in which the compiled infrastructure files
-    # (.o and .mod) are stored.
+    # (.o and .mod) are stored for this process.
     _compilation_path = ""
 
     # The list of infrastructure files that must be compiled. The
