@@ -90,6 +90,7 @@ you would do::
   > cd <PSYCLONEHOME>
   > py.test --cov-report term-missing --cov psyclone.dynamo0p3
 
+Note that you specify the python module name, and not the file name.
 This will produce output along the lines of::
   
   ----------- coverage: platform linux, python 3.5.4-final-0 -----------
@@ -97,7 +98,16 @@ This will produce output along the lines of::
   ---------------------------------------------------------
   src/psyclone/dynamo0p3.py    2540     23    99%   558, 593, 777, 2731, 2972, 3865, 4132-4133, 4135-4136, 4139-4140, 4143-4144, 4149-4151, 4255, 4270, 4488, 5026, 6540, 6658, 6768
 
-showing the line numbers which are not covered.
+showing the line numbers which are not covered. By using ``--cov`` more than once
+you can report on more than one file. You can also request
+only selected tests to be run by specifying the file names on the command line.
+Additionally html output can be created by adding the option ``--cov-report html``::
+
+  > cd <PSYCLONEHOME>/src/psyclone/tests
+  > py.test --cov-report term-missing --cov-report html --cov psyclone.dynamo0p3 ./dynamo0p3_basis_test.py ./parse_test.py
+
+The html output can be viewed with a browser at ``file:///.../tests/htmlcov/index.html``
+and it highlights all source lines in red that are not covered by at least one test.
 
 .. _parallel_execution:
 
