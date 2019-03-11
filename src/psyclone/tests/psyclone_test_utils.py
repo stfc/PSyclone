@@ -120,7 +120,8 @@ class Compile(object):
     TEST_COMPILE_OPENCL = pytest.config.getoption("--compileopencl")
     # pylint: enable=no-member
     COMPILE_OPENCL = pytest.mark.skipif(not TEST_COMPILE_OPENCL,
-                                        reason="Need --compile option to run")
+                                        reason="Need --compileopencl "
+                                               "option to run")
 
     def __init__(self, tmpdir=None):
         '''
