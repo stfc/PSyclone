@@ -38,7 +38,7 @@ psyclone_test_utils.'''
 
 from __future__ import absolute_import
 import pytest
-from psyclone_test_utils import COMPILE, CompileError, get_invoke, Compile
+from psyclone_test_utils import CompileError, get_invoke, Compile
 
 
 HELLO_CODE = '''
@@ -48,7 +48,7 @@ end program hello
 '''
 
 
-@COMPILE
+@Compile.COMPILE
 def test_compiler_works(tmpdir):
     ''' Check that the specified compiler works for a hello-world
     example '''
@@ -63,7 +63,7 @@ def test_compiler_works(tmpdir):
     assert success
 
 
-@COMPILE
+@Compile.COMPILE
 def test_compiler_with_flags(tmpdir):
     ''' Check that we can pass through flags to the Fortran compiler.
     Since correct flags are compiler-dependent and hard to test,
@@ -88,7 +88,7 @@ def test_compiler_with_flags(tmpdir):
     assert success
 
 
-@COMPILE
+@Compile.COMPILE
 def test_build_invalid_fortran(tmpdir):
     ''' Check that we raise the expected error when attempting
     to compile some invalid Fortran. Skips test if --compile not
@@ -123,15 +123,15 @@ def test_find_fortran_file(tmpdir):
         old_pwd.chdir()
 
 
-@COMPILE
+@Compile.COMPILE
 def test_compile_str(monkeypatch, tmpdir):
     ''' Checks for the routine that compiles Fortran supplied as a string '''
     # Check that we always return True if compilation testing is disabled
     _compile = Compile(tmpdir)
-    monkeypatch.setattr("psyclone_test_utils.TEST_COMPILE", False)
+    monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE", False)
     assert _compile.string_compiles("not fortran")
     # Re-enable compilation testing and check that we can build hello world
-    monkeypatch.setattr("psyclone_test_utils.TEST_COMPILE", True)
+    monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE", True)
     assert _compile.string_compiles(HELLO_CODE)
     # Check that we've cleaned up
     assert not tmpdir.listdir()

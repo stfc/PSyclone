@@ -43,16 +43,6 @@ import pytest
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
-# Whether or not we run tests requiring code compilation is picked-up
-# from a command-line flag. (This is set-up in conftest.py.)
-# pylint: disable=no-member
-TEST_COMPILE = pytest.config.getoption("--compile")
-# pylint: enable=no-member
-# The following allows us to mark a test with @utils.COMPILE if it is
-# only to be run when the --compile option is passed to py.test
-COMPILE = pytest.mark.skipif(not TEST_COMPILE,
-                             reason="Need --compile option to run")
-
 
 class CompileError(Exception):
     '''
@@ -115,6 +105,17 @@ class Compile(object):
     API-specific classes are derived from this class to manage handling
     of the corresponding infrastructure library.
     '''
+
+    # Whether or not we run tests requiring code compilation is picked-up
+    # from a command-line flag. (This is set-up in conftest.py.)
+    # pylint: disable=no-member
+    TEST_COMPILE = pytest.config.getoption("--compile")
+    # pylint: enable=no-member
+    # The following allows us to mark a test with @utils.COMPILE if it is
+    # only to be run when the --compile option is passed to py.test
+    COMPILE = pytest.mark.skipif(not TEST_COMPILE,
+                                 reason="Need --compile option to run")
+
     # pylint: disable=no-member
     TEST_COMPILE_OPENCL = pytest.config.getoption("--compileopencl")
     # pylint: enable=no-member
@@ -200,7 +201,7 @@ class Compile(object):
         :return: True if compilation succeeds
         '''
 
-        if not TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
+        if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
             # Compilation testing is not enabled
             return True
 
@@ -306,7 +307,7 @@ class Compile(object):
         :return: True if generated code compiles, False otherwise
         :rtype: bool
         '''
-        if not TEST_COMPILE:
+        if not Compile.TEST_COMPILE:
             # Compilation testing is not enabled
             return True
 
@@ -325,7 +326,7 @@ class Compile(object):
         :rtype: bool
 
         '''
-        if not TEST_COMPILE:
+        if not Compile.TEST_COMPILE:
             # Compilation testing (--compile flag to py.test) is not enabled
             # so we just return True.
             return True
