@@ -60,7 +60,8 @@ class GOcean1p0Build(Compile):
 
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
-        if not GOcean1p0Build._infrastructure_built:
+        if Compile.TEST_COMPILE and not GOcean1p0Build._infrastructure_built:
+            print("XXX")
             self._build_infrastructure()
             GOcean1p0Build._infrastructure_path = str(tmpdir)
 
