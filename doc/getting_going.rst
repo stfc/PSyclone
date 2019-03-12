@@ -380,7 +380,7 @@ see the :ref:`psyclone_script` Section.
 
 Examples are provided in the examples directory. There are 3
 subdirectories (dynamo, gocean and nemo) corresponding to different
-API's that are supported by PSyclone. In this case we are going to use
+APIs that are supported by PSyclone. In this case we are going to use
 one of the dynamo examples::
 
    > cd <PSYCLONEHOME>/examples/dynamo/eg1

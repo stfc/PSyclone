@@ -914,7 +914,7 @@ def test_omp_parallel_do_inside_parallel_region():
 def test_omp_parallel_region_inside_parallel_do():
     ''' Test that a generation error is raised if we attempt
     to have an OpenMP parallel region within an OpenMP
-    parallel do (with the latter applied first) '''
+    parallel do (with the latter applied first). '''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 
@@ -925,8 +925,10 @@ def test_omp_parallel_region_inside_parallel_do():
     _, _ = ompl.apply(schedule.children[1])
 
     # Now attempt to put a parallel region inside that parallel do
-    with pytest.raises(TransformationError):
+    with pytest.raises(TransformationError) as err:
         _, _ = ompr.apply([schedule.children[1].children[0]])
+    assert ("cannot create an OpenMP PARALLEL region within another "
+            "OpenMP region" in str(err))
 
 
 def test_omp_parallel_do_around_parallel_region():
@@ -952,6 +954,23 @@ def test_omp_parallel_do_around_parallel_region():
     # Attempt to generate the transformed code
     with pytest.raises(GenerationError):
         _ = psy.gen
+
+
+def test_omp_region_invalid_node():
+    ''' Check that the OMPParallelTrans transformation rejects nodes
+    of the wrong type. We use an OpenACC directive to trigger this error. '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
+    schedule = invoke.schedule
+
+    ompr = OMPParallelTrans()
+    acct = ACCParallelTrans()
+    # Apply an OpenACC parallel transformation to the first loop
+    new_sched, _ = acct.apply(schedule.children[0])
+
+    with pytest.raises(TransformationError) as err:
+        _, _ = ompr.apply(new_sched.children)
+    assert ("ACCParallelDirective'>' cannot be enclosed by a "
+            "OMPParallelTrans transformation" in str(err))
 
 
 @pytest.mark.xfail(reason="OMP Region with children of different types "
@@ -1509,27 +1528,35 @@ def test_acc_incorrect_parallel_trans():
 
 def test_acc_data_not_a_schedule():
     ''' Test that we raise an appropriate error if we attempt to apply
-    an OpenACC Data transformation to something that is not a Schedule '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
+    an OpenACC Data transformation to something that is not a Schedule. '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 
     acct = ACCDataTrans()
-    accpara = ACCParallelTrans()
 
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply(schedule.children[0])
     assert ("Cannot apply an OpenACC data directive to something that is not "
             "a Schedule" in str(err))
 
+
+def test_acc_parallel_invalid_node():
+    ''' Test that the OpenACC Parallel region transformation rejects
+    unsupported node types. '''
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
+    schedule = invoke.schedule
+
+    acct = ACCDataTrans()
+    accpara = ACCParallelTrans()
+
+    # Add an enter-data directive to the schedule
     new_sched, _ = acct.apply(schedule)
 
-    # Add a parallel region *around* the enter-data directive so that it
-    # (erroneously) comes before it...
-    new_sched, _ = accpara.apply(new_sched.children[0])
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("An ACC parallel region must be preceeded by an ACC enter-data "
-            "directive but in invoke_0 this is not the case." in str(err))
+    # Attempt to enclose the enter-data directive within a parallel region
+    with pytest.raises(TransformationError) as err:
+        _, _ = accpara.apply(new_sched.children[0])
+    assert ("GOACCDataDirective'>' cannot be enclosed by a ACCParallelTrans "
+            "transformation" in str(err))
 
 
 def test_acc_data_copyin(tmpdir):
