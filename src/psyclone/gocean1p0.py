@@ -1922,6 +1922,10 @@ class GOSymbolTable(SymbolTable):
         '''
         Generate kernel arguments: in openCL we ignore the iteration
         indices which in GOcean are the first two arguments.
+
+        :param indent: Depth of indent for the output string.
+        :return: OpenCL argument list for the Symbol Table.
+        :rtype: str
         '''
         self._check_gocean_conformity()
 
@@ -1940,6 +1944,9 @@ class GOSymbolTable(SymbolTable):
         '''
         Generate OpenCL iteration indices using the names of the first 2
         arguments (e.g. "int i = get_global_id(0);")
+
+        :return: OpenCL iteration indices definition and initialisation.
+        :rtype: str
         '''
         self._check_gocean_conformity()
 
@@ -1954,6 +1961,11 @@ class GOSymbolTable(SymbolTable):
         Generate a <name>LEN<DIM> variable for each array dimension.
         In OpenCL the sizes are retrived from the kernel global_work_size
         (e.g. "int arrayLEN1 = get_global_size(1);")
+
+        :return: OpenCL array length variables definition and initialisation.
+        :rtype: str
+        :raises GenerationError: if the array length variable name clashes \
+                with another symbol name.
         '''
         self._check_gocean_conformity()
 
@@ -1990,3 +2002,46 @@ class GOKernelSchedule(KernelSchedule):
         '''
         self._symbol_table.__class__ = GOSymbolTable
         return self._symbol_table
+
+    def gen_ocl(self, indent=0):
+        '''
+        Generate a string representation of this node in the OpenCL language.
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :return: OpenCL language code representing the node.
+        :rtype: string
+        '''
+
+        # OpenCL implementation assumptions:
+        # - All array have the same size and it is given by the
+        #   global_work_size argument to clEnqueueNDRangeKernel.
+        # - Assumes no dependencies among kernels called concurrently.
+
+        # TODO: At the moment, the method caller is responsible to ensure
+        # these assumptions. KernelSchedule access to the kernel
+        # meta-arguments could be used to check them and also improve the
+        # generated code. (Issue #288)
+
+        # Start OpenCL kernel definition
+        code = self.indent(indent) + "__kernel void " + self._name + "(\n"
+        code += self.symbol_table.gen_ocl_argument_list(indent + 1)
+        code += "\n" + self.indent(indent + 1) + "){\n"
+
+        # Declare local variables.
+        code += self.symbol_table.gen_c_local_variables(indent + 1)
+
+        # Declare array length
+        code += self.symbol_table.gen_ocl_array_length(indent + 1)
+
+        # Declare iteration indices
+        code += self.symbol_table.gen_ocl_iteration_indices(indent + 1)
+
+        # Generate kernel body
+        for child in self._children:
+            code += child.gen_c_code(indent + 1) + "\n"
+
+        # Close kernel definition
+        code += "}\n"
+
+        return code

@@ -3057,6 +3057,43 @@ def test_symboltable_local_symbols():
     assert symTable.lookup("var3") in symTable.local_symbols
 
 
+def test_symboltable_gen_c_local_variables():
+    ''' Test that it returns a concatenation of just the multiple local
+    symbols definitions .
+    '''
+    symTable = SymbolTable()
+    symTable.declare("var1", "real", [])
+    symTable.declare("var2", "real", [])
+    symTable.declare("var3", "real", [None])
+    symTable.specify_argument_list(['var1'])
+
+    c_local_vars = symTable.gen_c_local_variables()
+    assert symTable.lookup("var1").gen_c_definition() not in c_local_vars
+    assert symTable.lookup("var2").gen_c_definition() in c_local_vars
+    assert symTable.lookup("var3").gen_c_definition() in c_local_vars
+
+
+def test_symboltable_abstract_methods():
+    '''Test that the SymbolTable abstract methods raise the appropriate
+    error.'''
+    symTable = SymbolTable()
+
+    with pytest.raises(NotImplementedError) as error:
+        symTable.gen_ocl_argument_list()
+    assert "A generic implemtation of this method is not available."\
+        in str(error.value)
+
+    with pytest.raises(NotImplementedError) as error:
+        symTable.gen_ocl_iteration_indices()
+    assert "A generic implemtation of this method is not available."\
+        in str(error.value)
+
+    with pytest.raises(NotImplementedError) as error:
+        symTable.gen_ocl_array_length()
+    assert "A generic implemtation of this method is not available."\
+        in str(error.value)
+
+
 # Test Fparser2ASTProcessor
 
 def test_fparser2astprocessor_generate_schedule_empty_subroutine():

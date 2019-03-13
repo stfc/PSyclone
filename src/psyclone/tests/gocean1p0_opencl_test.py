@@ -206,7 +206,6 @@ def test_opencl_kernel_code_generation():
         "    int j = get_global_id(1);\n"
         )
 
-    #import pdb; pdb.set_trace()
     assert expected_code in kschedule.gen_ocl()
 
     # TODO: At the moment, due to fparser/171, the body of compute_cu

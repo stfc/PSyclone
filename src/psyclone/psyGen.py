@@ -117,7 +117,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "CodeBlock": "red"}
 
 # Default indentation string
-INDENT_STRING = "    "
+INDENTATION_STRING = "    "
 
 
 def get_api(api):
@@ -1149,7 +1149,16 @@ class Node(object):
         raise NotImplementedError("BaseClass of a Node must implement the "
                                   "view method")
 
-    def indent(self, count, indent=INDENT_STRING):
+    @staticmethod
+    def indent(count, indent=INDENTATION_STRING):
+        '''
+        Helper function to produce indentation strings.
+
+        :param int count: Number of indentation levels.
+        :param str indent: String representing one indentation level.
+        :return: Complete indentation string.
+        :rtype: str
+        '''
         result = ""
         for i in range(count):
             result += indent
@@ -5298,17 +5307,60 @@ class SymbolTable(object):
         '''
         return [sym for sym in self._symbols.values() if sym.scope == "local"]
 
-    def indent(self, count, indent=INDENT_STRING):
+    @staticmethod
+    def indent(count, indent=INDENTATION_STRING):
+        '''
+        Helper function to produce indentation strings.
+
+        :param int count: Number of indentation levels.
+        :param str indent: String representing one indentation level.
+        :return: Complete indentation string.
+        :rtype: str
+        '''
         result = ""
         for i in range(count):
             result += indent
         return result
 
     def gen_c_local_variables(self, indent=0):
+        '''
+        Generate C code that defines all local symbols in the Symbol Table.
+
+        :param int indent: Indentation level
+        :return: C languague definition of the local symbols.
+        :rtype: str
+        '''
         code = ""
         for symbol in self.local_symbols:
             code += self.indent(indent) + symbol.gen_c_definition() + ";\n"
         return code
+
+    def gen_ocl_argument_list(self, indent=0):
+        '''
+        Generate OpenCL argument list.
+
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError(
+            "A generic implemtation of this method is not available.")
+
+    def gen_ocl_iteration_indices(self, indent=0):
+        '''
+        Generate OpenCL iteration indices declaration.
+
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError(
+            "A generic implemtation of this method is not available.")
+
+    def gen_ocl_array_length(self, indent=0):
+        '''
+        Generate OpenCL array length variable declarations.
+
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError(
+            "A generic implemtation of this method is not available.")
 
     def view(self):
         '''
@@ -5372,39 +5424,8 @@ class KernelSchedule(Schedule):
         :return: OpenCL language code representing the node.
         :rtype: string
         '''
-
-        # OpenCL implementation assumptions:
-        # - All array have the same size and it is given by the
-        #   global_work_size argument to clEnqueueNDRangeKernel.
-        # - Assumes no dependencies among kernels called concurrently.
-
-        # TODO: At the moment, the method caller is responsible to ensure
-        # these assumptions. KernelSchedule access to the kernel
-        # meta-arguments could be used to check them and also improve the
-        # generated code. (Issue #288)
-
-        # Start OpenCL kernel definition
-        code = self.indent(indent) + "__kernel void " + self._name + "(\n"
-        code += self.symbol_table.gen_ocl_argument_list(indent + 1)
-        code += "\n" + self.indent(indent + 1) + "){\n"
-
-        # Declare local variables.
-        code += self.symbol_table.gen_c_local_variables(indent + 1)
-
-        # Declare array length
-        code += self.symbol_table.gen_ocl_array_length(indent + 1)
-
-        # Declare iteration indices
-        code += self.symbol_table.gen_ocl_iteration_indices(indent + 1)
-
-        # Generate kernel body
-        for child in self._children:
-            code += child.gen_c_code(indent + 1) + "\n"
-
-        # Close kernel definition
-        code += "}\n"
-
-        return code
+        raise NotImplementedError(
+            "A generic implemtation of this method is not available.")
 
     def __str__(self):
         result = "Schedule[name:'" + self._name + "']:\n"
