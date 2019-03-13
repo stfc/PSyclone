@@ -5207,6 +5207,8 @@ class SymbolTable(object):
     :param kernel: Reference to the KernelSchedule it belongs.
     :type kernel: :py:class:`psyclone.psyGen.KernelSchedule` or NoneType
     '''
+    # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
+    # NameSpace class functionality.
     def __init__(self, kernel=None):
         # Dict of Symbol objects with the symbol names as keys.
         self._symbols = {}
