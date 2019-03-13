@@ -206,6 +206,7 @@ def test_opencl_kernel_code_generation():
         "    int j = get_global_id(1);\n"
         )
 
+    #import pdb; pdb.set_trace()
     assert expected_code in kschedule.gen_ocl()
 
     # TODO: At the moment, due to fparser/171, the body of compute_cu
@@ -267,7 +268,7 @@ def test_opencl_kernel_gen_wrong_kernel():
         kschedule.gen_ocl()
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
-            "Table for kernel 'test' has only '0' argument(s).") in str(err)
+            "Table for kernel 'test' has only 0 argument(s).") in str(err)
 
     # Test gen_ocl with 1 kernel argument
     kschedule.symbol_table.declare("arg1", "integer", [], "global_argument",
@@ -277,7 +278,7 @@ def test_opencl_kernel_gen_wrong_kernel():
         kschedule.gen_ocl()
     assert ("GOcean 1.0 API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
-            "Table for kernel 'test' has only '1' argument(s).") in str(err)
+            "Table for kernel 'test' has only 1 argument(s).") in str(err)
 
     # Test gen_ocl with 2 kernel argument
     kschedule.symbol_table.declare("arg2", "integer", [], "global_argument",

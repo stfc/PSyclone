@@ -51,7 +51,7 @@ from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule
+    KernelSchedule, SymbolTable
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -1879,47 +1879,35 @@ class GOACCDataDirective(ACCDataDirective):
         return
 
 
-class GOKernelSchedule(KernelSchedule):
+class GOSymbolTable(SymbolTable):
 
-    def gen_ocl(self, indent=0):
+    def _check_gocean_conformity(self):
         '''
-        Generate a string representation of this node in the OpenCL language.
+        Checks that the Symbol Table has at least 2 arguments which represent
+        the iteration indices (are scalar integers).
 
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
-        :return: OpenCL language code representing the node.
-        :rtype: string
-        :raises GenerationError: if the kernel can not be converted to OpenCL.
-        :raises NotImplementedError: if there are some symbol types or nodes \
-                                     which are not implemented yet.
+        :raises GenerationError: if the Symbol Table does not conform to the \
+                expected format.
         '''
-
-        # Assumptions made to generate GOcean OpenCL kernels.
-        # - It is a 2D domain.
-        # - First arguments are the iteration indices in column-major order.
-        # - All array have the same size and it is given by the
-        #   global_work_size argument to clEnqueueNDRangeKernel.
-        # - Assumes no dependencies among kernels called concurrently.
-
-        # TODO: At the moment, the method caller is responsible to ensure
-        # these assumptions. KernelSchedule access to the kernel
-        # meta-arguments could be used to check them and also improve the
-        # generated code. (Issue #288)
+        # Get the kernel name if available for better error messages
+        kname_str = ""
+        if self._kernel:
+            kname_str = " for kernel '{0}'".format(self._kernel.name)
 
         # Check that there are at least 2 arguments
-        if len(self.symbol_table.argument_list) < 2:
+        if len(self.argument_list) < 2:
             raise GenerationError(
                 "GOcean 1.0 API kernels should always have at least two "
                 "arguments representing the iteration indices but the "
-                "Symbol Table for kernel '{0}' has only '{1}' argument(s)."
-                "".format(str(self._name),
-                          str(len(self.symbol_table.argument_list)))
+                "Symbol Table{0} has only {1} argument(s)."
+                "".format(kname_str,
+                          str(len(self.argument_list)))
                 )
 
         # Check that first 2 arguments are scalar integers
         for pos, posstr in [(0, "first"), (1, "second")]:
-            dtype = self.symbol_table.argument_list[pos].datatype
-            shape_len = len(self.symbol_table.argument_list[pos].shape)
+            dtype = self.argument_list[pos].datatype
+            shape_len = len(self.argument_list[pos].shape)
             if (dtype != "integer" or shape_len != 0):
                 if shape_len == 0:
                     shape_str = "a scalar"
@@ -1927,65 +1915,78 @@ class GOKernelSchedule(KernelSchedule):
                     shape_str = "an array"
                 raise GenerationError(
                     "GOcean 1.0 API kernels {0} argument should be a scalar "
-                    "integer but got {1} of type '{2}' for kernel '{3}'."
-                    "".format(posstr, shape_str, str(dtype), self._name))
+                    "integer but got {1} of type '{2}'{3}."
+                    "".format(posstr, shape_str, str(dtype), kname_str))
 
-        # Start OpenCL kernel definition
-        code = self.indent(indent)
-        code = code + "__kernel "
-        code = code + "void " + self._name + "(\n"
+    def gen_ocl_argument_list(self, indent=0):
+        '''
+        Generate kernel arguments: in openCL we ignore the iteration
+        indices which in GOcean are the first two arguments.
+        '''
+        self._check_gocean_conformity()
 
-        # Generate kernel arguments: in openCL we ignore the iteration
-        # indices which in GOcean are the first two arguments.
-        for symbol in self.symbol_table.argument_list[2:]:
-            code = code + self.indent(indent + 1)
-
+        arglist = ""
+        for symbol in self.argument_list[2:]:
+            arglist = arglist + self.indent(indent)
             # If argument is an array, it is allocated to the OpenCL global
             # address space.
-            if len(symbol.shape) > 0:
-                code = code + "__global "
+            if symbol.shape:
+                arglist = arglist + "__global "
 
-            code = code + symbol.gen_c_definition() + ",\n"
+            arglist = arglist + symbol.gen_c_definition() + ",\n"
+        return arglist[:-2]  # Remove last ",\n"
 
-        code = code[:-2]   # Remove last ",\n"
-        code = code + "\n" + self.indent(indent + 1) + "){\n"
+    def gen_ocl_iteration_indices(self, indent=0):
+        '''
+        Generate OpenCL iteration indices using the names of the first 2
+        arguments (e.g. "int i = get_global_id(0);")
+        '''
+        self._check_gocean_conformity()
 
-        # Declare local variables.
-        for symbol in self.symbol_table.local_symbols:
-            code = code + self.indent(indent + 1)
-            code = code + symbol.gen_c_definition() + ";\n"
+        code = ""
+        for index, symbol in enumerate(self.argument_list[:2]):
+            code = code + self.indent(indent) + "int " + symbol.name
+            code = code + " = get_global_id(" + str(index) + ");\n"
+        return code
 
-        # Declare a <name>LEN<DIM> variable for each array dimension.
-        # In OpenCL the sizes are retrived from the kernel global_work_size
-        # (e.g. "int arrayLEN1 = get_global_size(1);")
-        for symbol in self.symbol_table.argument_list[2:]:
+    def gen_ocl_array_length(self, indent=0):
+        '''
+        Generate a <name>LEN<DIM> variable for each array dimension.
+        In OpenCL the sizes are retrived from the kernel global_work_size
+        (e.g. "int arrayLEN1 = get_global_size(1);")
+        '''
+        self._check_gocean_conformity()
+
+        code = ""
+        for symbol in self.argument_list[2:]:
             dimensions = len(symbol.shape)
             for dim in range(1, dimensions + 1):
-                code = code + self.indent(indent + 1) + "int "
+                code = code + self.indent(indent) + "int "
                 varname = symbol.name + "LEN" + str(dim)
 
                 # Check there is no clash with other variables
-                if varname in self.symbol_table:
+                if varname in self:
+                    kname = ""
+                    if self._kernel:
+                        kname = "'{0}'".format(self._kernel.name)
                     raise GenerationError(
                         "Unable to declare the variable '{0}' to store the "
-                        "length of '{1}' because the kernel '{2}' already "
+                        "length of '{1}' because the kernel {2} already "
                         "contains a symbol with the same name."
-                        "".format(varname, symbol.name, self._name))
+                        "".format(varname, symbol.name, kname))
 
                 code = code + varname + " = get_global_size("
                 code = code + str(dim - 1) + ");\n"
-
-        # Declare OpenCL iteration indices using the names of the first 2
-        # arguments (e.g. "int i = get_global_id(0);")
-        for index, symbol in enumerate(self.symbol_table.argument_list[:2]):
-            code = code + self.indent(indent + 1) + "int " + symbol.name
-            code = code + " = get_global_id(" + str(index) + ");\n"
-
-        # Generate kernel body
-        for child in self._children:
-            code = code + child.gen_c_code(indent + 1) + "\n"
-
-        # Close kernel definition
-        code = code + "}\n"
-
         return code
+
+
+class GOKernelSchedule(KernelSchedule):
+
+    @property
+    def symbol_table(self):
+        '''
+        :return: Table containing symbol information for the kernel.
+        :rtype: :py:class:`psyclone.gocean1p0.GOSymbolTable`
+        '''
+        self._symbol_table.__class__ = GOSymbolTable
+        return self._symbol_table

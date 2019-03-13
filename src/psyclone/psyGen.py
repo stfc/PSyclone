@@ -116,6 +116,9 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Literal": "yellow",
                        "CodeBlock": "red"}
 
+# Default indentation string
+INDENT_STRING = "    "
+
 
 def get_api(api):
     ''' If no API is specified then return the default. Otherwise, check that
@@ -1146,7 +1149,7 @@ class Node(object):
         raise NotImplementedError("BaseClass of a Node must implement the "
                                   "view method")
 
-    def indent(self, count, indent="    "):
+    def indent(self, count, indent=INDENT_STRING):
         result = ""
         for i in range(count):
             result += indent
@@ -5033,6 +5036,9 @@ class Symbol(object):
         self._shape = shape
 
         # The following attributes have setter methods (with error checking)
+        self._scope = None
+        self._is_input = None
+        self._is_output = None
         self.scope = scope
         self.is_input = is_input
         self.is_output = is_output
@@ -5154,6 +5160,8 @@ class Symbol(object):
 
         :return: The C definition of the symbol.
         :rtype: str
+        :raises NotImplementedError: if there are some symbol types or nodes \
+                                     which are not implemented yet.
         '''
         code = ""
         if self.datatype == "real":
@@ -5170,7 +5178,7 @@ class Symbol(object):
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
-        if len(self.shape) > 0:
+        if self.shape:
             code = code + "* restrict "
 
         code = code + self.name
@@ -5186,12 +5194,17 @@ class SymbolTable(object):
     Encapsulates the symbol table and provides methods to declare new symbols
     and look up existing symbols. It is implemented as a single scope
     symbol table (nested scopes not supported).
+
+    :param kernel: Reference to the KernelSchedule it belongs.
+    :type kernel: :py:class:`psyclone.psyGen.KernelSchedule` or NoneType
     '''
-    def __init__(self):
+    def __init__(self, kernel=None):
         # Dict of Symbol objects with the symbol names as keys.
         self._symbols = {}
         # Ordered list of the arguments.
         self._argument_list = []
+        # Reference to KernelSchedule it belongs.
+        self._kernel = kernel
 
     def declare(self, name, datatype, shape=[], scope='local',
                 is_input=False, is_output=False):
@@ -5269,7 +5282,6 @@ class SymbolTable(object):
         '''
         return key in self._symbols
 
-
     @property
     def argument_list(self):
         '''
@@ -5284,11 +5296,19 @@ class SymbolTable(object):
         :return:  List of local symbols.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
-        locals_list = []
-        for symbol in self._symbols.values():
-            if symbol.scope == "local":
-                locals_list.append(symbol)
-        return locals_list
+        return [sym for sym in self._symbols.values() if sym.scope == "local"]
+
+    def indent(self, count, indent=INDENT_STRING):
+        result = ""
+        for i in range(count):
+            result += indent
+        return result
+
+    def gen_c_local_variables(self, indent=0):
+        code = ""
+        for symbol in self.local_symbols:
+            code += self.indent(indent) + symbol.gen_c_definition() + ";\n"
+        return code
 
     def view(self):
         '''
@@ -5313,7 +5333,15 @@ class KernelSchedule(Schedule):
     def __init__(self, name):
         super(KernelSchedule, self).__init__(None, None)
         self._name = name
-        self._symbol_table = SymbolTable()
+        self._symbol_table = SymbolTable(self)
+
+    @property
+    def name(self):
+        '''
+        :return: Name of the Kernel
+        :rtype: str
+        '''
+        return self._name
 
     @property
     def symbol_table(self):
@@ -5334,6 +5362,49 @@ class KernelSchedule(Schedule):
               + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
+
+    def gen_ocl(self, indent=0):
+        '''
+        Generate a string representation of this node in the OpenCL language.
+
+        :param indent: Depth of indent for the output string.
+        :type indent: integer
+        :return: OpenCL language code representing the node.
+        :rtype: string
+        '''
+
+        # OpenCL implementation assumptions:
+        # - All array have the same size and it is given by the
+        #   global_work_size argument to clEnqueueNDRangeKernel.
+        # - Assumes no dependencies among kernels called concurrently.
+
+        # TODO: At the moment, the method caller is responsible to ensure
+        # these assumptions. KernelSchedule access to the kernel
+        # meta-arguments could be used to check them and also improve the
+        # generated code. (Issue #288)
+
+        # Start OpenCL kernel definition
+        code = self.indent(indent) + "__kernel void " + self._name + "(\n"
+        code += self.symbol_table.gen_ocl_argument_list(indent + 1)
+        code += "\n" + self.indent(indent + 1) + "){\n"
+
+        # Declare local variables.
+        code += self.symbol_table.gen_c_local_variables(indent + 1)
+
+        # Declare array length
+        code += self.symbol_table.gen_ocl_array_length(indent + 1)
+
+        # Declare iteration indices
+        code += self.symbol_table.gen_ocl_iteration_indices(indent + 1)
+
+        # Generate kernel body
+        for child in self._children:
+            code += child.gen_c_code(indent + 1) + "\n"
+
+        # Close kernel definition
+        code += "}\n"
+
+        return code
 
     def __str__(self):
         result = "Schedule[name:'" + self._name + "']:\n"
