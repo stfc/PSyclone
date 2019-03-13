@@ -190,6 +190,17 @@ def test_opencl_kernel_code_generation():
     kernel = sched.children[0].children[0].children[0]  # compute_cu kernel
     kschedule = kernel.get_kernel_schedule()
 
+    # TODO: At the moment, due to fparser/171, the body of compute_cu
+    # is not generated, so I provisionally create a simple assingment statement
+    # for testing that the body of the kernel is properly generated.
+    from psyclone.psyGen import Assignment, Reference, Literal
+    assignment = Assignment(parent=kschedule)
+    kschedule.addchild(assignment)
+    ref = Reference("i", assignment)
+    lit = Literal("1", assignment)
+    assignment.addchild(ref)
+    assignment.addchild(lit)
+
     expected_code = (
         "__kernel void compute_cu_code(\n"
         "    __global double * restrict cu,\n"
@@ -204,13 +215,11 @@ def test_opencl_kernel_code_generation():
         "    int uLEN2 = get_global_size(1);\n"
         "    int i = get_global_id(0);\n"
         "    int j = get_global_id(1);\n"
+        "    i = 1;\n"
+        "}\n"
         )
 
     assert expected_code in kschedule.gen_ocl()
-
-    # TODO: At the moment, due to fparser/171, the body of compute_cu
-    # is not generated and can not be included on the expected code,
-    # this cause a line without coverage in the tests.
 
 
 def test_opencl_kernel_variables_definitions():
