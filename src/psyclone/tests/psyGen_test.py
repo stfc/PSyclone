@@ -2809,6 +2809,17 @@ def test_kernelschedule_can_be_printed():
     assert "End Schedule" in str(kschedule)
 
 
+def test_kernelschedule_abstract_methods():
+    ''' Test that the abstract methods produce the appropriate error.'''
+
+    kschedule = KernelSchedule("kname")
+
+    with pytest.raises(NotImplementedError) as error:
+        kschedule.gen_ocl()
+    assert "A generic implemtation of this method is not available."\
+        in str(error.value)
+
+
 # Test Symbol Class
 def test_symbol_initialization():
     '''Test that a Symbol instance can be created when valid arguments are
