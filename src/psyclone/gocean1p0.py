@@ -1880,6 +1880,10 @@ class GOACCDataDirective(ACCDataDirective):
 
 
 class GOSymbolTable(SymbolTable):
+    '''
+    Sub-classes SymbotTable to provide an API-specific implementation of the
+    OpenCL generation methods.
+    '''
 
     def _check_gocean_conformity(self):
         '''
@@ -1993,6 +1997,10 @@ class GOSymbolTable(SymbolTable):
 
 
 class GOKernelSchedule(KernelSchedule):
+    '''
+    Sub-classes KernelSchedyle to provide an API-specific implementation of the
+    OpenCL generation method and the symbol_table property.
+    '''
 
     @property
     def symbol_table(self):
