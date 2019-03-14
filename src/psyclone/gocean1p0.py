@@ -51,7 +51,7 @@ from psyclone.parse import Descriptor, KernelType, ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, SymbolTable
+    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -1159,9 +1159,24 @@ class GOKern(Kern):
         :return: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.GOKernelSchedule`
         '''
-        newkernel = super(GOKern, self).get_kernel_schedule()
-        newkernel.__class__ = GOKernelSchedule
-        return newkernel
+        if self._kern_schedule is None:
+            astp = GOFparser2ASTProcessor()
+            self._kern_schedule = astp.generate_schedule(self.name, self.ast)
+        return self._kern_schedule
+
+
+class GOFparser2ASTProcessor(Fparser2ASTProcessor):
+    '''
+    Sub-classes the Fparser2ASTProcessor with GOcean 1.0 specific
+    functionality.
+    '''
+    def _create_schedule(self, name):
+        '''
+        Create an empty KernelSchedule.
+
+        :param str name: Name of the subroutine represented by the kernel.
+        '''
+        return GOKernelSchedule(name)
 
 
 class GOKernelArguments(Arguments):
@@ -1881,7 +1896,7 @@ class GOACCDataDirective(ACCDataDirective):
 
 class GOSymbolTable(SymbolTable):
     '''
-    Sub-classes SymbotTable to provide an API-specific implementation of the
+    Sub-classes SymbolTable to provide an API-specific implementation of the
     OpenCL generation methods.
     '''
 
@@ -1891,7 +1906,7 @@ class GOSymbolTable(SymbolTable):
         the iteration indices (are scalar integers).
 
         :raises GenerationError: if the Symbol Table does not conform to the \
-                expected format.
+                rules for a GOcean 1.0 kernel.
         '''
         # Get the kernel name if available for better error messages
         kname_str = ""
@@ -1924,7 +1939,7 @@ class GOSymbolTable(SymbolTable):
 
     def gen_ocl_argument_list(self, indent=0):
         '''
-        Generate kernel arguments: in openCL we ignore the iteration
+        Generate kernel arguments: in OpenCL we ignore the iteration
         indices which in GOcean are the first two arguments.
 
         :param indent: Depth of indent for the output string.
@@ -1933,16 +1948,16 @@ class GOSymbolTable(SymbolTable):
         '''
         self._check_gocean_conformity()
 
-        arglist = ""
+        arglist = []
         for symbol in self.argument_list[2:]:
-            arglist = arglist + self.indent(indent)
+            prefix = Node.indent(indent)
             # If argument is an array, it is allocated to the OpenCL global
             # address space.
             if symbol.shape:
-                arglist = arglist + "__global "
+                prefix += "__global "
+            arglist.append(prefix + symbol.gen_c_definition())
 
-            arglist = arglist + symbol.gen_c_definition() + ",\n"
-        return arglist[:-2]  # Remove last ",\n"
+        return ",\n".join(arglist)  # Remove last ",\n"
 
     def gen_ocl_iteration_indices(self, indent=0):
         '''
@@ -1956,17 +1971,19 @@ class GOSymbolTable(SymbolTable):
 
         code = ""
         for index, symbol in enumerate(self.argument_list[:2]):
-            code = code + self.indent(indent) + "int " + symbol.name
-            code = code + " = get_global_id(" + str(index) + ");\n"
+            code += Node.indent(indent) + "int " + symbol.name
+            code += " = get_global_id(" + str(index) + ");\n"
         return code
 
     def gen_ocl_array_length(self, indent=0):
         '''
-        Generate a <name>LEN<DIM> variable for each array dimension.
+        Generate a <name>LEN<DIM> variable for each array dimension of
+        each array argument.
         In OpenCL the sizes are retrived from the kernel global_work_size
         (e.g. "int arrayLEN1 = get_global_size(1);")
 
-        :return: OpenCL array length variables definition and initialisation.
+        :return: OpenCL code to define and initialise variables for all array \
+                lengths.
         :rtype: str
         :raises GenerationError: if the array length variable name clashes \
                 with another symbol name.
@@ -1977,7 +1994,7 @@ class GOSymbolTable(SymbolTable):
         for symbol in self.argument_list[2:]:
             dimensions = len(symbol.shape)
             for dim in range(1, dimensions + 1):
-                code = code + self.indent(indent) + "int "
+                code += Node.indent(indent) + "int "
                 varname = symbol.name + "LEN" + str(dim)
 
                 # Check there is no clash with other variables
@@ -1991,32 +2008,27 @@ class GOSymbolTable(SymbolTable):
                         "contains a symbol with the same name."
                         "".format(varname, symbol.name, kname))
 
-                code = code + varname + " = get_global_size("
-                code = code + str(dim - 1) + ");\n"
+                code += varname + " = get_global_size("
+                code += str(dim - 1) + ");\n"
         return code
 
 
 class GOKernelSchedule(KernelSchedule):
     '''
-    Sub-classes KernelSchedyle to provide an API-specific implementation of the
-    OpenCL generation method and the symbol_table property.
-    '''
+    Sub-classes KernelSchedule to provide an API-specific implementation of the
+    OpenCL generation method.
 
-    @property
-    def symbol_table(self):
-        '''
-        :return: Table containing symbol information for the kernel.
-        :rtype: :py:class:`psyclone.gocean1p0.GOSymbolTable`
-        '''
-        self._symbol_table.__class__ = GOSymbolTable
-        return self._symbol_table
+    :param str name: Kernel subroutine name
+    '''
+    def __init__(self, name):
+        super(GOKernelSchedule, self).__init__(name)
+        self._symbol_table = GOSymbolTable(self)
 
     def gen_ocl(self, indent=0):
         '''
         Generate a string representation of this node in the OpenCL language.
 
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
+        :param int indent: Depth of indent for the output string.
         :return: OpenCL language code representing the node.
         :rtype: string
         '''

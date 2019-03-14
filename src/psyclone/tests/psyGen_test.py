@@ -2816,7 +2816,7 @@ def test_kernelschedule_abstract_methods():
 
     with pytest.raises(NotImplementedError) as error:
         kschedule.gen_ocl()
-    assert "A generic implemtation of this method is not available."\
+    assert "A generic implementation of this method is not available."\
         in str(error.value)
 
 
@@ -3089,20 +3089,13 @@ def test_symboltable_abstract_methods():
     error.'''
     symTable = SymbolTable()
 
-    with pytest.raises(NotImplementedError) as error:
-        symTable.gen_ocl_argument_list()
-    assert "A generic implemtation of this method is not available."\
-        in str(error.value)
-
-    with pytest.raises(NotImplementedError) as error:
-        symTable.gen_ocl_iteration_indices()
-    assert "A generic implemtation of this method is not available."\
-        in str(error.value)
-
-    with pytest.raises(NotImplementedError) as error:
-        symTable.gen_ocl_array_length()
-    assert "A generic implemtation of this method is not available."\
-        in str(error.value)
+    for method in [symTable.gen_ocl_argument_list,
+                   symTable.gen_ocl_iteration_indices,
+                   symTable.gen_ocl_array_length]:
+        with pytest.raises(NotImplementedError) as error:
+            method()
+        assert "A generic implementation of this method is not available."\
+            in str(error.value)
 
 
 # Test Fparser2ASTProcessor

@@ -191,7 +191,7 @@ def test_opencl_kernel_code_generation():
     kschedule = kernel.get_kernel_schedule()
 
     # TODO: At the moment, due to fparser/171, the body of compute_cu
-    # is not generated, so I provisionally create a simple assingment statement
+    # is not generated, so I provisionally create a simple assignment statement
     # for testing that the body of the kernel is properly generated.
     from psyclone.psyGen import Assignment, Reference, Literal
     assignment = Assignment(parent=kschedule)

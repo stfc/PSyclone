@@ -1159,10 +1159,7 @@ class Node(object):
         :return: Complete indentation string.
         :rtype: str
         '''
-        result = ""
-        for i in range(count):
-            result += indent
-        return result
+        return count * indent
 
     def list(self, indent=0):
         result = ""
@@ -4526,11 +4523,19 @@ class Fparser2ASTProcessor(object):
         del statements[:]
         return code_block
 
+    def _create_schedule(self, name):
+        '''
+        Create an empty KernelSchedule.
+
+        :param str name: Name of the subroutine represented by the kernel.
+        '''
+        return KernelSchedule(name)
+
     def generate_schedule(self, name, module_ast):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
-        :param str name: Name of the subroutine representing the kernel.
+        :param str name: Name of the subroutine represented by the kernel.
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
@@ -4566,7 +4571,7 @@ class Fparser2ASTProcessor(object):
                     return node
             raise ValueError  # Subroutine not found
 
-        new_schedule = KernelSchedule(name)
+        new_schedule = self._create_schedule(name)
 
         # Assume just 1 Fortran module definition in the file
         if len(module_ast.content) > 1:
@@ -5188,9 +5193,9 @@ class Symbol(object):
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
         if self.shape:
-            code = code + "* restrict "
+            code += "* restrict "
 
-        code = code + self.name
+        code += self.name
         return code
 
     def __str__(self):
@@ -5204,7 +5209,8 @@ class SymbolTable(object):
     and look up existing symbols. It is implemented as a single scope
     symbol table (nested scopes not supported).
 
-    :param kernel: Reference to the KernelSchedule it belongs.
+    :param kernel: Reference to the KernelSchedule to which this symbol table \
+        belongs.
     :type kernel: :py:class:`psyclone.psyGen.KernelSchedule` or NoneType
     '''
     # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
@@ -5214,7 +5220,7 @@ class SymbolTable(object):
         self._symbols = {}
         # Ordered list of the arguments.
         self._argument_list = []
-        # Reference to KernelSchedule it belongs.
+        # Reference to KernelSchedule to which this symbol table belongs.
         self._kernel = kernel
 
     def declare(self, name, datatype, shape=[], scope='local',
@@ -5309,21 +5315,6 @@ class SymbolTable(object):
         '''
         return [sym for sym in self._symbols.values() if sym.scope == "local"]
 
-    @staticmethod
-    def indent(count, indent=INDENTATION_STRING):
-        '''
-        Helper function to produce indentation strings.
-
-        :param int count: Number of indentation levels.
-        :param str indent: String representing one indentation level.
-        :return: Complete indentation string.
-        :rtype: str
-        '''
-        result = ""
-        for i in range(count):
-            result += indent
-        return result
-
     def gen_c_local_variables(self, indent=0):
         '''
         Generate C code that defines all local symbols in the Symbol Table.
@@ -5334,7 +5325,7 @@ class SymbolTable(object):
         '''
         code = ""
         for symbol in self.local_symbols:
-            code += self.indent(indent) + symbol.gen_c_definition() + ";\n"
+            code += Node.indent(indent) + symbol.gen_c_definition() + ";\n"
         return code
 
     def gen_ocl_argument_list(self, indent=0):
@@ -5344,7 +5335,7 @@ class SymbolTable(object):
         :raises NotImplementedError: is an abstract method.
         '''
         raise NotImplementedError(
-            "A generic implemtation of this method is not available.")
+            "A generic implementation of this method is not available.")
 
     def gen_ocl_iteration_indices(self, indent=0):
         '''
@@ -5353,7 +5344,7 @@ class SymbolTable(object):
         :raises NotImplementedError: is an abstract method.
         '''
         raise NotImplementedError(
-            "A generic implemtation of this method is not available.")
+            "A generic implementation of this method is not available.")
 
     def gen_ocl_array_length(self, indent=0):
         '''
@@ -5362,7 +5353,7 @@ class SymbolTable(object):
         :raises NotImplementedError: is an abstract method.
         '''
         raise NotImplementedError(
-            "A generic implemtation of this method is not available.")
+            "A generic implementation of this method is not available.")
 
     def view(self):
         '''
@@ -5421,13 +5412,12 @@ class KernelSchedule(Schedule):
         '''
         Generate a string representation of this node in the OpenCL language.
 
-        :param indent: Depth of indent for the output string.
-        :type indent: integer
+        :param int indent: Depth of indent for the output string.
         :return: OpenCL language code representing the node.
-        :rtype: string
+        :rtype: str
         '''
         raise NotImplementedError(
-            "A generic implemtation of this method is not available.")
+            "A generic implementation of this method is not available.")
 
     def __str__(self):
         result = "Schedule[name:'" + self._name + "']:\n"
