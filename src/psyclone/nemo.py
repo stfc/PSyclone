@@ -595,6 +595,13 @@ class NemoImplicitLoop(NemoLoop):
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
+    def __str__(self):
+        result = ("NemoImplicitLoop[]\n")
+        for entity in self._children:
+            result += str(entity) + "\n"
+        result += "EndLoop"
+        return result
+
     @staticmethod
     def match(node):
         '''

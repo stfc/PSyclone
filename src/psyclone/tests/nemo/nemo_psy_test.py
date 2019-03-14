@@ -130,8 +130,6 @@ def test_multi_kern():
             "one kernel but this loop contains 2" in str(err))
 
 
-@pytest.mark.xfail(reason="Do not currently check for previous variable"
-                   "declarations when adding loop variables")
 def test_implicit_loop_assign():
     ''' Check that we only identify an implicit loop when array syntax
     is used as part of an assignment statement. '''
@@ -142,16 +140,15 @@ def test_implicit_loop_assign():
     loops = sched.walk(sched.children, nemo.NemoLoop)
     sched.view()
     gen = str(ast).lower()
-    print(gen)
-    # Our implicit loops gives us 5 explicit loops
-    assert len(loops) == 5
+    # We should have two implicit loops
+    assert len(loops) == 2
     assert isinstance(sched.children[0], nemo.NemoLoop)
+    # Check the __str__ property of the implicit loop
+    txt = str(sched.children[0])
+    assert "NemoImplicitLoop[]" in txt
     # The other statements (that use array syntax) are not assignments
     # and therefore are not implicit loops
     assert not(isinstance(sched.children[1], nemo.NemoLoop))
-    # Check that the loop variables have been declared just once
-    for var in ["psy_ji", "psy_jj", "psy_jk"]:
-        assert gen.count("integer :: {0}".format(var)) == 1
 
 
 def test_complex_code():
