@@ -239,9 +239,8 @@ def test_multi_data():
 
     assert ("    END IF\n"
             "    !$ACC END DATA\n"
-            "    !$ACC DATA COPYIN(pahu,e2_e1u,e3u_n,wmask,e2u,uslp,zdit,"
-            "zdkt,zdk1t,umask,pta,zftv,r1_e1e2t,e3t_n) "
-            "COPYOUT(zftu,pta)\n"
+            "    !$ACC DATA COPYIN(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
+            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv) COPYOUT(zftu) COPY(pta)\n"
             "    DO jj = 1, jpjm1") in gen_code
 
     assert ("    END DO\n"
@@ -477,6 +476,7 @@ def test_array_access_in_ifblock(parser):
     # Put the second loop nest inside a data region
     acc_trans.apply(schedule.children[1:])
     gen_code = str(psy.gen).lower()
+    print(gen_code)
     assert " copyin(zmask)" in gen_code
 
 

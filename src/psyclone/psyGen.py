@@ -68,17 +68,6 @@ except ImportError:
         return text
 
 
-class OrderedSet(collections.OrderedDict, collections.MutableSet):
-    '''
-    This class is a workaround for the fact that sets are un-ordered
-    and thus we can end up generating different outputs when running
-    under Python 2 or 3. That in turn makes testing difficult.
-
-    '''
-    def add(self, elem):
-        self[elem] = None
-
-
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
@@ -1757,13 +1746,16 @@ class ACCDirective(Directive):
                 # Identify the inputs and outputs to the region (variables that
                 # are read and written).
                 processor = Fparser2ASTProcessor()
-                readers, writers = processor.get_inputs_outputs(
+                readers, writers, readwrites = processor.get_inputs_outputs(
                     fp_parent.content[ast_start_index:ast_end_index+1])
 
                 if readers:
                     text += " COPYIN({0})".format(",".join(readers))
                 if writers:
                     text += " COPYOUT({0})".format(",".join(writers))
+                if readwrites:
+                    text += " COPY({0})".format(",".join(readwrites))
+
             elif data_movement == "present":
                 text += " DEFAULT(PRESENT)"
             else:
@@ -4816,15 +4808,16 @@ class Fparser2ASTProcessor(object):
         :param nodes: list of Nodes in the fparser2 AST to analyse.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
-        :return: 2-tuple of list of inputs, list of outputs
-        :rtype: (list of str, list of str)
+        :return: 3-tuple of list of inputs, list of outputs, list of in-outs
+        :rtype: (list of str, list of str, list of str)
         '''
         from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
             Section_Subscript_List, Loop_Control, Data_Ref, If_Then_Stmt, \
             Structure_Constructor, Array_Section
         from fparser.two.utils import walk_ast
-        readers = OrderedSet()
-        writers = OrderedSet()
+        readers = set()
+        writers = set()
+        readwrites = set()
         # A dictionary of all array accesses that we encounter - used to
         # sanity check the readers and writers we identify.
         all_array_refs = {}
@@ -4888,7 +4881,7 @@ class Fparser2ASTProcessor(object):
 
         # Sanity check that we haven't missed anything. To be replaced when
         # #309 is done.
-        accesses = list(readers.keys()) + list(writers.keys())
+        accesses = list(readers) + list(writers)
         for name, node in all_array_refs.items():
             if name not in accesses:
                 # A matching bare array access hasn't been found but it
@@ -4904,8 +4897,21 @@ class Fparser2ASTProcessor(object):
                         "Array '{0}' present in source code ('{1}') but not "
                         "identified as being read or written.".
                         format(name, str(node)))
+        # Now we check for any arrays that are both read and written
+        readwrites = readers & writers
+        # Remove them from the readers and writers sets
+        readers = readers - readwrites
+        writers = writers - readwrites
+        # Convert sets to lists and sort so that we get consistent results
+        # between Python versions (for testing)
+        rlist = list(readers)
+        rlist.sort()
+        wlist = list(writers)
+        wlist.sort()
+        rwlist = list(readwrites)
+        rwlist.sort()
 
-        return (readers.keys(), writers.keys())
+        return (rlist, wlist, rwlist)
 
     def generate_schedule(self, name, module_ast):
         '''
