@@ -145,7 +145,7 @@ def test_implicit_loop_assign():
     assert isinstance(sched.children[0], nemo.NemoLoop)
     # Check the __str__ property of the implicit loop
     txt = str(sched.children[0])
-    assert "NemoImplicitLoop[]" in txt
+    assert "NemoImplicitLoop[zftv(:, :, :)]" in txt
     # The other statements (that use array syntax) are not assignments
     # and therefore are not implicit loops
     assert not(isinstance(sched.children[1], nemo.NemoLoop))

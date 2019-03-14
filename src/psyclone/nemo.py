@@ -596,11 +596,8 @@ class NemoImplicitLoop(NemoLoop):
         self._ast = ast
 
     def __str__(self):
-        result = ("NemoImplicitLoop[]\n")
-        for entity in self._children:
-            result += str(entity) + "\n"
-        result += "EndLoop"
-        return result
+        # Display the LHS of the assignment in the str representation
+        return "NemoImplicitLoop[{0}]\n".format(self._ast.items[0])
 
     @staticmethod
     def match(node):
