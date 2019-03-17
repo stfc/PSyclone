@@ -224,7 +224,7 @@ Dr Hook, dl_timer and a simple non-thread-safe timing
 library. Support for further profiling libraries will be
 added in the future. To compile the wrapper libraries,
 change into the directory ``lib/profiling`` of PSyclone
-and type ``make`` to compile all wrapper. If only some
+and type ``make`` to compile all wrappers. If only some
 of the wrapper are required, you can either use
 ``make wrapper-name`` (e.g. ``make drhook``), or change
 into the corresponding directory and use ``make``. The
