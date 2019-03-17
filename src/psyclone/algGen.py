@@ -68,11 +68,11 @@ class Alg(object):
 
     For example:
 
-    >>> from parse import parse
+    >>> from psyclone.algorithm.parse import parse
     >>> parse_tree, info = parse("argspec.F90")
-    >>> from psyGen import PSy
+    >>> from psyclone.psyGen import PSy
     >>> psy = PSy(info)
-    >>> from algGen import Alg
+    >>> from psyclone.algGen import Alg
     >>> alg = Alg(parse_tree, psy)
     >>> print(alg.gen)
 
@@ -82,8 +82,7 @@ class Alg(object):
     fparser2 and expects a valid program unit, program, module, \
     subroutine or function.
     :type parse_tree: :py:class:`fparser.two.utils.Base`
-    :param psy: An object (:class:`psyGen.PSy`) containing information \
-    about the PSy layer.
+    :param psy: An object containing information about the PSy layer.
     :type psy: :py:class:`psyclone.psyGen.PSy`
     :param str invoke_name: The name that the algorithm layer uses to \
     indicate an invoke call. This is an optional argument that \
@@ -158,8 +157,8 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
 
     :param parse_tree: The full parse tree of the associated code
     :type parse_tree: :py:class:`fparser.two.utils.Base`
-    :param location: The current location in the parse tree provided \
-    in the parse_tree argument
+    :param location: The current location (node) in the parse tree
+    provided in the parse_tree argument
     :type location: :py:class:`fparser.two.utils.Base`
     :param str name: The name of the use statement
     :param bool only: Whether to include the 'only' clause in the use \
