@@ -5624,7 +5624,8 @@ class UnaryOperation(Node):
     '''
     Node representing a UnaryOperator expression. As such it has one operands
     as children 0, and a attribute with the operator type.
-     :param ast: node in the fparser2 AST representing the unary operator.
+
+    :param ast: node in the fparser2 AST representing the unary operator.
     :type ast: :py:class:`fparser.two.Fortran2003.UnaryOpBase.
     :param parent: the parent node of this UnaryOperator in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
@@ -5638,7 +5639,8 @@ class UnaryOperation(Node):
         '''
         Return the name of this node type with control codes for
         terminal colouring.
-         return: Name of node + control chars for colour.
+
+        :return: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("UnaryOperation",
@@ -5647,7 +5649,8 @@ class UnaryOperation(Node):
     def view(self, indent=0):
         '''
         Print a representation of this node in the schedule to stdout.
-         :param int indent: level to which to indent output.
+
+        :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[operator:'" +
               self._operator + "']")
@@ -5660,16 +5663,13 @@ class UnaryOperation(Node):
             result += str(entity)
         return result
 
-    def gen_c_code(self, indent=0, opencl=False):
+    def gen_c_code(self, indent=0):
         '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
-         :param indent: Depth of indent for the output string.
-        :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean:
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
-        :rtype: string
+        :rtype: str
         '''
         return "(" + self._operator + " " \
             + self._children[0].gen_c_code(indent, opencl) + ")"
@@ -5858,8 +5858,10 @@ class Literal(Node):
 
 class Return(Node):
     '''
-    Node representing a Subroutine Return action
-     :param parent: the parent node of this Return in the PSyIRe.
+    Node representing a Return statement (subroutine break without return
+    value).
+
+    :param parent: the parent node of this Return in the PSyIRe.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, parent=None):
@@ -5870,7 +5872,8 @@ class Return(Node):
         '''
         Return the name of this node type with control codes for
         terminal colouring.
-         return: Name of node + control chars for colour.
+
+        :return: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
@@ -5878,22 +5881,20 @@ class Return(Node):
     def view(self, indent=0):
         '''
         Print a representation of this node in the schedule to stdout.
-         :param int indent: level to which to indent output.
+
+        :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[]")
 
     def __str__(self):
         return "Return[]\n"
 
-    def gen_c_code(self, indent=0, opencl=False):
+    def gen_c_code(self, indent=0):
         '''
-        Generate a string representation of this node using C language (or
-        the OpenCL C extension if the 'opencl' flag argument is set to True).
-         :param indent: Depth of indent for the output string.
-        :type indent: integer
-        :param opencl: Flag to enable the generation of OpenCL code.
-        :type opencl: boolean:
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
-        :rtype: string
+        :rtype: str
         '''
         return "return;\n"
