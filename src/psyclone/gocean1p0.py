@@ -1170,11 +1170,14 @@ class GOFparser2ASTProcessor(Fparser2ASTProcessor):
     Sub-classes the Fparser2ASTProcessor with GOcean 1.0 specific
     functionality.
     '''
-    def _create_schedule(self, name):
+    @staticmethod
+    def _create_schedule(name):
         '''
         Create an empty KernelSchedule.
 
         :param str name: Name of the subroutine represented by the kernel.
+        :returns: New GOKernelSchedule empty object.
+        :rtype: py:class:`psyclone.gocean1p0.GOKernelSchedule`
         '''
         return GOKernelSchedule(name)
 

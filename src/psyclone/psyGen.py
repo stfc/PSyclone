@@ -4523,11 +4523,14 @@ class Fparser2ASTProcessor(object):
         del statements[:]
         return code_block
 
-    def _create_schedule(self, name):
+    @staticmethod
+    def _create_schedule(name):
         '''
         Create an empty KernelSchedule.
 
         :param str name: Name of the subroutine represented by the kernel.
+        :returns: New KernelSchedule empty object.
+        :rtype: py:class:`psyclone.psyGen.KernelSchedule`
         '''
         return KernelSchedule(name)
 
