@@ -16,7 +16,7 @@ API
 The Algorithm layer is forbidden from calling the Kernel layer
 directly. In PSyclone, if the programmer would like to call a Kernel
 routine or a Built-in operation from the algorithm layer they must use
-the ``invoke`` call (which is common to all API's). The ``invoke``
+the ``invoke`` call (which is common to all APIs). The ``invoke``
 call is not necessary (and indeed will not work) if the PSy layer is
 written manually.
 
