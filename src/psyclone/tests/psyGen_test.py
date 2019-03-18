@@ -2444,13 +2444,13 @@ def test_node_abstract_methods():
     loop = sched.children[0].children[0]
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop)
-    assert ("Please implement me" in str(err))
+    assert "Please implement me" in str(err)
     with pytest.raises(NotImplementedError) as err:
         Node.gen_c_code(loop)
-    assert ("Please implement me" in str(err))
+    assert "Please implement me" in str(err)
     with pytest.raises(NotImplementedError) as err:
         Node.view(loop)
-    assert ("BaseClass of a Node must implement the view method" in str(err))
+    assert "BaseClass of a Node must implement the view method" in str(err)
 
 
 def test_kern_ast():
@@ -2581,7 +2581,7 @@ def test_codeblock_gen_c_code():
     cblock = CodeBlock([])
     with pytest.raises(GenerationError) as err:
         cblock.gen_c_code()
-    assert("CodeBlock can not be translated to C" in str(err.value))
+    assert "CodeBlock can not be translated to C" in str(err.value)
 
 # Test Assignment class
 
@@ -2610,7 +2610,7 @@ def test_assignment_gen_c_code():
     # Test with 'a=1'
     assignment = Assignment()
     with pytest.raises(GenerationError) as err:
-        code = assignment.gen_c_code()
+        _ = assignment.gen_c_code()
     assert("Assignment malformed or incomplete. It should have "
            "exactly 2 children, but it found 0." in str(err.value))
     ref = Reference("a", assignment)
@@ -2683,8 +2683,8 @@ def test_array_gen_c_code():
     # Test 0 dimensions
     array = Array("array1", None)
     with pytest.raises(GenerationError) as err:
-        code = array.gen_c_code()
-    assert("Array must have at least 1 dimension." in str(err.value))
+        _ = array.gen_c_code()
+    assert "Array must have at least 1 dimension." in str(err.value)
 
     # Test access element '1'
     lit = Literal("1", array)
@@ -2734,14 +2734,14 @@ def test_binaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the Binary Operation
     class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    binaryOp = BinaryOperation("+")
-    op1 = Literal("1", parent=binaryOp)
-    op2 = Literal("1", parent=binaryOp)
-    binaryOp.addchild(op1)
-    binaryOp.addchild(op2)
+    binary_operation = BinaryOperation("+")
+    op1 = Literal("1", parent=binary_operation)
+    op2 = Literal("1", parent=binary_operation)
+    binary_operation.addchild(op1)
+    binary_operation.addchild(op2)
     coloredtext = colored("BinaryOperation",
                           SCHEDULE_COLOUR_MAP["BinaryOperation"])
-    binaryOp.view()
+    binary_operation.view()
     output, _ = capsys.readouterr()
     assert coloredtext+"[operator:'+']" in output
 
@@ -2749,27 +2749,27 @@ def test_binaryoperation_view(capsys):
 def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
-    binaryOp = BinaryOperation("+")
-    op1 = Literal("1", parent=binaryOp)
-    op2 = Literal("1", parent=binaryOp)
-    binaryOp.addchild(op1)
-    binaryOp.addchild(op2)
-    assert "BinaryOperation[operator:'+']\n" in str(binaryOp)
+    binary_operation = BinaryOperation("+")
+    op1 = Literal("1", parent=binary_operation)
+    op2 = Literal("1", parent=binary_operation)
+    binary_operation.addchild(op1)
+    binary_operation.addchild(op2)
+    assert "BinaryOperation[operator:'+']\n" in str(binary_operation)
 
 
 def test_binaryoperation_gen_c_code():
     '''Test that a BinaryOperation node can generate its C representation'''
 
-    biOp = BinaryOperation("+")
+    binary_operation = BinaryOperation("+")
     with pytest.raises(GenerationError) as err:
-        code = biOp.gen_c_code()
+        _ = binary_operation.gen_c_code()
     assert("BinaryOperation malformed or incomplete. It should have "
            "exactly 2 children, but it found 0." in str(err.value))
-    lit1 = Literal("1", biOp)
-    lit2 = Literal("2", biOp)
-    biOp.addchild(lit1)
-    biOp.addchild(lit2)
-    assert biOp.gen_c_code() == '(1 + 2)'
+    lit1 = Literal("1", binary_operation)
+    lit2 = Literal("2", binary_operation)
+    binary_operation.addchild(lit1)
+    binary_operation.addchild(lit2)
+    assert binary_operation.gen_c_code() == '(1 + 2)'
 
 
 # Test KernelSchedule Class
@@ -2929,18 +2929,18 @@ def test_symbol_gen_c_definition():
     '''Test that the Symbol gen_c_definition method generates the expected
     C definitions, or raises an error if the type is not supported.
     '''
-    s1 = Symbol("name", "integer", [])
-    assert "int name" == s1.gen_c_definition()
+    sym_1 = Symbol("name", "integer", [])
+    assert sym_1.gen_c_definition() == "int name"
 
-    s2 = Symbol("name", "character", [None])
-    assert "char * restrict name" == s2.gen_c_definition()
+    sym_2 = Symbol("name", "character", [None])
+    assert sym_2.gen_c_definition() == "char * restrict name"
 
-    s3 = Symbol("name", "real", [None, None])
-    assert "double * restrict name" == s3.gen_c_definition()
+    sym_3 = Symbol("name", "real", [None, None])
+    assert sym_3.gen_c_definition() == "double * restrict name"
 
-    s1._datatype = "invalid"
+    sym_1._datatype = "invalid"
     with pytest.raises(NotImplementedError) as err:
-        code = s1.gen_c_definition()
+        _ = sym_1.gen_c_definition()
     assert ("Could not generate the C definition for the variable 'name', "
             "type 'invalid' is currently not supported.") in str(err)
 
@@ -3018,80 +3018,80 @@ def test_symboltable_specify_argument_list():
     '''Test that the specify argument list method sets the argument_list
     with references to each Symbol and updates the Symbol attributes when
     needed.'''
-    symTable = SymbolTable()
-    symTable.declare("var1", "real", [])
-    symTable.specify_argument_list(['var1'])
+    sym_table = SymbolTable()
+    sym_table.declare("var1", "real", [])
+    sym_table.specify_argument_list(['var1'])
 
-    assert len(symTable.argument_list) == 1
-    assert symTable.argument_list[0].scope == 'global_argument'
-    assert symTable.argument_list[0].is_input is True
-    assert symTable.argument_list[0].is_output is True
+    assert len(sym_table.argument_list) == 1
+    assert sym_table.argument_list[0].scope == 'global_argument'
+    assert sym_table.argument_list[0].is_input is True
+    assert sym_table.argument_list[0].is_output is True
 
     # Test that repeated calls still produce a valid argument list
-    symTable.specify_argument_list(['var1'])
-    assert len(symTable.argument_list) == 1
+    sym_table.specify_argument_list(['var1'])
+    assert len(sym_table.argument_list) == 1
 
 
 def test_symboltable_contains():
     '''Test that the __contains__ method returns True if the given name
     is in the SymbolTable, otherwise returns False.'''
-    symTable = SymbolTable()
+    sym_table = SymbolTable()
 
-    symTable.declare("var1", "real", [])
-    symTable.declare("var2", "real", [None])
+    sym_table.declare("var1", "real", [])
+    sym_table.declare("var2", "real", [None])
 
-    assert "var1" in symTable
-    assert "var2" in symTable
-    assert "var3" not in symTable
+    assert "var1" in sym_table
+    assert "var2" in sym_table
+    assert "var3" not in sym_table
 
 
 def test_symboltable_local_symbols():
     '''Test that the local_symbols property returns a list with the
     symbols with local scope.'''
-    symTable = SymbolTable()
-    assert [] == symTable.local_symbols
+    sym_table = SymbolTable()
+    assert [] == sym_table.local_symbols
 
-    symTable.declare("var1", "real", [])
-    symTable.declare("var2", "real", [None])
-    symTable.declare("var3", "real", [])
+    sym_table.declare("var1", "real", [])
+    sym_table.declare("var2", "real", [None])
+    sym_table.declare("var3", "real", [])
 
-    assert len(symTable.local_symbols) == 3
-    assert symTable.lookup("var1") in symTable.local_symbols
-    assert symTable.lookup("var2") in symTable.local_symbols
-    assert symTable.lookup("var3") in symTable.local_symbols
+    assert len(sym_table.local_symbols) == 3
+    assert sym_table.lookup("var1") in sym_table.local_symbols
+    assert sym_table.lookup("var2") in sym_table.local_symbols
+    assert sym_table.lookup("var3") in sym_table.local_symbols
 
-    symTable.specify_argument_list(['var1'])
+    sym_table.specify_argument_list(['var1'])
 
-    assert len(symTable.local_symbols) == 2
-    assert symTable.lookup("var1") not in symTable.local_symbols
-    assert symTable.lookup("var2") in symTable.local_symbols
-    assert symTable.lookup("var3") in symTable.local_symbols
+    assert len(sym_table.local_symbols) == 2
+    assert sym_table.lookup("var1") not in sym_table.local_symbols
+    assert sym_table.lookup("var2") in sym_table.local_symbols
+    assert sym_table.lookup("var3") in sym_table.local_symbols
 
 
 def test_symboltable_gen_c_local_variables():
     ''' Test that it returns a concatenation of just the multiple local
     symbols definitions .
     '''
-    symTable = SymbolTable()
-    symTable.declare("var1", "real", [])
-    symTable.declare("var2", "real", [])
-    symTable.declare("var3", "real", [None])
-    symTable.specify_argument_list(['var1'])
+    sym_table = SymbolTable()
+    sym_table.declare("var1", "real", [])
+    sym_table.declare("var2", "real", [])
+    sym_table.declare("var3", "real", [None])
+    sym_table.specify_argument_list(['var1'])
 
-    c_local_vars = symTable.gen_c_local_variables()
-    assert symTable.lookup("var1").gen_c_definition() not in c_local_vars
-    assert symTable.lookup("var2").gen_c_definition() in c_local_vars
-    assert symTable.lookup("var3").gen_c_definition() in c_local_vars
+    c_local_vars = sym_table.gen_c_local_variables()
+    assert sym_table.lookup("var1").gen_c_definition() not in c_local_vars
+    assert sym_table.lookup("var2").gen_c_definition() in c_local_vars
+    assert sym_table.lookup("var3").gen_c_definition() in c_local_vars
 
 
 def test_symboltable_abstract_methods():
     '''Test that the SymbolTable abstract methods raise the appropriate
     error.'''
-    symTable = SymbolTable()
+    sym_table = SymbolTable()
 
-    for method in [symTable.gen_ocl_argument_list,
-                   symTable.gen_ocl_iteration_indices,
-                   symTable.gen_ocl_array_length]:
+    for method in [sym_table.gen_ocl_argument_list,
+                   sym_table.gen_ocl_iteration_indices,
+                   sym_table.gen_ocl_array_length]:
         with pytest.raises(NotImplementedError) as error:
             method()
         assert "A generic implementation of this method is not available."\
@@ -3622,11 +3622,11 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
     reader = FortranStringReader("x=1+4")
-    fparser2binaryOp = Execution_Part.match(reader)[0][0].items[2]
+    fparser2binary_operation = Execution_Part.match(reader)[0][0].items[2]
 
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2binaryOp], None)
+    processor.process_nodes(fake_parent, [fparser2binary_operation], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]

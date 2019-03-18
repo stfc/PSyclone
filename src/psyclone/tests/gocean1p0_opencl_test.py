@@ -39,9 +39,9 @@ GOcean 1.0 API.'''
 from __future__ import print_function, absolute_import
 import pytest
 from psyclone.transformations import OCLTrans
-from psyclone_test_utils import get_invoke
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.psyGen import GenerationError
+from psyclone_test_utils import get_invoke
 
 API = "gocean1.0"
 
