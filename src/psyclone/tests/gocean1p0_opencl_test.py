@@ -39,6 +39,8 @@ GOcean 1.0 API.'''
 from __future__ import print_function, absolute_import
 import pytest
 from psyclone.transformations import OCLTrans
+from psyclone.gocean1p0 import GOKernelSchedule
+from psyclone.psyGen import GenerationError
 from psyclone_test_utils import get_invoke
 
 API = "gocean1.0"
@@ -176,3 +178,146 @@ def test_set_arg_const_scalar():
         otrans.apply(sched)
     assert ("Cannot generate OpenCL for Invokes that contain kernels with "
             "arguments passed by value" in str(err))
+
+
+def test_opencl_kernel_code_generation():
+    ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
+    the expected OpenCL code.
+    '''
+
+    psy, _ = get_invoke("single_invoke.f90", API, idx=0)
+    sched = psy.invokes.invoke_list[0].schedule
+    kernel = sched.children[0].children[0].children[0]  # compute_cu kernel
+    kschedule = kernel.get_kernel_schedule()
+
+    # TODO: At the moment, due to fparser/171, the body of compute_cu
+    # is not generated, so I provisionally create a simple assignment statement
+    # for testing that the body of the kernel is properly generated.
+    from psyclone.psyGen import Assignment, Reference, Literal
+    assignment = Assignment(parent=kschedule)
+    kschedule.addchild(assignment)
+    ref = Reference("i", assignment)
+    lit = Literal("1", assignment)
+    assignment.addchild(ref)
+    assignment.addchild(lit)
+
+    expected_code = (
+        "__kernel void compute_cu_code(\n"
+        "    __global double * restrict cu,\n"
+        "    __global double * restrict p,\n"
+        "    __global double * restrict u\n"
+        "    ){\n"
+        "    int cuLEN1 = get_global_size(0);\n"
+        "    int cuLEN2 = get_global_size(1);\n"
+        "    int pLEN1 = get_global_size(0);\n"
+        "    int pLEN2 = get_global_size(1);\n"
+        "    int uLEN1 = get_global_size(0);\n"
+        "    int uLEN2 = get_global_size(1);\n"
+        "    int i = get_global_id(0);\n"
+        "    int j = get_global_id(1);\n"
+        "    i = 1;\n"
+        "}\n"
+        )
+
+    assert expected_code in kschedule.gen_ocl()
+
+
+def test_opencl_kernel_variables_definitions():
+    ''' Tests that gen_ocl method of the GOcean Kernel Schedule generates
+    the expected OpenCL argument/variable declarations.
+    '''
+    kschedule = GOKernelSchedule('test')
+    kschedule.symbol_table.declare("i", "integer", [])
+    kschedule.symbol_table.declare("j", "integer", [])
+    kschedule.symbol_table.declare("intarg", "integer", [])
+    kschedule.symbol_table.declare("realarg", "real", [])
+    kschedule.symbol_table.declare("chararg", "character", [])
+    kschedule.symbol_table.declare("arrayarg", "real", [3, 4, 5, 3])
+    kschedule.symbol_table.declare("intvar", "integer", [])
+    kschedule.symbol_table.declare("realvar", "real", [])
+    kschedule.symbol_table.declare("charvar", "character", [])
+    kschedule.symbol_table.declare("arrayvar", "real", [3, 4, 5, 3])
+    kschedule.symbol_table.specify_argument_list(["i", "j", "intarg",
+                                                  "realarg", "chararg",
+                                                  "arrayarg"])
+    opencl = kschedule.gen_ocl()
+
+    # Check Arguments are part (or not) of the generated opencl
+    assert "int i," not in opencl
+    assert "int j," not in opencl
+    assert "int intarg" in opencl
+    assert "double realarg" in opencl
+    assert "char chararg" in opencl
+    assert "__global double * restrict arrayarg" in opencl
+
+    # Check local variables are declared
+    assert "int intvar;" in opencl
+    assert "double realvar;" in opencl
+    assert "char charvar;" in opencl
+    assert "double realvar;" in opencl
+    assert "double * restrict arrayvar;" in opencl
+    assert "int arrayargLEN1 = get_global_size(0);" in opencl
+    assert "int arrayargLEN2 = get_global_size(1);" in opencl
+    assert "int arrayargLEN3 = get_global_size(2);" in opencl
+    assert "int arrayargLEN4 = get_global_size(3);" in opencl
+    assert "int i = get_global_id(0);" in opencl
+    assert "int j = get_global_id(1);" in opencl
+
+
+def test_opencl_kernel_gen_wrong_kernel():
+    ''' Tests that gen_ocl method raises the proper error when the
+    GOKernelSchedule does not represent a proper GOcean kernel.
+    '''
+
+    kschedule = GOKernelSchedule('test')
+
+    # Test gen_ocl without any kernel argument
+    with pytest.raises(GenerationError) as err:
+        kschedule.gen_ocl()
+    assert ("GOcean 1.0 API kernels should always have at least two "
+            "arguments representing the iteration indices but the Symbol "
+            "Table for kernel 'test' has only 0 argument(s).") in str(err)
+
+    # Test gen_ocl with 1 kernel argument
+    kschedule.symbol_table.declare("arg1", "integer", [], "global_argument",
+                                   True, False)
+    kschedule.symbol_table.specify_argument_list(["arg1"])
+    with pytest.raises(GenerationError) as err:
+        kschedule.gen_ocl()
+    assert ("GOcean 1.0 API kernels should always have at least two "
+            "arguments representing the iteration indices but the Symbol "
+            "Table for kernel 'test' has only 1 argument(s).") in str(err)
+
+    # Test gen_ocl with 2 kernel argument
+    kschedule.symbol_table.declare("arg2", "integer", [], "global_argument",
+                                   True, False)
+    kschedule.symbol_table.specify_argument_list(["arg1", "arg2"])
+    kschedule.gen_ocl()
+
+    # Test gen_ocl with wrong iteration indices types and shapes.
+    kschedule.symbol_table.lookup("arg1")._datatype = "real"
+    with pytest.raises(GenerationError) as err:
+        kschedule.gen_ocl()
+    assert ("GOcean 1.0 API kernels first argument should be a scalar integer"
+            " but got a scalar of type 'real' for kernel 'test'.")\
+        in str(err)
+    kschedule.symbol_table.lookup("arg1")._datatype = "integer"  # restore
+
+    kschedule.symbol_table.lookup("arg2")._shape = [None]
+    with pytest.raises(GenerationError) as err:
+        kschedule.gen_ocl()
+    assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
+            " but got an array of type 'integer' for kernel 'test'.")\
+        in str(err)
+    kschedule.symbol_table.lookup("arg2")._shape = []  # restore
+
+    # Test gen_ocl with clashing variable names for array lengths.
+    kschedule.symbol_table.declare("array", "integer", [None],
+                                   "global_argument", True, True)
+    kschedule.symbol_table.declare("arrayLEN1", "integer", [])
+    kschedule.symbol_table.specify_argument_list(["arg1", "arg2", "array"])
+    with pytest.raises(GenerationError) as err:
+        kschedule.gen_ocl()
+    assert ("Unable to declare the variable 'arrayLEN1' to store the length"
+            " of 'array' because the kernel 'test' already contains a "
+            "symbol with the same name.") in str(err)
