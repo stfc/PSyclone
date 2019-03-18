@@ -75,7 +75,7 @@ def test_compiler_with_flags(tmpdir):
         _compile = Compile(tmpdir)
         _compile._f90flags = "not-a-flag"
         with pytest.raises(CompileError) as excinfo:
-            _ = _compile.compile_file("hello_world.f90")
+            _compile.compile_file("hello_world.f90")
         assert "not-a-flag" in str(excinfo)
         # For completeness we also try with a valid flag although we
         # can't actually check its effect.
@@ -97,7 +97,7 @@ def test_build_invalid_fortran(tmpdir):
             ffile.write(invalid_code)
         _compile = Compile(tmpdir)
         with pytest.raises(CompileError) as excinfo:
-            _ = _compile.compile_file("hello_world.f90")
+            _compile.compile_file("hello_world.f90")
     finally:
         old_pwd.chdir()
     assert "Compile error" in str(excinfo)
