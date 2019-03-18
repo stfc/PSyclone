@@ -42,9 +42,11 @@ from psyclone_test_utils import CompileError, Compile
 
 
 class Dynamo0p3Build(Compile):
-    '''Build class for compiling test files for the Dyanmo0.3 api.
-    using the wrapper library contained in the test_files.
+    '''Build class for compilation of test files for the Dynamo0.3 api.
+    Is uses the wrapper library form test_files/dynamo0p3/infrastructure
+    and will automatically compile those files once per process.
     '''
+
     # A class variable to make sure we compile the infrastructure
     # file only once per process.
     _infrastructure_built = False
@@ -117,14 +119,14 @@ class Dynamo0p3Build(Compile):
             for fort_file in Dynamo0p3Build.INFRASTRUCTURE_MODULES:
                 name = self.find_fortran_file([self._infrastructure_path],
                                               fort_file)
-                # Abort if there should be a problem
-                if not self.compile_file(name):
-                    break
+                self.compile_file(name)
             Dynamo0p3Build._infrastructure_built = True
 
-        except (CompileError, IOError):
+        except (CompileError, IOError) as err:
             # Failed to compile one of the files
             Dynamo0p3Build._infrastructure_built = False
+            raise CompileError("Could not compile Dynamo0p3 wrapper. "
+                               "Error: {0}".format(str(err)))
 
         finally:
             old_pwd.chdir()

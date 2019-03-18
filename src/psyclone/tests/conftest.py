@@ -58,7 +58,7 @@ def dist_mem(request):
 def pytest_addoption(parser):
     ''' Adds command-line options to py.test '''
     # parser is already defined, and we can't rename the argument here
-    # (since pytest otherwise failes).
+    # (since pytest otherwise fails).
     # pylint: disable=redefined-outer-name
     parser.addoption("--f90", action="store", default="gfortran",
                      help="The Fortran compiler to use")
@@ -67,7 +67,7 @@ def pytest_addoption(parser):
     parser.addoption("--compile", action="store_true", default=False,
                      help="run tests for code compilation")
     parser.addoption("--compileopencl", action="store_true", default=False,
-                     help="run tests for code compilation")
+                     help="run tests for compilation of OpenCL code")
 
 
 @pytest.fixture
@@ -94,7 +94,7 @@ def have_graphviz():
 @pytest.fixture(scope="session", autouse=True)
 def infra_compile(tmpdir_factory):
     '''A per-session initialisation function that makes sure that the
-    infrastructure files for dynamo0p3 API are compiled.
+    infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled.
     '''
 
     from dynamo0p3_build import Dynamo0p3Build

@@ -36,7 +36,6 @@
 ''' Test utilities including support for testing that code compiles. '''
 
 from __future__ import absolute_import, print_function
-import abc
 import os
 import pytest
 
@@ -101,9 +100,13 @@ def print_diffs(expected, actual):
 class Compile(object):
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
-    directory used for test compiles.
+    directory used for test compiles. The temporary directory will be
+    defined per test case, so a new instance must be created for each
+    test function.
     API-specific classes are derived from this class to manage handling
     of the corresponding infrastructure library.
+    :param tmpdir: py.test-supplied temporary directory
+    :type tmpdir: :py:class:`LocalPath`
     '''
 
     # Whether or not we run tests requiring code compilation is picked-up
@@ -124,17 +127,6 @@ class Compile(object):
                                                "option to run")
 
     def __init__(self, tmpdir=None):
-        '''
-        Constructor for the Compile base class. Thie comiler, flags
-        and tmpdir specified here will be used as required by all
-        other methods.
-        :param f90: Command to invoke Fortran compiler
-        :type f90: string
-        :param f90flags: Flags to pass to the compiler
-        :type f90flags: string
-        :param tmpdir: py.test-supplied temporary directory
-        :type tmpdir: :py:class:`LocalPath`
-        '''
         self._tmpdir = tmpdir
         # pylint: disable=no-member
         self._f90 = pytest.config.getoption("--f90")
@@ -144,8 +136,8 @@ class Compile(object):
 
     @property
     def base_path(self):
-        '''Returns the base path of all test files for the API. Needs to
-        be set by each API-specific compile class.
+        '''Returns the base path of all Fortran test files for the API.
+        Needs to be set by each API-specific compile class.
         :returns: A string with the base path of all API specific files.
         :rtype: str
         '''
@@ -160,27 +152,28 @@ class Compile(object):
         '''
         self._base_path = base_path
 
-    @abc.abstractmethod
     def get_infrastructure_flags(self):
-        '''Returns a list with the required flag to use the required
+        '''Returns a list with the required flags to use the required
         infrastructure library. This is typically ["-I", some_path] so that
         the module files of the infrastructure can be found.
         :returns: A list of strings with the compiler flags required.
-        :rtpe: str
+        :rtpe: list
         '''
+        return []
 
     @staticmethod
     def find_fortran_file(search_paths, root_name):
         ''' Returns the full path to a Fortran source file. Searches for
-        files with suffixes defined in FORTRAN_SUFFIXES. Raises IOError
-        if no matching file is found.
+        files with suffixes defined in FORTRAN_SUFFIXES.
 
-        :param list search_paths: List of locations to search for Fortran file
-        :param root_name: Base name of the Fortran file to look for
-        :type path: string
-        :type root_name: string
+        :param search_paths: List of locations to search for Fortran file
+        :type search_paths: list of str
+        :param str root_name: Base name of the Fortran file to look for
         :return: Full path to a Fortran source file
-        :rtype: string '''
+        :rtype: str
+        :raises IOError: Raises IOError if no matching file is found.
+        '''
+
         for path in search_paths:
             name = os.path.join(path, root_name)
             for suffix in FORTRAN_SUFFIXES:
@@ -192,29 +185,28 @@ class Compile(object):
 
     def compile_file(self, filename, link=False):
         ''' Compiles the specified Fortran file into an object file (in
-        the current working directory) using the specified Fortran compiler
-        and flags. Raises a CompileError if the compilation fails.
+        the current working directory). The compiler to be used (default
+        'gfortran') and compiler flags (default none) can be specified on
+        the command line using --f90 and --f90flags.
 
-        :param filename: Full path to the Fortran file to compile
-        :type filename: string
-        :param bool link: If true will also try to compile and link the file.
-            Used in testing
-        :return: True if compilation succeeds
+        :param str filename: Full path to the Fortran file to compile.
+        :param bool link: If true will also try to link the file.
+            Used in testing.
+        :raises CompileError: if the compilation fails.
         '''
 
         if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
             # Compilation testing is not enabled
-            return True
+            return
 
         # Build the command to execute. Note that the f90 flags are a string
         # and so must be split into individual parts for popen (otherwise
         # "-I /some/path" will result in the compiler trying to compile the
         # file "-I /some/path").
-        arg_list = [self._f90, filename] + self._f90flags.split()
+        arg_list = [self._f90, filename] + self._f90flags.split() + \
+            self.get_infrastructure_flags()
         if not link:
             arg_list.append("-c")
-        if self.get_infrastructure_flags():
-            arg_list += self.get_infrastructure_flags()
 
         # Attempt to execute it using subprocess
         import subprocess
@@ -224,20 +216,21 @@ class Compile(object):
                                      stderr=subprocess.STDOUT)
             (output, error) = build.communicate()
         except OSError as err:
-            print("Failed to run: {0}: ".format(" ".join(arg_list)))
-            print("Error was: ", str(err))
+            import sys
+            print("Failed to run: {0}: ".format(" ".join(arg_list)),
+                  file=sys.stderr)
+            print("Error was: ", str(err), file=sys.stderr)
             raise CompileError(str(err))
 
         # Check the return code
         stat = build.returncode
         if stat != 0:
-            print(output)
+            import sys
+            print(output, file=sys.stderr)
             if error:
-                print("=========")
-                print(error)
+                print("=========", file=sys.stderr)
+                print(error, file=sys.stderr)
             raise CompileError(output)
-        else:
-            return True
 
     def _code_compiles(self, psy_ast):
         '''Attempts to build the Fortran code supplied as an AST of
@@ -247,7 +240,7 @@ class Compile(object):
         otherwse). All files produced are deleted.
 
         :param psy_ast: The AST of the generated PSy layer
-        :type psy_ast: Instance of :py:class:`psyGen.PSy`
+        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
         :return: True if generated code compiles, False otherwise
         :rtype: bool
         '''
@@ -272,7 +265,7 @@ class Compile(object):
             fll = FortLineLength()
             psy_file.write(fll.process(str(psy_ast.gen)))
 
-        success = False
+        success = True
 
         try:
             # Build the kernels. We allow kernels to also be located in
@@ -280,10 +273,10 @@ class Compile(object):
             for fort_file in kernel_modules:
                 name = self.find_fortran_file([self.base_path,
                                                str(self._tmpdir)], fort_file)
-                success = self.compile_file(name)
+                self.compile_file(name)
 
             # Finally, we can build the psy file we have generated
-            success = self.compile_file(psy_filename)
+            self.compile_file(psy_filename)
         except CompileError:
             # Failed to compile one of the files
             success = False
@@ -304,11 +297,11 @@ class Compile(object):
         for the actual compilation. All files produced are deleted.
 
         :param psy_ast: The AST of the generated PSy layer
-        :type psy_ast: Instance of :py:class:`psyGen.PSy`
+        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
         :return: True if generated code compiles, False otherwise
         :rtype: bool
         '''
-        if not Compile.TEST_COMPILE:
+        if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
             # Compilation testing is not enabled
             return True
 
@@ -327,7 +320,7 @@ class Compile(object):
         :rtype: bool
 
         '''
-        if not Compile.TEST_COMPILE:
+        if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
             # Compilation testing (--compile flag to py.test) is not enabled
             # so we just return True.
             return True
@@ -340,8 +333,9 @@ class Compile(object):
         with open(filename, 'w') as test_file:
             test_file.write(code)
 
+        success = True
         try:
-            success = self.compile_file(filename)
+            self.compile_file(filename)
         except CompileError:
             # Failed to compile the file
             success = False

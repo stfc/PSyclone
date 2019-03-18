@@ -72,6 +72,9 @@ contains
     integer,  intent(in) :: I, J
     real(go_wp), intent(out), dimension(:,:) :: cu
     real(go_wp), intent(in),  dimension(:,:) :: p, u
+    ! While this kernel does not access 'area', the unit
+    ! test 'gocean1p0_stencil_test.py' need this parameter
+    ! in test 'test_stencil_information'.
     real(go_wp),  dimension(:,:), intent(in) :: area
 
 

@@ -53,14 +53,12 @@ def test_compiler_works(tmpdir):
     ''' Check that the specified compiler works for a hello-world
     example '''
     old_pwd = tmpdir.chdir()
-    _compile = Compile(tmpdir)
     try:
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
-        success = _compile.compile_file("hello_world.f90", link=True)
+        Compile(tmpdir).compile_file("hello_world.f90", link=True)
     finally:
         old_pwd.chdir()
-    assert success
 
 
 @Compile.COMPILE
@@ -82,10 +80,9 @@ def test_compiler_with_flags(tmpdir):
         # For completeness we also try with a valid flag although we
         # can't actually check its effect.
         _compile._f90flags = "-g"
-        success = _compile.compile_file("hello_world.f90", link=True)
+        _compile.compile_file("hello_world.f90", link=True)
     finally:
         old_pwd.chdir()
-    assert success
 
 
 @Compile.COMPILE

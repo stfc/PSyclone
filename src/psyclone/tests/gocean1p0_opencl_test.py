@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -195,7 +196,7 @@ def test_set_kern_float_arg(tmpdir):
     assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
-def test_set_arg_const_scalar(tmpdir):
+def test_set_arg_const_scalar():
     ''' Check that an invoke that passes a scalar kernel argument by
     value is rejected. (We haven't yet implemented the necessary code for
     setting the value of such an argument in OpenCL.) '''
@@ -207,4 +208,3 @@ def test_set_arg_const_scalar(tmpdir):
         otrans.apply(sched)
     assert ("Cannot generate OpenCL for Invokes that contain kernels with "
             "arguments passed by value" in str(err))
-    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)

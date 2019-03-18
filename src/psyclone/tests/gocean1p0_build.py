@@ -1,8 +1,7 @@
-
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,11 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
 
 
 ''' Module containing configuration required to build code generated
-for the Dynamo0p3 API '''
+for the GOcean1.0 API '''
 
 from __future__ import absolute_import, print_function
 import os
@@ -45,11 +44,17 @@ from psyclone_test_utils import Compile, CompileError
 
 class GOcean1p0Build(Compile):
     '''Build class for compiling test files for the GOcean1.0 api. It
-    uses dl_esm_inf as included in the PSyclone distribution.
+    uses dl_esm_inf as included in the PSyclone distribution (as a
+    git submodule).
     '''
 
+    # A class variable to make sure we compile the infrastructure
+    # file only once per process.
     _infrastructure_built = False
-    _infrastructure_path = ""
+
+    # The temporary path in which the compiled infrastructure files
+    # (.o and .mod) are stored for this process.
+    _compilation_path = ""
 
     def __init__(self, tmpdir):
         super(GOcean1p0Build, self).__init__(tmpdir)
@@ -60,9 +65,9 @@ class GOcean1p0Build(Compile):
 
         # On first instantiation (triggered by conftest.infra_compile)
         # compile the infrastructure library files.
-        if Compile.TEST_COMPILE and not GOcean1p0Build._infrastructure_built:
+        if (Compile.TEST_COMPILE or Compile.TEST_COMPILE_OPENCL) and \
+                not GOcean1p0Build._infrastructure_built:
             self._build_infrastructure()
-            GOcean1p0Build._infrastructure_path = str(tmpdir)
 
     def get_infrastructure_flags(self):
         '''Returns the required flag to use the infrastructure library dl_esm_inf
@@ -71,13 +76,17 @@ class GOcean1p0Build(Compile):
         :returns: A list of strings with the compiler flags required.
         :rtpe: list
         '''
-        return ["-I", self._infrastructure_path]
+        return ["-I", self._compilation_path]
 
     def _build_infrastructure(self):
-        '''Compile dl_esm_inf.
+        '''Compiles dl_esm_inf.
+        :raises CompileError: If the compilation of dl_esm_inf fails.
         '''
 
         old_pwd = self._tmpdir.chdir()
+        # Store the temporary path so that the compiled infrastructure
+        # files can be used by all test compilations later.
+        GOcean1p0Build._compilation_path = str(self._tmpdir)
 
         import subprocess
         dl_esm_inf_path = \
@@ -93,9 +102,12 @@ class GOcean1p0Build(Compile):
                                      stderr=subprocess.STDOUT)
             (output, error) = build.communicate()
             GOcean1p0Build._infrastructure_built = True
+
         except OSError as err:
-            print("Failed to run: {0}: ".format(" ".join(arg_list)))
-            print("Error was: ", str(err))
+            import sys
+            print("Failed to run: {0}: ".format(" ".join(arg_list)),
+                  file=sys.stderr)
+            print("Error was: {0}".format(str(err)), file=sys.stderr)
             GOcean1p0Build._infrastructure_built = False
             raise CompileError(str(err))
         finally:
@@ -104,13 +116,12 @@ class GOcean1p0Build(Compile):
         # Check the return code
         stat = build.returncode
         if stat != 0:
-            print(output)
+            import sys
+            print(output, file=sys.stderr)
             if error:
-                print("=========")
-                print(error)
+                print("=========", file=sys.stderr)
+                print(error, file=sys.stderr)
             raise CompileError(output)
-        else:
-            return True
 
 
 # =============================================================================
@@ -126,7 +137,7 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
         produced are deleted.
 
         :param psy_ast: The AST of the generated PSy layer
-        :type psy_ast: Instance of :py:class:`psyGen.PSy`
+        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
         :return: True if generated code compiles, False otherwise
         :rtype: bool
         '''
@@ -134,6 +145,7 @@ class GOcean1p0OpenCLBuild(GOcean1p0Build):
         if not Compile.TEST_COMPILE_OPENCL:
             return True
 
-        # Call the internal _code_compile function, since it does
-        # not
+        # Don't call the base class code_compile() function, since it
+        # will only work if --compile was specified. Call the internal
+        # function instead that does the actual compilation.
         return super(GOcean1p0OpenCLBuild, self)._code_compiles(psy)
