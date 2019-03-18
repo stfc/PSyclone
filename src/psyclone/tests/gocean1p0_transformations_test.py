@@ -1448,7 +1448,7 @@ def test_ocl_apply():
 
     gen = str(psy.gen)
     assert "USE clfortran" in gen
-    # ATM no support for opencl compilation
+    # ATM no support for opencl compilation, see #316
     # assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
