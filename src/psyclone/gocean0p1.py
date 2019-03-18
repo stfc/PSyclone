@@ -51,18 +51,8 @@ class GODescriptor(Descriptor):
     metadata. Currently this class is just a wrapper around the base
     class.
 
-    :param str access: Whether the argument is read, written etc.
-    :param str space: Specifies the grid points accessed with this \
-    field within the kernel. Currently the value is limited to 'every' \
-    which means that all points are accessed.
-    :param str stencil: Specifies any stencil accesses that are \
-    performed by the kernel on this argument. Currently the value is \
-    limited to 'pointwise' which indicates that no stencil access is \
-    specified.
-
     '''
-    def __init__(self, access, space, stencil):
-        Descriptor.__init__(self, access, space, stencil)
+    pass
 
 
 class GOKernelType(KernelType):

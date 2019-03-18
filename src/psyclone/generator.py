@@ -142,9 +142,9 @@ def generate(filename, api="", kernel_path="", script_name=None,
              kern_out_path="",
              kern_naming="multiple"):
     # pylint: disable=too-many-arguments
-    '''Takes a GungHo algorithm specification as input and outputs the
+    '''Takes a PSyclone algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
-    compiling with the specified kernel(s) and GungHo
+    compiling with the specified kernel(s) and support
     infrastructure. Uses the :func:`parse.algorithm.parse` function to
     parse the algorithm specification, the :class:`psyGen.PSy` class
     to generate the PSy code and the :class:`algGen.Alg` class to

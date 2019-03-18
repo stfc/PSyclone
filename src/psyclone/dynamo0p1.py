@@ -46,6 +46,24 @@ from psyclone.parse.utils import ParseError
 
 
 class DynDescriptor(Descriptor):
+    '''This class captures the dynamo0.1 api metadata found in an argument
+    descriptor within the kernel metadata.
+
+    :param str access: An access descriptor describing how the \
+    argument is used in the kernel
+    :param str funcspace: A description of the function space that \
+    this argument is assumed to be on.
+    :param str stencil: The type of stencil access performed by the \
+    kernel on this argument. Currently the value is limited to 'fe'.
+    :param str basis: Whether or not basis information is required for \
+    this field. The values can be '.true.' or '.false.'.
+    :param str diff_basis: Whether or not basis information is \
+    required for this field. The value can be '.true.' or '.false.'.
+    :param str gauss_quad: Whether or not gaussian quadrature \
+    information is required for this field. The value can be '.true.' \
+    or '.false.'.
+
+    '''
     def __init__(self, access, funcspace, stencil, basis, diff_basis,
                  gauss_quad):
         Descriptor.__init__(self, access, funcspace, stencil)
@@ -55,18 +73,51 @@ class DynDescriptor(Descriptor):
 
     @property
     def basis(self):
+        '''Return whether a basis function is required or not.
+
+        :returns: '.true.' if a basis function is required and \
+        '.false.' if not.
+        :rtype: str
+
+        '''
         return self._basis
 
     @property
     def diff_basis(self):
+        '''Return whether a differential basis function is required or not.
+
+        :returns: '.true.' if a differential basis function is \
+        required and '.false.' if not.
+        :rtype: str
+
+        '''
         return self._diff_basis
 
     @property
     def gauss_quad(self):
+        '''Return whether gaussian quadrature is required or not.
+
+        :returns: '.true.' if a gaussian quadrature is required and \
+        '.false.' if not.
+        :rtype: str
+
+        '''
         return self._gauss_quad
 
 
 class DynKernelType(KernelType):
+    '''This class captures the dynamo0.1 api kernel metadata by extracting
+    it from the supplied AST.
+
+    :param ast: fparser1 AST for the parsed gocean0.1 kernel \
+    meta-data.
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+    :param name: name of the Fortran derived type describing the \
+    kernel. This is an optional argument which defaults to `None`
+    :type name: str or NoneType.
+
+    '''
+    
     def __init__(self, ast, name=None):
         KernelType.__init__(self, ast, name=name)
         self._arg_descriptors = []

@@ -57,9 +57,7 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Function_Reference
 # pylint: enable=no-name-in-module
 
-#
-# parse the algorithm file
-#
+# Section 1: parse the algorithm file
 
 
 # pylint: disable=too-many-arguments
@@ -152,6 +150,10 @@ class Parser(object):
         self._arg_name_to_module_name = {}
         self._unique_invoke_labels = []
 
+        # Use the get_builtin_defs helper function to access
+        # information about the builtins supported by this API. The
+        # first argument contains the names of the builtins and the
+        # second is the file where these names are defined.
         self._builtin_name_map, \
             self._builtin_defs_file = get_builtin_defs(self._api)
 
@@ -239,7 +241,7 @@ class Parser(object):
         argument is found.
 
         '''
-        # Extract argument list. This if contstruct can be removed
+        # Extract argument list. This if construct can be removed
         # when fparser#170 is implemented.
         argument_list = []
         if isinstance(statement.items[1], Actual_Arg_Spec_List):
@@ -286,7 +288,7 @@ class Parser(object):
         information.
 
         :param argument: Parse tree of an invoke argument. This \
-        should contains a kernel name and associated arguments.
+        should contain a kernel name and associated arguments.
         :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :returns: A builtin or coded kernel call object which contains \
         relevant information about the Kernel.
@@ -415,7 +417,7 @@ class Parser(object):
         it returns the label as a string.
 
         :param argument: Parse tree of an invoke argument. This \
-        should contains a kernel name and associated arguments.
+        should contain a "name=xxx" argument.
         :type argument: :py:class:`fparser.two.Actual_Arg_Spec`
         :returns: the label as a string.
         :rtype: str
@@ -435,7 +437,7 @@ class Parser(object):
 # pylint: enable=too-many-arguments
 # pylint: enable=too-many-instance-attributes
 
-# Support functions
+# Section 2: Support functions
 
 
 def parse_fp2(filename):
@@ -497,7 +499,7 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     returns the label specified within it.
 
     :param parse_tree: Parse tree of an invoke argument. This should \
-    contains a kernel name and associated arguments.
+    contains a "name=xxx" argument.
     :type parse_tree: :py:class:`fparser.two.Actual_Arg_Spec`
     :param str alg_filename: The file containing the algorithm code.
     :param str identifier: An optional string specifying the name \
@@ -512,7 +514,7 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     not match what was expected.
     :except ParseError: if the label is not specified as a string.
     :except ParseError: if the label is not a valid Fortran name \
-    (after any white space has been replaced with '_'.
+    (after any white space has been replaced with '_').
 
     '''
     if not isinstance(parse_tree, Actual_Arg_Spec):
@@ -528,10 +530,11 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
             "'{0}'.".format(len(parse_tree.items)))
 
     ident = str(parse_tree.items[0])
-    if ident.lower() != identifier:
+    if ident.lower() != identifier.lower():
         raise ParseError(
             "algorithm.py:Parser:get_invoke_label Expected named identifier "
-            "to be '{0}' but found '{1}'".format(identifier, ident.lower()))
+            "to be '{0}' but found '{1}'".format(identifier.lower(),
+                                                 ident.lower()))
 
     if not isinstance(parse_tree.items[1], Char_Literal_Constant):
         raise ParseError(
@@ -567,10 +570,12 @@ def get_kernel(parse_tree, alg_filename):
     should contain a kernel name and associated arguments.
     :type argument: :py:class:`fparser.two.Fortran2003.Part_Ref`
     :param str alg_filename: The file containing the algorithm code.
-    :returns: a 2-tuple with the name of the builtin kernel being \
-    called and a list of 'Arg' instances containing the required \
-    information for the arguments being passed from the algorithm \
-    layer. The list order is the same as the argument order.
+
+    :returns: a 2-tuple with the name of the kernel being called and a \
+    list of 'Arg' instances containing the required information for \
+    the arguments being passed from the algorithm layer. The list \
+    order is the same as the argument order.
+
     :rtype: (str, list of :py:class:`psyclone.parse.algorithm.Arg`)
     :raises InternalError: if the parse tree is of the wrong type.
     :raises InternalError: if an unsupported argument format is found.
@@ -663,9 +668,7 @@ def create_var_name(arg_parse_tree):
             "'{0}'".format(type(tree)))
     return var_name
 
-#
-# Classes holding algorithm information.
-#
+# Section 3: Classes holding algorithm information.
 
 
 class FileInfo(object):
@@ -762,7 +765,7 @@ class ParsedCall(object):
     :param args: a list of Arg instances which capture the relevant \
     information about the arguments associated with the call to the \
     kernel or builtin
-    :type arg: list of :py:class:`psyclone.parse.algorithm.Arg`
+    :type args: list of :py:class:`psyclone.parse.algorithm.Arg`
 
     '''
     def __init__(self, ktype, args):
@@ -808,7 +811,7 @@ class ParsedCall(object):
     def module_name(self):
         '''This name is assumed to be set by the subclasses.
 
-        :returns: the module name of kernel code.
+        :returns: the name of the module containing the kernel code.
         :rtype: str
 
         '''
@@ -823,8 +826,8 @@ class KernelCall(ParsedCall):
     :param str module_name: the name of the kernel module.
     :param ktype: information about the kernel. Provides access to the \
     PSyclone description metadata and the code.
-    :type ktype: APi-specific specialisation of \
-    :py:class:`psyclone.dynamo0p3.KernelType`
+    :type ktype: API-specific specialisation of \
+    :py:class:`psyclone.parse.kernel.KernelType`
     :param args: a list of Arg instances which capture the relevant \
     information about the arguments associated with the call to the \
     kernel.
@@ -857,12 +860,12 @@ class BuiltInCall(ParsedCall):
 
     :param ktype: information about this builtin. Provides \
     access to the PSyclone description metadata.
-    :type ktype: APi-specific specialisation of \
-    :py:class:`psyclone.dynamo0p3.KernelType`
+    :type ktype: API-specific specialisation of \
+    :py:class:`psyclone.parse.kernel.KernelType`
     :param args: a list of Arg instances which capture the relevant \
     information about the arguments associated with the call to the \
     kernel or builtin
-    :type arg: list of :py:class:`psyclone.parse.algorithm.Arg`
+    :type args: list of :py:class:`psyclone.parse.algorithm.Arg`
 
     '''
     def __init__(self, ktype, args):
@@ -898,7 +901,7 @@ class Arg(object):
 
     :param str form: describes whether the argument is a literal \
     value, standard variable or indexed variable. Supported options \
-    are specified in the local formOptions list.
+    are specified in the local form_options list.
     :param str text: the original Fortran text of the argument.
     :param varname: the extracted variable name from the text if the \
     form is not literal otherwise it is set to None. This is optional \
@@ -906,20 +909,20 @@ class Arg(object):
     :value varname: str or NoneType
 
     :raises InternalError: if the form argument is not one one of the \
-    supported types as specified in the local formOptions list.
+    supported types as specified in the local form_options list.
 
     '''
-    formOptions = ["literal", "variable", "indexed_variable"]
+    form_options = ["literal", "variable", "indexed_variable"]
 
     def __init__(self, form, text, varname=None):
         self._form = form
         self._text = text
         self._varname = varname
-        if form not in Arg.formOptions:
+        if form not in Arg.form_options:
             raise InternalError(
                 "algorithm.py:Alg:__init__: Unknown arg type provided. "
                 "Expected one of {0} but found "
-                "'{1}'.".format(str(Arg.formOptions), form))
+                "'{1}'.".format(str(Arg.form_options), form))
 
     def __str__(self):
         return "Arg(form='{0}',text='{1}',varname='{2}')". \
@@ -929,7 +932,7 @@ class Arg(object):
     def form(self):
         '''
         :returns: a string indicating what type of variable this \
-        is. Supported options are specified in the local formOptions \
+        is. Supported options are specified in the local form_options \
         list.
         :rtype: str
 
@@ -971,6 +974,4 @@ class Arg(object):
         :rtype: bool
 
         '''
-        if self._form == "literal":
-            return True
-        return False
+        return self._form == "literal"
