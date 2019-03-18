@@ -54,7 +54,7 @@ from fparser.one import parsefortran
 import psyclone.expression as expr
 from psyclone.psyGen import InternalError
 from psyclone.configuration import Config
-from psyclone.parse.utils import check_api, check_ll, ParseError
+from psyclone.parse.utils import check_api, check_line_length, ParseError
 
 
 def get_kernel_filepath(module_name, kernel_path, alg_filename):
@@ -82,10 +82,10 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
     name.
     :rtype: str
 
-    :except ParseError: if the supplied kernel directory does not \
+    :raises ParseError: if the supplied kernel directory does not \
     exist
-    :except ParseError: if the file can not be found
-    :except ParseError: if more than one file with the specified name \
+    :raises ParseError: if the file can not be found
+    :raises ParseError: if more than one file with the specified name \
     is found
 
     '''
@@ -94,9 +94,6 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
     # Only consider files with the suffixes .f90 and .F90
     # when searching for the kernel source.
     search_string = "{0}.[fF]90".format(module_name)
-
-    # The list of matching files (should have length == 1).
-    matches = []
 
     # If a search path has been specified then look there. Otherwise
     # look in the directory containing the algorithm definition file.
@@ -112,18 +109,17 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
 
         # Recursively search down through the directory tree starting
         # at the specified path.
-        if os.path.exists(cdir):
-            for root, _, filenames in os.walk(cdir):
-                for filename in fnmatch.filter(filenames, search_string):
-                    matches.append(os.path.join(root, filename))
+        matches = []
+        for root, _, filenames in os.walk(cdir):
+            for filename in fnmatch.filter(filenames, search_string):
+                matches.append(os.path.join(root, filename))
     else:
         # Look *only* in the directory that contained the algorithm
         # file.
         cdir = os.path.abspath(os.path.dirname(alg_filename))
         filenames = os.listdir(cdir)
-        for filename in fnmatch.filter(filenames,
-                                       search_string):
-            matches.append(os.path.join(cdir, filename))
+        matches = [os.path.join(cdir, fname) for fname in
+                   fnmatch.filter(filenames, search_string)]
 
     if not matches:
         # There were no matches.
@@ -192,7 +188,7 @@ def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
     '''
     filepath = get_kernel_filepath(module_name, kernel_path, alg_filename)
     if line_length:
-        check_ll(filepath)
+        check_line_length(filepath)
     parse_tree = get_kernel_parse_tree(filepath)
     return parse_tree
 
@@ -346,7 +342,7 @@ def get_stencil(metadata, valid_types):
     stencil(type[,extent]) format
 
     :param metadata: Component of kernel meta-data stored as a node in \
-                     the parser AST
+                     the fparser1 AST
     :type metadata: :py:class:`psyclone.expression.FunctionVar`
     :param list valid_types: List of valid stencil types (strings)
 
@@ -368,7 +364,7 @@ def get_stencil(metadata, valid_types):
             format(metadata))
     if len(metadata.args) > 2:
         raise ParseError(
-            "Expecting format stencil(<type>[,<extent>]) but there must "
+            "Expecting format stencil(<type>[,<extent>]) so there must "
             "be at most two arguments inside the brackets {0}".
             format(metadata))
     if not isinstance(metadata.args[0], expr.FunctionVar):
@@ -407,7 +403,7 @@ def get_stencil(metadata, valid_types):
                 "Expected format stencil(<type>[,<extent>]). However, the "
                 "specified <extent> '{0}' is less than 1".
                 format(str(stencil_extent)))
-        raise ParseError(
+        raise NotImplementedError(
             "Kernels with fixed stencil extents are not currently "
             "supported")
     return {"type": stencil_type, "extent": stencil_extent}
@@ -560,7 +556,7 @@ class KernelProcedure(object):
     def name(self):
         '''
         :returns: the name of the kernel subroutine
-        :rtype" str
+        :rtype: str
 
         '''
         return self._name
@@ -578,7 +574,7 @@ class KernelProcedure(object):
         return "KernelProcedure({0})".format(self.name)
 
     def __str__(self):
-        return self._ast.__str__()
+        return str(self._ast)
 
 
 def get_kernel_metadata(name, ast):
@@ -609,8 +605,7 @@ def get_kernel_metadata(name, ast):
 
 
 class KernelType(object):
-    '''
-    Base class for describing Kernel Metadata.
+    '''Base class for describing Kernel Metadata.
 
     This contains the name of the elemental procedure and metadata associated
     with how that procedure is mapped over mesh entities.
@@ -619,9 +614,12 @@ class KernelType(object):
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
     :param str name: name of the Fortran derived type describing the kernel.
 
-    :raises ParseError: if the supplied name does not follow the convention \
-                        of ending in "_mod" or the AST does not contain a \
-                        module definition.
+    :raises ParseError: if the supplied AST does not contain a Fortran \
+    module.
+    :raises ParseError: if the module name is too short to contain \
+    '_mod' at the end.
+    :raises ParseError: if the module name does not end in '_mod'.
+
     '''
     def __init__(self, ast, name=None):
 
@@ -670,7 +668,9 @@ class KernelType(object):
 
         :param ast: metadata describing kernel arguments
         :type ast: :py:class:`fparser.one.block_statements.Type`
-        :param str var_name:
+        :param str var_name: the name of the variable storing the \
+        argument metadata. This argument is optional and defaults to \
+        'meta_args'.
 
         :returns: Argument metadata parsed using the expression parser
         (as fparser1 will not parse expressions and arguments).
@@ -681,7 +681,6 @@ class KernelType(object):
         :raises ParseError: if 'var_name' is not a 1D array
         :raises ParseError: if the structure constructor uses '[...]' \
         as only '(/.../)' is supported.
-        :raises ParseError: if 'var_name' is not a 1D array
         :raises ParseError: if the argument metadata can't be parsed.
         :raises ParseError: if the dimensions specified does not tally \
         with the number of metadata arguments.

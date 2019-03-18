@@ -41,7 +41,7 @@ PSyclone-conformant Algorithm code.
 from __future__ import absolute_import
 
 from psyclone.configuration import Config
-from psyclone.parse.utils import check_api, check_ll, ParseError
+from psyclone.parse.utils import check_api, check_line_length, ParseError
 from psyclone.psyGen import InternalError
 
 from fparser.common.readfortran import FortranFileReader
@@ -179,7 +179,7 @@ class Parser(object):
 
         if self._line_length:
             # Make sure the code conforms to the line length limit.
-            check_ll(alg_filename)
+            check_line_length(alg_filename)
 
         alg_parse_tree = parse_fp2(alg_filename)
 

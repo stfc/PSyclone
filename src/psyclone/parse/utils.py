@@ -40,6 +40,7 @@ the parser modules.
 
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
+from psyclone.psyGen import InternalError
 
 # Exceptions
 
@@ -77,19 +78,24 @@ def check_api(api):
                                               _config.supported_apis))
 
 
-def check_ll(alg_filename):
-    '''Check that the code contained within the alg_filename file
+def check_line_length(filename):
+    '''Check that the code contained within the filename file
     conforms to the 132 line length limit.
 
-    :param str alg_filename: The file containing the algorithm code.
+    :param str filename: The file containing the code.
 
     :except ParseError: if one of more lines are longer than the 132 \
     line length limit.
 
     '''
     fll = FortLineLength()
-    with open(alg_filename, "r") as myfile:
-        code_str = myfile.read()
+    try:
+        with open(filename, "r") as myfile:
+            code_str = myfile.read()
+    except IOError as excinfo:
+        raise InternalError(
+            "In utils.py:check_line_length: {0}".format(str(excinfo)))
+
     if fll.long_lines(code_str):
         raise ParseError(
             "the file does not conform to the specified {0} line "

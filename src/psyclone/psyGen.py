@@ -285,13 +285,13 @@ class PSy(object):
     '''
     Base class to help manage and generate PSy code for a single
     algorithm file. Takes the invocation information output from the
-    function :func:`parse_algorithm.parse` as its input and stores this in a
+    function :func:`parse.algorithm.parse` as its input and stores this in a
     way suitable for optimisation and code generation.
 
     :param FileInfo invoke_info: An object containing the required \
                                  invocation information for code \
                                  optimisation and generation. Produced \
-                                 by the function :func:`parse_algorithm.parse`.
+                                 by the function :func:`parse.algorithm.parse`.
     :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
     For example:
@@ -338,7 +338,16 @@ class PSy(object):
 
 
 class Invokes(object):
-    ''' Manage the invoke calls '''
+    '''Manage the invoke calls
+
+    :param alg_calls: A list of invoke metadata extracted by the \
+    parser.
+    :type alg_calls: list of \
+    :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param Invoke: An api-specific Invoke class
+    :type Invoke: Specialisation of :py:class:`psyclone.psyGen.Invoke`
+
+    '''
     def __init__(self, alg_calls, Invoke):
         self.invoke_map = {}
         self.invoke_list = []
@@ -1397,10 +1406,12 @@ class Schedule(Node):
 
     '''
 
-    def __init__(self, KernFactory, BuiltInFactory, alg_calls=[]):
+    def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
+        if alg_calls is None:
+            alg_calls = []
         sequence = []
         from psyclone.parse.algorithm import BuiltInCall
         for call in alg_calls:
