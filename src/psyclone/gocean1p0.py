@@ -202,8 +202,8 @@ class GOInvoke(Invoke):
     '''
     def __init__(self, alg_invocation, idx):
         if False:  # pylint: disable=using-constant-test
-            self._schedule = GOSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule)
+            self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule)
 
     @property
     def unique_args_arrays(self):
@@ -324,7 +324,7 @@ class GOInvoke(Invoke):
                            position=["after", position])
 
 
-class GOSchedule(InvokeSchedule):
+class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific schedule class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
@@ -340,7 +340,7 @@ class GOSchedule(InvokeSchedule):
         self._const_loop_bounds = True
 
     def view(self, indent=0):
-        '''Print a representation of this GOSchedule.
+        '''Print a representation of this GOInvokeSchedule.
         :param int indent: optional argument indicating the level of
         indentation to add before outputting the class information.'''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
@@ -350,8 +350,8 @@ class GOSchedule(InvokeSchedule):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        ''' Returns the string representation of this GOSchedule '''
-        result = "GOSchedule(Constant loop bounds=" + \
+        ''' Returns the string representation of this GOInvokeSchedule '''
+        result = "GOInvokeSchedule(Constant loop bounds=" + \
                  str(self._const_loop_bounds) + "):\n"
         for entity in self._children:
             result += str(entity)+"\n"
@@ -363,7 +363,7 @@ class GOSchedule(InvokeSchedule):
         ''' Return the name of this object with control-codes for
         display in terminals that support colour '''
         from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-        return colored("GOSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     @property
     def iloop_stop(self):
@@ -633,7 +633,7 @@ class GOLoop(Loop):
         be replaced with the constant loop boundary variable, e.g.
         "{stop}+1" will become "istop+1" (or "jstop+1 depending on
         loop type).'''
-        schedule = self.ancestor(GOSchedule)
+        schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
             # Look for a child kernel in order to get the index offset.
@@ -708,7 +708,7 @@ class GOLoop(Loop):
         "{stop}+1" will become "istop+1" (or "jstop+1" depending on
         loop type).'''
 
-        schedule = self.ancestor(GOSchedule)
+        schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
             # Look for a child kernel in order to get the index offset.
@@ -781,10 +781,10 @@ class GOLoop(Loop):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
         # Climb up the tree looking for our enclosing InvokeSchedule
-        schedule = self.ancestor(GOSchedule)
-        if schedule is None or not isinstance(schedule, GOSchedule):
+        schedule = self.ancestor(GOInvokeSchedule)
+        if schedule is None or not isinstance(schedule, GOInvokeSchedule):
             raise GenerationError("Internal error: cannot find parent"
-                                  " GOSchedule for this Do loop")
+                                  " GOInvokeSchedule for this Do loop")
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use

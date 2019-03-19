@@ -787,9 +787,9 @@ class ACCLoopTrans(ParallelLoopTrans):
         :raises NotImplementedError: if an API other than GOcean 1.0 is \
                                      being used.
         '''
-        from psyclone.gocean1p0 import GOSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
         sched = node.root
-        if not isinstance(sched, GOSchedule):
+        if not isinstance(sched, GOInvokeSchedule):
             raise NotImplementedError(
                 "OpenACC loop transformations are currently only supported "
                 "for the gocean 1.0 API")
@@ -1330,7 +1330,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
 
         :returns: 2-tuple of new schedule and memento of transform
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynSchedule`, \
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -1635,9 +1635,9 @@ class ACCParallelTrans(ParallelRegionTrans):
         :raises NotImplementedError: if an API other than GOcean 1.0 is \
                                      being used.
         '''
-        from psyclone.gocean1p0 import GOSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
         sched = node_list[0].root
-        if not isinstance(sched, GOSchedule):
+        if not isinstance(sched, GOInvokeSchedule):
             raise NotImplementedError(
                 "OpenACC parallel regions are currently only "
                 "supported for the gocean 1.0 API")
@@ -1646,7 +1646,7 @@ class ACCParallelTrans(ParallelRegionTrans):
 
 class GOConstLoopBoundsTrans(Transformation):
     ''' Switch on (or off) the use of constant loop bounds within
-    a GOSchedule. In the absence of constant loop bounds, PSyclone will
+    a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
     generate loops where the bounds are obtained by de-referencing a field
     object, e.g.:
     ::
@@ -1689,7 +1689,7 @@ class GOConstLoopBoundsTrans(Transformation):
     '''
 
     def __str__(self):
-        return "Use constant loop bounds for all loops in a GOSchedule"
+        return "Use constant loop bounds for all loops in a GOInvokeSchedule"
 
     @property
     def name(self):
@@ -1702,17 +1702,17 @@ class GOConstLoopBoundsTrans(Transformation):
 
         :param node: The schedule of which all loops will get the constant
             loop bounds switched on or off.
-        :type node: :py:class:`psyclone.gocean1p0.GOSchedule`
+        :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param const_bounds: If the constant loop should be used (True)
             or not (False). Default is True.
         :type const_bounds: bool
         '''
 
         # Check node is a Schedule
-        from psyclone.gocean1p0 import GOSchedule
-        if not isinstance(node, GOSchedule):
+        from psyclone.gocean1p0 import GOInvokeSchedule
+        if not isinstance(node, GOInvokeSchedule):
             raise TransformationError("Error in GOConstLoopBoundsTrans: "
-                                      "node is not a GOSchedule")
+                                      "node is not a GOInvokeSchedule")
 
         keep = Memento(node, self)
 
@@ -2217,9 +2217,9 @@ class OCLTrans(Transformation):
                                      passed by value.
         '''
         from psyclone.psyGen import Schedule, args_filter
-        from psyclone.gocean1p0 import GOSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
         if isinstance(sched, Schedule):
-            if not isinstance(sched, GOSchedule):
+            if not isinstance(sched, GOInvokeSchedule):
                 raise TransformationError(
                     "OpenCL generation is currently only supported for the "
                     "GOcean API but got a Schedule of type: '{0}'".
@@ -2486,9 +2486,9 @@ class ACCDataTrans(Transformation):
         '''
         # Check that the supplied node is a Schedule
         from psyclone.psyGen import Schedule
-        from psyclone.gocean1p0 import GOSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
 
-        if isinstance(sched, GOSchedule):
+        if isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCDataDirective as AccDataDir
         elif isinstance(sched, Schedule):
             raise NotImplementedError(

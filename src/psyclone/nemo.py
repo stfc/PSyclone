@@ -138,7 +138,7 @@ class NemoInvoke(Invoke):
 
         # We now walk through the AST produced by fparser2 and construct a
         # new AST using objects from the nemo module.
-        self._schedule = NemoSchedule(self, exe_part)
+        self._schedule = NemoInvokeSchedule(self, exe_part)
 
     def update(self):
         '''
@@ -256,7 +256,7 @@ class NemoPSy(PSy):
         return self._ast
 
 
-class NemoSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
+class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
     '''
     The NEMO-specific schedule class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
@@ -280,7 +280,7 @@ class NemoSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
 
     def view(self, indent=0):
         '''
-        Print a representation of this NemoSchedule to stdout.
+        Print a representation of this NemoInvokeSchedule to stdout.
 
         :param int indent: level to which to indent output.
         '''
@@ -289,8 +289,8 @@ class NemoSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        ''' Returns the string representation of this NemoSchedule. '''
-        result = "NemoSchedule():\n"
+        ''' Returns the string representation of this NemoInvokeSchedule. '''
+        result = "NemoInvokeSchedule():\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"

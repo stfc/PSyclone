@@ -2289,7 +2289,7 @@ class DynInvokeBasisFns(object):
 
     :param schedule: the schedule of the Invoke for which to extract \
                      information on all required basis/diff-basis functions.
-    :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+    :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`
 
     :raises InternalError: if a call in the supplied InvokeSchedule has an \
                            unrecognised evaluator shape.
@@ -2880,13 +2880,13 @@ class DynInvoke(Invoke):
                                  psy-layer
         '''
         if False:  # pylint: disable=using-constant-test
-            self._schedule = DynSchedule(None)  # for pyreverse
+            self._schedule = DynInvokeSchedule(None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
-        Invoke.__init__(self, alg_invocation, idx, DynSchedule,
+        Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
                         reserved_names=reserved_names_list)
 
         # The baseclass works out the algorithm code's unique argument
@@ -3343,7 +3343,7 @@ class DynInvoke(Invoke):
         parent.add(invoke_sub)
 
 
-class DynSchedule(InvokeSchedule):
+class DynInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific schedule class. This passes the Dynamo-
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require. '''

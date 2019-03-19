@@ -59,7 +59,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
@@ -461,12 +461,12 @@ def test_invokes_can_always_be_printed():
     assert inv.__str__() == "invoke()"
 
     invoke_call = InvokeCall([], "TestName")
-    inv = Invoke(invoke_call, 12, DynSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
     invoke_call._name = None
-    inv = Invoke(invoke_call, 12, DynSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     assert inv.__str__() == "invoke_12()"
 
     # Last test case: one kernel call - to avoid constructing
@@ -477,7 +477,7 @@ def test_invokes_can_always_be_printed():
         api="dynamo0.3")
 
     alg_invocation = list(invoke.calls.values())[0]
-    inv = Invoke(alg_invocation, 0, DynSchedule)
+    inv = Invoke(alg_invocation, 0, DynInvokeSchedule)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1%my_field, m1, m2)"
 
@@ -558,7 +558,9 @@ def test_sched_view(capsys):
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    super(dynamo0p3.DynSchedule, psy.invokes.invoke_list[0].schedule).view()
+    super(dynamo0p3.DynInvokeSchedule,
+          psy.invokes.invoke_list[0].schedule
+          ).view()
     output, _ = capsys.readouterr()
     assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 

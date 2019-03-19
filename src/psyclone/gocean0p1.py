@@ -105,8 +105,8 @@ class GOInvoke(Invoke):
     def __init__(self, alg_invocation, idx):
         # pylint: disable=using-constant-test
         if False:
-            self._schedule = GOSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule,
+            self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule,
                         reserved_names=["cf", "ct", "cu", "cv"])
 
     @property
@@ -165,7 +165,7 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_scalars)
 
 
-class GOSchedule(InvokeSchedule):
+class GOInvokeSchedule(InvokeSchedule):
     ''' The GOcean specific schedule class. All we have to do is supply our
     API-specific factories to the base InvokeSchedule class constructor. '''
 
