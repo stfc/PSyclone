@@ -38,7 +38,7 @@
     specialising the required base classes in parser.py (Descriptor,
     KernelType) and adding a new class (DynFuncDescriptor03) to
     capture function descriptor metadata and 2) specialising the
-    required base classes in psyGen.py (PSy, Invokes, Invoke, Schedule,
+    required base classes in psyGen.py (PSy, Invokes, Invoke, InvokeSchedule,
     Loop, Kern, Inf, Arguments and Argument). '''
 
 # Imports
@@ -50,7 +50,7 @@ from psyclone.parse import Descriptor, KernelType, ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess
@@ -1926,7 +1926,7 @@ class DynMeshes(object):
         self._mesh_names = []
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
-        # Keep a reference to the Schedule so we can check for colouring
+        # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
 
@@ -2002,7 +2002,7 @@ class DynMeshes(object):
         '''
         Sets-up information on any required colourmaps. This cannot be done
         in the constructor since colouring is applied by Transformations
-        and happens after the Schedule has already been constructed.
+        and happens after the InvokeSchedule has already been constructed.
         '''
         for call in [call for call in self._schedule.kern_calls() if
                      call.is_coloured()]:
@@ -2291,7 +2291,7 @@ class DynInvokeBasisFns(object):
                      information on all required basis/diff-basis functions.
     :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
 
-    :raises InternalError: if a call in the supplied Schedule has an \
+    :raises InternalError: if a call in the supplied InvokeSchedule has an \
                            unrecognised evaluator shape.
     '''
     def __init__(self, schedule):
@@ -3343,14 +3343,14 @@ class DynInvoke(Invoke):
         parent.add(invoke_sub)
 
 
-class DynSchedule(Schedule):
+class DynSchedule(InvokeSchedule):
     ''' The Dynamo specific schedule class. This passes the Dynamo-
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require. '''
 
     def __init__(self, arg):
         from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-        Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
+        InvokeSchedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
 
     def view(self, indent=0):
         '''
@@ -3373,7 +3373,7 @@ class DynGlobalSum(GlobalSum):
 
     :param scalar: the kernel argument for which to perform a global sum
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param parent: the parent node of this node in the Schedule
+    :param parent: the parent node of this node in the InvokeSchedule
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, scalar, parent=None):

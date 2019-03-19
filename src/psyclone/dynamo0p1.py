@@ -35,11 +35,11 @@
 # -----------------------------------------------------------------------------
 
 ''' This module implements the PSyclone Dynamo 0.1 API by specialising the
-    required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
+    required base classes (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern,
     Arguments and Argument). '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
         Arguments, Argument, GenerationError
 
 class DynamoPSy(PSy):
@@ -114,12 +114,13 @@ class DynInvoke(Invoke):
         invoke_sub.add(my_typedecl)
 
 
-class DynSchedule(Schedule):
+class DynSchedule(InvokeSchedule):
     ''' The Dynamo specific schedule class. This passes the Dynamo specific
         loop and infrastructure classes to the base class so it creates the
         ones we require. '''
     def __init__(self, arg):
-        Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
+        InvokeSchedule.__init__(self, DynKernCallFactory,
+                                DynBuiltInCallFactory, arg)
 
 
 class DynLoop(Loop):

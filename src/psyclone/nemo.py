@@ -35,16 +35,16 @@
 
 '''This module implements the PSyclone NEMO API by specialising
     the required base classes for both code generation (PSy, Invokes,
-    Invoke, Schedule, Loop, Kern, Arguments and KernelArgument)
+    Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
     and parsing (Descriptor and KernelType).
 
 '''
 
 from __future__ import print_function, absolute_import
 import copy
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Node, Loop, Kern, \
-    InternalError, IfBlock, IfClause, NameSpaceFactory, Fparser2ASTProcessor, \
-    SCHEDULE_COLOUR_MAP as _BASE_CMAP
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
+    Loop, Kern, InternalError, IfBlock, IfClause, NameSpaceFactory, \
+    Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
 
@@ -141,10 +141,10 @@ class NemoInvoke(Invoke):
         self._schedule = NemoSchedule(self, exe_part)
 
     def update(self):
-        '''Updates the fparser2 AST associated with this Schedule to make it
-        reflect any transformations that have been applied to the
-        PSyclone AST.
-
+        '''
+        Updates the fparser2 AST associated with this InvokeSchedule to \
+        make it reflect any transformations that have been applied to \
+        the PSyclone AST.
         '''
         if not self._schedule:
             return
@@ -248,7 +248,7 @@ class NemoPSy(PSy):
                 :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
                 :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
         '''
-        # Walk down our Schedule and update the underlying fparser2 AST
+        # Walk down our InvokeSchedule and update the underlying fparser2 AST
         # to account for any transformations
         self.invokes.update()
 
@@ -256,15 +256,15 @@ class NemoPSy(PSy):
         return self._ast
 
 
-class NemoSchedule(Schedule, NemoFparser2ASTProcessor):
+class NemoSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
     '''
     The NEMO-specific schedule class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
 
-    :param invoke: The Invoke to which this Schedule belongs.
+    :param invoke: The Invoke to which this InvokeSchedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
     :param ast: the fparser2 AST of the NEMO code for which to generate \
-                a Schedule.
+                a InvokeSchedule.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
@@ -299,7 +299,7 @@ class NemoSchedule(Schedule, NemoFparser2ASTProcessor):
 
 class NemoKern(Kern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. Kernels are leaves in the Schedule AST (i.e. they have
+    NEMO code. Kernels are leaves in the InvokeSchedule AST (i.e. they have
     no children).
 
     :param loop: Reference to the loop (in the fparser2 AST) containing \
@@ -654,7 +654,7 @@ class NemoImplicitLoop(NemoLoop):
 
 class NemoIfBlock(IfBlock, NemoFparser2ASTProcessor):
     '''
-    Represents an if-block within a NEMO Schedule.
+    Represents an if-block within a NEMO InvokeSchedule.
     Within the fparser2 AST, an if-block is represented as:
       If_Then_Stmt
       statement(s)
@@ -724,7 +724,7 @@ class NemoIfBlock(IfBlock, NemoFparser2ASTProcessor):
     def match(node):
         '''
         Checks whether the supplied fparser2 AST represents an if-block
-        that must be represented in the Schedule AST. If-blocks that do
+        that must be represented in the InvokeSchedule AST. If-blocks that do
         not contain kernels are just treated as code blocks.
 
         :param node: the node in the fparser2 AST representing an if-block

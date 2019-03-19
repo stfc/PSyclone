@@ -38,7 +38,7 @@
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
     the required base classes for both code generation (PSy, Invokes,
-    Invoke, Schedule, Loop, Kern, Arguments and KernelArgument)
+    Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
     and parsing (Descriptor and KernelType). It adds a
     GOKernelGridArgument class to capture information on kernel arguments
     that supply properties of the grid (and are generated in the PSy
@@ -48,7 +48,7 @@
 
 from __future__ import print_function
 from psyclone.parse import Descriptor, KernelType, ParseError
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
     KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor
@@ -324,16 +324,16 @@ class GOInvoke(Invoke):
                            position=["after", position])
 
 
-class GOSchedule(Schedule):
+class GOSchedule(InvokeSchedule):
     ''' The GOcean specific schedule class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+        InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
                           alg_calls)
 
-        # Configuration of this Schedule - we default to having
+        # Configuration of this InvokeSchedule - we default to having
         # constant loop bounds. If we end up having a long list
         # of configuration member variables here we may want
         # to create a a new ScheduleConfig object to manage them.
@@ -401,7 +401,7 @@ class GOSchedule(Schedule):
 
     @const_loop_bounds.setter
     def const_loop_bounds(self, obj):
-        ''' Set whether the Schedule will use constant loop bounds or
+        ''' Set whether the InvokeSchedule will use constant loop bounds or
         will look them up from the field object for every loop '''
         self._const_loop_bounds = obj
 
@@ -780,7 +780,7 @@ class GOLoop(Loop):
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
-        # Climb up the tree looking for our enclosing Schedule
+        # Climb up the tree looking for our enclosing InvokeSchedule
         schedule = self.ancestor(GOSchedule)
         if schedule is None or not isinstance(schedule, GOSchedule):
             raise GenerationError("Internal error: cannot find parent"
@@ -974,7 +974,7 @@ class GOKern(Kern):
         parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
-        # psyGen.Schedule)
+        # psyGen.InvokeSchedule)
         qlist = self._name_space_manager.create_name(
             root_name="cmd_queues", context="PSyVars", label="cmd_queues")
         flag = self._name_space_manager.create_name(
@@ -1126,7 +1126,7 @@ class GOKern(Kern):
                 ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
                 # Get the name of the list of command queues (set in
-                # psyGen.Schedule)
+                # psyGen.InvokeSchedule)
                 qlist = self._name_space_manager.create_name(
                     root_name="cmd_queues", context="PSyVars",
                     label="cmd_queues")

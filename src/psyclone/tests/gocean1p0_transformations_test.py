@@ -59,7 +59,7 @@ API = "gocean1.0"
 def test_const_loop_bounds_not_schedule():
     ''' Check that we raise an error if we attempt to apply the
     constant loop-bounds transformation to something that is
-    not a Schedule '''
+    not a InvokeSchedule '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
@@ -363,7 +363,7 @@ def test_omp_region_no_slice():
 
 def test_omp_region_no_slice_no_const_bounds():
     ''' Test that we generate the correct code when we apply an OpenMP
-    PARALLEL region transformation to a list of nodes when the Schedule
+    PARALLEL region transformation to a list of nodes when the InvokeSchedule
     has been transformed to use loop-bound look-ups '''
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1395,7 +1395,7 @@ def test_ocl_apply():
     ocl = OCLTrans()
 
     # Check that we raise the correct error if we attempt to apply the
-    # transformation to something that is not a Schedule
+    # transformation to something that is not a InvokeSchedule
     with pytest.raises(TransformationError) as err:
         _, _ = ocl.apply(schedule.children[0])
     assert "the supplied node must be a (sub-class of) Schedule " in str(err)
@@ -1483,7 +1483,8 @@ def test_acc_incorrect_parallel_trans():
 
 def test_acc_data_not_a_schedule():
     ''' Test that we raise an appropriate error if we attempt to apply
-    an OpenACC Data transformation to something that is not a Schedule. '''
+    an OpenACC Data transformation to something that is not a
+    InvokeSchedule. '''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 

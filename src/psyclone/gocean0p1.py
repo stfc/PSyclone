@@ -35,11 +35,11 @@
 # -----------------------------------------------------------------------------
 
 ''' This module implements the emerging PSyclone GOcean API by specialising
-    the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
-    Arguments and KernelArgument). '''
+    the required base classes (PSy, Invokes, Invoke, InvokeSchedule, Loop,
+    Kern, Arguments and KernelArgument). '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument
 
 
@@ -165,13 +165,13 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_scalars)
 
 
-class GOSchedule(Schedule):
+class GOSchedule(InvokeSchedule):
     ''' The GOcean specific schedule class. All we have to do is supply our
-    API-specific factories to the base Schedule class constructor. '''
+    API-specific factories to the base InvokeSchedule class constructor. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                          alg_calls)
+        InvokeSchedule.__init__(self, GOKernCallFactory,
+                                GOBuiltInCallFactory, alg_calls)
 
 
 class GOLoop(Loop):

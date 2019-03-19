@@ -5611,8 +5611,8 @@ def test_rc_wrong_parent(monkeypatch):
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(schedule.children[3], depth=1)
-    assert ("the parent of the supplied loop must be the Schedule, or a Loop"
-            in str(excinfo.value))
+    assert ("the parent of the supplied loop must be the Schedule, "
+            "or a Loop") in str(excinfo.value)
 
 
 def test_rc_parent_loop_colour(monkeypatch):
@@ -5646,7 +5646,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     schedule, _ = ctrans.apply(schedule.children[3])
 
     # make the parent of the outermost loop something other than
-    # Schedule (we use halo exchange in this case)
+    # InvokeSchedule (we use halo exchange in this case)
     monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -6760,7 +6760,7 @@ def test_intergrid_err(dist_mem):
 def test_no_acc():
     '''
     Check that attempting to add any sort of OpenACC directive to a
-    dynamo0p3 Schedule causes an error.
+    dynamo0p3 InvokeSchedule causes an error.
 
     '''
     from psyclone.transformations import ACCDataTrans, ACCLoopTrans, \
@@ -6794,7 +6794,7 @@ def test_no_acc():
 
 def test_no_ocl():
     ''' Check that attempting to apply an OpenCL transformation to a Dynamo
-    Schedule raises the expected error. '''
+    InvokeSchedule raises the expected error. '''
     from psyclone.transformations import OCLTrans
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",

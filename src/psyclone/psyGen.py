@@ -568,7 +568,7 @@ class Invoke(object):
             If not None, this number is added to the name ("invoke_").
         :type idx: Integer.
         :param schedule_class: The schedule class to create for this invoke.
-        :type schedule_class: Schedule class.
+        :type schedule_class: InvokeSchedule class.
         :param reserved_names: Optional argument: list of reserved names,
                i.e. names that should not be used e.g. as psyclone created
                variable name.
@@ -879,7 +879,7 @@ class Node(object):
     Base class for a node in the PSyIR (schedule).
 
     :param children: the PSyIR nodes that are children of this node.
-    :type children: :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
@@ -1400,7 +1400,7 @@ class Schedule(Node):
     '''
 
     def __init__(self, sequence, parent):
-        super(Schedule, self).__init__(self, children=sequence, parent=parent)
+        Node.__init__(self, children=sequence, parent=parent)
 
     @property
     def dag_name(self):
@@ -1438,10 +1438,10 @@ class Schedule(Node):
         :return: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
-        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     def __str__(self):
-        result = "Schedule:\n"
+        result = "InvokeSchedule:\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
@@ -1485,7 +1485,7 @@ class InvokeSchedule(Schedule):
                     sequence.append(BuiltInFactory.create(call, parent=self))
                 else:
                     sequence.append(KernFactory.create(call, parent=self))
-        super(InvokeSchedule, self).__init__(self, sequence, parent=None)
+        Schedule.__init__(self, sequence=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
         self._name_space_manager = NameSpaceFactory().create()
@@ -1520,10 +1520,10 @@ class InvokeSchedule(Schedule):
         :return: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
-        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     def __str__(self):
-        result = "Schedule:\n"
+        result = "InvokeSchedule:\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
@@ -1608,7 +1608,8 @@ class InvokeSchedule(Schedule):
     @property
     def opencl(self):
         '''
-        :return: Whether or not we are generating OpenCL for this Schedule.
+        :return: Whether or not we are generating OpenCL for this \
+            InvokeSchedule.
         :rtype: bool
         '''
         return self._opencl
@@ -1622,8 +1623,9 @@ class InvokeSchedule(Schedule):
         :param bool value: whether or not to generate OpenCL.
         '''
         if not isinstance(value, bool):
-            raise ValueError("Schedule.opencl must be a bool but got {0}".
-                             format(type(value)))
+            raise ValueError(
+                "InvokeSchedule.opencl must be a bool but got {0}".
+                format(type(value)))
         self._opencl = value
 
 
@@ -1690,14 +1692,14 @@ class ACCDirective(Directive):
 class ACCDataDirective(ACCDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
-    a Schedule. Must be sub-classed for a particular API because the way
+    a InvokeSchedule. Must be sub-classed for a particular API because the way
     in which fields are marked as being on the remote device is API-
     -dependent.
 
     :param children: list of nodes which this directive should \
                      have as children.
     :type children: list of :py:class:`psyclone.psyGen.Node`.
-    :param parent: the node in the Schedule to which to add this \
+    :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
     :type parent: :py:class:`psyclone.psyGen.Node`.
     '''
@@ -1797,10 +1799,10 @@ class ACCDataDirective(ACCDirective):
     @abc.abstractmethod
     def data_on_device(self, parent):
         '''
-        Adds nodes into a Schedule to flag that the data required by the
+        Adds nodes into a InvokeSchedule to flag that the data required by the
         kernels in the data region is now on the device.
 
-        :param parent: the node in the Schedule to which to add nodes
+        :param parent: the node in the InvokeSchedule to which to add nodes
         :type parent: :py:class:`psyclone.psyGen.Node`
         '''
 
@@ -3256,7 +3258,7 @@ class Call(Node):
 
 class Kern(Call):
     '''
-    Class representing a Kernel call within the Schedule (AST) of an Invoke.
+    Class representing a Kernel call within the InvokeSchedule of an Invoke.
 
     :param type KernelArguments: the API-specific sub-class of \
                                  :py:class:`psyclone.psyGen.Arguments` to \
@@ -3352,7 +3354,7 @@ class Kern(Call):
             raise NotImplementedError(
                 "Cannot module-inline a transformed kernel ({0}).".
                 format(self.name))
-        my_schedule = self.ancestor(Schedule)
+        my_schedule = self.ancestor(InvokeSchedule)
         for kernel in self.walk(my_schedule.children, Kern):
             if kernel.name == self.name:
                 kernel._module_inline = value
