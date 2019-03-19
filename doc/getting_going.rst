@@ -42,6 +42,17 @@ Dependencies
 PSyclone is written in Python so needs Python to be installed on the
 target machine. PSyclone has been tested under Python 2.7 and 3.6.
 
+.. warning:: Release 1.6.0 of PSyclone requires version 0.0.7 of
+             fparser and will fail on more recent versions. However
+             simply installing this version using pip will install a
+             later version of fparser. The suggested solution is to
+             use release 1.6.1 which fixes this problem and is otherwise
+	         identical to 1.6.0. However, if you want to use release
+	         1.6.0 you need to ensure that you have fparser 0.0.7. This
+	         can be acheived by downgrading an existing fparser
+	         installation or by installing version 0.0.7 of fparser
+	         *before* installing PSyclone.
+
 PSyclone immediately relies on four external Python packages; ``six``,
 ``configparser``, ``fparser`` and ``pyparsing``. In order to run the
 test suite ``py.test`` is required. The easiest way to satisfy the
@@ -293,11 +304,11 @@ the config file.
 Test
 ----
 
-You can install the necessary dependencies to run the PSYclone tests with::
+You can install the necessary dependencies to run the PSyclone tests with::
 
     > pip install psyclone[test]
 
-The test dependencies are canonically documented in PSYclone's setup.py
+The test dependencies are canonically documented in PSyclone's setup.py
 under the ``extras_requires`` section.
 
 Once you have the necessary dependencies installed and your
