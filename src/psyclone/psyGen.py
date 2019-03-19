@@ -1391,6 +1391,65 @@ class Node(object):
 
 class Schedule(Node):
     '''
+    Stores schedule information for a sequence of statements
+
+    :param sequence: the sequence of PSyIR nodes that the schedule execute.
+    :type sequence: :py:class:`psyclone.psyGen.Node`
+    :param parent: that parent of this node in the PSyIR tree.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+
+    def __init__(self, sequence, parent):
+        super(Schedule, self).__init__(self, children=sequence, parent=parent)
+
+    @property
+    def dag_name(self):
+        ''' Return the name to use in a dag for this node'''
+        return "schedule"
+
+    def tkinter_delete(self):
+        for entity in self._children:
+            entity.tkinter_delete()
+
+    def tkinter_display(self, canvas, x, y):
+        y_offset = 0
+        for entity in self._children:
+            entity.tkinter_display(canvas, x, y+y_offset)
+            y_offset = y_offset+entity.height
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    @property
+    def coloured_text(self):
+        '''
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
+
+        :return: Text containing the name of this node, possibly coloured
+        :rtype: string
+        '''
+        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+
+    def __str__(self):
+        result = "Schedule:\n"
+        for entity in self._children:
+            result += str(entity)+"\n"
+        result += "End Schedule"
+        return result
+
+
+class InvokeSchedule(Schedule):
+    '''
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
 
@@ -1426,25 +1485,10 @@ class Schedule(Node):
                     sequence.append(BuiltInFactory.create(call, parent=self))
                 else:
                     sequence.append(KernFactory.create(call, parent=self))
-        Node.__init__(self, children=sequence)
+        super(InvokeSchedule, self).__init__(self, sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
         self._name_space_manager = NameSpaceFactory().create()
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "schedule"
-
-    def tkinter_delete(self):
-        for entity in self._children:
-            entity.tkinter_delete()
-
-    def tkinter_display(self, canvas, x, y):
-        y_offset = 0
-        for entity in self._children:
-            entity.tkinter_display(canvas, x, y+y_offset)
-            y_offset = y_offset+entity.height
 
     @property
     def invoke(self):
@@ -5379,7 +5423,7 @@ class KernelSchedule(Schedule):
     '''
 
     def __init__(self, name):
-        super(KernelSchedule, self).__init__(None, None)
+        super(KernelSchedule, self).__init__(sequence=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
 
