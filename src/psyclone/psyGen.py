@@ -1438,10 +1438,10 @@ class Schedule(Node):
         :return: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
-        return colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     def __str__(self):
-        result = "InvokeSchedule:\n"
+        result = "Schedule:\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
@@ -5469,7 +5469,7 @@ class KernelSchedule(Schedule):
             "A generic implementation of this method is not available.")
 
     def __str__(self):
-        result = "Schedule[name:'" + self._name + "']:\n"
+        result = "KernelSchedule[name:'" + self._name + "']:\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
