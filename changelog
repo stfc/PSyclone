@@ -43,6 +43,9 @@
 
 	14) #292 and PR #293. Add allowed list of nodes to RegionTrans.
 
+	15) #254 and PR #299. Adds methods to generate C and OpenCL
+	code for the Symbol Table and for certain PSyIR nodes.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
