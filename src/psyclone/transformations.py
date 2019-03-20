@@ -2862,6 +2862,10 @@ class ACCDataTrans(RegionTrans):
         Check that we can safely add a data region around the supplied list
         of nodes.
 
+        :param node_list: the proposed list of nodes to enclose in a data \
+                          region.
+        :type node_list: list of subclasses of :py:class:`psyclone.psyGen.Node`
+
         :raises TransformationError: if the Schedule to which the nodes \
                                 belong already has an 'enter data' directive.
         :raises TransformationError: if any of the nodes are themselves \

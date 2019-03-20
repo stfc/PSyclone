@@ -91,7 +91,7 @@ def test_explicit(parser):
 
 def test_data_no_gen_code():
     ''' Check that the ACCDataDirective.gen_code() method raises the
-    expected error. '''
+    expected InternalError as it should not be called. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)

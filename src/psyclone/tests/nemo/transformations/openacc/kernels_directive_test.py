@@ -39,7 +39,6 @@
 '''
 
 from __future__ import print_function, absolute_import
-import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo, InternalError
@@ -156,7 +155,6 @@ def test_implicit_loop(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     schedule, _ = acc_trans.apply(schedule.children[0:1], default_present=True)
     gen_code = str(psy.gen)
