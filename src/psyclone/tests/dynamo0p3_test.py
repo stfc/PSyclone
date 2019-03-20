@@ -4534,7 +4534,7 @@ def test_halo_exchange_view(capsys):
     result, _ = capsys.readouterr()
 
     # Ensure we test for text containing the correct (colour) control codes
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
     exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])

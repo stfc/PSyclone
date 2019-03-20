@@ -549,9 +549,9 @@ end module dummy_mod
 # Schedule class tests
 
 
-def test_sched_view(capsys):
-    ''' Check the view method of the Schedule class. We need a Schedule
-    object for this so go via the dynamo0.3 sub-class '''
+def test_invokesched_view(capsys):
+    ''' Check the view method of the InvokeSchedule class. We need a
+    InvokeSchedule object for this so go via the dynamo0.3 sub-class '''
     from psyclone import dynamo0p3
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -562,7 +562,7 @@ def test_sched_view(capsys):
           psy.invokes.invoke_list[0].schedule
           ).view()
     output, _ = capsys.readouterr()
-    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+    assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
 
 def test_sched_ocl_setter():
