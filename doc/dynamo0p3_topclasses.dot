@@ -1,0 +1,23 @@
+digraph "classes_dynamo0p3" {
+charset="utf-8"
+rankdir=BT
+"18" [label="{DynInvoke|cma_ops\ldofmaps\levaluators\literate_over_dofs_only\lmeshes\lstencil\l|arg_for_funcspace()\lfield_on_space()\lgen_code()\lis_coloured()\lunique_fss()\lunique_proxy_declarations()\l}", shape="record"];
+"22" [label="{DynInvokeSchedule|\l|view()\l}", shape="record"];
+"32" [label="{DynamoInvokes|\l|}", shape="record"];
+"33" [label="{DynamoPSy|gen\lname\l|}", shape="record"];
+"43" [label="{Invoke|alg_unique_args\lname\lpsy_unique_var_names\lpsy_unique_vars\lschedule\l|first_access()\lgen()\lgen_code()\lunique_declarations()\lunique_declns_by_intent()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"44" [label="{InvokeSchedule|coloured_text\linvoke\lopencl\l|gen_code()\lview()\l}", shape="record"];
+"45" [label="{Invokes|invoke_list : list\linvoke_map : dict\lnames\l|gen_code()\lgen_ocl_init()\lget()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"56" [label="{Node|abs_position\largs\lchildren\ldag_name\ldepth\lfollowing_calls\lparent\lposition\lpreceding_calls\lroot\l|addchild()\lancestor()\lbackward_dependence()\lcalls()\ldag()\ldag_gen()\lfollowing()\lforward_dependence()\lgen_c_code()\lgen_code()\lindent()\lis_openmp_parallel()\lis_valid_location()\lkern_calls()\llist()\llist_to_string()\lloops()\lpreceding()\lreductions()\lsameParent()\lsameRoot()\lupdate()\lview()\lwalk()\l}", shape="record"];
+"58" [label="{PSy|gen\linvokes\lname\l|inline()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"61" [label="{Schedule|coloured_text\ldag_name\l|tkinter_delete()\ltkinter_display()\lview()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"18" -> "43" [arrowhead="empty", arrowtail="none"];
+"22" -> "44" [arrowhead="empty", arrowtail="none"];
+"32" -> "45" [arrowhead="empty", arrowtail="none"];
+"33" -> "58" [arrowhead="empty", arrowtail="none"];
+"44" -> "61" [arrowhead="empty", arrowtail="none"];
+"61" -> "56" [arrowhead="empty", arrowtail="none"];
+"18" -> "32" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_0_to_n", style="solid"];
+"22" -> "18" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_schedule", style="solid"];
+"32" -> "33" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_invokes", style="solid"];
+}

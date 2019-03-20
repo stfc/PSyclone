@@ -27,7 +27,7 @@ Performance
 -----------
 
 PSyclone adds **HaloExchange** and **GlobalSum** objects to the
-generated PSy **Schedule** (see the :ref:`psy-layer-schedule` Section)
+generated PSyIR **InvokeSchedule** (see the :ref:`psy-layer-schedule` Section)
 at the required locations. The halo-exchange and global-sum objects
 are exposed here for the purposes of optimisation. For example the
 halo-exchange and/or global-sum objects may be moved in the schedule

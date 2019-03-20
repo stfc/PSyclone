@@ -75,10 +75,10 @@ PSyclone provides a hierarchy of base classes which specific APIs can
 subclass to support their particular API. All APIs implemented so
 far, follow this hierarchy.
 
-At the top level is the **PSy** class. The PSy class has an
-**Invokes** class. The **Invokes** class can contain one or more
-**Invoke** classes (one for each invoke in the algorithm layer). Each
-**Invoke** class has a **Schedule** class.
+At the top level sits the **PSy** class. The PSy class has a reference to an
+**Invokes** object. The **Invokes** object can contain one or more
+**Invoke** instances (one for each invoke in the algorithm layer). Each
+**Invoke** has an **InvokeSchedule** object.
 
 The class diagram for the above base classes is shown below using the
 dynamo0.3 API as an illustration. This class diagram was generated
@@ -100,7 +100,7 @@ API
 .. autoclass:: psyclone.psyGen.Invoke
     :members:
 
-.. autoclass:: psyclone.psyGen.Schedule
+.. autoclass:: psyclone.psyGen.InvokeSchedule
     :members:
 
 .. _psy-layer-schedule:
@@ -108,8 +108,8 @@ API
 Schedule
 --------
 
-A PSy **Schedule** object consists of a tree of objects (called Nodes
-in PSyclone) which can be used to describe the required schedule for a
+A PSy-layer schedule is represented by an **InvokeSchedule** object,
+which consists of a tree of PSyIR Nodes that describe the schedule for a
 PSy layer subroutine. This subroutine is called by the Algorithm layer
 and itself calls one or more Kernels and/or implements any required
 Built-in operations. The Node objects can currently be a **Loop**, a
@@ -142,7 +142,7 @@ the following output:
 ::
 
    >>> schedule.view()
-   Schedule[invoke='invoke_0' dm=True]
+   InvokeSchedule[invoke='invoke_0' dm=True]
        Directive[OMP parallel do]
            Loop[type='dofs',field_space='any_space_1',it_space='dofs']
                Call setval_X_code(p,z)
