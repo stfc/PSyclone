@@ -142,7 +142,7 @@ class NemoInvoke(Invoke):
 
     def update(self):
         '''
-        Updates the fparser2 AST associated with this InvokeSchedule to \
+        Updates the fparser2 AST associated with this schedule to \
         make it reflect any transformations that have been applied to \
         the PSyclone AST.
         '''
@@ -248,7 +248,7 @@ class NemoPSy(PSy):
                 :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
                 :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
         '''
-        # Walk down our InvokeSchedule and update the underlying fparser2 AST
+        # Walk down our Schedule and update the underlying fparser2 AST
         # to account for any transformations
         self.invokes.update()
 
@@ -258,13 +258,13 @@ class NemoPSy(PSy):
 
 class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
     '''
-    The NEMO-specific schedule class. This is the top-level node in
+    The NEMO-specific InvokeSchedule sub-class. This is the top-level node in
     PSyclone's IR of a NEMO program unit (program, subroutine etc).
 
-    :param invoke: The Invoke to which this InvokeSchedule belongs.
+    :param invoke: The Invoke to which this NemoInvokeSchedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
     :param ast: the fparser2 AST of the NEMO code for which to generate \
-                a InvokeSchedule.
+                a NemoInvokeSchedule.
     :type ast: :py:class:`fparser.two.Fortran2003.Main_Program` or \
                :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` or \
                :py:class:`fparser.two.Fortran2003.Function_Subprogram`.
@@ -299,7 +299,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
 
 class NemoKern(Kern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. Kernels are leaves in the InvokeSchedule AST (i.e. they have
+    NEMO code. Kernels are leaves in the AST (i.e. they have
     no children).
 
     :param loop: Reference to the loop (in the fparser2 AST) containing \
@@ -654,7 +654,7 @@ class NemoImplicitLoop(NemoLoop):
 
 class NemoIfBlock(IfBlock, NemoFparser2ASTProcessor):
     '''
-    Represents an if-block within a NEMO InvokeSchedule.
+    Represents an if-block within a NEMO schedule.
     Within the fparser2 AST, an if-block is represented as:
       If_Then_Stmt
       statement(s)
@@ -724,7 +724,7 @@ class NemoIfBlock(IfBlock, NemoFparser2ASTProcessor):
     def match(node):
         '''
         Checks whether the supplied fparser2 AST represents an if-block
-        that must be represented in the InvokeSchedule AST. If-blocks that do
+        that must be represented in the PSyIR. If-blocks that do
         not contain kernels are just treated as code blocks.
 
         :param node: the node in the fparser2 AST representing an if-block

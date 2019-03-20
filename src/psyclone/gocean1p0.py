@@ -325,7 +325,7 @@ class GOInvoke(Invoke):
 
 
 class GOInvokeSchedule(InvokeSchedule):
-    ''' The GOcean specific schedule class. We call the base class
+    ''' The GOcean specific InvokeSchedule sub-class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
 
@@ -780,7 +780,7 @@ class GOLoop(Loop):
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
-        # Climb up the tree looking for our enclosing InvokeSchedule
+        # Climb up the tree looking for our enclosing GOInvokeSchedule
         schedule = self.ancestor(GOInvokeSchedule)
         if schedule is None or not isinstance(schedule, GOInvokeSchedule):
             raise GenerationError("Internal error: cannot find parent"

@@ -166,8 +166,9 @@ class GOInvoke(Invoke):
 
 
 class GOInvokeSchedule(InvokeSchedule):
-    ''' The GOcean specific schedule class. All we have to do is supply our
-    API-specific factories to the base InvokeSchedule class constructor. '''
+    ''' The GOcean specific InvokeSchedule sub-class. All we have to do is
+    supply our API-specific factories to the base InvokeSchedule class
+    constructor. '''
 
     def __init__(self, alg_calls):
         InvokeSchedule.__init__(self, GOKernCallFactory,

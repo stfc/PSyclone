@@ -36,7 +36,7 @@
 # Modified I. Kavcic, Met Office
 
 ''' This module provides the various transformations that can
-    be applied to the schedule associated with an invoke(). There
+    be applied to the InvokeSchedule associated with an invoke(). There
     are both general and API-specific transformation classes in
     this module where the latter typically apply API-specific
     checks before calling the base class for the actual
@@ -313,7 +313,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
         :param node2: Second Loop to fuse.
         :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :returns: two-tuple of modified schedule and Memento
+        :returns: two-tuple of modified Schedule and Memento
         :rtype: :py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`
         :raises TransformationError: if either of the supplied loops contains \

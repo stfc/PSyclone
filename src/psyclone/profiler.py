@@ -202,7 +202,7 @@ class ProfileNode(Node):
 
         if self._module_name is None or self._region_name is None:
             # Find the first kernel and use its name. In an untransformed
-            # InvokeSchedule there should be only one kernel, but if Profile is
+            # Schedule there should be only one kernel, but if Profile is
             # invoked after e.g. a loop merge more kernels might be there.
             region_name = "unknown-kernel"
             module_name = "unknown-module"

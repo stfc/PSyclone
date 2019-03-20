@@ -2002,7 +2002,7 @@ class DynMeshes(object):
         '''
         Sets-up information on any required colourmaps. This cannot be done
         in the constructor since colouring is applied by Transformations
-        and happens after the InvokeSchedule has already been constructed.
+        and happens after the Schedule has already been constructed.
         '''
         for call in [call for call in self._schedule.kern_calls() if
                      call.is_coloured()]:
@@ -2865,7 +2865,7 @@ class DynInvokeBasisFns(object):
 
 class DynInvoke(Invoke):
     '''The Dynamo specific invoke class. This passes the Dynamo
-    specific schedule class to the base class so it creates the one we
+    specific InvokeSchedule class to the base class so it creates the one we
     require.  Also overrides the gen_code method so that we generate
     dynamo specific invocation code.
 
@@ -3344,13 +3344,14 @@ class DynInvoke(Invoke):
 
 
 class DynInvokeSchedule(InvokeSchedule):
-    ''' The Dynamo specific schedule class. This passes the Dynamo-
+    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require. '''
 
     def __init__(self, arg):
         from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-        InvokeSchedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
+        InvokeSchedule.__init__(self, DynKernCallFactory,
+                                DynBuiltInCallFactory, arg)
 
     def view(self, indent=0):
         '''
@@ -3373,7 +3374,7 @@ class DynGlobalSum(GlobalSum):
 
     :param scalar: the kernel argument for which to perform a global sum
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param parent: the parent node of this node in the InvokeSchedule
+    :param parent: the parent node of this node in the PSyIR
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, scalar, parent=None):
@@ -3506,7 +3507,7 @@ def _create_depth_list(halo_info_list):
 class DynHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
-    manipulated in, a schedule
+    manipulated in a schedule.
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -3557,7 +3558,7 @@ class DynHaloExchange(HaloExchange):
     def _compute_halo_depth(self):
         '''Dynamically determine the depth of the halo for this halo exchange,
         as the depth can change as transformations are applied to the
-        schedule
+        schedule.
 
         :return: the halo exchange depth as a Fortran string
         :rtype: str
