@@ -56,7 +56,7 @@ def test_opencl_compiler_works(tmpdir):
     '''
     example_ocl_code = '''
 program hello
-  !USE fortcl
+  USE fortcl
   write (*,*) "Hello"
 end program hello
 '''
@@ -64,8 +64,9 @@ end program hello
     try:
         with open("hello_world_opencl.f90", "w") as ffile:
             ffile.write(example_ocl_code)
-        assert Compile(tmpdir).compile_file("hello_world_opencl.f90",
-                                            link=True)
+        GOcean1p0OpenCLBuild(tmpdir).\
+            compile_file("hello_world_opencl.f90",
+                         link=True)
     finally:
         old_pwd.chdir()
 
