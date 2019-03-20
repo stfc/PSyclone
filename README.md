@@ -6,7 +6,7 @@ appropriate code for the PSyKAl code structure developed in the GungHo project.
 Please see [psyclone.pdf](psyclone.pdf) in this directory (or on
 [ReadTheDocs](http://psyclone.readthedocs.io)) for
 more information. If you would prefer to build the documentation,
-please see the README file in the "doc" directory.
+please see the [README](doc/README.md) file in the "doc" directory.
 
 # Installation #
 
