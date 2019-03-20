@@ -42,7 +42,6 @@
 from __future__ import print_function, absolute_import
 import abc
 import six
-import collections
 from psyclone.configuration import Config
 
 # We use the termcolor module (if available) to enable us to produce
@@ -73,7 +72,8 @@ except ImportError:
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
 # The list of Fortran instrinsic functions that we know about (and can
-# therefore distinguish from array accesses)
+# therefore distinguish from array accesses). These should really be
+# provided by the parser (github.com/stfc/fparser/issues/189).
 FORTRAN_INTRINSICS = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM",
                       "CEILING", "REAL", "KIND", "EXP", "SQRT",
                       "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN",
@@ -4663,13 +4663,15 @@ class ACCKernelsDirective(ACCDirective):
     '''
     Class representing the !$ACC KERNELS directive in the PSyIR.
 
-    :param children:
-    :type children:
-    :param parent:
-    :type parent:
+    :param children: the PSyIR nodes to be enclosed in the Kernels region \
+                     and which are therefore children of this node.
+    :type children: list of sub-classes of :py:class:`psyclone.psyGen.Node`
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
     :param bool default_present:
 
-    :raise NotImplementedError: if default_present is False.
+    :raises NotImplementedError: if default_present is False.
+
     '''
     def __init__(self, children=[], parent=None, default_present=False):
         super(ACCKernelsDirective, self).__init__(children=children,
@@ -4682,7 +4684,10 @@ class ACCKernelsDirective(ACCDirective):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use for this node in a dag.
+        :rtype: str
+        '''
         return "ACC_kernels_" + str(self.abs_position)
 
     def view(self, indent=0):
@@ -4698,7 +4703,13 @@ class ACCKernelsDirective(ACCDirective):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    def gen_code(self, parent):
+    def gen_code(self, _):
+        '''
+        :raises InternalError: the ACC Kernels directive is currently only \
+                               supported for the NEMO API and that uses the \
+                               update() method to alter the underlying \
+                               fparser2 parse tree.
+        '''
         raise InternalError(
             "ACCKernelsDirective.gen_code should not have been called.")
 
@@ -4735,7 +4746,13 @@ class ACCDataDirective(ACCDirective):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
-    def gen_code(self, parent):
+    def gen_code(self, _):
+        '''
+        :raises InternalError: the ACC data directive is currently only \
+                               supported for the NEMO API and that uses the \
+                               update() method to alter the underlying \
+                               fparser2 parse tree.
+        '''
         raise InternalError(
             "ACCDataDirective.gen_code should not have been called.")
 
@@ -4852,8 +4869,10 @@ class Fparser2ASTProcessor(object):
                     writers.add(structure_name_str)
                     lhs = lhs.items[1]
                 if isinstance(lhs, (Part_Ref, Array_Section)):
+                    # This is an array reference
                     name_str = lhs.items[0].string
                     if structure_name_str:
+                        # Array ref is part of a derived type
                         name_str = "{0}%{1}".format(structure_name_str,
                                                     name_str)
                         structure_name_str = None
