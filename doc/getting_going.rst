@@ -47,11 +47,11 @@ target machine. PSyclone has been tested under Python 2.7 and 3.6.
              simply installing this version using pip will install a
              later version of fparser. The suggested solution is to
              use release 1.6.1 which fixes this problem and is otherwise
-	         identical to 1.6.0. However, if you want to use release
-	         1.6.0 you need to ensure that you have fparser 0.0.7. This
-	         can be acheived by downgrading an existing fparser
-	         installation or by installing version 0.0.7 of fparser
-	         *before* installing PSyclone.
+             identical to 1.6.0. However, if you want to use release
+             1.6.0 you need to ensure that you have fparser 0.0.7. This
+             can be achieved by downgrading an existing fparser
+             installation or by installing version 0.0.7 of fparser
+             *before* installing PSyclone.
 
 PSyclone immediately relies on four external Python packages; ``six``,
 ``configparser``, ``fparser`` and ``pyparsing``. In order to run the
