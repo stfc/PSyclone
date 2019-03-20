@@ -2705,6 +2705,7 @@ class ACCKernelsTrans(RegionTrans):
     valid_node_types = (nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
                         nemo.NemoIfClause, psyGen.BinaryOperation,
                         psyGen.Literal, psyGen.Assignment, psyGen.Reference)
+
     @property
     def name(self):
         '''
@@ -2784,6 +2785,7 @@ class ACCKernelsTrans(RegionTrans):
 class ACCDataTrans(RegionTrans):
     '''
     Add an OpenACC data region around a list of nodes in the PSyIR.
+    COPYIN, COPYOUT and COPY clauses are added as required.
 
     For example:
 
@@ -2809,6 +2811,7 @@ class ACCDataTrans(RegionTrans):
                         psyGen.Directive, psyGen.IfBlock, psyGen.IfClause,
                         psyGen.Literal, psyGen.Assignment, psyGen.Reference,
                         psyGen.BinaryOperation)
+
     @property
     def name(self):
         '''
@@ -2864,7 +2867,7 @@ class ACCDataTrans(RegionTrans):
         :raises TransformationError: if any of the nodes are themselves \
                                      data directives.
         '''
-        from psyclone.psyGen import ACCDataDirective, ACCEnterDataDirective
+        from psyclone.psyGen import ACCEnterDataDirective
         super(ACCDataTrans, self)._validate(node_list)
 
         # Check that the Schedule to which the nodes belong does not already
