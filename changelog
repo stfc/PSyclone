@@ -139,6 +139,9 @@ release 1.7.0 20th December 2018
         27) #158 and PR #253. Fix to remove unnecessary halo exchanges
 	related to GH_INC updates to kernel arguments.
 
+	28) PR #301. Adds an extras_require section to setup.py to simplify
+	installation of dependencies required for docs and tests.
+
 release 1.6.1 6th December 2018
 
   	1) #250. Change setup.py (used for pip installation) to only use
