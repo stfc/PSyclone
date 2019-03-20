@@ -1528,18 +1528,18 @@ they have their own, on-board memory which is separate from that of
 the host. Managing (i.e. minimising) data movement between host and
 GPU is then a very important part of obtaining good performance.
 
-Since PSyclone operates at the level of Invokes it has no information
+Since PSyclone operates at the level of Invokes, it has no information
 about when an application starts and thus no single place in which to
 initiate data transfers to a GPU. (We assume that the host is
 responsible for model I/O and therefore for populating fields with
-initial values.) Fortunately OpenACC provides support for this kind of
+initial values.) Fortunately, OpenACC provides support for this kind of
 situation with the ``enter data`` directive. This may be used to
 "define scalars, arrays and subarrays to be allocated in the current
 device memory for the remaining duration of the program"
 :cite:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
 an ``enter data`` directive to an Invoke:
 
-.. autoclass:: psyclone.transformations.ACCDataTrans
+.. autoclass:: psyclone.transformations.ACCEnterDataTrans
    :noindex:
 
 The resulting generated code will then contain an ``enter data``
@@ -1568,6 +1568,12 @@ Of course, a given field may already be on the device (and have been
 updated) due to a previous Invoke. In this case, the fact that the
 OpenACC run-time does not copy over the now out-dated host version of
 the field is essential for correctness.
+
+In order to support the incremental porting and/or debugging of an
+application, PSyclone also supports the OpenACC ``data`` directive
+that creates a statically-scoped data region. See the
+description of the ``ACCDataTrans`` transformation in the
+:ref:`sec_transformations_available` section for more details.
 
 .. _opencl_dev:
 
