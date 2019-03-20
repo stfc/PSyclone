@@ -47,6 +47,24 @@ This should produce a lot of output, ending with generated
 Fortran. Note that the Fortran source files provided to PSyclone must
 have already been preprocessed (if required).
 
+The transformation script attempts to insert Kernels directives at the
+highest possible location(s) in the schedule tree (i.e. to enclose as
+much code as possible in each Kernels region). However, due to
+limitations in the PGI compiler, we must take care to exclude certain
+nodes (such as If blocks) from within Kernel regions. If a proposed
+region is found to contain such a node (by the ``valid_kernel``
+routine) then the script moves a level down the tree and then repeats
+the process of attempting to create the largest possible Kernel
+region.
+
+Once the Kernels regions have been created, the script then simply
+encloses each of them within an OpenACC Data region (since these have
+already been made as large as possible). In reality, the purpose of a
+data region is to keep data on the remote GPU device for as long as
+possible, ideally between Kernel regions. However, this requires more
+sophisticated dependency analysis than is yet implemented in
+PSyclone. Issue #309 will tackle this limitation.
+
 '''
 
 from __future__ import print_function

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,30 +31,25 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 This directory contains an example transformation script,
-runme_openacc.py, that demonstrates the use of PSyclone to add OpenACC
-Kernel, Parallel and Loop directives for the tra_adv.F90 code. Note,
-the transformations are indicitive of what could be done and do not
-produce correct parallel code.
+nemo_kernels_trans.py, that demonstrates the use of PSyclone to add
+OpenACC Kernel and Data directives for the tra_adv.F90
+code. Note, the transformations are indicative of what could be done -
+no claim is made as to the performance of the resulting code.
 
-Once you have installed PSyclone, this script may be run directly:
+Once you have installed PSyclone, this script may be supplied to
+PSyclone:
 
-    $ ./runme_openacc.py
+    $ psyclone -api nemo -s ./nemo_kernels_trans.py ../code/tra_adv.F90
 
-or may be used as a PSyclone optimisation script:
-
-    $ psyclone -api nemo -s ./runme_openacc.py ../code/tra_adv.F90
-
-In either case, the following will be output 1) the original code, 2)
-the PSyclone invokes found in the code, 3) PSyclone's Schedule view of
-the original code, 4) PSyclone's Schedule view of the code after
-adding OpenACC Kernels directives, 5) PSyclone's Schedule view of the
-code after adding OpenACC Kernels and Loop directives, 6) PSyclone's
-Schedule view of the code after adding OpenACC Kernels, Loop and
-Parallel directives, and 7) the transformed code with the OpenACC
-directives added.
+Executing this will output 1) the original code, 2) the PSyclone
+invokes found in the code, 3) PSyclone's Schedule view of the original
+code, 4) PSyclone's Schedule view of the code after adding OpenACC
+Kernels directives, 5) PSyclone's Schedule view of the code after
+adding OpenACC Kernels and Data directives, and 6) the transformed
+Fortran code with the OpenACC directives added.
 
 tra_adv.F90 is a stand-alone version of one of the tracer-advection
 routines from the NEMO ocean model. It was originally extracted by
