@@ -38,7 +38,6 @@
 from __future__ import absolute_import
 
 import os
-import tempfile
 import pytest
 
 from psyclone.configuration import Config, ConfigurationError
@@ -89,7 +88,7 @@ def test_command_line(capsys):
 
 
 # =============================================================================
-def test_invalid_config_files():
+def test_invalid_config_files(tmpdir):
     ''' Test various error conditions.
     '''
 
@@ -109,70 +108,70 @@ def test_invalid_config_files():
     # Create a config files with gocean1.0 section, but an
     # invalid iteration space:
     content = _CONFIG_CONTENT + "iteration-spaces=a:b"
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config1")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
 
         config = Config()
         with pytest.raises(ConfigurationError) as err:
-            config.load(new_name)
+            config.load(str(config_file))
         assert "An iteration space must be in the form" in str(err)
         assert "But got \"a:b\"" in str(err)
 
     # Try a multi-line specification to make sure all lines are tested
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:4\n        d:e"
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config2")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
 
         config = Config()
         with pytest.raises(ConfigurationError) as err:
-            config.load(new_name)
+            config.load(str(config_file))
         assert "An iteration space must be in the form" in str(err)
         assert "But got \"d:e\"" in str(err)
 
     # Invalid {} expression in first loop bound
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:{X}:2:3:4"
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config3")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
 
         config = Config()
         with pytest.raises(ConfigurationError) as err:
-            config.load(new_name)
+            config.load(str(config_file))
         assert "Only '{start}' and '{stop}' are allowed as bracketed "\
                "expression in an iteration space." in str(err)
         assert "But got {X}" in str(err)
 
     # Invalid {} expression in last loop bound:
     content = _CONFIG_CONTENT + "iteration-spaces=a:b:c:1:2:3:{Y}"
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config4")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
 
         config = Config()
         with pytest.raises(ConfigurationError) as err:
-            config.load(new_name)
+            config.load(str(config_file))
         assert "Only '{start}' and '{stop}' are allowed as bracketed "\
                "expression in an iteration space." in str(err)
         assert "But got {Y}" in str(err)
 
     # Add an invalid key:
     content = _CONFIG_CONTENT + "invalid-key=value"
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config5")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
 
         config = Config()
         with pytest.raises(ConfigurationError) as err:
-            config.load(new_name)
+            config.load(str(config_file))
         assert "Invalid key \"invalid-key\" found in \"{0}\".".\
-            format(new_name) in str(err)
+            format(str(config_file)) in str(err)
 
         for i in ["DEFAULTAPI", "DEFAULTSTUBAPI", "DISTRIBUTED_MEMORY",
                   "REPRODUCIBLE_REDUCTIONS"]:
