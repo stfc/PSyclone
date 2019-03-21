@@ -2514,6 +2514,9 @@ class GlobalSum(Node):
         print(self.indent(indent) + (
             "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name)))
 
+    def __str__(self):
+        return "GlobalSum[scalar='" + self._scalar.name + "']\n"
+
     @property
     def coloured_text(self):
         '''
@@ -2676,6 +2679,14 @@ class HaloExchange(Node):
             "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                       self._halo_type,
                                       self._halo_depth, self._check_dirty)))
+
+    def __str__(self):
+        result = "HaloExchange["
+        result += "field='" + self._field.name + "', "
+        result += "type='" + self._halo_type + "', "
+        result += "depth='" + self._halo_depth + "', "
+        result += "check_dirty='" + self._check_dirty + "']\n"
+        return result
 
     @property
     def coloured_text(self):
