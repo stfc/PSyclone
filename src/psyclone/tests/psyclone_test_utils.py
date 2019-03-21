@@ -281,13 +281,6 @@ class Compile(object):
             # Failed to compile one of the files
             success = False
 
-        finally:
-            # Clean-up - delete all generated files. This permits this routine
-            # to be called multiple times from within the same test.
-            os.chdir(str(old_pwd))
-            for ofile in self._tmpdir.listdir():
-                ofile.remove()
-
         return success
 
     def code_compiles(self, psy_ast):
@@ -339,12 +332,6 @@ class Compile(object):
         except CompileError:
             # Failed to compile the file
             success = False
-        finally:
-            # Clean-up - delete all generated files. This permits this routine
-            # to be called multiple times from within the same test.
-            os.chdir(str(old_pwd))
-            for ofile in self._tmpdir.listdir():
-                ofile.remove()
 
         return success
 

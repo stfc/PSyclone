@@ -133,13 +133,9 @@ def test_compile_str(monkeypatch, tmpdir):
     # Re-enable compilation testing and check that we can build hello world
     monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE", True)
     assert _compile.string_compiles(HELLO_CODE)
-    # Check that we've cleaned up
-    assert not tmpdir.listdir()
     # Repeat for some broken code
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
     assert not _compile.string_compiles(invalid_code)
-    # Check that we've cleaned up
-    assert not tmpdir.listdir()
 
 
 # -----------------------------------------------------------------------------
