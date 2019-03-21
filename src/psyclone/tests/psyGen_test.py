@@ -546,10 +546,45 @@ contains
 end module dummy_mod
 '''
 
+
 # Schedule class tests
 
+def test_sched_view(capsys):
+    ''' Check the view method of the Schedule class'''
+    from psyclone import dynamo0p3
+    from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
 
-def test_invokesched_view(capsys):
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = Schedule
+    psy.invokes.invoke_list[0].schedule.view()
+
+    output, _ = capsys.readouterr()
+    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+
+
+def test_sched_can_be_printed():
+    ''' Check the schedule class can always be printed'''
+    from psyclone import dynamo0p3
+    from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = Schedule
+    output = str(psy.invokes.invoke_list[0].schedule)
+
+    assert "Schedule:\n" in output
+
+
+# InvokeSchedule class tests
+
+def test_invokeschedule_view(capsys):
     ''' Check the view method of the InvokeSchedule class. We need a
     InvokeSchedule object for this so go via the dynamo0.3 sub-class '''
     from psyclone import dynamo0p3
@@ -575,6 +610,22 @@ def test_sched_ocl_setter():
     with pytest.raises(ValueError) as err:
         psy.invokes.invoke_list[0].schedule.opencl = "a string"
     assert "Schedule.opencl must be a bool but got " in str(err)
+
+
+def test_invokeschedule_can_be_printed():
+    ''' Check the schedule class can always be printed'''
+    from psyclone import dynamo0p3
+    from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = InvokeSchedule
+    output = str(psy.invokes.invoke_list[0].schedule)
+
+    assert "InvokeSchedule:\n" in output
 
 
 # Kern class test

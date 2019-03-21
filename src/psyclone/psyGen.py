@@ -1407,10 +1407,14 @@ class Schedule(Node):
         ''' Return the name to use in a dag for this node'''
         return "schedule"
 
+    # TODO: Method part of old GUI, it is untested and marked to be
+    # removed in issue #320
     def tkinter_delete(self):
         for entity in self._children:
             entity.tkinter_delete()
 
+    # TODO: Method part of old GUI, it is untested and marked to be
+    # removed in issue #320
     def tkinter_display(self, canvas, x, y):
         y_offset = 0
         for entity in self._children:
