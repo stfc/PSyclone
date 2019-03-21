@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -126,6 +127,8 @@ def test_compile_str(monkeypatch, tmpdir):
     # Check that we always return True if compilation testing is disabled
     _compile = Compile(tmpdir)
     monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE", False)
+    monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE_OPENCL",
+                        False)
     assert _compile.string_compiles("not fortran")
     # Re-enable compilation testing and check that we can build hello world
     monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE", True)
