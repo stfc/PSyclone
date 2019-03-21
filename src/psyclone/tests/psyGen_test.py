@@ -1520,6 +1520,20 @@ def test_call_args():
     for idx, arg in enumerate(builtin.args):
         assert arg == builtin.arguments.args[idx]
 
+def test_haloexchange_can_be_printed():
+    '''Test that the haloexchange class can always be printed'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    for haloexchange in schedule.children[:2]:
+        assert "HaloExchange[field='" in str(haloexchange)
+        assert "', type='" in str(haloexchange)
+        assert "', depth='" in str(haloexchange)
+        assert "', check_dirty='" in str(haloexchange)
+
 
 def test_haloexchange_args():
     '''Test that the haloexchange class args method returns the appropriate

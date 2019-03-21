@@ -2682,10 +2682,10 @@ class HaloExchange(Node):
 
     def __str__(self):
         result = "HaloExchange["
-        result += "field='" + self._field.name + "', "
-        result += "type='" + self._halo_type + "', "
-        result += "depth='" + self._halo_depth + "', "
-        result += "check_dirty='" + self._check_dirty + "']\n"
+        result += "field='" + str(self._field.name) + "', "
+        result += "type='" + str(self._halo_type) + "', "
+        result += "depth='" + str(self._halo_depth) + "', "
+        result += "check_dirty='" + str(self._check_dirty) + "']\n"
         return result
 
     @property
