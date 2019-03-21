@@ -1232,7 +1232,7 @@ def test_transformation_inline_error_if_not_kernel():
         _, _ = inline_trans.apply(kern_call)
 
 
-def test_module_inline_with_sub_use():
+def test_module_inline_with_sub_use(tmpdir):
     ''' Test that we can module inline a kernel subroutine which
     contains a use statement'''
     psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", API, idx=0)
@@ -1244,9 +1244,10 @@ def test_module_inline_with_sub_use():
     # check that the subroutine has been inlined
     assert 'SUBROUTINE bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
     # check that the use within the subroutine exists
-    assert 'USE model_mod, ONLY: rdt' in gen
+    assert 'USE grid_mod' in gen
     # check that the associated psy use does not exist
     assert 'USE bc_ssh_mod, ONLY: bc_ssh_code' not in gen
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_module_inline_same_kernel():
@@ -1267,7 +1268,7 @@ def test_module_inline_same_kernel():
     # check that the subroutine has only been inlined once
     count = count_lines(psy.gen, "SUBROUTINE time_smooth_code(")
     assert count == 1, "Expecting subroutine to be inlined once"
-    # No compilation test here, see test_module _inline_and_compile
+    # No compilation test here, see test_module_inline_and_compile
 
 
 @pytest.mark.xfail(reason="Inline function uses a module variable")
@@ -1284,6 +1285,7 @@ def test_module_inline_and_compile(tmpdir):
     kern_call = schedule.children[0].children[0].children[0]
     inline_trans = KernelModuleInlineTrans()
     _, _ = inline_trans.apply(kern_call)
+    # TODO: This fails because of #315
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
@@ -1668,7 +1670,7 @@ def test_acc_rscalar_update(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_iscalar_update():
+def test_acc_iscalar_update(tmpdir):
     '''
     Check that we generate code to update any integer scalar kernel arguments
     on the device.
@@ -1699,8 +1701,7 @@ def test_acc_iscalar_update():
       !$acc parallel default(present)
       DO j=1,jstop+1'''
     assert expected in code
-    # TODO: can not be compiled because of #315
-    # assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
 def test_acc_update_two_scalars(tmpdir):
