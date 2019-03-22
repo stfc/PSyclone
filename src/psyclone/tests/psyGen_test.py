@@ -65,7 +65,6 @@ from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
 from psyclone.generator import generate
 from psyclone.configuration import Config
-from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -1415,7 +1414,7 @@ def test_node_depth():
         assert child.depth == 3
 
 
-def test_node_position(tmpdir, f90, f90flags):
+def test_node_position():
     '''
     Test that the Node class position and abs_position methods return
     the correct value for a Node in a tree. The start position is
@@ -1437,11 +1436,6 @@ def test_node_position(tmpdir, f90, f90flags):
     with pytest.raises(InternalError) as excinfo:
         _, _ = child._find_position(child.root.children, -2)
     assert "started from -2 instead of 0" in str(excinfo.value)
-
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
 
 
 def test_node_root():
@@ -1926,7 +1920,6 @@ def test_node_ancestor():
     from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    sched.view()
     kern = sched.children[0].children[0].children[0]
     node = kern.ancestor(Node)
     assert isinstance(node, Loop)
@@ -2497,9 +2490,7 @@ def test_node_abstract_methods():
     from psyclone.psyGen import Node
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    sched.view()
     loop = sched.children[0].children[0]
-    print(loop)
     with pytest.raises(NotImplementedError) as err:
         Node.gen_code(loop)
     assert "Please implement me" in str(err)

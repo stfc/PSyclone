@@ -47,7 +47,7 @@ from psyclone.parse import parse
 from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import ExtractRegionTrans, TransformationError
-from psyclone_test_utils import code_compiles, TEST_COMPILE
+from psyclone_test_utils import code_compiles
 
 # Paths to APIs
 DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -106,10 +106,9 @@ def test_node_list_error(tmpdir, f90, f90flags):
     assert ("Error in ExtractRegionTrans transformation: supplied nodes "
             "are not children of the same Schedule/parent.") in str(excinfo)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
+    # Compilation testing is enabled with
+    # '--compile --f90="<compiler_name>"' flags to pytest
+    assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
 
 
 def test_distmem_error():
@@ -154,22 +153,6 @@ def test_repeat_extract():
                                         "1_single_invoke.f90"),
                            api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    # Apply Extract transformation
-    schedule, _ = etrans.apply(schedule.children[0])
-    # Now try applying it again on the ExtractNode
-    with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(schedule.children[0])
-    assert ("Error in ExtractRegionTrans: Extraction of a region which "
-            "already contains another Extract region is not allowed.") \
-        in str(excinfo)
-
-    # Test GOcean1.0 API
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # Apply Extract transformation
@@ -236,32 +219,6 @@ def test_loop_no_directive_dynamo0p3():
     otrans = DynamoOMPParallelLoopTrans()
     schedule, _ = otrans.apply(schedule.children[1])
     loop = schedule.children[1].children[0]
-    # Try extracting the Loop inside the OMP Parallel DO region
-    with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(loop)
-    assert ("Extraction of a Loop without its parent Directive is not "
-            "allowed.") in str(excinfo)
-
-
-def test_loop_no_directive_gocean1p0():
-    ''' Test that applying ExtractRegionTrans on a Loop without its
-    parent Directive when optimisations are applied in GOcean1.0 API
-    raises a TransformationError. '''
-    from psyclone.transformations import GOceanOMPParallelLoopTrans
-
-    etrans = ExtractRegionTrans()
-    otrans = GOceanOMPParallelLoopTrans()
-
-    # Test a Loop nested within the OMP Parallel DO Directive
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    # Apply GOceanOMPParallelLoopTrans to the first Loop
-    schedule, _ = otrans.apply(schedule.children[0])
-    loop = schedule.children[0].children[0]
     # Try extracting the Loop inside the OMP Parallel DO region
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(loop)
@@ -753,10 +710,9 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir, f90, f90flags):
         "      ! ExtractEnd\n")
     assert output in code
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
+    # Compilation testing is enabled with
+    # '--compile --f90="<compiler_name>"' flags to pytest
+    assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
 
 
 def test_extract_colouring_omp_dynamo0p3(tmpdir, f90, f90flags):
@@ -822,7 +778,6 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir, f90, f90flags):
         "      END DO \n")
     assert output in code
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
+    # Compilation testing is enabled with
+    # '--compile --f90="<compiler_name>"' flags to pytest
+    assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)

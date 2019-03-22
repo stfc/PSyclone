@@ -168,8 +168,8 @@ For now it only inserts comments in appropriate locations while the
 the full support for code extraction is being developed.
 
 This example also contains a Python helper script ``find_kernel.py``
-which displays useful information for Kernel extraction: names and
-Schedules of Invokes containing call to the specified Kernel:
+which displays the names and Schedules of Invokes containing call(s)
+to the specified Kernel:
 
 .. code-block:: bash
 

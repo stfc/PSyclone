@@ -1248,8 +1248,6 @@ class Node(object):
         a Node if found.
         :param children: list of Nodes which are children of this Node
         :type children: list of :py:class:`psyclone.psyGen.Node`
-        :param parent: the parent node of this Node
-        :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: position of the Node in the tree
         :rtype: int
         :raises InternalError: if the starting position is < 0

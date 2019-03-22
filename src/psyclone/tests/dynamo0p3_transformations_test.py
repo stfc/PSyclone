@@ -949,7 +949,8 @@ def test_multi_kernel_single_omp_region():
         assert (omp_end_do_idx - end_do_idx) == 1
 
 
-def test_multi_different_kernel_omp(monkeypatch, annexed):
+def test_multi_different_kernel_omp(
+        tmpdir, f90, f90flags, monkeypatch, annexed):
     '''Test that we correctly generate the OpenMP private lists when we
     have more than one kernel of a different type (requiring a
     different private list) within an invoke. Test with and without
@@ -964,6 +965,7 @@ def test_multi_different_kernel_omp(monkeypatch, annexed):
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
                     api=TEST_API)
+
     for dist_mem in [False, True]:
         psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
         invoke = psy.invokes.get('invoke_0')
@@ -992,9 +994,12 @@ def test_multi_different_kernel_omp(monkeypatch, annexed):
         schedule, _ = otrans.apply(schedule.children[index2].children[0])
 
         code = str(psy.gen)
-        print(code)
 
         assert "private(cell)" in code
+
+        # Compilation testing is enabled with
+        # '--compile --f90="<compiler_name>"' flags to pytest
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_loop_fuse_different_spaces(monkeypatch):

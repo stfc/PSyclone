@@ -96,13 +96,11 @@ class ExtractNode(Node):
     def view(self, indent=0):
         '''
         Prints a text representation of the Extract tree to stdout \
-        and then calls the view() method of any children. The text \
-        representation shows position of Extract Node(s) in the tree.
+        and then calls the view() method of any children.
 
         :param int indent: depth of indent for output text.
         '''
-        print(self.indent(indent) + self.coloured_text +
-              "[position='" + str(self.position) + "']")
+        print(self.indent(indent) + self.coloured_text)
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -114,7 +112,7 @@ class ExtractNode(Node):
         replaced by calls to write out arguments of extracted Node(s) or \
         Kernel(s) in Issue #234.
 
-        :param parent: the parent of this Node.
+        :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyGen.Node`.
         '''
         from psyclone.f2pygen import CommentGen
