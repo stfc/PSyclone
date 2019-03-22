@@ -100,6 +100,10 @@ if __name__ == '__main__':
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser==0.0.8', 'configparser',
                           'six'],
+        extras_require={
+            'doc': ["sphinx", "sphinxcontrib.bibtex"],
+            'test': ["pytest"],
+        },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/genkernelstub'],
         data_files=[('share/psyclone', ['config/psyclone.cfg'])]
