@@ -41,6 +41,9 @@ the parser modules.
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.psyGen import InternalError
+from fparser.two.parser import ParserFactory
+from fparser.common.readfortran import FortranFileReader
+from fparser.two.utils import FortranSyntaxError
 
 # Exceptions
 
@@ -84,7 +87,9 @@ def check_line_length(filename):
 
     :param str filename: The file containing the code.
 
-    :except ParseError: if one of more lines are longer than the 132 \
+    :raises InternalError: if the specified file can not be opened or \
+    read.
+    :raises ParseError: if one of more lines are longer than the 132 \
     line length limit.
 
     '''
@@ -100,3 +105,32 @@ def check_line_length(filename):
         raise ParseError(
             "the file does not conform to the specified {0} line "
             "length limit".format(str(fll.length)))
+
+
+def parse_fp2(filename):
+    '''Parse a Fortran source file contained in the file 'filename' using
+    fparser2.
+
+    :param str filename: source file (including path) to read.
+    :returns: fparser2 AST for the source file.
+    :rtype: :py:class:`fparser.two.Fortran2003.Program`
+    :raises ParseError: if the file could not be parsed.
+
+    '''
+    parser = ParserFactory().create()
+    # We get the directories to search for any Fortran include files from
+    # our configuration object.
+    config = Config.get()
+    try:
+        reader = FortranFileReader(filename, include_dirs=config.include_paths)
+    except IOError as error:
+        raise ParseError(
+            "algorithm.py:parse_fp2: Failed to parse file '{0}'. Error "
+            "returned was ' {1} '.".format(filename, error))
+    try:
+        parse_tree = parser(reader)
+    except FortranSyntaxError as msg:
+        raise ParseError(
+            "algorithm.py:parse_fp2: Syntax error in file '{0}':\n"
+            "{1}".format(filename, str(msg)))
+    return parse_tree

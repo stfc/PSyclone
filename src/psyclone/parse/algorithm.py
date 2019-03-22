@@ -41,13 +41,12 @@ PSyclone-conformant Algorithm code.
 from __future__ import absolute_import
 
 from psyclone.configuration import Config
-from psyclone.parse.utils import check_api, check_line_length, ParseError
+from psyclone.parse.utils import check_api, check_line_length, ParseError, \
+    parse_fp2
 from psyclone.psyGen import InternalError
 
-from fparser.common.readfortran import FortranFileReader
 from fparser.two import pattern_tools
-from fparser.two.utils import walk_ast, FortranSyntaxError
-from fparser.two.parser import ParserFactory
+from fparser.two.utils import walk_ast
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
     Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
@@ -68,25 +67,27 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     information about the 'invoke' calls in the algorithm file and any
     associated kernels within the invoke calls.
 
-    :param str alg_filename: The file containing the algorithm specification.
+    :param str alg_filename: The file containing the algorithm \
+    specification.
     :param str api: The PSyclone API to use when parsing the code.
-    :param str invoke_name: The expected name of the invocation calls in the
-                            algorithm code.
-    :param str inf_name: The expected module name of any required
+    :param str invoke_name: The expected name of the invocation calls \
+                            in the algorithm code.
+    :param str inf_name: The expected module name of any required \
                          infrastructure routines.
-    :param str kernel_path: The path to search for kernel source files (if
-                            different from the location of the algorithm
-                            source).
-    :param bool line_length: A logical flag specifying whether we
-                             care about line lengths being longer
-                             than 132 characters. If so, the input
-                             (algorithm and kernel) code is checked
-                             to make sure that it conforms and an
-                             error raised if not. The default is
-                             False.
+    :param str kernel_path: The path to search for kernel source files \
+                            (if different from the location of the \
+                            algorithm source).
+    :param bool line_length: A logical flag specifying whether we care \
+                             about line lengths being longer than 132 \
+                             characters. If so, the input (algorithm \
+                             and kernel) code is checked to make sure \
+                             that it conforms and an error raised if \
+                             not. The default is False.
+
     :returns: 2-tuple consisting of the fparser2 parse tree of the \
               Algorithm file and an object holding details of the \
               invokes found.
+
     :rtype: (:py:class:`fparser.two.Fortran2003.Program`, \
              :py:class:`psyclone.parse.FileInfo`)
 
@@ -438,35 +439,6 @@ class Parser(object):
 # pylint: enable=too-many-instance-attributes
 
 # Section 2: Support functions
-
-
-def parse_fp2(filename):
-    '''Parse a Fortran source file contained in the file 'filename' using
-    fparser2.
-
-    :param str filename: source file (including path) to read.
-    :returns: fparser2 AST for the source file.
-    :rtype: :py:class:`fparser.two.Fortran2003.Program`
-    :raises ParseError: if the file could not be parsed.
-
-    '''
-    parser = ParserFactory().create()
-    # We get the directories to search for any Fortran include files from
-    # our configuration object.
-    config = Config.get()
-    try:
-        reader = FortranFileReader(filename, include_dirs=config.include_paths)
-    except IOError as error:
-        raise ParseError(
-            "algorithm.py:parse_fp2: Failed to parse file '{0}'. Error "
-            "returned was ' {1} '.".format(filename, error))
-    try:
-        parse_tree = parser(reader)
-    except FortranSyntaxError as msg:
-        raise ParseError(
-            "algorithm.py:parse_fp2: Syntax error in file '{0}':\n"
-            "{1}".format(filename, str(msg)))
-    return parse_tree
 
 
 def get_builtin_defs(api):

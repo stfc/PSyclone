@@ -38,8 +38,10 @@ file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
 import pytest
-from psyclone.parse.algorithm import Parser, parse_fp2, get_invoke_label, \
+
+from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
+
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import InternalError
 
@@ -65,14 +67,13 @@ def test_parser_parse(tmpdir):
             "for file") in str(excinfo.value)
 
 
-def test_parser_createinvokecall():
+def test_parser_createinvokecall(parser):
     '''Test that if an argument to an invoke call is not what is expected
     then the appropriate exception is raised.
 
     '''
+    # pylint: disable=unused-argument
     from fparser.two.Fortran2003 import Call_Stmt
-    from fparser.two.parser import ParserFactory
-    _ = ParserFactory().create(std="f2003")
     statement = Call_Stmt("call invoke(0.0)")
     tmp = Parser()
     with pytest.raises(ParseError) as excinfo:
@@ -92,45 +93,12 @@ def test_parser_updateargtomodulemap_invalid():
     assert "Expected a use statement but found instance of" \
         in str(excinfo.value)
 
-# function parse_fp2() tests
-
-
-def test_parsefp2_invalid_file(tmpdir):
-    '''Test that if there is an error finding the input file specified in
-    filename argument then an exception is raised in the expected way.
-
-    '''
-    with pytest.raises(ParseError) as excinfo:
-        _ = parse_fp2(str(tmpdir.join("does_not_exist.f90")))
-    assert "Failed to parse file" in str(excinfo.value)
-    assert "Error returned was ' [Errno 2] No such file or directory" \
-        in str(excinfo.value)
-
-
-def test_parsefp2_invalid_fortran(tmpdir):
-    '''Test that if the Fortran contained in the file specified in the
-    filename argument then an exception is raised in the expected
-    way. *** Create the parse_tree in-place rather than running
-    PSyclone. Once created make the parse_tree content invalid using
-    monkeypatch.
-
-    '''
-    my_file = str(tmpdir.join("invalid.f90"))
-    ffile = open(my_file, "w")
-    ffile.write("invalid Fortran code")
-    ffile.close()
-    with pytest.raises(ParseError) as excinfo:
-        _ = parse_fp2(my_file)
-    assert "Syntax error in file" in str(excinfo.value)
-
-
 # function get_invoke_label() tests
 
 
 def test_getinvokelabel_invalid_tree():
-    '''Test that if the parse tree argument is not an Actual_Arg_Spec
-    then an exception is raised in the expected
-    way.
+    '''Test that if the parse tree argument is not an Actual_Arg_Spec then
+    an exception is raised in the expected way.
 
     '''
     with pytest.raises(InternalError) as excinfo:
@@ -140,7 +108,7 @@ def test_getinvokelabel_invalid_tree():
         "of") in str(excinfo.value)
 
 
-def test_getinvokelabel_invalid_items(monkeypatch):
+def test_getinvokelabel_invalid_items(parser, monkeypatch):
     '''Test that if the parse tree argument is an Actual_Arg_Spec but does
     not contain two items then an exception is raised in the expected
     way. Create the parse_tree in-place rather than running
@@ -148,9 +116,8 @@ def test_getinvokelabel_invalid_items(monkeypatch):
     monkeypatch.
 
     '''
+    # pylint: disable=unused-argument
     from fparser.two.Fortran2003 import Actual_Arg_Spec
-    from fparser.two.parser import ParserFactory
-    _ = ParserFactory().create(std="f2003")
     parse_tree = Actual_Arg_Spec("name='myname'")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
@@ -163,9 +130,8 @@ def test_getinvokelabel_invalid_items(monkeypatch):
 
 
 def test_getkernel_invalid_tree():
-    '''Test that if the get_kernel function is passed an invalid
-    parse tree argument, then it raises an exception
-    in the expected way.
+    '''Test that if the get_kernel function is passed an invalid parse
+    tree argument, then it raises an exception in the expected way.
 
     '''
     with pytest.raises(InternalError) as excinfo:
@@ -175,7 +141,7 @@ def test_getkernel_invalid_tree():
         in str(excinfo.value)
 
 
-def test_getkernel_invalid_children(monkeypatch):
+def test_getkernel_invalid_children(parser, monkeypatch):
     '''Test that if the get_kernel function finds Part_Ref as the top
     level of the parse tree but this does not have two children then
     it raises an exception in the expected way. Create the parse_tree
@@ -183,9 +149,8 @@ def test_getkernel_invalid_children(monkeypatch):
     parse_tree content invalid using monkeypatch.
 
     '''
+    # pylint: disable=unused-argument
     from fparser.two.Fortran2003 import Part_Ref
-    from fparser.two.parser import ParserFactory
-    _ = ParserFactory().create(std="f2003")
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
@@ -194,7 +159,7 @@ def test_getkernel_invalid_children(monkeypatch):
         in str(excinfo.value)
 
 
-def test_getkernel_invalid_arg(monkeypatch):
+def test_getkernel_invalid_arg(parser, monkeypatch):
     '''Test that if the get_kernel function does not recognise the type of
     argument inside a kernel passed to it, then it raises an exception
     in the expected way. Create the parse_tree in-place rather than
@@ -202,9 +167,8 @@ def test_getkernel_invalid_arg(monkeypatch):
     using monkeypatch.
 
     '''
+    # pylint: disable=unused-argument
     from fparser.two.Fortran2003 import Part_Ref
-    from fparser.two.parser import ParserFactory
-    _ = ParserFactory().create(std="f2003")
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, "invalid"])
     with pytest.raises(InternalError) as excinfo:

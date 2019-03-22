@@ -141,8 +141,7 @@ class Alg(object):
         return self._ast
 
 
-# pylint: disable=too-many-locals
-def adduse(parse_tree, location, name, only=False, funcnames=None):
+def adduse(parse_tree, location, name, only=None, funcnames=None):
     '''Add a Fortran 'use' statement to an existing fparser2 parse
     tree. This will be added at the first valid location before the
     current location.
@@ -162,13 +161,16 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
     :type location: :py:class:`fparser.two.utils.Base`
     :param str name: The name of the use statement
     :param bool only: Whether to include the 'only' clause in the use \
-    statement or not. Defaults to False.
-    :param funcnames: A list of names to include in the use statements \
+    statement or not. Defaults to None which will result in only being \
+    added if funcnames has content and not being added otherwise.
+    :param funcnames: A list of names to include in the use statement's \
     only list. If the list is empty or None then nothing is \
     added. Defaults to None.
     :type funcnames: list of str
 
     '''
+    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-branches
     from fparser.two.utils import walk_ast
     from fparser.two.Fortran2003 import Main_Program, Module, \
         Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
@@ -178,10 +180,24 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
     if location is None:
         raise GenerationError("algGen.py:adduse: Location argument must "
                               "not be None.")
-    if funcnames and not only:
-        raise GenerationError(
-            "algGen.py:adduse: If the 'funcnames' argument is provided then "
-            "the 'only' argument must be 'True'.")
+    if funcnames:
+        # funcnames have been provided for the only clause.
+        if only is False:
+            # However, the only clause has been explicitly set to False.
+            raise GenerationError(
+                "algGen.py:adduse: If the 'funcnames' argument is provided "
+                "and has content, then the 'only' argument must not be set "
+                "to 'False'.")
+        if only is None:
+            # only has not been specified so set it to True as it is
+            # required when funcnames has content.
+            only = True
+
+    if only is None:
+        # only has not been specified and we can therefore infer that
+        # funcnames is empty or is not provided (as earlier code would
+        # have set only to True otherwise) so only is not required.
+        only = False
 
     # Create the specified use statement
     only_str = ""
@@ -209,8 +225,9 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
                               "not in the parse tree.")
     if not parent_prog_statement:
         raise GenerationError(
-            "algGen.py:adduse: The specified location has no parent in the "
-            "parse tree that is a program, module, subroutine or function.")
+            "algGen.py:adduse: The specified location is invalid as it has no "
+            "parent in the parse tree that is a program, module, subroutine "
+            "or function.")
     if not isinstance(parent_prog_statement, (Main_Program,
                                               Subroutine_Subprogram)):
         # We currently only support program and subroutine as ancestors
@@ -222,7 +239,7 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
         raise NotImplementedError(
             "algGen.py:adduse: The second child of the parent code "
             "(content[1]) is expected to be a specification part but "
-            "found '{0}'".format(parent_prog_statement.content[1]))
+            "found '{0}'.".format(repr(parent_prog_statement.content[1])))
 
     # add the use statement as the first child of the specification
     # part of the program
@@ -230,4 +247,3 @@ def adduse(parse_tree, location, name, only=False, funcnames=None):
     spec_part.content.insert(0, use)
 
     return parse_tree
-# pylint: enable=too-many-locals

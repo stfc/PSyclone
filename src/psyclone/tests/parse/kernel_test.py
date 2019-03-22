@@ -102,16 +102,17 @@ def test_getkernelfilepath_multifile(tmpdir):
 
 def test_builtinfactory_metadataerror(monkeypatch):
     '''Test that an appropriate exception is raised if the builtin
-    metadata cant be parsed. This is difficult to trigger so use
-    monkeypatch.
+    metadata cannot be parsed. This is difficult to trigger so use
+    monkeypatch. We just need to make the call to the parse function
+    raise an exception. This can be simply done by setting it to None
+    (which gives a TypeError as it is not callable).
 
     '''
     from psyclone.dynamo0p3_builtins import BUILTIN_MAP as builtins
     from psyclone.dynamo0p3_builtins import BUILTIN_DEFINITIONS_FILE as \
         fname
     from fparser import api as fpapi
-    # Use 1/0 to raise an exception in the lambda function.
-    monkeypatch.setattr(fpapi, "parse", lambda fname: 1/0)
+    monkeypatch.setattr(fpapi, "parse", None)
     factory = BuiltInKernelTypeFactory()
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(builtins.keys(), fname, "setval_c")
@@ -259,8 +260,8 @@ def test_kerneltype_nargs():
 
     with pytest.raises(ParseError) as excinfo:
         _ = KernelType(parse_tree)
-    assert ("In the 'meta_args' metadata, the number of args '2' and number "
-            "of dimensions '1' do not match.") in str(excinfo.value)
+    assert ("In the 'meta_args' metadata, the number of args '2' and extent "
+            "of the dimension '1' do not match.") in str(excinfo.value)
 
 
 def test_kerneltype_repr():

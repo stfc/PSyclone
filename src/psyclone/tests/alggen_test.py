@@ -51,7 +51,6 @@ def test_single_function_invoke():
     alg, _ = generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                       api="dynamo0.3")
     gen = str(alg)
-    print (gen)
     assert "USE single_invoke_psy, ONLY: invoke_0_testkern_type" in gen
     assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
 
@@ -442,21 +441,23 @@ CODE = ("program test\n"
 # utility function for parsing code, used in subsequent adduse tests.
 
 
-def get_parse_tree(code):
+def get_parse_tree(code, parser):
     '''Utility function that takes Fortran code as a string and returns an
-    Fortran 2003 compliant fparser2 parse tree of the code.
+    fparser2 parse tree of the code. Pass in an instance of the parser
+    so we don't create a new one each time this routine is called.
 
-    param str code: Fortran code in a string
+    :param str code: Fortran code in a string
+
+    :param parser: An fparser2 program class.
+    :type parser: :py:class:`fparser.two.Fortran2003.Program`
 
     :returns: parse tree of the supplied code.
     :rtype: :py:class:`fparser.two.utils.Base`
 
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.parser import ParserFactory
     reader = FortranStringReader(code)
-    f2003_parser = ParserFactory().create()
-    return f2003_parser(reader)
+    return parser(reader)
 
 # function adduse tests These should be moved in #240.
 
@@ -474,13 +475,13 @@ def test_adduse_location_none():
         in str(excinfo.value)
 
 
-def test_adduse_only_names1():
+def test_adduse_only_names1(parser):
     '''Test that the expected output is obtained in a Fortran program when
     variable/function names are provided for a use statement and only
     is True.
 
     '''
-    parse_tree = get_parse_tree(CODE)
+    parse_tree = get_parse_tree(CODE, parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
@@ -490,7 +491,7 @@ def test_adduse_only_names1():
         in str(new_parse_tree)
 
 
-def test_adduse_only_names2():
+def test_adduse_only_names2(parser):
     '''Test that the expected output is obtained in a Fortran subroutine
     when variable/function names are provided for a use statement and
     only is True.
@@ -500,7 +501,7 @@ def test_adduse_only_names2():
         "subroutine test()\n"
         "  integer :: i\n"
         "  i=0\n"
-        "end subroutine test\n")
+        "end subroutine test\n", parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
@@ -510,12 +511,12 @@ def test_adduse_only_names2():
             "  INTEGER :: i\n") in str(new_parse_tree)
 
 
-def test_adduse_only_nonames():
+def test_adduse_only_nonames(parser):
     '''Test that the expected output is obtained when no variable/function
     names are provided for a use statement and only is True.
 
     '''
-    parse_tree = get_parse_tree(CODE)
+    parse_tree = get_parse_tree(CODE, parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
@@ -524,26 +525,45 @@ def test_adduse_only_nonames():
         in str(new_parse_tree)
 
 
-def test_adduse_noonly_names():
+def test_adduse_noonly_names(parser):
     '''Test that the expected output is obtained when variable/function
-    names are provided for a use statement and only is False.
+    names are provided for a use statement and the value for the only
+    argument is not provided.
 
     '''
-    parse_tree = get_parse_tree(CODE)
+    parse_tree = get_parse_tree(CODE, parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+    new_parse_tree = adduse(parse_tree, location, name,
+                            funcnames=["a", "b", "c"])
+    assert ("PROGRAM test\n  USE my_use, ONLY: a, b, c\n"
+            "  INTEGER :: i\n") in str(new_parse_tree)
+
+
+def test_adduse_onlyfalse_names(parser):
+    '''Test that an exception is raised when variable/function names are
+    provided for a use statement and the value for the only argument
+    is set to False.
+
+    '''
+    parse_tree = get_parse_tree(CODE, parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        _ = adduse(parse_tree, location, name, funcnames=["a", "b", "c"])
-    assert ("If the 'funcnames' argument is provided then the 'only' "
-            "argument must be 'True'.") in str(excinfo.value)
+        _ = adduse(parse_tree, location, name, only=False,
+                   funcnames=["a", "b", "c"])
+    assert ("If the 'funcnames' argument is provided and has content, "
+            "then the 'only' argument must not be set to "
+            "'False'.") in str(excinfo.value)
 
 
-def test_adduse_noonly_nonames():
+def test_adduse_noonly_nonames(parser):
     '''Test that the expected output is obtained when no variable/function
-    names are provided for a use statement and only is False.
+    names are provided for a use statement and only is not explicitly
+    set.
 
     '''
-    parse_tree = get_parse_tree(CODE)
+    parse_tree = get_parse_tree(CODE, parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
@@ -552,12 +572,12 @@ def test_adduse_noonly_nonames():
         in str(new_parse_tree)
 
 
-def test_adduse_nolocation():
+def test_adduse_nolocation(parser):
     '''Test that the expected exception is raised when the specified
     location is not in the parse_tree
 
     '''
-    parse_tree = get_parse_tree(CODE)
+    parse_tree = get_parse_tree(CODE, parser)
     location = "lilliput"
     name = "my_use"
 
@@ -567,24 +587,25 @@ def test_adduse_nolocation():
         in str(excinfo.value)
 
 
-def test_adduse_noprogparent():
+def test_adduse_noprogparent(parser):
     '''Test that the expected exception is raised when the specified
     location has no parent that is one of main_program, module,
     subroutine or function.
 
     '''
-    parse_tree = get_parse_tree(CODE)
+    parse_tree = get_parse_tree(CODE, parser)
     # location is main_program which is not a child of program.
     location = parse_tree.content[0]
     name = "my_use"
 
     with pytest.raises(GenerationError) as excinfo:
         _ = adduse(parse_tree, location, name)
-    assert ("The specified location has no parent in the parse tree that is "
-            "a program, module, subroutine or function.") in str(excinfo.value)
+    assert ("The specified location is invalid as it has no parent in the "
+            "parse tree that is a program, module, subroutine or "
+            "function.") in str(excinfo.value)
 
 
-def test_adduse_unsupportedparent1():
+def test_adduse_unsupportedparent1(parser):
     '''Test that the expected exception is raised when the specified
     location has an ancestor that is a module.
 
@@ -592,7 +613,7 @@ def test_adduse_unsupportedparent1():
     parse_tree = get_parse_tree(
         "module test\n"
         "  integer :: i\n"
-        "end module test\n")
+        "end module test\n", parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
@@ -602,7 +623,7 @@ def test_adduse_unsupportedparent1():
         in str(excinfo.value)
 
 
-def test_adduse_unsupportedparent2():
+def test_adduse_unsupportedparent2(parser):
     '''Test that the expected exception is raised when the specified
     location has an ancestor that is a function.
 
@@ -611,7 +632,7 @@ def test_adduse_unsupportedparent2():
         "integer function test()\n"
         "  integer :: i\n"
         "  return i\n"
-        "end function test\n")
+        "end function test\n", parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
@@ -621,7 +642,7 @@ def test_adduse_unsupportedparent2():
         in str(excinfo.value)
 
 
-def test_adduse_nospec():
+def test_adduse_nospec(parser):
     '''Test that the expected exception is raised when the ancestor (a
     program or a subroutine) does not have a specification part as its
     second child location has a parent that is a function. This is the
@@ -631,11 +652,12 @@ def test_adduse_nospec():
     '''
     parse_tree = get_parse_tree(
         "program test\n"
-        "end program test\n")
+        "end program test\n", parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
     with pytest.raises(NotImplementedError) as excinfo:
         _ = adduse(parse_tree, location, name)
     assert ("The second child of the parent code (content[1]) is expected "
-            "to be a specification part") in str(excinfo.value)
+            "to be a specification part but found 'End_Program_Stmt"
+            "('PROGRAM', Name('test'))'.") in str(excinfo.value)

@@ -721,8 +721,9 @@ class KernelType(object):
         if len(inits) != nargs:
             raise ParseError(
                 "kernel.py:KernelType():getkerneldescriptors: In the '{0}' "
-                "metadata, the number of args '{1}' and number of dimensions "
-                "'{2}' do not match.".format(var_name, nargs, len(inits)))
+                "metadata, the number of args '{1}' and extent of the "
+                "dimension '{2}' do not match.".format(var_name, nargs,
+                                                       len(inits)))
         return inits
 
     @property

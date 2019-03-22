@@ -415,6 +415,5 @@ def test_empty_kernel_name(monkeypatch):
             break
     with pytest.raises(InternalError) as err:
         _ = KernelType(ast)
-    print (str(err))
     assert ("Empty Kernel name returned for Kernel type testkern_eval_type"
             in str(err))

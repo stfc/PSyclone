@@ -47,6 +47,7 @@ from fparser.api import parse as parse1
 
 API = "gocean0.1"
 
+
 # pylint: disable=invalid-name
 def test_loop_bounds_gen_multiple_loops():
     ''' Test that we only generate one assignment for a loop-bounds

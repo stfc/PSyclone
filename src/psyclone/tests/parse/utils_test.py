@@ -33,9 +33,17 @@
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
+'''A module to perform pytest unit tests on the parse/utils.py
+file.
+
+'''
+
 import pytest
-from psyclone.parse.utils import check_line_length
+from psyclone.parse.utils import check_line_length, parse_fp2, ParseError
 from psyclone.psyGen import InternalError
+
+# function check_line_length() tests
+
 
 def test_no_file():
     '''Check that an exception is raised as expected when the file
@@ -43,6 +51,37 @@ def test_no_file():
 
     '''
     with pytest.raises(InternalError) as excinfo:
-        _ = check_line_length("file_does_not_exist")
+        check_line_length("file_does_not_exist")
     assert ("In utils.py:check_line_length: [Errno 2] No such file or "
             "directory: 'file_does_not_exist'") in str(excinfo.value)
+
+# function parse_fp2() tests
+
+
+def test_parsefp2_invalid_file(tmpdir):
+    '''Test that if there is an error finding the input file specified in
+    filename argument then an exception is raised in the expected way.
+
+    '''
+    with pytest.raises(ParseError) as excinfo:
+        _ = parse_fp2(str(tmpdir.join("does_not_exist.f90")))
+    assert "Failed to parse file" in str(excinfo.value)
+    assert "Error returned was ' [Errno 2] No such file or directory" \
+        in str(excinfo.value)
+
+
+def test_parsefp2_invalid_fortran(tmpdir):
+    '''Test that if the Fortran contained in the file specified in the
+    filename argument then an exception is raised in the expected
+    way. *** Create the parse_tree in-place rather than running
+    PSyclone. Once created make the parse_tree content invalid using
+    monkeypatch.
+
+    '''
+    my_file = str(tmpdir.join("invalid.f90"))
+    ffile = open(my_file, "w")
+    ffile.write("invalid Fortran code")
+    ffile.close()
+    with pytest.raises(ParseError) as excinfo:
+        _ = parse_fp2(my_file)
+    assert "Syntax error in file" in str(excinfo.value)
