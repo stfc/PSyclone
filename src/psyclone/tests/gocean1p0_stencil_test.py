@@ -274,9 +274,11 @@ def test_copy():
     stencil_copy = stencil.copy()
     assert stencil_copy is not stencil
     assert stencil_copy.name == stencil.name
-    assert stencil_copy._initialised == stencil._initialised
     assert stencil_copy.has_stencil == stencil.has_stencil
+    # pylint: disable=protected-access
+    assert stencil_copy._initialised == stencil._initialised
     assert stencil_copy._stencil == stencil._stencil
+    # pylint: enable=protected-access
 
     # Even though stencil_copy and stencil are different objects (see assert
     # above), they could still share a sub-list object of stencil. So to be
@@ -284,7 +286,9 @@ def test_copy():
     # the original is not affected.
     for i in range(0, 3):
         for j in range(0, 3):
+            # pylint: disable=protected-access
             stencil_copy._stencil[i][j] = (i+1)*100+j+1
+            # pylint: enable=protected-access
             assert stencil_copy.depth(i-1, j-1) != stencil.depth(i-1, j-1)
 
 
@@ -305,7 +309,9 @@ def test_merge():
     # of the internal representation, we don't compare the lists directly,
     # but parse the expected merged stencil:
     stencil_result = create_stencil("go_stencil(323, 505, 323)")
+    # pylint: disable=protected-access
     assert stencil1._stencil == stencil_result._stencil
+    # pylint: enable=protected-access
 
     # Test the handling of pointwise stencils (i.e. no stencil)
     stencil1 = create_stencil("go_pointwise")
@@ -313,3 +319,11 @@ def test_merge():
     assert not stencil1.has_stencil
     stencil1.merge(stencil2)
     assert stencil1.has_stencil
+
+
+def test_repr():
+    '''This functions tests __repr__ of GOStencil.
+    '''
+
+    stencil = create_stencil("go_stencil(123, 416, 789)")
+    assert str(stencil) == "GOStencil(123, 416, 789)"

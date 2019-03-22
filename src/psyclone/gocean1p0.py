@@ -1438,6 +1438,22 @@ class GOStencil(object):
         self._name = None
         self._initialised = False
 
+    def __repr__(self):
+        '''Returns a string presentation of this stencil.
+        :returns: String representation.
+        :rtype: :str:
+        '''
+        return "GOStencil({0}{1}{2}, {3}{4}{5}, {6}{7}{8})".\
+               format(self._stencil[0][0],
+                      self._stencil[1][0],
+                      self._stencil[2][0],
+                      self._stencil[0][1],
+                      self._stencil[1][1],
+                      self._stencil[2][1],
+                      self._stencil[0][2],
+                      self._stencil[1][2],
+                      self._stencil[2][2])
+
     def copy(self):
         '''Created a stand-alone copy of this stencil. It does not
         share any inforation. so the copy can be modified without
