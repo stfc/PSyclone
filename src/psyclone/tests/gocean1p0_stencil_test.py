@@ -55,6 +55,21 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # initialised (i.e. the load method has not been called)
 
 
+def create_stencil(stencil_string):
+    '''This is a small helper function that creates a stencil and
+    initialises it with the data in the given in the string. It does
+    not do any exception handling, so any exceptions from parsing
+    or loading the data will be passed on.
+    :param str stencil_string: A valid stencil definition or stencil name.
+    :returns A new GOStencil instance initialied with the given data.
+    :rtype: :py:class:`psyclone.gocean1p0.GOStencil`
+    '''
+    stencil = GOStencil()
+    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
+    stencil.load(parsed_stencil, "kernel_stencil")
+    return stencil
+
+
 def test_not_initialised():
     '''A GOStencil object can be created in isolation and then have its
     stencil information initialised using the load() method. If a
@@ -103,26 +118,20 @@ def test_stencil_invalid_format_1():
         in str(excinfo.value)
 
     # this should cause a general unexpected format error
-    stencil_string = "(a)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
-        stencil.load(parsed_stencil, "kernel_stencil")
+        create_stencil("(a)")
     assert "expected either a name or the format 'go_stencil(...)" \
         in str(excinfo.value)
 
     # this should cause an unsupported name error
-    stencil_string = "random_name"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
-        stencil.load(parsed_stencil, "kernel_stencil")
+        create_stencil("random_name")
     assert ("argument is 'random_name' but must be one of ['go_pointwise'] or "
             "go_stencil(...)") in str(excinfo.value)
 
     # this should cause an unsupported name error
-    stencil_string = "stenci(a)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
-        stencil.load(parsed_stencil, "kernel_stencil")
+        create_stencil("stenci(a)")
     assert "argument is 'stenci' but must be 'go_stencil(...)" \
         in str(excinfo.value)
 
@@ -132,60 +141,42 @@ def test_stencil_invalid_format_2():
     format can be invalid
 
     '''
-    stencil = GOStencil()
-
-    # this should cause a not-enough-args error
-    stencil_string = "go_stencil(a)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
-        stencil.load(parsed_stencil, "kernel_stencil")
+        create_stencil("go_stencil(a)")
     assert "format 'go_stencil(...)', has 1 arguments but should have 3" \
-        in str(excinfo.value)
 
     # this should cause a not-a-number error
-    stencil_string = "go_stencil(a,b,c)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
-        stencil.load(parsed_stencil, "kernel_stencil")
+        create_stencil("go_stencil(a,b,c)")
     assert "Argument index 0 should be a number but found 'a'" \
         in str(excinfo.value)
 
     # this should also cause a not-a-number error
-    stencil_string = "go_stencil(000,x00,000)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
-        stencil.load(parsed_stencil, "kernel_stencil")
+        create_stencil("go_stencil(000,x00,000)")
     assert "index 1 should be a number but found 'x00'" \
         in str(excinfo.value)
 
     # this should cause a not-3-numbers error
-    stencil_string = "go_stencil(012,345,67)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
-        stencil.load(parsed_stencil, "kernel_stencil")
+        create_stencil("go_stencil(012,345,67)")
     assert "index 2 should consist of 3 digits but found 2" \
         in str(excinfo.value)
 
     # this should cause an invalid-middle-number error
-    stencil_string = "go_stencil(012,345,678)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
-        stencil.load(parsed_stencil, "kernel_stencil")
+        create_stencil("go_stencil(012,345,678)")
     assert "index 1 position 1 should be a number from 0-1 but found 4" \
         in str(excinfo.value)
 
     # this should cause a zero-size-stencil error
-    stencil_string = "go_stencil(000,010,000)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     with pytest.raises(ParseError) as excinfo:
-        stencil.load(parsed_stencil, "kernel_stencil")
+        create_stencil("go_stencil(000,010,000)")
     assert ("A zero sized stencil has been specified. This should be "
             "specified with the 'go_pointwise' keyword") in str(excinfo.value)
 
     # lastly, this should work as it is valid
-    stencil_string = "go_stencil(000,011,000)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
-    stencil.load(parsed_stencil, "kernel_stencil")
+    create_stencil("go_stencil(000,011,000)")
 
 # Section 3 Test that GOStencil method arguments cause the object to
 # raise an exception if they are invalid
@@ -196,11 +187,7 @@ def test_stencil_depth_args():
     of the GOStencil class cause an exception to be raised.
 
     '''
-    stencil = GOStencil()
-
-    stencil_string = "go_stencil(010,111,010)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
-    stencil.load(parsed_stencil, "kernel_stencil")
+    stencil = create_stencil("go_stencil(010,111,010)")
     for i, j in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
         with pytest.raises(GenerationError) as excinfo:
             stencil.depth(i, j)
@@ -216,11 +203,7 @@ def test_stencil_case_1():
     upper case.
 
     '''
-    stencil = GOStencil()
-
-    stencil_string = "go_StEnCiL(000,011,000)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
-    stencil.load(parsed_stencil, "kernel_stencil")
+    stencil = create_stencil("go_StEnCiL(000,011,000)")
     assert stencil.has_stencil
     for idx2 in range(-1, 2):
         for idx1 in range(-1, 2):
@@ -237,10 +220,7 @@ def test_stencil_case_2():
 
     '''
 
-    stencil = GOStencil()
-    stencil_string = "go_pOiNtWiSe"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
-    stencil.load(parsed_stencil, "kernel_stencil")
+    stencil = create_stencil("go_pOiNtWiSe")
     assert not stencil.has_stencil
     assert stencil.name == "go_pointwise"
 
@@ -289,11 +269,7 @@ def test_copy():
     alone copy of the original and does not contain a reference to the
     original stencil data structure.'''
 
-    stencil = GOStencil()
-
-    stencil_string = "go_stencil(000,111,000)"
-    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
-    stencil.load(parsed_stencil, "kernel_stencil")
+    stencil = create_stencil("go_stencil(000,111,000)")
 
     stencil_copy = stencil.copy()
     assert stencil_copy is not stencil
@@ -310,3 +286,30 @@ def test_copy():
         for j in range(0, 3):
             stencil_copy._stencil[i][j] = (i+1)*100+j+1
             assert stencil_copy.depth(i-1, j-1) != stencil.depth(i-1, j-1)
+
+
+def test_merge():
+    '''This functions tests if merging two stencils works as expected.
+    '''
+
+    # The test values test all combinations of a value in stencil1
+    # being smaller, equal and bigger than the corresponding value
+    # in stencil2.
+
+    stencil1 = create_stencil("go_stencil(123, 405, 321)")
+    stencil2 = create_stencil("go_stencil(321, 504, 123)")
+    stencil1.merge(stencil2)
+
+    # The internal representation of the stencil is a list of colummns (while
+    # in the string that is parsed it is a list of rows). To be independent
+    # of the internal representation, we don't compare the lists directly,
+    # but parse the expected merged stencil:
+    stencil_result = create_stencil("go_stencil(323, 505, 323)")
+    assert stencil1._stencil == stencil_result._stencil
+
+    # Test the handling of pointwise stencils (i.e. no stencil)
+    stencil1 = create_stencil("go_pointwise")
+    stencil2 = create_stencil("go_stencil(321, 504, 123)")
+    assert not stencil1.has_stencil
+    stencil1.merge(stencil2)
+    assert stencil1.has_stencil

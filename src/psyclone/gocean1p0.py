@@ -1458,6 +1458,24 @@ class GOStencil(object):
         # pylint: enable=protected-access
         return new_stencil
 
+    def merge(self, other):
+        '''Merges two stencil information: the depth in each direction
+        is set to the maximum of the two depths. This is used if a variable
+        is used in two kernels, each time with a different stencil size.
+        In this case the overall stencil depth use must be the maximum
+        of each individual values.
+        :param other: A stencil instance, whose data is merged into
+                      this instance.
+        :type other: :py:class:`psyclone.gocean1p0.GOStencil`
+        '''
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                self._stencil[i+1][j+1] = max(self.depth(i, j),
+                                              other.depth(i, j))
+        # If this stencil is pointwise, but other is not (or vise versa)
+        # make sure the has_stencil flag is set correctly.
+        self._has_stencil = self._has_stencil or other.has_stencil
+
     # pylint: disable=too-many-branches
     def load(self, stencil_info, kernel_name):
         '''Take parsed stencil metadata information, check it is valid and
