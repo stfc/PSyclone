@@ -1438,6 +1438,26 @@ class GOStencil(object):
         self._name = None
         self._initialised = False
 
+    def copy(self):
+        '''Created a stand-alone copy of this stencil. It does not
+        share any inforation. so the copy can be modified without
+        affecting the original.
+        '''
+        new_stencil = GOStencil()
+        # pylint is not smart enough to realise that new_stencil
+        # and self are the same class, so it raises 'access to
+        # protected members' messages for the access to new_stencil.
+        # pylint: disable=protected-access
+        new_stencil._has_stencil = self._has_stencil
+        # Even if self._has_stencil if false, _stencil is defined,
+        # so we copy it anyway. We need to make an explicit
+        # copy of the nested list, otherwise the lists are shared!
+        new_stencil._stencil = [i[:] for i in self._stencil]
+        new_stencil._name = self._name
+        new_stencil._initialised = self._initialised
+        # pylint: enable=protected-access
+        return new_stencil
+
     # pylint: disable=too-many-branches
     def load(self, stencil_info, kernel_name):
         '''Take parsed stencil metadata information, check it is valid and

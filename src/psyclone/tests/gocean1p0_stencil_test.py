@@ -282,3 +282,31 @@ def test_stencil_information():
             else:
                 expected_depth = 0
             assert stencil_arg.stencil.depth(idx1, idx2) == expected_depth
+
+
+def test_copy():
+    '''Test that the stencil copy operation does indeed create a stand
+    alone copy of the original and does not contain a reference to the
+    original stencil data structure.'''
+
+    stencil = GOStencil()
+
+    stencil_string = "go_stencil(000,111,000)"
+    parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
+    stencil.load(parsed_stencil, "kernel_stencil")
+
+    stencil_copy = stencil.copy()
+    assert stencil_copy is not stencil
+    assert stencil_copy.name == stencil.name
+    assert stencil_copy._initialised == stencil._initialised
+    assert stencil_copy.has_stencil == stencil.has_stencil
+    assert stencil_copy._stencil == stencil._stencil
+
+    # Even though stencil_copy and stencil are different objects (see assert
+    # above), they could still share a sub-list object of stencil. So to be
+    # very thorough, modify each stencil element in the copy and make sure
+    # the original is not affected.
+    for i in range(0, 3):
+        for j in range(0, 3):
+            stencil_copy._stencil[i][j] = (i+1)*100+j+1
+            assert stencil_copy.depth(i-1, j-1) != stencil.depth(i-1, j-1)
