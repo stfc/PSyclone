@@ -34,9 +34,9 @@
 # Author I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
-''' Module containing tests for PSyclone ExtractRegionTrans transformation
-and ExtractNode.
- '''
+''' Module containing tests for PSyclone DynamoExtractRegionTrans and
+GOceanExtractRegionTrans transformations and ExtractNode.
+'''
 
 from __future__ import absolute_import
 
@@ -46,7 +46,8 @@ import pytest
 from psyclone.parse import parse
 from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, Loop
-from psyclone.transformations import ExtractRegionTrans, TransformationError
+from psyclone.transformations import TransformationError, \
+    DynamoExtractRegionTrans, GOceanExtractRegionTrans
 from psyclone_test_utils import code_compiles
 
 # Paths to APIs
@@ -59,16 +60,16 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 GOCEAN_API = "gocean1.0"
 
 # --------------------------------------------------------------------------- #
-# ================== ExtractRegionTrans tests =============================== #
+# ================== Extract Transformation tests =========================== #
 # --------------------------------------------------------------------------- #
 
 
 def test_node_list_error(tmpdir, f90, f90flags):
-    ''' Test that applying ExtractRegionTrans on objects which are not
+    ''' Test that applying Extract Transformation on objects which are not
     Nodes or a list of Nodes raises a TransformationError. Also raise
     transformation errors when the Nodes do not have the same parent
     if they are incorrectly ordered. '''
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
@@ -77,14 +78,13 @@ def test_node_list_error(tmpdir, f90, f90flags):
     psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
     invoke0 = psy.invokes.invoke_list[0]
     invoke1 = psy.invokes.invoke_list[1]
-
     # Supply an object which is not a Node or a list of Nodes
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(invoke0)
-    assert ("Error in ExtractRegionTrans: Argument must be a single Node "
-            "in a Schedule or a list of Nodes in a Schedule but have "
-            "been passed an object of type: ") in str(excinfo)
-    assert "<class \'psyclone.dynamo0p3.DynInvoke\'>" in str(excinfo)
+    assert ("Error in DynamoExtractRegionTrans: Argument must be "
+            "a single Node in a Schedule or a list of Nodes in a Schedule "
+            "but have been passed an object of type: "
+            "<class 'psyclone.dynamo0p3.DynInvoke'>") in str(excinfo)
 
     # Supply Nodes in incorrect order or duplicate Nodes
     node_list = [invoke0.schedule.children[0],
@@ -103,18 +103,18 @@ def test_node_list_error(tmpdir, f90, f90flags):
                  invoke0.schedule.children[2]]
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(node_list)
-    assert ("Error in ExtractRegionTrans transformation: supplied nodes "
-            "are not children of the same Schedule/parent.") in str(excinfo)
+    assert ("supplied nodes are not children of the same "
+            "Schedule/parent.") in str(excinfo)
 
     # Compilation testing is enabled with
     # '--compile --f90="<compiler_name>"' flags to pytest
     assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
 
 
-def test_distmem_error():
-    ''' Test that applying ExtractRegionTrans with distributed memory
-    enabled raises a TransformationError. '''
-    etrans = ExtractRegionTrans()
+def test_haloexchange_error():
+    ''' Test that applying Extract Transformation on Node(s) containing
+    HaloExchange raises a TransformationError. '''
+    etrans = DynamoExtractRegionTrans()
 
     # Test Dynamo0.3 API with distributed memory
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
@@ -125,28 +125,37 @@ def test_distmem_error():
     schedule = invoke.schedule
     # Try applying Extract transformation
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(schedule.children[3])
-    assert ("Error in ExtractRegionTrans: Distributed memory is not "
-            "supported.") in str(excinfo.value)
+        _, _ = etrans.apply(schedule.children[2:4])
+    assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynHaloExchange'>' "
+            "cannot be enclosed by a DynamoExtractRegionTrans "
+            "transformation") in str(excinfo)
 
-    # Test GOcean1.0 API with distributed memory
-    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
-                                        "single_invoke_three_kernels.f90"),
-                           api=GOCEAN_API)
-    psy = PSyFactory(GOCEAN_API, distributed_memory=True).create(invoke_info)
+
+def test_globalsum_error():
+    ''' Test that applying Extract Transformation on Node(s) containing
+    GlobalSum raises a TransformationError. '''
+    etrans = DynamoExtractRegionTrans()
+
+    # Test Dynamo0.3 API with distributed memory
+    _, invoke_info = parse(
+        os.path.join(DYNAMO_BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
+        distributed_memory=True, api=DYNAMO_API)
+    psy = PSyFactory(DYNAMO_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    glob_sum = schedule.children[2]
     # Try applying Extract transformation
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(schedule.children[0])
-    assert ("Error in ExtractRegionTrans: Distributed memory is not "
-            "supported.") in str(excinfo)
+        _, _ = etrans.apply(glob_sum)
+    assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynGlobalSum'>' "
+            "cannot be enclosed by a DynamoExtractRegionTrans "
+            "transformation") in str(excinfo)
 
 
 def test_repeat_extract():
-    ''' Test that applying ExtractRegionTrans on a node list that already
-    contains an ExtractNode raises a TransformationError. '''
-    etrans = ExtractRegionTrans()
+    ''' Test that applying Extract Transformation on Node(s) already
+    containing an ExtractNode raises a TransformationError. '''
+    etrans = DynamoExtractRegionTrans()
 
     # Test Dynamo0.3 API
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
@@ -160,17 +169,17 @@ def test_repeat_extract():
     # Now try applying it again on the ExtractNode
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[0])
-    assert ("Error in ExtractRegionTrans: Extraction of a region which "
-            "already contains another Extract region is not allowed.") \
-        in str(excinfo)
+    assert ("Nodes of type '<class 'psyclone.extractor.ExtractNode'>' "
+            "cannot be enclosed by a DynamoExtractRegionTrans "
+            "transformation") in str(excinfo)
 
 
 def test_kern_builtin_no_loop():
-    ''' Test that applying ExtractRegionTrans on a Kernel or Built-in call
-    without its parent Loop raises a TransformationError. '''
-    etrans = ExtractRegionTrans()
+    ''' Test that applying Extract Transformation on a Kernel or Built-in
+    call without its parent Loop raises a TransformationError. '''
 
     # Test Dynamo0.3 API for Built-in call error
+    dynetrans = DynamoExtractRegionTrans()
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
                      "15.1.2_builtin_and_normal_kernel_invoke.f90"),
@@ -181,11 +190,12 @@ def test_kern_builtin_no_loop():
     # Test Built-in call
     builtin_call = schedule.children[1].children[0]
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(builtin_call)
+        _, _ = dynetrans.apply(builtin_call)
     assert ("Extraction of a Kernel or a Built-in call without its "
             "parent Loop is not allowed.") in str(excinfo)
 
     # Test GOcean1.0 API for Kernel call error
+    gocetrans = GOceanExtractRegionTrans()
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_three_kernels.f90"),
                            api=GOCEAN_API)
@@ -195,16 +205,16 @@ def test_kern_builtin_no_loop():
     # Test Kernel call
     kernel_call = schedule.children[0].children[0].children[0]
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(kernel_call)
+        _, _ = gocetrans.apply(kernel_call)
     assert ("Extraction of a Kernel or a Built-in call without its "
             "parent Loop is not allowed.") in str(excinfo)
 
 
 def test_loop_no_directive_dynamo0p3():
-    ''' Test that applying ExtractRegionTrans on a Loop without its
+    ''' Test that applying Extract Transformation on a Loop without its
     parent Directive when optimisations are applied in Dynamo0.3 API
     raises a TransformationError. '''
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
 
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
@@ -227,13 +237,13 @@ def test_loop_no_directive_dynamo0p3():
 
 
 def test_no_parent_ompdirective():
-    ''' Test that applying ExtractRegionTrans on an orphaned
+    ''' Test that applying Extract Transformation on an orphaned
     OMPDoDirective without its ancestor OMPRegionDirective when
     optimisations are applied raises a TransformationError. '''
     from psyclone.transformations import OMPParallelTrans, \
         Dynamo0p3OMPLoopTrans
 
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
     ltrans = Dynamo0p3OMPLoopTrans()
     otrans = OMPParallelTrans()
 
@@ -259,13 +269,13 @@ def test_no_parent_ompdirective():
 
 
 def test_no_parent_accdirective():
-    ''' Test that applying ExtractRegionTrans on an orphaned
+    ''' Test that applying Extract Transformation on an orphaned
     ACCLoopDirective without its ancestor ACCParallelDirective
     when optimisations are applied raises a TransformationError. '''
     from psyclone.transformations import ACCParallelTrans, ACCDataTrans, \
         ACCLoopTrans
 
-    etrans = ExtractRegionTrans()
+    etrans = GOceanExtractRegionTrans()
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCDataTrans()
@@ -294,13 +304,13 @@ def test_no_parent_accdirective():
 
 
 def test_no_colours_loop_dynamo0p3():
-    ''' Test that applying ExtractRegionTrans on a Loop over cells in a
-    colour without its parent Loop over colours in Dynamo0.3 API raises
-    a TransformationError. '''
+    ''' Test that applying DynamoExtractRegionTrans on a Loop over cells
+    in a colour without its parent Loop over colours in Dynamo0.3 API
+    raises a TransformationError. '''
     from psyclone.transformations import Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans
 
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
@@ -314,20 +324,12 @@ def test_no_colours_loop_dynamo0p3():
     # Colour first loop that calls testkern_code (loop is over cells and
     # is not on a discontinuous space)
     schedule, _ = ctrans.apply(schedule.children[0])
-    # Try to extract the region between the Loop over cells in a colour
-    # and the exterior Loop over colours
     colour_loop = schedule.children[0].children[0]
-    with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(colour_loop)
-    assert ("Dynamo0.3 API: Extraction of a Loop over cells in a "
-            "colour without its ancestor Loop over colours is not "
-            "allowed.") in str(excinfo)
-
-    # Now apply OMP Parallel DO Directive to the colour Loop and
-    # try to extract the region between the Directive and the
-    # exterior Loop over colours
+    # Apply OMP Parallel DO Directive to the colour Loop
     schedule, _ = otrans.apply(colour_loop)
     directive = schedule.children[0].children[0]
+    # Try to extract the region between the Loop over cells in a colour
+    # and the exterior Loop over colours
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(directive)
     assert ("Dynamo0.3 API: Extraction of a Loop over cells in a "
@@ -336,9 +338,9 @@ def test_no_colours_loop_dynamo0p3():
 
 
 def test_no_outer_loop_gocean1p0():
-    ''' Test that applying ExtractRegionTrans on an inner Loop without its
-    parent outer Loop in GOcean1p0 API raises a TransformationError. '''
-    etrans = ExtractRegionTrans()
+    ''' Test that applying GOceanExtractRegionTrans on an inner Loop without
+    its parent outer Loop in GOcean1.0 API raises a TransformationError. '''
+    etrans = GOceanExtractRegionTrans()
 
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_three_kernels.f90"),
@@ -360,11 +362,12 @@ def test_no_outer_loop_gocean1p0():
 
 
 def test_extract_node_position():
-    ''' Test that ExtractRegionTrans inserts the ExtractNode in the position
-    of the first Node a Schedule in the Node list marked for extraction. '''
-    etrans = ExtractRegionTrans()
+    ''' Test that Extract Transformation inserts the ExtractNode
+    at the position of the first Node a Schedule in the Node list
+    marked for extraction. '''
 
     # Test GOcean1.0 API for extraction of a single Node
+    gocetrans = GOceanExtractRegionTrans()
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_three_kernels.f90"),
                            api=GOCEAN_API)
@@ -378,7 +381,7 @@ def test_extract_node_position():
     child = schedule.children[pos]
     abspos = child.abs_position
     dpth = child.depth
-    schedule, _ = etrans.apply(child)
+    schedule, _ = gocetrans.apply(child)
     extract_node = schedule.walk(schedule.children, ExtractNode)
     # The result is only one ExtractNode in the list with position 1
     assert extract_node[0].position == pos
@@ -386,6 +389,7 @@ def test_extract_node_position():
     assert extract_node[0].depth == dpth
 
     # Test Dynamo0.3 API for extraction of a list of Nodes
+    dynetrans = DynamoExtractRegionTrans()
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
                      "15.1.2_builtin_and_normal_kernel_invoke.f90"),
@@ -401,7 +405,7 @@ def test_extract_node_position():
     children = schedule.children[pos:pos+3]
     abspos = children[0].abs_position
     dpth = children[0].depth
-    schedule, _ = etrans.apply(children)
+    schedule, _ = dynetrans.apply(children)
     extract_node = schedule.walk(schedule.children, ExtractNode)
     # The result is only one ExtractNode in the list with position 0
     assert extract_node[0].position == pos
@@ -414,7 +418,7 @@ def test_extract_node_representation(capsys):
     class: view, dag_name and __str__ produce the correct results. '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
                                         "4.8_multikernel_invokes.f90"),
@@ -428,8 +432,7 @@ def test_extract_node_representation(capsys):
     # Test view() method
     schedule.view()
     output, _ = capsys.readouterr()
-    expected_output = (colored("Extract", SCHEDULE_COLOUR_MAP["Extract"]) +
-                       "[position='1']")
+    expected_output = colored("Extract", SCHEDULE_COLOUR_MAP["Extract"])
     assert expected_output in output
 
     # Test dag_name method
@@ -459,9 +462,9 @@ End Schedule""")
 
 
 def test_single_node_dynamo0p3():
-    ''' Test that ExtractRegionTrans on a single Node in a Schedule
+    ''' Test that Extract Transformation on a single Node in a Schedule
     produces the correct result in Dynamo0.3 API. '''
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
                                         "1_single_invoke.f90"),
@@ -489,9 +492,9 @@ def test_single_node_dynamo0p3():
 
 
 def test_node_list_dynamo0p3():
-    ''' Test that applying ExtractRegionTrans on a list of Nodes produces
-    the correct result in Dynamo0.3 API. '''
-    etrans = ExtractRegionTrans()
+    ''' Test that applying Extract Transformation on a list of Nodes
+    produces the correct result in Dynamo0.3 API. '''
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
@@ -525,12 +528,12 @@ def test_node_list_dynamo0p3():
 
 
 def test_single_node_ompparalleldo_gocean1p0():
-    ''' Test that applying ExtractRegionTrans on a Node enclosed
+    ''' Test that applying Extract Transformation on a Node enclosed
     within an OMP Parallel DO Directive produces the correct result
     in GOcean1.0 API. '''
     from psyclone.transformations import GOceanOMPParallelLoopTrans
 
-    etrans = ExtractRegionTrans()
+    etrans = GOceanExtractRegionTrans()
     otrans = GOceanOMPParallelLoopTrans()
 
     # Test a Loop nested within the OMP Parallel DO Directive
@@ -567,12 +570,12 @@ def test_single_node_ompparalleldo_gocean1p0():
 
 
 def test_node_list_ompparallel_gocean1p0():
-    ''' Test that applying ExtractRegionTrans on a list of Nodes
+    ''' Test that applying Extract Transformation on a list of Nodes
     enclosed within an OMP Parallel Region produces the correct result
     in GOcean1.0 API. '''
     from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
 
-    etrans = ExtractRegionTrans()
+    etrans = GOceanExtractRegionTrans()
     ltrans = GOceanOMPLoopTrans()
     otrans = OMPParallelTrans()
 
@@ -626,7 +629,7 @@ def test_extract_single_builtin_dynamo0p3():
     correct result in Dynamo0.3 API without and with optimisations. '''
     from psyclone.transformations import DynamoOMPParallelLoopTrans
 
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
     # Test extract without optimisations
@@ -682,7 +685,7 @@ def test_extract_single_builtin_dynamo0p3():
 def test_extract_kernel_and_builtin_dynamo0p3(tmpdir, f90, f90flags):
     ''' Test that extraction of a Kernel and a BuiltIny in an Invoke
     produces the correct result in Dynamo0.3 API. '''
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
 
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH,
@@ -723,7 +726,7 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir, f90, f90flags):
         DynamoOMPParallelLoopTrans
     from psyclone.dynamo0p3 import DISCONTINUOUS_FUNCTION_SPACES
 
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 

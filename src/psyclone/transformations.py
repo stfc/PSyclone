@@ -2127,7 +2127,7 @@ class GOLoopSwapTrans(Transformation):
 
         :param outer: The node representing the outer loop.
         :type outer: :py:class:`psyclone.psyGen.Loop`
-        :returns: A tuple consistent of the new schedule, and a Memento.
+        :returns: A tuple consisting of the new schedule, and a Memento.
         :raises TransformationError: if the supplied node does not
                                         allow a loop swap to be done.'''
         self._validate(outer)
@@ -2857,34 +2857,24 @@ class NemoExplicitLoopTrans(Transformation):
 
 
 class ExtractRegionTrans(RegionTrans):
-    ''' Provides a transformation to extract code contained within one \
-    or more Nodes in a Schedule. For example:
-
-    >>> from psyclone.parse import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>>
-    >>> API = "dynamo0.3"
-    >>> FILENAME = "solver_alg.x90"
-    >>> ast, invokeInfo = parse(FILENAME, api=API)
-    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>>
-    >>> from psyclone.transformations import ExtractRegionTrans
-    >>> etrans = ExtractRegionTrans()
-    >>>
-    >>> # Apply ExtractRegionTrans transformation to selected Nodes
-    >>> newsched, _ = etrans.apply(schedule.children[0:3])
-    >>> newsched.view()
+    ''' Provides a transformation to extract code represented by a \
+    subset of the Nodes in the PSyIR of a Schedule into a stand-alone \
+    program. Examples are given in descriptions of children classes \
+    DynamoExtractRegionTrans and GOceanExtractRegionTrans.
 
     After applying the transformation the Nodes marked for extraction are \
     children of the ExtractNode. \
     Nodes to extract can be individual constructs within an Invoke (e.g. \
-    Loops containing a Kernel or BuiltIn call) or entire Invokes. This \
-    functionality does not support distributed memory.
+    Loops containing a Kernel or BuiltIn call) or entire Invokes.
     '''
+    from psyclone import psyGen
+    # The types of node that this transformation can enclose
+    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
+                        psyGen.Directive)
 
     def __str__(self):
-        return "Extract code within one or more nodes in an invoke."
+        return ("Create a sub-tree of the PSyIR that has ExtractNode "
+                "at its root.")
 
     @property
     def name(self):
@@ -2896,10 +2886,6 @@ class ExtractRegionTrans(RegionTrans):
 
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`.
-        :raises TransformationError: if distributed memory is configured.
-        :raises TransformationError: if transformation is applied to a Node \
-                                     or a list of Nodes which already \
-                                     contain an ExtractNode.
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
                                      parent Loop.
@@ -2909,46 +2895,18 @@ class ExtractRegionTrans(RegionTrans):
         :raises TransformationError: if transformation is applied to an \
                                      orphaned Directive without its parent \
                                      Directive.
-        :raises TransformationError: if transformation is applied to a Loop \
-                                     over cells in a colour without its \
-                                     parent Loop over colours in Dynamo0.3 API.
-        :raises TransformationError: if transformation is applied to an \
-                                     inner Loop without its parent outer \
-                                     Loop in GOcean1.0 API.
         '''
 
         # First check constraints on Nodes in the node_list common to
         # all RegionTrans transformations
         super(ExtractRegionTrans, self)._validate(node_list)
 
-        # Check ExtractRegionTrans specific constraints.
-        from psyclone.extractor import ExtractNode
+        # Check ExtractRegionTrans specific constraints not covered by
+        # valid_node_types for individual Nodes in node_list
         from psyclone.psyGen import Loop, Kern, BuiltIn, Directive, \
             OMPDoDirective, ACCLoopDirective, OMPParallelDoDirective
-        from psyclone.dynamo0p3 import DynLoop
-        from psyclone.gocean1p0 import GOLoop
 
-        # Extracting distributed memory code is not supported. This
-        # constraint covers the presence of HaloExchange and GlobalSum
-        # classses as they are only generated when distributed memory
-        # is enabled.
-        if Config.get().distributed_memory:
-            raise TransformationError(
-                "Error in {0}: Distributed memory is not supported."
-                .format(str(self.name)))
-
-        # Now check constrains for individual Nodes in node list
         for node in node_list:
-
-            # Check that an ExtractNode is not already in the node list
-            # marked for extraction. Otherwise we would have an extract
-            # region within another extract region.
-            if node.walk(node.children, ExtractNode) or \
-               isinstance(node, ExtractNode):
-                raise TransformationError(
-                    "Error in {0}: Extraction of a region which already "
-                    "contains another Extract region is not allowed."
-                    .format(str(self.name)))
 
             # Check that ExtractNode is not inserted between a Kernel or
             # a BuiltIn call and its parent Loop.
@@ -2980,25 +2938,6 @@ class ExtractRegionTrans(RegionTrans):
                     "Error in {0}: Extraction of an orphaned Directive "
                     "without its ancestor Directive is not allowed."
                     .format(str(self.name)))
-
-            # Dynamo0.3 API constraint: Check that ExtractNode is not
-            # inserted between a Loop over colours and a Loop over cells
-            # in a colour when colouring is applied.
-            ancestor = node.ancestor(DynLoop)
-            if ancestor and ancestor.loop_type == 'colours':
-                raise TransformationError(
-                    "Error in {0} for Dynamo0.3 API: Extraction of a Loop "
-                    "over cells in a colour without its ancestor Loop over "
-                    "colours is not allowed.".format(str(self.name)))
-
-            # GOcean1.0 API constraint: Check that ExtractNode is not
-            # inserted between an inner and an outer Loop.
-            ancestor = node.ancestor(GOLoop)
-            if ancestor and ancestor.loop_type == 'outer':
-                raise TransformationError(
-                    "Error in {0} for GOcean1.0 API: Extraction of an "
-                    "inner Loop without its ancestor outer Loop is not "
-                    "allowed.".format(str(self.name)))
 
     def apply(self, nodes):
         # pylint: disable=arguments-differ
@@ -3067,3 +3006,116 @@ class ExtractRegionTrans(RegionTrans):
                              index=node_position)
 
         return schedule, keep
+
+
+class DynamoExtractRegionTrans(ExtractRegionTrans):
+    ''' Dynamo0.3 API application of ExtractRegionTrans transformation \
+    to extract code into a stand-alone program. For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>>
+    >>> API = "dynamo0.3"
+    >>> FILENAME = "solver_alg.x90"
+    >>> ast, invokeInfo = parse(FILENAME, api=API)
+    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>>
+    >>> from psyclone.transformations import DynamoExtractRegionTrans
+    >>> etrans =  DynamoExtractRegionTrans()
+    >>>
+    >>> # Apply DynamoExtractRegionTrans transformation to selected Nodes
+    >>> newsched, _ = etrans.apply(schedule.children[0:3])
+    >>> newsched.view()
+    '''
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string.'''
+        return "DynamoExtractRegionTrans"
+
+    def _validate(self, node_list):
+        ''' Perform Dynamo0.3 API specific validation checks before applying
+        the transformation.
+
+        :param node_list: the list of Node(s) we are checking.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+
+        :raises TransformationError: if transformation is applied to a Loop \
+                                     over cells in a colour without its \
+                                     parent Loop over colours in Dynamo0.3 API.
+        '''
+
+        # First check constraints on Nodes in the node_list inherited from
+        # the parent classes (ExtractRegionTrans and RegionTrans)
+        super(DynamoExtractRegionTrans, self)._validate(node_list)
+
+        # Check DynamoExtractRegionTrans specific constraints
+        from psyclone.dynamo0p3 import DynLoop
+        for node in node_list:
+
+            # Check that ExtractNode is not inserted between a Loop
+            # over colours and a Loop over cells in a colour when
+            # colouring is applied.
+            ancestor = node.ancestor(DynLoop)
+            if ancestor and ancestor.loop_type == 'colours':
+                raise TransformationError(
+                    "Error in {0} for Dynamo0.3 API: Extraction of a Loop "
+                    "over cells in a colour without its ancestor Loop over "
+                    "colours is not allowed.".format(str(self.name)))
+
+
+class GOceanExtractRegionTrans(ExtractRegionTrans):
+    ''' GOcean1.0 API application of ExtractRegionTrans transformation \
+    to extract code into a stand-alone program. For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>>
+    >>> API = "gocean1.0"
+    >>> FILENAME = "nemolite2d_alg.f90"
+    >>> ast, invokeInfo = parse(FILENAME, api=API)
+    >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>>
+    >>> from psyclone.transformations import GOceanExtractRegionTrans
+    >>> etrans = GOceanExtractRegionTrans()
+    >>>
+    >>> # Apply GOceanExtractRegionTrans transformation to selected Nodes
+    >>> newsched, _ = etrans.apply(schedule.children[0])
+    >>> newsched.view()
+    '''
+
+    @property
+    def name(self):
+        ''' Returns the name of this transformation as a string.'''
+        return "GOceanExtractRegionTrans"
+
+    def _validate(self, node_list):
+        ''' Perform GOcean1.0 API specific validation checks before applying
+        the transformation.
+
+        :param node_list: the list of Node(s) we are checking.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+
+        :raises TransformationError: if transformation is applied to an \
+                                     inner Loop without its parent outer \
+                                     Loop in GOcean1.0 API.
+        '''
+
+        # First check constraints on Nodes in the node_list inherited from
+        # the parent classes (ExtractRegionTrans and RegionTrans)
+        super(GOceanExtractRegionTrans, self)._validate(node_list)
+
+        # Check GOceanExtractRegionTrans specific constraints
+        from psyclone.gocean1p0 import GOLoop
+        for node in node_list:
+
+            # Check that ExtractNode is not inserted between an inner
+            # and an outer Loop.
+            ancestor = node.ancestor(GOLoop)
+            if ancestor and ancestor.loop_type == 'outer':
+                raise TransformationError(
+                    "Error in {0} for GOcean1.0 API: Extraction of an "
+                    "inner Loop without its ancestor outer Loop is not "
+                    "allowed.".format(str(self.name)))

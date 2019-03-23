@@ -1622,7 +1622,7 @@ class Schedule(Node):
 
 class Directive(Node):
     '''
-    Base class for all Directive statments.
+    Base class for all Directive statements.
 
     All classes that generate Directive statments (e.g. OpenMP,
     OpenACC, compiler-specific) inherit from this class.
@@ -1659,7 +1659,7 @@ class Directive(Node):
 
 
 class ACCDirective(Directive):
-    ''' Base class for all OpenACC directive statments. '''
+    ''' Base class for all OpenACC directive statements. '''
 
     @abc.abstractmethod
     def view(self, indent=0):
