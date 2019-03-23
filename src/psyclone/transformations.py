@@ -2865,7 +2865,8 @@ class ExtractRegionTrans(RegionTrans):
     After applying the transformation the Nodes marked for extraction are \
     children of the ExtractNode. \
     Nodes to extract can be individual constructs within an Invoke (e.g. \
-    Loops containing a Kernel or BuiltIn call) or entire Invokes.
+    Loops containing a Kernel or BuiltIn call) or entire Invokes. This \
+    functionality does not support distributed memory.
     '''
     from psyclone import psyGen
     # The types of node that this transformation can enclose
@@ -2886,6 +2887,7 @@ class ExtractRegionTrans(RegionTrans):
 
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyGen.Node`.
+        :raises TransformationError: if distributed memory is configured.
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
                                      parent Loop.
@@ -2898,11 +2900,23 @@ class ExtractRegionTrans(RegionTrans):
         '''
 
         # First check constraints on Nodes in the node_list common to
-        # all RegionTrans transformations
+        # all RegionTrans transformations.
         super(ExtractRegionTrans, self)._validate(node_list)
 
-        # Check ExtractRegionTrans specific constraints not covered by
-        # valid_node_types for individual Nodes in node_list
+        # Now check ExtractRegionTrans specific constraints.
+
+        # Extracting distributed memory code is not supported due to
+        # generation of infrastructure calls to set halos dirty or clean.
+        # This constraint covers the presence of HaloExchange and
+        # GlobalSum classses as they are only generated when distributed
+        # memory is enabled.
+        if Config.get().distributed_memory:
+            raise TransformationError(
+                "Error in {0}: Distributed memory is not supported."
+                .format(str(self.name)))
+
+        # Check constraints not covered by valid_node_types for
+        # individual Nodes in node_list.
         from psyclone.psyGen import Loop, Kern, BuiltIn, Directive, \
             OMPDoDirective, ACCLoopDirective, OMPParallelDoDirective
 

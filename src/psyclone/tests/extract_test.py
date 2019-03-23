@@ -111,9 +111,9 @@ def test_node_list_error(tmpdir, f90, f90flags):
     assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
 
 
-def test_haloexchange_error():
-    ''' Test that applying Extract Transformation on Node(s) containing
-    HaloExchange raises a TransformationError. '''
+def test_distmem_error():
+    ''' Test that applying ExtractRegionTrans with distributed memory
+    enabled raises a TransformationError. '''
     etrans = DynamoExtractRegionTrans()
 
     # Test Dynamo0.3 API with distributed memory
@@ -125,18 +125,18 @@ def test_haloexchange_error():
     schedule = invoke.schedule
     # Try applying Extract transformation
     with pytest.raises(TransformationError) as excinfo:
+        _, _ = etrans.apply(schedule.children[3])
+    assert ("Error in DynamoExtractRegionTrans: Distributed memory is "
+            "not supported.") in str(excinfo.value)
+
+    # Try applying Extract transformation to Node(s) containing HaloExchange
+    with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(schedule.children[2:4])
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynHaloExchange'>' "
             "cannot be enclosed by a DynamoExtractRegionTrans "
             "transformation") in str(excinfo)
 
-
-def test_globalsum_error():
-    ''' Test that applying Extract Transformation on Node(s) containing
-    GlobalSum raises a TransformationError. '''
-    etrans = DynamoExtractRegionTrans()
-
-    # Test Dynamo0.3 API with distributed memory
+    # Try applying Extract transformation to Node(s) containing GlobalSum
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         distributed_memory=True, api=DYNAMO_API)
@@ -144,7 +144,6 @@ def test_globalsum_error():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
-    # Try applying Extract transformation
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(glob_sum)
     assert ("Nodes of type '<class 'psyclone.dynamo0p3.DynGlobalSum'>' "
