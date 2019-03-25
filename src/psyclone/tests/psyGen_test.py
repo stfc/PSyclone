@@ -1427,6 +1427,8 @@ def test_node_position():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     child = schedule.children[6]
+    # Assert that start_position of a Schedule (no parent Node) is 0
+    assert schedule.START_POSITION == 0
     # Assert that start_position of any Node is 0
     assert child.START_POSITION == 0
     # Assert that relative and absolute positions return correct values

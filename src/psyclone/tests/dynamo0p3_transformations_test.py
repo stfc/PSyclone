@@ -950,7 +950,7 @@ def test_multi_kernel_single_omp_region():
 
 
 def test_multi_different_kernel_omp(
-        tmpdir, f90, f90flags, monkeypatch, annexed):
+        tmpdir, f90, f90flags, monkeypatch, dist_mem, annexed):
     '''Test that we correctly generate the OpenMP private lists when we
     have more than one kernel of a different type (requiring a
     different private list) within an invoke. Test with and without
@@ -966,40 +966,39 @@ def test_multi_different_kernel_omp(
                                  "4.7_multikernel_invokes.f90"),
                     api=TEST_API)
 
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
-        invoke = psy.invokes.get('invoke_0')
-        schedule = invoke.schedule
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
+    invoke = psy.invokes.get('invoke_0')
+    schedule = invoke.schedule
 
-        if dist_mem:
-            if annexed:
-                index1 = 5
-                index2 = 8
-            else:
-                index1 = 6
-                index2 = 9
+    if dist_mem:
+        if annexed:
+            index1 = 5
+            index2 = 8
         else:
-            index1 = 0
-            index2 = 1
+            index1 = 6
+            index2 = 9
+    else:
+        index1 = 0
+        index2 = 1
 
-        ctrans = Dynamo0p3ColourTrans()
-        otrans = DynamoOMPParallelLoopTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    otrans = DynamoOMPParallelLoopTrans()
 
-        # colour each loop
-        schedule, _ = ctrans.apply(schedule.children[index1])
-        schedule, _ = ctrans.apply(schedule.children[index2])
+    # Colour each loop
+    schedule, _ = ctrans.apply(schedule.children[index1])
+    schedule, _ = ctrans.apply(schedule.children[index2])
 
-        # Apply OpenMP to each of the colour loops
-        schedule, _ = otrans.apply(schedule.children[index1].children[0])
-        schedule, _ = otrans.apply(schedule.children[index2].children[0])
+    # Apply OpenMP to each of the colour loops
+    schedule, _ = otrans.apply(schedule.children[index1].children[0])
+    schedule, _ = otrans.apply(schedule.children[index2].children[0])
 
-        code = str(psy.gen)
+    code = str(psy.gen)
 
-        assert "private(cell)" in code
+    assert "private(cell)" in code
 
-        # Compilation testing is enabled with
-        # '--compile --f90="<compiler_name>"' flags to pytest
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    # Compilation testing is enabled with
+    # '--compile --f90="<compiler_name>"' flags to pytest
+    assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
 def test_loop_fuse_different_spaces(monkeypatch):

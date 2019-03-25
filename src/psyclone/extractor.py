@@ -126,3 +126,13 @@ class ExtractNode(Node):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generates a string representation of this Node using C language
+        (currently not supported).
+
+        :param int indent: Depth of indent for the output string.
+        :raises NotImplementedError: Not yet supported for code extraction.
+        '''
+        raise NotImplementedError("Not supported for code extraction")
