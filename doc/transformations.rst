@@ -137,6 +137,17 @@ can be found in the API-specific sections).
     :members:
     :noindex:
 
+####
+
+.. autoclass:: psyclone.transformations.DynamoExtractRegionTrans
+    :members:
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.GOceanExtractRegionTrans
+    :members:
+    :noindex:
 
 Kernels
 -------

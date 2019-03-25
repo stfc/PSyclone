@@ -59,7 +59,7 @@ be found using the 'find_kernel.py' script.
 '''
 
 from __future__ import print_function
-from psyclone.transformations import ExtractRegionTrans
+from psyclone.transformations import DynamoExtractRegionTrans
 
 # Specify the Kernel name as it appears in the Kernel calls
 # (ending with "_code")
@@ -81,7 +81,7 @@ def trans(psy):
     extract the specified Kernel after applying transformations. '''
 
     # Get instance of the ExtractRegionTrans transformation
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
 
     # Import transformation script and apply transformations
     import colouring_and_omp as transformation

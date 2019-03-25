@@ -56,7 +56,7 @@ Invoke Schedule (the Nodes also need to be children of the same parent).
 '''
 
 from __future__ import print_function
-from psyclone.transformations import ExtractRegionTrans
+from psyclone.transformations import DynamoExtractRegionTrans
 
 
 # Specify the name of the Invoke containing the Nodes to extract.
@@ -75,7 +75,7 @@ def trans(psy):
     the specified Nodes in an Invoke. '''
 
     # Get instance of the ExtractRegionTrans transformation
-    etrans = ExtractRegionTrans()
+    etrans = DynamoExtractRegionTrans()
 
     # Get Invoke and its Schedule
     invoke = psy.invokes.get(INVOKE_NAME)

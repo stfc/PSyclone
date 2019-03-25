@@ -777,7 +777,9 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir, f90, f90flags):
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         "        END DO \n"
         "        !$omp end parallel do\n"
-        "      END DO \n")
+        "      END DO \n"
+        "      !\n"
+        "      ! ExtractEnd\n")
     assert output in code
 
     # Compilation testing is enabled with

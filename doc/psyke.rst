@@ -62,9 +62,11 @@ The code marked for extraction can be (subject to
 * The entire Invoke (extraction applied to all Nodes).
 
 The basic mechanism of code extraction is applying the **ExtractRegionTrans**
-transformation to selected Nodes. This transformation inserts an instance
-of the **ExtractNode** object into the Schedule of a specific Invoke. All
-Nodes marked for extraction become children of the **ExtractNode**.
+transformation to selected Nodes. This transformation is further sub-classed
+into API-specific implementations, **DynamoExtractRegionTrans** and
+**GOceanExtractRegionTrans**. Both sub-classed transformations insert an
+instance of the **ExtractNode** object into the Schedule of a specific Invoke.
+All Nodes marked for extraction become children of the **ExtractNode**.
 
 For now, the **ExtractNode** class simply adds comments at the beginning
 and the end of the extract region, that is at the position of the extract
@@ -83,13 +85,11 @@ containing a Kernel call in Dynamo0.3 API generates:
       !
       ! ExtractEnd
 
-The ``! CALL write_extract_arguments(argument_list)`` comment will be replaced
-by appropriate calls to write out arguments of extracted Node(s) or Kernel(s)
-in Issue #234.
-Both **ExtractRegionTrans** and **ExtractNode** are base classes that can be
-sub-classed by API-specific code. This will be required for constructing the
-list of quantities required by Kernel (and Built-In) calls in the extracted
-Nodes.
+The ``! CALL write_extract_arguments(argument_list)`` comment will be
+replaced by appropriate calls to write out arguments of extracted Node(s)
+or Kernel(s) in Issue #234. The **ExtractNode** base class can be sub-classed
+by API-specific code. This will be required for constructing the list of
+quantities required by Kernel (and Built-In) calls in the extracted Nodes.
 
 .. _psyke-intro-restrictions:
 
@@ -126,8 +126,9 @@ Distributed memory
 
 As noted in the :ref:`distributed_memory` section, support for distributed
 memory in PSyclone is currently limited to the Dynamo0.3 API. Since the
-implementation depends on the LFRic infrastructure, code extraction when
-distributed memory is enabled is not allowed.
+implementation generates calls to LFRic infrastructure (e.g. runtime checks
+for status of field halos), code extraction when distributed memory is
+enabled is not allowed.
 
 .. _psyke-intro-restrictions-shared:
 
@@ -161,10 +162,10 @@ would be written as:
 
 .. code-block:: python
 
-  from psyclone.transformations import ExtractRegionTrans
+  from psyclone.transformations import DynamoExtractRegionTrans
 
   # Get instance of the ExtractRegionTrans transformation
-  etrans = ExtractRegionTrans()
+  etrans = DynamoExtractRegionTrans()
 
   # Get Invoke and its Schedule
   invoke = psy.invokes.get("invoke_0")
@@ -207,7 +208,7 @@ to insert the extract region. As shown below, all children of an
           Call setval_c(f5,0.0)
       Loop[type='dofs',field_space='any_space_1',it_space='dofs', upper_bound='ndofs']
           Call setval_c(f2,0.0)
-      Extract[position='2',depth='2']
+      Extract
           Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
               KernCall testkern_code_w2_only(f3,f2) [module_inline=False]
       Loop[type='',field_space='wtheta',it_space='cells', upper_bound='ncells']
@@ -228,7 +229,7 @@ This modifies the above Schedule as:
 ::
 
   ...
-      Extract[position='1',depth='2']
+      Extract
           Loop[type='dofs',field_space='any_space_1',it_space='dofs', upper_bound='ndofs']
               Call setval_c(f2,0.0)
           Loop[type='',field_space='w2',it_space='cells', upper_bound='ncells']
@@ -243,10 +244,10 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
 .. code-block:: python
 
   from psyclone.transformations import DynamoOMPParallelLoopTrans, \
-      ExtractRegionTrans
+      DynamoExtractRegionTrans
 
   # Get instances of the transformations
-  etrans = ExtractRegionTrans()
+  etrans = DynamoExtractRegionTrans()
   otrans = DynamoOMPParallelLoopTrans()
 
   # Get Invoke and its Schedule

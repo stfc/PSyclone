@@ -3057,7 +3057,7 @@ class DynamoExtractRegionTrans(ExtractRegionTrans):
 
         :raises TransformationError: if transformation is applied to a Loop \
                                      over cells in a colour without its \
-                                     parent Loop over colours in Dynamo0.3 API.
+                                     parent Loop over colours.
         '''
 
         # First check constraints on Nodes in the node_list inherited from
@@ -3087,7 +3087,7 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
     >>> from psyclone.psyGen import PSyFactory
     >>>
     >>> API = "gocean1.0"
-    >>> FILENAME = "nemolite2d_alg.f90"
+    >>> FILENAME = "shallow_alg.f90"
     >>> ast, invokeInfo = parse(FILENAME, api=API)
     >>> psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     >>> schedule = psy.invokes.get('invoke_0').schedule
@@ -3114,7 +3114,7 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
 
         :raises TransformationError: if transformation is applied to an \
                                      inner Loop without its parent outer \
-                                     Loop in GOcean1.0 API.
+                                     Loop.
         '''
 
         # First check constraints on Nodes in the node_list inherited from
