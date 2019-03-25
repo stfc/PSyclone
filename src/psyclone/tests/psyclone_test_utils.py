@@ -136,7 +136,8 @@ class Compile(object):
 
     @property
     def base_path(self):
-        '''Returns the base path of all Fortran test files for the API.
+        '''Returns the directory of all Fortran test files for the API,
+        i.e. .../psyclone/tests/test_files/<API>.
         Needs to be set by each API-specific compile class.
         :returns: A string with the base path of all API specific files.
         :rtype: str
@@ -145,8 +146,9 @@ class Compile(object):
 
     @base_path.setter
     def base_path(self, base_path):
-        '''Sets the base path of all test files for the API. Needs to
-        be called by each API-specific compile class.
+        '''Sets the base path of all test files for the API., i.e.
+        .../psyclone/tests/test_files/<API>. Needs to be called by
+        each API-specific compile class.
         :param str base_path: A string with the base path of all
                API-specific files.
         '''
@@ -157,7 +159,7 @@ class Compile(object):
         infrastructure library. This is typically ["-I", some_path] so that
         the module files of the infrastructure can be found.
         :returns: A list of strings with the compiler flags required.
-        :rtpe: list
+        :rtype: list
         '''
         return []
 
@@ -280,6 +282,8 @@ class Compile(object):
         except CompileError:
             # Failed to compile one of the files
             success = False
+        finally:
+            old_pwd.chdir()
 
         return success
 
@@ -332,6 +336,8 @@ class Compile(object):
         except CompileError:
             # Failed to compile the file
             success = False
+        finally:
+            old_pwd.chdir()
 
         return success
 

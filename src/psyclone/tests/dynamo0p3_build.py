@@ -43,7 +43,7 @@ from psyclone_test_utils import CompileError, Compile
 
 class Dynamo0p3Build(Compile):
     '''Build class for compilation of test files for the Dynamo0.3 api.
-    Is uses the wrapper library form test_files/dynamo0p3/infrastructure
+    It uses the wrapper library from test_files/dynamo0p3/infrastructure
     and will automatically compile those files once per process.
     '''
 

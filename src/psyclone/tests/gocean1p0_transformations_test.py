@@ -1271,7 +1271,7 @@ def test_module_inline_same_kernel():
     # No compilation test here, see test_module_inline_and_compile
 
 
-@pytest.mark.xfail(reason="Inline function uses a module variable")
+@pytest.mark.xfail(reason="Inline function uses a module variable (see #315)")
 def test_module_inline_and_compile(tmpdir):
     '''ATM incorrect code is produced if a kernel is inlined, that
     uses variable from the original module. Proper solution would
