@@ -2918,7 +2918,8 @@ class ExtractRegionTrans(RegionTrans):
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
         from psyclone.psyGen import Loop, Kern, BuiltIn, Directive, \
-            OMPDoDirective, ACCLoopDirective, OMPParallelDoDirective
+            OMPParallelDirective, OMPParallelDoDirective, \
+            ACCParallelDirective
 
         for node in node_list:
 
@@ -2946,8 +2947,9 @@ class ExtractRegionTrans(RegionTrans):
             # optimisations are applied. Note that we need to explicitly
             # exclude the OMPParallelDoDirective as it inherits from both
             # OMPDoDirective and OMPParallelDirective.
-            if isinstance(node, (OMPDoDirective, ACCLoopDirective)) and \
-               not isinstance(node, OMPParallelDoDirective):
+            if node.ancestor(OMPParallelDirective,
+                             excluding=[OMPParallelDoDirective]) or \
+                    node.ancestor(ACCParallelDirective):
                 raise TransformationError(
                     "Error in {0}: Extraction of an orphaned Directive "
                     "without its ancestor Directive is not allowed."

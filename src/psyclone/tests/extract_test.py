@@ -235,38 +235,6 @@ def test_loop_no_directive_dynamo0p3():
             "allowed.") in str(excinfo)
 
 
-def test_no_parent_ompdirective():
-    ''' Test that applying Extract Transformation on an orphaned
-    OMPDoDirective without its ancestor OMPRegionDirective when
-    optimisations are applied raises a TransformationError. '''
-    from psyclone.transformations import OMPParallelTrans, \
-        Dynamo0p3OMPLoopTrans
-
-    etrans = DynamoExtractRegionTrans()
-    ltrans = Dynamo0p3OMPLoopTrans()
-    otrans = OMPParallelTrans()
-
-    _, invoke_info = parse(os.path.join(DYNAMO_BASE_PATH,
-                                        "4.13_multikernel_invokes_w3.f90"),
-                           api=DYNAMO_API)
-    psy = PSyFactory(DYNAMO_API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-
-    # Apply the OpenMP Loop transformation to every loop in the Schedule
-    for child in schedule.children:
-        if isinstance(child, Loop):
-            newschedule, _ = ltrans.apply(child)
-    # Enclose all of these loops within a single OpenMP Parallel region
-    schedule, _ = otrans.apply(newschedule.children)
-
-    orphaned_directive = schedule.children[0].children[1]
-    with pytest.raises(TransformationError) as excinfo:
-        _, _ = etrans.apply(orphaned_directive)
-    assert ("Extraction of an orphaned Directive without its ancestor "
-            "Directive is not allowed.") in str(excinfo)
-
-
 def test_no_parent_accdirective():
     ''' Test that applying Extract Transformation on an orphaned
     ACCLoopDirective without its ancestor ACCParallelDirective
