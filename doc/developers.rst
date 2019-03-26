@@ -214,13 +214,36 @@ provides the following common interface:
     :members:
 
 
+Schedule
+===============
+
+The Schedule node represents a sequence of statments. It is a relevant node
+in PSyclone because two of its specialisations, InvokeSchedule and
+KernelSchedule (described below), are used as the root nodes of PSy-layer
+invokes and kernel subrouintes. This makes them the initial exploration
+points on PSyclone scripts and a common place where to apply transformations.
+
+.. autoclass:: psyclone.psyGen.Schedule
+    :members:
+
+
+InvokeSchedule
+--------------
+
+The InvokeSchedule is a PSyIR node that represent an invoke subroutine in
+the PSy-layer. It extends the `psyclone.psyGen.Schedule` functionality
+with a `psyclone.psyGen.NameSpace` and a reference to its associated
+`psyclone.psyGen.Invoke` object.
+
+.. autoclass:: psyclone.psyGen.InvokeSchedule
+    :members:
 
 .. _kernel_schedule-label:
 
-Kernel Schedule
-===============
+KernelSchedule
+---------------
 
-The Kernel Schedule is a PSyIR node that represent a kernel subroutine. It
+The KernelSchedule is a PSyIR node that represent a kernel subroutine. It
 extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
 (`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
 (`psyclone.psyGen.Symbol`) used in the kernel scope. A Symbol is defined as:
@@ -233,13 +256,6 @@ The Symbol Table has the following interface:
 .. autoclass:: psyclone.psyGen.SymbolTable
     :members:
 
-
-Generic Code
-############
-
-PSyclone is designed to be configurable so that new front-ends (called
-APIs) can be built, re-using as much existing code as possible. The
-generic code is kept in the `psyGen.py` file for psy-code generation.
 
 Dependence Analysis
 ===================

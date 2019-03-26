@@ -203,8 +203,8 @@ installed and removed in the following way:
 termcolor
 ^^^^^^^^^
 
-By default, the ``view()`` method of a ``schedule`` object (representing
-the schedule of a PSy-layer routine) prints a plain-text representation
+By default, the ``view()`` method available on any PSyIR (PSyclone
+Internal Representation) object prints a plain-text representation
 to standard-out. However, if the ``termcolor`` package is available
 then PSyclone uses this to add colour highlighting to the output text.
 
