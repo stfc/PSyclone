@@ -42,11 +42,11 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
+from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse import ParseError, parse
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.gen_kernel_stub import generate
-from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -628,7 +628,7 @@ def test_cma_asm_cbanded_dofmap_error():
             "for a CMA assembly kernel but found 2") in str(excinfo)
 
 
-def test_cma_asm(tmpdir, f90, f90flags):
+def test_cma_asm(tmpdir):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator '''
     for distmem in [False, True]:
@@ -662,10 +662,7 @@ def test_cma_asm(tmpdir, f90, f90flags):
                 "cbanded_map_any_space_1_lma_op1, ndf_any_space_2_lma_op1, "
                 "cbanded_map_any_space_2_lma_op1)") in code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_cma_asm_field():
@@ -829,7 +826,7 @@ def test_cma_apply_indirection_dofmap_error():
             "CMA operator but found 3") in str(excinfo)
 
 
-def test_cma_apply(tmpdir, f90, f90flags):
+def test_cma_apply(tmpdir):
     ''' Test that we generate correct code for
     a kernel that applies a CMA operator '''
     for distmem in [False, True]:
@@ -871,13 +868,10 @@ def test_cma_apply(tmpdir, f90, f90flags):
         # We do not perform halo swaps for operators
         assert "cma_op1_proxy%is_dirty(" not in code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
+def test_cma_apply_discontinuous_spaces(tmpdir):
     ''' Test that we generate correct code for a kernel that applies
     a CMA operator to fields on discontinuous spaces w3 and w2v '''
     for distmem in [False, True]:
@@ -955,10 +949,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, f90, f90flags):
             assert "CALL field_c_proxy%set_dirty()" in code
             assert "cma_op2_proxy%is_dirty(" not in code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_cma_apply_same_space():
@@ -999,7 +990,7 @@ def test_cma_apply_same_space():
             assert "cma_op1_proxy%is_dirty(" not in code
 
 
-def test_cma_matrix_matrix(tmpdir, f90, f90flags):
+def test_cma_matrix_matrix(tmpdir):
     ''' Test that we generate correct code for an invoke containing
     a kernel that performs a matrix-matrix CMA calculation '''
     for distmem in [False, True]:
@@ -1036,13 +1027,10 @@ def test_cma_matrix_matrix(tmpdir, f90, f90flags):
         if distmem:
             assert "_dirty(" not in code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_cma_matrix_matrix_2scalars(tmpdir, f90, f90flags):
+def test_cma_matrix_matrix_2scalars(tmpdir):
     ''' Test that we generate correct code for an invoke containing
     a kernel that performs a matrix-matrix CMA calculation including
     scalar arguments. '''
@@ -1082,13 +1070,10 @@ def test_cma_matrix_matrix_2scalars(tmpdir, f90, f90flags):
         if distmem:
             assert "_dirty(" not in code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_cma_multi_kernel(tmpdir, f90, f90flags):
+def test_cma_multi_kernel(tmpdir):
     ''' Test that we generate correct code when an invoke contains multiple
     kernels with CMA operator arguments '''
     for distmem in [False, True]:
@@ -1165,10 +1150,7 @@ def test_cma_multi_kernel(tmpdir, f90, f90flags):
                 "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, "
                 "cma_opc_gamma_m, cma_opc_gamma_p)") in code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 # Tests for the kernel-stub generator
