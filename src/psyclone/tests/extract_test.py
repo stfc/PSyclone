@@ -43,12 +43,12 @@ from __future__ import absolute_import
 import os
 import pytest
 
+from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse import parse
 from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
     DynamoExtractRegionTrans, GOceanExtractRegionTrans
-from psyclone_test_utils import code_compiles
 
 # Paths to APIs
 DYNAMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -64,7 +64,7 @@ GOCEAN_API = "gocean1.0"
 # --------------------------------------------------------------------------- #
 
 
-def test_node_list_error(tmpdir, f90, f90flags):
+def test_node_list_error(tmpdir):
     ''' Test that applying Extract Transformation on objects which are not
     Nodes or a list of Nodes raises a TransformationError. Also raise
     transformation errors when the Nodes do not have the same parent
@@ -106,9 +106,7 @@ def test_node_list_error(tmpdir, f90, f90flags):
     assert ("supplied nodes are not children of the same "
             "Schedule/parent.") in str(excinfo)
 
-    # Compilation testing is enabled with
-    # '--compile --f90="<compiler_name>"' flags to pytest
-    assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_distmem_error():
@@ -649,7 +647,7 @@ def test_extract_single_builtin_dynamo0p3():
     assert output in code
 
 
-def test_extract_kernel_and_builtin_dynamo0p3(tmpdir, f90, f90flags):
+def test_extract_kernel_and_builtin_dynamo0p3(tmpdir):
     ''' Test that extraction of a Kernel and a BuiltIny in an Invoke
     produces the correct result in Dynamo0.3 API. '''
     etrans = DynamoExtractRegionTrans()
@@ -680,12 +678,10 @@ def test_extract_kernel_and_builtin_dynamo0p3(tmpdir, f90, f90flags):
         "      ! ExtractEnd\n")
     assert output in code
 
-    # Compilation testing is enabled with
-    # '--compile --f90="<compiler_name>"' flags to pytest
-    assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_extract_colouring_omp_dynamo0p3(tmpdir, f90, f90flags):
+def test_extract_colouring_omp_dynamo0p3(tmpdir):
     ''' Test that extraction of a Kernel in an Invoke after applying
     colouring and OpenMP optimisations produces the correct result
     in Dynamo0.3 API. '''
@@ -750,6 +746,4 @@ def test_extract_colouring_omp_dynamo0p3(tmpdir, f90, f90flags):
         "      ! ExtractEnd\n")
     assert output in code
 
-    # Compilation testing is enabled with
-    # '--compile --f90="<compiler_name>"' flags to pytest
-    assert code_compiles(DYNAMO_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)

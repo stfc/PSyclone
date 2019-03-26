@@ -933,7 +933,7 @@ def test_multi_kernel_single_omp_region():
 
 
 def test_multi_different_kernel_omp(
-        tmpdir, f90, f90flags, monkeypatch, dist_mem, annexed):
+        tmpdir, monkeypatch, dist_mem, annexed):
     '''Test that we correctly generate the OpenMP private lists when we
     have more than one kernel of a different type (requiring a
     different private list) within an invoke. Test with and without
@@ -979,9 +979,7 @@ def test_multi_different_kernel_omp(
 
     assert "private(cell)" in code
 
-    # Compilation testing is enabled with
-    # '--compile --f90="<compiler_name>"' flags to pytest
-    assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_loop_fuse_different_spaces(monkeypatch):
