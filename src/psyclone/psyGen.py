@@ -1233,7 +1233,7 @@ class Node(object):
         :raises InternalError: if the absolute position cannot be found
         :rtype: int
         '''
-        if self.root == self:
+        if self.root == self and isinstance(self.root, Schedule):
             return self.START_POSITION
         found, position = self._find_position(self.root.children,
                                               self.START_POSITION)

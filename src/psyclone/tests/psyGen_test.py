@@ -1427,17 +1427,24 @@ def test_node_position():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     child = schedule.children[6]
-    # Assert that start_position of a Schedule (no parent Node) is 0
-    assert schedule.START_POSITION == 0
+    # Assert that position of a Schedule (no parent Node) is 0
+    assert schedule.position == 0
     # Assert that start_position of any Node is 0
     assert child.START_POSITION == 0
     # Assert that relative and absolute positions return correct values
     assert child.position == 6
     assert child.abs_position == 7
-    # Test InternalError for _find_position
+    # Test InternalError for _find_position with an incorrect position
     with pytest.raises(InternalError) as excinfo:
         _, _ = child._find_position(child.root.children, -2)
     assert "started from -2 instead of 0" in str(excinfo.value)
+    # Test InternalError for abs_position with a Node that does
+    # not belong to the Schedule
+    ompdir = OMPDoDirective()
+    with pytest.raises(InternalError) as excinfo:
+        _ = ompdir.abs_position
+    assert ("PSyclone internal error: Error in search for Node position "
+            "in the tree") in str(excinfo.value)
 
 
 def test_node_root():
