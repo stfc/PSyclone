@@ -32,10 +32,12 @@ repository then doing::
 
   > cd <PSYCLONEHOME>
   > git submodule init
-  > git submodule update
+  > git submodule update --init --recursive
 
-will fetch the fparser submodule. (Failure to do this will mean that
-the ``<PSYCLONEHOME>/external/fparser`` directory will be empty.)
+will fetch the fparser submodule. Failure to do this will mean that
+for example ``<PSYCLONEHOME>/external/fparser`` directory will be empty. The
+``--recursive`` option is necessary because dl_esm_inf uses submodules
+as well.
 
 Note that after cloning the repository from GitHub, the local copy
 will be on the master branch. If you are working with some other
