@@ -568,7 +568,7 @@ class Invoke(object):
             If not None, this number is added to the name ("invoke_").
         :type idx: Integer.
         :param schedule_class: The schedule class to create for this invoke.
-        :type schedule_class: InvokeSchedule class.
+        :type schedule_class: :py:class:psyclone.psyGen.InvokeSchedule.
         :param reserved_names: Optional argument: list of reserved names,
                i.e. names that should not be used e.g. as psyclone created
                variable name.
@@ -1390,13 +1390,12 @@ class Node(object):
 
 
 class Schedule(Node):
-    '''
-    Stores schedule information for a sequence of statements
+    ''' Stores schedule information for a sequence of statements.
 
-    :param sequence: the sequence of PSyIR nodes that the schedule execute.
+    :param sequence: the sequence of PSyIR nodes that make up the schedule.
     :type sequence: :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`
+    :type parent: list of :py:class:`psyclone.psyGen.Node`
     '''
 
     def __init__(self, sequence, parent):
@@ -1404,7 +1403,11 @@ class Schedule(Node):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        ''' Return the name to use in a dag for this node.
+
+        :returns: The name of this node in the dag.
+        :rtype: str
+        '''
         return "schedule"
 
     # TODO: Method part of old GUI, it is untested and marked to be
@@ -1426,8 +1429,7 @@ class Schedule(Node):
         Print a text representation of this node to stdout and then
         call the view() method of any children.
 
-        :param indent: Depth of indent for output text
-        :type indent: integer
+        :param int indent: Depth of indent for output text.
         '''
         print(self.indent(indent) + self.coloured_text + "[]")
         for entity in self._children:
@@ -1439,8 +1441,8 @@ class Schedule(Node):
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
 
-        :return: Text containing the name of this node, possibly coloured
-        :rtype: string
+        :return: Text containing the name of this node, possibly coloured.
+        :rtype: str
         '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
@@ -1696,7 +1698,7 @@ class ACCDirective(Directive):
 class ACCDataDirective(ACCDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
-    a InvokeSchedule. Must be sub-classed for a particular API because the way
+    an InvokeSchedule. Must be sub-classed for a particular API because the way
     in which fields are marked as being on the remote device is API-
     -dependent.
 
@@ -1803,7 +1805,7 @@ class ACCDataDirective(ACCDirective):
     @abc.abstractmethod
     def data_on_device(self, parent):
         '''
-        Adds nodes into a InvokeSchedule to flag that the data required by the
+        Adds nodes into an InvokeSchedule to flag that the data required by the
         kernels in the data region is now on the device.
 
         :param parent: the node in the InvokeSchedule to which to add nodes
@@ -3273,7 +3275,7 @@ class Call(Node):
 
 class Kern(Call):
     '''
-    Class representing a Kernel call within the InvokeSchedule of an Invoke.
+    Class representing a call to a PSyclone Kernel.
 
     :param type KernelArguments: the API-specific sub-class of \
                                  :py:class:`psyclone.psyGen.Arguments` to \
@@ -3369,7 +3371,7 @@ class Kern(Call):
             raise NotImplementedError(
                 "Cannot module-inline a transformed kernel ({0}).".
                 format(self.name))
-        my_schedule = self.ancestor(InvokeSchedule)
+        my_schedule = self.ancestor(Schedule)
         for kernel in self.walk(my_schedule.children, Kern):
             if kernel.name == self.name:
                 kernel._module_inline = value

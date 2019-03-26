@@ -331,7 +331,7 @@ class GOInvokeSchedule(InvokeSchedule):
 
     def __init__(self, alg_calls):
         InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                          alg_calls)
+                                alg_calls)
 
         # Configuration of this InvokeSchedule - we default to having
         # constant loop bounds. If we end up having a long list

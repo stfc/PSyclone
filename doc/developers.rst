@@ -495,7 +495,7 @@ TBD
 .. 
 .. The parser information passed to the PSy layer is used to create an
 .. invokes object which in turn creates a list of invoke objects. Each
-.. invoke object contains a InvokeSchedule which consists of loops and
+.. invoke object contains an InvokeSchedule which consists of loops and
 .. calls. Finally, a call contains an arguments object which itself
 .. contains a list of argument objects.
 .. 

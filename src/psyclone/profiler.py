@@ -107,7 +107,8 @@ class Profiler(object):
         '''This function inserts all required Profiling Nodes (for invokes
         and kernels, as specified on the command line) into a schedule.
         :param schedule: The schedule to instrument.
-        :type schedule: :py::class::`psyclone.psyGen.InvokeSchedule` or derived class
+        :type schedule: :py::class::`psyclone.psyGen.InvokeSchedule` or \
+                        derived class
         :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
         :type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
         '''

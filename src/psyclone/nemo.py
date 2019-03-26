@@ -142,9 +142,9 @@ class NemoInvoke(Invoke):
 
     def update(self):
         '''
-        Updates the fparser2 AST associated with this schedule to \
-        make it reflect any transformations that have been applied to \
-        the PSyclone AST.
+        Updates the fparser2 parse tree associated with this schedule to
+        make it reflect any transformations that have been applied to
+        the PSyclone PSyIR.
         '''
         if not self._schedule:
             return
@@ -299,7 +299,7 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
 
 class NemoKern(Kern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. Kernels are leaves in the AST (i.e. they have
+    NEMO code. Kernels are leaves in the PSyIR (i.e. they have
     no children).
 
     :param loop: Reference to the loop (in the fparser2 AST) containing \

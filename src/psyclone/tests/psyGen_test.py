@@ -585,7 +585,7 @@ def test_sched_can_be_printed():
 # InvokeSchedule class tests
 
 def test_invokeschedule_view(capsys):
-    ''' Check the view method of the InvokeSchedule class. We need a
+    ''' Check the view method of the InvokeSchedule class. We need an
     InvokeSchedule object for this so go via the dynamo0.3 sub-class '''
     from psyclone import dynamo0p3
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
@@ -613,7 +613,7 @@ def test_sched_ocl_setter():
 
 
 def test_invokeschedule_can_be_printed():
-    ''' Check the schedule class can always be printed'''
+    ''' Check the InvokeSchedule class can always be printed'''
     from psyclone import dynamo0p3
     from psyclone.psyGen import InvokeSchedule, colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1520,8 +1520,9 @@ def test_call_args():
     for idx, arg in enumerate(builtin.args):
         assert arg == builtin.arguments.args[idx]
 
+
 def test_haloexchange_can_be_printed():
-    '''Test that the haloexchange class can always be printed'''
+    '''Test that the HaloExchange class can always be printed'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")

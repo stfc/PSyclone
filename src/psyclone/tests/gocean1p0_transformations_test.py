@@ -59,7 +59,7 @@ API = "gocean1.0"
 def test_const_loop_bounds_not_schedule():
     ''' Check that we raise an error if we attempt to apply the
     constant loop-bounds transformation to something that is
-    not a InvokeSchedule '''
+    not an InvokeSchedule '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
@@ -1395,7 +1395,7 @@ def test_ocl_apply():
     ocl = OCLTrans()
 
     # Check that we raise the correct error if we attempt to apply the
-    # transformation to something that is not a InvokeSchedule
+    # transformation to something that is not an InvokeSchedule
     with pytest.raises(TransformationError) as err:
         _, _ = ocl.apply(schedule.children[0])
     assert "the supplied node must be a (sub-class of) Schedule " in str(err)
