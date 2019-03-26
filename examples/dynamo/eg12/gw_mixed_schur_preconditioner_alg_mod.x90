@@ -103,7 +103,7 @@ module gw_mixed_schur_preconditioner_alg_mod
 
      contains
 
-     !> private methods
+     !> Private methods
      !> Build the right-hand-side for the Helmholtz equation
      procedure, private :: build_pressure_rhs
 
@@ -119,10 +119,10 @@ module gw_mixed_schur_preconditioner_alg_mod
 contains
   !> @brief Construct a <code> gw_mixed_schur_preconditioner_type</code> object
   !>
-  function gw_mixed_schur_preconditioner_constructor(state,           &
-                                                     Hb_lumped_inv,   &
-                                                     pressure_solver) &
-                                                       result(self)
+  subroutine gw_mixed_schur_preconditioner_constructor(self,          &
+                                                       state,         &
+                                                       Hb_lumped_inv, &
+                                                       pressure_solver)
 
     use function_space_mod,            only: function_space_type
     use finite_element_config_mod,     only: element_order
@@ -132,11 +132,11 @@ contains
     
     implicit none
 
+    class(gw_mixed_schur_preconditioner_type), intent(inout) :: self
     type(field_vector_type), intent(in) :: state
     type(field_type), intent(in) :: Hb_lumped_inv
     class(abstract_iterative_solver_type), target, intent(in) :: &
       pressure_solver
-    type(gw_mixed_schur_preconditioner_type)  :: self
     type(function_space_type), pointer        :: wp => null(), &
                                                  wu => null(), &
                                                  wb => null()
@@ -197,7 +197,7 @@ contains
 
     call log_event( 'done', LOG_LEVEL_INFO )
 
-  end function gw_mixed_schur_preconditioner_constructor
+  end subroutine gw_mixed_schur_preconditioner_constructor
 
   !>@brief Compute the right-hand-side for the Helmholtz-equation
   !>
