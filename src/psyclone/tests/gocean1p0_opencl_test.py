@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
@@ -38,15 +39,42 @@ GOcean 1.0 API.'''
 
 from __future__ import print_function, absolute_import
 import pytest
+from gocean1p0_build import GOcean1p0OpenCLBuild
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.psyGen import GenerationError
-from psyclone_test_utils import get_invoke
+from psyclone_test_utils import Compile, get_invoke
 
 API = "gocean1.0"
 
 
-def test_use_stmts():
+# ----------------------------------------------------------------------------
+@Compile.COMPILE_OPENCL
+def test_opencl_compiler_works(tmpdir):
+    ''' Check that the specified compiler works for a hello-world
+    opencl example. This is done in this file to alert the user
+    that all compiles tests are skipped if only the '--compile'
+    command line option is used (instead of --compileopencl)
+    '''
+    example_ocl_code = '''
+program hello
+  USE fortcl
+  write (*,*) "Hello"
+end program hello
+'''
+    old_pwd = tmpdir.chdir()
+    try:
+        with open("hello_world_opencl.f90", "w") as ffile:
+            ffile.write(example_ocl_code)
+        GOcean1p0OpenCLBuild(tmpdir).\
+            compile_file("hello_world_opencl.f90",
+                         link=True)
+    finally:
+        old_pwd.chdir()
+
+
+# ----------------------------------------------------------------------------
+def test_use_stmts(tmpdir):
     ''' Test that generating code for OpenCL results in the correct
     module use statements. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -62,9 +90,10 @@ def test_use_stmts():
       use iso_c_binding'''
     assert expected in generated_code
     assert "if (first_time) then" in generated_code
+    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
-def test_psy_init():
+def test_psy_init(tmpdir):
     ''' Check that we create a psy_init() routine that sets-up the
     OpenCL environment. '''
     psy, _ = get_invoke("single_invoke.f90", API, idx=0)
@@ -92,9 +121,10 @@ def test_psy_init():
         "    END SUBROUTINE psy_init\n")
 
     assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
-def test_set_kern_args():
+def test_set_kern_args(tmpdir):
     ''' Check that we generate the necessary code to set kernel arguments. '''
     psy, _ = get_invoke("single_invoke_two_kernels.f90", API, idx=0)
     sched = psy.invokes.invoke_list[0].schedule
@@ -131,9 +161,10 @@ def test_set_kern_args():
     assert ("CALL compute_cu_code_set_args(kernel_compute_cu_code, "
             "p_fld%grid%nx, cu_fld%device_ptr, p_fld%device_ptr, "
             "u_fld%device_ptr)" in generated_code)
+    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
-def test_set_kern_float_arg():
+def test_set_kern_float_arg(tmpdir):
     ''' Check that we generate correct code to set a real, scalar kernel
     argument. '''
     psy, _ = get_invoke("single_invoke_scalar_float_arg.f90", API, idx=0)
@@ -164,6 +195,7 @@ def test_set_kern_float_arg():
       CALL check_status('clSetKernelArg: arg 3 of bc_ssh_code', ierr)
     END SUBROUTINE bc_ssh_code_set_args'''
     assert expected in generated_code
+    assert GOcean1p0OpenCLBuild(tmpdir).code_compiles(psy)
 
 
 def test_set_arg_const_scalar():

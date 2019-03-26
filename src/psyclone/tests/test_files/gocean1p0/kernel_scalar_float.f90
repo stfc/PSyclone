@@ -68,7 +68,6 @@ module kernel_scalar_float
 contains
   
   subroutine bc_ssh_code(ji, jj, rtime, ssha, tmask)
-    use model_mod, only: rdt
     implicit none
     integer, intent(in)  :: ji, jj
     integer, dimension(:,:),  intent(in)    :: tmask
@@ -94,7 +93,6 @@ contains
   end subroutine bc_ssh_code
 
   subroutine bc_ssh_value_code(ji, jj, rtime, itime, ssha, tmask)
-    use model_mod, only: rdt
     implicit none
     integer, intent(in)  :: ji, jj
     integer, dimension(:,:),  intent(in)    :: tmask

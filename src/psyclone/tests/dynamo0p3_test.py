@@ -42,6 +42,7 @@ import os
 import sys
 import pytest
 import fparser
+from dynamo0p3_build import Dynamo0p3Build
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
@@ -53,7 +54,6 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
-from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -615,16 +615,14 @@ def test_unecessary_shape():
             in str(excinfo))
 
 
-def test_field(tmpdir, f90, f90flags):
+def test_field(tmpdir):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     generated_code = psy.gen
     output = (
@@ -822,17 +820,14 @@ def test_field_deref():
             assert output in generated_code
 
 
-def test_field_fs(tmpdir, f90, f90flags):
+def test_field_fs(tmpdir):
     ''' Tests that a call with a set of fields making use of all
     function spaces and no basis functions produces correct code '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     generated_code = psy.gen
     output = (
@@ -1508,7 +1503,7 @@ def test_operator():
             "weights_z_qr)") in generated_code
 
 
-def test_operator_different_spaces(tmpdir, f90, f90flags):
+def test_operator_different_spaces(tmpdir):
     '''tests that an operator with different to and from spaces is
     implemented correctly in the PSy layer'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1518,9 +1513,7 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
     generated_code = str(psy.gen)
     print(generated_code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
@@ -1648,7 +1641,7 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
     assert output in generated_code
 
 
-def test_operator_nofield(tmpdir, f90, f90flags):
+def test_operator_nofield(tmpdir):
     ''' tests that an operator with no field on the same space is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1658,9 +1651,7 @@ def test_operator_nofield(tmpdir, f90, f90flags):
     gen_code_str = str(psy.gen)
     print(gen_code_str)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
                              "nofield_type(mm_w2, chi, qr)") != -1
@@ -1678,8 +1669,7 @@ def test_operator_nofield(tmpdir, f90, f90flags):
             "weights_xy_qr, weights_z_qr)" in gen_code_str)
 
 
-def test_operator_nofield_different_space(
-        tmpdir, f90, f90flags):
+def test_operator_nofield_different_space(tmpdir):
     ''' tests that an operator with no field on different spaces is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1690,9 +1680,7 @@ def test_operator_nofield_different_space(
     gen = str(psy.gen)
     print(gen)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert "mesh => my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
@@ -1722,8 +1710,7 @@ def test_operator_nofield_scalar():
             "weights_xy_qr, weights_z_qr)" in gen)
 
 
-def test_operator_nofield_scalar_deref(
-        tmpdir, f90, f90flags):
+def test_operator_nofield_scalar_deref(tmpdir):
     ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer when both
     are obtained by dereferencing derived type objects '''
@@ -1737,8 +1724,7 @@ def test_operator_nofield_scalar_deref(
         gen = str(psy.gen)
         print(gen)
 
-        if TEST_COMPILE:
-            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
         if dist_mem:
             assert "mesh => opbox_my_mapping%get_mesh()" in gen
@@ -1760,7 +1746,7 @@ def test_operator_nofield_scalar_deref(
             " weights_z_qr_get_instance)" in gen)
 
 
-def test_operator_orientation(tmpdir, f90, f90flags):
+def test_operator_orientation(tmpdir):
     ''' tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1770,8 +1756,7 @@ def test_operator_orientation(tmpdir, f90, f90flags):
     gen_str = str(psy.gen)
     print(gen_str)
 
-    if TEST_COMPILE:
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
                         "_orient_type(mm_w1, chi, qr)") != -1
@@ -1791,8 +1776,7 @@ def test_operator_orientation(tmpdir, f90, f90flags):
             "weights_z_qr)" in gen_str)
 
 
-def test_op_orient_different_space(
-        tmpdir, f90, f90flags):
+def test_op_orient_different_space(tmpdir):
     '''tests that an operator on different spaces requiring orientation
     information is implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1803,8 +1787,7 @@ def test_op_orient_different_space(
     gen_str = str(psy.gen)
     print(gen_str)
 
-    if TEST_COMPILE:
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
@@ -1828,7 +1811,7 @@ def test_op_orient_different_space(
             "weights_xy_qr, weights_z_qr)" in gen_str)
 
 
-def test_operator_deref(tmpdir, f90, f90flags):
+def test_operator_deref(tmpdir):
     ''' Tests that we generate correct names for an operator in the PSy
     layer when obtained by de-referencing a derived type in the Algorithm
     layer '''
@@ -1839,8 +1822,7 @@ def test_operator_deref(tmpdir, f90, f90flags):
                          distributed_memory=dist_mem).create(invoke_info)
         generated_code = str(psy.gen)
         print(generated_code)
-        if TEST_COMPILE:
-            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
         assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
                                    "_type(mm_w0_op, chi, a, qr)") != -1
@@ -1894,7 +1876,7 @@ def test_operator_read_level1_halo():
             "However the containing loop goes out to level 2" in str(excinfo))
 
 
-def test_any_space_1(tmpdir, f90, f90flags):
+def test_any_space_1(tmpdir):
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
     and func_type basis functions on any_space. '''
@@ -1903,9 +1885,7 @@ def test_any_space_1(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert ("INTEGER, pointer :: "
             "map_any_space_1_a(:,:) => null(), "
@@ -1978,8 +1958,7 @@ def test_op_any_space_different_space_1():
         "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()") != -1
 
 
-def test_op_any_space_different_space_2(
-        tmpdir, f90, f90flags):
+def test_op_any_space_different_space_2(tmpdir):
     ''' tests that any_space is implemented correctly in the PSy
     layer in a more complicated example. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
@@ -1988,9 +1967,7 @@ def test_op_any_space_different_space_2(
     generated_code = str(psy.gen)
     print(generated_code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert "ndf_any_space_1_b = b_proxy%fs_to%get_ndf()" in generated_code
     assert "dim_any_space_1_b = b_proxy%fs_to%get_dim_space()" in \
         generated_code
@@ -2160,7 +2137,7 @@ def test_dyninvoke_arg_for_fs():
         in str(excinfo.value)
 
 
-def test_kernel_specific(tmpdir, f90, f90flags):
+def test_kernel_specific(tmpdir):
     ''' Test that a call to enforce boundary conditions is *not* added
     following a call to the matrix_vector_kernel_type kernel. Boundary
     conditions are now explicity specified in the Algorithm as required. '''
@@ -2194,13 +2171,10 @@ def test_kernel_specific(tmpdir, f90, f90flags):
         "boundary_dofs)")
     assert output6 not in generated_code
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_multi_kernel_specific(tmpdir, f90, f90flags):
+def test_multi_kernel_specific(tmpdir):
     '''Test that a call to enforce boundary conditions is *not* added following
     multiple calls to the matrix_vector_kernel_type kernel. Boundary conditions
     must now be explicitly specified as part of the Algorithm. '''
@@ -2261,13 +2235,10 @@ def test_multi_kernel_specific(tmpdir, f90, f90flags):
         "boundary_dofs_1)")
     assert output10 not in generated_code
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_field_bc_kernel(tmpdir, f90, f90flags):
+def test_field_bc_kernel(tmpdir):
     ''' Tests that a kernel with a particular name is recognised as a
     boundary condition kernel and that appopriate code is added to
     support this. This code is required as the dynamo0.3 api does not
@@ -2289,10 +2260,7 @@ def test_field_bc_kernel(tmpdir, f90, f90flags):
         "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs)")
     assert str(generated_code).find(output3) != -1
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_bc_kernel_field_only(monkeypatch, annexed):
@@ -2336,7 +2304,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed):
                 in str(excinfo))
 
 
-def test_operator_bc_kernel(tmpdir, f90, f90flags):
+def test_operator_bc_kernel(tmpdir):
     ''' Tests that a kernel with a particular name is recognised as a
     kernel that applies boundary conditions to operators and that
     appropriate code is added to support this. '''
@@ -2356,10 +2324,7 @@ def test_operator_bc_kernel(tmpdir, f90, f90flags):
         "ndf_any_space_2_op_a, boundary_dofs)")
     assert output3 in generated_code
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_operator_bc_kernel_fld_err(monkeypatch):
@@ -2547,7 +2512,7 @@ def test_2kern_invoke_any_space():
         in gen)
 
 
-def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
+def test_multikern_invoke_any_space(tmpdir):
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''
@@ -2557,9 +2522,7 @@ def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert ("INTEGER, pointer :: map_any_space_1_f1(:,:) => null(), "
             "map_any_space_1_f2(:,:) => null(), "
             "map_any_space_2_f1(:,:) => null(), "
@@ -2593,8 +2556,7 @@ def test_multikern_invoke_any_space(tmpdir, f90, f90flags):
             "weights_xy_qr, weights_z_qr" in gen)
 
 
-def test_mkern_invoke_multiple_any_spaces(
-        tmpdir, f90, f90flags):
+def test_mkern_invoke_multiple_any_spaces(tmpdir):
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''
@@ -2604,9 +2566,7 @@ def test_mkern_invoke_multiple_any_spaces(
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
     print(gen)
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     assert "ndf_any_space_1_f1 = f1_proxy%vspace%get_ndf()" in gen
     assert ("CALL qr%compute_function(BASIS, f1_proxy%vspace, "
             "dim_any_space_1_f1, ndf_any_space_1_f1, "
@@ -6285,7 +6245,7 @@ def test_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
+def test_itn_space_write_w2v_w1(tmpdir):
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to two fields, the first on
     a discontinuous space (w2v) and the second on a continuous space (w1).
@@ -6311,13 +6271,10 @@ def test_itn_space_write_w2v_w1(tmpdir, f90, f90flags):
                 "      DO cell=1,m2_proxy%vspace%get_ncell()\n")
             assert output in generated_code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_itn_space_fld_and_op_writers(tmpdir, f90, f90flags):
+def test_itn_space_fld_and_op_writers(tmpdir):
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to both an operator and a
     field, the latter on a discontinuous space and first in the list
@@ -6343,13 +6300,10 @@ def test_itn_space_fld_and_op_writers(tmpdir, f90, f90flags):
                 "      DO cell=1,op1_proxy%fs_from%get_ncell()\n")
             assert output in generated_code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_itn_space_any_w3(tmpdir, f90, f90flags):
+def test_itn_space_any_w3(tmpdir):
     ''' Check generated loop over cells has correct upper bound when
     a kernel writes to fields on any-space and W3 (discontinuous) '''
     _, invoke_info = parse(
@@ -6372,10 +6326,7 @@ def test_itn_space_any_w3(tmpdir, f90, f90flags):
                 "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
             assert output in generated_code
 
-        if TEST_COMPILE:
-            # If compilation testing has been enabled
-            # (--compile --f90="<compiler_name>" flags to py.test)
-            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_itn_space_any_w1():
@@ -6751,7 +6702,7 @@ def test_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
+def test_no_halo_for_discontinous(tmpdir):
     ''' Test that we do not create halo exchange calls when our loop
     only iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
@@ -6764,13 +6715,10 @@ def test_no_halo_for_discontinous(tmpdir, f90, f90flags):
     print(result)
     assert "halo_exchange" not in result
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
+def test_halo_for_discontinuous(tmpdir, monkeypatch, annexed):
     '''This test checks the case when our loop iterates over owned cells
     (e.g. it writes to a discontinuous field), we read from a
     continuous field, there are no stencil accesses, but we do not
@@ -6805,13 +6753,10 @@ def test_halo_for_discontinuous(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
+def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
     '''This test checks the case when our loop iterates over owned cells
     (e.g. it writes to a discontinuous field), we read from a
     continuous field, there are no stencil accesses, and the previous
@@ -6843,10 +6788,7 @@ def test_halo_for_discontinuous_2(tmpdir, f90, f90flags, monkeypatch, annexed):
         assert "IF (m1_proxy%is_dirty(depth=1)) THEN" in result
         assert "CALL m1_proxy%halo_exchange(depth=1)" in result
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_arg_discontinuous(monkeypatch, annexed):
@@ -7101,7 +7043,7 @@ def test_HaloRead_inv_loop_upper(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
+def test_HaloReadAccess_discontinuous_field(tmpdir):
     ''' When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
     checks that HaloReadAccess works correctly in this situation '''
@@ -7119,10 +7061,7 @@ def test_HaloReadAccess_discontinuous_field(tmpdir, f90, f90flags):
     assert halo_access.literal_depth == 0
     assert halo_access.stencil_type is None
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_loop_cont_read_inv_bound(monkeypatch, annexed):
@@ -7290,7 +7229,7 @@ def test_halo_req_no_read_deps(monkeypatch):
             "dependence for a halo exchange" in str(excinfo.value))
 
 
-def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
+def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
                                      annexed):
     '''If a kernel writes to a discontinuous field and also reads from a
     continuous field then that fields annexed dofs are read (but not
@@ -7315,11 +7254,7 @@ def test_no_halo_exchange_annex_dofs(tmpdir, f90, f90flags, monkeypatch,
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     result = str(psy.gen)
     print(result)
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag
-        # to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir,
-                             f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     if annexed:
         assert "CALL f1_proxy%halo_exchange" not in result
     else:
