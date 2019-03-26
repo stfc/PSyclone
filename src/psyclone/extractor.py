@@ -135,4 +135,5 @@ class ExtractNode(Node):
         :param int indent: Depth of indent for the output string.
         :raises NotImplementedError: Not yet supported for code extraction.
         '''
-        raise NotImplementedError("Not supported for code extraction")
+        raise NotImplementedError("Generation of C code is not supported "
+                                  "for code extraction")
