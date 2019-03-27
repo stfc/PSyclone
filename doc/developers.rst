@@ -342,7 +342,7 @@ assumed to be accessed when the argument is part of a `Call` or a
 single index of a field vector. Therefore there is one halo exchange
 per field vector index. For example::
 
-    InvokeSchedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+    InvokeSchedule[invoke='invoke_0_testkern_stencil_vector_type', dm=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
@@ -379,7 +379,7 @@ covered.
 In PSyclone the above situation occurs when a vector field is accessed
 in a kernel and also requires halo exchanges e.g.::
 
-   InvokeSchedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+   InvokeSchedule[invoke='invoke_0_testkern_stencil_vector_type', dm=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]

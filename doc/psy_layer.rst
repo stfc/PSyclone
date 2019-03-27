@@ -118,7 +118,7 @@ we would see the following output:
 ::
 
    >>> schedule.view()
-   InvokeSchedule[invoke='invoke_0' dm=True]
+   InvokeSchedule[invoke='invoke_0', dm=True]
        Directive[OMP parallel do]
            Loop[type='dofs',field_space='any_space_1',it_space='dofs']
                Call setval_X_code(p,z)

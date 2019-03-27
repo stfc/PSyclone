@@ -3361,7 +3361,7 @@ class DynInvokeSchedule(InvokeSchedule):
         :param int indent: the amount by which to indent the output.
         '''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "' dm=" +
+              self.invoke.name + "', dm=" +
               str(Config.get().distributed_memory)+"]")
         for entity in self._children:
             entity.view(indent=indent + 1)

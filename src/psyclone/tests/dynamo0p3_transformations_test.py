@@ -3833,7 +3833,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
         result, _ = capsys.readouterr()
         if distmem:  # annexed can be True or False
             expected = (
-                sched + "[invoke='invoke_0' dm=True]\n"
+                sched + "[invoke='invoke_0', dm=True]\n"
                 "    " + directive+"[OMP parallel]\n"
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"
@@ -3858,7 +3858,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
                 expected = expected.replace("nannexed", "ndofs")
         else:  # not distmem. annexed can be True or False
             expected = (
-                sched + "[invoke='invoke_0' dm=False]\n"
+                sched + "[invoke='invoke_0', dm=False]\n"
                 "    " + directive + "[OMP parallel]\n"
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"

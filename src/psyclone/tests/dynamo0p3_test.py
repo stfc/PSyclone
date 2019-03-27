@@ -4540,7 +4540,7 @@ def test_halo_exchange_view(capsys):
     exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
 
     expected = (
-        sched + "[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
+        sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
         "    " + exch + "[field='f2', type='region', depth=f2_extent+1, "
         "check_dirty=True]\n"
         "    " + exch + "[field='f3', type='region', depth=1, "
