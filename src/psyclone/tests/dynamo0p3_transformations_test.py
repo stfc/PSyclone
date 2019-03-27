@@ -5611,7 +5611,7 @@ def test_rc_wrong_parent(monkeypatch):
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(schedule.children[3], depth=1)
-    assert ("the parent of the supplied loop must be the Schedule, "
+    assert ("the parent of the supplied loop must be the DynInvokeSchedule, "
             "or a Loop") in str(excinfo.value)
 
 
@@ -5654,7 +5654,8 @@ def test_rc_parent_loop_colour(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
-            "parent's parent must be the Schedule" in str(excinfo.value))
+            "parent's parent must be the DynInvokeSchedule"
+            in str(excinfo.value))
 
     # make the outermost loop iterate over cells (it should be
     # colours). We can ignore the previous monkeypatch as this

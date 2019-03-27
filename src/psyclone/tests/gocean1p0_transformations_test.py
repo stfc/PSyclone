@@ -1477,7 +1477,7 @@ def test_acc_incorrect_parallel_trans():
         _, _ = acct.apply([schedule.children[0].children[0],
                            schedule.children[0]])
 
-    assert ("supplied nodes are not children of the same Schedule/parent"
+    assert ("supplied nodes are not children of the same parent"
             in str(err))
 
 

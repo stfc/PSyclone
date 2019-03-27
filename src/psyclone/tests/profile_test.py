@@ -499,7 +499,7 @@ def test_transform_errors(capsys):
 
     with pytest.raises(TransformationError) as excinfo:
         prt.apply([schedule.children[0].children[0], schedule.children[1]])
-    assert "supplied nodes are not children of the same Schedule/parent." \
+    assert "supplied nodes are not children of the same parent." \
            in str(excinfo)
 
     # Supply not a node object:
