@@ -165,9 +165,9 @@ http://pyparsing.wikispaces.com/Download+and+Installation.
 graphviz
 ^^^^^^^^
 
-The data dependencies of a PSy-layer schedule (see Section
-:ref:`psy-layer-schedule`) determine the validity of changes to a
-schedule. PSyclone supports the visualisation of these dependencies as
+The data dependencies of a PSyIR schedule determine the validity of
+changes to this schedule.
+PSyclone supports the visualisation of these dependencies as
 a graph using graphviz. This visualisation is not needed to use
 PSyclone.
 

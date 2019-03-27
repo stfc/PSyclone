@@ -1698,8 +1698,8 @@ class GOConstLoopBoundsTrans(Transformation):
         '''Switches constant loop bounds on or off for all loops in a
         GOInvokeSchedule. Default is 'on'.
 
-        :param node: The GOInvokeSchedule of which all loops will get the constant
-            loop bounds switched on or off.
+        :param node: The GOInvokeSchedule of which all loops will get the
+            constant loop bounds switched on or off.
         :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param const_bounds: If the constant loop should be used (True)
             or not (False). Default is True.
@@ -2632,9 +2632,9 @@ class ACCRoutineTrans(Transformation):
 
 class NemoExplicitLoopTrans(Transformation):
     '''
-    Transforms the outermost array slice in an implicit loop in a NEMO
-    Schedule into an explicit loop. For example, if "implicit_loop.f90"
-    contained:
+    Transforms the outermost array slice in an implicit loop in a
+    NEMOInvokeSchedule into an explicit loop. For example, if
+    "implicit_loop.f90" contained:
 
     .. code-block:: fortran
 

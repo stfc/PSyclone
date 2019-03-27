@@ -44,8 +44,8 @@ separation of concerns. Instead, the NEMO source code is treated as if
 it were a manually written PSy layer with all kernels in-lined. This
 approach relies upon the NEMO Coding Conventions
 :cite:`nemo_code_conv` in order to reason about the code being
-processed. Rather than construct a Schedule for the PSy layer from
-scratch (as is done for other APIs), the Schedule is constructed by
+processed. Rather than construct a InvokeSchedule for the PSy layer from
+scratch (as is done for other APIs), the InvokeSchedule is constructed by
 parsing the supplied Fortran code and generating a higher-level
 representation.
 

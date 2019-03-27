@@ -981,8 +981,8 @@ exchanges are used for fields.
 First Creation
 ++++++++++++++
 
-When first run, PSyclone creates a separate schedule for each of the
-invokes found in the algorithm layer. A schedule includes all required
+When first run, PSyclone creates a separate InvokeSchedule for each of the
+invokes found in the algorithm layer. This schedule includes all required
 loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
 created then (if the `DISTRIBUTED_MEMORY` flag is set to ``true``) PSyclone
