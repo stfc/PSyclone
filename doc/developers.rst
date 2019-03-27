@@ -280,13 +280,6 @@ The Symbol Table has the following interface:
     :members:
 
 
-Generic Code
-############
-
-PSyclone is designed to be configurable so that new front-ends (called
-APIs) can be built, re-using as much existing code as possible. The
-generic code is kept in the `psyGen.py` file for psy-code generation.
-
 Dependence Analysis
 ===================
 
@@ -450,6 +443,49 @@ DataAccess class i.e. the `_field_write_arguments()` and
 `_field_read_arguments()` methods, both of which are found in the
 `Arguments` class.
 
+Parsing Code
+############
+
+PSyclone starts by parsing an input file.
+
+File is algorithm.py
+
+Parser() versus parse(). parse creates and uses Parser().
+
+pass an API - why?
+pass invoke name to use. Always invoke so far
+pass infrastructure module?? name
+pass path to search for kernel code
+pass line_length
+
+If nemo API, only parse code and return the fparser2 parse tree.
+
+All other APIs parse user-written Fortran "algorithm" code. 
+
+Current limitation is that the first program, module, subroutine or function is assumed to be the one that is required (issue #307).
+
+Aborts if not program, module, subroutine or function.
+
+Walks the native fparser2 tree. In future want to be able to use different parse trees so how to deal with this?
+
+Keeps a map of all use statement names and the module they are associated with. Use a map so it is easy to xxx. Keep all names as we ????
+
+If invoke statement found then create a list of InvokeCall objects
+(one for each invoke found in the algorithm file) and then return the
+original fparser2 parser tree and a FileInfo object which contains the
+list of invoke calls and the name of the program/module/function in
+which these invoke calls exist.
+
+
+
+
+
+Generic Code
+############
+
+PSyclone is designed to be configurable so that new front-ends (called
+APIs) can be built, re-using as much existing code as possible. The
+generic code is kept in the `psyGen.py` file for psy-code generation.
 
 New APIs
 ########
