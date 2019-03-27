@@ -677,7 +677,7 @@ class DynArgDescriptor03(Descriptor):
                     "have 'gh_readwrite' access because it is treated "
                     "as continuous")
             if stencil and self._access_descriptor.name.lower() != "gh_read":
-                raise ParseError("a stencil must be read only so its access"
+                raise ParseError("a stencil must be read only so its access "
                                  "should be gh_read")
 
         # Operators

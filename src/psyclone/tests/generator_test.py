@@ -44,7 +44,6 @@ functions.
 from __future__ import absolute_import
 import os
 import re
-import tempfile
 import pytest
 from psyclone.generator import generate, GenerationError, main
 from psyclone.parse.utils import ParseError
@@ -682,7 +681,7 @@ def test_main_no_invoke_alg_stdout(capsys):
     assert expected_output == out
 
 
-def test_main_write_psy_file(capsys):
+def test_main_write_psy_file(capsys, tmpdir):
     '''Tests that the main() function outputs successfully writes the
     generated psy output to a specified file'''
 
@@ -690,10 +689,7 @@ def test_main_write_psy_file(capsys):
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
 
-    filetemp_psy = tempfile.NamedTemporaryFile()
-    psy_filename = filetemp_psy.name
-    filetemp_psy.close()
-    # no need to delete the file as it has not been created
+    psy_filename = str(tmpdir.join("psy.f90"))
 
     main([alg_filename, '-opsy', psy_filename])
 
@@ -711,7 +707,7 @@ def test_main_write_psy_file(capsys):
     assert psy_str in stdout
 
 
-def test_main_no_invoke_alg_file(capsys):
+def test_main_no_invoke_alg_file(capsys, tmpdir):
     '''Tests that the main() function outputs the original algorithm input
     file to file when the algorithm file does not contain an invoke and that
     it does not produce any psy output.'''
@@ -721,12 +717,8 @@ def test_main_no_invoke_alg_file(capsys):
                                   "test_files", "dynamo0p3",
                                   "testkern.F90"))
 
-    filetemp_alg = tempfile.NamedTemporaryFile()
-    alg_filename = filetemp_alg.name
-    filetemp_psy = tempfile.NamedTemporaryFile()
-    psy_filename = filetemp_psy.name
-    filetemp_alg.close()
-    filetemp_psy.close()
+    alg_filename = str(tmpdir.join("alg.f90"))
+    psy_filename = str(tmpdir.join("psy.f90"))
     # no need to delete the files as they have not been created
 
     main([kern_filename, '-oalg', alg_filename, '-opsy', psy_filename])
@@ -785,7 +777,6 @@ def test_main_kern_output_no_write(tmpdir, capsys):
 
 def test_main_kern_output_dir(tmpdir):
     ''' Test that we can specify a valid kernel output directory. '''
-    from psyclone.configuration import Config
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"))
@@ -795,7 +786,7 @@ def test_main_kern_output_dir(tmpdir):
     assert Config.get().kernel_output_dir == str(tmpdir)
 
 
-def test_invalid_kern_naming(capsys):
+def test_invalid_kern_naming():
     ''' Check that we raise the expected error if an invalid kernel-renaming
     scheme is supplied. '''
     alg_filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -824,8 +815,8 @@ def test_main_include_nemo_only(capsys):
                 main([alg_filename, '-api', api, '-I', './'])
             assert str(err.value) == "1"
             captured = capsys.readouterr()
-            assert (captured.err.count("is only supported for the 'nemo' API")
-                    == 1)
+            assert captured.err.count("is only supported for the 'nemo' API")\
+                == 1
 
 
 def test_main_include_invalid(capsys, tmpdir):

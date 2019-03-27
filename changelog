@@ -39,6 +39,17 @@
 	12) PR #255. Construct a KernelSchedule for kernel code with a
 	SymbolTable to hold information on variables used.
 
+	13) PR #302. Fix API's -> APIs typo in documentation.
+
+	14) #292 and PR #293. Add allowed list of nodes to RegionTrans.
+
+	15) #254 and PR #299. Adds methods to generate C and OpenCL
+	code for the Symbol Table and for certain PSyIR nodes.
+
+	16) #281 and PR #313. Adds support for compiling the code
+	generated as part of the GOcean 1.0 tests (including OpenCL
+	code that uses FortCL).
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
@@ -131,6 +142,9 @@ release 1.7.0 20th December 2018
 
         27) #158 and PR #253. Fix to remove unnecessary halo exchanges
 	related to GH_INC updates to kernel arguments.
+
+	28) PR #301. Adds an extras_require section to setup.py to simplify
+	installation of dependencies required for docs and tests.
 
 release 1.6.1 6th December 2018
 

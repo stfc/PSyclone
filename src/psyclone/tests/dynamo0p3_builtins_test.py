@@ -43,12 +43,12 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
-from psyclone_test_utils import TEST_COMPILE, code_compiles
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -351,7 +351,7 @@ def test_dynbuiltfactory_str():
 # ------------- Adding (scaled) fields ------------------------------------- #
 
 
-def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
+def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the str method of DynXPlusYKern returns the expected
     string and 2) we generate correct code for the built-in Z = X + Y
     where X and Y are fields. Also check that we generate correct
@@ -409,10 +409,7 @@ def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile
-        # flag to py.test)
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
@@ -1646,7 +1643,7 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
+def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the str method of DynIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a
@@ -1669,10 +1666,7 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
     code = str(psy.gen)
     print(code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -2070,7 +2064,7 @@ def test_X_times_Y_deduce_space(dist_mem):
 # ------------- Builtins that pass scalars by value ------------------------- #
 
 
-def test_builtin_set(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
+def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that we generate correct code for a serial builtin setval_c
     operation with a scalar passed by value. Test with and without
     annexed dofs being computed as this affects the generated code.
@@ -2086,10 +2080,7 @@ def test_builtin_set(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
     code = str(psy.gen)
     print(code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output_seq = (

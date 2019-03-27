@@ -29,9 +29,7 @@ PSyclone directly, e.g.
 
 .. parsed-literal::
    > wget https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
-   > gunzip \ |release|\ .tar.gz
-   > tar xf \ |release|\ .tar
-   > rm \ |release|\ .tar
+   > tar zxf \ |release|\ .tar.gz
    > ls
    PSyclone-\ |release|\ 
    
@@ -42,18 +40,18 @@ Dependencies
 ------------
 
 PSyclone is written in Python so needs Python to be installed on the
-target machine. PSyclone has been tested under Python 2.6.5, 2.7.3 and 3.6.
+target machine. PSyclone has been tested under Python 2.7 and 3.6.
 
 .. warning:: Release 1.6.0 of PSyclone requires version 0.0.7 of
              fparser and will fail on more recent versions. However
              simply installing this version using pip will install a
              later version of fparser. The suggested solution is to
              use release 1.6.1 which fixes this problem and is otherwise
-	     identical to 1.6.0. However, if you want to use release
-	     1.6.0 you need to ensure that you have fparser 0.0.7. This
-	     can be acheived by downgrading an existing fparser
-	     installation or by installing version 0.0.7 of fparser
-	     *before* installing PSyclone.
+             identical to 1.6.0. However, if you want to use release
+             1.6.0 you need to ensure that you have fparser 0.0.7. This
+             can be achieved by downgrading an existing fparser
+             installation or by installing version 0.0.7 of fparser
+             *before* installing PSyclone.
 
 PSyclone immediately relies on four external Python packages; ``six``,
 ``configparser``, ``fparser`` and ``pyparsing``. In order to run the
@@ -306,6 +304,13 @@ the config file.
 Test
 ----
 
+You can install the necessary dependencies to run the PSyclone tests with::
+
+    > pip install psyclone[test]
+
+The test dependencies are canonically documented in PSyclone's setup.py
+under the ``extras_requires`` section.
+
 Once you have the necessary dependencies installed and your
 environment configured, you can check that things are working by using
 the PSyclone test suite. These tests are not required and can be
@@ -345,7 +350,8 @@ during the testing process. To enable compilation testing run:
 ``"<compiler_name>"`` and ``"<compiler_flags_list>"`` are optional arguments.
 The default value for ``"<compiler_name>"`` is ``"gfortran"`` and there are
 no defaults for the ``"<compiler_flags_list>"``. Please note that the onus
-is on the user to provide correct values for these options.
+is on the user to provide correct values for these options. Full details
+are provided in the :ref:`compilation_testing` section.
 
 .. _getting-going-run:
 
@@ -379,7 +385,7 @@ see the :ref:`psyclone_script` Section.
 
 Examples are provided in the examples directory. There are 3
 subdirectories (dynamo, gocean and nemo) corresponding to different
-API's that are supported by PSyclone. In this case we are going to use
+APIs that are supported by PSyclone. In this case we are going to use
 one of the dynamo examples::
 
    > cd <PSYCLONEHOME>/examples/dynamo/eg1
