@@ -2918,8 +2918,7 @@ class ExtractRegionTrans(RegionTrans):
         # Check constraints not covered by valid_node_types for
         # individual Nodes in node_list.
         from psyclone.psyGen import Loop, Kern, BuiltIn, Directive, \
-            OMPParallelDirective, OMPParallelDoDirective, \
-            ACCParallelDirective
+            OMPParallelDirective, ACCParallelDirective
 
         for node in node_list:
 
@@ -2941,18 +2940,16 @@ class ExtractRegionTrans(RegionTrans):
                     "Error in {0}: Extraction of a Loop without its parent "
                     "Directive is not allowed.".format(str(self.name)))
 
-            # Check that ExtractNode is not inserted between an orphaned
-            # Directive (e.g. OMPDoDirective, ACCLoopDirective) and its
-            # ancestor Directive (e.g. ACC or OMP Parallel Directive) when
-            # optimisations are applied. Note that we need to explicitly
-            # exclude the OMPParallelDoDirective as it inherits from both
-            # OMPDoDirective and OMPParallelDirective.
-            if node.ancestor(OMPParallelDirective,
-                             excluding=[OMPParallelDoDirective]) or \
+            # Check that ExtractNode is not inserted within a thread
+            # parallel region when optimisations are applied. For instance,
+            # this may be between an orphaned Directive (e.g. OMPDoDirective,
+            # ACCLoopDirective) and its ancestor Directive (e.g. ACC or OMP
+            # Parallel Directive) or within an OMPParallelDoDirective.
+            if node.ancestor(OMPParallelDirective) or \
                     node.ancestor(ACCParallelDirective):
                 raise TransformationError(
-                    "Error in {0}: Extraction of an orphaned Directive "
-                    "without its ancestor Directive is not allowed."
+                    "Error in {0}: Extraction of Nodes enclosed within "
+                    "a thread parallel region is not allowed."
                     .format(str(self.name)))
 
     def apply(self, nodes):

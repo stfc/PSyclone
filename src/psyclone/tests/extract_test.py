@@ -264,8 +264,8 @@ def test_no_parent_accdirective():
     orphaned_directive = schedule.children[1].children[0]
     with pytest.raises(TransformationError) as excinfo:
         _, _ = etrans.apply(orphaned_directive)
-    assert ("Extraction of an orphaned Directive without its ancestor "
-            "Directive is not allowed.") in str(excinfo)
+    assert ("Extraction of Nodes enclosed within a thread parallel "
+            "region is not allowed.") in str(excinfo)
 
 
 def test_no_colours_loop_dynamo0p3():

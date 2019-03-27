@@ -61,12 +61,13 @@ The code marked for extraction can be (subject to
 
 * The entire Invoke (extraction applied to all Nodes).
 
-The basic mechanism of code extraction is applying the **ExtractRegionTrans**
-transformation to selected Nodes. This transformation is further sub-classed
-into API-specific implementations, **DynamoExtractRegionTrans** and
-**GOceanExtractRegionTrans**. Both sub-classed transformations insert an
-instance of the **ExtractNode** object into the Schedule of a specific Invoke.
-All Nodes marked for extraction become children of the **ExtractNode**.
+The basic mechanism of code extraction is through applying the
+**ExtractRegionTrans** transformation to selected Nodes. This
+transformation is further sub-classed into API-specific implementations,
+**DynamoExtractRegionTrans** and **GOceanExtractRegionTrans**. Both
+sub-classed transformations insert an instance of the **ExtractNode**
+object into the Schedule of a specific Invoke. All Nodes marked for
+extraction become children of the **ExtractNode**.
 
 For now, the **ExtractNode** class simply adds comments at the beginning
 and the end of the extract region, that is at the position of the extract
@@ -109,7 +110,7 @@ General
 This group of restrictions is enforced irrespective of whether optimisations
 are used or not.
 
-* Extraction can be applied to a single Node in or a list of Nodes in a
+* Extraction can be applied to a single Node or a list of Nodes in a
   Schedule. For the latter, Nodes in the list must be consecutive children
   of the same parent Schedule.
 
@@ -127,16 +128,15 @@ Distributed memory
 As noted in the :ref:`distributed_memory` section, support for distributed
 memory in PSyclone is currently limited to the Dynamo0.3 API. Since the
 implementation generates calls to LFRic infrastructure (e.g. runtime checks
-for status of field halos), code extraction when distributed memory is
-enabled is not allowed.
+for status of field halos), code extraction is not allowed when distributed
+memory is enabled.
 
 .. _psyke-intro-restrictions-shared:
 
 Shared memory and API-specific
 ##############################
 
-The restrictions below do not allow the **ExtractRegionTrans** to be
-applied on:
+The **ExtractRegionTrans** transformation cannot be applied to:
 
 * A Loop without its parent Directive,
 
@@ -144,9 +144,9 @@ applied on:
   without its parent Directive (e.g. ACC or OMP Parallel Directive),
 
 * A Loop over cells in a colour without its parent Loop over colours in
-  Dynamo0.3 API,
+  the Dynamo0.3 API,
 
-* An inner Loop without its parent outer Loop in GOcean1.0 API.
+* An inner Loop without its parent outer Loop in the GOcean1.0 API.
 
 .. _psyke-use:
 
