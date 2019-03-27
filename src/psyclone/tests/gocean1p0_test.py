@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Authors A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 '''Tests for PSy-layer code generation that are specific to the
