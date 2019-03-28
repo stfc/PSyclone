@@ -443,41 +443,130 @@ DataAccess class i.e. the `_field_write_arguments()` and
 `_field_read_arguments()` methods, both of which are found in the
 `Arguments` class.
 
+
 Parsing Code
 ############
 
-PSyclone starts by parsing an input file.
+The PSyclone `parse` module is responsible for parsing science
+(algorithm and kernel) code and extracting the required information
+for the algorithm translation and PSy generation phases.
 
-File is algorithm.py
+The `parse` module contains modules for parsing algorithm
+(`algorithm.py`) and kernel (`kernel.py`) code as well as a utility
+module (`utils.py`) for common functionality.
 
-Parser() versus parse(). parse creates and uses Parser().
+Parsing Algorithm Code
+======================
 
-pass an API - why?
-pass invoke name to use. Always invoke so far
-pass infrastructure module?? name
-pass path to search for kernel code
-pass line_length
+The first thing PSyclone typically does is parse an input file. The
+code to do this is found in `parse/algorithm.py`.
 
-If nemo API, only parse code and return the fparser2 parse tree.
+An input file can be parsed via the `parse` function or via an
+instance of the `Parser` class. In practice the `parse` function
+simply calls the `Parser` class so we will concentrate on the latter
+in this section. The `parse` function could be removed from PSyclone
+but it is simple and is used in existing PSyclone scripts and
+examples.
 
-All other APIs parse user-written Fortran "algorithm" code. 
+The `Parser` class is initialised with a number of optional
+arguments. A particular `api` can be specified (this is required so
+the parser knows what sort of code and metadata to expect, how to
+parse it and which `builtins` are supported). The name used to specify
+an invoke (defaulting to `invoke`) can be changed, the name of the
+module supplying any infrastructure (defaulting to `inf`) can be
+changed, a path to where to look for associated kernel files can be
+provided and a particular maximum line length can be specified.
 
-Current limitation is that the first program, module, subroutine or function is assumed to be the one that is required (issue #307).
+Once an instance of the `Parser()` class is created and configured
+with required values for the optional arguments, then the parse method
+can be called. This takes the name of the input code as its argument
+and returns a parse tree of the input code and a FileInfo object that
+captures the required invoke information found in the input code and
+in the associated kernel codes.
 
-Aborts if not program, module, subroutine or function.
+If the `nemo` API is specified then the `parse` method of the `Parser`
+instance simply parses the code with `fparser2` and returns the
+resultant `fparser2` parse tree.
 
-Walks the native fparser2 tree. In future want to be able to use different parse trees so how to deal with this?
+For all other APIs the `parse` method of the `Parser` instance returns
+the resultant `fparser2` parse tree and a `FileInfo` instance which
+captures the invoke and kernel metadata in a hierarchy of classes.
 
-Keeps a map of all use statement names and the module they are associated with. Use a map so it is easy to xxx. Keep all names as we ????
+When the `Parser` instance parses the code it expects to find Fortran
+code program, module, subroutine or function (and it aborts if
+not). Currently the first of these (there may be more than one
+subroutine for example) is assumed to be the one that is
+required. This limititation is captured in issue #307.
 
-If invoke statement found then create a list of InvokeCall objects
-(one for each invoke found in the algorithm file) and then return the
-original fparser2 parser tree and a FileInfo object which contains the
-list of invoke calls and the name of the program/module/function in
-which these invoke calls exist.
+The native `fparser2` tree of the Fortran code is then walked and all
+use statement names are captured and stored in a map (called
+`_arg_name_to_module_name`). This map allows the module name to be
+found given a particular argument name. Also, if an `invoke` call is
+found then an `InvokeCall` object is created and added to a list of
+such instances. Once all invokes have been found the `FileInfo`
+instance is created.
 
+.. note:: In the future we want to be able to simply replace one parse
+          tree with another. So how should we do this? One option
+          would be to try to minimise the parser-specific parts and
+          create some form of interface. The question is really what
+          level of interface we should use.
 
+An `InvokeCall` object is created in the `create_invoke_call` method
+by first parsing each of the kernels specified in an invoke call and
+creating a list of `kernel` objects which are then used to create
+an `InvokeCall`.
 
+A `kernel` object is created in the `create_kernel_call` method which
+extracts the kernel name and kernel arguments, then creates either a
+`BuiltInCall` instance (via the `create_builtin_kernel_call` method)
+or a `KernelCall` instance (via the `create_coded_kernel_call`
+method). `BuiltInCalls` are created if the kernel name is the same as
+one of those specified in the builtin names for this particular API
+(see the variable `_builtin_name_map` which is initialised by the
+`get_builtin_defs` function.
+
+The `create_kernel_call` method uses the `get_kernel` function to find
+out the kernel name and create a list or `Arg` instances representing
+the arguments. The `get_kernel` function parses each kernel argument
+using the fparser2 AST and determines the required argument
+information. As `fparser2` parses all of a code we can use the parse
+tree to determine the type of each argument and create the appropriate
+`Arg` instance.
+
+.. note:: the analysis in the `get_kernel` function is the place to
+          extend if we were to support arithmetic operations in an
+          invoke call.
+
+Parsing Kernel Code
+===================
+
+A `BuiltInCall` instance is created by being passed a
+`BuiltinKernelType` instance for the particular API via the
+`BuiltInKernelTypeFactory` class which is found in the `kernels.py`
+file. This class parses the Fortran module file which specifies
+builtin description metadata. Currently `fparser1` is used but we will
+be migrating to `fparser2` in the future. The builtin metadata is
+specified in the same form as coded kernel metadata so the same logic
+(in the `KernelTypeFactory create` method).
+
+A `KernelCall` instance is created by being passed the module name of
+the kernel and a `KernelType` instance for the particular API via the
+`KernelTypeFactory` class which is also found in the `kernels.py`
+file. This class is given the parsed kernel module (via the
+`get_kernel_ast` function - which searches for the kernel file using
+the kernel path information introduced earlier). Again, currently
+`fparser1` is used but we will be migrating to `fparser2` in the
+future.
+
+The `KernelTypeFactory create` method is used for both coded kernels
+and builtin kernels to specify the API-specific class to use. As an
+example, in the case of the `dynamo0.3` API the class is
+`DynKernMetadata` which is found in `psyclone.dynamo0p3`. Once this
+instance has been created (by passing it an `fparser1` AST) it can
+return information about the metadata contained therein. Moving from
+`fparser1` to `fparser2` would required changing the parse code logic
+in each of the API-specific classes.
 
 
 Generic Code
