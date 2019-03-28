@@ -568,7 +568,7 @@ class Invoke(object):
             If not None, this number is added to the name ("invoke_").
         :type idx: Integer.
         :param schedule_class: The schedule class to create for this invoke.
-        :type schedule_class: :py:class:psyclone.psyGen.InvokeSchedule.
+        :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`.
         :param reserved_names: Optional argument: list of reserved names,
                i.e. names that should not be used e.g. as psyclone created
                variable name.
@@ -1393,9 +1393,9 @@ class Schedule(Node):
     ''' Stores schedule information for a sequence of statements.
 
     :param sequence: the sequence of PSyIR nodes that make up the schedule.
-    :type sequence: :py:class:`psyclone.psyGen.Node`
+    :type sequence: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
-    :type parent: list of :py:class:`psyclone.psyGen.Node`
+    :type parent:  :py:class:`psyclone.psyGen.Node`
     '''
 
     def __init__(self, sequence, parent):
@@ -1403,8 +1403,7 @@ class Schedule(Node):
 
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node.
-
+        '''
         :returns: The name of this node in the dag.
         :rtype: str
         '''

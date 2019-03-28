@@ -1483,7 +1483,7 @@ def test_acc_incorrect_parallel_trans():
 
 def test_acc_data_not_a_schedule():
     ''' Test that we raise an appropriate error if we attempt to apply
-    an OpenACC Data transformation to something that is not a
+    an OpenACC Data transformation to something that is not an
     InvokeSchedule. '''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule

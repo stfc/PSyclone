@@ -551,7 +551,6 @@ end module dummy_mod
 
 def test_sched_view(capsys):
     ''' Check the view method of the Schedule class'''
-    from psyclone import dynamo0p3
     from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
@@ -568,8 +567,7 @@ def test_sched_view(capsys):
 
 def test_sched_can_be_printed():
     ''' Check the schedule class can always be printed'''
-    from psyclone import dynamo0p3
-    from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyGen import Schedule
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -614,8 +612,7 @@ def test_sched_ocl_setter():
 
 def test_invokeschedule_can_be_printed():
     ''' Check the InvokeSchedule class can always be printed'''
-    from psyclone import dynamo0p3
-    from psyclone.psyGen import InvokeSchedule, colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyGen import InvokeSchedule
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
