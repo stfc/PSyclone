@@ -104,7 +104,7 @@ def test_node_list_error(tmpdir):
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(node_list)
     assert ("supplied nodes are not children of the same "
-            "Schedule/parent.") in str(excinfo)
+            "parent.") in str(excinfo)
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
