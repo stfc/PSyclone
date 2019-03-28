@@ -50,7 +50,7 @@ from psyclone.transformations import TransformationError, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
     ACCParallelTrans, ACCDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
-from psyclone_test_utils import count_lines, get_invoke
+from psyclone_test_utils import count_lines, get_invoke, Compile
 
 # The version of the PSyclone API that the tests in this file
 # exercise
@@ -1271,6 +1271,7 @@ def test_module_inline_same_kernel():
     # No compilation test here, see test_module_inline_and_compile
 
 
+@Compile.COMPILE
 @pytest.mark.xfail(reason="Inline function uses a module variable (see #315)")
 def test_module_inline_and_compile(tmpdir):
     '''ATM incorrect code is produced if a kernel is inlined, that
