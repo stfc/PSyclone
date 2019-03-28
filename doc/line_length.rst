@@ -27,15 +27,15 @@ Interactive
 
 When using PSyclone interactively the line lengths of the input
 algorithm and Kernel files can be checked by setting the
-:func:`parse.parse` function's "line_length" argument to "True".
-::
+:func:`psyclone.parse.algorithm.parse` function's "line_length"
+argument to "True".  ::
 
     >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("argspec.F90", line_length=True)
 
 Similarly the "line_length" argument can be set to "True" if calling the
 :func:`generator.generate` function. This function simply passes this
-argument on to the :func:`parse.parse` function.
+argument on to the :func:`psyclone.parse.algorithm.parse` function.
 ::
 
     >>> from psyclone.generator import generate

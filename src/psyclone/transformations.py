@@ -2646,7 +2646,7 @@ class NemoExplicitLoopTrans(Transformation):
 
     then doing:
 
-    >>> from psyclone.parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "nemo"
     >>> filename = "implicit_loop.f90"
@@ -3029,7 +3029,7 @@ class DynamoExtractRegionTrans(ExtractRegionTrans):
     ''' Dynamo0.3 API application of ExtractRegionTrans transformation \
     to extract code into a stand-alone program. For example:
 
-    >>> from psyclone.parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>>
     >>> API = "dynamo0.3"
@@ -3086,7 +3086,7 @@ class GOceanExtractRegionTrans(ExtractRegionTrans):
     ''' GOcean1.0 API application of ExtractRegionTrans transformation \
     to extract code into a stand-alone program. For example:
 
-    >>> from psyclone.parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
     >>>
     >>> API = "gocean1.0"

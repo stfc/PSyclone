@@ -13,7 +13,7 @@ The generator module
 The parse module
 ----------------
 
-.. automodule:: psyclone.parse
+.. automodule:: psyclone.parse.algorithm
  
 .. autofunction:: parse
 

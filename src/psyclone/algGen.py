@@ -61,10 +61,10 @@ class NoInvokesError(Exception):
 class Alg(object):
     '''Generate a modified algorithm code for a single algorithm
     specification. Takes the parse tree of the algorithm specification
-    output from the function :func:`parse.parse` and an instance of
-    the :class:`psyGen.PSy` class as input. The latter allows
-    consistent names to be generated between the algorithm (callng)
-    and psy (callee) layers.
+    output from the function :func:`psyclone.parse.algorithm.parse`
+    and an instance of the :class:`psyGen.PSy` class as input. The
+    latter allows consistent names to be generated between the
+    algorithm (callng) and psy (callee) layers.
 
     For example:
 
@@ -78,9 +78,10 @@ class Alg(object):
 
     :param parse_tree: An object containing a parse tree of the \
     algorithm specification which was produced by the function \
-    :func:`parse.parse`. Assumes the algorithm will be parsed by \
-    fparser2 and expects a valid program unit, program, module, \
-    subroutine or function.
+    :func:`psyclone.parse.algorithm.parse`. Assumes the algorithm will \
+    be parsed by fparser2 and expects a valid program unit, program, \
+    module, subroutine or function.
+
     :type parse_tree: :py:class:`fparser.two.utils.Base`
     :param psy: An object containing information about the PSy layer.
     :type psy: :py:class:`psyclone.psyGen.PSy`

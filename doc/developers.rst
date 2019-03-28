@@ -458,8 +458,12 @@ module (`utils.py`) for common functionality.
 Parsing Algorithm Code
 ======================
 
-The first thing PSyclone typically does is parse an input file. The
-code to do this is found in `parse/algorithm.py`.
+The first thing PSyclone typically does is parse an input file. This
+input file is expected to contain Fortran source code conforming to
+the particular API in question. For the `nemo` API this is standard
+code, for the other API's this is algorithm code (conforming to the
+PSyKAl separation of concerns). The PSyclone code to do this is found
+in `parse/algorithm.py`.
 
 An input file can be parsed via the `parse` function or via an
 instance of the `Parser` class. In practice the `parse` function
@@ -472,10 +476,11 @@ The `Parser` class is initialised with a number of optional
 arguments. A particular `api` can be specified (this is required so
 the parser knows what sort of code and metadata to expect, how to
 parse it and which `builtins` are supported). The name used to specify
-an invoke (defaulting to `invoke`) can be changed, the name of the
-module supplying any infrastructure (defaulting to `inf`) can be
-changed, a path to where to look for associated kernel files can be
-provided and a particular maximum line length can be specified.
+an invoke (defaulting to `invoke`) can be changed, a path to where to
+look for associated kernel files can be provided and a particular
+maximum line length can be specified.
+
+.. autoclass:: psyclone.parse.algorithm.Parser
 
 Once an instance of the `Parser()` class is created and configured
 with required values for the optional arguments, then the parse method
@@ -493,9 +498,9 @@ the resultant `fparser2` parse tree and a `FileInfo` instance which
 captures the invoke and kernel metadata in a hierarchy of classes.
 
 When the `Parser` instance parses the code it expects to find Fortran
-code program, module, subroutine or function (and it aborts if
-not). Currently the first of these (there may be more than one
-subroutine for example) is assumed to be the one that is
+code containing a program, module, subroutine or function (and it
+aborts if not). Currently the first of these (there may be more than
+one subroutine for example) is assumed to be the one that is
 required. This limititation is captured in issue #307.
 
 The native `fparser2` tree of the Fortran code is then walked and all
@@ -527,12 +532,14 @@ one of those specified in the builtin names for this particular API
 `get_builtin_defs` function.
 
 The `create_kernel_call` method uses the `get_kernel` function to find
-out the kernel name and create a list or `Arg` instances representing
+out the kernel name and create a list of `Arg` instances representing
 the arguments. The `get_kernel` function parses each kernel argument
 using the fparser2 AST and determines the required argument
-information. As `fparser2` parses all of a code we can use the parse
-tree to determine the type of each argument and create the appropriate
-`Arg` instance.
+information. An advantage of `fparser2` when compared with `fparser1`
+is that it parses all of a code, so we can use the parse tree to
+determine the type of each argument and create the appropriate `Arg`
+instance using the fparser2 AST. Previously we relied on the
+`expression` module to do this (which has limitations).
 
 .. note:: the analysis in the `get_kernel` function is the place to
           extend if we were to support arithmetic operations in an
@@ -548,7 +555,9 @@ file. This class parses the Fortran module file which specifies
 builtin description metadata. Currently `fparser1` is used but we will
 be migrating to `fparser2` in the future. The builtin metadata is
 specified in the same form as coded kernel metadata so the same logic
-(in the `KernelTypeFactory create` method).
+can be used (i.e. the `KernelTypeFactory create` method is called)
+which is why `BuiltInKernelTypeFactory` subclasses
+`KernelTypeFactory`.
 
 A `KernelCall` instance is created by being passed the module name of
 the kernel and a `KernelType` instance for the particular API via the

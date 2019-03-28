@@ -60,8 +60,8 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
 
 
 # pylint: disable=too-many-arguments
-def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
-          kernel_path="", line_length=False):
+def parse(alg_filename, api="", invoke_name="invoke", kernel_path="",
+          line_length=False):
     '''Takes a PSyclone conformant algorithm file as input and outputs a
     parse tree of the code contained therein and an object containing
     information about the 'invoke' calls in the algorithm file and any
@@ -72,8 +72,6 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
     :param str api: The PSyclone API to use when parsing the code.
     :param str invoke_name: The expected name of the invocation calls \
                             in the algorithm code.
-    :param str inf_name: The expected module name of any required \
-                         infrastructure routines.
     :param str kernel_path: The path to search for kernel source files \
                             (if different from the location of the \
                             algorithm source).
@@ -100,7 +98,7 @@ def parse(alg_filename, api="", invoke_name="invoke", inf_name="inf",
 
     # Parsing is encapsulated in the Parser class. We keep this
     # function for compatibility.
-    my_parser = Parser(api, invoke_name, inf_name, kernel_path, line_length)
+    my_parser = Parser(api, invoke_name, kernel_path, line_length)
     return my_parser.parse(alg_filename)
 
 
@@ -113,8 +111,6 @@ class Parser(object):
     :param str api: The PSyclone API to use when parsing the code.
     :param str invoke_name: The expected name of the invocation calls in the
                             algorithm code.
-    :param str inf_name: The expected module name of any required
-                         infrastructure routines.
     :param str kernel_path: The path to search for kernel source files (if
                             different from the location of the algorithm
                             source).
@@ -125,6 +121,7 @@ class Parser(object):
                              to make sure that it conforms and an
                              error raised if not. The default is
                              False.
+
     For example:
 
     >>> from psyclone.parse.algorithm import Parser
@@ -133,11 +130,10 @@ class Parser(object):
 
     '''
 
-    def __init__(self, api="", invoke_name="invoke", inf_name="inf",
-                 kernel_path="", line_length=False):
+    def __init__(self, api="", invoke_name="invoke", kernel_path="",
+                 line_length=False):
 
         self._invoke_name = invoke_name
-        self._inf_name = inf_name
         self._kernel_path = kernel_path
         self._line_length = line_length
 
@@ -422,7 +418,7 @@ class Parser(object):
         :type argument: :py:class:`fparser.two.Actual_Arg_Spec`
         :returns: the label as a string.
         :rtype: str
-        :raises ParseError: if this label has already been used by
+        :raises ParseError: if this label has already been used by \
         another invoke in this algorithm code.
 
         '''
