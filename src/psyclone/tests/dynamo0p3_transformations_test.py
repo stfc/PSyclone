@@ -884,7 +884,6 @@ def test_multi_kernel_single_omp_region(dist_mem):
     schedule, _ = rtrans.apply(schedule.children[index:index+2])
 
     code = str(psy.gen)
-    print(code)
 
     omp_do_idx = -1
     omp_end_do_idx = -1
@@ -917,7 +916,8 @@ def test_multi_kernel_single_omp_region(dist_mem):
     assert (omp_end_do_idx - end_do_idx) == 1
 
 
-def test_multi_different_kernel_omp(monkeypatch, annexed, dist_mem):
+def test_multi_different_kernel_omp(
+        tmpdir, monkeypatch, dist_mem, annexed):
     '''Test that we correctly generate the OpenMP private lists when we
     have more than one kernel of a different type (requiring a
     different private list) within an invoke. Test with and without
@@ -932,6 +932,7 @@ def test_multi_different_kernel_omp(monkeypatch, annexed, dist_mem):
                                  "test_files", "dynamo0p3",
                                  "4.7_multikernel_invokes.f90"),
                     api=TEST_API)
+
     psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(info)
     invoke = psy.invokes.get('invoke_0')
     schedule = invoke.schedule
@@ -950,7 +951,7 @@ def test_multi_different_kernel_omp(monkeypatch, annexed, dist_mem):
     ctrans = Dynamo0p3ColourTrans()
     otrans = DynamoOMPParallelLoopTrans()
 
-    # colour each loop
+    # Colour each loop
     schedule, _ = ctrans.apply(schedule.children[index1])
     schedule, _ = ctrans.apply(schedule.children[index2])
 
@@ -959,9 +960,10 @@ def test_multi_different_kernel_omp(monkeypatch, annexed, dist_mem):
     schedule, _ = otrans.apply(schedule.children[index2].children[0])
 
     code = str(psy.gen)
-    print(code)
 
     assert "private(cell)" in code
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_loop_fuse_different_spaces(monkeypatch, dist_mem):
