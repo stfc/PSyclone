@@ -41,11 +41,11 @@ quadrature in the LFRic API '''
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from dynamo0p3_build import Dynamo0p3Build
 from fparser import api as fpapi
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynInvokeBasisFns
-from psyclone_test_utils import code_compiles, TEST_COMPILE
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -53,7 +53,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 API = "dynamo0.3"
 
 
-def test_field_xyoz(tmpdir, f90, f90flags):
+def test_field_xyoz(tmpdir):
     ''' Tests that a call, with a set of fields requiring XYoZ
     quadrature, produces correct code. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -63,8 +63,7 @@ def test_field_xyoz(tmpdir, f90, f90flags):
     generated_code = str(psy.gen)
     print(generated_code)
 
-    if TEST_COMPILE:
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
@@ -204,7 +203,7 @@ def test_field_xyoz(tmpdir, f90, f90flags):
     assert compute_output in generated_code
 
 
-def test_field_qr_deref(tmpdir, f90, f90flags):
+def test_field_qr_deref(tmpdir):
     ''' Tests that a call, with a set of fields requiring
     quadrature, produces correct code when the quadrature is supplied as the
     component of a derived type. '''
@@ -215,8 +214,7 @@ def test_field_qr_deref(tmpdir, f90, f90flags):
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=dist_mem).create(invoke_info)
 
-        if TEST_COMPILE:
-            assert code_compiles(API, psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
         gen = str(psy.gen)
         print(gen)
         assert (
@@ -278,7 +276,7 @@ def test_dyninvokebasisfns(monkeypatch):
     assert isinstance(call, DynKern)
     monkeypatch.setattr(call, "_eval_shape", "not-a-shape")
     with pytest.raises(InternalError) as err:
-        _ = DynInvokeBasisFns(sched)
+        DynInvokeBasisFns(sched)
     assert "Unrecognised evaluator shape: 'not-a-shape'" in str(err)
 
 

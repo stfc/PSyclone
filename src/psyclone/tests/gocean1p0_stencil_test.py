@@ -39,6 +39,7 @@ GOcean 1.0 API.'''
 from __future__ import absolute_import
 import os
 import pytest
+from gocean1p0_build import GOcean1p0Build
 from psyclone.parse import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError, ParseError
@@ -245,7 +246,7 @@ def test_stencil_case_2():
     assert stencil.name == "go_pointwise"
 
 
-def test_stencil_information():
+def test_stencil_information(tmpdir):
     '''Test that the GOStencil class provides the expected stencil
     information. This exercises the "pointwise" name and the stencil
     description
@@ -282,3 +283,5 @@ def test_stencil_information():
             else:
                 expected_depth = 0
             assert stencil_arg.stencil.depth(idx1, idx2) == expected_depth
+
+    assert GOcean1p0Build(tmpdir).code_compiles(psy)
