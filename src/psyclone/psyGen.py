@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-19, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ except ImportError:
         :type text: string
         :param _: Fake argument, only required to match interface
                   provided by termcolor.colored
-        :return: The supplied text, unchanged
+        :returns: The supplied text, unchanged
         :rtype: string
         '''
         return text
@@ -109,6 +109,7 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Call": "magenta",
                        "KernCall": "magenta",
                        "Profile": "green",
+                       "Extract": "green",
                        "If": "red",
                        "Assignment": "blue",
                        "Reference": "yellow",
@@ -710,14 +711,14 @@ class Invoke(object):
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
 
-        :param string datatype: the type of the kernel argument for the
-                                particular API for which the intent is
+        :param string datatype: the type of the kernel argument for the \
+                                particular API for which the intent is \
                                 required
-        :return: dictionary containing 'intent' keys holding the kernel
-                 argument intent and declarations of all kernel arguments
-                 for each type of intent
+        :returns: dictionary containing 'intent' keys holding the kernel \
+                  argument intent and declarations of all kernel arguments \
+                  for each type of intent
         :rtype: dict
-        :raises GenerationError: if the kernel argument is not a valid
+        :raises GenerationError: if the kernel argument is not a valid \
                                  datatype for the particular API.
 
         '''
@@ -884,6 +885,14 @@ class Node(object):
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
+    # Define two class constants: START_DEPTH and START_POSITION
+    # START_DEPTH is used to calculate depth of all Nodes in the tree
+    # (1 for main Nodes and increasing for their descendants).
+    START_DEPTH = 0
+    # START_POSITION is used to to calculate position of all Nodes in
+    # the tree (absolute or relative to a parent).
+    START_POSITION = 0
+
     def __init__(self, children=None, parent=None):
         if not children:
             self._children = []
@@ -990,10 +999,10 @@ class Node(object):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. The default
-        implementation assumes the node has no directly associated
+        '''Return the list of arguments associated with this Node. The default
+        implementation assumes the Node has no directly associated
         arguments (i.e. is not a Call class or subclass). Arguments of
-        any of this nodes descendents are considered to be
+        any of this nodes descendants are considered to be
         associated. '''
         args = []
         for call in self.calls():
@@ -1004,7 +1013,7 @@ class Node(object):
         '''Returns the closest preceding Node that this Node has a direct
         dependence with or None if there is not one. Only Nodes with
         the same parent as self are returned. Nodes inherit their
-        descendents dependencies. The reason for this is that for
+        descendants' dependencies. The reason for this is that for
         correctness a node must maintain its parent if it is
         moved. For example a halo exchange and a kernel call may have
         a dependence between them but it is the loop body containing
@@ -1041,7 +1050,7 @@ class Node(object):
         '''Returns the closest following Node that this Node has a direct
         dependence with or None if there is not one. Only Nodes with
         the same parent as self are returned. Nodes inherit their
-        descendents dependencies. The reason for this is that for
+        descendants' dependencies. The reason for this is that for
         correctness a node must maintain its parent if it is
         moved. For example a halo exchange and a kernel call may have
         a dependence between them but it is the loop body containing
@@ -1137,8 +1146,13 @@ class Node(object):
 
     @property
     def depth(self):
-        ''' Returns this Node's depth in the tree. '''
-        my_depth = 0
+        '''
+        Returns this Node's depth in the tree: 1 for the Schedule
+        and increasing for its descendants at each level.
+        :returns: depth of the Node in the tree
+        :rtype: int
+        '''
+        my_depth = self.START_DEPTH
         node = self
         while node is not None:
             node = node.parent
@@ -1156,7 +1170,7 @@ class Node(object):
 
         :param int count: Number of indentation levels.
         :param str indent: String representing one indentation level.
-        :return: Complete indentation string.
+        :returns: Complete indentation string.
         :rtype: str
         '''
         return count * indent
@@ -1199,26 +1213,49 @@ class Node(object):
 
     @property
     def position(self):
+        '''
+        Find a Node's position relative to its parent Node (starting
+        with 0 if it does not have a parent).
+        :returns: relative position of a Node to its parent
+        :rtype: int
+        '''
         if self.parent is None:
-            return 0
+            return self.START_POSITION
         return self.parent.children.index(self)
 
     @property
     def abs_position(self):
-        ''' Find my position in the schedule. Needs to be computed
-            dynamically as my position may change. '''
-
-        if self.root == self:
-            return 0
-        found, position = self._find_position(self.root.children, 0)
+        '''
+        Find a Node's absolute position in the tree (starting with 0 if
+        it is the root). Needs to be computed dynamically from the
+        starting position (0) as its position may change.
+        :returns: absolute position of a Node in the tree
+        :raises InternalError: if the absolute position cannot be found
+        :rtype: int
+        '''
+        if self.root == self and isinstance(self.root, Schedule):
+            return self.START_POSITION
+        found, position = self._find_position(self.root.children,
+                                              self.START_POSITION)
         if not found:
-            raise Exception("Error in search for my position in "
-                            "the tree")
+            raise InternalError("Error in search for Node position "
+                                "in the tree")
         return position
 
     def _find_position(self, children, position):
-        ''' Recurse through the tree depth first returning position if
-            found.'''
+        '''
+        Recurse through the tree depth first returning position of
+        a Node if found.
+        :param children: list of Nodes which are children of this Node
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :returns: position of the Node in the tree
+        :rtype: int
+        :raises InternalError: if the starting position is < 0
+        '''
+        if position < self.START_POSITION:
+            raise InternalError(
+                "Search for Node position started from {0} "
+                "instead of {1}.".format(position, self.START_POSITION))
         for child in children:
             position += 1
             if child == self:
@@ -1285,14 +1322,14 @@ class Node(object):
         return None
 
     def calls(self):
-        '''Return all calls that are descendents of this node.'''
+        '''Return all calls that are descendants of this node.'''
         return self.walk(self.children, Call)
 
     def following(self):
         '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
         schedule. Ordering is depth first.
 
-        :return: a list of nodes
+        :returns: a list of nodes
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -1308,7 +1345,7 @@ class Node(object):
 
         :param: reverse: An optional, default `False`, boolean flag
         :type: reverse: bool
-        :return: A list of nodes
+        :returns: A list of nodes
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -1473,7 +1510,7 @@ class Schedule(Node):
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
 
-        :return: Text containing the name of this node, possibly coloured
+        :returns: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -1564,7 +1601,7 @@ class Schedule(Node):
     @property
     def opencl(self):
         '''
-        :return: Whether or not we are generating OpenCL for this Schedule.
+        :returns: Whether or not we are generating OpenCL for this Schedule.
         :rtype: bool
         '''
         return self._opencl
@@ -1585,7 +1622,7 @@ class Schedule(Node):
 
 class Directive(Node):
     '''
-    Base class for all Directive statments.
+    Base class for all Directive statements.
 
     All classes that generate Directive statments (e.g. OpenMP,
     OpenACC, compiler-specific) inherit from this class.
@@ -1610,7 +1647,7 @@ class Directive(Node):
         Returns a string containing the name of this element with
         control codes for colouring in terminals that support it.
 
-        :return: Text containing the name of this node, possibly coloured
+        :returns: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
         return colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
@@ -1622,7 +1659,7 @@ class Directive(Node):
 
 
 class ACCDirective(Directive):
-    ''' Base class for all OpenACC directive statments. '''
+    ''' Base class for all OpenACC directive statements. '''
 
     @abc.abstractmethod
     def view(self, indent=0):
@@ -2099,7 +2136,7 @@ class OMPParallelDirective(OMPDirective):
         and any variables that have been declared private by a Call
         within the directive.
 
-        :return: list of variables to declare as thread private.
+        :returns: list of variables to declare as thread private.
         :rtype: list of str
 
         :raises InternalError: if a Call has local variable(s) but they \
@@ -2470,8 +2507,8 @@ class GlobalSum(Node):
         Return a string containing the (coloured) name of this node
         type
 
-        :return: A string containing the name of this node, possibly with
-                 control codes for colour
+        :returns: A string containing the name of this node, possibly with
+                  control codes for colour
         :rtype: string
         '''
         return colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
@@ -2632,7 +2669,7 @@ class HaloExchange(Node):
         '''
         Return a string containing the (coloured) name of this node type
 
-        :return: Name of this node type, possibly with colour control codes
+        :returns: Name of this node type, possibly with colour control codes
         :rtype: string
         '''
         return colored(
@@ -2645,7 +2682,7 @@ class Loop(Node):
     def dag_name(self):
         ''' Return the name to use in a dag for this node
 
-        :return: Return the dag name for this loop
+        :returns: Return the dag name for this loop
         :rtype: string
 
         '''
@@ -2730,8 +2767,8 @@ class Loop(Node):
         Returns a string containing the name of this node along with
         control characters for colouring in terminals that support it.
 
-        :return: The name of this node, possibly with control codes for
-                 colouring
+        :returns: The name of this node, possibly with control codes for
+                  colouring
         :rtype: string
         '''
         return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
@@ -3257,7 +3294,7 @@ class Kern(Call):
         transformations that may subsequently be applied to the Schedule
         (but will not adapt to transformations applied to the fparser2 AST).
 
-        :return: Schedule representing the kernel code.
+        :returns: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
         '''
         if self._kern_schedule is None:
@@ -3271,7 +3308,7 @@ class Kern(Call):
     @property
     def module_name(self):
         '''
-        :return: The name of the Fortran module that contains this kernel
+        :returns: The name of the Fortran module that contains this kernel
         :rtype: string
         '''
         return self._module_name
@@ -3332,8 +3369,8 @@ class Kern(Call):
         '''
         Return text containing the (coloured) name of this node type
 
-        :return: the name of this node type, possibly with control codes
-                 for colour
+        :returns: the name of this node type, possibly with control codes
+                  for colour
         :rtype: string
         '''
         return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
@@ -3377,7 +3414,7 @@ class Kern(Call):
         :param mapping: dictionary of access types (here INC) associated \
                         with arguments with their metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name.
+        :returns: a Fortran argument name.
         :rtype: str
         :raises FieldNotFoundError: if none is found.
 
@@ -3400,7 +3437,7 @@ class Kern(Call):
                         READWRITE) associated with arguments with their
                         metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
+        :returns: a Fortran argument name
         :rtype: string
         :raises FieldNotFoundError: if none is found.
 
@@ -3731,7 +3768,7 @@ class Arguments(object):
         :param mapping: dictionary of access types associated with arguments
                         with their metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
+        :returns: a Fortran argument name
         :rtype: string
         :raises GenerationError: if none such argument is found.
 
@@ -4050,7 +4087,7 @@ class Argument(object):
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :return: the first preceding argument this argument has a
+        :returns: the first preceding argument this argument has a
         dependence with
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
@@ -4067,7 +4104,7 @@ class Argument(object):
 
         :param: ignore_halos: An optional, default `False`, boolean flag
         :type: ignore_halos: bool
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4080,7 +4117,7 @@ class Argument(object):
         dependence with, or `None` if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :return: the first following argument this argument has a
+        :returns: the first following argument this argument has a
         dependence with
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
@@ -4095,7 +4132,7 @@ class Argument(object):
         return an empty list. If self is not a writer then return an
         empty list.
 
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4108,7 +4145,7 @@ class Argument(object):
 
         :param: the list of nodes that this method examines
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
-        :return: An argument object or None
+        :returns: An argument object or None
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4127,7 +4164,7 @@ class Argument(object):
 
         :param: the list of nodes that this method examines
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4166,7 +4203,7 @@ class Argument(object):
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
         :param: ignore_halos: An optional, default `False`, boolean flag
         :type: ignore_halos: bool
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4240,7 +4277,7 @@ class Argument(object):
         :param argument: the argument we will check to see whether
         there is a dependence with this argument instance (self)
         :type argument: :py:class:`psyclone.psyGen.Argument`
-        :return: True if there is a dependence and False if not
+        :returns: True if there is a dependence and False if not
         :rtype: bool
 
         '''
@@ -4432,8 +4469,8 @@ class IfBlock(Node):
         '''
         Return text containing the (coloured) name of this node type.
 
-        :return: the name of this node type, possibly with control codes \
-                 for colour.
+        :returns: the name of this node type, possibly with control codes \
+                  for colour.
         :rtype: str
         '''
         return colored("If", SCHEDULE_COLOUR_MAP["If"])
@@ -4467,8 +4504,8 @@ class IfClause(IfBlock):
         '''
         Return text containing the (coloured) name of this node type.
 
-        :return: the name of this node type, possibly with control codes \
-                 for colour.
+        :returns: the name of this node type, possibly with control codes \
+                  for colour.
         :rtype: str
         '''
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
@@ -4628,12 +4665,12 @@ class Fparser2ASTProcessor(object):
         :param dimensions: fparser dimension attribute
         :type dimensions:
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
-        :return: Shape of the attribute in row-major order (leftmost \
-                 index is contiguous in memory). Each entry represents \
-                 an array dimension. If it is 'None' the extent of that \
-                 dimension is unknown, otherwise it holds an integer \
-                 with the extent. If it is an empy list then the symbol \
-                 represents a scalar.
+        :returns: Shape of the attribute in row-major order (leftmost \
+                  index is contiguous in memory). Each entry represents \
+                  an array dimension. If it is 'None' the extent of that \
+                  dimension is unknown, otherwise it holds an integer \
+                  with the extent. If it is an empy list then the symbol \
+                  represents a scalar.
         :rtype: list
         '''
         from fparser.two.utils import walk_ast
@@ -4688,7 +4725,7 @@ class Fparser2ASTProcessor(object):
             fixed.
             :param nodes: fparser2 AST node.
             :type nodes: None or List or :py:class:`fparser.two.utils.Base`
-            :return: Returns nodes but always encapsulated in a list
+            :returns: Returns nodes but always encapsulated in a list
             :rtype: list
             '''
             if nodes is None:
@@ -4830,9 +4867,9 @@ class Fparser2ASTProcessor(object):
         :type parent: :py:class:`psyclone.psyGen.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
                 child type.
-        :return: Returns the PSyIR representation of child, which can be a
-                 single node, a tree of nodes or None if the child can be
-                 ignored.
+        :returns: Returns the PSyIR representation of child, which can be a \
+                  single node, a tree of nodes or None if the child can be \
+                  ignored.
         :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
         '''
         handler = self.handlers.get(type(child))
@@ -4858,7 +4895,7 @@ class Fparser2ASTProcessor(object):
         :type child:  :py:class:`fparser.two.utils.Base`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: None
+        :returns: None
         :rtype: NoneType
         '''
         return None
@@ -4871,7 +4908,7 @@ class Fparser2ASTProcessor(object):
         :type child:  :py:class:`fparser.two.Fortran2003.If_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIR representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
         ifblock = IfBlock(parent=parent)
@@ -4889,7 +4926,7 @@ class Fparser2ASTProcessor(object):
         :type child:  :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIR representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Assignment`
         '''
         assignment = Assignment(parent=parent)
@@ -4908,7 +4945,7 @@ class Fparser2ASTProcessor(object):
         :type child:  :py:class:`fparser.two.utils.BinaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIR representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
         '''
         # Get the operator
@@ -4930,7 +4967,7 @@ class Fparser2ASTProcessor(object):
         :type child:  :py:class:`fparser.two.Fortran2003.Name`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIR representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Reference`
         '''
         return Reference(node.string, parent)
@@ -4945,7 +4982,7 @@ class Fparser2ASTProcessor(object):
         :type child:  :py:class:`fparser.two.Fortran2003.Parenthesis`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIR representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         # Use the items[1] content of the node as it contains the required
@@ -4961,7 +4998,7 @@ class Fparser2ASTProcessor(object):
         :type child:  :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIR representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Array`
         '''
         from fparser.two import Fortran2003
@@ -4990,7 +5027,7 @@ class Fparser2ASTProcessor(object):
         :type child:  :py:class:`fparser.two.utils.NumberBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIR representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
         return Literal(str(node.items[0]), parent=parent)
@@ -5063,7 +5100,7 @@ class Symbol(object):
     @property
     def name(self):
         '''
-        :return: Name of the Symbol.
+        :returns: Name of the Symbol.
         :rtype: string
         '''
         return self._name
@@ -5071,7 +5108,7 @@ class Symbol(object):
     @property
     def datatype(self):
         '''
-        :return: Datatype of the Symbol.
+        :returns: Datatype of the Symbol.
         :rtype: string
         '''
         return self._datatype
@@ -5079,8 +5116,8 @@ class Symbol(object):
     @property
     def is_input(self):
         '''
-        :return: Whether the symbol represents data that already exists \
-                 before kernel and is passed into upon entry.
+        :returns: Whether the symbol represents data that already exists \
+                  before kernel and is passed into upon entry.
         :rtype: bool
         '''
         return self._is_input
@@ -5104,8 +5141,8 @@ class Symbol(object):
     @property
     def is_output(self):
         '''
-        :return: Whether the variable respresented by this symbol survives \
-                 outside the kernel upon exit.
+        :returns: Whether the variable respresented by this symbol survives \
+                  outside the kernel upon exit.
         :rtype: bool
         '''
         return self._is_output
@@ -5129,11 +5166,11 @@ class Symbol(object):
     @property
     def shape(self):
         '''
-        :return: Shape of the symbol in row-major order (leftmost \
-                 index is contiguous in memory). Each entry represents \
-                 an array dimension. If not None then it holds the \
-                 extent of that dimension. If it is an empy list it \
-                 represents an scalar.
+        :returns: Shape of the symbol in row-major order (leftmost \
+                  index is contiguous in memory). Each entry represents \
+                  an array dimension. If not None then it holds the \
+                  extent of that dimension. If it is an empy list it \
+                  represents an scalar.
         :rtype: list
         '''
         return self._shape
@@ -5141,12 +5178,12 @@ class Symbol(object):
     @property
     def scope(self):
         '''
-        :return: Whether the symbol is 'local' (just exists inside the kernel \
-                 scope) or 'global_*' (data also lives outside the kernel). \
-                 Global-scoped symbols also have postfixed information about \
-                 the sharing mechanism, at the moment just 'global_argument' \
-                 is available for variables passed in/out of the kernel \
-                 by argument.
+        :returns: Whether the symbol is 'local' (just exists inside the \
+                  kernel scope) or 'global_*' (data also lives outside the \
+                  kernel). Global-scoped symbols also have postfixed \
+                  information about the sharing mechanism, at the moment \
+                  just 'global_argument' is available for variables passed \
+                  in/out of the kernel by argument.
         :rtype: str
         '''
         return self._scope
@@ -5175,7 +5212,7 @@ class Symbol(object):
         '''
         Generates string representing the C language definition of the symbol.
 
-        :return: The C definition of the symbol.
+        :returns: The C definition of the symbol.
         :rtype: str
         :raises NotImplementedError: if there are some symbol types or nodes \
                                      which are not implemented yet.
@@ -5297,7 +5334,7 @@ class SymbolTable(object):
         '''Check if the given key is part of the Symbol Table.
 
         :param str key: key to check for existance.
-        :return: Wether the Symbol Table contains the given key.
+        :returns: Whether the Symbol Table contains the given key.
         :rtype: bool
         '''
         return key in self._symbols
@@ -5305,7 +5342,7 @@ class SymbolTable(object):
     @property
     def argument_list(self):
         '''
-        :return: Ordered list of arguments.
+        :returns: Ordered list of arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
         return self._argument_list
@@ -5313,7 +5350,7 @@ class SymbolTable(object):
     @property
     def local_symbols(self):
         '''
-        :return:  List of local symbols.
+        :returns:  List of local symbols.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
         return [sym for sym in self._symbols.values() if sym.scope == "local"]
@@ -5323,7 +5360,7 @@ class SymbolTable(object):
         Generate C code that defines all local symbols in the Symbol Table.
 
         :param int indent: Indentation level
-        :return: C languague definition of the local symbols.
+        :returns: C languague definition of the local symbols.
         :rtype: str
         '''
         code = ""
@@ -5386,7 +5423,7 @@ class KernelSchedule(Schedule):
     @property
     def name(self):
         '''
-        :return: Name of the Kernel
+        :returns: Name of the Kernel
         :rtype: str
         '''
         return self._name
@@ -5394,7 +5431,7 @@ class KernelSchedule(Schedule):
     @property
     def symbol_table(self):
         '''
-        :return: Table containing symbol information for the kernel.
+        :returns: Table containing symbol information for the kernel.
         :rtype: :py:class:`psyclone.psyGen.SymbolTable`
         '''
         return self._symbol_table
@@ -5416,7 +5453,7 @@ class KernelSchedule(Schedule):
         Generate a string representation of this node in the OpenCL language.
 
         :param int indent: Depth of indent for the output string.
-        :return: OpenCL language code representing the node.
+        :returns: OpenCL language code representing the node.
         :rtype: str
         '''
         raise NotImplementedError(
@@ -5456,7 +5493,7 @@ class CodeBlock(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
@@ -5502,7 +5539,7 @@ class Assignment(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
@@ -5528,7 +5565,7 @@ class Assignment(Node):
         Generate a string representation of this node using C language.
 
         :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
+        :returns: C language code representing the node.
         :rtype: str
         '''
         if len(self.children) != 2:
@@ -5561,7 +5598,7 @@ class Reference(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -5583,7 +5620,7 @@ class Reference(Node):
         Generate a string representation of this node using C language.
 
         :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
+        :returns: C language code representing the node.
         :rtype: str
         '''
         return self._reference
@@ -5609,7 +5646,7 @@ class BinaryOperation(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("BinaryOperation",
@@ -5637,7 +5674,7 @@ class BinaryOperation(Node):
         Generate a string representation of this node using C language.
 
         :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
+        :returns: C language code representing the node.
         :rtype: str
         '''
 
@@ -5671,7 +5708,7 @@ class Array(Reference):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -5697,7 +5734,7 @@ class Array(Reference):
         Generate a string representation of this node using C language.
 
         :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
+        :returns: C language code representing the node.
         :rtype: str
         '''
         code = super(Array, self).gen_c_code() + "["
@@ -5742,7 +5779,7 @@ class Literal(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
@@ -5764,7 +5801,7 @@ class Literal(Node):
         Generate a string representation of this node using C language.
 
         :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
+        :returns: C language code representing the node.
         :rtype: str
         '''
         return self._value

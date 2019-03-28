@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2018, Science and Technology Facilities Council
+.. Copyright (c) 2017-2019, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -2119,6 +2119,10 @@ all versions of the Dynamo API.
 	  supported for loops that contain inter-grid kernels. Attempting
 	  to apply other transformation types will result in PSyclone raising
 	  an error.
+
+.. autoclass:: psyclone.transformations.DynamoExtractRegionTrans
+    :members:
+    :noindex:
 
 .. autoclass:: psyclone.transformations.DynamoLoopFuseTrans
     :members:

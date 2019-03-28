@@ -309,7 +309,7 @@ def main(args):
 
     if args.script is not None and args.profile is not None:
         print("Error: use of automatic profiling in combination with an\n"
-              "optimisation script is not recommened since it may not work\n"
+              "optimisation script is not recommended since it may not work\n"
               "as expected.\n"
               "You can use --force-profile instead of --profile if you \n"
               "really want to use both options at the same time.",

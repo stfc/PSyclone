@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -1392,19 +1392,78 @@ def test_argument_backward_dependence(monkeypatch, annexed):
 
 
 def test_node_depth():
-    '''Test that the Node class depth method returns the correct value
-    for a Node in a tree '''
+    '''
+    Test that the Node class depth method returns the correct value for a
+    Node in a tree. The start depth to determine a Node's depth is set to
+    0. Depth of a Schedule is 1 and increases for its descendants.
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
         distributed_memory=True, api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    # Assert that start_depth of any Node (including Schedule) is 0
+    assert schedule.START_DEPTH == 0
+    # Assert that Schedule depth is 1
     assert schedule.depth == 1
+    # Depth increases by 1 for descendants at each level
     for child in schedule.children:
         assert child.depth == 2
     for child in schedule.children[3].children:
         assert child.depth == 3
+
+
+def test_node_position():
+    '''
+    Test that the Node class position and abs_position methods return
+    the correct value for a Node in a tree. The start position is
+    set to 0. Relative position starts from 0 and absolute from 1.
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
+        distributed_memory=True, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    child = schedule.children[6]
+    # Assert that position of a Schedule (no parent Node) is 0
+    assert schedule.position == 0
+    # Assert that start_position of any Node is 0
+    assert child.START_POSITION == 0
+    # Assert that relative and absolute positions return correct values
+    assert child.position == 6
+    assert child.abs_position == 7
+    # Test InternalError for _find_position with an incorrect position
+    with pytest.raises(InternalError) as excinfo:
+        _, _ = child._find_position(child.root.children, -2)
+    assert "started from -2 instead of 0" in str(excinfo.value)
+    # Test InternalError for abs_position with a Node that does
+    # not belong to the Schedule
+    ompdir = OMPDoDirective()
+    with pytest.raises(InternalError) as excinfo:
+        _ = ompdir.abs_position
+    assert ("PSyclone internal error: Error in search for Node position "
+            "in the tree") in str(excinfo.value)
+
+
+def test_node_root():
+    '''
+    Test that the Node class root method returns the correct instance
+    for a Node in a tree.
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
+        distributed_memory=False, api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    ru_schedule = invoke.schedule
+    # Select a loop and the kernel inside
+    ru_loop = ru_schedule.children[1]
+    ru_kern = ru_loop.children[0]
+    # Assert that the absolute root is a Schedule
+    from psyclone.psyGen import Schedule
+    assert isinstance(ru_kern.root, Schedule)
 
 
 def test_node_args():
@@ -1870,7 +1929,6 @@ def test_node_ancestor():
     from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    sched.view()
     kern = sched.children[0].children[0].children[0]
     node = kern.ancestor(Node)
     assert isinstance(node, Loop)

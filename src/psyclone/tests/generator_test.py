@@ -467,7 +467,7 @@ def test_main_profile(capsys):
     out = out.replace("\n", " ")
 
     warning = ("Error: use of automatic profiling in combination with an "
-               "optimisation script is not recommened since it may not work "
+               "optimisation script is not recommended since it may not work "
                "as expected.")
 
     assert warning in out
