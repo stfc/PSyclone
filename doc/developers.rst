@@ -537,8 +537,9 @@ the arguments. The `get_kernel` function parses each kernel argument
 using the fparser2 AST and determines the required argument
 information. An advantage of `fparser2` when compared with `fparser1`
 is that it parses all of a code, so we can use the parse tree to
-determine the type of each argument and create the appropriate `Arg`
-instance using the fparser2 AST. Previously we relied on the
+determine the type of each kernel argument appearing in the `invoke`
+call (e.g. scalar variable, array reference, literal constant) and
+create the appropriate `Arg` instance. Previously we relied on the
 `expression` module to do this (which has limitations).
 
 .. note:: the analysis in the `get_kernel` function is the place to
