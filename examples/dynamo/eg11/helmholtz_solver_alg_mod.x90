@@ -43,6 +43,8 @@
 
 module helmholtz_solver_alg_mod
 
+  contains
+
   subroutine apply_helmholtz_lhs(Hp, p)
 
     use scaled_matrix_vector_kernel_mod, only: opt_scaled_matrix_vector_kernel_type

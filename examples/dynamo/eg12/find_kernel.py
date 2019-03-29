@@ -58,7 +58,7 @@ TRANS_SCRIPT - Name of the transformation script which applies PSyclone
 from __future__ import print_function
 import os
 import importlib
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Kern
 
 # ============= 1. User-defined settings ==================================== #

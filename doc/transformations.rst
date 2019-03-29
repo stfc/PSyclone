@@ -245,8 +245,8 @@ To apply a transformation interactively we first parse and analyse the
 code. This allows us to generate a "vanilla" PSy layer. For example ...
 ::
 
-    from parse import parse
-    from psyGen import PSyFactory
+    from psyclone.parse.algorithm import parse
+    from psyclone.psyGen import PSyFactory
 
     # This example uses version 0.1 of the Dynamo API
     api = "dynamo0.1"
@@ -282,7 +282,7 @@ with the new one. For example ...
 ::
 
     # Get the list of possible loop transformations
-    from psyGen import TransInfo
+    from psyclone.psyGen import TransInfo
     t = TransInfo()
     print t.list
 
@@ -357,7 +357,7 @@ below does the same thing as the example in the
 ::
 
     def trans(psy):
-	from transformations import OMPParallelLoopTrans
+	from psyclone.transformations import OMPParallelLoopTrans
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
         schedule = invoke.schedule
         ol = OMPParallelLoopTrans()

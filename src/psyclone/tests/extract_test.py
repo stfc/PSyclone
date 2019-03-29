@@ -44,7 +44,7 @@ import os
 import pytest
 
 from dynamo0p3_build import Dynamo0p3Build
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.extractor import ExtractNode
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
@@ -137,7 +137,7 @@ def test_distmem_error():
     # Try applying Extract transformation to Node(s) containing GlobalSum
     _, invoke_info = parse(
         os.path.join(DYNAMO_BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api=DYNAMO_API)
+        api=DYNAMO_API)
     psy = PSyFactory(DYNAMO_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule

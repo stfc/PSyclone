@@ -43,7 +43,7 @@ import os
 import pytest
 from dynamo0p3_build import Dynamo0p3Build
 from fparser import api as fpapi
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynInvokeBasisFns
 
@@ -394,7 +394,7 @@ def test_dynkern_setup(monkeypatch):
     from psyclone.psyGen import Kern
     monkeypatch.setattr(Kern, "__init__",
                         lambda me, ktype, kcall, parent, check: None)
-    from psyclone.parse import KernelCall
+    from psyclone.parse.algorithm import KernelCall
     monkeypatch.setattr(KernelCall, "__init__",
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel

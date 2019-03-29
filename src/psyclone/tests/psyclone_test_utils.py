@@ -361,7 +361,7 @@ def get_invoke(algfile, api, idx=None, name=None):
     :raises RuntimeError: if the supplied name does not match an invoke in
                           the Algorithm
     '''
-    from psyclone.parse import parse
+    from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory
 
     if (idx is None and not name) or (idx is not None and name):

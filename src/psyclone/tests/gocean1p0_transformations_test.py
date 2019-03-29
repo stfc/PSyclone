@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
+# Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
@@ -42,7 +42,7 @@ import os
 import re
 import pytest
 from gocean1p0_build import GOcean1p0Build
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
     GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \

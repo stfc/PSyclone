@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
-# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified work Copyright (c) 2018-2019 by J. Henrichs, Bureau of Meteorology
 
 '''Tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -42,7 +42,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from gocean1p0_build import GOcean1p0Build
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOSchedule

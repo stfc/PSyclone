@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,10 @@ from __future__ import absolute_import
 import os
 import pytest
 from gocean1p0_build import GOcean1p0Build
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.generator import GenerationError, ParseError
+from psyclone.generator import GenerationError
+from psyclone.parse.utils import ParseError
 
 from psyclone.gocean1p0 import GOStencil
 from psyclone import expression as expr
