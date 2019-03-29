@@ -229,12 +229,14 @@ def adduse(parse_tree, location, name, only=None, funcnames=None):
             "algGen.py:adduse: The specified location is invalid as it has no "
             "parent in the parse tree that is a program, module, subroutine "
             "or function.")
-    if not isinstance(parent_prog_statement, (Main_Program,
-                                              Subroutine_Subprogram)):
-        # We currently only support program and subroutine as ancestors
+    if not isinstance(parent_prog_statement,
+                      (Main_Program, Subroutine_Subprogram,
+                       Function_Subprogram)):
+        # We currently only support program, subroutine and function
+        # as ancestors
         raise NotImplementedError(
             "algGen.py:adduse: Unsupported parent code found '{0}'. Currently "
-            "support is limited to subroutine and program.".
+            "support is limited to program, subroutine and function.".
             format(str(type(parent_prog_statement))))
     if not isinstance(parent_prog_statement.content[1], Specification_Part):
         raise NotImplementedError(
