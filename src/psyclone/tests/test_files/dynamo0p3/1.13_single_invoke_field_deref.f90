@@ -12,7 +12,7 @@ program single_invoke
   use testkern, only: testkern_type
   use inf,      only: field_type, estate_type
   implicit none
-  type(field_type) :: f1 m1
+  type(field_type) :: f1,m1
   type(estate_type) :: est
   real(r_def) :: a
 

@@ -1,3 +1,39 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
+..             I. Kavcic, Met Office.
+
 .. _transformations:
 
 Transformations
@@ -27,7 +63,7 @@ Available
 Most transformations are generic as the schedule structure is
 independent of the API, however it often makes sense to specialise
 these for a particular API by adding API-specific errors checks. Some
-transformations are API-specific (or specific to a set of API's
+transformations are API-specific (or specific to a set of APIs
 e.g. dynamo). Currently these different types of transformation are
 indicated by their names.
 
@@ -62,6 +98,12 @@ can be found in the API-specific sections).
 ####
 	       
 .. autoclass:: psyclone.transformations.ColourTrans
+    :members:
+    :noindex:
+
+####
+
+.. autoclass:: psyclone.transformations.ExtractRegionTrans
     :members:
     :noindex:
 
@@ -130,7 +172,6 @@ can be found in the API-specific sections).
 .. autoclass:: psyclone.transformations.ProfileRegionTrans
     :members:
     :noindex:
-
 
 Kernels
 -------
@@ -204,8 +245,8 @@ To apply a transformation interactively we first parse and analyse the
 code. This allows us to generate a "vanilla" PSy layer. For example ...
 ::
 
-    from parse import parse
-    from psyGen import PSyFactory
+    from psyclone.parse.algorithm import parse
+    from psyclone.psyGen import PSyFactory
 
     # This example uses version 0.1 of the Dynamo API
     api = "dynamo0.1"
@@ -241,7 +282,7 @@ with the new one. For example ...
 ::
 
     # Get the list of possible loop transformations
-    from psyGen import TransInfo
+    from psyclone.psyGen import TransInfo
     t = TransInfo()
     print t.list
 
@@ -316,7 +357,7 @@ below does the same thing as the example in the
 ::
 
     def trans(psy):
-	from transformations import OMPParallelLoopTrans
+	from psyclone.transformations import OMPParallelLoopTrans
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
         schedule = invoke.schedule
         ol = OMPParallelLoopTrans()
@@ -342,7 +383,7 @@ Parallel** directive, an **OpenMP Do** directive and an **OpenMP
 Parallel Do** directive, respectively, to a code.
 
 The generic versions of these three transformations (i.e. ones that
-theoretically work for all API's) were given in the
+theoretically work for all APIs) were given in the
 :ref:`sec_transformations_available` section. The API-specific versions
 of these transformations are described in the API-specific sections of
 this document.

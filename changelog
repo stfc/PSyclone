@@ -39,6 +39,29 @@
 	12) PR #255. Construct a KernelSchedule for kernel code with a
 	SymbolTable to hold information on variables used.
 
+	13) PR #302. Fix API's -> APIs typo in documentation.
+
+	14) #292 and PR #293. Add allowed list of nodes to RegionTrans.
+
+	15) #254 and PR #299. Adds methods to generate C and OpenCL
+	code for the Symbol Table and for certain PSyIR nodes.
+
+	16) PR #301. Adds an extras_require section to setup.py to simplify
+	installation of dependencies required for docs and tests.
+
+	17) #281 and PR #313. Adds support for compiling the code
+	generated as part of the GOcean 1.0 tests (including OpenCL
+	code that uses FortCL).
+
+	18) #139 and PR #218. Beginning of implementation of kernel-
+	extraction functionality (PSyKE). Currently only inserts
+	comments into generated Fortran code.
+
+        19) #327 and PR #328. Fix for erroneous xpassing test.
+
+	20) #238 and PR #285. Use fparser2 for parsing the
+	Algorithm layer (instead of fparser1).
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

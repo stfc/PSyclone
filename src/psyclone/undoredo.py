@@ -49,26 +49,26 @@ class UR:
 
         For example:
 
-        >>> from parse import parse
-        >>> ast,info=parse("algorithm.f90")
-        >>> from psyGen import PSy
-        >>> psy=PSy(info)
-        >>> invokes=psy.invokes
+        >>> from psyclone.parse.algorithm import parse
+        >>> ast, info = parse("algorithm.f90")
+        >>> from psyclone.psyGen import PSy
+        >>> psy = PSy(info)
+        >>> invokes = psy.invokes
         >>> invokes.names
-        >>> invoke=invokes.get("name")
-        >>> schedule=invoke.schedule
-        >>> print schedule
-        >>> loop1=schedule.sequence[0]
-        >>> loop2=schedule.sequence[1]
-        >>> trans=SwapTrans()
-        >>> newSchedule,memento=SwapTrans.apply(loop1,loop2)
-        >>> ur=UR()
+        >>> invoke = invokes.get("name")
+        >>> schedule = invoke.schedule
+        >>> schedule.view()
+        >>> loop1 = schedule.sequence[0]
+        >>> loop2 = schedule.sequence[1]
+        >>> trans = SwapTrans()
+        >>> newSchedule, memento = SwapTrans.apply(loop1, loop2)
+        >>> ur = UR()
         >>> ur.add(memento)
-        >>> invoke.schedule=newSchedule
-        >>> print invoke.schedule
-        >>> invoke.schedule=ur.undo.schedule
-        >>> print invoke.schedule
-        >>> invoke.schedule=ur.redo.schedule
+        >>> invoke.schedule = newSchedule
+        >>> invoke.schedule.view()
+        >>> invoke.schedule = ur.undo.schedule
+        >>> invoke.schedule.view()
+        >>> invoke.schedule = ur.redo.schedule
         >>>
         TBC ...
 
