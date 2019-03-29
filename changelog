@@ -57,6 +57,8 @@
 	extraction functionality (PSyKE). Currently only inserts
 	comments into generated Fortran code.
 
+        19) #327 and PR #328. Fix for erroneous xpassing test.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
