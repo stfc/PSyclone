@@ -544,8 +544,8 @@ class ProgramGen(ProgUnitGen):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param str name: name of the Fortran program
         :param bool contains: whether or not we should add "contains" \
-                              for any internal or module subprograms \
-                              this program may have.
+                              for any internal subprograms this program \
+                              may have.
         :param bool implicitnone: whether or not we should specify \
                                   "implicit none" for the body of this \
                                   program.
@@ -712,7 +712,7 @@ class SubroutineGen(ProgUnitGen):
                                   subroutine
         '''
         reader = FortranStringReader(
-            "subroutine vanilla(vanilla_arg)\nend subroutine")
+            "subroutine vanilla(vanilla_arg)\nend subroutine vanilla")
         reader.set_format(FortranFormat(True, True))  # free form, strict
         subline = reader.next()
         endsubline = reader.next()

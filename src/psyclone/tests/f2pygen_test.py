@@ -902,11 +902,11 @@ def test_progunit_multiple_use3():
 
 def test_programgen_stub():
     '''Check that we correctly generate a simple stub program'''
-    program = ProgramGen(name="testprogram", contains=True)
+    program = ProgramGen(name="testprogram", contains=True, implicitnone=True)
     # This is wrong, program or module should not allow
     # adding subroutine without "contains" statement
-    subroutine = SubroutineGen(program, name="testsubroutine")
-    program.add(subroutine)
+    sub = SubroutineGen(program, name="testsubroutine")
+    program.add(sub)
     gen = str(program.root)
     print(str(gen))
     expected = (
