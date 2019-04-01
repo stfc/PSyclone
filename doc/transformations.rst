@@ -178,7 +178,7 @@ Kernels
 
 PSyclone supports the transformation of Kernels as well as PSy-layer
 code. However, the transformation of kernels to produce new kernels
-brings with it additional considerations, especialy regarding the
+brings with it additional considerations, especially regarding the
 naming of the resulting kernels. PSyclone supports two use cases:
 
   1. the HPC expert wishes to optimise the same kernel in different ways,
@@ -220,6 +220,70 @@ any pre-existing transformed version of that kernel. If another
 transformed version of that kernel exists and does not match that
 created by the current transformation then PSyclone will raise an
 exception.
+
+Rules
++++++
+
+Kernel code that is to be transformed is subject to certain
+restrictions. These rules are intended to make kernel transformations
+as robust as possible, in particular by limiting the amount of
+code that must be parsed by PSyclone (via fparser). The rules are
+as follows:
+
+1) Any variable or procedure accessed by a kernel must either be explicitly
+   declared or named in the ``only`` clause of a module ``use`` statement
+   within the scope of the subroutine containing the kernel implementation.
+   This means that:
+
+   1) Kernel subroutines are forbidden from accessing data using COMMON
+      blocks;
+   2) Kernel subroutines are forbidden from calling proceduces declared via
+      the EXTERN statement;
+   3) Kernel subroutines must not access data or procedures made available
+      via their parent (containing) module.
+
+2) The full Fortran source of a kernel must be available to PSyclone.
+   This includes the source of any modules from which it accesses
+   either routines or data. (However, kernel routines are permitted to make
+   use of Fortran intrinsic routines.)
+
+For instance, consider the following Fortran module containing the
+``bc_ssh_code`` kernel:
+  
+.. code-block:: fortran
+
+  module boundary_conditions_mod
+    real :: forbidden_var
+
+  contains
+
+    subroutine bc_ssh_code(ji, jj, istep, ssha)
+      use kind_params_mod, only: go_wp
+      use model_mod, only: rdt
+      integer,                     intent(in)    :: ji, jj, istep
+      real(go_wp), dimension(:,:), intent(inout) :: ssha
+      real(go_wp) :: rtime
+
+      rtime = real(istep, go_wp) * rdt
+      ...
+    end subroutine bc_ssh_code
+
+  end module boundary_conditions_mod
+
+Since the kernel subroutine accesses data (the ``rdt`` variable) from
+the ``model_mod`` module, the source of that module must be available
+to PSyclone if a transformation is applied to this kernel. Should
+``rdt`` not actually be defined in ``model_mod`` (i.e. ``model_mod``
+itself imports it from another module) then the source containing its
+definition must also be available to PSyclone. Note that the rules
+forbid the ``bc_ssh_code`` kernel from accessing the ``forbidden_var``
+variable that is available to it from the enclosing module scope.
+
+.. note:: these rules *only* apply to kernels that are the target of
+	  PSyclone kernel transformations.
+
+Available Kernel Transformations
+++++++++++++++++++++++++++++++++
 
 PSyclone currently provides just one kernel transformation:
 
