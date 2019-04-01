@@ -1585,8 +1585,7 @@ class DynStencils(DynCollection):
         '''
         root_name = arg.name + "_stencil_map"
         unique = DynStencils.stencil_unique_str(arg, "map")
-        name_space_manager = NameSpaceFactory().create()
-        return name_space_manager.create_name(
+        return self._name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
 
     @staticmethod
@@ -1601,9 +1600,9 @@ class DynStencils(DynCollection):
         :returns: a valid unique dofmap name for a stencil in the PSy layer.
         :rtype: str
         '''
+        name_space_manager = NameSpaceFactory().create()
         root_name = arg.name + "_stencil_dofmap"
         unique = DynStencils.stencil_unique_str(arg, "dofmap")
-        name_space_manager = NameSpaceFactory().create()
         return name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
 
@@ -1625,7 +1624,24 @@ class DynStencils(DynCollection):
         return name_space_manager.create_name(
             root_name=root_name, context="PSyVars", label=unique)
 
-        
+    @staticmethod
+    def direction_name(arg):
+        '''
+        Creates a Fortran variable name to hold the direction of the stencil
+        associated with the supplied kernel argument.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: a Fortran variable name for the stencil direction.
+        :rtype: str
+        '''
+        name_space_manager = NameSpaceFactory().create()
+        root_name = arg.name+"_direction"
+        unique = DynStencils.stencil_unique_str(arg, "direction")
+        return name_space_manager.create_name(
+            root_name=root_name, context="PSyVars", label=unique)
+
     @property
     def _unique_extent_vars(self):
         '''
@@ -3659,7 +3675,7 @@ class DynBasisFunctions(DynCollection):
                         basis_fn["fspace"])
                 elif self._kernel:
                     first_dim = self.diff_basis_first_dim_value(
-                        basis_fn["fspace"])                    
+                        basis_fn["fspace"])
                 else:
                     raise InternalError("Do not have either Kernel or "
                                         "Invoke. Should be impossible.")
@@ -7396,20 +7412,35 @@ class KernStubArgList(ArgOrdering):
         self._arglist.append(text)
 
     def stencil_unknown_extent(self, arg):
-        '''add stencil information associated with the argument 'arg' if the
-        extent is unknown'''
+        '''
+        Add stencil information associated with a kernel argument if the
+        extent is unknown.
+        :param arg: the meta-data description of the kernel argument with \
+                    which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
         name = DynStencils.dofmap_size_name(arg)
         self._arglist.append(name)
 
     def stencil_unknown_direction(self, arg):
-        '''add stencil information associated with the argument 'arg' if the
-        direction is unknown'''
-        name = arg.name+"_direction"
-        self._arglist.append(name)
+        '''
+        Add stencil information associated with the argument 'arg' if the
+        direction is unknown.
+
+        :param arg: the kernel argument with which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        '''
+        self._arglist.append(DynStencils.direction_name(arg))
 
     def stencil(self, arg):
-        '''add general stencil information associated with the argument
-        'arg' '''
+        '''
+        Add general stencil information associated with a kernel argument.
+
+        :param arg: the meta-data description of the kernel argument with \
+                    which the stencil is associated.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
         self._arglist.append(DynStencils.dofmap_name(arg))
 
     def operator(self, arg):
@@ -7460,8 +7491,15 @@ class KernStubArgList(ArgOrdering):
         Declare the indirection dofmaps required when applying a
         CMA operator.
 
-        :param function_space:
-        :param operator:
+        :param function_space: the function space for which the dofmap \
+                               is required.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+        :param operator: the CMA operator for which the dofmap is required.
+        :type operator: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises GenerationError: if no kernel argument is supplied.
+        :raises GenerationError: if the supplied kernel argument is not a \
+                                 CMA operator.
 
         '''
         if not operator:
@@ -7507,13 +7545,10 @@ class KernStubArgList(ArgOrdering):
         Add the necessary declarations for basis function(s) on the supplied
         function space. There can be more than one if this is an evaluator.
 
-        :param function_space: the function space for which to provide
+        :param function_space: the function space for which to provide \
                                the basis functions
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
 
-        :raises GenerationError: if function_space is not a recognised \
-                                 Function Space.
-        :raises GenerationError: if a quadrature other than XYoZ is required.
         :raises InternalError: if the evaluator shape is not recognised.
 
         '''
@@ -7538,9 +7573,11 @@ class KernStubArgList(ArgOrdering):
         Provide the necessary declarations for the differential basis function
         on the supplied function space.
 
-        :param function_space: the function space for which to provide the
+        :param function_space: the function space for which to provide the \
                                differential basis function
         :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
+        :raises GenerationError: if the evaluator shape is not recognised.
         '''
         if self._kern.eval_shape in VALID_QUADRATURE_SHAPES:
             # We need differential basis functions for quadrature
@@ -7566,7 +7603,10 @@ class KernStubArgList(ArgOrdering):
         '''
         Provide orientation information for the function space.
 
-        :param function_space:
+        :param function_space: the function space for which orientation \
+                               is required.
+        :type function_space: :py:class:`psyclone.dynamo0p3.FunctionSpace`
+
         '''
         orientation_name = get_fs_orientation_name(function_space)
         self._arglist.append(orientation_name)
@@ -7903,14 +7943,21 @@ class DynStencil(object):
 
 
 class DynKernelArguments(Arguments):
-    ''' Provides information about Dynamo kernel call arguments
-    collectively, as specified by the kernel argument metadata. '''
+    '''
+    Provides information about Dynamo kernel call arguments
+    collectively, as specified by the kernel argument metadata.
 
+    :param call: the kernel meta-data for which to extract argument info.
+    :type call: :py:class:`psyclone.parse.KernelCall`
+    :param parent_call: the kernel-call object.
+    :type parent_call: :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises GenerationError: if the kernel meta-data specifies stencil extent.
+    '''
     def __init__(self, call, parent_call):
         if False:  # pylint: disable=using-constant-test
             # For pyreverse
             self._0_to_n = DynKernelArgument(None, None, None, None)
-
         self._name_space_manager = NameSpaceFactory().create()
 
         Arguments.__init__(self, parent_call)
@@ -8295,13 +8342,19 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def proxy_name(self):
-        ''' Returns the proxy name for this argument. '''
+        '''
+        :returns: the proxy name for this argument.
+        :rtype: str
+        '''
         return self._name+"_proxy"
 
     @property
     def proxy_declaration_name(self):
-        ''' Returns the proxy name for this argument with the array
-        dimensions added if required. '''
+        '''
+        :returns: the proxy name for this argument with the array \
+                  dimensions added if required.
+        :rtype: str
+        '''
         if self._vector_size > 1:
             return self.proxy_name+"("+str(self._vector_size)+")"
         return self.proxy_name
@@ -8316,18 +8369,23 @@ class DynKernelArgument(KernelArgument):
 
     @property
     def proxy_name_indexed(self):
-        ''' Returns the proxy name for this argument with an
-        additional index which accesses the first element for a vector
-        argument. '''
+        '''
+        :returns: the proxy name for this argument with an additional \
+                  index which accesses the first element for a vector \
+                  argument.
+        :rtype: str
+        '''
         if self._vector_size > 1:
             return self._name+"_proxy(1)"
         return self._name+"_proxy"
 
     @property
     def name_indexed(self):
-        ''' Returns the name for this argument with an
-        additional index which accesses the first element for a vector
-        argument. '''
+        '''
+        :returns: the name for this argument with an additional index \
+                  which accesses the first element for a vector argument.
+        :rtype: str
+        '''
         if self._vector_size > 1:
             return self._name+"(1)"
         return self._name
