@@ -1793,11 +1793,13 @@ def test_dynbasisfns_declns(monkeypatch):
     dbasis._basis_fns[0]['type'] = "basis"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
-    assert "Do not have either Kernel or Invoke. Should be" in str(err)
+    assert ("basis functions but do not have either a Kernel or an Invoke. "
+            "Should be" in str(err))
     dbasis._basis_fns[0]['type'] = "diff-basis"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
-    assert "Do not have either Kernel or Invoke. Should be" in str(err)
+    assert ("differential basis functions but do not have either a Kernel or "
+            "an Invoke. Should be" in str(err))
     for fn in dbasis._basis_fns:
         fn['type'] = "broken"
     with pytest.raises(InternalError) as err:

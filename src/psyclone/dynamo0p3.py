@@ -2626,8 +2626,11 @@ class DynCMAOperators(DynCollection):
     Holds all information on the Column-Matrix-Assembly operators
     required by an Invoke or Kernel stub.
 
-    '''
+    :param node: either an Invoke schedule or a single Kernel object.
+    :type node: :py:class:`psyclone.dynamo0p3.DynSchedule` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
 
+    '''
     # The scalar parameters that must be passed along with a CMA operator
     # if its 'to' and 'from' spaces are the same
     cma_same_fs_params = ["nrow", "bandwidth", "alpha",
@@ -3220,9 +3223,9 @@ class DynBasisFunctions(DynCollection):
     functions required by an invoke. This covers both those required for
     quadrature and for evaluators.
 
-    :param schedule: the schedule of the Invoke for which to extract \
-                     information on all required basis/diff-basis functions.
-    :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+    :param node: either the schedule of an Invoke or a single Kernel object.
+    :type node: :py:class:`psyclone.dynamo0p3.DynSchedule` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
 
     :raises InternalError: if a call in the supplied Schedule has an \
                            unrecognised evaluator shape.
@@ -3665,7 +3668,8 @@ class DynBasisFunctions(DynCollection):
                 elif self._kernel:
                     first_dim = self.basis_first_dim_value(basis_fn["fspace"])
                 else:
-                    raise InternalError("Do not have either Kernel or "
+                    raise InternalError("Require basis functions but do not "
+                                        "have either a Kernel or an "
                                         "Invoke. Should be impossible.")
                 dim_space = "get_dim_space()"
                 is_diff_basis = False
@@ -3677,8 +3681,9 @@ class DynBasisFunctions(DynCollection):
                     first_dim = self.diff_basis_first_dim_value(
                         basis_fn["fspace"])
                 else:
-                    raise InternalError("Do not have either Kernel or "
-                                        "Invoke. Should be impossible.")
+                    raise InternalError("Require differential basis functions "
+                                        "but do not have either a Kernel or "
+                                        "an Invoke. Should be impossible.")
                 dim_space = "get_dim_space_diff()"
                 is_diff_basis = True
             else:
@@ -3944,6 +3949,9 @@ class DynBasisFunctions(DynCollection):
         :param parent: node in the f2pygen AST to which the deallocate
                        calls will be added
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if an unrecognised type of basis function \
+                               is encountered.
         '''
         from psyclone.f2pygen import CommentGen, DeallocateGen
 
