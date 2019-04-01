@@ -553,7 +553,7 @@ def test_enforce_bc_kernel_stub_gen():
         "boundary_dofs_field_1\n"
         "    END SUBROUTINE enforce_bc_code\n"
         "  END MODULE enforce_bc_mod")
-    assert output in str(generated_code).find(output)
+    assert output in str(generated_code)
 
 
 def test_enforce_op_bc_kernel_stub_gen():
