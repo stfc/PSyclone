@@ -94,7 +94,6 @@ def test_get_op_wrong_name():
 def test_ad_op_type_too_few_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has fewer than 4 args. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
                         "arg_type(gh_operator,gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -107,7 +106,6 @@ def test_ad_op_type_too_few_args():
 def test_ad_op_type_too_many_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has more than 4 args. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
                         "arg_type(gh_operator,gh_read, w2, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -120,7 +118,6 @@ def test_ad_op_type_too_many_args():
 def test_ad_op_type_wrong_3rd_arg():
     ''' Tests that an error is raised when the 3rd entry in the operator
     descriptor metadata is invalid. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
                         "arg_type(gh_operator,gh_read, woops, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -134,7 +131,6 @@ def test_ad_op_type_wrong_3rd_arg():
 def test_ad_op_type_1st_arg_not_space():
     ''' Tests that an error is raised when the operator descriptor
     metadata contains something that is not a valid space. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
                         "arg_type(gh_operator,gh_read, wbroke, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -147,7 +143,6 @@ def test_ad_op_type_1st_arg_not_space():
 
 def test_ad_op_type_wrong_access():
     ''' Test that an error is raised if an operator has gh_inc access. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
                         "arg_type(gh_operator,gh_inc, w2, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -161,7 +156,6 @@ def test_ad_op_type_wrong_access():
 def test_fs_descriptor_wrong_type():
     ''' Tests that an error is raised when the function space descriptor
     metadata is not of type func_type. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("func_type(w2", "funced_up_type(w2", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -174,7 +168,6 @@ def test_fs_descriptor_wrong_type():
 def test_fs_descriptor_too_few_args():
     ''' Tests that an error is raised when there are two few arguments in
     the function space descriptor metadata (must be at least 2). '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("w1, gh_basis", "w1", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -186,7 +179,6 @@ def test_fs_descriptor_too_few_args():
 def test_fs_desc_invalid_fs_type():
     ''' Tests that an error is raised when an invalid function space name
     is provided as the first argument. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("w3, gh_basis", "w4, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -199,7 +191,6 @@ def test_fs_desc_invalid_fs_type():
 def test_fs_desc_replicated_fs_type():
     ''' Tests that an error is raised when a function space name
     is replicated. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("w3, gh_basis", "w1, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -212,7 +203,6 @@ def test_fs_desc_replicated_fs_type():
 def test_fs_desc_invalid_op_type():
     ''' Tests that an error is raised when an invalid function space
     operator name is provided as an argument. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("w2, gh_diff_basis", "w2, gh_dif_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -225,7 +215,6 @@ def test_fs_desc_invalid_op_type():
 def test_fs_desc_replicated_op_type():
     ''' Tests that an error is raised when a function space
     operator name is replicated as an argument. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("w3, gh_basis, gh_diff_basis",
                         "w3, gh_basis, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
@@ -239,7 +228,6 @@ def test_fs_desc_replicated_op_type():
 def test_fsdesc_fs_not_in_argdesc():
     ''' Tests that an error is raised when a function space
     name is provided that has not been used in the arg descriptor. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("w3, gh_basis", "w0, gh_basis", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
@@ -824,7 +812,6 @@ def test_operators():
 def test_arg_descriptor_op_str():
     ''' Tests that the string method for DynArgDescriptor03 works as
     expected when we have an operator '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     field_descriptor = metadata.arg_descriptors[0]
