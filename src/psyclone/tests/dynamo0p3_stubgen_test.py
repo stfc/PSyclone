@@ -42,7 +42,7 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, KernStubArgList
 from psyclone.psyGen import InternalError, GenerationError
 from psyclone.parse import ParseError
 from psyclone.gen_kernel_stub import generate
@@ -77,7 +77,6 @@ def test_kernel_stub_invalid_scalar_argument():
     # create a temporary module to add code into
     from psyclone.f2pygen import ModuleGen
     # Now call KernStubArgList to raise an exception
-    from psyclone.dynamo0p3 import KernStubArgList
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(InternalError) as excinfo:
         create_arg_list.scalar(arg)
@@ -122,7 +121,6 @@ def test_kernel_stub_ind_dofmap_errors():
     from psyclone.f2pygen import ModuleGen
     module = ModuleGen("module_name")
     # Now call KernStubArgList to raise an exception
-    from psyclone.dynamo0p3 import KernStubArgList
     create_arg_list = KernStubArgList(kernel)
     # First call it without an argument object
     with pytest.raises(GenerationError) as excinfo:
@@ -149,7 +147,6 @@ def test_kernstubarglist_arglist_error():
     from psyclone.f2pygen import ModuleGen
     module = ModuleGen("module_name")
     # Now call KernStubArgList to raise an exception
-    from psyclone.dynamo0p3 import KernStubArgList
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(GenerationError) as excinfo:
         _ = create_arg_list.arglist
@@ -166,7 +163,6 @@ def test_stub_generate_with_anyw2():
     result = generate(os.path.join(BASE_PATH,
                                    "testkern_multi_anyw2_basis_mod.f90"),
                       api=TEST_API)
-    print(result)
     expected_output = (
         "      REAL(KIND=r_def), intent(in), dimension(3,ndf_any_w2,"
         "np_xy,np_z) :: basis_any_w2\n"
@@ -197,17 +193,14 @@ def test_stub_generate_working():
     ''' check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "simple.f90"),
                       api=TEST_API)
-    print(SIMPLE)
-    print(result)
-    assert str(result).find(SIMPLE) != -1
+    assert SIMPLE in str(result)
 
 
 def test_stub_generate_working_noapi():
     ''' check that the stub generate produces the expected output when
     we use the default api (which should be dynamo0.3)'''
     result = generate(os.path.join(BASE_PATH, "simple.f90"))
-    print(result)
-    assert str(result).find(SIMPLE) != -1
+    assert SIMPLE in str(result)
 
 
 SIMPLE_WITH_SCALARS = (
@@ -235,8 +228,7 @@ def test_stub_generate_with_scalars():
     the kernel has scalar arguments '''
     result = generate(os.path.join(BASE_PATH, "simple_with_scalars.f90"),
                       api=TEST_API)
-    print(result)
-    assert str(result).find(SIMPLE_WITH_SCALARS) != -1
+    assert SIMPLE_WITH_SCALARS in str(result)
 
 
 SCALAR_SUMS = (
@@ -334,9 +326,7 @@ def test_intent():
         "field_3_w1\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print(output)
-    print(str(generated_code))
-    assert str(generated_code).find(output) != -1
+    assert output in str(generated_code)
 
 
 # fields : spaces
@@ -415,8 +405,6 @@ def test_spaces():
         "field_7_w2v\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print(output)
-    print(generated_code)
     assert output in generated_code
 
 
@@ -465,9 +453,7 @@ def test_vectors():
         "field_1_w0_v3\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print(output)
-    print(str(generated_code))
-    assert str(generated_code).find(output) != -1
+    assert output in str(generated_code)
 
 
 def test_arg_descriptor_vec_str():
@@ -483,7 +469,6 @@ def test_arg_descriptor_vec_str():
         "  argument_type[0]='gh_field'*3\n"
         "  access_descriptor[1]='gh_write'\n"
         "  function_space[2]='w0'")
-    print(result)
     assert expected_output in result
 
 
@@ -535,8 +520,7 @@ def test_orientation_stubs():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = kernel.gen_stub
-    print(str(generated_code))
-    assert str(generated_code).find(ORIENTATION_OUTPUT) != -1
+    assert ORIENTATION_OUTPUT in str(generated_code)
 
 
 def test_enforce_bc_kernel_stub_gen():
@@ -569,8 +553,7 @@ def test_enforce_bc_kernel_stub_gen():
         "boundary_dofs_field_1\n"
         "    END SUBROUTINE enforce_bc_code\n"
         "  END MODULE enforce_bc_mod")
-    print(str(generated_code))
-    assert str(generated_code).find(output) != -1
+    assert output in str(generated_code).find(output)
 
 
 def test_enforce_op_bc_kernel_stub_gen():
@@ -603,7 +586,6 @@ def test_enforce_op_bc_kernel_stub_gen():
         "boundary_dofs_op_1\n"
         "    END SUBROUTINE enforce_operator_bc_code\n"
         "  END MODULE enforce_operator_bc_mod")
-    print(generated_code)
     assert output in generated_code
 
 
@@ -655,9 +637,7 @@ def test_sub_name():
         "field_1_w1\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print(output)
-    print(str(generated_code))
-    assert str(generated_code).find(output) != -1
+    assert output in str(generated_code)
 
 
 def test_kernel_stub_usage():
@@ -687,7 +667,6 @@ def test_kernel_stub_gen_cmd_line():
                  os.path.join(BASE_PATH, "dummy_orientation_mod.f90")],
                 stdout=PIPE).communicate()[0]
 
-    print("Output was: ", out)
     assert ORIENTATION_OUTPUT in out.decode('utf-8')
 
 
@@ -700,7 +679,6 @@ def test_stub_stencil_extent():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
     result1 = (
         "SUBROUTINE testkern_stencil_code(nlayers, field_1_w1, "
         "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, field_3_w2, "
@@ -724,7 +702,6 @@ def test_stub_stencil_direction():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
     result1 = (
         "    SUBROUTINE testkern_stencil_xory1d_code(nlayers, field_1_w1, "
         "field_2_w2, field_2_stencil_size, field_2_direction, "
@@ -749,7 +726,6 @@ def test_stub_stencil_vector():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
     result1 = (
         "    SUBROUTINE testkern_stencil_vector_code(nlayers, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2, "
@@ -774,7 +750,6 @@ def test_stub_stencil_multi():
     kernel = DynKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
-    print(generated_code)
     result1 = (
         "    SUBROUTINE testkern_stencil_multi_code(nlayers, field_1_w1, "
         "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, field_3_w2,"

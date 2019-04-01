@@ -41,7 +41,6 @@ using pytest. '''
 from __future__ import absolute_import, print_function
 import os
 import pytest
-import fparser
 from fparser import api as fpapi
 from psyclone.parse import parse, ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
@@ -244,7 +243,7 @@ def test_operator():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    print(generated_code)
+
     assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
                                "_type(mm_w0, chi, a, qr)") != -1
     assert generated_code.find("TYPE(operator_type), intent(inout) ::"
@@ -267,7 +266,6 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    print(generated_code)
 
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
@@ -407,7 +405,6 @@ def test_operator_nofield(tmpdir, f90, f90flags):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_code_str = str(psy.gen)
-    print(gen_code_str)
 
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
@@ -439,7 +436,6 @@ def test_operator_nofield_different_space(
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
 
     if TEST_COMPILE:
         # If compilation testing has been enabled (--compile flag to py.test)
@@ -463,7 +459,6 @@ def test_operator_nofield_scalar():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
-    print(gen)
     assert "mesh => my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
@@ -473,8 +468,7 @@ def test_operator_nofield_scalar():
             "weights_xy_qr, weights_z_qr)" in gen)
 
 
-def test_operator_nofield_scalar_deref(
-        tmpdir, f90, f90flags):
+def test_operator_nofield_scalar_deref(tmpdir, f90, f90flags, dist_mem):
     ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer when both
     are obtained by dereferencing derived type objects '''
@@ -482,33 +476,31 @@ def test_operator_nofield_scalar_deref(
         os.path.join(BASE_PATH,
                      "10.6.1_operator_no_field_scalar_deref.f90"),
         api=TEST_API)
-    for dist_mem in [True, False]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        gen = str(psy.gen)
-        print(gen)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    gen = str(psy.gen)
 
-        if TEST_COMPILE:
-            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    if TEST_COMPILE:
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
-        if dist_mem:
-            assert "mesh => opbox_my_mapping%get_mesh()" in gen
-        assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
-        assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
-        assert ("qr_get_instance%compute_function(BASIS, "
-                "opbox_my_mapping_proxy%fs_from, "
-                "dim_w2, ndf_w2, basis_w2_qr_get_instance)" in gen)
-        if dist_mem:
-            assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
-        else:
-            assert (
-                "DO cell=1,opbox_my_mapping_proxy%fs_from%get_ncell()" in gen)
+    if dist_mem:
+        assert "mesh => opbox_my_mapping%get_mesh()" in gen
+    assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
+    assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
+    assert ("qr_get_instance%compute_function(BASIS, "
+            "opbox_my_mapping_proxy%fs_from, "
+            "dim_w2, ndf_w2, basis_w2_qr_get_instance)" in gen)
+    if dist_mem:
+        assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    else:
         assert (
-            "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
-            "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
-            "basis_w2_qr_get_instance, np_xy_qr_get_instance, "
-            "np_z_qr_get_instance, weights_xy_qr_get_instance,"
-            " weights_z_qr_get_instance)" in gen)
+            "DO cell=1,opbox_my_mapping_proxy%fs_from%get_ncell()" in gen)
+    assert (
+        "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
+        "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
+        "basis_w2_qr_get_instance, np_xy_qr_get_instance, "
+        "np_z_qr_get_instance, weights_xy_qr_get_instance,"
+        " weights_z_qr_get_instance)" in gen)
 
 
 def test_operator_orientation(tmpdir, f90, f90flags):
@@ -519,7 +511,6 @@ def test_operator_orientation(tmpdir, f90, f90flags):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
-    print(gen_str)
 
     if TEST_COMPILE:
         assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
@@ -542,8 +533,7 @@ def test_operator_orientation(tmpdir, f90, f90flags):
             "weights_z_qr)" in gen_str)
 
 
-def test_op_orient_different_space(
-        tmpdir, f90, f90flags):
+def test_op_orient_different_space(tmpdir, f90, f90flags):
     '''tests that an operator on different spaces requiring orientation
     information is implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -552,7 +542,6 @@ def test_op_orient_different_space(
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
-    print(gen_str)
 
     if TEST_COMPILE:
         assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
@@ -579,35 +568,33 @@ def test_op_orient_different_space(
             "weights_xy_qr, weights_z_qr)" in gen_str)
 
 
-def test_operator_deref(tmpdir, f90, f90flags):
+def test_operator_deref(tmpdir, f90, f90flags, dist_mem):
     ''' Tests that we generate correct names for an operator in the PSy
     layer when obtained by de-referencing a derived type in the Algorithm
     layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10.8_operator_deref.f90"),
                            api=TEST_API)
-    for dist_mem in [True, False]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        generated_code = str(psy.gen)
-        print(generated_code)
-        if TEST_COMPILE:
-            assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    generated_code = str(psy.gen)
+    if TEST_COMPILE:
+        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
-        assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
-                                   "_type(mm_w0_op, chi, a, qr)") != -1
-        assert generated_code.find("TYPE(operator_type), intent(inout) ::"
-                                   " mm_w0_op") != -1
-        assert generated_code.find("TYPE(operator_proxy_type) mm_w0_op_"
-                                   "proxy") != -1
-        assert (
-            generated_code.find("mm_w0_op_proxy = mm_w0_op%get_proxy()") != -1)
-        assert generated_code.find(
-            "CALL testkern_operator_code(cell, nlayers, "
-            "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
-            "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
-            "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
-            "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
-            "weights_z_qr)") != -1
+    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
+                               "_type(mm_w0_op, chi, a, qr)") != -1
+    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
+                               " mm_w0_op") != -1
+    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_op_"
+                               "proxy") != -1
+    assert (
+        generated_code.find("mm_w0_op_proxy = mm_w0_op%get_proxy()") != -1)
+    assert generated_code.find(
+        "CALL testkern_operator_code(cell, nlayers, "
+        "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
+        "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
+        "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
+        "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
+        "weights_z_qr)") != -1
 
 
 def test_operator_no_dofmap_lookup():
@@ -619,7 +606,6 @@ def test_operator_no_dofmap_lookup():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_code = str(psy.gen)
-    print(gen_code)
     # Check that we use the field and not the operator to look-up the dofmap
     assert "theta_proxy%vspace%get_whole_dofmap()" in gen_code
     assert gen_code.count("get_whole_dofmap") == 1
@@ -654,7 +640,6 @@ def test_operator_bc_kernel(tmpdir, f90, f90flags):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    print(generated_code)
     output1 = "INTEGER, pointer :: boundary_dofs_op_a(:,:) => null()"
     assert output1 in generated_code
     output2 = "boundary_dofs_op_a => op_a_proxy%fs_to%get_boundary_dofs()"
@@ -670,78 +655,75 @@ def test_operator_bc_kernel(tmpdir, f90, f90flags):
     assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
 
 
-def test_operator_bc_kernel_fld_err(monkeypatch):
+def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if its argument is not an operator '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        loop = schedule.children[0]
-        call = loop.children[0]
-        arg = call.arguments.args[0]
-        # Monkeypatch the argument object so that it thinks it is a
-        # field rather than an operator
-        monkeypatch.setattr(arg, "_type", value="gh_field")
-        with pytest.raises(GenerationError) as excinfo:
-            _ = psy.gen
-        assert ("Expected a LMA operator from which to look-up boundary dofs "
-                "but kernel enforce_operator_bc_code has argument gh_field") \
-            in str(excinfo)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[0]
+    call = loop.children[0]
+    arg = call.arguments.args[0]
+    # Monkeypatch the argument object so that it thinks it is a
+    # field rather than an operator
+    monkeypatch.setattr(arg, "_type", value="gh_field")
+    with pytest.raises(GenerationError) as excinfo:
+        _ = psy.gen
+    assert ("Expected a LMA operator from which to look-up boundary dofs "
+            "but kernel enforce_operator_bc_code has argument gh_field") \
+        in str(excinfo)
 
 
-def test_operator_bc_kernel_multi_args_err():
+def test_operator_bc_kernel_multi_args_err(dist_mem):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if it has more than one argument '''
     import copy
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        loop = schedule.children[0]
-        call = loop.children[0]
-        arg = call.arguments.args[0]
-        # Make the list of arguments invalid by duplicating (a copy of)
-        # this argument. We take a copy because otherwise, when we change
-        # the type of arg 1 below, we change it for both.
-        call.arguments.args.append(copy.copy(arg))
-        with pytest.raises(GenerationError) as excinfo:
-            _ = psy.gen
-        assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
-                "should only have 1 (an LMA operator)") in str(excinfo)
-        # And again but make the second argument a field this time
-        call.arguments.args[1]._type = "gh_field"
-        with pytest.raises(GenerationError) as excinfo:
-            _ = psy.gen
-        assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
-                "should only have 1 (an LMA operator)") in str(excinfo)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[0]
+    call = loop.children[0]
+    arg = call.arguments.args[0]
+    # Make the list of arguments invalid by duplicating (a copy of)
+    # this argument. We take a copy because otherwise, when we change
+    # the type of arg 1 below, we change it for both.
+    call.arguments.args.append(copy.copy(arg))
+    with pytest.raises(GenerationError) as excinfo:
+        _ = psy.gen
+    assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
+            "should only have 1 (an LMA operator)") in str(excinfo)
+    # And again but make the second argument a field this time
+    call.arguments.args[1]._type = "gh_field"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = psy.gen
+    assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
+            "should only have 1 (an LMA operator)") in str(excinfo)
 
 
-def test_operator_bc_kernel_wrong_access_err():
+def test_operator_bc_kernel_wrong_access_err(dist_mem):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if its operator argument has the wrong access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)
-    for dist_mem in [False, True]:
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=dist_mem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        loop = schedule.children[0]
-        call = loop.children[0]
-        arg = call.arguments.args[0]
-        arg._access = "gh_read"
-        with pytest.raises(GenerationError) as excinfo:
-            _ = psy.gen
-        assert ("applies boundary conditions to an operator. However its "
-                "operator argument has access gh_read rather than "
-                "gh_readwrite") in str(excinfo)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.children[0]
+    call = loop.children[0]
+    arg = call.arguments.args[0]
+    arg._access = "gh_read"
+    with pytest.raises(GenerationError) as excinfo:
+        _ = psy.gen
+    assert ("applies boundary conditions to an operator. However its "
+            "operator argument has access gh_read rather than "
+            "gh_readwrite") in str(excinfo)
 
 
 # operators : spaces and intent
@@ -804,8 +786,6 @@ def test_operators():
         "ndf_any_space_1_op_5,op_5_ncell_3d) :: op_5\n"
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
-    print(output)
-    print(generated_code)
     assert output in generated_code
 
 
@@ -822,7 +802,6 @@ def test_arg_descriptor_op_str():
         "  access_descriptor[1]='gh_write'\n"
         "  function_space_to[2]='w0'\n"
         "  function_space_from[3]='w0'\n")
-    print(result)
     assert expected_output in result
 
 
