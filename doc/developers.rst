@@ -1495,6 +1495,8 @@ sub-class of the ``DynCollection`` abstract class:
    :private-members:
    :noindex:
 
+(A single base class is used for both Invokes and Kernel stubs since it
+allows the code dealing with variable declarations to be shared.)
 A concrete sub-class of ``DynCollection`` must provide an
 implementation of the ``_invoke_declarations`` method. If the
 quantities associated with the collection require initialisation

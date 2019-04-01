@@ -282,6 +282,10 @@ def qr_basis_alloc_args(first_dim, basis_fn):
                     Algorithm layer), respectively
     :return: list of dimensions to use to allocate array
     :rtype: list of strings
+
+    :raises InternalError: if an unrecognised quadrature shape is encountered.
+    :raises NotImplementedError: if a quadrature shape other than \
+                                 "gh_quadrature_xyoz" is supplied.
     '''
     if basis_fn["shape"] not in VALID_QUADRATURE_SHAPES:
         raise InternalError(
@@ -1471,6 +1475,9 @@ class DynStencils(DynCollection):
     :param node: the Invoke or Kernel stub for which to provide stencil info.
     :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises GenerationError: if a literal has been supplied for a stencil \
+                             direction.
     '''
     def __init__(self, node):
         super(DynStencils, self).__init__(node)
@@ -1559,6 +1566,8 @@ class DynStencils(DynCollection):
         :returns: unique string identifying the stencil for this argument.
         :rtype: str
 
+        :raises GenerationError: if an explicit stencil extent is found in \
+                                 the meta-data for the kernel argument.
         '''
         unique = context
         unique += arg.function_space.mangled_name
@@ -1817,6 +1826,7 @@ class DynStencils(DynCollection):
                        declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
+        :raises GenerationError: if an unsupported stencil type is encountered.
         '''
         from psyclone.f2pygen import TypeDeclGen, DeclGen, UseGen
         if not self._kern_args:
@@ -2115,6 +2125,8 @@ class DynOrientations(DynCollection):
     this is therefore handled by the kernel-call generation.
 
     '''
+    # We use a named-tuple to manage the storage of the various quantities
+    # that we require. This is neater and more robust than a dict.
     from collections import namedtuple
     Orientation = namedtuple("Orientation", ["name", "field",
                                              "function_space"])
@@ -2135,9 +2147,8 @@ class DynOrientations(DynCollection):
                     if fs_descriptor.requires_orientation:
                         field = call.arguments.get_arg_on_space(unique_fs)
                         oname = get_fs_orientation_name(unique_fs)
-                        self._orients.append(self.Orientation(oname,
-                                                              field,
-                                                              unique_fs))
+                        self._orients.append(
+                            self.Orientation(oname, field, unique_fs))
 
     def _stub_declarations(self, parent):
         '''
@@ -2275,11 +2286,10 @@ class DynFunctionSpaces(DynCollection):
                                      "%" + arg.ref_name(function_space) +
                                      "%get_ndf()"))
             # If there is a field on this space then initialise undf
-            # for this function space. However, if the invoke contains only
-            # kernels that iterate
-            # over dofs and distributed memory is enabled then the
-            # number of dofs is obtained from the field proxy and undf is
-            # not required.
+            # for this function space. However, if the invoke contains
+            # only kernels that iterate over dofs and distributed
+            # memory is enabled then the number of dofs is obtained
+            # from the field proxy and undf is not required.
             if not (self._dofs_only and Config.get().distributed_memory):
                 if self._invoke.field_on_space(function_space):
                     undf_name = get_fs_undf_name(function_space)
@@ -2505,6 +2515,9 @@ class DynScalarArgs(DynCollection):
                  arguments.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
+
+    :raises InternalError: if an unrecognised type of scalar argument is \
+                           encountered.
     '''
     def __init__(self, node):
         super(DynScalarArgs, self).__init__(node)
