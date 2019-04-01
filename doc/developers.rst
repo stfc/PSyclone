@@ -845,7 +845,7 @@ annexed dof. This iteration space will necessarily also include all
 owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called `COMPUTE_ANNEXED_DOFS` and is
-found in the the `dynamo0.3` section of the `psyclone.cfg`
+found in the `dynamo0.3` section of the `psyclone.cfg`
 configuration file (see :ref:`configuration`). If it is ``true`` then
 annexed dofs are always computed in loops that iterate over dofs and
 if it is ``false`` then annexed dofs are not computed. The default in
@@ -1484,7 +1484,7 @@ Module: dynamo0p3
 Specialises various classes from the ``psyclone.psyGen`` module
 in order to support the Dynamo 0.3 API.
 
-When constructing the the Fortran subroutine for either an Invoke or
+When constructing the Fortran subroutine for either an Invoke or
 Kernel stub (see :ref:`stub-generation`), there are various groups of
 related quantities for which variables must be declared and
 (for Invokes) initialised. Each of these groupings is managed by a distinct
@@ -1495,14 +1495,19 @@ sub-class of the ``DynCollection`` abstract class:
    :private-members:
    :noindex:
 
-A concrete sub-class of ``DynCollection`` must provide implementations
-of the ``_stub_declarations``, ``_invoke_declarations`` and, if
-necessary, ``initialisation`` methods.
+A concrete sub-class of ``DynCollection`` must provide an
+implementation of the ``_invoke_declarations`` method. If the
+quantities associated with the collection require initialisation
+within the PSy layer then the ``initialise`` method must also be
+implemented. If stub-generation is to be supported for kernels that
+make use of the collection type then an implementation must also be
+provided for ``_stub_declarations.``
 
-Although instances of ``DynCollection`` handle all declarations and
-initialisation, there remains the problem of constructing the list of
-arguments for a kernel (or kernel stub). The
-``psyclone.dynamo0p3.ArgOrdering`` base class provides support for this:
+Although instances of (sub-classes of) ``DynCollection`` handle all
+declarations and initialisation, there remains the problem of
+constructing the list of arguments for a kernel (or kernel stub). The
+``psyclone.dynamo0p3.ArgOrdering`` base class provides support for
+this:
 
 .. autoclass:: psyclone.dynamo0p3.ArgOrdering
     :members:
@@ -1514,7 +1519,7 @@ argument lists when *calling* kernels (``KernCallArgList``) and when
 *creating* kernel stubs (``KernStubArgList``).  ``KernCallArgList`` is
 only used in ``DynKernelArguments.raw_arg_list()``.
 ``KernStubArgList`` is only used in ``DynKern.gen_stub()``. These
-classes make use of some of the ``DynCollection`` sub-classes in order
+classes make use of ``DynCollection`` sub-classes in order
 to ensure that argument naming is consistent.
 
 Kernel Transformations
