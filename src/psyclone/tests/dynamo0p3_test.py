@@ -68,6 +68,11 @@ DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 TEST_API = "dynamo0.3"
 
 
+def setup_module():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
+
+
 # tests
 def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error

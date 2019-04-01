@@ -298,11 +298,13 @@ class Config(object):
         # unique name (within the specified kernel-output directory).
         self._kernel_naming = Config._default_kernel_naming
 
-    def api_conf(self, api):
+    def api_conf(self, api=None):
         '''
         Getter for the object holding API-specific configuration options.
 
-        :param str api: the API for which configuration details are required.
+        :param str api: Optional, the API for which configuration details are
+                required. If none is specified, returns the config for the
+                default API.
         :returns: object containing API-specific configuration
         :rtype: One of :py:class:`psyclone.configuration.DynConfig`,
                 :py:class:`psyclone.configuration.GOceanConfig` or None.
@@ -312,6 +314,10 @@ class Config(object):
         :raises ConfigurationError: if the config file did not contain a \
                                     section for the requested API.
         '''
+
+        if not api:
+            return self._api_conf[self._api]
+
         if api not in self.supported_apis:
             raise ConfigurationError(
                 "API '{0}' is not in the list '{1}'' of supported APIs."
@@ -574,7 +580,66 @@ class Config(object):
         return self._config.defaults()
 
 
-class DynConfig(object):
+# =============================================================================
+class APISpecific(object):
+    '''A base class for functions that each API-specific class must provide.
+    At the moment that is a function access_mapping().
+    :param section: :py:class:`configparser.SectionProxy`
+    '''
+
+    def __init__(self, section):
+        # Set a default mapping, this way the test cases all work without
+        # having to specify those mappings.
+        self._access_mapping = {"read": "read", "write": "write",
+                                "readwrite": "readwrite", "inc": "inc"}
+        # Get the mapping and convert it into a directory. The input is in
+        # the format: key1:value1, key2=value2, ...
+        mapping = section.get("ACCESS_MAPPING")
+        if mapping:
+            self._access_mapping = APISpecific.create_dict_from_string(mapping)
+            # TODO: check that the keys are valid (and that all values
+            # are specified??)
+
+    @staticmethod
+    def create_dict_from_string(input_str):
+        '''Takes an input string in the format:
+        key1:value1, key2:value2, ...
+        and creates a dictionary with the key,value pairs.
+        Spaces are removed.
+        :param str input_str: The input string.
+        :returns: A dictionary with the key,value pairs from the input string.
+        :rtype: dict.
+        :Raises Config
+        '''
+        input_str = input_str.strip()
+        if not input_str:
+            # Split will otherwise return a list with '' as only element,
+            # which then raises an exception
+            return {}
+
+        entries = input_str.split(",")
+        return_dict = {}
+        for entry in entries:
+            try:
+                key, value = entry.split(":", 1)
+            except ValueError:
+                raise ConfigurationError("Invalid format for mapping: {0}".
+                                         format(entry.strip()))
+            return_dict[key.strip()] = value.strip()
+        return return_dict
+
+    def get_access_mapping(self):
+        '''Returns the mapping of psyclone internal access type
+        'read', 'write', ... to API specific string, e.g.:
+        'gh_read', 'gh_write'.
+        :returns: The access mapping to be used by this API.
+        :rtype: Dictionary of strings
+        '''
+        return self._access_mapping
+
+
+# =============================================================================
+class DynConfig(APISpecific):
     '''
     Dynamo0.3-specific Config sub-class. Holds configuration options specific
     to the Dynamo 0.3 API.
@@ -587,7 +652,7 @@ class DynConfig(object):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
-
+        super(DynConfig, self).__init__(section)
         self._config = config  # Ref. to parent Config object
         try:
             self._compute_annexed_dofs = section.getboolean(
@@ -611,7 +676,7 @@ class DynConfig(object):
 
 
 # =============================================================================
-class GOceanConfig(object):
+class GOceanConfig(APISpecific):
     '''Gocean1.0-specific Config sub-class. Holds configuration options
     specific to the GOcean 1.0 API.
 
@@ -624,6 +689,7 @@ class GOceanConfig(object):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
+        super(GOceanConfig, self).__init__(section)
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -639,6 +705,8 @@ class GOceanConfig(object):
                 from psyclone.gocean1p0 import GOLoop
                 for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
+            elif key == "access_mapping":
+                pass
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
                                          "\"{1}\".".format(key,

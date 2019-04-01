@@ -84,7 +84,7 @@ class Dynamo0p3Build(Compile):
         :param tmpdir: Temporary directory to be used for output files.
         :type tmpdir: :py:class:`LocalPath`
         '''
-        super(Dynamo0p3Build, self).__init__(tmpdir,)
+        super(Dynamo0p3Build, self).__init__(tmpdir)
 
         import os
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),

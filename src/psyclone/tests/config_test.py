@@ -42,7 +42,7 @@ import os
 import re
 import six
 import pytest
-from psyclone.configuration import ConfigurationError, Config
+from psyclone.configuration import APISpecific, ConfigurationError, Config
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -494,3 +494,21 @@ def test_incl_path_errors(tmpdir):
         # pylint: disable=redefined-variable-type
         config.include_paths = [missing_path.strpath]
     assert "does_not_exist' does not exist" in str(cerr)
+
+
+def test_mappings():
+    '''Test the definition of a mapping in the config file.'''
+    mapping = APISpecific.create_dict_from_string("k1:v1, k2:v2")
+    assert mapping == {"k1": "v1", "k2": "v2"}
+
+    mapping = APISpecific.create_dict_from_string("")
+    assert mapping == {}
+
+    # The function only uses the first ":" :
+    mapping = APISpecific.create_dict_from_string("k1:v1, k2:v2:something")
+    assert mapping == {"k1": "v1", "k2": "v2:something"}
+
+    # Tests errors: '=' is not valid, will
+    with pytest.raises(ConfigurationError) as err:
+        mapping = APISpecific.create_dict_from_string("k1:v1, k2=v2")
+    assert "Invalid format for mapping: k2=v2" in str(err)

@@ -42,14 +42,19 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from gocean1p0_build import GOcean1p0Build
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOSchedule
 from psyclone_test_utils import get_invoke
 
-
 API = "gocean1.0"
+
+
+def setup_module():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
 
 
 def test_field(tmpdir):

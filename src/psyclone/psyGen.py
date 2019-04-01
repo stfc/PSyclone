@@ -740,14 +740,15 @@ class Invoke(object):
         # inc (shared update), write, read and readwrite (independent
         # update). A single argument may be accessed in different ways
         # by different kernels.
+        access_mapping = Config.get().api_conf().get_access_mapping()
         inc_args = self.unique_declarations(datatype,
-                                            access=MAPPING_ACCESSES["inc"])
+                                            access=access_mapping["inc"])
         write_args = self.unique_declarations(datatype,
-                                              access=MAPPING_ACCESSES["write"])
+                                              access=access_mapping["write"])
         read_args = self.unique_declarations(datatype,
-                                             access=MAPPING_ACCESSES["read"])
+                                             access=access_mapping["read"])
         readwrite_args = self.unique_declarations(
-            datatype, access=MAPPING_ACCESSES["readwrite"])
+            datatype, access=access_mapping["readwrite"])
         sum_args = self.unique_declarations(datatype,
                                             access=MAPPING_REDUCTIONS["sum"])
         # sum_args behave as if they are write_args from
@@ -780,7 +781,7 @@ class Invoke(object):
             # access. If it is 'write' then the arg is only
             # intent(out), otherwise it is intent(inout)
             first_arg = self.first_access(name)
-            if first_arg.access != MAPPING_ACCESSES["write"]:
+            if first_arg.access != access_mapping["write"]:
                 if name not in declns["inout"]:
                     declns["inout"].append(name)
             else:
@@ -794,7 +795,7 @@ class Invoke(object):
             # However, we deal with inc and readwrite args separately so we
             # do not consider those here.
             first_arg = self.first_access(name)
-            if first_arg.access == MAPPING_ACCESSES["read"]:
+            if first_arg.access == access_mapping["read"]:
                 if name not in declns["inout"]:
                     declns["inout"].append(name)
             else:
@@ -2481,7 +2482,8 @@ class GlobalSum(Node):
             # Update scalar values appropriately
             # Here "readwrite" denotes how the class GlobalSum
             # accesses/updates a scalar
-            self._scalar.access = MAPPING_ACCESSES["readwrite"]
+            access_mapping = Config.get().api_conf().get_access_mapping()
+            self._scalar.access = access_mapping["readwrite"]
             self._scalar.call = self
 
     @property
@@ -2552,7 +2554,8 @@ class HaloExchange(Node):
             # Update fields values appropriately
             # Here "readwrite" denotes how the class HaloExchange
             # accesses a field rather than the field's continuity
-            self._field.access = MAPPING_ACCESSES["readwrite"]
+            access_mapping = Config.get().api_conf().get_access_mapping()
+            self._field.access = access_mapping["readwrite"]
             self._field.call = self
         self._halo_type = None
         self._halo_depth = None
@@ -3979,8 +3982,8 @@ class Argument(object):
         the parser
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
         :param access: the way in which this argument is accessed in
-        the 'Call'. Valid values are specified in 'MAPPING_ACCESSES'
-        (and may be modified by the particular API).
+        the 'Call'. Valid values are specified in the config object
+        of the current API.
         :type access: str
 
         '''
@@ -4012,13 +4015,15 @@ class Argument(object):
         # DynArgument (subclass of Argument) will use the
         # MAPPING_ACCESSES specified in the dynamo0p3 file which
         # overide the default ones in this file.
-        self._write_access_types = [MAPPING_ACCESSES["write"],
-                                    MAPPING_ACCESSES["readwrite"],
-                                    MAPPING_ACCESSES["inc"],
+        access_mapping = Config.get().api_conf().get_access_mapping()
+        print("Psygen: mapping is", access_mapping)
+        self._write_access_types = [access_mapping["write"],
+                                    access_mapping["readwrite"],
+                                    access_mapping["inc"],
                                     MAPPING_REDUCTIONS["sum"]]
-        self._read_access_types = [MAPPING_ACCESSES["read"],
-                                   MAPPING_ACCESSES["readwrite"],
-                                   MAPPING_ACCESSES["inc"]]
+        self._read_access_types = [access_mapping["read"],
+                                   access_mapping["readwrite"],
+                                   access_mapping["inc"]]
         self._vector_size = 1
 
     def __str__(self):
