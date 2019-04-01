@@ -1049,11 +1049,9 @@ def test_cma_matrix_matrix_2scalars(tmpdir, f90, f90flags, dist_mem):
     a kernel that performs a matrix-matrix CMA calculation including
     scalar arguments. '''
 
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "20.2.1_cma_matrix_matrix.f90"),
-        distributed_memory=dist_mem,
-        api="dynamo0.3")
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "20.2.1_cma_matrix_matrix.f90"),
+                           api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
@@ -1180,11 +1178,9 @@ def test_dyndofmap_stubdecln_err():
     if the stored CMA information is invalid. '''
     from psyclone.dynamo0p3 import DynDofmaps
     from psyclone.f2pygen import ModuleGen
-    _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.5_multi_cma_invoke.f90"),
-            distributed_memory=False,
-            api=TEST_API)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "20.5_multi_cma_invoke.f90"),
+                           api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     dofmaps = DynDofmaps(psy.invokes.invoke_list[0])
     mod = ModuleGen(name="test_module")
