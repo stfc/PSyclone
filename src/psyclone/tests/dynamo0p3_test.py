@@ -1758,12 +1758,12 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
             in str(excinfo))
 
 
-def test_bc_kernel_anyspace1_only(monkeypatch):
+def test_bc_kernel_anyspace1_only():
     '''Tests that the recognised boundary-condition kernel is rejected if
     its argument is not specified as being on ANY_SPACE_1.
 
     '''
-    from psyclone.dynamo0p3 import DynBoundaryConditions, DynKern
+    from psyclone.dynamo0p3 import DynBoundaryConditions
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
@@ -1778,7 +1778,28 @@ def test_bc_kernel_anyspace1_only(monkeypatch):
         _ = DynBoundaryConditions(invoke)
     assert ("enforce_bc_code kernel must have an argument on ANY_SPACE_1 but "
             "failed to find such an argument" in str(err))
-    
+
+
+def test_bc_op_kernel_wrong_args():
+    '''Tests that the recognised operator boundary-condition kernel is
+    rejected if it does not have exactly one argument.
+
+    '''
+    from psyclone.dynamo0p3 import DynBoundaryConditions
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "12.4_enforce_op_bc_kernel.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernels = schedule.walk(schedule.children, DynKern)
+    # Ensure that the kernel has the wrong number of arguments - duplicate
+    # the existing argument in the list
+    kernels[0].arguments.args.append(kernels[0].arguments.args[0])
+    with pytest.raises(GenerationError) as err:
+        _ = DynBoundaryConditions(invoke)
+    assert ("enforce_operator_bc_code kernel must have exactly one argument "
+            "but found 2" in str(err))
 
 
 def test_multikernel_invoke_1():
@@ -5927,7 +5948,7 @@ def test_dynstencils_initialise_err():
     # Break internal state
     stencils._kern_args[0].descriptor.stencil['type'] = "not-a-type"
     with pytest.raises(GenerationError) as err:
-        _ = stencils.initialise(ModuleGen(name="testmodule"))
+        stencils.initialise(ModuleGen(name="testmodule"))
     assert "Unsupported stencil type 'not-a-type' supplied." in str(err)
 
 

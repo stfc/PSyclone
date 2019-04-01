@@ -3988,6 +3988,11 @@ class DynBoundaryConditions(DynCollection):
                  any boundary conditions.
     :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises GenerationError: if a kernel named "enforce_bc_code" is found \
+                             but does not have an argument on ANY_SPACE_1.
+    :raises GenerationError: if a kernel named "enforce_operator_bc_code" is \
+                             found but does not have exactly one argument.
     '''
     # Define a BoundaryDofs namedtuple to help us manage the arrays that
     # are required.
@@ -4015,7 +4020,12 @@ class DynBoundaryConditions(DynCollection):
                 farg = call.arguments.get_arg_on_space(bc_fs)
                 self._boundary_dofs.append(self.BoundaryDofs(farg, bc_fs))
             elif call.name.lower() == "enforce_operator_bc_code":
-                # TODO check that the kernel only has one argument
+                # Check that the kernel only has one argument
+                if len(call.arguments.args) != 1:
+                    raise GenerationError(
+                        "The enforce_operator_bc_code kernel must have exactly"
+                        " one argument but found {0}".format(
+                            len(call.arguments.args)))
                 op_arg = call.arguments.args[0]
                 bc_fs = op_arg.function_space_to
                 self._boundary_dofs.append(self.BoundaryDofs(op_arg, bc_fs))
@@ -4024,7 +4034,7 @@ class DynBoundaryConditions(DynCollection):
         '''
         Add declarations for any boundary-dofs arrays required by an Invoke.
 
-        :param parent: node in PSyIR to which to add declarations.
+        :param parent: node in the PSyIR to which to add declarations.
         :type parent: :py:class:`psyclone.psyGen.Node`
         '''
         from psyclone.f2pygen import DeclGen
@@ -4035,6 +4045,10 @@ class DynBoundaryConditions(DynCollection):
 
     def _stub_declarations(self, parent):
         '''
+        Add declarations for any boundary-dofs arrays required by a kernel.
+
+        :param parent: node in the PSyIR to which to add declarations.
+        :type parent: :py:class:`psyclone.psyGen.Node`
         '''
         from psyclone.f2pygen import DeclGen
         for dofs in self._boundary_dofs:
@@ -4129,8 +4143,10 @@ class DynInvoke(Invoke):
         # Information on all proxies required by this Invoke
         self.proxies = DynProxies(self)
 
+        # Information required by kernels that iterate over cells
         self.cell_iterators = DynCellIterators(self)
 
+        # Information on any orientation arrays required by this invoke
         self.orientation = DynOrientations(self)
 
         # Extend arg list with stencil information
@@ -4269,53 +4285,15 @@ class DynInvoke(Invoke):
                                    self.stencil.unique_alg_vars +
                                    self._psy_unique_qr_vars)
 
-        # Add the subroutine argument declarations for real & integer scalars
-        self.scalar_args.declarations(invoke_sub)
+        # Declare all quantities required by this PSy routine (invoke)
+        for entities in [self.scalar_args, self.fields, self.lma_ops,
+                         self.stencil, self.orientation, self.meshes,
+                         self.function_spaces, self.dofmaps, self.cma_ops,
+                         self.boundary_conditions, self.evaluators,
+                         self.proxies, self.cell_iterators]:
+            entities.declarations(invoke_sub)
 
-        # Add the subroutine argument declarations for fields
-        self.fields.declarations(invoke_sub)
-
-        # LMA operator declarations.
-        self.lma_ops.declarations(invoke_sub)
-
-        # declare any stencil arguments
-        self.stencil.declarations(invoke_sub)
-
-        self.orientation.declarations(invoke_sub)
-
-        # Declare any mesh objects (including those for inter-grid kernels)
-        self.meshes.declarations(invoke_sub)
-
-        # Declare quantities related to function spaces
-        self.function_spaces.declarations(invoke_sub)
-
-        # Declare any dofmaps
-        self.dofmaps.declarations(invoke_sub)
-
-        # Declare any CMA operators and associated parameters
-        self.cma_ops.declarations(invoke_sub)
-
-        # Declare any arrays required for boundary conditions
-        self.boundary_conditions.declarations(invoke_sub)
-
-        # Add the subroutine argument declarations for qr (quadrature
-        # rules)
-        self.evaluators.declarations(invoke_sub)
-
-        # Declare any proxies for fields and operators
-        self.proxies.declarations(invoke_sub)
-
-        self.cell_iterators.declarations(invoke_sub)
-
-        self.proxies.initialise(invoke_sub)
-
-        # Initialise the number of layers (if we are calling one or more
-        # kernels that iterate over cells)
-        self.cell_iterators.initialise(invoke_sub)
-
-        # Initialise mesh object(s) and all related quantities for any
-        # inter-grid kernels (number of fine cells per coarse cell etc.)
-        self.meshes.initialise(invoke_sub)
+        # Initialise all quantities required by this PSy routine (invoke)
 
         if self.schedule.reductions(reprod=True):
             # we have at least one reproducible reduction so we need
@@ -4335,27 +4313,13 @@ class DynInvoke(Invoke):
             invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
                                      rhs=omp_function_name+"()"))
 
-        # Initialise any stencil maps
-        self.stencil.initialise(invoke_sub)
+        for entities in [self.proxies, self.cell_iterators, self.meshes,
+                         self.stencil, self.orientation, self.dofmaps,
+                         self.cma_ops, self.boundary_conditions,
+                         self.function_spaces, self.evaluators]:
+            entities.initialise(invoke_sub)
 
-        self.orientation.initialise(invoke_sub)
-
-        # Initialise dofmaps (one for each function space that is used
-        # in this invoke)
-        self.dofmaps.initialise(invoke_sub)
-
-        # Initialise CMA operators and associated parameters
-        self.cma_ops.initialise(invoke_sub)
-
-        # Initialise any boundary-condition arrays
-        self.boundary_conditions.initialise(invoke_sub)
-
-        # Initialise all entities related to function spaces
-        self.function_spaces.initialise(invoke_sub)
-
-        # Initialise basis and/or differential-basis functions and add
-        # calls to compute the values of any basis arrays.
-        self.evaluators.initialise(invoke_sub)
+        # Now that everything is initialised, we can call our kernels
 
         invoke_sub.add(CommentGen(invoke_sub, ""))
         if Config.get().distributed_memory:
@@ -4365,7 +4329,7 @@ class DynInvoke(Invoke):
             invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
         invoke_sub.add(CommentGen(invoke_sub, ""))
 
-        # add content from the schedule
+        # Add content from the schedule
         self.schedule.gen_code(invoke_sub)
 
         # Deallocate any basis arrays
@@ -6505,46 +6469,18 @@ class DynKern(Kern):
         # create an empty PSy layer module
         psy_module = ModuleGen(base_name+"_mod")
 
-        # create the subroutine
+        # Create the subroutine
         sub_stub = SubroutineGen(psy_module, name=base_name+"_code",
                                  implicitnone=True)
         sub_stub.add(UseGen(sub_stub, name="constants_mod", only=True,
                             funcnames=["r_def"]))
 
-        iter_cell = DynCellIterators(self)
-        iter_cell.declarations(sub_stub)
-
-        # Create the dofmap declarations
-        dofmaps = DynDofmaps(self)
-        dofmaps.declarations(sub_stub)
-
-        fspaces = DynFunctionSpaces(self)
-        fspaces.declarations(sub_stub)
-
-        cma_ops = DynCMAOperators(self)
-        cma_ops.declarations(sub_stub)
-
-        # Scalar arguments
-        scalars = DynScalarArgs(self)
-        scalars.declarations(sub_stub)
-
-        fields = DynFields(self)
-        fields.declarations(sub_stub)
-
-        lma_ops = DynLMAOperators(self)
-        lma_ops.declarations(sub_stub)
-
-        stencils = DynStencils(self)
-        stencils.declarations(sub_stub)
-
-        basis = DynBasisFunctions(self)
-        basis.declarations(sub_stub)
-
-        orient = DynOrientations(self)
-        orient.declarations(sub_stub)
-
-        boundary_conditions = DynBoundaryConditions(self)
-        boundary_conditions.declarations(sub_stub)
+        # Add all the declarations
+        for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
+                         DynCMAOperators, DynScalarArgs, DynFields,
+                         DynLMAOperators, DynStencils, DynBasisFunctions,
+                         DynOrientations, DynBoundaryConditions]:
+            entities(self).declarations(sub_stub)
 
         # Create the arglist
         create_arg_list = KernStubArgList(self)
@@ -7159,11 +7095,12 @@ class KernCallArgList(ArgOrdering):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         '''
+        components = ["matrix"]
         if arg.function_space_to.orig_name != \
            arg.function_space_from.orig_name:
-            components = ["matrix"] + DynCMAOperators.cma_diff_fs_params
+            components += DynCMAOperators.cma_diff_fs_params
         else:
-            components = ["matrix"] + DynCMAOperators.cma_same_fs_params
+            components += DynCMAOperators.cma_same_fs_params
         for component in components:
             self._arglist.append(
                 self._name_space_manager.create_name(
@@ -7289,17 +7226,27 @@ class KernCallArgList(ArgOrdering):
                 "Expected a gh_field from which to look-up boundary dofs "
                 "for kernel {0} but got {1}".format(self._kern.name,
                                                     farg.type))
-        self._arglist.append("boundary_dofs_"+farg.name)
+        base_name = "boundary_dofs_" + farg.name
+        name = self._name_space_manager.create_name(root_name=base_name,
+                                                    context="PSyVars",
+                                                    label=base_name)
+        self._arglist.append(name)
 
-    def operator_bcs_kernel(self, function_space):
+    def operator_bcs_kernel(self, _):
         '''
         Supply necessary additional arguments for the kernel that
-        applies boundary conditions to a LMA operator.
+        applies boundary conditions to a LMA operator. 2nd (unused)
+        argument is for consistency with base class.
+
         '''
         # This kernel has only a single LMA operator as argument.
         # Checks for this are performed in ArgOrdering.generate()
         op_arg = self._kern.arguments.args[0]
-        self._arglist.append("boundary_dofs_"+op_arg.name)
+        base_name = "boundary_dofs_"+op_arg.name
+        name = self._name_space_manager.create_name(root_name=base_name,
+                                                    context="PSyVars",
+                                                    label=base_name)
+        self._arglist.append(name)
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
@@ -7371,16 +7318,15 @@ class KernStubArgList(ArgOrdering):
         self._name_space_manager = NameSpaceFactory().create()
 
     def cell_position(self):
-        ''' Add cell position to the argument list if required. '''
+        ''' Add cell position to the argument list. '''
         self._arglist.append("cell")
 
     def mesh_height(self):
-        ''' Add mesh height (nlayers) to the argument list if required. '''
+        ''' Add mesh height (nlayers) to the argument list. '''
         self._arglist.append("nlayers")
 
     def mesh_ncell2d(self):
-        ''' Add the number of columns in the mesh to the argument list if
-        required. '''
+        ''' Add the number of columns in the mesh to the argument list. '''
         self._arglist.append("ncell_2d")
 
     def field_vector(self, argvect):
