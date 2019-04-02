@@ -19,6 +19,8 @@ dotty classes_gocean.dot
 dot -Tsvg classes_gocean.dot > classes_gocean.svg
 
 # to make the topclasses.png file I manually edited the dot file to
-remove any unwanted nodes and edges then added style="filled" to the
-nodes that I want to be shaded. The resultant dot file -
+remove any unwanted nodes and edges then added ... style=filled,
+fillcolor="antiquewhite" ... to the nodes that I wanted to shaded. I
+also manually removed internal variables, but I'm sure there is an
+option to automate this. The resultant dot file -
 dynamo0p3_topclasses.dot - is kept in the doc directory for reference.
