@@ -49,13 +49,13 @@ API = "gocean1.0"
 
 
 # ----------------------------------------------------------------------------
-@Compile.COMPILE_OPENCL
 def test_opencl_compiler_works(tmpdir):
     ''' Check that the specified compiler works for a hello-world
     opencl example. This is done in this file to alert the user
     that all compiles tests are skipped if only the '--compile'
     command line option is used (instead of --compileopencl)
     '''
+    Compile.skip_if_opencl_compilation_disabled()
     example_ocl_code = '''
 program hello
   USE fortcl

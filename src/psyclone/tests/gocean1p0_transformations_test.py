@@ -1271,7 +1271,6 @@ def test_module_inline_same_kernel():
     # No compilation test here, see test_module_inline_and_compile
 
 
-@Compile.COMPILE
 @pytest.mark.xfail(reason="Inline function uses a module variable (see #315)")
 def test_module_inline_and_compile(tmpdir):
     '''ATM incorrect code is produced if a kernel is inlined, that
@@ -1280,6 +1279,7 @@ def test_module_inline_and_compile(tmpdir):
     again only works if the module variable is accessible outside
     of the module)
     '''
+    Compile.skip_if_compilation_disabled()
     psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
                              idx=0)
     schedule = invoke.schedule
