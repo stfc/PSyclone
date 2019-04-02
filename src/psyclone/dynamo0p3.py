@@ -1372,35 +1372,6 @@ class DynamoInvokes(Invokes):
         Invokes.__init__(self, alg_calls, DynInvoke)
 
 
-def stencil_extent_value(field):
-    '''Returns the content of the stencil extent. This may be a literal
-    value (a number) or a variable name. This function simplifies this
-    problem by returning a string in either case'''
-    if field.stencil.extent_arg.is_literal():
-        extent = field.stencil.extent_arg.text
-    else:
-        extent = field.stencil.extent_arg.varname
-    return extent
-
-
-def stencil_unique_str(arg, context):
-    '''Returns a string that uniquely identifies a stencil. As a stencil
-    differs due to the function space it operates on, type of
-    stencil and extent of stencil, we concatenate these things together
-    to return a unique string '''
-    unique = context
-    unique += arg.function_space.mangled_name
-    unique += arg.descriptor.stencil['type']
-    if arg.descriptor.stencil['extent']:
-        raise GenerationError(
-            "found a stencil with an extent specified in the metadata. This "
-            "is not coded for.")
-    unique += arg.stencil.extent_arg.text.lower()
-    if arg.descriptor.stencil['type'] == 'xory1d':
-        unique += arg.stencil.direction_arg.text.lower()
-    return unique
-
-
 class DynCollection(object):
     '''
     Base class for managing the declaration and initialisation of a
