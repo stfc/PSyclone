@@ -509,7 +509,7 @@ In common with OpenMP, the conversion of the generated code to use
 OpenCL is performed by a transformation (``OCLTrans`` - see the
 :ref:`sec_transformations_available` Section above). Currently this
 transformation is only supported for the GOcean1.0 API and is applied
-to the whole Schedule of an Invoke. This means that all kernels in
+to the whole InvokeSchedule of an Invoke. This means that all kernels in
 that Invoke will be executed on the OpenCL device. At present the
 ``OCLTrans`` transformation only alters the generated PSy-layer code. It
 is currently the user's responsibility to convert the actual kernel code
