@@ -63,6 +63,12 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
+
+
 def test_colour_trans_declarations(tmpdir, dist_mem):
     '''Check that we generate the correct variable declarations when
     doing a colouring transformation. We check when distributed memory
@@ -1113,7 +1119,6 @@ def test_loop_fuse_set_dirty():
 def test_loop_fuse_omp(dist_mem):
     '''Test that we can loop-fuse two loop nests and enclose them in an
        OpenMP parallel region. '''
-    # pylint: disable=too-many-branches
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -1180,7 +1185,6 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
     this affects the generated code.
 
     '''
-    # pylint: disable=too-many-branches
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1245,7 +1249,6 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
-    # pylint: disable=too-many-arguments
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP DO for both
     sequential and distributed-memory code. We also test when annexed

@@ -52,7 +52,8 @@ from psyclone_test_utils import get_invoke
 API = "gocean1.0"
 
 
-def setup_module():
+@pytest.fixture(scope="module", autouse=True)
+def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
 

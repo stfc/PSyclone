@@ -43,6 +43,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from dynamo0p3_build import Dynamo0p3Build
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
@@ -77,6 +78,12 @@ contains
   end subroutine testkern_eval_code
 end module testkern_eval
 '''
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
 
 
 def test_eval_mdata():

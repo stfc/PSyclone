@@ -43,6 +43,7 @@ import os
 import pytest
 from dynamo0p3_build import Dynamo0p3Build
 from fparser import api as fpapi
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynInvokeBasisFns
@@ -51,6 +52,12 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynInvokeBasisFns
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 API = "dynamo0.3"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
 
 
 def test_field_xyoz(tmpdir):

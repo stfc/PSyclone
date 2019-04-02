@@ -68,7 +68,8 @@ DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 TEST_API = "dynamo0.3"
 
 
-def setup_module():
+@pytest.fixture(scope="module", autouse=True)
+def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
 

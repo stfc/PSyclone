@@ -57,6 +57,13 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # The PSyclone API under test
 API = "dynamo0.3"
 
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
+
+
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
