@@ -32,7 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Authors A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Tests for OpenCL PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
 ''' This module tests the Dynamo 0.3 API using pytest. '''
@@ -4497,13 +4497,13 @@ def test_halo_exchange_view(capsys):
     result, _ = capsys.readouterr()
 
     # Ensure we test for text containing the correct (colour) control codes
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
     exch = colored("HaloExchange", SCHEDULE_COLOUR_MAP["HaloExchange"])
 
     expected = (
-        sched + "[invoke='invoke_0_testkern_stencil_type' dm=True]\n"
+        sched + "[invoke='invoke_0_testkern_stencil_type', dm=True]\n"
         "    " + exch + "[field='f2', type='region', depth=f2_extent+1, "
         "check_dirty=True]\n"
         "    " + exch + "[field='f3', type='region', depth=1, "

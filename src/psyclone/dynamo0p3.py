@@ -31,14 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
 ''' This module implements the PSyclone Dynamo 0.3 API by 1)
     specialising the required base classes in parser.py (Descriptor,
     KernelType) and adding a new class (DynFuncDescriptor03) to
     capture function descriptor metadata and 2) specialising the
-    required base classes in psyGen.py (PSy, Invokes, Invoke, Schedule,
+    required base classes in psyGen.py (PSy, Invokes, Invoke, InvokeSchedule,
     Loop, Kern, Inf, Arguments and Argument). '''
 
 # Imports
@@ -51,7 +51,7 @@ from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess
@@ -1927,7 +1927,7 @@ class DynMeshes(object):
         self._mesh_names = []
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
-        # Keep a reference to the Schedule so we can check for colouring
+        # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
 
@@ -2290,9 +2290,9 @@ class DynInvokeBasisFns(object):
 
     :param schedule: the schedule of the Invoke for which to extract \
                      information on all required basis/diff-basis functions.
-    :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`
+    :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`
 
-    :raises InternalError: if a call in the supplied Schedule has an \
+    :raises InternalError: if a call in the supplied InvokeSchedule has an \
                            unrecognised evaluator shape.
     '''
     def __init__(self, schedule):
@@ -2866,7 +2866,7 @@ class DynInvokeBasisFns(object):
 
 class DynInvoke(Invoke):
     '''The Dynamo specific invoke class. This passes the Dynamo
-    specific schedule class to the base class so it creates the one we
+    specific InvokeSchedule class to the base class so it creates the one we
     require.  Also overrides the gen_code method so that we generate
     dynamo specific invocation code.
 
@@ -2881,13 +2881,13 @@ class DynInvoke(Invoke):
                                  psy-layer
         '''
         if False:  # pylint: disable=using-constant-test
-            self._schedule = DynSchedule(None)  # for pyreverse
+            self._schedule = DynInvokeSchedule(None)  # for pyreverse
         reserved_names_list = []
         reserved_names_list.extend(STENCIL_MAPPING.values())
         reserved_names_list.extend(VALID_STENCIL_DIRECTIONS)
         reserved_names_list.extend(["omp_get_thread_num",
                                     "omp_get_max_threads"])
-        Invoke.__init__(self, alg_invocation, idx, DynSchedule,
+        Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
                         reserved_names=reserved_names_list)
 
         # The baseclass works out the algorithm code's unique argument
@@ -3344,14 +3344,15 @@ class DynInvoke(Invoke):
         parent.add(invoke_sub)
 
 
-class DynSchedule(Schedule):
-    ''' The Dynamo specific schedule class. This passes the Dynamo-
+class DynInvokeSchedule(InvokeSchedule):
+    ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
     specific factories for creating kernel and infrastructure calls
     to the base class so it creates the ones we require. '''
 
     def __init__(self, arg):
         from psyclone.dynamo0p3_builtins import DynBuiltInCallFactory
-        Schedule.__init__(self, DynKernCallFactory, DynBuiltInCallFactory, arg)
+        InvokeSchedule.__init__(self, DynKernCallFactory,
+                                DynBuiltInCallFactory, arg)
 
     def view(self, indent=0):
         '''
@@ -3361,7 +3362,7 @@ class DynSchedule(Schedule):
         :param int indent: the amount by which to indent the output.
         '''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
-              self.invoke.name + "' dm=" +
+              self.invoke.name + "', dm=" +
               str(Config.get().distributed_memory)+"]")
         for entity in self._children:
             entity.view(indent=indent + 1)
@@ -3374,7 +3375,7 @@ class DynGlobalSum(GlobalSum):
 
     :param scalar: the kernel argument for which to perform a global sum
     :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param parent: the parent node of this node in the Schedule
+    :param parent: the parent node of this node in the PSyIR
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, scalar, parent=None):
@@ -3507,7 +3508,7 @@ def _create_depth_list(halo_info_list):
 class DynHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
-    manipulated in, a schedule
+    manipulated in a schedule.
 
     :param field: the field that this halo exchange will act on
     :type field: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
@@ -3558,7 +3559,7 @@ class DynHaloExchange(HaloExchange):
     def _compute_halo_depth(self):
         '''Dynamically determine the depth of the halo for this halo exchange,
         as the depth can change as transformations are applied to the
-        schedule
+        schedule.
 
         :return: the halo exchange depth as a Fortran string
         :rtype: str

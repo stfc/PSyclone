@@ -107,7 +107,8 @@ class Profiler(object):
         '''This function inserts all required Profiling Nodes (for invokes
         and kernels, as specified on the command line) into a schedule.
         :param schedule: The schedule to instrument.
-        :type schedule: :py::class::`psyclone.psyGen.Schedule` or derived class
+        :type schedule: :py::class::`psyclone.psyGen.InvokeSchedule` or \
+                        derived class
         :param loop_class: The loop class (e.g. GOLoop, DynLoop) to instrument.
         :type loop_class: :py::class::`psyclone.psyGen.Loop` or derived class.
         '''
@@ -202,7 +203,7 @@ class ProfileNode(Node):
 
         if self._module_name is None or self._region_name is None:
             # Find the first kernel and use its name. In an untransformed
-            # Schedule  there should be only one kernel, but if Profile is
+            # Schedule there should be only one kernel, but if Profile is
             # invoked after e.g. a loop merge more kernels might be there.
             region_name = "unknown-kernel"
             module_name = "unknown-module"
