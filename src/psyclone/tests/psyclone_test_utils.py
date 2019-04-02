@@ -60,6 +60,7 @@ class CompileError(Exception):
         return repr(self.value)
 
 
+# =============================================================================
 def line_number(root, string_name):
     '''helper routine which returns the first index of the supplied
     string or -1 if it is not found'''
@@ -70,6 +71,7 @@ def line_number(root, string_name):
     return -1
 
 
+# =============================================================================
 def count_lines(root, string_name):
     '''helper routine which returns the number of lines that contain the
     supplied string'''
@@ -81,6 +83,7 @@ def count_lines(root, string_name):
     return count
 
 
+# =============================================================================
 def print_diffs(expected, actual):
     '''
     Pretty-print the diff between the two, possibly multi-line, strings
@@ -97,6 +100,7 @@ def print_diffs(expected, actual):
     pprint(diff_list)
 
 
+# =============================================================================
 class Compile(object):
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
@@ -109,29 +113,42 @@ class Compile(object):
     :type tmpdir: :py:class:`LocalPath`
     '''
 
-    # Whether or not we run tests requiring code compilation is picked-up
-    # from a command-line flag. (This is set-up in conftest.py.)
-    # pylint: disable=no-member
-    TEST_COMPILE = pytest.config.getoption("--compile")
-    # pylint: enable=no-member
-    # The following allows us to mark a test with @utils.COMPILE if it is
-    # only to be run when the --compile option is passed to py.test
-    COMPILE = pytest.mark.skipif(not TEST_COMPILE,
-                                 reason="Need --compile option to run")
+    # Class variable to store if compilation is enabled (--compile).
+    TEST_COMPILE = False
 
-    # pylint: disable=no-member
-    TEST_COMPILE_OPENCL = pytest.config.getoption("--compileopencl")
-    # pylint: enable=no-member
-    COMPILE_OPENCL = pytest.mark.skipif(not TEST_COMPILE_OPENCL,
-                                        reason="Need --compileopencl "
-                                               "option to run")
+    # Class variable to store if opencl compilation is enabled
+    # (--compileopencl).
+    TEST_COMPILE_OPENCL = False
+
+    # Class variable to store the chosen Fortran compiler (--f90, default
+    # gfortran).
+    F90 = "gfortran"
+
+    # Class variable to store the chosen f90 compiler flags (--f90flags).
+    F90FLAGS = ""
+
+    @staticmethod
+    def store_compilation_flags(config):
+        '''This function is called from the conftest session fixture
+        infra_compile. It sets the class variables related to
+        compilation based on the command line option.
+        :param config: The config object from pytest.
+        :type config: Instance of :py:class:`pytest.config.
+        '''
+        # Whether or not we run tests requiring code compilation is picked-up
+        # from a command-line flag. (This is set-up in conftest.py.)
+        Compile.TEST_COMPILE = config.getoption("--compile")
+        Compile.TEST_COMPILE_OPENCL = config.getoption("--compileopencl")
+        Compile.F90 = config.getoption("--f90")
+        Compile.F90FLAGS = config.getoption("--f90flags")
 
     def __init__(self, tmpdir=None):
         self._tmpdir = tmpdir
-        # pylint: disable=no-member
-        self._f90 = pytest.config.getoption("--f90")
-        self._f90flags = pytest.config.getoption("--f90flags")
-        # pylint: enable=no-member
+        # Take the compiler and compile flags from the static variables.
+        # This allows a specific instance to use different compiler options
+        # which is used in some of the compilation tests.
+        self._f90 = Compile.F90
+        self._f90flags = Compile.F90FLAGS
         self._base_path = None
 
     @property
@@ -162,6 +179,23 @@ class Compile(object):
         :rtype: list
         '''
         return []
+
+    @staticmethod
+    def skip_if_compilation_disabled():
+        '''This function is used in all tests that should only run
+        if compilation is enabled. It calls pytest.skip if compilation
+        is not enabled.'''
+        if not Compile.TEST_COMPILE:
+            pytest.skip("Need --compile option to run")
+
+    @staticmethod
+    def skip_if_opencl_compilation_disabled():
+        '''This function is used in all tests that should only run
+        if opencl compilation is enabled. It calls pytest.skip if
+        opencl compilation is not enabled.'''
+
+        if not Compile.TEST_COMPILE_OPENCL:
+            pytest.skip("Need --compileopencl option to run")
 
     @staticmethod
     def find_fortran_file(search_paths, root_name):
