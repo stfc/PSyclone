@@ -92,20 +92,15 @@ def have_graphviz():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def set_compilation_flags(request):
-    '''Called one per session automatically. It sets the compilation flags
-    in the Compile class based on command line options for --compile,
-    --compileopencl, --f90, --f90flags.
+def infra_compile(tmpdir_factory, request):
+    '''A per-session initialisation function that sets the compilation flags
+#    in the Compile class based on command line options for --compile,
+#    --compileopencl, --f90, --f90flags. Then makes sure that the
+    infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
+    (if compilation was enabled).
     '''
     from psyclone_test_utils import Compile
     Compile.store_compilation_flags(request.config)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def infra_compile(tmpdir_factory):
-    '''A per-session initialisation function that makes sure that the
-    infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled.
-    '''
 
     from dynamo0p3_build import Dynamo0p3Build
     # Create a temporary directory to store the compiled files.
