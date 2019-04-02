@@ -71,18 +71,6 @@ def pytest_addoption(parser):
 
 
 @pytest.fixture
-def f90(request):
-    ''' Gets the value of the f90 command-line option '''
-    return request.config.getoption("--f90")
-
-
-@pytest.fixture
-def f90flags(request):
-    ''' Gets the value of the f90flags command-line option '''
-    return request.config.getoption("--f90flags")
-
-
-@pytest.fixture
 def have_graphviz():
     ''' Whether or not the system has graphviz installed. Note that this
     only checks for the Python bindings. The underlying library must
