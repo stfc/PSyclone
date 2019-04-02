@@ -2,23 +2,25 @@ digraph "classes_dynamo0p3" {
 charset="utf-8"
 rankdir=BT
 
-"12" [label="{DynInvoke|cma_ops\ldofmaps\levaluators\literate_over_dofs_only\lmeshes\lstencil\l|arg_for_funcspace()\lfield_on_space()\lgen_code()\lis_coloured()\lunique_fss()\lunique_proxy_declarations()\l}", shape="record"];
-"24" [label="{DynSchedule|\l|view()\l}", shape="record"];
+"12" [label="{DynInvoke|\l|arg_for_funcspace()\lfield_on_space()\lgen_code()\lis_coloured()\lunique_fss()\lunique_proxy_declarations()\l}", shape="record"];
+"16" [label="{DynInvokeSchedule|\l|view()\l}", shape="record"];
 "26" [label="{DynamoInvokes|\l|}", shape="record"];
-"27" [label="{DynamoPSy|gen\lname\l|}", shape="record"];
-"44" [label="{Node|START_DEPTH : int\lSTART_POSITION : int\labs_position\largs\lchildren\ldag_name\ldepth\lfollowing_calls\lparent\lposition\lpreceding_calls\lroot\l|addchild()\lancestor()\lbackward_dependence()\lcalls()\ldag()\ldag_gen()\lfollowing()\lforward_dependence()\lgen_c_code()\lgen_code()\lindent()\lis_openmp_parallel()\lis_valid_location()\lkern_calls()\llist()\llist_to_string()\lloops()\lpreceding()\lreductions()\lsameParent()\lsameRoot()\lupdate()\lview()\lwalk()\l}", shape="record"];
-"36" [label="{Invoke|alg_unique_args\lname\lpsy_unique_var_names\lpsy_unique_vars\lschedule\l|first_access()\lgen()\lgen_code()\lunique_declarations()\lunique_declns_by_intent()\l}", shape="record", style="filled"];
-"37" [label="{Invokes|invoke_list : list\linvoke_map : dict\lnames\l|gen_code()\lgen_ocl_init()\lget()\l}", shape="record", style="filled"];
-"46" [label="{Schedule|coloured_text\ldag_name\linvoke\lopencl\l|gen_code()\lview()\l}", shape="record", style="filled"];
-"45" [label="{PSy|gen\linvokes\lname\l|inline()\l}", shape="record", style="filled"];
+"27" [label="{DynamoPSy|\l|}", shape="record"];
+"36" [label="{Invoke|\l|first_access()\lgen()\lgen_code()\lunique_declarations()\lunique_declns_by_intent()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"37" [label="{InvokeSchedule|\l|gen_code()\lview()\l}", shape="record"];
+"38" [label="{Invokes|\l|gen_code()\lgen_ocl_init()\lget()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"45" [label="{Node|\l|addchild()\lancestor()\lbackward_dependence()\lcalls()\ldag()\ldag_gen()\lfollowing()\lforward_dependence()\lgen_c_code()\lgen_code()\lindent()\lis_openmp_parallel()\lis_valid_location()\lkern_calls()\llist()\llist_to_string()\lloops()\lpreceding()\lreductions()\lsameParent()\lsameRoot()\lupdate()\lview()\lwalk()\l}", shape="record"];
+"46" [label="{PSy|\l|inline()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"47" [label="{Schedule|\l|\lview()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
 
-"27" -> "45" [arrowhead="empty", arrowtail="none"];
-"26" -> "37" [arrowhead="empty", arrowtail="none"];
-"26" -> "27" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_invokes", style="solid"];
 "12" -> "36" [arrowhead="empty", arrowtail="none"];
 "12" -> "26" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_0_to_n", style="solid"];
-"24" -> "46" [arrowhead="empty", arrowtail="none"];
-"24" -> "12" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_schedule", style="solid"];
-"46" -> "44" [arrowhead="empty", arrowtail="none"];
+"16" -> "37" [arrowhead="empty", arrowtail="none"];
+"16" -> "12" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_schedule", style="solid"];
+"26" -> "38" [arrowhead="empty", arrowtail="none"];
+"26" -> "27" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_invokes", style="solid"];
+"27" -> "46" [arrowhead="empty", arrowtail="none"];
+"37" -> "47" [arrowhead="empty", arrowtail="none"];
+"47" -> "45" [arrowhead="empty", arrowtail="none"];
 
 }

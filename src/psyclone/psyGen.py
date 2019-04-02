@@ -1454,20 +1454,6 @@ class Schedule(Node):
         '''
         return "schedule"
 
-    # TODO: Method part of old GUI, it is untested and marked to be
-    # removed in issue #320
-    def tkinter_delete(self):
-        for entity in self._children:
-            entity.tkinter_delete()
-
-    # TODO: Method part of old GUI, it is untested and marked to be
-    # removed in issue #320
-    def tkinter_display(self, canvas, x, y):
-        y_offset = 0
-        for entity in self._children:
-            entity.tkinter_display(canvas, x, y+y_offset)
-            y_offset = y_offset+entity.height
-
     def view(self, indent=0):
         '''
         Print a text representation of this node to stdout and then
