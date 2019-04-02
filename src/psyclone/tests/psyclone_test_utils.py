@@ -124,13 +124,13 @@ class Compile(object):
     # gfortran).
     F90 = "gfortran"
 
-    # Class variable to store the choosen f90 compiler flags (--f90flags).
+    # Class variable to store the chosen f90 compiler flags (--f90flags).
     F90FLAGS = ""
 
     @staticmethod
     def store_compilation_flags(config):
         '''This function is called from the conftest session fixture
-        set_compilation flags. It sets the class variables related to
+        infra_compile. It sets the class variables related to
         compilation based on the command line option.
         :param config: The config object from pytest.
         :type config: Instance of :py:class:`pytest.config.
@@ -144,7 +144,7 @@ class Compile(object):
 
     def __init__(self, tmpdir=None):
         self._tmpdir = tmpdir
-        # Take the compiler and compile flags from the statis variables.
+        # Take the compiler and compile flags from the static variables.
         # This allows a specific instance to use different compiler options
         # which is used in some of the compilation tests.
         self._f90 = Compile.F90
@@ -186,10 +186,9 @@ class Compile(object):
         if compilation is enabled. It calls pytest.skip if compilation
         is not enabled.'''
         if not Compile.TEST_COMPILE:
-            return pytest.skip("Need --compile option to run")
+            pytest.skip("Need --compile option to run")
 
     @staticmethod
-    # pylint: disable=invalid-name
     def skip_if_opencl_compilation_disabled():
         '''This function is used in all tests that should only run
         if opencl compilation is enabled. It calls pytest.skip if

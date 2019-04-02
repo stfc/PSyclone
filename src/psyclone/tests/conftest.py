@@ -82,8 +82,8 @@ def have_graphviz():
 @pytest.fixture(scope="session", autouse=True)
 def infra_compile(tmpdir_factory, request):
     '''A per-session initialisation function that sets the compilation flags
-#    in the Compile class based on command line options for --compile,
-#    --compileopencl, --f90, --f90flags. Then makes sure that the
+    in the Compile class based on command line options for --compile,
+    --compileopencl, --f90, --f90flags. Then makes sure that the
     infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
     (if compilation was enabled).
     '''
