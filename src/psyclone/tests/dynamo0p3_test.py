@@ -520,7 +520,7 @@ def test_field(tmpdir):
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_type\n"
         "  END MODULE single_invoke_psy")
-    assert str(generated_code).find(output) != -1
+    assert output in str(generated_code)
 
 
 def test_field_deref(dist_mem):
@@ -803,7 +803,7 @@ def test_field_fs(tmpdir):
         "      !\n"
         "    END SUBROUTINE invoke_0_testkern_fs_type\n"
         "  END MODULE single_invoke_fs_psy")
-    assert generated_code.find(output) != -1
+    assert output in generated_code
 
 
 def test_real_scalar():
@@ -1246,12 +1246,11 @@ def test_vector_field():
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = psy.gen
-    assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
-                                    "type(f1, chi, f2)") != -1
-    assert str(generated_code).find("TYPE(field_type), intent(inout)"
-                                    " :: f1, chi(3)") != -1
-    assert "TYPE(field_type), intent(in) :: f2" in str(generated_code)
+    generated_code = str(psy.gen)
+    assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, chi, f2)" in
+            generated_code)
+    assert "TYPE(field_type), intent(inout) :: f1, chi(3)" in generated_code
+    assert "TYPE(field_type), intent(in) :: f2" in generated_code
 
 
 def test_vector_field_2():
@@ -1259,13 +1258,13 @@ def test_vector_field_2():
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     # all references to chi_proxy should be chi_proxy(1)
-    assert str(generated_code).find("chi_proxy%") == -1
-    assert str(generated_code).count("chi_proxy(1)%vspace") == 4
+    assert "chi_proxy%" not in generated_code
+    assert generated_code.count("chi_proxy(1)%vspace") == 4
     # use each chi field individually in the kernel
-    assert str(generated_code).find("chi_proxy(1)%data, chi_proxy(2)%data,"
-                                    " chi_proxy(3)%data") != -1
+    assert ("chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data" in
+            generated_code)
 
 
 def test_vector_field_deref():
@@ -1278,12 +1277,12 @@ def test_vector_field_deref():
     for dist_mem in [True, False]:
         psy = PSyFactory(TEST_API,
                          distributed_memory=dist_mem).create(invoke_info)
-        generated_code = psy.gen
-        assert str(generated_code).find("SUBROUTINE invoke_0_testkern_chi_"
-                                        "type(f1, box_chi, f2)") != -1
-        assert str(generated_code).find("TYPE(field_type), intent(inout)"
-                                        " :: f1, box_chi(3)") != -1
-        assert "TYPE(field_type), intent(in) :: f2" in str(generated_code)
+        generated_code = str(psy.gen)
+        assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, box_chi, f2)" in
+                generated_code)
+        assert ("TYPE(field_type), intent(inout) :: f1, box_chi(3)" in \
+                generated_code)
+        assert "TYPE(field_type), intent(in) :: f2" in generated_code
 
 
 def test_orientation():
@@ -1292,11 +1291,10 @@ def test_orientation():
     _, invoke_info = parse(os.path.join(BASE_PATH, "9_orientation.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = psy.gen
-    assert str(generated_code).find("INTEGER, pointer :: orientation_w2(:)"
-                                    " => null()") != -1
-    assert str(generated_code).find("orientation_w2 => f2_proxy%vspace%"
-                                    "get_cell_orientation(cell)") != -1
+    generated_code = str(psy.gen)
+    assert "INTEGER, pointer :: orientation_w2(:) => null()" in generated_code
+    assert ("orientation_w2 => f2_proxy%vspace%"
+            "get_cell_orientation(cell)" in generated_code)
 
 
 def test_operator():
@@ -1307,13 +1305,11 @@ def test_operator():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     print(generated_code)
-    assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
-                               "_type(mm_w0, chi, a, qr)") != -1
-    assert generated_code.find("TYPE(operator_type), intent(inout) ::"
-                               " mm_w0") != -1
-    assert generated_code.find("TYPE(operator_proxy_type) mm_w0_"
-                               "proxy") != -1
-    assert generated_code.find("mm_w0_proxy = mm_w0%get_proxy()") != -1
+    assert ("SUBROUTINE invoke_0_testkern_operator"
+            "_type(mm_w0, chi, a, qr)" in generated_code)
+    assert "TYPE(operator_type), intent(inout) :: mm_w0" in generated_code
+    assert "TYPE(operator_proxy_type) mm_w0_proxy" in generated_code
+    assert "mm_w0_proxy = mm_w0%get_proxy()" in generated_code
     assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
             "mm_w0_proxy%local_stencil, chi_proxy(1)%data, chi_proxy(2)%data, "
             "chi_proxy(3)%data, a, ndf_w0, undf_w0, map_w0(:,cell), "
@@ -1471,14 +1467,13 @@ def test_operator_nofield(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
-                             "nofield_type(mm_w2, chi, qr)") != -1
-    assert gen_code_str.find("TYPE(operator_type), intent(inout) :: "
-                             "mm_w2") != -1
-    assert gen_code_str.find("TYPE(operator_proxy_type) mm_w2_proxy") != -1
-    assert gen_code_str.find("mm_w2_proxy = mm_w2%get_proxy()") != -1
-    assert gen_code_str.find("undf_w2") == -1
-    assert gen_code_str.find("map_w2") == -1
+    assert ("SUBROUTINE invoke_0_testkern_operator_"
+            "nofield_type(mm_w2, chi, qr)" in gen_code_str)
+    assert "TYPE(operator_type), intent(inout) :: mm_w2" in gen_code_str
+    assert "TYPE(operator_proxy_type) mm_w2_proxy" in gen_code_str
+    assert "mm_w2_proxy = mm_w2%get_proxy()" in gen_code_str
+    assert "undf_w2" not in gen_code_str
+    assert "map_w2" not in gen_code_str
     assert ("CALL testkern_operator_nofield_code(cell, nlayers, "
             "mm_w2_proxy%ncell_3d, mm_w2_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, "
@@ -1576,16 +1571,13 @@ def test_operator_orientation(tmpdir):
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-    assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
-                        "_orient_type(mm_w1, chi, qr)") != -1
-    assert gen_str.find("TYPE(operator_type), intent(inout) ::"
-                        " mm_w1") != -1
-    assert gen_str.find("TYPE(operator_proxy_type) mm_w1_"
-                        "proxy") != -1
-    assert gen_str.find("mm_w1_proxy = mm_w1%get_proxy()") != -1
-    assert gen_str.find(
-        "orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation"
-        "(cell)") != -1
+    assert ("SUBROUTINE invoke_0_testkern_operator_orient_type(mm_w1, chi, qr)"
+            in gen_str)
+    assert "TYPE(operator_type), intent(inout) :: mm_w1" in gen_str
+    assert "TYPE(operator_proxy_type) mm_w1_proxy" in gen_str
+    assert "mm_w1_proxy = mm_w1%get_proxy()" in gen_str
+    assert ("orientation_w1 => mm_w1_proxy%fs_from%get_cell_orientation"
+            "(cell)" in gen_str)
     assert ("CALL testkern_operator_orient_code(cell, nlayers, "
             "mm_w1_proxy%ncell_3d, mm_w1_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, ndf_w1, "
@@ -1642,21 +1634,19 @@ def test_operator_deref(tmpdir):
         print(generated_code)
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-        assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
-                                   "_type(mm_w0_op, chi, a, qr)") != -1
-        assert generated_code.find("TYPE(operator_type), intent(inout) ::"
-                                   " mm_w0_op") != -1
-        assert generated_code.find("TYPE(operator_proxy_type) mm_w0_op_"
-                                   "proxy") != -1
+        assert ("SUBROUTINE invoke_0_testkern_operator"
+                "_type(mm_w0_op, chi, a, qr)" in generated_code)
+        assert ("TYPE(operator_type), intent(inout) :: mm_w0_op" in
+                generated_code)
+        assert "TYPE(operator_proxy_type) mm_w0_op_proxy" in generated_code
+        assert "mm_w0_op_proxy = mm_w0_op%get_proxy()" in generated_code
         assert (
-            generated_code.find("mm_w0_op_proxy = mm_w0_op%get_proxy()") != -1)
-        assert generated_code.find(
             "CALL testkern_operator_code(cell, nlayers, "
             "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
             "chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data, a, "
             "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
             "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
-            "weights_z_qr)") != -1
+            "weights_z_qr)" in generated_code)
 
 
 def test_operator_no_dofmap_lookup():
@@ -1709,19 +1699,16 @@ def test_any_space_1(tmpdir):
             "map_any_space_2_b(:,:) => null(), "
             "map_w0(:,:) => null()\n"
             in generated_code)
-    assert generated_code.find(
-        "REAL(KIND=r_def), allocatable :: basis_any_space_1_a_qr(:,:,:,:), "
-        "basis_any_space_2_b_qr(:,:,:,:)") != -1
-    assert generated_code.find(
-        "ALLOCATE (basis_any_space_1_a_qr(dim_any_space_1_a, "
-        "ndf_any_space_1_a, np_xy_qr, np_z_qr))") != -1
-    assert generated_code.find(
-        "ALLOCATE (basis_any_space_2_b_qr(dim_any_space_2_b, "
-        "ndf_any_space_2_b, np_xy_qr, np_z_qr))") != -1
-    assert generated_code.find(
-        "map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()") != -1
-    assert generated_code.find(
-        "map_any_space_2_b => b_proxy%vspace%get_whole_dofmap()") != -1
+    assert ("REAL(KIND=r_def), allocatable :: basis_any_space_1_a_qr(:,:,:,:),"
+            " basis_any_space_2_b_qr(:,:,:,:)" in generated_code)
+    assert ("ALLOCATE (basis_any_space_1_a_qr(dim_any_space_1_a, "
+            "ndf_any_space_1_a, np_xy_qr, np_z_qr))" in generated_code)
+    assert ("ALLOCATE (basis_any_space_2_b_qr(dim_any_space_2_b, "
+            "ndf_any_space_2_b, np_xy_qr, np_z_qr))" in generated_code)
+    assert ("map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()" in
+            generated_code)
+    assert ("map_any_space_2_b => b_proxy%vspace%get_whole_dofmap()" in
+            generated_code)
     assert ("CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, "
             "b_proxy%data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, "
             "ndf_any_space_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell),"
@@ -1743,20 +1730,17 @@ def test_any_space_2():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     assert "INTEGER, intent(in) :: istp" in generated_code
-    assert generated_code.find(
-        "INTEGER, pointer :: map_any_space_1_a(:,:) => null()") != -1
-    assert generated_code.find(
-        "INTEGER ndf_any_space_1_a, undf_any_space_1_a") != -1
-    assert generated_code.find(
-        "ndf_any_space_1_a = a_proxy%vspace%get_ndf()") != -1
-    assert generated_code.find(
-        "undf_any_space_1_a = a_proxy%vspace%get_undf()") != -1
-    assert generated_code.find(
-        "map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()") != -1
-    assert generated_code.find(
-        "CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_pro"
-        "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, ndf_any_sp"
-        "ace_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell))") != -1
+    assert ("INTEGER, pointer :: map_any_space_1_a(:,:) => null()" in
+            generated_code)
+    assert "INTEGER ndf_any_space_1_a, undf_any_space_1_a" in generated_code
+    assert "ndf_any_space_1_a = a_proxy%vspace%get_ndf()" in generated_code
+    assert "undf_any_space_1_a = a_proxy%vspace%get_undf()" in generated_code
+    assert ("map_any_space_1_a => a_proxy%vspace%get_whole_dofmap()" in
+            generated_code)
+    assert ("CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, b_pro"
+            "xy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, "
+            "ndf_any_space_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell))"
+            in generated_code)
 
 
 def test_op_any_space_different_space_1():
@@ -1767,10 +1751,8 @@ def test_op_any_space_different_space_1():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
-    assert generated_code.find(
-        "ndf_any_space_2_a = a_proxy%fs_from%get_ndf()") != -1
-    assert generated_code.find(
-        "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()") != -1
+    assert "ndf_any_space_2_a = a_proxy%fs_from%get_ndf()" in generated_code
+    assert "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()" in generated_code
 
 
 def test_op_any_space_different_space_2(tmpdir):
@@ -2062,15 +2044,12 @@ def test_field_bc_kernel(tmpdir):
                                         "12.2_enforce_bc_kernel.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = psy.gen
-    output1 = "INTEGER, pointer :: boundary_dofs_a(:,:) => null()"
-    assert str(generated_code).find(output1) != -1
-    output2 = "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()"
-    assert str(generated_code).find(output2) != -1
-    output3 = (
-        "CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1_a, "
-        "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs_a)")
-    assert str(generated_code).find(output3) != -1
+    gen_code = str(psy.gen)
+    assert "INTEGER, pointer :: boundary_dofs_a(:,:) => null()" in gen_code
+    assert "boundary_dofs_a => a_proxy%vspace%get_boundary_dofs()" in gen_code
+    assert ("CALL enforce_bc_code(nlayers, a_proxy%data, ndf_any_space_1_a, "
+            "undf_any_space_1_a, map_any_space_1_a(:,cell), boundary_dofs_a)"
+            in gen_code)
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
@@ -2191,14 +2170,11 @@ def test_multikernel_invoke_1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
     # check that argument names are not replicated
-    output1 = "SUBROUTINE invoke_0(a, f1, f2, m1, m2)"
-    assert generated_code.find(output1) != -1
+    assert "SUBROUTINE invoke_0(a, f1, f2, m1, m2)" in generated_code
     # check that only one proxy initialisation is produced
-    output2 = "f1_proxy = f1%get_proxy()"
-    assert generated_code.count(output2) == 1
+    assert "f1_proxy = f1%get_proxy()" in generated_code
     # check that we only initialise dofmaps once
-    output3 = "map_w2 => f2_proxy%vspace%get_whole_dofmap()"
-    assert generated_code.count(output3) == 1
+    assert "map_w2 => f2_proxy%vspace%get_whole_dofmap()" in generated_code
 
 
 def test_multikernel_invoke_qr():
@@ -2220,13 +2196,13 @@ def test_mkern_invoke_vec_fields():
                                         "4.2_multikernel_invokes.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     # 1st test for duplication of name vector-field declaration
-    output1 = "TYPE(field_type), intent(inout) :: f1, chi(3), chi(3)"
-    assert str(generated_code).find(output1) == -1
+    assert ("TYPE(field_type), intent(inout) :: f1, chi(3), chi(3)"
+            not in generated_code)
     # 2nd test for duplication of name vector-field declaration
-    output2 = "TYPE(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
-    assert str(generated_code).find(output2) == -1
+    assert ("TYPE(field_proxy_type) f1_proxy, chi_proxy(3), chi_proxy(3)"
+            not in generated_code)
 
 
 def test_multikern_invoke_orient():
@@ -2236,14 +2212,13 @@ def test_multikern_invoke_orient():
                                         "4.3_multikernel_invokes.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     # 1st test for duplication of name vector-field declaration
-    output1 = "TYPE(field_type), intent(in) :: f2, f3(3), f3(3)"
-    assert str(generated_code).find(output1) == -1
+    assert "TYPE(field_type), intent(in) :: f2, f3(3), f3(3)" not in \
+        generated_code
     # 2nd test for duplication of name vector-field declaration
-    output2 = (
-        "TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy(3), f3_proxy(3)")
-    assert str(generated_code).find(output2) == -1
+    assert ("TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy(3), "
+            "f3_proxy(3)" not in generated_code)
 
 
 def test_multikern_invoke_oper():
@@ -2253,13 +2228,12 @@ def test_multikern_invoke_oper():
                                         "4.4_multikernel_invokes.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = psy.gen
+    generated_code = str(psy.gen)
     # 1st test for duplication of name vector-field declaration
-    output1 = "TYPE(field_type), intent(in) :: f1(3), f1(3)"
-    assert str(generated_code).find(output1) == -1
+    assert "TYPE(field_type), intent(in) :: f1(3), f1(3)" not in generated_code
     # 2nd test for duplication of name vector-field declaration
-    output2 = "TYPE(field_proxy_type) f1_proxy(3), f1_proxy(3)"
-    assert str(generated_code).find(output2) == -1
+    assert "TYPE(field_proxy_type) f1_proxy(3), f1_proxy(3)" not in \
+        generated_code
 
 
 def test_2kern_invoke_any_space():
@@ -2409,11 +2383,11 @@ def test_loopfuse():
     # kernel call tests
     kern_idxs = []
     for idx, line in enumerate(str(generated_code).split('\n')):
-        if line.find("DO cell") != -1:
+        if "DO cell" in line:
             do_idx = idx
-        if line.find("CALL testkern_code(") != -1:
+        if "CALL testkern_code(" in line:
             kern_idxs.append(idx)
-        if line.find("END DO") != -1:
+        if "END DO" in line:
             enddo_idx = idx
     # two kernel calls
     assert len(kern_idxs) == 2
