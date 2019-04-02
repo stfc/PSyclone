@@ -40,7 +40,7 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError, GenerationError, \
     CodeBlock
 from psyclone import nemo

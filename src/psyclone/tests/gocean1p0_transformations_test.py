@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
+# Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
@@ -42,7 +42,7 @@ import os
 import re
 import pytest
 from gocean1p0_build import GOcean1p0Build
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
     GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \
@@ -50,7 +50,7 @@ from psyclone.transformations import TransformationError, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
     ACCParallelTrans, ACCDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
-from psyclone_test_utils import count_lines, get_invoke
+from psyclone_test_utils import count_lines, get_invoke, Compile
 
 # The version of the PSyclone API that the tests in this file
 # exercise
@@ -1271,6 +1271,7 @@ def test_module_inline_same_kernel():
     # No compilation test here, see test_module_inline_and_compile
 
 
+@Compile.COMPILE
 @pytest.mark.xfail(reason="Inline function uses a module variable (see #315)")
 def test_module_inline_and_compile(tmpdir):
     '''ATM incorrect code is produced if a kernel is inlined, that

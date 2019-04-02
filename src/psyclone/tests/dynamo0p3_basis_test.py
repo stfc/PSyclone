@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-18, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from dynamo0p3_build import Dynamo0p3Build
-from psyclone.parse import parse, ParseError
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone_test_utils import print_diffs

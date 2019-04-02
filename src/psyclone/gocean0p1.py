@@ -41,6 +41,49 @@
 from __future__ import absolute_import
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument
+from psyclone.parse.kernel import KernelType, Descriptor
+from psyclone.parse.utils import ParseError
+
+
+class GODescriptor(Descriptor):
+    '''The GOcean specific Descriptor class. This captures kernel
+    argument descriptor information specified in kernel
+    metadata. Currently this class is just a wrapper around the base
+    class.
+
+    '''
+    pass
+
+
+class GOKernelType(KernelType):
+    '''The GOcean specific KernelType class. This captures kernel metadata
+    for this API.
+
+    :param ast: fparser1 parse tree for the parsed kernel meta-data.
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+    :param str name: The name of the metadata. This is an optional \
+    argument which defaults to None.
+
+    '''
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self, ast, name=name)
+        self._arg_descriptors = []
+        for init in self._inits:
+            if init.name != 'arg':
+                raise ParseError(
+                    "gocean0p1.py:GOKernelType:__init__: Each meta_arg value "
+                    "must be of type 'arg' for the gocean0.1 api, but found "
+                    "'{0}'.".format(init.name))
+            access = init.args[0].name
+            funcspace = init.args[1].name
+            stencil = init.args[2].name
+            if len(init.args) != 3:
+                raise ParseError(
+                    "gocean0p1.py:GOKernelType:__init__: 'arg' type expects "
+                    "3 arguments but found {0} in '{1}'".
+                    format(str(len(init.args)), init.args))
+            self._arg_descriptors.append(GODescriptor(access, funcspace,
+                                                      stencil))
 
 
 class GOPSy(PSy):

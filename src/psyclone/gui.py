@@ -37,8 +37,9 @@
 from Tkinter import *
 import Tkinter as tk
 import tkFileDialog
-from parse import parse,ParseError
-from psyGen import PSyFactory,GenerationError
+from psyclone.algorithm.parse import parse
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import PSyFactory, GenerationError
 import os
 
 class PSyclone(tk.Frame):

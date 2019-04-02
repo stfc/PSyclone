@@ -50,7 +50,8 @@ import argparse
 import sys
 import os
 import traceback
-from psyclone.parse import parse, ParseError
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.algGen import NoInvokesError
 from psyclone.line_length import FortLineLength
@@ -141,13 +142,13 @@ def generate(filename, api="", kernel_path="", script_name=None,
              kern_out_path="",
              kern_naming="multiple"):
     # pylint: disable=too-many-arguments
-    '''Takes a GungHo algorithm specification as input and outputs the
+    '''Takes a PSyclone algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
-    compiling with the specified kernel(s) and GungHo
-    infrastructure. Uses the :func:`parse.parse` function to parse the
-    algorithm specification, the :class:`psyGen.PSy` class to generate
-    the PSy code and the :class:`algGen.Alg` class to generate the
-    modified algorithm code.
+    compiling with the specified kernel(s) and support
+    infrastructure. Uses the :func:`parse.algorithm.parse` function to
+    parse the algorithm specification, the :class:`psyGen.PSy` class
+    to generate the PSy code and the :class:`algGen.Alg` class to
+    generate the modified algorithm code.
 
     :param str filename: The file containing the algorithm specification.
     :param str kernel_path: The directory from which to recursively \

@@ -162,7 +162,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     then return all arguments.
 
     :param arg_list: List of kernel arguments to filter
-    :type arg_list: list of :py:class:`psyclone.parse.Descriptor`
+    :type arg_list: list of :py:class:`psyclone.parse.algorithm.Descriptor`
     :param arg_types: List of argument types (e.g. "GH_FIELD")
     :type arg_types: list of str
     :param arg_accesses: List of access types that arguments must have
@@ -172,7 +172,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     :param bool is_literal: Whether or not to include literal arguments in \
                             the returned list.
     :returns: list of kernel arguments matching the requirements
-    :rtype: list of :py:class:`psyclone.parse.Descriptor`
+    :rtype: list of :py:class:`psyclone.parse.algorithm.Descriptor`
     '''
     arguments = []
     for argument in arg_list:
@@ -261,7 +261,7 @@ class PSyFactory(object):
 
         :param invoke_info: information on the invoke()s found by parsing
                             the Algorithm layer.
-        :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
@@ -289,19 +289,18 @@ class PSy(object):
     '''
     Base class to help manage and generate PSy code for a single
     algorithm file. Takes the invocation information output from the
-    function :func:`parse.parse` as its input and stores this in a
+    function :func:`parse.algorithm.parse` as its input and stores this in a
     way suitable for optimisation and code generation.
 
     :param FileInfo invoke_info: An object containing the required \
                                  invocation information for code \
                                  optimisation and generation. Produced \
-                                 by the function :func:`parse.parse`.
-    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+                                 by the function :func:`parse.algorithm.parse`.
+    :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
     For example:
 
-    >>> import psyclone
-    >>> from psyclone.parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("argspec.F90")
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "..."
@@ -343,12 +342,21 @@ class PSy(object):
 
 
 class Invokes(object):
-    ''' Manage the invoke calls '''
+    '''Manage the invoke calls
+
+    :param alg_calls: A list of invoke metadata extracted by the \
+    parser.
+    :type alg_calls: list of \
+    :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param Invoke: An api-specific Invoke class
+    :type Invoke: Specialisation of :py:class:`psyclone.psyGen.Invoke`
+
+    '''
     def __init__(self, alg_calls, Invoke):
         self.invoke_map = {}
         self.invoke_list = []
         from psyclone.profiler import Profiler
-        for idx, alg_invocation in enumerate(alg_calls.values()):
+        for idx, alg_invocation in enumerate(alg_calls):
             my_invoke = Invoke(alg_invocation, idx)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
@@ -1495,9 +1503,9 @@ class InvokeSchedule(Schedule):
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
 
-    >>> from parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("algorithm.f90")
-    >>> from psyGen import PSyFactory
+    >>> from psyclone.psyGen import PSyFactory
     >>> api = "..."
     >>> psy = PSyFactory(api).create(info)
     >>> invokes = psy.invokes
@@ -1512,21 +1520,23 @@ class InvokeSchedule(Schedule):
      creating built-ins. e.g. \
      :py:class:`psyclone.dynamo0p3_builtins.DynBuiltInCallFactory`.
     :param alg_calls: list of Kernel calls in the schedule.
-    :type alg_calls: list of :py:class:`psyclone.parse.KernelCall`
+    :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
+
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
+        if alg_calls is None:
+            alg_calls = []
         sequence = []
-        from psyclone.parse import BuiltInCall
-        if alg_calls:
-            for call in alg_calls:
-                if isinstance(call, BuiltInCall):
-                    sequence.append(BuiltInFactory.create(call, parent=self))
-                else:
-                    sequence.append(KernFactory.create(call, parent=self))
+        from psyclone.parse.algorithm import BuiltInCall
+        for call in alg_calls:
+            if isinstance(call, BuiltInCall):
+                sequence.append(BuiltInFactory.create(call, parent=self))
+            else:
+                sequence.append(KernFactory.create(call, parent=self))
         Schedule.__init__(self, sequence=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
@@ -3024,7 +3034,7 @@ class Call(Node):
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
     :param call: information on the call itself, as obtained by parsing \
                  the Algorithm layer code.
-    :type call: :py:class:`psyclone.parse.KernelCall`
+    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param str name: the name of the routine being called.
     :param arguments: object holding information on the kernel arguments, \
                       as extracted from kernel meta-data.
@@ -3317,7 +3327,7 @@ class Kern(Call):
                                  :py:class:`psyclone.psyGen.Arguments` to \
                                  create.
     :param call: Details of the call to this kernel in the Algorithm layer.
-    :type call: :py:class:`psyclone.parse.KernelCall`.
+    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`.
     :param parent: the parent of this Node (kernel call) in the Schedule.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`.
     :param bool check: Whether or not to check that the number of arguments \
@@ -4029,7 +4039,7 @@ class Argument(object):
         :type call: :py:class:`psyclone.psyGen.Call`
         :param arg_info: Information about this argument collected by
         the parser
-        :type arg_info: :py:class:`psyclone.parse.Arg`
+        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
         :param access: the way in which this argument is accessed in
         the 'Call'. Valid values are specified in 'MAPPING_ACCESSES'
         (and may be modified by the particular API).
@@ -4038,7 +4048,7 @@ class Argument(object):
         '''
         self._call = call
         self._text = arg_info.text
-        self._orig_name = arg_info.varName
+        self._orig_name = arg_info.varname
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access

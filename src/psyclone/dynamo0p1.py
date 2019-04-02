@@ -41,6 +41,101 @@
 from __future__ import absolute_import
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
         Arguments, Argument, GenerationError
+from psyclone.parse.kernel import KernelType, Descriptor
+from psyclone.parse.utils import ParseError
+
+
+class DynDescriptor(Descriptor):
+    '''This class captures the dynamo0.1 api metadata found in an argument
+    descriptor within the kernel metadata.
+
+    :param str access: An access descriptor describing how the \
+    argument is used in the kernel
+    :param str funcspace: A description of the function space that \
+    this argument is assumed to be on.
+    :param str stencil: The type of stencil access performed by the \
+    kernel on this argument. Currently the value is limited to 'fe'.
+    :param str basis: Whether or not basis information is required for \
+    this field. The values can be '.true.' or '.false.'.
+    :param str diff_basis: Whether or not basis information is \
+    required for this field. The value can be '.true.' or '.false.'.
+    :param str gauss_quad: Whether or not gaussian quadrature \
+    information is required for this field. The value can be '.true.' \
+    or '.false.'.
+
+    '''
+    def __init__(self, access, funcspace, stencil, basis, diff_basis,
+                 gauss_quad):
+        Descriptor.__init__(self, access, funcspace, stencil)
+        self._basis = basis
+        self._diff_basis = diff_basis
+        self._gauss_quad = gauss_quad
+
+    @property
+    def basis(self):
+        '''Return whether a basis function is required or not.
+
+        :returns: '.true.' if a basis function is required and \
+        '.false.' if not.
+        :rtype: str
+
+        '''
+        return self._basis
+
+    @property
+    def diff_basis(self):
+        '''Return whether a differential basis function is required or not.
+
+        :returns: '.true.' if a differential basis function is \
+        required and '.false.' if not.
+        :rtype: str
+
+        '''
+        return self._diff_basis
+
+    @property
+    def gauss_quad(self):
+        '''Return whether gaussian quadrature is required or not.
+
+        :returns: '.true.' if a gaussian quadrature is required and \
+        '.false.' if not.
+        :rtype: str
+
+        '''
+        return self._gauss_quad
+
+
+class DynKernelType(KernelType):
+    '''This class captures the dynamo0.1 api kernel metadata by extracting
+    it from the supplied AST.
+
+    :param ast: fparser1 AST for the parsed gocean0.1 kernel \
+    meta-data.
+    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+    :param name: name of the Fortran derived type describing the \
+    kernel. This is an optional argument which defaults to `None`
+    :type name: str or NoneType.
+
+    '''
+    
+    def __init__(self, ast, name=None):
+        KernelType.__init__(self, ast, name=name)
+        self._arg_descriptors = []
+        for init in self._inits:
+            if init.name != 'arg_type':
+                raise ParseError(
+                    "dynamo0p1.py:DynKernelType:__init__: Each meta_arg "
+                    "value must be of type 'arg_type' for the "
+                    "dynamo0.1 api, but found '{0}'.".format(init.name))
+            access = init.args[0].name
+            funcspace = init.args[1].name
+            stencil = init.args[2].name
+            x1 = init.args[3].name
+            x2 = init.args[4].name
+            x3 = init.args[5].name
+            self._arg_descriptors.append(DynDescriptor(access, funcspace,
+                                                       stencil, x1, x2, x3))
+
 
 
 class DynamoPSy(PSy):

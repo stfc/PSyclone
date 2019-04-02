@@ -57,6 +57,14 @@
 	extraction functionality (PSyKE). Currently only inserts
 	comments into generated Fortran code.
 
+        19) #327 and PR #328. Fix for erroneous xpassing test.
+
+	20) #238 and PR #285. Use fparser2 for parsing the
+	Algorithm layer (instead of fparser1).
+
+	21) #321 and PR #325. Document kernel coding restrictions required
+	for kernel transformations.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from dynamo0p3_build import Dynamo0p3Build
-from psyclone.parse import ParseError, parse
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.gen_kernel_stub import generate
@@ -611,7 +612,6 @@ def test_cma_asm_cbanded_dofmap_error():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.0_cma_assembly.f90"),
-        distributed_memory=True,
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
@@ -628,178 +628,166 @@ def test_cma_asm_cbanded_dofmap_error():
             "for a CMA assembly kernel but found 2") in str(excinfo)
 
 
-def test_cma_asm(tmpdir):
+def test_cma_asm(tmpdir, dist_mem):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.0_cma_assembly.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-                "columnwise_operator_type, columnwise_operator_proxy_type") \
-            in code
-        assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-        assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
-            in code
-        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-        assert "INTEGER ncell_2d" in code
-        assert ("INTEGER, pointer :: cbanded_map_any_space_1_lma_op1(:,:) => "
-                "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
-            in code
-        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
-        assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-        assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
-                "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
-                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-                "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-                "cma_op1_gamma_m, cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
-                "cbanded_map_any_space_1_lma_op1, ndf_any_space_2_lma_op1, "
-                "cbanded_map_any_space_2_lma_op1)") in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.0_cma_assembly.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+            "columnwise_operator_type, columnwise_operator_proxy_type") \
+        in code
+    assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
+    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+        in code
+    assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert "INTEGER ncell_2d" in code
+    assert ("INTEGER, pointer :: cbanded_map_any_space_1_lma_op1(:,:) => "
+            "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
+        in code
+    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "cma_op1_proxy = cma_op1%get_proxy()" in code
+    assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
+            "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
+            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
+            "cma_op1_gamma_m, cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
+            "cbanded_map_any_space_1_lma_op1, ndf_any_space_2_lma_op1, "
+            "cbanded_map_any_space_2_lma_op1)") in code
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_cma_asm_field():
+def test_cma_asm_field(tmpdir, dist_mem):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator with a field as argument '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.3_cma_assembly_field.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-                "columnwise_operator_type, columnwise_operator_proxy_type") \
-            in code
-        assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-        assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
-            in code
-        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-        assert ("INTEGER, pointer :: cbanded_map_any_space_1_afield(:,:) => "
-                "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
-            in code
-        assert "INTEGER ncell_2d" in code
-        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
-        assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-        expected = ("CALL columnwise_op_asm_field_kernel_code(cell, "
-                    "nlayers, ncell_2d, "
-                    "afield_proxy%data, lma_op1_proxy%ncell_3d, "
-                    "lma_op1_proxy%local_stencil, "
-                    "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-                    "cma_op1_bandwidth, cma_op1_alpha, "
-                    "cma_op1_beta, cma_op1_gamma_m, "
-                    "cma_op1_gamma_p, ndf_any_space_1_afield, "
-                    "undf_any_space_1_afield, "
-                    "map_any_space_1_afield(:,cell), "
-                    "cbanded_map_any_space_1_afield, "
-                    "ndf_any_space_2_lma_op1, "
-                    "cbanded_map_any_space_2_lma_op1)")
-        print(expected)
-        assert expected in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.3_cma_assembly_field.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+            "columnwise_operator_type, columnwise_operator_proxy_type") \
+        in code
+    assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
+    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+        in code
+    assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert ("INTEGER, pointer :: cbanded_map_any_space_1_afield(:,:) => "
+            "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
+        in code
+    assert "INTEGER ncell_2d" in code
+    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "cma_op1_proxy = cma_op1%get_proxy()" in code
+    expected = (
+        "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, "
+        "afield_proxy%data, lma_op1_proxy%ncell_3d, "
+        "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+        "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
+        "cma_op1_gamma_m, cma_op1_gamma_p, ndf_any_space_1_afield, "
+        "undf_any_space_1_afield, map_any_space_1_afield(:,cell), "
+        "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
+        "cbanded_map_any_space_2_lma_op1)")
+    assert expected in code
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_cma_asm_scalar():
+def test_cma_asm_scalar(dist_mem):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator with a scalar as argument. The
     name of the scalar is deliberately chosen to provoke a clash with the
     name generated for one of the CMA parameters.'''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.0.1_cma_assembly_scalar.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-                "columnwise_operator_type, columnwise_operator_proxy_type") \
-            in code
-        assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-        assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
-            in code
-        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-        assert ("INTEGER, pointer :: cbanded_map_any_space_1_lma_op1(:,:) => "
-                "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
-            in code
-        assert "INTEGER ncell_2d" in code
-        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
-        assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-        expected = ("CALL columnwise_op_asm_kernel_code(cell, "
-                    "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                    "lma_op1_proxy%local_stencil, "
-                    "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-                    "cma_op1_bandwidth, cma_op1_alpha_1, "
-                    "cma_op1_beta, cma_op1_gamma_m, "
-                    "cma_op1_gamma_p, cma_op1_alpha, "
-                    "ndf_any_space_1_lma_op1, "
-                    "cbanded_map_any_space_1_lma_op1, "
-                    "ndf_any_space_2_lma_op1, "
-                    "cbanded_map_any_space_2_lma_op1)")
-        print(expected)
-        assert expected in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.0.1_cma_assembly_scalar.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+            "columnwise_operator_type, columnwise_operator_proxy_type") \
+        in code
+    assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
+    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+        in code
+    assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert ("INTEGER, pointer :: cbanded_map_any_space_1_lma_op1(:,:) => "
+            "null(), cbanded_map_any_space_2_lma_op1(:,:) => null()") \
+        in code
+    assert "INTEGER ncell_2d" in code
+    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "cma_op1_proxy = cma_op1%get_proxy()" in code
+    expected = ("CALL columnwise_op_asm_kernel_code(cell, "
+                "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
+                "lma_op1_proxy%local_stencil, "
+                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+                "cma_op1_bandwidth, cma_op1_alpha_1, "
+                "cma_op1_beta, cma_op1_gamma_m, "
+                "cma_op1_gamma_p, cma_op1_alpha, "
+                "ndf_any_space_1_lma_op1, "
+                "cbanded_map_any_space_1_lma_op1, "
+                "ndf_any_space_2_lma_op1, "
+                "cbanded_map_any_space_2_lma_op1)")
+    print(expected)
+    assert expected in code
 
 
-def test_cma_asm_field_same_fs():
+def test_cma_asm_field_same_fs(dist_mem):
     ''' Test that we generate correct code for an invoke containing
     a kernel that assembles a CMA operator with a field as argument.
     In this case the fs_from and fs_to spaces of the operator are the
     same so we only need to pass in one banded dofmap. '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.4_cma_assembly_field_same_fs.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
-                "columnwise_operator_type, columnwise_operator_proxy_type") \
-            in code
-        assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
-        assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
-            in code
-        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-        assert ("INTEGER, pointer :: cbanded_map_any_space_2_lma_op1(:,:) => "
-                "null()\n") in code
-        assert "INTEGER ncell_2d" in code
-        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
-        assert "cma_op1_proxy = cma_op1%get_proxy()" in code
-        if distmem:
-            # When distributed-memory is enabled then we compute operators
-            # redundantly (out to the L1 halo)
-            assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
-        else:
-            assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
-        expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
-                    "nlayers, ncell_2d, "
-                    "lma_op1_proxy%ncell_3d, "
-                    "lma_op1_proxy%local_stencil, afield_proxy%data, "
-                    "cma_op1_matrix, cma_op1_nrow, "
-                    "cma_op1_bandwidth, cma_op1_alpha, "
-                    "cma_op1_beta, cma_op1_gamma_m, "
-                    "cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
-                    "undf_any_space_1_lma_op1, "
-                    "map_any_space_1_lma_op1(:,cell), "
-                    "ndf_any_space_2_lma_op1, "
-                    "cbanded_map_any_space_2_lma_op1)")
-        assert expected in code
-        # We do not perform halo swaps for operators
-        assert "lma_op1_proxy%is_dirty(" not in code
-        assert "cma_op1_proxy%is_dirty(" not in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.4_cma_assembly_field_same_fs.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert ("USE operator_mod, ONLY: operator_type, operator_proxy_type, "
+            "columnwise_operator_type, columnwise_operator_proxy_type") \
+        in code
+    assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
+    assert "TYPE(columnwise_operator_type), intent(inout) :: cma_op1" \
+        in code
+    assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert ("INTEGER, pointer :: cbanded_map_any_space_2_lma_op1(:,:) => "
+            "null()\n") in code
+    assert "INTEGER ncell_2d" in code
+    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert "cma_op1_proxy = cma_op1%get_proxy()" in code
+    if dist_mem:
+        # When distributed-memory is enabled then we compute operators
+        # redundantly (out to the L1 halo)
+        assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+    else:
+        assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
+    expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
+                "nlayers, ncell_2d, "
+                "lma_op1_proxy%ncell_3d, "
+                "lma_op1_proxy%local_stencil, afield_proxy%data, "
+                "cma_op1_matrix, cma_op1_nrow, "
+                "cma_op1_bandwidth, cma_op1_alpha, "
+                "cma_op1_beta, cma_op1_gamma_m, "
+                "cma_op1_gamma_p, ndf_any_space_1_lma_op1, "
+                "undf_any_space_1_lma_op1, "
+                "map_any_space_1_lma_op1(:,cell), "
+                "ndf_any_space_2_lma_op1, "
+                "cbanded_map_any_space_2_lma_op1)")
+    assert expected in code
+    # We do not perform halo swaps for operators
+    assert "lma_op1_proxy%is_dirty(" not in code
+    assert "cma_op1_proxy%is_dirty(" not in code
 
 
 def test_cma_apply_indirection_dofmap_error():
@@ -808,7 +796,6 @@ def test_cma_apply_indirection_dofmap_error():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "20.1_cma_apply.f90"),
-        distributed_memory=True,
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
@@ -826,332 +813,318 @@ def test_cma_apply_indirection_dofmap_error():
             "CMA operator but found 3") in str(excinfo)
 
 
-def test_cma_apply(tmpdir):
+def test_cma_apply(tmpdir, dist_mem):
     ''' Test that we generate correct code for
     a kernel that applies a CMA operator '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.1_cma_apply.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert "INTEGER ncell_2d" in code
-        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
-        assert ("INTEGER, pointer :: cma_indirection_map_any_space_1_"
-                "field_a(:) => null(), "
-                "cma_indirection_map_any_space_2_field_b(:) => null()\n") \
-            in code
-        assert ("ndf_any_space_1_field_a = field_a_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_1_field_a = field_a_proxy%vspace%"
-                "get_undf()") in code
-        assert ("cma_indirection_map_any_space_1_field_a => "
-                "cma_op1_proxy%indirection_dofmap_to") in code
-        assert ("cma_indirection_map_any_space_2_field_b => "
-                "cma_op1_proxy%indirection_dofmap_from") in code
-        assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
-                "field_a_proxy%data, field_b_proxy%data, "
-                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-                "cma_op1_bandwidth, cma_op1_alpha, "
-                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-                "ndf_any_space_1_field_a, undf_any_space_1_field_a, "
-                "map_any_space_1_field_a(:,cell), "
-                "cma_indirection_map_any_space_1_field_a, "
-                "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
-                "map_any_space_2_field_b(:,cell), "
-                "cma_indirection_map_any_space_2_field_b)") \
-            in code
-        # We do not perform halo swaps for operators
-        assert "cma_op1_proxy%is_dirty(" not in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.1_cma_apply.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert "INTEGER ncell_2d" in code
+    assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert ("INTEGER, pointer :: cma_indirection_map_any_space_1_"
+            "field_a(:) => null(), "
+            "cma_indirection_map_any_space_2_field_b(:) => null()\n") \
+        in code
+    assert ("ndf_any_space_1_field_a = field_a_proxy%vspace%get_ndf()\n"
+            "      undf_any_space_1_field_a = field_a_proxy%vspace%"
+            "get_undf()") in code
+    assert ("cma_indirection_map_any_space_1_field_a => "
+            "cma_op1_proxy%indirection_dofmap_to") in code
+    assert ("cma_indirection_map_any_space_2_field_b => "
+            "cma_op1_proxy%indirection_dofmap_from") in code
+    assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
+            "field_a_proxy%data, field_b_proxy%data, "
+            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "cma_op1_bandwidth, cma_op1_alpha, "
+            "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+            "ndf_any_space_1_field_a, undf_any_space_1_field_a, "
+            "map_any_space_1_field_a(:,cell), "
+            "cma_indirection_map_any_space_1_field_a, "
+            "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
+            "map_any_space_2_field_b(:,cell), "
+            "cma_indirection_map_any_space_2_field_b)") \
+        in code
+    # We do not perform halo swaps for operators
+    assert "cma_op1_proxy%is_dirty(" not in code
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_cma_apply_discontinuous_spaces(tmpdir):
+def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
     ''' Test that we generate correct code for a kernel that applies
     a CMA operator to fields on discontinuous spaces w3 and w2v '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.1.2_cma_apply_disc.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.1.2_cma_apply_disc.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
 
+    # Check w3
+    assert "INTEGER ncell_2d" in code
+    assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert ("INTEGER, pointer :: cma_indirection_map_w3(:) "
+            "=> null(), cma_indirection_map_any_space_1_field_b(:) => "
+            "null()\n") in code
+    assert ("ndf_w3 = field_a_proxy%vspace%get_ndf()\n"
+            "      undf_w3 = field_a_proxy%vspace%"
+            "get_undf()") in code
+    assert ("cma_indirection_map_w3 => "
+            "cma_op1_proxy%indirection_dofmap_to") in code
+    # Check w2v
+    assert "TYPE(columnwise_operator_proxy_type) cma_op2_proxy" in code
+    assert "ncell_2d = cma_op2_proxy%ncell_2d" in code
+    assert ("INTEGER, pointer :: "
+            "cma_indirection_map_w2v(:) => null(), "
+            "cma_indirection_map_any_space_2_field_d(:) => "
+            "null()\n") in code
+    assert ("ndf_w2v = field_c_proxy%vspace%get_ndf()\n"
+            "      undf_w2v = field_c_proxy%vspace%"
+            "get_undf()") in code
+    assert ("cma_indirection_map_w2v => "
+            "cma_op2_proxy%indirection_dofmap_to") in code
+    if dist_mem:
+        # The kernel only *reads* from a CMA operator and writes to a
+        # field on a discontinuous space - therefore we do not need to
+        # loop out into the L1 halo.
+        assert code.count("DO cell=1,mesh%get_last_edge_cell()") == 2
+    else:
+        assert "DO cell=1,field_a_proxy%vspace%get_ncell()" in code
+        assert "DO cell=1,field_c_proxy%vspace%get_ncell()" in code
+    # Check w3
+    assert ("CALL columnwise_op_app_w3_kernel_code(cell, ncell_2d, "
+            "field_a_proxy%data, field_b_proxy%data, "
+            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "cma_op1_bandwidth, cma_op1_alpha, "
+            "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+            "ndf_w3, undf_w3, map_w3(:,cell), cma_indirection_map_w3, "
+            "ndf_any_space_1_field_b, undf_any_space_1_field_b, "
+            "map_any_space_1_field_b(:,cell), "
+            "cma_indirection_map_any_space_1_field_b)") \
+        in code
+    # Check w2v
+    assert ("CALL columnwise_op_app_w2v_kernel_code(cell, ncell_2d, "
+            "field_c_proxy%data, field_d_proxy%data, "
+            "cma_op2_matrix, cma_op2_nrow, cma_op2_ncol, "
+            "cma_op2_bandwidth, cma_op2_alpha, "
+            "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, "
+            "ndf_w2v, undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
+            "ndf_any_space_2_field_d, undf_any_space_2_field_d, "
+            "map_any_space_2_field_d(:,cell), "
+            "cma_indirection_map_any_space_2_field_d)") \
+        in code
+
+    if dist_mem:
         # Check w3
-        assert "INTEGER ncell_2d" in code
-        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
-        assert ("INTEGER, pointer :: cma_indirection_map_w3(:) "
-                "=> null(), cma_indirection_map_any_space_1_field_b(:) => "
-                "null()\n") in code
-        assert ("ndf_w3 = field_a_proxy%vspace%get_ndf()\n"
-                "      undf_w3 = field_a_proxy%vspace%"
-                "get_undf()") in code
-        assert ("cma_indirection_map_w3 => "
-                "cma_op1_proxy%indirection_dofmap_to") in code
+        assert "CALL field_a_proxy%set_dirty()" in code
+        assert "cma_op1_proxy%is_dirty(" not in code
         # Check w2v
-        assert "TYPE(columnwise_operator_proxy_type) cma_op2_proxy" in code
-        assert "ncell_2d = cma_op2_proxy%ncell_2d" in code
-        assert ("INTEGER, pointer :: "
-                "cma_indirection_map_w2v(:) => null(), "
-                "cma_indirection_map_any_space_2_field_d(:) => "
-                "null()\n") in code
-        assert ("ndf_w2v = field_c_proxy%vspace%get_ndf()\n"
-                "      undf_w2v = field_c_proxy%vspace%"
-                "get_undf()") in code
-        assert ("cma_indirection_map_w2v => "
-                "cma_op2_proxy%indirection_dofmap_to") in code
-        if distmem:
-            # The kernel only *reads* from a CMA operator and writes to a
-            # field on a discontinuous space - therefore we do not need to
-            # loop out into the L1 halo.
-            assert code.count("DO cell=1,mesh%get_last_edge_cell()") == 2
-        else:
-            assert "DO cell=1,field_a_proxy%vspace%get_ncell()" in code
-            assert "DO cell=1,field_c_proxy%vspace%get_ncell()" in code
+        assert "CALL field_c_proxy%set_dirty()" in code
+        assert "cma_op2_proxy%is_dirty(" not in code
 
-        # Check w3
-        assert ("CALL columnwise_op_app_w3_kernel_code(cell, ncell_2d, "
-                "field_a_proxy%data, field_b_proxy%data, "
-                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-                "cma_op1_bandwidth, cma_op1_alpha, "
-                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-                "ndf_w3, undf_w3, map_w3(:,cell), cma_indirection_map_w3, "
-                "ndf_any_space_1_field_b, undf_any_space_1_field_b, "
-                "map_any_space_1_field_b(:,cell), "
-                "cma_indirection_map_any_space_1_field_b)") \
-            in code
-        # Check w2v
-        assert ("CALL columnwise_op_app_w2v_kernel_code(cell, ncell_2d, "
-                "field_c_proxy%data, field_d_proxy%data, "
-                "cma_op2_matrix, cma_op2_nrow, cma_op2_ncol, "
-                "cma_op2_bandwidth, cma_op2_alpha, "
-                "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, "
-                "ndf_w2v, undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
-                "ndf_any_space_2_field_d, undf_any_space_2_field_d, "
-                "map_any_space_2_field_d(:,cell), "
-                "cma_indirection_map_any_space_2_field_d)") \
-            in code
-
-        if distmem:
-            # Check w3
-            assert "CALL field_a_proxy%set_dirty()" in code
-            assert "cma_op1_proxy%is_dirty(" not in code
-            # Check w2v
-            assert "CALL field_c_proxy%set_dirty()" in code
-            assert "cma_op2_proxy%is_dirty(" not in code
-
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_cma_apply_same_space():
+def test_cma_apply_same_space(dist_mem):
     ''' Test that we generate correct code for
     a kernel that applies a CMA operator which has the same to- and from-
     spaces '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.1.1_cma_apply_same_spaces.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert "INTEGER ncell_2d" in code
-        assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
-        assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
-        assert ("INTEGER, pointer :: cma_indirection_map_any_space_2_"
-                "field_a(:) => null()\n") in code
-        assert ("ndf_any_space_2_field_a = field_a_proxy%vspace%get_ndf()\n"
-                "      undf_any_space_2_field_a = field_a_proxy%vspace%"
-                "get_undf()") in code
-        assert ("cma_indirection_map_any_space_2_field_a => "
-                "cma_op1_proxy%indirection_dofmap_to") in code
-        assert ("CALL columnwise_op_app_same_fs_kernel_code(cell, ncell_2d, "
-                "field_a_proxy%data, field_b_proxy%data, "
-                "cma_op1_matrix, cma_op1_nrow, "
-                "cma_op1_bandwidth, cma_op1_alpha, "
-                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-                "ndf_any_space_2_field_a, undf_any_space_2_field_a, "
-                "map_any_space_2_field_a(:,cell), "
-                "cma_indirection_map_any_space_2_field_a)") \
-            in code
-        if distmem:
-            assert "CALL field_a_proxy%set_dirty()" in code
-            assert "cma_op1_proxy%is_dirty(" not in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.1.1_cma_apply_same_spaces.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert "INTEGER ncell_2d" in code
+    assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert "ncell_2d = cma_op1_proxy%ncell_2d" in code
+    assert ("INTEGER, pointer :: cma_indirection_map_any_space_2_"
+            "field_a(:) => null()\n") in code
+    assert ("ndf_any_space_2_field_a = field_a_proxy%vspace%get_ndf()\n"
+            "      undf_any_space_2_field_a = field_a_proxy%vspace%"
+            "get_undf()") in code
+    assert ("cma_indirection_map_any_space_2_field_a => "
+            "cma_op1_proxy%indirection_dofmap_to") in code
+    assert ("CALL columnwise_op_app_same_fs_kernel_code(cell, ncell_2d, "
+            "field_a_proxy%data, field_b_proxy%data, "
+            "cma_op1_matrix, cma_op1_nrow, "
+            "cma_op1_bandwidth, cma_op1_alpha, "
+            "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+            "ndf_any_space_2_field_a, undf_any_space_2_field_a, "
+            "map_any_space_2_field_a(:,cell), "
+            "cma_indirection_map_any_space_2_field_a)") \
+        in code
+    if dist_mem:
+        assert "CALL field_a_proxy%set_dirty()" in code
+        assert "cma_op1_proxy%is_dirty(" not in code
 
 
-def test_cma_matrix_matrix(tmpdir):
+def test_cma_matrix_matrix(tmpdir, dist_mem):
     ''' Test that we generate correct code for an invoke containing
     a kernel that performs a matrix-matrix CMA calculation '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.2_cma_matrix_matrix.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert "INTEGER ncell_2d" in code
-        assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.2_cma_matrix_matrix.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert "INTEGER ncell_2d" in code
+    assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
 
-        if distmem:
-            # When distributed-memory is enabled then we compute operators
-            # redundantly (out to the L1 halo)
-            assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
-        else:
-            assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+    if dist_mem:
+        # When distributed-memory is enabled then we compute operators
+        # redundantly (out to the L1 halo)
+        assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+    else:
+        assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
 
-        assert ("CALL columnwise_op_mul_kernel_code(cell, "
-                "ncell_2d, "
-                "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
-                "cma_opa_bandwidth, cma_opa_alpha, "
-                "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
-                "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
-                "cma_opb_bandwidth, cma_opb_alpha, "
-                "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
-                "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
-                "cma_opc_bandwidth, cma_opc_alpha, "
-                "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
-        if distmem:
-            assert "_dirty(" not in code
+    assert ("CALL columnwise_op_mul_kernel_code(cell, "
+            "ncell_2d, "
+            "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
+            "cma_opa_bandwidth, cma_opa_alpha, "
+            "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
+            "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
+            "cma_opb_bandwidth, cma_opb_alpha, "
+            "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
+            "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_bandwidth, cma_opc_alpha, "
+            "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
+    if dist_mem:
+        assert "_dirty(" not in code
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_cma_matrix_matrix_2scalars(tmpdir):
+def test_cma_matrix_matrix_2scalars(tmpdir, dist_mem):
     ''' Test that we generate correct code for an invoke containing
     a kernel that performs a matrix-matrix CMA calculation including
     scalar arguments. '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.2.1_cma_matrix_matrix.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert "INTEGER ncell_2d" in code
-        assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.2.1_cma_matrix_matrix.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert "INTEGER ncell_2d" in code
+    assert "ncell_2d = cma_opc_proxy%ncell_2d" in code
 
-        if distmem:
-            # When distributed-memory is enabled then we compute operators
-            # redundantly (out to the L1 halo)
-            assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
-        else:
-            assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+    if dist_mem:
+        # When distributed-memory is enabled then we compute operators
+        # redundantly (out to the L1 halo)
+        assert "DO cell=1,mesh%get_last_halo_cell(1)\n" in code
+    else:
+        assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
 
-        assert ("CALL columnwise_op_mul_2scalars_kernel_code(cell, "
-                "ncell_2d, "
-                "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
-                "cma_opa_bandwidth, cma_opa_alpha, "
-                "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
-                "alpha, "
-                "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
-                "cma_opb_bandwidth, cma_opb_alpha, "
-                "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
-                "beta, "
-                "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
-                "cma_opc_bandwidth, cma_opc_alpha, "
-                "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
-        if distmem:
-            assert "_dirty(" not in code
+    assert ("CALL columnwise_op_mul_2scalars_kernel_code(cell, "
+            "ncell_2d, "
+            "cma_opa_matrix, cma_opa_nrow, cma_opa_ncol, "
+            "cma_opa_bandwidth, cma_opa_alpha, "
+            "cma_opa_beta, cma_opa_gamma_m, cma_opa_gamma_p, "
+            "alpha, "
+            "cma_opb_matrix, cma_opb_nrow, cma_opb_ncol, "
+            "cma_opb_bandwidth, cma_opb_alpha, "
+            "cma_opb_beta, cma_opb_gamma_m, cma_opb_gamma_p, "
+            "beta, "
+            "cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_bandwidth, cma_opc_alpha, "
+            "cma_opc_beta, cma_opc_gamma_m, cma_opc_gamma_p)") in code
+    if dist_mem:
+        assert "_dirty(" not in code
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_cma_multi_kernel(tmpdir):
+def test_cma_multi_kernel(tmpdir, dist_mem):
     ''' Test that we generate correct code when an invoke contains multiple
     kernels with CMA operator arguments '''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "20.5_multi_cma_invoke.f90"),
-            distributed_memory=distmem,
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        code = str(psy.gen)
-        print(code)
-        assert ("      afield_proxy = afield%get_proxy()\n"
-                "      lma_op1_proxy = lma_op1%get_proxy()\n"
-                "      cma_op1_proxy = cma_op1%get_proxy()\n"
-                "      field_a_proxy = field_a%get_proxy()\n"
-                "      field_b_proxy = field_b%get_proxy()\n"
-                "      cma_opb_proxy = cma_opb%get_proxy()\n"
-                "      cma_opc_proxy = cma_opc%get_proxy()\n") in code
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "20.5_multi_cma_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    code = str(psy.gen)
+    print(code)
+    assert ("      afield_proxy = afield%get_proxy()\n"
+            "      lma_op1_proxy = lma_op1%get_proxy()\n"
+            "      cma_op1_proxy = cma_op1%get_proxy()\n"
+            "      field_a_proxy = field_a%get_proxy()\n"
+            "      field_b_proxy = field_b%get_proxy()\n"
+            "      cma_opb_proxy = cma_opb%get_proxy()\n"
+            "      cma_opc_proxy = cma_opc%get_proxy()\n") in code
 
-        assert "cma_op1_matrix => cma_op1_proxy%columnwise_matrix\n" in code
-        assert "cma_op1_ncol = cma_op1_proxy%ncol\n" in code
-        assert "cma_op1_nrow = cma_op1_proxy%nrow\n" in code
-        assert "cma_op1_bandwidth = cma_op1_proxy%bandwidth\n" in code
-        assert "cma_op1_alpha = cma_op1_proxy%alpha\n" in code
-        assert "cma_op1_beta = cma_op1_proxy%beta\n" in code
+    assert "cma_op1_matrix => cma_op1_proxy%columnwise_matrix\n" in code
+    assert "cma_op1_ncol = cma_op1_proxy%ncol\n" in code
+    assert "cma_op1_nrow = cma_op1_proxy%nrow\n" in code
+    assert "cma_op1_bandwidth = cma_op1_proxy%bandwidth\n" in code
+    assert "cma_op1_alpha = cma_op1_proxy%alpha\n" in code
+    assert "cma_op1_beta = cma_op1_proxy%beta\n" in code
 
-        assert ("      cbanded_map_any_space_1_afield => "
-                "cma_op1_proxy%column_banded_dofmap_to\n"
-                "      cbanded_map_any_space_2_lma_op1 => "
-                "cma_op1_proxy%column_banded_dofmap_from\n") in code
-        assert ("cma_indirection_map_any_space_1_field_a => "
-                "cma_op1_proxy%indirection_dofmap_to\n"
-                "      cma_indirection_map_any_space_2_field_b => "
-                "cma_op1_proxy%indirection_dofmap_from\n") in code
+    assert ("      cbanded_map_any_space_1_afield => "
+            "cma_op1_proxy%column_banded_dofmap_to\n"
+            "      cbanded_map_any_space_2_lma_op1 => "
+            "cma_op1_proxy%column_banded_dofmap_from\n") in code
+    assert ("cma_indirection_map_any_space_1_field_a => "
+            "cma_op1_proxy%indirection_dofmap_to\n"
+            "      cma_indirection_map_any_space_2_field_b => "
+            "cma_op1_proxy%indirection_dofmap_from\n") in code
 
-        if distmem:
-            # When distributed-memory is enabled then we compute operators
-            # redundantly (out to the L1 halo). Since the field that the
-            # CMA operator is applied to is on any-space, we must assume
-            # the worst and also loop out to L1 for it too.
-            assert code.count("DO cell=1,mesh%get_last_halo_cell(1)\n") == 3
-        else:
-            assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
-            assert "DO cell=1,field_a_proxy%vspace%get_ncell()\n" in code
-            assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
+    if dist_mem:
+        # When distributed-memory is enabled then we compute operators
+        # redundantly (out to the L1 halo). Since the field that the
+        # CMA operator is applied to is on any-space, we must assume
+        # the worst and also loop out to L1 for it too.
+        assert code.count("DO cell=1,mesh%get_last_halo_cell(1)\n") == 3
+    else:
+        assert "DO cell=1,cma_op1_proxy%fs_from%get_ncell()\n" in code
+        assert "DO cell=1,field_a_proxy%vspace%get_ncell()\n" in code
+        assert "DO cell=1,cma_opc_proxy%fs_from%get_ncell()\n" in code
 
-        assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
-                "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
-                "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
-                "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
-                "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
-                "ndf_any_space_1_afield, undf_any_space_1_afield, "
-                "map_any_space_1_afield(:,cell), "
-                "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
-                "cbanded_map_any_space_2_lma_op1)") in code
-        assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
-                "field_a_proxy%data, field_b_proxy%data, cma_op1_matrix, "
-                "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
-                "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
-                "cma_op1_gamma_p, ndf_any_space_1_field_a, "
-                "undf_any_space_1_field_a, map_any_space_1_field_a(:,cell), "
-                "cma_indirection_map_any_space_1_field_a, "
-                "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
-                "map_any_space_2_field_b(:,cell), "
-                "cma_indirection_map_any_space_2_field_b)\n") in code
-        assert ("CALL columnwise_op_mul_kernel_code(cell, ncell_2d, "
-                "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
-                "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
-                "cma_op1_gamma_m, cma_op1_gamma_p, cma_opb_matrix, "
-                "cma_opb_nrow, cma_opb_ncol, cma_opb_bandwidth, "
-                "cma_opb_alpha, cma_opb_beta, cma_opb_gamma_m, "
-                "cma_opb_gamma_p, cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
-                "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, "
-                "cma_opc_gamma_m, cma_opc_gamma_p)") in code
+    assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
+            "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
+            "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+            "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
+            "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
+            "ndf_any_space_1_afield, undf_any_space_1_afield, "
+            "map_any_space_1_afield(:,cell), "
+            "cbanded_map_any_space_1_afield, ndf_any_space_2_lma_op1, "
+            "cbanded_map_any_space_2_lma_op1)") in code
+    assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
+            "field_a_proxy%data, field_b_proxy%data, cma_op1_matrix, "
+            "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
+            "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
+            "cma_op1_gamma_p, ndf_any_space_1_field_a, "
+            "undf_any_space_1_field_a, map_any_space_1_field_a(:,cell), "
+            "cma_indirection_map_any_space_1_field_a, "
+            "ndf_any_space_2_field_b, undf_any_space_2_field_b, "
+            "map_any_space_2_field_b(:,cell), "
+            "cma_indirection_map_any_space_2_field_b)\n") in code
+    assert ("CALL columnwise_op_mul_kernel_code(cell, ncell_2d, "
+            "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
+            "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
+            "cma_op1_gamma_m, cma_op1_gamma_p, cma_opb_matrix, "
+            "cma_opb_nrow, cma_opb_ncol, cma_opb_bandwidth, "
+            "cma_opb_alpha, cma_opb_beta, cma_opb_gamma_m, "
+            "cma_opb_gamma_p, cma_opc_matrix, cma_opc_nrow, cma_opc_ncol, "
+            "cma_opc_bandwidth, cma_opc_alpha, cma_opc_beta, "
+            "cma_opc_gamma_m, cma_opc_gamma_p)") in code
 
-        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 # Tests for the kernel-stub generator
 
