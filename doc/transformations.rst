@@ -1,3 +1,39 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2017-2019, Science and Technology Facilities Council
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
+..             I. Kavcic, Met Office.
+
 .. _transformations:
 
 Transformations
@@ -67,6 +103,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.transformations.ExtractRegionTrans
+    :members:
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
     :members:
     :noindex:
@@ -131,13 +173,12 @@ can be found in the API-specific sections).
     :members:
     :noindex:
 
-
 Kernels
 -------
 
 PSyclone supports the transformation of Kernels as well as PSy-layer
 code. However, the transformation of kernels to produce new kernels
-brings with it additional considerations, especialy regarding the
+brings with it additional considerations, especially regarding the
 naming of the resulting kernels. PSyclone supports two use cases:
 
   1. the HPC expert wishes to optimise the same kernel in different ways,
@@ -180,6 +221,70 @@ transformed version of that kernel exists and does not match that
 created by the current transformation then PSyclone will raise an
 exception.
 
+Rules
++++++
+
+Kernel code that is to be transformed is subject to certain
+restrictions. These rules are intended to make kernel transformations
+as robust as possible, in particular by limiting the amount of
+code that must be parsed by PSyclone (via fparser). The rules are
+as follows:
+
+1) Any variable or procedure accessed by a kernel must either be explicitly
+   declared or named in the ``only`` clause of a module ``use`` statement
+   within the scope of the subroutine containing the kernel implementation.
+   This means that:
+
+   1) Kernel subroutines are forbidden from accessing data using COMMON
+      blocks;
+   2) Kernel subroutines are forbidden from calling proceduces declared via
+      the EXTERN statement;
+   3) Kernel subroutines must not access data or procedures made available
+      via their parent (containing) module.
+
+2) The full Fortran source of a kernel must be available to PSyclone.
+   This includes the source of any modules from which it accesses
+   either routines or data. (However, kernel routines are permitted to make
+   use of Fortran intrinsic routines.)
+
+For instance, consider the following Fortran module containing the
+``bc_ssh_code`` kernel:
+  
+.. code-block:: fortran
+
+  module boundary_conditions_mod
+    real :: forbidden_var
+
+  contains
+
+    subroutine bc_ssh_code(ji, jj, istep, ssha)
+      use kind_params_mod, only: go_wp
+      use model_mod, only: rdt
+      integer,                     intent(in)    :: ji, jj, istep
+      real(go_wp), dimension(:,:), intent(inout) :: ssha
+      real(go_wp) :: rtime
+
+      rtime = real(istep, go_wp) * rdt
+      ...
+    end subroutine bc_ssh_code
+
+  end module boundary_conditions_mod
+
+Since the kernel subroutine accesses data (the ``rdt`` variable) from
+the ``model_mod`` module, the source of that module must be available
+to PSyclone if a transformation is applied to this kernel. Should
+``rdt`` not actually be defined in ``model_mod`` (i.e. ``model_mod``
+itself imports it from another module) then the source containing its
+definition must also be available to PSyclone. Note that the rules
+forbid the ``bc_ssh_code`` kernel from accessing the ``forbidden_var``
+variable that is available to it from the enclosing module scope.
+
+.. note:: these rules *only* apply to kernels that are the target of
+	  PSyclone kernel transformations.
+
+Available Kernel Transformations
+++++++++++++++++++++++++++++++++
+
 PSyclone currently provides just one kernel transformation:
 
 .. autoclass:: psyclone.transformations.ACCRoutineTrans
@@ -204,8 +309,8 @@ To apply a transformation interactively we first parse and analyse the
 code. This allows us to generate a "vanilla" PSy layer. For example ...
 ::
 
-    from parse import parse
-    from psyGen import PSyFactory
+    from psyclone.parse.algorithm import parse
+    from psyclone.psyGen import PSyFactory
 
     # This example uses version 0.1 of the Dynamo API
     api = "dynamo0.1"
@@ -241,7 +346,7 @@ with the new one. For example ...
 ::
 
     # Get the list of possible loop transformations
-    from psyGen import TransInfo
+    from psyclone.psyGen import TransInfo
     t = TransInfo()
     print t.list
 
@@ -316,7 +421,7 @@ below does the same thing as the example in the
 ::
 
     def trans(psy):
-	from transformations import OMPParallelLoopTrans
+	from psyclone.transformations import OMPParallelLoopTrans
         invoke = psy.invokes.get('invoke_0_v3_kernel_type')
         schedule = invoke.schedule
         ol = OMPParallelLoopTrans()

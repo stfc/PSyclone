@@ -42,16 +42,6 @@ import pytest
 # The various file suffixes we recognise as being Fortran
 FORTRAN_SUFFIXES = ["f90", "F90", "x90"]
 
-# Whether or not we run tests requiring code compilation is picked-up
-# from a command-line flag. (This is set-up in conftest.py.)
-# pylint: disable=no-member
-TEST_COMPILE = pytest.config.getoption("--compile")
-# pylint: enable=no-member
-# The following allows us to mark a test with @utils.COMPILE if it is
-# only to be run when the --compile option is passed to py.test
-COMPILE = pytest.mark.skipif(not TEST_COMPILE,
-                             reason="Need --compile option to run")
-
 
 class CompileError(Exception):
     '''
@@ -107,206 +97,249 @@ def print_diffs(expected, actual):
     pprint(diff_list)
 
 
-def find_fortran_file(search_paths, root_name):
-    ''' Returns the full path to a Fortran source file. Searches for
-    files with suffixes defined in FORTRAN_SUFFIXES. Raises IOError
-    if no matching file is found.
-
-    :param list search_paths: List of locations to search for Fortran file
-    :param root_name: Base name of the Fortran file to look for
-    :type path: string
-    :type root_name: string
-    :return: Full path to a Fortran source file
-    :rtype: string '''
-    for path in search_paths:
-        name = os.path.join(path, root_name)
-        for suffix in FORTRAN_SUFFIXES:
-            if os.path.isfile(str(name)+"."+suffix):
-                name += "." + suffix
-                return name
-    raise IOError("Cannot find a Fortran file '{0}' with suffix in {1}".
-                  format(name, FORTRAN_SUFFIXES))
-
-
-def compile_file(filename, f90, f90flags):
-    ''' Compiles the specified Fortran file into an object file (in
-    the current working directory) using the specified Fortran compiler
-    and flags. Raises a CompileError if the compilation fails.
-
-    :param filename: Full path to the Fortran file to compile
-    :type filename: string
-    :param f90: Command to invoke Fortran compiler
-    :type f90: string
-    :param f90flags: Flags to pass to the compiler
-    :type f90flags: string
-    :return: True if compilation succeeds
-    '''
-    # Build the command to execute
-    if f90flags:
-        arg_list = [f90, f90flags, '-c', filename]
-    else:
-        arg_list = [f90, '-c', filename]
-
-    # Attempt to execute it using subprocess
-    import subprocess
-    try:
-        build = subprocess.Popen(arg_list,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.STDOUT)
-        (output, error) = build.communicate()
-    except OSError as err:
-        print("Failed to run: {0}: ".format(" ".join(arg_list)))
-        print("Error was: ", str(err))
-        raise CompileError(str(err))
-
-    # Check the return code
-    stat = build.returncode
-    if stat != 0:
-        print(output)
-        if error:
-            print("=========")
-            print(error)
-        raise CompileError(output)
-    else:
-        return True
-
-
-def code_compiles(api, psy_ast, tmpdir, f90, f90flags):
-    '''Attempts to build the Fortran code supplied as an AST of
-    f2pygen objects. Returns True for success, False otherwise.
-    If no Fortran compiler is available then returns True. All files
-    produced are deleted.
-
-    :param api: Which PSyclone API the supplied code is using
-    :type api: string
-    :param psy_ast: The AST of the generated PSy layer
-    :type psy_ast: Instance of :py:class:`psyGen.PSy`
-    :param tmpdir: py.test-supplied temporary directory. Can contain \
-                   transformed kernel source.
-    :type tmpdir: :py:class:`LocalPath`
-    :param f90: The command to invoke the Fortran compiler
-    :type f90: string
-    :param f90flags: Flags to pass to the Fortran compiler
-    :type f90flags: string
-    :return: True if generated code compiles, False otherwise
-    :rtype: bool
-    '''
-    if not TEST_COMPILE:
-        # Compilation testing is not enabled
-        return True
-
-    # API-specific set-up - where to find infrastructure source files
-    # and which ones to build
-    supported_apis = ["dynamo0.3"]
-    if api not in supported_apis:
-        raise CompileError("Unsupported API in code_compiles. Got {0} but "
-                           "only support {1}".format(api, supported_apis))
-
-    if api == "dynamo0.3":
-        base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3")
-        from dynamo0p3_build import INFRASTRUCTURE_MODULES as module_files
-
-    kernel_modules = set()
-    # Get the names of the modules associated with the kernels. By definition,
-    # built-ins do not have associated Fortran modules.
-    for invoke in psy_ast.invokes.invoke_list:
-        for call in invoke.schedule.kern_calls():
-            kernel_modules.add(call.module_name)
-
-    # Change to the temporary directory passed in to us from
-    # pytest. (This is a LocalPath object.)
-    old_pwd = tmpdir.chdir()
-
-    # Create a file containing our generated PSy layer.
-    psy_filename = "psy.f90"
-    with open(psy_filename, 'w') as psy_file:
-        # We limit the line lengths of the generated code so that
-        # we don't trip over compiler limits.
-        from psyclone.line_length import FortLineLength
-        fll = FortLineLength()
-        psy_file.write(fll.process(str(psy_ast.gen)))
-
-    # Infrastructure modules are in the 'infrastructure' directory
-    module_path = os.path.join(base_path, "infrastructure")
-    kernel_path = base_path
-
-    success = False
-    try:
-        # First build the infrastructure modules
-        for fort_file in module_files:
-            name = find_fortran_file([module_path], fort_file)
-            # We don't have to copy the source file - just compile it in the
-            # current working directory.
-            success = compile_file(name, f90, f90flags)
-
-        # Next, build the kernels. We allow kernels to also be located in
-        # the temporary directory that we have been passed.
-        for fort_file in kernel_modules:
-            name = find_fortran_file([kernel_path, str(tmpdir)], fort_file)
-            success = compile_file(name, f90, f90flags)
-
-        # Finally, we can build the psy file we have generated
-        success = compile_file(psy_filename, f90, f90flags)
-
-    except CompileError:
-        # Failed to compile one of the files
-        success = False
-
-    finally:
-        # Clean-up - delete all generated files. This permits this routine
-        # to be called multiple times from within the same test.
-        os.chdir(str(old_pwd))
-        for ofile in tmpdir.listdir():
-            ofile.remove()
-
-    return success
-
-
-def string_compiles(code, tmpdir, f90, f90flags):
-    '''
-    Attempts to build the Fortran code supplied as a string.
-    Returns True for success, False otherwise.
-    If no Fortran compiler is available or compilation testing is not
-    enabled then it returns True. All files produced are deleted.
-
-    :param str code: The code to compile. Must have no external dependencies.
+class Compile(object):
+    '''This class provides compile functionality to the testing framework.
+    It stores the name of the compiler, compiler flags, and a temporary
+    directory used for test compiles. The temporary directory will be
+    defined per test case, so a new instance must be created for each
+    test function.
+    API-specific classes are derived from this class to manage handling
+    of the corresponding infrastructure library.
     :param tmpdir: py.test-supplied temporary directory
     :type tmpdir: :py:class:`LocalPath`
-    :param f90: The command to invoke the Fortran compiler
-    :type f90: string
-    :param f90flags: Flags to pass to the Fortran compiler
-    :type f90flags: string
-    :return: True if generated code compiles, False otherwise
-    :rtype: bool
-
     '''
-    if not TEST_COMPILE:
-        # Compilation testing (--compile flag to py.test) is not enabled
-        # so we just return True.
-        return True
 
-    # Change to the temporary directory passed in to us from
-    # pytest. (This is a LocalPath object.)
-    old_pwd = tmpdir.chdir()
+    # Whether or not we run tests requiring code compilation is picked-up
+    # from a command-line flag. (This is set-up in conftest.py.)
+    # pylint: disable=no-member
+    TEST_COMPILE = pytest.config.getoption("--compile")
+    # pylint: enable=no-member
+    # The following allows us to mark a test with @utils.COMPILE if it is
+    # only to be run when the --compile option is passed to py.test
+    COMPILE = pytest.mark.skipif(not TEST_COMPILE,
+                                 reason="Need --compile option to run")
 
-    filename = "generated.f90"
-    with open(filename, 'w') as test_file:
-        test_file.write(code)
+    # pylint: disable=no-member
+    TEST_COMPILE_OPENCL = pytest.config.getoption("--compileopencl")
+    # pylint: enable=no-member
+    COMPILE_OPENCL = pytest.mark.skipif(not TEST_COMPILE_OPENCL,
+                                        reason="Need --compileopencl "
+                                               "option to run")
 
-    try:
-        success = compile_file(filename, f90, f90flags)
-    except CompileError:
-        # Failed to compile the file
-        success = False
-    finally:
-        # Clean-up - delete all generated files. This permits this routine
-        # to be called multiple times from within the same test.
-        os.chdir(str(old_pwd))
-        for ofile in tmpdir.listdir():
-            ofile.remove()
+    def __init__(self, tmpdir=None):
+        self._tmpdir = tmpdir
+        # pylint: disable=no-member
+        self._f90 = pytest.config.getoption("--f90")
+        self._f90flags = pytest.config.getoption("--f90flags")
+        # pylint: enable=no-member
+        self._base_path = None
 
-    return success
+    @property
+    def base_path(self):
+        '''Returns the directory of all Fortran test files for the API,
+        i.e. .../psyclone/tests/test_files/<API>.
+        Needs to be set by each API-specific compile class.
+        :returns: A string with the base path of all API specific files.
+        :rtype: str
+        '''
+        return self._base_path
+
+    @base_path.setter
+    def base_path(self, base_path):
+        '''Sets the base path of all test files for the API., i.e.
+        .../psyclone/tests/test_files/<API>. Needs to be called by
+        each API-specific compile class.
+        :param str base_path: A string with the base path of all
+               API-specific files.
+        '''
+        self._base_path = base_path
+
+    def get_infrastructure_flags(self):
+        '''Returns a list with the required flags to use the required
+        infrastructure library. This is typically ["-I", some_path] so that
+        the module files of the infrastructure can be found.
+        :returns: A list of strings with the compiler flags required.
+        :rtype: list
+        '''
+        return []
+
+    @staticmethod
+    def find_fortran_file(search_paths, root_name):
+        ''' Returns the full path to a Fortran source file. Searches for
+        files with suffixes defined in FORTRAN_SUFFIXES.
+
+        :param search_paths: List of locations to search for Fortran file
+        :type search_paths: list of str
+        :param str root_name: Base name of the Fortran file to look for
+        :return: Full path to a Fortran source file
+        :rtype: str
+        :raises IOError: Raises IOError if no matching file is found.
+        '''
+
+        for path in search_paths:
+            name = os.path.join(path, root_name)
+            for suffix in FORTRAN_SUFFIXES:
+                if os.path.isfile(str(name)+"."+suffix):
+                    name += "." + suffix
+                    return name
+        raise IOError("Cannot find a Fortran file '{0}' with suffix in {1}".
+                      format(name, FORTRAN_SUFFIXES))
+
+    def compile_file(self, filename, link=False):
+        ''' Compiles the specified Fortran file into an object file (in
+        the current working directory). The compiler to be used (default
+        'gfortran') and compiler flags (default none) can be specified on
+        the command line using --f90 and --f90flags.
+
+        :param str filename: Full path to the Fortran file to compile.
+        :param bool link: If true will also try to link the file.
+            Used in testing.
+        :raises CompileError: if the compilation fails.
+        '''
+
+        if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
+            # Compilation testing is not enabled
+            return
+
+        # Build the command to execute. Note that the f90 flags are a string
+        # and so must be split into individual parts for popen (otherwise
+        # "-I /some/path" will result in the compiler trying to compile the
+        # file "-I /some/path").
+        arg_list = [self._f90, filename] + self._f90flags.split() + \
+            self.get_infrastructure_flags()
+        if not link:
+            arg_list.append("-c")
+
+        # Attempt to execute it using subprocess
+        import subprocess
+        try:
+            build = subprocess.Popen(arg_list,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT)
+            (output, error) = build.communicate()
+        except OSError as err:
+            import sys
+            print("Failed to run: {0}: ".format(" ".join(arg_list)),
+                  file=sys.stderr)
+            print("Error was: ", str(err), file=sys.stderr)
+            raise CompileError(str(err))
+
+        # Check the return code
+        stat = build.returncode
+        if stat != 0:
+            import sys
+            print(output, file=sys.stderr)
+            if error:
+                print("=========", file=sys.stderr)
+                print(error, file=sys.stderr)
+            raise CompileError(output)
+
+    def _code_compiles(self, psy_ast):
+        '''Attempts to build the Fortran code supplied as an AST of
+        f2pygen objects. Returns True for success, False otherwise.
+        It is meant for internal test uses only, and must only be
+        called when compilation is actually enabled (use code_compiles
+        otherwse). All files produced are deleted.
+
+        :param psy_ast: The AST of the generated PSy layer
+        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :return: True if generated code compiles, False otherwise
+        :rtype: bool
+        '''
+
+        kernel_modules = set()
+        # Get the names of the modules associated with the kernels.
+        # By definition, built-ins do not have associated Fortran modules.
+        for invoke in psy_ast.invokes.invoke_list:
+            for call in invoke.schedule.kern_calls():
+                kernel_modules.add(call.module_name)
+
+        # Change to the temporary directory passed in to us from
+        # pytest. (This is a LocalPath object.)
+        old_pwd = self._tmpdir.chdir()
+
+        # Create a file containing our generated PSy layer.
+        psy_filename = "psy.f90"
+        with open(psy_filename, 'w') as psy_file:
+            # We limit the line lengths of the generated code so that
+            # we don't trip over compiler limits.
+            from psyclone.line_length import FortLineLength
+            fll = FortLineLength()
+            psy_file.write(fll.process(str(psy_ast.gen)))
+
+        success = True
+
+        try:
+            # Build the kernels. We allow kernels to also be located in
+            # the temporary directory that we have been passed.
+            for fort_file in kernel_modules:
+                name = self.find_fortran_file([self.base_path,
+                                               str(self._tmpdir)], fort_file)
+                self.compile_file(name)
+
+            # Finally, we can build the psy file we have generated
+            self.compile_file(psy_filename)
+        except CompileError:
+            # Failed to compile one of the files
+            success = False
+        finally:
+            old_pwd.chdir()
+
+        return success
+
+    def code_compiles(self, psy_ast):
+        '''Attempts to build the Fortran code supplied as an AST of
+        f2pygen objects. Returns True for success, False otherwise.
+        If compilation is not enabled returns true. Uses _code_compiles
+        for the actual compilation. All files produced are deleted.
+
+        :param psy_ast: The AST of the generated PSy layer
+        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :return: True if generated code compiles, False otherwise
+        :rtype: bool
+        '''
+        if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
+            # Compilation testing is not enabled
+            return True
+
+        return self._code_compiles(psy_ast)
+
+    def string_compiles(self, code):
+        '''
+        Attempts to build the Fortran code supplied as a string.
+        Returns True for success, False otherwise.
+        If no Fortran compiler is available or compilation testing is not
+        enabled then it returns True. All files produced are deleted.
+
+        :param str code: The code to compile. Must have no external
+               dependencies.
+        :return: True if generated code compiles, False otherwise
+        :rtype: bool
+
+        '''
+        if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
+            # Compilation testing (--compile flag to py.test) is not enabled
+            # so we just return True.
+            return True
+
+        # Change to the temporary directory passed in to us from
+        # pytest. (This is a LocalPath object.)
+        old_pwd = self._tmpdir.chdir()
+
+        filename = "generated.f90"
+        with open(filename, 'w') as test_file:
+            test_file.write(code)
+
+        success = True
+        try:
+            self.compile_file(filename)
+        except CompileError:
+            # Failed to compile the file
+            success = False
+        finally:
+            old_pwd.chdir()
+
+        return success
 
 
 # =============================================================================
@@ -328,7 +361,7 @@ def get_invoke(algfile, api, idx=None, name=None):
     :raises RuntimeError: if the supplied name does not match an invoke in
                           the Algorithm
     '''
-    from psyclone.parse import parse
+    from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory
 
     if (idx is None and not name) or (idx is not None and name):

@@ -73,7 +73,7 @@ been loop-fused and then parallelised:
 from __future__ import print_function
 
 if __name__ == "__main__":
-    from psyclone.parse import parse
+    from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory, TransInfo
 
     api = "gocean1.0"

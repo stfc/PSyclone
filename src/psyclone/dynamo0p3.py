@@ -46,7 +46,8 @@ from __future__ import print_function, absolute_import
 import os
 from collections import OrderedDict
 import fparser
-from psyclone.parse import Descriptor, KernelType, ParseError
+from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -638,7 +639,7 @@ class DynArgDescriptor03(Descriptor):
             # or a mesh identifier (for inter-grid kernels)
             if len(arg_type.args) == 4:
                 try:
-                    from psyclone.parse import get_stencil, get_mesh
+                    from psyclone.parse.kernel import get_stencil, get_mesh
                     if "stencil" in str(arg_type.args[3]):
                         stencil = get_stencil(arg_type.args[3],
                                               VALID_STENCIL_TYPES)
@@ -1327,7 +1328,7 @@ class DynamoPSy(PSy):
 
     :param invoke_info: object containing the required invocation information \
                         for code optimisation and generation.
-    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+    :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
     '''
     def __init__(self, invoke_info):
         PSy.__init__(self, invoke_info)
@@ -1389,7 +1390,7 @@ def stencil_extent_value(field):
     if field.stencil.extent_arg.is_literal():
         extent = field.stencil.extent_arg.text
     else:
-        extent = field.stencil.extent_arg.varName
+        extent = field.stencil.extent_arg.varname
     return extent
 
 
@@ -1502,7 +1503,7 @@ class DynInvokeStencil(object):
         invoke call. '''
         names = []
         for arg in self._unique_extent_args:
-            names.append(arg.stencil.extent_arg.varName)
+            names.append(arg.stencil.extent_arg.varname)
         return names
 
     def _declare_unique_extent_vars(self, parent):
@@ -1522,7 +1523,7 @@ class DynInvokeStencil(object):
         invoke call.'''
         names = []
         for arg in self._unique_direction_args:
-            names.append(arg.stencil.direction_arg.varName)
+            names.append(arg.stencil.direction_arg.varname)
         return names
 
     def _declare_unique_direction_vars(self, parent):
@@ -1578,7 +1579,7 @@ class DynInvokeStencil(object):
                                           only=True,
                                           funcnames=["STENCIL_1DX",
                                                      "STENCIL_1DY"]))
-                        direction_name = arg.stencil.direction_arg.varName
+                        direction_name = arg.stencil.direction_arg.varname
                         for direction in ["x", "y"]:
                             if_then = IfThenGen(parent, direction_name +
                                                 " .eq. " + direction +
@@ -2873,7 +2874,7 @@ class DynInvoke(Invoke):
     def __init__(self, alg_invocation, idx):
         '''
         :param alg_invocation: node in the AST describing the invoke call
-        :type alg_invocation: :py:class:`psyclone.parse.InvokeCall`
+        :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
         :param int idx: the position of the invoke in the list of invokes \
                         contained in the Algorithm
         :raises GenerationError: if integer reductions are required in the \
@@ -4425,7 +4426,7 @@ class HaloReadAccess(HaloDepth):
                         self._literal_depth += int(value_str)
                     else:
                         # a variable is specified
-                        self._var_depth = field.stencil.extent_arg.varName
+                        self._var_depth = field.stencil.extent_arg.varname
         # If this is an intergrid kernel and the field in question is on
         # the fine mesh then we must double the halo depth
         if call.is_intergrid and field.mesh == "gh_fine":
@@ -5114,6 +5115,7 @@ class DynKern(Kern):
     def __init__(self):
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
+        self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None
         # Whether this kernel requires quadrature
@@ -5141,7 +5143,7 @@ class DynKern(Kern):
 
         :param call: The KernelCall object from which to extract information
                      about this kernel
-        :type call: :py:class:`psyclone.parse.KernelCall`
+        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
         :param parent: The parent node of the kernel call in the AST
                        we are constructing. This will be a loop.
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
@@ -5159,7 +5161,7 @@ class DynKern(Kern):
         :type ktype: :py:class:`psyclone.dynamo0p3.DynKernMetadata`
         '''
         # create a name for each argument
-        from psyclone.parse import Arg
+        from psyclone.parse.algorithm import Arg
         args = []
         for idx, descriptor in enumerate(ktype.arg_descriptors):
             pre = None
@@ -5225,15 +5227,24 @@ class DynKern(Kern):
                                 the source of this Kernel
         :param args: List of Arg objects produced by the parser for the
                      arguments of this kernel call
-        :type args: List of :py:class:`psyclone.parse.Arg` objects
+        :type args: List of :py:class:`psyclone.parse.algorithm.Arg` objects
         :param parent: the parent of this kernel call in the generated
                        AST (will be a loop object)
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
         '''
-        from psyclone.parse import KernelCall
+        from psyclone.parse.algorithm import KernelCall
         Kern.__init__(self, DynKernelArguments,
                       KernelCall(module_name, ktype, args),
                       parent, check=False)
+        # Remove "_code" from the name if it exists to determine the
+        # base name which (if dynamo0.3 naming conventions are
+        # followed) is used as the root for the module and subroutine
+        # names.
+        if self.name.lower().endswith("_code"):
+            self._base_name = self.name[:-5]
+        else:
+            # TODO: #11 add a warning here when logging is added
+            self._base_name = self.name
         self._func_descriptors = ktype.func_descriptors
         # Keep a record of the type of CMA kernel identified when
         # parsing the kernel meta-data
@@ -5259,7 +5270,7 @@ class DynKern(Kern):
             # previous name. We use the full text of the original
             # as a label.
             self._qr_name = self._name_space_manager.create_name(
-                root_name=qr_arg.varName, context="AlgArgs",
+                root_name=qr_arg.varname, context="AlgArgs",
                 label=self._qr_text)
             # dynamo 0.3 api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
@@ -5280,7 +5291,7 @@ class DynKern(Kern):
             # If we're not a kernel stub then we will have a name for the qr
             # argument. We append this to the names of the qr-related
             # variables.
-            if qr_arg.varName:
+            if qr_arg.varname:
                 self._qr_args = [
                     arg + "_" + self._qr_name for arg in self._qr_args]
 
@@ -5440,25 +5451,24 @@ class DynKern(Kern):
         return lvars
 
     @property
+    def base_name(self):
+        '''
+        :returns: a base name for this kernel.
+        :rtype: str
+        '''
+        return self._base_name
+
+    @property
     def gen_stub(self):
         ''' output a kernel stub '''
         from psyclone.f2pygen import ModuleGen, SubroutineGen
 
-        # remove "_code" from the name if it exists to determine the
-        # base name which (if dynamo0.3 naming conventions are
-        # followed) is used as the root for the module and subroutine
-        # names.
-        if self.name.lower().endswith("_code"):
-            base_name = self.name[:-5]
-        else:
-            # TODO: add a warning here when logging is added
-            base_name = self.name
-
         # create an empty PSy layer module
-        psy_module = ModuleGen(base_name+"_mod")
+        base_name = self._base_name
+        psy_module = ModuleGen(self._base_name+"_mod")
 
         # create the subroutine
-        sub_stub = SubroutineGen(psy_module, name=base_name+"_code",
+        sub_stub = SubroutineGen(psy_module, name=self._base_name+"_code",
                                  implicitnone=True)
         # create the arglist and declarations
         create_arg_list = KernStubArgList(self, sub_stub)
@@ -6040,7 +6050,7 @@ class KernCallArgList(ArgOrdering):
         '''add stencil information to the argument list associated with the
         argument 'arg' if the direction is unknown'''
         # the direction of the stencil is not known so pass the value in
-        name = arg.stencil.direction_arg.varName
+        name = arg.stencil.direction_arg.varname
         self._arglist.append(name)
 
     def stencil(self, arg):
@@ -6731,9 +6741,6 @@ class KernStubArgList(ArgOrdering):
 
 
 # class DinoWriters(ArgOrdering):
-#    '''Creates the required writers to dump the state of a Kernel call
-#    using dino. The integers are output first, followed by the fields,
-#    arrays etc'''
 #    def __init__(self, kern, parent=None, position=None):
 #        ArgOrdering.__init__(self, kern)
 #        self._parent = parent
@@ -6963,7 +6970,7 @@ def check_args(call):
 
     :param call: the object produced by the parser that describes the
                  kernel call to be checked.
-    :type call: :py:class:`psyclone.parse.KernelCall`
+    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :raises: GenerationError if the kernel arguments in the Algorithm layer
              do not match up with the kernel meta-data
     '''
@@ -7076,25 +7083,25 @@ class DynKernelArguments(Arguments):
                     # an Arg object created by the parser. Therefore its
                     # name may clash. We register and update the name here.
                     unique_name = self._name_space_manager.create_name(
-                        root_name=stencil.extent_arg.varName,
+                        root_name=stencil.extent_arg.varname,
                         context="AlgArgs",
                         label=stencil.extent_arg.text)
-                    stencil.extent_arg.varName = unique_name
+                    stencil.extent_arg.varname = unique_name
                     idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil.direction_arg = call.args[idx]
-                    if stencil.direction_arg.varName not in \
+                    if stencil.direction_arg.varname not in \
                        VALID_STENCIL_DIRECTIONS:
                         # direction_arg is not a standard dynamo
                         # argument, it is an Arg object created by the
                         # parser. Therefore its name may clash. We
                         # register and update the name here.
                         unique_name = self._name_space_manager.create_name(
-                            root_name=stencil.direction_arg.varName,
+                            root_name=stencil.direction_arg.varname,
                             context="AlgArgs",
                             label=stencil.direction_arg.text)
-                        stencil.direction_arg.varName = unique_name
+                        stencil.direction_arg.varname = unique_name
                     idx += 1
                 dyn_argument.stencil = stencil
             self._args.append(dyn_argument)
@@ -7305,7 +7312,7 @@ class DynKernelArgument(KernelArgument):
         :type arg_meta_data: :py:class:`psyclone.dynamo0p3.DynArgDescriptor03`
         :param arg_info: Information on how this argument is specified in the
                          Algorithm layer
-        :type arg_info: :py:class:`psyclone.parse.Arg`
+        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
         :param call: The kernel object with which this argument is associated
         :type call: :py:class:`psyclone.dynamo0p3.DynKern`
         '''

@@ -43,11 +43,12 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from psyclone.parse import parse, ParseError
+from dynamo0p3_build import Dynamo0p3Build
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.configuration import Config
 from psyclone import dynamo0p3_builtins
-from psyclone_test_utils import TEST_COMPILE, code_compiles
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -59,16 +60,15 @@ API = "dynamo0.3"
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
-def test_dynbuiltin_missing_defs():
+def test_dynbuiltin_missing_defs(monkeypatch):
     ''' Check that we raise an appropriate error if we cannot find the
     file specifying meta-data for built-in kernels '''
-    old_name = dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE[:]
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = 'broken'
+    monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
+                        "broken")
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15.12.3_single_pointwise_builtin.f90"),
                      api=API)
-    dynamo0p3_builtins.BUILTIN_DEFINITIONS_FILE = old_name
     assert ("broken' containing the meta-data describing the "
             "Built-in operations" in str(excinfo.value))
 
@@ -290,7 +290,7 @@ def test_invalid_builtin_kernel():
                                   "15.12.1_invalid_builtin_kernel.f90"),
                      api=API)
     assert ("kernel call 'setva_c' must either be named in a "
-            "use statement or be a recognised built-in" in
+            "use statement (found ['inf']) or be a recognised built-in" in
             str(excinfo.value))
 
 
@@ -351,7 +351,7 @@ def test_dynbuiltfactory_str():
 # ------------- Adding (scaled) fields ------------------------------------- #
 
 
-def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
+def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the str method of DynXPlusYKern returns the expected
     string and 2) we generate correct code for the built-in Z = X + Y
     where X and Y are fields. Also check that we generate correct
@@ -409,10 +409,7 @@ def test_X_plus_Y(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile
-        # flag to py.test)
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
@@ -427,7 +424,6 @@ def test_inc_X_plus_Y(monkeypatch, annexed, dist_mem):
 
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.2_inc_X_plus_Y_builtin.f90"),
-                           distributed_memory=dist_mem,
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
@@ -893,7 +889,7 @@ def test_inc_X_minus_Y(monkeypatch, annexed, dist_mem):
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.2.2_inc_X_minus_Y_builtin.f90"),
-        distributed_memory=dist_mem, api=API)
+        api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
@@ -1162,8 +1158,7 @@ def test_X_times_Y(monkeypatch, annexed, dist_mem):
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.3.1_X_times_Y_builtin.f90"),
-        distributed_memory=dist_mem, api=API)
+                     "15.3.1_X_times_Y_builtin.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
@@ -1418,7 +1413,7 @@ def test_inc_a_times_X(monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.4.2_inc_a_times_X_builtin.f90"),
-        distributed_memory=dist_mem, api=API)
+        api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
     first_invoke = psy.invokes.invoke_list[0]
@@ -1611,7 +1606,6 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.6.1_inc_X_powreal_a_builtin.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
@@ -1649,7 +1643,7 @@ def test_inc_X_powreal_a(monkeypatch, annexed, dist_mem):
         assert output in code
 
 
-def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
+def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the str method of DynIncXPowintNKern returns the
     expected string and 2) we generate correct code for the built-in
     operation X = X**n where 'n' is an integer scalar and X is a
@@ -1662,7 +1656,6 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.6.2_inc_X_powint_n_builtin.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     # Test string method
@@ -1673,10 +1666,7 @@ def test_inc_X_powint_n(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
     code = str(psy.gen)
     print(code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output = (
@@ -1848,7 +1838,6 @@ def test_X_innerproduct_Y(dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.1_X_innerproduct_Y_builtin.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
@@ -1915,7 +1904,6 @@ def test_X_innerproduct_X(dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.2_X_innerproduct_X_builtin.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
@@ -1982,8 +1970,7 @@ def test_sum_X(dist_mem):
     operation which sums elements of a field X as sumfld = sum(X(:)) '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
-                     "15.8.1_sum_X_builtin.f90"),
-        distributed_memory=dist_mem, api=API)
+                     "15.8.1_sum_X_builtin.f90"), api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
     # Test string method
@@ -2063,7 +2050,6 @@ def test_X_times_Y_deduce_space(dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.11.1_X_times_Y_deduce_space.f90"),
-        distributed_memory=dist_mem,
         api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
@@ -2078,7 +2064,7 @@ def test_X_times_Y_deduce_space(dist_mem):
 # ------------- Builtins that pass scalars by value ------------------------- #
 
 
-def test_builtin_set(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
+def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
     '''Tests that we generate correct code for a serial builtin setval_c
     operation with a scalar passed by value. Test with and without
     annexed dofs being computed as this affects the generated code.
@@ -2094,10 +2080,7 @@ def test_builtin_set(tmpdir, f90, f90flags, monkeypatch, annexed, dist_mem):
     code = str(psy.gen)
     print(code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     if not dist_mem:
         output_seq = (
@@ -2483,7 +2466,7 @@ def test_multi_builtin_single_invoke(monkeypatch, annexed, dist_mem):
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.18.1_builtins_reduction_fuse_error.f90"),
-        distributed_memory=dist_mem, api=API)
+        api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     code = str(psy.gen)
     print(code)
@@ -2572,14 +2555,13 @@ def test_scalar_int_builtin_error(monkeypatch):
     monkeypatch.setattr(dynamo0p3_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
-    for dist_mem in [False, True]:
-        with pytest.raises(ParseError) as excinfo:
-            _, _ = parse(os.path.join(BASE_PATH,
-                                      "16.2_integer_scalar_sum.f90"),
-                         api=API, distributed_memory=dist_mem)
-        assert ("In the dynamo0.3 API a reduction access 'gh_sum' is "
-                "only valid with a real scalar argument, but 'gh_integer' "
-                "was found" in str(excinfo))
+    with pytest.raises(ParseError) as excinfo:
+        _, _ = parse(os.path.join(BASE_PATH,
+                                  "16.2_integer_scalar_sum.f90"),
+                     api=API)
+    assert ("In the dynamo0.3 API a reduction access 'gh_sum' is "
+            "only valid with a real scalar argument, but 'gh_integer' "
+            "was found" in str(excinfo))
 
 
 # ------------- Auxiliary mesh code generation function --------------------- #
