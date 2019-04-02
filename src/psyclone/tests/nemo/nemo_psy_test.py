@@ -163,14 +163,6 @@ def test_complex_code():
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 5
-
-    # TODO: Revisit before submiting PR but in general clbocks will change
-    # while adding more features to PSyIR.
-    # (but note that sched.view() didn't look right for the
-    # src/psyclone/tests/nemo/test_files/code_block.f90)
-
-    #cblocks = sched.walk(sched.children, CodeBlock)
-    #assert len(cblocks) == 4
     kerns = sched.kern_calls()
     assert len(kerns) == 1
     # The last loop does not contain a kernel

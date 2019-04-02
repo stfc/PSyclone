@@ -4884,8 +4884,9 @@ class Fparser2ASTProcessor(object):
     def _return_handler(self, node, parent):
         '''
         Transforms an fparser2 Return_Stmt to the PSyIRe representation.
-         :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Return_Stmt`
+
+        :param child: node in fparser2 AST.
+        :type child: :py:class:`fparser.two.Fortran2003.Return_Stmt`
         :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
@@ -4914,9 +4915,10 @@ class Fparser2ASTProcessor(object):
 
     def _unary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 UnaryOp to the PSyIRe representation.
-         :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.UnaryOpBase`
+        Transforms an fparser2 UnaryOpBase to the PSyIRe representation.
+
+        :param child: node in fparser2 AST.
+        :type child: :py:class:`fparser.two.utils.UnaryOpBase`
         :param parent: Parent node of the PSyIRe node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIRe representation of node
@@ -5622,12 +5624,11 @@ class Reference(Node):
 
 class UnaryOperation(Node):
     '''
-    Node representing a UnaryOperator expression. As such it has one operand
+    Node representing a UnaryOperation expression. As such it has one operand
     as children 0, and an attribute with the operator type.
 
-    :param ast: node in the fparser2 AST representing the unary operator.
-    :type ast: :py:class:`fparser.two.Fortran2003.UnaryOpBase.
-    :param parent: the parent node of this UnaryOperator in the PSyIRe.
+    :param str operator: string representing the unary operator.
+    :param parent: the parent node of this UnaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, operator, parent=None):
@@ -5869,7 +5870,7 @@ class Return(Node):
     Node representing a Return statement (subroutine break without return
     value).
 
-    :param parent: the parent node of this Return in the PSyIRe.
+    :param parent: the parent node of this Return in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, parent=None):
