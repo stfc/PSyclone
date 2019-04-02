@@ -5622,8 +5622,8 @@ class Reference(Node):
 
 class UnaryOperation(Node):
     '''
-    Node representing a UnaryOperator expression. As such it has one operands
-    as children 0, and a attribute with the operator type.
+    Node representing a UnaryOperator expression. As such it has one operand
+    as children 0, and an attribute with the operator type.
 
     :param ast: node in the fparser2 AST representing the unary operator.
     :type ast: :py:class:`fparser.two.Fortran2003.UnaryOpBase.
@@ -5670,9 +5670,16 @@ class UnaryOperation(Node):
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: str
+        :raises GenerationError: if the node or its children are invalid.
         '''
+        if len(self.children) != 1:
+            raise GenerationError("UnaryOperation malformed or "
+                                  "incomplete. It should have exactly 1 "
+                                  "children, but it found {0}."
+                                  "".format(str(len(self.children))))
+
         return "(" + self._operator + " " \
-            + self._children[0].gen_c_code(indent, opencl) + ")"
+            + self._children[0].gen_c_code() + ")"
 
 
 class BinaryOperation(Node):
@@ -5725,6 +5732,7 @@ class BinaryOperation(Node):
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: str
+        :raises GenerationError: if the node or its children are invalid.
         '''
 
         if len(self.children) != 2:
@@ -5897,4 +5905,4 @@ class Return(Node):
         :return: C language code representing the node.
         :rtype: str
         '''
-        return "return;\n"
+        return "return;"
