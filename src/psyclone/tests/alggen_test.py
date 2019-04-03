@@ -41,6 +41,7 @@ import os
 import pytest
 from psyclone.generator import generate, GenerationError
 from psyclone.algGen import NoInvokesError, adduse
+from psyclone.psyGen import InternalError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -657,7 +658,7 @@ def test_adduse_nospec(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = adduse(parse_tree, location, name)
     assert ("The second child of the parent code (content[1]) is expected "
             "to be a specification part but found 'End_Program_Stmt"

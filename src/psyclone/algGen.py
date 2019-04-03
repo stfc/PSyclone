@@ -169,6 +169,15 @@ def adduse(parse_tree, location, name, only=None, funcnames=None):
     added. Defaults to None.
     :type funcnames: list of str
 
+    :raises GenerationError: if the location is not part of the parse \
+    tree.
+    :raises GenerationError: if the location is not a valid location \
+    to add a use statement.
+    :raises NotImplementedError: if the type of parent node is not \
+    supported.
+    :raises InternalError: if the type of parent node does not have \
+    the expected structure.
+
     '''
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-branches
@@ -176,7 +185,7 @@ def adduse(parse_tree, location, name, only=None, funcnames=None):
     from fparser.two.Fortran2003 import Main_Program, Module, \
         Subroutine_Subprogram, Function_Subprogram, Use_Stmt, \
         Specification_Part
-    from psyclone.psyGen import GenerationError
+    from psyclone.psyGen import GenerationError, InternalError
 
     if location is None:
         raise GenerationError("algGen.py:adduse: Location argument must "
@@ -239,7 +248,7 @@ def adduse(parse_tree, location, name, only=None, funcnames=None):
             "support is limited to program, subroutine and function.".
             format(str(type(parent_prog_statement))))
     if not isinstance(parent_prog_statement.content[1], Specification_Part):
-        raise NotImplementedError(
+        raise InternalError(
             "algGen.py:adduse: The second child of the parent code "
             "(content[1]) is expected to be a specification part but "
             "found '{0}'.".format(repr(parent_prog_statement.content[1])))
