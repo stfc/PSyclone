@@ -1995,7 +1995,8 @@ def test_acc_dag_names():
 
 
 def test_acc_datadevice_virtual():
-    ''' Check that we can't instantiate an instance of ACCEnterDataDirective. '''
+    ''' Check that we can't instantiate an instance of
+    ACCEnterDataDirective. '''
     from psyclone.psyGen import ACCEnterDataDirective
     # pylint:disable=abstract-class-instantiated
     with pytest.raises(TypeError) as err:

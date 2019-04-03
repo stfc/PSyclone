@@ -1690,9 +1690,9 @@ class ACCDirective(Directive):
                              the region (or None). "!$ACC " is \
                              prepended to the supplied text.
         :param str data_movement: whether to include data-movement clauses and\
-                                  if so, whether to determine them by analysing\
-                                  the code within the region ("analyse") or to \
-                                  specify 'default(present)' ("present").
+                               if so, whether to determine them by analysing \
+                               the code within the region ("analyse") or to \
+                               specify 'default(present)' ("present").
 
         :raises InternalError: if either start_text or end_text already
                                begin with '!'.
@@ -1790,7 +1790,6 @@ class ACCDirective(Directive):
 
         self._ast = directive
         self._ast_start = directive
-
 
 
 @six.add_metaclass(abc.ABCMeta)

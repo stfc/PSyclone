@@ -81,7 +81,7 @@ def test_accenterdata_internalerr(monkeypatch):
     with pytest.raises(InternalError) as err:
         _, _ = acct.apply("Not a schedule")
     assert "validate() has not rejected an (unsupported) schedule" in str(err)
-  
+
 
 def test_omploop_no_collapse():
     ''' Check that the OMPLoopTrans.directive() method rejects the
