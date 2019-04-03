@@ -607,16 +607,14 @@ def get_kernel(parse_tree, alg_filename):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
             # reason Add_Operation represents binary expressions in
             # fparser2.  Walk the tree to look for an argument.
-            found_arg = False
-            for statement in walk_ast([argument]):
-                if isinstance(statement, Name):
-                    found_arg = True
-            if not found_arg:
+            if not walk_ast([argument], [Name]):
+                # This is a literal so store the full expression as a
+                # string
                 arguments.append(Arg('literal', argument.tostr().lower()))
             else:
                 raise NotImplementedError(
                     "algorithm.py:get_kernel: Expressions containing "
-                    "arguments are not yet supported '{0}', value '{1}', "
+                    "variables are not yet supported '{0}', value '{1}', "
                     "kernel '{2}' in file '{3}'.".format(
                         type(argument), str(argument), parse_tree,
                         alg_filename))

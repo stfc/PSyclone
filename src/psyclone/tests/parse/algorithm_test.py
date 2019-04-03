@@ -225,7 +225,7 @@ def test_getkernel_isarg(parser, content):
                           "1.0 * (1.0 * arg)", "arg1*arg2"])
 def test_getkernel_noexpr(parser, content):
     '''Test that the get_kernel function recognises an expression
-    containing an argument and raises an exception (as this is not
+    containing a variable and raises an exception (as this is not
     currently supported).
 
     '''
