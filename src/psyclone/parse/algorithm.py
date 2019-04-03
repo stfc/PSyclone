@@ -324,13 +324,13 @@ class Parser(object):
         statement in the algorithm layer
 
         '''
-        if kernel_name in self._arg_name_to_module_name:
+        if kernel_name.lower() in self._arg_name_to_module_name:
             raise ParseError(
                 "A built-in cannot be named in a use "
                 "statement but '{0}' is used from "
                 "module '{1}' in file {2}".
                 format(kernel_name,
-                       self._arg_name_to_module_name[kernel_name],
+                       self._arg_name_to_module_name[kernel_name.lower()],
                        self._alg_filename))
 
         from psyclone.parse.kernel import BuiltInKernelTypeFactory
@@ -358,7 +358,7 @@ class Parser(object):
 
         '''
         try:
-            module_name = self._arg_name_to_module_name[kernel_name]
+            module_name = self._arg_name_to_module_name[kernel_name.lower()]
         except KeyError:
             raise ParseError(
                 "kernel call '{0}' must either be named "
@@ -405,7 +405,7 @@ class Parser(object):
             only_list = [statement.items[4]]
 
         for item in only_list:
-            self._arg_name_to_module_name[str(item)] = use_name
+            self._arg_name_to_module_name[str(item).lower()] = use_name
 
     def check_invoke_label(self, argument):
         '''Takes the parse tree of an invoke argument containing an invoke

@@ -93,6 +93,45 @@ def test_parser_updateargtomodulemap_invalid():
     assert "Expected a use statement but found instance of" \
         in str(excinfo.value)
 
+
+def test_parser_caseinsensitive1():
+    '''Check that the test for the existance of a builtin call in a use
+    statement is case insensitive.
+
+    '''
+    from fparser.two import Fortran2003 as f2003
+    from fparser.two.parser import ParserFactory
+    ParserFactory().create(std="f2003")
+    parser = Parser()
+    use = f2003.Use_Stmt("use my_mod, only : SETVAL_X")
+    parser.update_arg_to_module_map(use)
+    with pytest.raises(ParseError) as excinfo:
+        parser.create_builtin_kernel_call("SetVal_X", None)
+    assert "A built-in cannot be named in a use statement" \
+        in str(excinfo.value)
+
+
+def test_parser_caseinsensitive2():
+    '''Check that the test for the existance of a kernel call in a use
+    statement is case insensitive.
+
+    '''
+    from fparser.two import Fortran2003 as f2003
+    from fparser.two.parser import ParserFactory
+    ParserFactory().create(std="f2003")
+    parser = Parser()
+    use = f2003.Use_Stmt("use my_mod, only : MY_KERN")
+    parser.update_arg_to_module_map(use)
+    # if we get to an AttributeError exception then we know that the
+    # case insensitive match has worked (as the attribute error occurs
+    # later in the code and we would get a ParseError if there were no
+    # match). We get an attribute error as create_coded_kernel_call()
+    # expects there to be a valid Kernel file which is not the case in
+    # this test.
+    with pytest.raises(AttributeError):
+        parser.create_coded_kernel_call("My_Kern", None)
+
+
 # function get_invoke_label() tests
 
 
