@@ -5056,7 +5056,8 @@ class Symbol(object):
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
                        dimension is unknown, otherwise it holds an integer \
-                       with the extent. If it is an empy list then the symbol \
+                       literal or a reference to an integer symbol with the \
+                       extent. If it is an empy list then the symbol \
                        represents a scalar.
     :param str scope: It is 'local' if the symbol just exists inside the \
                       kernel scope or 'global_*' if the data survives outside \
@@ -5094,9 +5095,20 @@ class Symbol(object):
         if not isinstance(shape, list):
             raise TypeError("Symbol shape attribute must be a list.")
 
-        if False in [isinstance(x, (type(None), int)) for x in shape]:
-            raise TypeError("Symbol shape list elements can only be "
-                            "'integer' or 'None'.")
+        for dimension in shape:
+            if isinstance(dimension, Symbol):
+                if dimension.datatype != "integer" or \
+                   len(dimension.shape) > 0:
+                    raise TypeError(
+                        "Symbols that are part of another symbol shape can "
+                        "only be scalar integers, but found '{}'"
+                        "".format(str(dimension)))
+            elif isinstance(dimension, (type(None), int)):
+                pass  # None and int are valid types
+            else:
+                raise TypeError("Symbol shape list elements can only be "
+                                "'Symbol', 'integer' or 'None'.")
+
         self._shape = shape
 
         # The following attributes have setter methods (with error checking)
@@ -5178,9 +5190,11 @@ class Symbol(object):
         '''
         :returns: Shape of the symbol in row-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
-                  an array dimension. If not None then it holds the \
-                  extent of that dimension. If it is an empy list it \
-                  represents an scalar.
+                  an array dimension. If it is 'None' the extent of that \
+                  dimension is unknown, otherwise it holds an integer \
+                  literal or a reference to an integer symbol with the \
+                  extent. If it is an empy list then the symbol \
+                  represents a scalar.
         :rtype: list
         '''
         return self._shape
@@ -5281,10 +5295,12 @@ class SymbolTable(object):
         :param str name: Name of the symbol.
         :param str datatype: Datatype of the symbol.
         :param list shape: Shape of the symbol in row-major order (leftmost \
-                       index is contiguous in memory). Each entry represents \
-                       an array dimension. If not None then it holds the \
-                       extent of that dimension. If it is an empy list it \
-                       represents an scalar.
+                           index is contiguous in memory). Each entry \
+                           represents an array dimension. If it is 'None' \
+                           the extent of that dimension is unknown, otherwise \
+                           it holds an integer literal or a reference to an \
+                           integer symbol with the extent. If it is an empy \
+                           list then the symbol represents a scalar.
         :param str scope: It is 'local' if the symbol just exists inside the \
                           kernel scope or 'global_*' if the data survives \
                           outside of the kernel scope. Note that \

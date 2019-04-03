@@ -2894,6 +2894,9 @@ def test_symbol_initialization():
                              True, True), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
                              True, False), Symbol)
+    dim = Symbol('dim', 'integer', [])
+    assert isinstance(Symbol('a', 'real', [dim], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'real', [3, dim, None], 'local'), Symbol)
 
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
@@ -2913,8 +2916,20 @@ def test_symbol_initialization():
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', ['invalidshape'], 'local')
-    assert ("Symbol shape list elements can only be "
+    assert ("Symbol shape list elements can only be 'Symbol', "
             "'integer' or 'None'.") in str(error.value)
+
+    with pytest.raises(TypeError) as error:
+        bad_dim = Symbol('dim', 'real', [])
+        Symbol('a', 'real', [bad_dim], 'local')
+    assert ("Symbols that are part of another symbol shape can "
+            "only be scalar integer, but found") in str(error.value)
+
+    with pytest.raises(TypeError) as error:
+        bad_dim = Symbol('dim', 'integer', [3])
+        Symbol('a', 'real', [bad_dim], 'local')
+    assert ("Symbols that are part of another symbol shape can "
+            "only be scalar integer, but found") in str(error.value)
 
 
 def test_symbol_scope_setter():
