@@ -420,11 +420,8 @@ def test_kernels_in_data_region(parser):
     acc_dtrans = TransInfo().get_trans_name('ACCDataTrans')
     acc_ktrans = TransInfo().get_trans_name('ACCKernelsTrans')
     schedule, _ = acc_ktrans.apply(schedule.children[:], default_present=True)
-    schedule.view()
     schedule, _ = acc_dtrans.apply(schedule.children[:])
-    schedule.view()
     new_code = str(psy.gen)
-    print(new_code)
     assert ("  !$ACC DATA COPYOUT(sto_tmp)\n"
             "  !$ACC KERNELS DEFAULT(PRESENT)\n"
             "  DO ji = 1, jpj\n" in new_code)
@@ -476,7 +473,6 @@ def test_array_access_in_ifblock(parser):
     # Put the second loop nest inside a data region
     acc_trans.apply(schedule.children[1:])
     gen_code = str(psy.gen).lower()
-    print(gen_code)
     assert " copyin(zmask)" in gen_code
 
 

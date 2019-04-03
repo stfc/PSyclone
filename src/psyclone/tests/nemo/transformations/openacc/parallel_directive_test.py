@@ -124,9 +124,7 @@ def test_parallel_if_block(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
     schedule, _ = acc_trans.apply(schedule.children[0:1])
-    schedule.view()
     code = str(psy.gen)
-    print(code)
     assert ("  !$ACC PARALLEL\n"
             "  IF (init) THEN\n"
             "    DO ji = 1, jpi\n" in code)

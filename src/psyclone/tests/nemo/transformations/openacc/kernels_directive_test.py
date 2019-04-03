@@ -63,7 +63,6 @@ def test_no_default_present(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
-    schedule.view()
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     with pytest.raises(NotImplementedError) as err:
         _, _ = acc_trans.apply(schedule.children[0:2], default_present=False)
@@ -208,7 +207,6 @@ def test_kernels_within_if(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule.view()
     # Attempt to enclose the children of the if-block without the parent 'if'
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children[0].children[:], default_present=True)
@@ -218,7 +216,6 @@ def test_kernels_within_if(parser):
                                   default_present=True)
     schedule, _ = acc_trans.apply(schedule.children[0].children[1].children[:],
                                   default_present=True)
-    schedule.view()
     new_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"
             "    !$ACC KERNELS DEFAULT(PRESENT)\n"
@@ -245,8 +242,6 @@ def test_no_code_block_kernels(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    schedule.view()
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
     assert "CodeBlock'>' cannot be enclosed by a ACCKernelsTrans " in str(err)
-
