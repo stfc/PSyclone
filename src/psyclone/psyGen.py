@@ -1725,6 +1725,8 @@ class ACCDirective(Directive):
         # go back up the tree to find the node corresponding to our parent
         # node in the fparser2 parse tree. This is the first node that
         # has the 'content' attribute.
+        # TODO this can probably be simplified/removed altogether once
+        # the fparser2 parse tree has parent information (fparser/#102).
         parent = self._parent
         while parent:
             if parent._ast and hasattr(parent._ast, "content"):
@@ -4684,7 +4686,8 @@ class ACCKernelsDirective(ACCDirective):
     :type children: list of sub-classes of :py:class:`psyclone.psyGen.Node`
     :param parent: the parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
-    :param bool default_present:
+    :param bool default_present: whether or not to add the "default(present)" \
+                                 clause to the kernels directive.
 
     :raises NotImplementedError: if default_present is False.
 
@@ -4746,7 +4749,10 @@ class ACCDataDirective(ACCDirective):
     '''
     @property
     def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
+        '''
+        :returns: the name to use in a dag for this node.
+        :rtype: str
+        '''
         return "ACC_data_" + str(self.abs_position)
 
     def view(self, indent=0):

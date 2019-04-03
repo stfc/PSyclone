@@ -58,4 +58,5 @@ OpenMP parallelisation of traldf_iso over levels.
 Example 3
 ---------
 
-OpenACC parallelisation of tra_adv.
+OpenACC parallelisation of tra_adv using the 'data' and 'kernels'
+directives.
