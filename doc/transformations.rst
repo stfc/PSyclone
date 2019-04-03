@@ -540,3 +540,30 @@ largely motivated by the need to target Field Programmable Gate Array
 compute devices that OpenCL supports (such as GPUs and multi-core CPUs) but
 this is a potentially fruitful area for future work.
 
+OpenACC
+-------
+
+PSyclone supports the generation of code targetting GPUs through the
+addition of OpenACC directives. This is achieved by a user applying
+various OpenACC transformations to the PSyIR before the final Fortran
+code is generated. The steps to parallelisation are very similar to
+those in OpenMP with the added complexity of managing the movement of
+data to and from the GPU device. For the latter task PSyclone provides
+the ``ACCDataTrans`` and ``ACCEnterDataTrans`` transformations, as
+described in the :ref:`sec_transformations_available` Section above.
+These two transformations add statically- and dynamically-scoped data
+regions, respectively. The former manages what data is on the remote
+device for a specific section of code while the latter allows run-time
+control of data movement. This second option is essential for
+minimising data movement as, without it, PSyclone-generated code would
+move data to and from the device upon every entry/exit of an
+Invoke. The first option is mainly provided as an aid to incremental
+porting and/or debugging of an OpenACC application as it provides
+explicit control over what data is present on a device for a given
+(part of an) Invoke routine.
+
+As well as ensuring the correct data is copied to and from the remote
+device, OpenACC directives must also be added to a code in order to
+tell the compiler how it should be parallelised. PSyclone provides the
+``ACCKernelsTrans``, ``ACCParallelTrans`` and ``ACCLoopTrans``
+transformations for this purpose.
