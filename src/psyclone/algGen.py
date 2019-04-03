@@ -157,7 +157,7 @@ def adduse(parse_tree, location, name, only=None, funcnames=None):
 
     :param parse_tree: The full parse tree of the associated code
     :type parse_tree: :py:class:`fparser.two.utils.Base`
-    :param location: The current location (node) in the parse tree
+    :param location: The current location (node) in the parse tree \
     provided in the parse_tree argument
     :type location: :py:class:`fparser.two.utils.Base`
     :param str name: The name of the use statement
