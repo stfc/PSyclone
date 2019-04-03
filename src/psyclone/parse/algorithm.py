@@ -40,11 +40,6 @@ PSyclone-conformant Algorithm code.
 
 from __future__ import absolute_import
 
-from psyclone.configuration import Config
-from psyclone.parse.utils import check_api, check_line_length, ParseError, \
-    parse_fp2
-from psyclone.psyGen import InternalError
-
 from fparser.two import pattern_tools
 from fparser.two.utils import walk_ast
 # pylint: disable=no-name-in-module
@@ -55,6 +50,11 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Name, Real_Literal_Constant, Data_Ref, Int_Literal_Constant, \
     Function_Reference
 # pylint: enable=no-name-in-module
+
+from psyclone.configuration import Config
+from psyclone.parse.utils import check_api, check_line_length, ParseError, \
+    parse_fp2
+from psyclone.psyGen import InternalError
 
 # Section 1: parse the algorithm file
 
