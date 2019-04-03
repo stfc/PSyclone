@@ -175,7 +175,9 @@ def trans(psy):
     :type psy: :py:class:`psyclone.psyGen.PSy`
     '''
     from psyclone.psyGen import ACCDirective
-    print("Invokes found:\n{0}".format(psy.invokes.names))
+
+    print("Invokes found:\n{0}\n".format(
+        "\n".join([str(name) for name in psy.invokes.names])))
 
     for invoke in psy.invokes.invoke_list:
 

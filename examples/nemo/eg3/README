@@ -44,12 +44,12 @@ PSyclone:
 
     $ psyclone -api nemo -s ./nemo_kernels_trans.py ../code/tra_adv.F90
 
-Executing this will output 1) the original code, 2) the PSyclone
-invokes found in the code, 3) PSyclone's Schedule view of the original
-code, 4) PSyclone's Schedule view of the code after adding OpenACC
-Kernels directives, 5) PSyclone's Schedule view of the code after
-adding OpenACC Kernels and Data directives, and 6) the transformed
-Fortran code with the OpenACC directives added.
+Executing this will output 1) the PSyclone invokes found in the code,
+2) PSyclone's Schedule view of the original code, 3) PSyclone's
+Schedule view of the code after adding OpenACC Kernels directives, 4)
+PSyclone's Schedule view of the code after adding OpenACC Kernels and
+Data directives, and 5) the transformed Fortran code with the OpenACC
+directives added.
 
 tra_adv.F90 is a stand-alone version of one of the tracer-advection
 routines from the NEMO ocean model. It was originally extracted by
@@ -59,7 +59,11 @@ directory.
 Compiling and Execution
 
 If desired this example may be compiled and executed on a GPU device
-provided a suitable compiler with OpenACC support is available.
+provided a suitable compiler with OpenACC support is available. Note
+that this example is only provided to demonstrate how one adds OpenACC
+directives using PSyclone with the NEMO API. It is not intended to
+demonstrate how to obtain good performance.
+
 Since tra_adv.F90 is instrumented for use with the dl_timer library,
 this library is also required. It is available from
 bitbucket.org/apeg/dl_timer.
