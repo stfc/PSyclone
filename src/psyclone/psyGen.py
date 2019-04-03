@@ -4675,6 +4675,8 @@ class Fparser2ASTProcessor(object):
         :param dimensions: fparser dimension attribute
         :type dimensions:
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
+        :param symbol_table: Symbol table of the declaration parent.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
         :returns: Shape of the attribute in row-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
                   an array dimension. If it is 'None' the extent of that \
@@ -4686,9 +4688,19 @@ class Fparser2ASTProcessor(object):
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
         shape = []
-        for dim in walk_ast(dimensions.items, [Fortran2003.Assumed_Shape_Spec,
-                                               Fortran2003.Explicit_Shape_Spec,
-                                               Fortran2003.Assumed_Size_Spec]):
+
+        if isinstance(dimensions, (Fortran2003.Assumed_Shape_Spec,
+                                   Fortran2003.Explicit_Shape_Spec,
+                                   Fortran2003.Assumed_Size_Spec)):
+            dimensions_list = [dimensions]
+        else:
+            dimensions_list = walk_ast(
+                dimensions.items,
+                [Fortran2003.Assumed_Shape_Spec,
+                 Fortran2003.Explicit_Shape_Spec,
+                 Fortran2003.Assumed_Size_Spec])
+
+        for dim in dimensions_list:
             if isinstance(dim, Fortran2003.Assumed_Size_Spec):
                 raise NotImplementedError(
                     "Could not process {0}. Assumed-size arrays"
@@ -4813,20 +4825,26 @@ class Fparser2ASTProcessor(object):
             for entity in iterateitems(entities):
                 (name, array_spec, char_len, initialization) = entity.items
                 if (array_spec is not None):
-                    raise NotImplementedError("Could not process {0}. "
-                                              "Array specifications after the"
-                                              " variable name are not "
-                                              "supported.".format(decl.items))
+                    # Check that shape has not been filled yet.
+                    if shape:
+                        raise InternalError(
+                            "Could not process {}. Multiple dimension "
+                            "specifications found.".format(decl.items))
+                    shape = self._parse_dimensions(array_spec,
+                                                   parent.symbol_table)
+
                 if (initialization is not None):
-                    raise NotImplementedError("Could not process {0}. "
-                                              "Initializations on the"
-                                              " declaration statements are not"
-                                              " supported.".format(decl.items))
+                    raise NotImplementedError(
+                        "Could not process {0}. Initializations on the"
+                        " declaration statements are not supported."
+                        "".format(decl.items))
+
                 if (char_len is not None):
-                    raise NotImplementedError("Could not process {0}. "
-                                              "Character length specifications"
-                                              " are not supported."
-                                              "".format(decl.items))
+                    raise NotImplementedError(
+                        "Could not process {0}. Character length "
+                        "specifications are not supported."
+                        "".format(decl.items))
+
                 parent.symbol_table.declare(str(name), datatype, shape,
                                             scope, is_input, is_output)
 

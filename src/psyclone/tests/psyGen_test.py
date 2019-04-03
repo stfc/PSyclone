@@ -3372,6 +3372,29 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
 
+    # RHS array specifications
+    reader = FortranStringReader("integer :: l3(l1)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l3").name == 'l3'
+    assert fake_parent.symbol_table.lookup("l3").datatype == 'integer'
+    assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
+
+    reader = FortranStringReader("integer :: l4(l1, 2)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l4").name == 'l4'
+    assert fake_parent.symbol_table.lookup("l4").datatype == 'integer'
+    assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
+
+    # Test multiple dimension declaration case
+    reader = FortranStringReader("integer, dimension(2) :: l5(l1)")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(InternalError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert "Could not process " in str(error.value)
+    assert "Multiple dimension specifications found." in str(error.value)
+
     # Test with unsupported data type
     reader = FortranStringReader("logical      ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
@@ -3388,14 +3411,6 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
     assert "Unrecognized attribute type " in str(error.value)
-
-    # RHS array specifications are not supported
-    reader = FortranStringReader("integer :: l1(4)")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Array specifications after the variable name are not "
-            "supported.") in str(error.value)
 
     # Initialisations are not supported
     reader = FortranStringReader("integer :: l1 = 1")
