@@ -131,7 +131,6 @@ def test_parser_caseinsensitive2():
     with pytest.raises(AttributeError):
         parser.create_coded_kernel_call("My_Kern", None)
 
-
 # function get_invoke_label() tests
 
 
