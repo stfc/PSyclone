@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-18, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,10 +42,12 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.parse import parse, ParseError
+from dynamo0p3_build import Dynamo0p3Build
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-from psyclone_test_utils import code_compiles, print_diffs, TEST_COMPILE
+from psyclone_test_utils import print_diffs
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -167,7 +169,7 @@ def test_eval_targets_op_space():
     assert isinstance(dkm, DynKernMetadata)
 
 
-def test_single_kern_eval(tmpdir, f90, f90flags):
+def test_single_kern_eval(tmpdir):
     ''' Check that we generate correct code for a single kernel that
     requires both basis and differential basis functions for an
     evaluator '''
@@ -177,9 +179,7 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     # First, check the declarations
     expected_decl = (
@@ -273,7 +273,7 @@ def test_single_kern_eval(tmpdir, f90, f90flags):
     assert dealloc_code in gen_code
 
 
-def test_single_kern_eval_op(tmpdir, f90, f90flags):
+def test_single_kern_eval_op(tmpdir):
     ''' Check that we generate correct code for a single kernel which
     writes to an operator and requires both basis and differential basis
     functions for an evaluator '''
@@ -283,9 +283,7 @@ def test_single_kern_eval_op(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     # Kernel writes to an operator, the 'to' space of which is W0. Kernel
     # requires basis on W2 ('from'-space of operator) and diff-basis on
@@ -342,7 +340,7 @@ def test_single_kern_eval_op(tmpdir, f90, f90flags):
     assert dealloc in gen_code
 
 
-def test_two_qr(tmpdir, f90, f90flags):
+def test_two_qr(tmpdir):
     ''' Check that we handle an invoke containing two kernels that each
     require quadrature '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -352,9 +350,7 @@ def test_two_qr(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     expected_declns = (
         "    SUBROUTINE invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
@@ -479,7 +475,7 @@ def test_two_qr(tmpdir, f90, f90flags):
         assert 0
 
 
-def test_two_identical_qr(tmpdir, f90, f90flags):
+def test_two_identical_qr(tmpdir):
     ''' Check that we handle an invoke containing two kernels that each
     require quadrature and are passed the same qr object '''
     _, invoke_info = parse(
@@ -489,9 +485,7 @@ def test_two_identical_qr(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     expected_init = (
         "      ! Look-up quadrature variables\n"
@@ -553,7 +547,7 @@ def test_two_identical_qr(tmpdir, f90, f90flags):
     assert expected_dealloc in gen_code
 
 
-def test_anyw2(tmpdir, f90, f90flags):
+def test_anyw2(tmpdir):
     ''' Check generated code works correctly when we have any_w2 fields
     and basis functions'''
     _, invoke_info = parse(
@@ -565,9 +559,7 @@ def test_anyw2(tmpdir, f90, f90flags):
         generated_code = str(psy.gen)
         print(generated_code)
 
-        if TEST_COMPILE:
-            # Test that generated code compiles
-            assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+        assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
         output = (
             "      ! Initialise number of DoFs for any_w2\n"
@@ -602,7 +594,7 @@ def test_anyw2(tmpdir, f90, f90flags):
         assert output in generated_code
 
 
-def test_qr_plus_eval(tmpdir, f90, f90flags):
+def test_qr_plus_eval(tmpdir):
     ''' Check that we handle an invoke containing two kernels, one
     requiring quadrature and one requiring an evaluator '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "6.2_qr_eval_invoke.f90"),
@@ -611,9 +603,7 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # Test that generated code compiles
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
@@ -729,7 +719,7 @@ def test_qr_plus_eval(tmpdir, f90, f90flags):
     assert output_dealloc in gen_code
 
 
-def test_two_eval_same_space(tmpdir, f90, f90flags):
+def test_two_eval_same_space(tmpdir):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators and the arguments that are written to are on
     the same space '''
@@ -739,9 +729,7 @@ def test_two_eval_same_space(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # Test that generated code compiles
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     output_init = (
         "      !\n"
@@ -792,7 +780,7 @@ def test_two_eval_same_space(tmpdir, f90, f90flags):
     assert output_code in gen_code
 
 
-def test_two_eval_diff_space(tmpdir, f90, f90flags):
+def test_two_eval_diff_space(tmpdir):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators and the arguments that are written to are on
     different spaces '''
@@ -802,9 +790,7 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     # The first kernel in the invoke (testkern_eval_type) requires basis and
     # diff basis functions for the spaces of the first and second field
@@ -878,8 +864,8 @@ def test_two_eval_diff_space(tmpdir, f90, f90flags):
     assert expected_code in gen_code
 
 
-def test_two_eval_same_var_same_space(
-        tmpdir, f90, f90flags):
+def test_two_eval_same_var_same_space(tmpdir):
+    # pylint: disable=invalid-name
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators for the same variable declared as being on the
     same space '''
@@ -890,9 +876,7 @@ def test_two_eval_same_var_same_space(
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # Test that generated code compiles
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     # We should only get one set of basis and diff-basis functions in the
     # generated code
@@ -919,7 +903,7 @@ def test_two_eval_same_var_same_space(
         "diff_basis_w1_on_any_space_1_f0)") == 1
 
 
-def test_two_eval_op_to_space(tmpdir, f90, f90flags):
+def test_two_eval_op_to_space(tmpdir):
     ''' Check that we generate correct code when two kernels in an invoke
     both require evaluators and the arguments that are written to are on
     different spaces, one of which is the 'to' space of an operator. '''
@@ -930,9 +914,7 @@ def test_two_eval_op_to_space(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # Test that generated code compiles
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     # testkern_eval writes to W0. testkern_eval_op_to writes to W3.
     # testkern_eval requires basis fns on W0 and eval_op_to requires basis
@@ -1020,7 +1002,7 @@ def test_two_eval_op_to_space(tmpdir, f90, f90flags):
     assert kernel_calls in gen_code
 
 
-def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
+def test_eval_diff_nodal_space(tmpdir):
     ''' Check that we generate correct code when evaluators are
     required for the same function space but with different nodal
     function spaces '''
@@ -1039,9 +1021,7 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
     gen_code = str(psy.gen)
     print(gen_code)
 
-    if TEST_COMPILE:
-        # Test that generated code compiles
-        assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     expected_alloc = (
         "      nodes_w3 => f1_proxy%vspace%get_nodes()\n"
@@ -1127,7 +1107,7 @@ def test_eval_diff_nodal_space(tmpdir, f90, f90flags):
     assert expected_dealloc in gen_code
 
 
-def test_eval_2fs(tmpdir, f90, f90flags):
+def test_eval_2fs(tmpdir):
     ''' Test that we generate correct code when a kernel requires that
     a differential basis function be evaluated on two different FS. '''
     _, invoke_info = parse(
@@ -1150,11 +1130,10 @@ def test_eval_2fs(tmpdir, f90, f90flags):
             "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), ndf_w1, undf_w1, "
             "map_w1(:,cell), diff_basis_w1_on_w0, diff_basis_w1_on_w1)" in
             gen_code)
-    if TEST_COMPILE:
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_2eval_2fs(tmpdir, f90, f90flags):
+def test_2eval_2fs(tmpdir):
     ''' Test that we generate correct code when we have an invoke with two
     kernels that both require a differential basis function that is evaluated
     on the same two FSs. '''
@@ -1181,11 +1160,10 @@ def test_2eval_2fs(tmpdir, f90, f90flags):
             "diff_basis_w1_on_w{0}(:,df_w1,df_nodal) = f1_proxy%vspace%"
             "call_function(DIFF_BASIS,df_w1,nodes_w{0}(:,df_nodal))".
             format(idx)) == 1
-    if TEST_COMPILE:
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
+def test_2eval_1qr_2fs(tmpdir):
     ''' Test that we generate correct code for an invoke requiring multiple,
     different evaluators *and* quadrature. '''
     _, invoke_info = parse(
@@ -1289,11 +1267,10 @@ def test_2eval_1qr_2fs(tmpdir, f90, f90flags):
         "diff_basis_w1_on_w0, diff_basis_w1_on_w1, diff_basis_w2_qr_data, "
         "diff_basis_w3_on_w0, diff_basis_w3_qr_data)\n") == 1
 
-    if TEST_COMPILE:
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_eval_agglomerate(tmpdir, f90, f90flags):
+def test_eval_agglomerate(tmpdir):
     ''' Check that we aglomerate evaluators when different kernels require
     the same function on the same space but evaluated on different spaces. '''
     _, invoke_info = parse(
@@ -1305,8 +1282,7 @@ def test_eval_agglomerate(tmpdir, f90, f90flags):
     # W0 and W1.
     assert gen_code.count("diff_basis_w1_on_w0(:,df_w1,df_nodal) = ") == 1
     assert gen_code.count("diff_basis_w1_on_w1(:,df_w1,df_nodal) = ") == 1
-    if TEST_COMPILE:
-        assert code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 BASIS_EVAL = '''

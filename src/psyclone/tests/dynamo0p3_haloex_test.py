@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2019, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,19 +31,19 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''This module tests the Dynamo 0.3 API-specific halo exchange
 implementation for gh_inc dependencies using pytest. '''
 
 from __future__ import absolute_import
 import os
-from psyclone.parse import parse
+from dynamo0p3_build import Dynamo0p3Build
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
 from psyclone.transformations import Dynamo0p3RedundantComputationTrans
 from psyclone.configuration import Config
-import psyclone_test_utils as utils
 
 # constants
 API = "dynamo0.3"
@@ -51,7 +51,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 
 
-def test_gh_inc_nohex_1(tmpdir, f90, f90flags, monkeypatch):
+def test_gh_inc_nohex_1(tmpdir, monkeypatch):
     '''If COMPUTE_ANNEXED_DOFS is True, then a gh_inc access to a field in
     a kernel (iterating to the l1 halo) does not require a halo
     exchange when the previous writer is known and iterates over dofs
@@ -76,7 +76,7 @@ def test_gh_inc_nohex_1(tmpdir, f90, f90flags, monkeypatch):
         write-to-gh_inc dependence.
 
         :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`.
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
 
         '''
         assert len(schedule.children) == 3
@@ -95,10 +95,7 @@ def test_gh_inc_nohex_1(tmpdir, f90, f90flags, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    if utils.TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over dofs to the level 1 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -115,7 +112,7 @@ def test_gh_inc_nohex_1(tmpdir, f90, f90flags, monkeypatch):
     check_schedule(schedule)
 
 
-def test_gh_inc_nohex_2(tmpdir, f90, f90flags, monkeypatch):
+def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     '''If COMPUTE_ANNEXED_DOFS is False, then a gh_inc access to a field in
     a kernel (iterating to the l1 halo) does require a halo
     exchange when the previous writer is known and iterates over dofs
@@ -152,10 +149,7 @@ def test_gh_inc_nohex_2(tmpdir, f90, f90flags, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    if utils.TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over dofs to the level 1 halo and check
     # output. There should be no halo exchange for field "f1"
@@ -189,7 +183,7 @@ def test_gh_inc_nohex_2(tmpdir, f90, f90flags, monkeypatch):
     assert isinstance(loop2, DynLoop)
 
 
-def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
+def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     '''If COMPUTE_ANNEXED_DOFS is True, then a gh_inc access to a field in
     a kernel (iterating to the l1 halo) does not require a halo
     exchange when the previous writer is known and iterates over cells
@@ -227,10 +221,7 @@ def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    if utils.TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -242,7 +233,7 @@ def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
         field 'f1' is what we are expecting
 
         :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`.
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
         :param int f2depth: The expected depth of the halo exchange \
@@ -278,7 +269,7 @@ def test_gh_inc_nohex_3(tmpdir, f90, f90flags, monkeypatch):
           f2depth="mesh%get_halo_depth()")
 
 
-def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
+def test_gh_inc_nohex_4(tmpdir, monkeypatch):
     '''If COMPUTE_ANNEXED_DOFS is False, then a gh_inc access to a field
     in a kernel (iterating to the l1 halo) does not require a halo
     exchange when the previous writer is known and iterates over cells
@@ -308,7 +299,7 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
         field 'f1' is what we are expecting
 
         :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`.
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
         :param int f2depth: The expected depth of the halo exchange \
@@ -337,10 +328,7 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
 
     # just check compilation here (not later in this test) as
     # compilation of redundant computation is checked separately
-    if utils.TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     # make 1st loop iterate over cells to the level 2 halo and check output
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -358,7 +346,7 @@ def test_gh_inc_nohex_4(tmpdir, f90, f90flags, monkeypatch):
           f2depth="mesh%get_halo_depth()")
 
 
-def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
+def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     '''Check we generate correct halo exchange bounds when we have
     multiple read dependencies. In this case we have a gh_inc with a
     read-only reader and a gh_inc reader. We also test when annexed
@@ -419,10 +407,7 @@ def test_gh_inc_max(tmpdir, f90, f90flags, monkeypatch, annexed):
     # just check compilation here as it is the most
     # complicated. (Note, compilation of redundant computation is
     # checked separately)
-    if utils.TEST_COMPILE:
-        # If compilation testing has been enabled
-        # (--compile --f90="<compiler_name>" flags to py.test)
-        assert utils.code_compiles(API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
     rc_trans.apply(schedule.children[loop1idx])
     # f1 halo exchange should be depth max
     haloex = schedule.children[haloidx]

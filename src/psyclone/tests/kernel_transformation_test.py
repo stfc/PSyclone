@@ -39,8 +39,9 @@ from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
+from dynamo0p3_build import Dynamo0p3Build
 from fparser.two.utils import walk_ast
-from psyclone_test_utils import get_invoke, code_compiles
+from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError, ACCRoutineTrans
 from psyclone.psyGen import Kern
 from psyclone.generator import GenerationError
@@ -287,7 +288,7 @@ def test_new_same_kern_single(tmpdir, monkeypatch):
     assert out_files == [new_kernels[1].module_name+".f90"]
 
 
-def test_1kern_trans(tmpdir, monkeypatch, f90, f90flags):
+def test_1kern_trans(tmpdir, monkeypatch):
     ''' Check that we generate the correct code when an invoke contains
     the same kernel more than once but only one of them is transformed. '''
     # Ensure kernel-output directory is uninitialised
@@ -315,10 +316,10 @@ def test_1kern_trans(tmpdir, monkeypatch, f90, f90flags):
     first = code.find("call testkern_code(")
     second = code.find("call testkern{0}_code(".format(tag))
     assert first < second
-    assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def test_2kern_trans(tmpdir, monkeypatch, f90, f90flags):
+def test_2kern_trans(tmpdir, monkeypatch):
     ''' Check that we generate correct code when we transform two kernels
     within a single invoke. '''
     # Ensure kernel-output directory is uninitialised
@@ -347,7 +348,7 @@ def test_2kern_trans(tmpdir, monkeypatch, f90, f90flags):
                          "testkern_any_space_2{0}_mod.f90".format(tag)))
     assert "use testkern_any_space_2_mod, only" not in code
     assert "call testkern_any_space_2_code(" not in code
-    assert code_compiles("dynamo0.3", psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_builtin_no_trans():

@@ -42,8 +42,16 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.parse import parse, ParseError, KernelType
+from psyclone.parse.algorithm import parse, ParseError
+from psyclone.parse.kernel import KernelType, KernelTypeFactory, \
+    BuiltInKernelTypeFactory
 from psyclone.psyGen import InternalError
+
+TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
+                         "test_files", "dynamo0p3")
+
+# pylint: disable=invalid-name
+# pylint: disable=protected-access
 
 
 def test_default_api():
@@ -51,30 +59,15 @@ def test_default_api():
     by the caller. We do this simply by checking that it returns OK
     having parsed some dynamo0.3 code. '''
     _, invoke_info = parse(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "test_files", "dynamo0p3", "1_single_invoke.f90"))
-    assert len(list(invoke_info.calls.keys())) == 1
-
-
-def test_dm_not_bool():
-    ''' Check that we raise the correct error if the distributed_memory
-    argument is not a bool '''
-    with pytest.raises(ParseError) as err:
-        _, __info = parse(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3", "1_single_invoke.f90"),
-            distributed_memory="a string")
-    assert ("The distributed_memory flag in parse() must be set to 'True' "
-            "or 'False'" in str(err))
+        os.path.join(TEST_PATH, "1_single_invoke.f90"))
+    assert len(invoke_info.calls) == 1
 
 
 def test_continuators_kernel():
     '''Tests that an input kernel file with long lines that already has
        continuators to make the code conform to the line length limit
        does not cause an error. '''
-    _, _ = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "1.1.0_single_invoke_xyoz_qr.f90"),
+    _, _ = parse(os.path.join(TEST_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
                  api="dynamo0.3", line_length=True)
 
 
@@ -82,16 +75,14 @@ def test_continuators_algorithm():
     '''Tests that an input algorithm file with long lines that already has
        continuators to make the code conform to the line length limit
        does not cause an error. '''
-    _, _ = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "test_files", "dynamo0p3",
-                              "13.2_alg_long_line_continuator.f90"),
+    _, _ = parse(os.path.join(TEST_PATH, "13.2_alg_long_line_continuator.f90"),
                  api="dynamo0.3", line_length=True)
 
 
 def test_get_builtin_defs_wrong_api():
     ''' Check that we raise an appropriate error if we call
     get_builtin_defs() with an invalid API '''
-    import psyclone.parse as pparse
+    import psyclone.parse.algorithm as pparse
     with pytest.raises(ParseError) as excinfo:
         _, _ = pparse.get_builtin_defs('invalid_api')
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
@@ -100,7 +91,6 @@ def test_get_builtin_defs_wrong_api():
 def test_kerneltypefactory_wrong_api():
     ''' Check that we raise an appropriate error if we try to create
     a KernelTypeFactory with an invalid API '''
-    from psyclone.parse import KernelTypeFactory
     with pytest.raises(ParseError) as excinfo:
         _ = KernelTypeFactory(api="invalid_api")
     assert "check_api: Unsupported API 'invalid_api'" in str(excinfo.value)
@@ -109,7 +99,6 @@ def test_kerneltypefactory_wrong_api():
 def test_kerneltypefactory_default_api():
     ''' Check that the KernelTypeFactory correctly defaults to using
     the default API '''
-    from psyclone.parse import KernelTypeFactory
     from psyclone.configuration import Config
     _config = Config.get()
     factory = KernelTypeFactory(api="")
@@ -119,14 +108,13 @@ def test_kerneltypefactory_default_api():
 def test_kerntypefactory_create_broken_type():
     ''' Check that we raise an error if the KernelTypeFactory.create()
     method encounters an unrecognised API. '''
-    from psyclone.parse import KernelTypeFactory
     factory = KernelTypeFactory(api="")
     # Deliberately break the 'type' (API) of this factory
     factory._type = "invalid_api"
     test_builtin_name = "aX_plus_Y"
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(None, name=test_builtin_name.lower())
-    assert ("KernelTypeFactory: Internal Error: Unsupported kernel type"
+    assert ("KernelTypeFactory:create: Unsupported kernel type"
             in str(excinfo.value))
 
 
@@ -136,10 +124,7 @@ def test_broken_builtin_metadata():
     from psyclone import dynamo0p3_builtins
     # The file containing broken meta-data for the built-ins
     test_builtin_name = "aX_plus_Y"
-    defs_file = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "test_files", "dynamo0p3", "broken_builtins_mod.f90")
-    from psyclone.parse import BuiltInKernelTypeFactory
+    defs_file = os.path.join(TEST_PATH, "broken_builtins_mod.f90")
     factory = BuiltInKernelTypeFactory(api="dynamo0.3")
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
@@ -152,7 +137,6 @@ def test_unrecognised_builtin():
     ''' Check that we raise an error if we call the BuiltInKernelTypeFactory
     with an unrecognised built-in name '''
     from psyclone import dynamo0p3_builtins
-    from psyclone.parse import BuiltInKernelTypeFactory
     factory = BuiltInKernelTypeFactory()
     with pytest.raises(ParseError) as excinfo:
         _ = factory.create(dynamo0p3_builtins.BUILTIN_MAP,
@@ -167,22 +151,11 @@ def test_builtin_with_use():
     a built-in operation '''
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3",
-                         "15.12.2_builtin_with_use.f90"),
+            os.path.join(TEST_PATH, "15.12.2_builtin_with_use.f90"),
             api="dynamo0.3")
     assert ("A built-in cannot be named in a use statement but "
             "'setval_c' is used from module 'fake_builtin_mod' in "
             in str(excinfo.value))
-
-
-def test_element_unpack():
-    ''' Check that the unpack method of the Element class behaves as
-    expected when passed a string '''
-    from psyclone.parse import Element
-    ele = Element()
-    output = ele.unpack("andy")
-    assert str(output) == "andy"
 
 
 def test_too_many_names_invoke():
@@ -190,9 +163,7 @@ def test_too_many_names_invoke():
     more than one name=xxx argument. '''
     with pytest.raises(ParseError) as err:
         _, _ = parse(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3",
-                         "1.0.2_many_named_invoke.f90"),
+            os.path.join(TEST_PATH, "1.0.2_many_named_invoke.f90"),
             api="dynamo0.3")
     assert "An invoke must contain one or zero " in str(err)
     assert "1.0.2_many_named_invoke.f90" in str(err)
@@ -203,14 +174,10 @@ def test_wrong_named_invoke():
     a named argument where the argument is not called 'name' '''
     with pytest.raises(ParseError) as err:
         _, _ = parse(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3",
-                         "1.0.3_wrong_named_arg_invoke.f90"),
+            os.path.join(TEST_PATH, "1.0.3_wrong_named_arg_invoke.f90"),
             api="dynamo0.3")
-    print(str(err))
-    assert (
-        "The arguments to an invoke() must be either kernel calls or an "
-        "(optional) name=" in str(err))
+    assert ("Expected named identifier to be 'name' but found "
+            "'not_a_name'" in str(err))
 
 
 def test_wrong_type_named_invoke():
@@ -218,9 +185,7 @@ def test_wrong_type_named_invoke():
     a named argument but its value is not a string '''
     with pytest.raises(ParseError) as err:
         _, _ = parse(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3",
-                         "1.0.4_wrong_type_named_arg_invoke.f90"),
+            os.path.join(TEST_PATH, "1.0.4_wrong_type_named_arg_invoke.f90"),
             api="dynamo0.3")
     assert ("The (optional) name of an invoke must be specified as a "
             "string" in str(err))
@@ -232,11 +197,9 @@ def test_invalid_named_invoke():
     a named argument but its value is not a valid Fortran name '''
     with pytest.raises(ParseError) as err:
         _, _ = parse(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3",
-                         "1.0.6_invoke_name_invalid_chars.f90"),
+            os.path.join(TEST_PATH, "1.0.6_invoke_name_invalid_chars.f90"),
             api="dynamo0.3")
-    assert ("The (optional) name of an invoke must be a string containing a "
+    assert ("the (optional) name of an invoke must be a string containing a "
             "valid Fortran name (with any spaces replaced by underscores) but "
             "got 'ja_ck(1)' " in str(err))
     assert "1.0.6_invoke_name_invalid_chars.f90" in str(err)
@@ -246,13 +209,10 @@ def test_duplicate_named_invoke():
     ''' Test that we raise the expected error when an algorithm file
     contains two invokes that are given the same name '''
     with pytest.raises(ParseError) as err:
-        _, _ = parse(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3",
-                         "3.3_multi_functions_multi_invokes_name_clash.f90"),
-            api="dynamo0.3")
-    print(str(err))
-    assert ("Found multiple named invoke()'s with the same name ('jack') "
+        _, _ = parse(os.path.join(
+            TEST_PATH, "3.3_multi_functions_multi_invokes_name_clash.f90"),
+                     api="dynamo0.3")
+    assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err))
     assert "3.3_multi_functions_multi_invokes_name_clash.f90" in str(err)
 
@@ -262,12 +222,10 @@ def test_duplicate_named_invoke_case():
     contains two invokes that are given the same name but with different
     case. '''
     with pytest.raises(ParseError) as err:
-        _, _ = parse(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3",
-                         "3.4_multi_invoke_name_clash_case_insensitive.f90"),
-            api="dynamo0.3")
-    assert ("Found multiple named invoke()'s with the same name ('jack') "
+        _, _ = parse(os.path.join(
+            TEST_PATH, "3.4_multi_invoke_name_clash_case_insensitive.f90"),
+                     api="dynamo0.3")
+    assert ("Found multiple named invoke()'s with the same label ('jack') "
             "when parsing " in str(err))
     assert "3.4_multi_invoke_name_clash_case_insensitive.f90" in str(err)
 
@@ -275,7 +233,7 @@ def test_duplicate_named_invoke_case():
 def test_get_stencil():
     ''' Check that parse.get_stencil() raises the correct errors when
     passed various incorrect inputs. '''
-    from psyclone.parse import get_stencil
+    from psyclone.parse.kernel import get_stencil
     from psyclone.expression import ExpressionNode, FunctionVar
     enode = ExpressionNode(["1"])
     with pytest.raises(ParseError) as excinfo:
@@ -372,6 +330,7 @@ def test_get_int_array_err1(monkeypatch):
     # routine under test now has the broken tuple of items.
 
     def my_init(self, _):
+        ''' dummy class '''
         self.items = broken_items
     monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
 
@@ -410,6 +369,7 @@ def test_get_int_array_err2(monkeypatch):
     # when we attempt to use fparser2 from within the routine under test
 
     def my_init(self, _):
+        ''' dummy class '''
         self.items = assign.items
     monkeypatch.setattr(Fortran2003.Assignment_Stmt, "__init__", my_init)
 
@@ -435,7 +395,7 @@ def test_kernel_binding_missing():
     mdata = MDATA.replace(
         "contains\n    procedure, nopass :: code => testkern_eval_code\n", "")
     ast = fpapi.parse(mdata)
-    with pytest.raises(RuntimeError) as err:
+    with pytest.raises(ParseError) as err:
         _ = KernelType(ast)
     assert ("Kernel type testkern_eval_type does not bind a specific "
             "procedure" in str(err))

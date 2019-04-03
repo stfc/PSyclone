@@ -39,7 +39,7 @@ from __future__ import print_function
 
 def inline():
     ''' function exercising the module-inline transformation '''
-    from psyclone.parse import parse
+    from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory
     import os
     from psyclone.transformations import KernelModuleInlineTrans

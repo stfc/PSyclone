@@ -40,7 +40,6 @@ Module containing tests relating to PSyclone configuration handling.
 from __future__ import absolute_import
 import os
 import re
-import tempfile
 import six
 import pytest
 from psyclone.configuration import ConfigurationError, Config
@@ -279,136 +278,136 @@ def test_dm():
     assert "distributed_memory must be a boolean but got " in str(err)
 
 
-def test_api_not_in_list():
+def test_api_not_in_list(tmpdir):
     ''' Check that we raise an error if the default API is not in
     the list of supported APIs '''
     content = re.sub(r"^API = .*$",
                      "API = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
         config = Config()
         with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=new_name)
+            config.load(config_file=str(config_file))
 
         assert ("The API (invalid) is not in the list of "
                 "supported APIs" in str(err))
 
 
-def test_default_stubapi_invalid():
+def test_default_stubapi_invalid(tmpdir):
     ''' Check that we raise an error if the default stub API is not in
     the list of supported stub APIs '''
     content = re.sub(r"^DEFAULTSTUBAPI = .*$",
                      "DEFAULTSTUBAPI = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_name = tmpdir.join("config")
+    with config_name.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
         config = Config()
         with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=new_name)
+            config.load(config_file=str(config_name))
 
         assert ("The default stub API (invalid) is not in the list of "
                 "supported stub APIs" in str(err))
 
 
-def test_default_stubapi_missing():
+def test_default_stubapi_missing(tmpdir):
     ''' Check that we raise an error if the default stub API is missing,
     in which case it defaults to the default_api'''
     content = re.sub(r"^DEFAULTSTUBAPI = .*$",
                      "",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
         config = Config()
-        config.load(config_file=new_name)
+        config.load(config_file=str(config_file))
 
         assert config.default_stub_api == config.default_api
 
 
-def test_not_bool(bool_entry):
+def test_not_bool(bool_entry, tmpdir):
     ''' Check that we catch cases where we expect a boolean in the config
     file but don't get one. '''
     content = re.sub(r"^{0} = .*$".format(bool_entry),
                      "{0} = wrong".format(bool_entry),
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
 
         config = Config()
         with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=new_name)
+            config.load(config_file=str(config_file))
 
         assert "configuration error (file=" in str(err)
         assert ": error while parsing {0}".format(bool_entry) in str(err)
         assert "Not a boolean: wrong" in str(err)
 
 
-def test_not_int(int_entry):
+def test_not_int(int_entry, tmpdir):
     ''' Check that we catch cases where we expect an integer in the config
     file but don't get one. '''
     content = re.sub(r"^{0} = .*$".format(int_entry),
                      "{0} = wrong".format(int_entry),
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
 
         config = Config()
         with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=new_name)
+            config.load(config_file=str(config_file))
 
         assert "configuration error (file=" in str(err)
         assert (": error while parsing {0}: invalid literal".format(int_entry)
                 in str(err))
 
 
-def test_broken_fmt():
+def test_broken_fmt(tmpdir):
     ''' Check the error if the formatting of the configuration file is
     wrong. '''
     # Create a 'config' file without any section headers
     content = "COMPUTE_ANNEXED_DOFS = false\n"
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
 
         with pytest.raises(ConfigurationError) as err:
             config = Config()
-            config.load(config_file=new_name)
+            config.load(config_file=str(config_file))
         assert ("ConfigParser failed to read the configuration file. Is it "
                 "formatted correctly? (Error was: File contains no section "
                 "headers" in str(err))
 
 
-def test_default_missing():
+def test_default_missing(tmpdir):
     ''' Check that we produce a suitable error if the [DEFAULT] section
     of the configuration file is missing '''
     content = '''\
 [dynamo0.3]
 COMPUTE_ANNEXED_DOFS = false
 '''
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
 
         with pytest.raises(ConfigurationError) as err:
             config = Config()
-            config.load(config_file=new_name)
+            config.load(config_file=str(config_file))
 
         assert "configuration error (file=" in str(err)
         assert "Configuration file has no [DEFAULT] section" in str(err)
@@ -431,7 +430,7 @@ def test_wrong_api():
     assert "'invalid' is not a valid API" in str(err)
 
 
-def test_api_unimplemented():
+def test_api_unimplemented(tmpdir):
     ''' Check that we raise the correct error if we supply a config file
         containing a section for an API for which we've not implemented
         API-specific configuration. '''
@@ -439,18 +438,18 @@ def test_api_unimplemented():
                      "[gocean0.1]",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
         config = Config()
         with pytest.raises(NotImplementedError) as err:
-            config.load(new_name)
+            config.load(str(config_file))
         assert ("file contains a gocean0.1 section but no Config sub-class "
                 "has been implemented for this API" in str(err))
 
 
-def test_default_api():
+def test_default_api(tmpdir):
     '''If a config file has no default-api specified, but contains only
     a single (non-default) section, this section should be used as the
     default api.
@@ -459,13 +458,12 @@ def test_default_api():
                      "",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-
-    with tempfile.NamedTemporaryFile(delete=False, mode="w") as new_cfg:
-        new_name = new_cfg.name
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
         config = Config()
-        config.load(new_name)
+        config.load(str(config_file))
         assert config.api == "dynamo0.3"
 
 
@@ -493,5 +491,6 @@ def test_incl_path_errors(tmpdir):
     # Create a path that does not exist
     missing_path = tmpdir.join("does_not_exist")
     with pytest.raises(ConfigurationError) as cerr:
+        # pylint: disable=redefined-variable-type
         config.include_paths = [missing_path.strpath]
     assert "does_not_exist' does not exist" in str(cerr)

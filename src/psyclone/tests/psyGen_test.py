@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -59,8 +59,8 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
-from psyclone.parse import parse, InvokeCall
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
+from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
 from psyclone.generator import generate
@@ -474,12 +474,12 @@ def test_invokes_can_always_be_printed():
     assert inv.__str__() == "invoke()"
 
     invoke_call = InvokeCall([], "TestName")
-    inv = Invoke(invoke_call, 12, DynSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
     invoke_call._name = None
-    inv = Invoke(invoke_call, 12, DynSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     assert inv.__str__() == "invoke_12()"
 
     # Last test case: one kernel call - to avoid constructing
@@ -489,10 +489,10 @@ def test_invokes_can_always_be_printed():
         os.path.join(BASE_PATH, "1.12_single_invoke_deref_name_clash.f90"),
         api="dynamo0.3")
 
-    alg_invocation = list(invoke.calls.values())[0]
-    inv = Invoke(alg_invocation, 0, DynSchedule)
+    alg_invocation = invoke.calls[0]
+    inv = Invoke(alg_invocation, 0, DynInvokeSchedule)
     assert inv.__str__() == \
-        "invoke_0_testkern_type(a, f1_my_field, f1%my_field, m1, m2)"
+        "invoke_0_testkern_type(a, f1_my_field, f1 % my_field, m1, m2)"
 
 
 def test_same_name_invalid():
@@ -559,21 +559,56 @@ contains
 end module dummy_mod
 '''
 
+
 # Schedule class tests
 
-
 def test_sched_view(capsys):
-    ''' Check the view method of the Schedule class. We need a Schedule
-    object for this so go via the dynamo0.3 sub-class '''
+    ''' Check the view method of the Schedule class'''
+    from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = Schedule
+    psy.invokes.invoke_list[0].schedule.view()
+
+    output, _ = capsys.readouterr()
+    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+
+
+def test_sched_can_be_printed():
+    ''' Check the schedule class can always be printed'''
+    from psyclone.psyGen import Schedule
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = Schedule
+    output = str(psy.invokes.invoke_list[0].schedule)
+
+    assert "Schedule:\n" in output
+
+
+# InvokeSchedule class tests
+
+def test_invokeschedule_view(capsys):
+    ''' Check the view method of the InvokeSchedule class. We need an
+    InvokeSchedule object for this so go via the dynamo0.3 sub-class '''
     from psyclone import dynamo0p3
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    super(dynamo0p3.DynSchedule, psy.invokes.invoke_list[0].schedule).view()
+    super(dynamo0p3.DynInvokeSchedule,
+          psy.invokes.invoke_list[0].schedule
+          ).view()
     output, _ = capsys.readouterr()
-    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+    assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
 
 def test_sched_ocl_setter():
@@ -586,6 +621,21 @@ def test_sched_ocl_setter():
     with pytest.raises(ValueError) as err:
         psy.invokes.invoke_list[0].schedule.opencl = "a string"
     assert "Schedule.opencl must be a bool but got " in str(err)
+
+
+def test_invokeschedule_can_be_printed():
+    ''' Check the InvokeSchedule class can always be printed'''
+    from psyclone.psyGen import InvokeSchedule
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = InvokeSchedule
+    output = str(psy.invokes.invoke_list[0].schedule)
+
+    assert "InvokeSchedule:\n" in output
 
 
 # Kern class test
@@ -993,7 +1043,7 @@ def test_call_multi_reduction_error(monkeypatch):
     for dist_mem in [False, True]:
         _, invoke_info = parse(
             os.path.join(BASE_PATH, "16.4.1_multiple_scalar_sums2.f90"),
-            api="dynamo0.3", distributed_memory=dist_mem)
+            api="dynamo0.3")
         with pytest.raises(GenerationError) as err:
             _ = PSyFactory("dynamo0.3",
                            distributed_memory=dist_mem).create(invoke_info)
@@ -1064,7 +1114,6 @@ def test_invalid_reprod_pad_size(monkeypatch):
         _, invoke_info = parse(
             os.path.join(BASE_PATH,
                          "15.9.1_X_innerproduct_Y_builtin.f90"),
-            distributed_memory=distmem,
             api="dynamo0.3")
         psy = PSyFactory("dynamo0.3",
                          distributed_memory=distmem).create(invoke_info)
@@ -1091,7 +1140,7 @@ def test_argument_depends_on():
     value for arguments with combinations of read and write access'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.5_multikernel_invokes.f90"),
-                           distributed_memory=False, api="dynamo0.3")
+                           api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1114,7 +1163,7 @@ def test_argument_depends_on():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1128,7 +1177,7 @@ def test_argument_find_argument():
     argument in a list of nodes, or None if none are found'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1149,7 +1198,7 @@ def test_argument_find_argument():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1164,7 +1213,7 @@ def test_argument_find_argument():
     # 4: globalsum node
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1183,7 +1232,7 @@ def test_argument_find_read_arguments():
     arguments in a list of nodes.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1217,7 +1266,7 @@ def test_globalsum_arg():
     points to the GlobalSum node '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1233,7 +1282,7 @@ def test_haloexchange_arg():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1248,7 +1297,7 @@ def test_argument_forward_read_dependencies():
     arguments in a schedule.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1282,7 +1331,7 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1298,7 +1347,7 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1318,7 +1367,7 @@ def test_argument_forward_dependence(monkeypatch, annexed):
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1349,7 +1398,7 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1365,7 +1414,7 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1385,7 +1434,7 @@ def test_argument_backward_dependence(monkeypatch, annexed):
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1405,19 +1454,78 @@ def test_argument_backward_dependence(monkeypatch, annexed):
 
 
 def test_node_depth():
-    '''Test that the Node class depth method returns the correct value
-    for a Node in a tree '''
+    '''
+    Test that the Node class depth method returns the correct value for a
+    Node in a tree. The start depth to determine a Node's depth is set to
+    0. Depth of a Schedule is 1 and increases for its descendants.
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
+    # Assert that start_depth of any Node (including Schedule) is 0
+    assert schedule.START_DEPTH == 0
+    # Assert that Schedule depth is 1
     assert schedule.depth == 1
+    # Depth increases by 1 for descendants at each level
     for child in schedule.children:
         assert child.depth == 2
     for child in schedule.children[3].children:
         assert child.depth == 3
+
+
+def test_node_position():
+    '''
+    Test that the Node class position and abs_position methods return
+    the correct value for a Node in a tree. The start position is
+    set to 0. Relative position starts from 0 and absolute from 1.
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    child = schedule.children[6]
+    # Assert that position of a Schedule (no parent Node) is 0
+    assert schedule.position == 0
+    # Assert that start_position of any Node is 0
+    assert child.START_POSITION == 0
+    # Assert that relative and absolute positions return correct values
+    assert child.position == 6
+    assert child.abs_position == 7
+    # Test InternalError for _find_position with an incorrect position
+    with pytest.raises(InternalError) as excinfo:
+        _, _ = child._find_position(child.root.children, -2)
+    assert "started from -2 instead of 0" in str(excinfo.value)
+    # Test InternalError for abs_position with a Node that does
+    # not belong to the Schedule
+    ompdir = OMPDoDirective()
+    with pytest.raises(InternalError) as excinfo:
+        _ = ompdir.abs_position
+    assert ("PSyclone internal error: Error in search for Node position "
+            "in the tree") in str(excinfo.value)
+
+
+def test_node_root():
+    '''
+    Test that the Node class root method returns the correct instance
+    for a Node in a tree.
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.7_multikernel_invokes.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    ru_schedule = invoke.schedule
+    # Select a loop and the kernel inside
+    ru_loop = ru_schedule.children[1]
+    ru_kern = ru_loop.children[0]
+    # Assert that the absolute root is a Schedule
+    from psyclone.psyGen import Schedule
+    assert isinstance(ru_kern.root, Schedule)
 
 
 def test_node_args():
@@ -1425,7 +1533,7 @@ def test_node_args():
     for Nodes that do not have arguments themselves'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4_multikernel_invokes.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1467,7 +1575,7 @@ def test_call_args():
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.14.4_builtin_and_normal_kernel_invoke.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1481,12 +1589,27 @@ def test_call_args():
         assert arg == builtin.arguments.args[idx]
 
 
+def test_haloexchange_can_be_printed():
+    '''Test that the HaloExchange class can always be printed'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    for haloexchange in schedule.children[:2]:
+        assert "HaloExchange[field='" in str(haloexchange)
+        assert "', type='" in str(haloexchange)
+        assert "', depth='" in str(haloexchange)
+        assert "', check_dirty='" in str(haloexchange)
+
+
 def test_haloexchange_args():
     '''Test that the haloexchange class args method returns the appropriate
     argument '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1500,7 +1623,7 @@ def test_globalsum_args():
     argument '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1515,7 +1638,7 @@ def test_node_forward_dependence():
     None if none are found.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1537,7 +1660,7 @@ def test_node_forward_dependence():
     # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1552,7 +1675,7 @@ def test_node_forward_dependence():
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1574,7 +1697,7 @@ def test_node_backward_dependence():
     None if none are found.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1591,7 +1714,7 @@ def test_node_backward_dependence():
     # 3: haloexchange dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.5_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1607,7 +1730,7 @@ def test_node_backward_dependence():
     # 4: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1629,7 +1752,7 @@ def test_call_forward_dependence():
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1658,7 +1781,7 @@ def test_call_backward_dependence():
     None if none are found. This is achieved by loop fusing first.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1684,7 +1807,7 @@ def test_omp_forward_dependence():
     schedule or None if none are found. '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1710,7 +1833,7 @@ def test_omp_forward_dependence():
     # 3: directive and globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1735,7 +1858,7 @@ def test_directive_backward_dependence():
     the schedule or None if none are found.'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1756,7 +1879,7 @@ def test_directive_backward_dependence():
     # 3: globalsum dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1778,8 +1901,7 @@ def test_directive_backward_dependence():
 def test_directive_get_private(monkeypatch):
     ''' Tests for the _get_private_list() method of OMPParallelDirective. '''
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        os.path.join(BASE_PATH, "1_single_invoke.f90"), api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -1813,7 +1935,7 @@ def test_node_is_valid_location():
     returns False'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1855,7 +1977,7 @@ def test_node_is_valid_location():
     # 5: valid no previous dependency
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.1_multi_aX_plus_Y_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1883,7 +2005,6 @@ def test_node_ancestor():
     from psyclone.psyGen import Loop
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
-    sched.view()
     kern = sched.children[0].children[0].children[0]
     node = kern.ancestor(Node)
     assert isinstance(node, Loop)
@@ -1896,7 +2017,7 @@ def test_dag_names():
     node class and its specialisations'''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1912,7 +2033,7 @@ def test_dag_names():
             "kernel_testkern_code_5")
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -1927,7 +2048,7 @@ def test_openmp_pdo_dag_name():
     do node'''
     _, info = parse(os.path.join(BASE_PATH,
                                  "15.7.2_setval_X_builtin.f90"),
-                    api="dynamo0.3", distributed_memory=False)
+                    api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
@@ -2014,7 +2135,7 @@ def test_node_dag_no_graphviz(tmpdir, monkeypatch):
     monkeypatch.setitem(sys.modules, 'graphviz', None)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2055,7 +2176,7 @@ def test_node_dag(tmpdir, have_graphviz):
         return
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.1_multikernel_invokes.f90"),
-        distributed_memory=False, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2127,7 +2248,7 @@ def test_find_write_arguments_for_write():
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "1_single_invoke.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2153,7 +2274,7 @@ def test_find_w_args_hes_no_vec(monkeypatch, annexed):
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2186,7 +2307,7 @@ def test_find_w_args_hes_diff_vec(monkeypatch, annexed):
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2219,7 +2340,7 @@ def test_find_w_args_hes_vec_idx(monkeypatch, annexed):
     monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2248,7 +2369,7 @@ def test_find_w_args_hes_vec_no_dep():
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2269,7 +2390,7 @@ def test_check_vect_hes_differ_wrong_argtype():
     '''
 
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           distributed_memory=True, api="dynamo0.3")
+                           api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2293,7 +2414,7 @@ def test_check_vec_hes_differ_diff_names():
     '''
 
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           distributed_memory=True, api="dynamo0.3")
+                           api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2326,7 +2447,7 @@ def test_find_w_args_multiple_deps_error(monkeypatch, annexed):
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2365,7 +2486,7 @@ def test_find_write_arguments_no_more_nodes(monkeypatch, annexed):
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2400,7 +2521,7 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
 
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "8.3_multikernel_invokes_vector.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2488,7 +2609,7 @@ def test_dataaccess_vector():
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
@@ -2540,7 +2661,7 @@ def test_dataaccess_same_vector_indices(monkeypatch):
     '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "4.9_named_multikernel_invokes.f90"),
-        distributed_memory=True, api="dynamo0.3")
+        api="dynamo0.3")
     psy = PSyFactory("dynamo0.3",
                      distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]

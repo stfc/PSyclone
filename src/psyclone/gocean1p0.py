@@ -32,13 +32,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
 
 
 '''This module implements the PSyclone GOcean 1.0 API by specialising
     the required base classes for both code generation (PSy, Invokes,
-    Invoke, Schedule, Loop, Kern, Arguments and KernelArgument)
+    Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
     and parsing (Descriptor and KernelType). It adds a
     GOKernelGridArgument class to capture information on kernel arguments
     that supply properties of the grid (and are generated in the PSy
@@ -47,8 +47,9 @@
 '''
 
 from __future__ import print_function
-from psyclone.parse import Descriptor, KernelType, ParseError
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, \
+from psyclone.parse.kernel import Descriptor, KernelType
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCEnterDataDirective, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
     KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor
@@ -202,8 +203,8 @@ class GOInvoke(Invoke):
     '''
     def __init__(self, alg_invocation, idx):
         if False:  # pylint: disable=using-constant-test
-            self._schedule = GOSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule)
+            self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule)
 
     @property
     def unique_args_arrays(self):
@@ -324,23 +325,23 @@ class GOInvoke(Invoke):
                            position=["after", position])
 
 
-class GOSchedule(Schedule):
-    ''' The GOcean specific schedule class. We call the base class
+class GOInvokeSchedule(InvokeSchedule):
+    ''' The GOcean specific InvokeSchedule sub-class. We call the base class
     constructor and pass it factories to create GO-specific calls to both
     user-supplied kernels and built-ins. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                          alg_calls)
+        InvokeSchedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
+                                alg_calls)
 
-        # Configuration of this Schedule - we default to having
+        # Configuration of this InvokeSchedule - we default to having
         # constant loop bounds. If we end up having a long list
         # of configuration member variables here we may want
         # to create a a new ScheduleConfig object to manage them.
         self._const_loop_bounds = True
 
     def view(self, indent=0):
-        '''Print a representation of this GOSchedule.
+        '''Print a representation of this GOInvokeSchedule.
         :param int indent: optional argument indicating the level of
         indentation to add before outputting the class information.'''
         print(self.indent(indent) + self.coloured_text + "[invoke='" +
@@ -350,8 +351,8 @@ class GOSchedule(Schedule):
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        ''' Returns the string representation of this GOSchedule '''
-        result = "GOSchedule(Constant loop bounds=" + \
+        ''' Returns the string representation of this GOInvokeSchedule '''
+        result = "GOInvokeSchedule(Constant loop bounds=" + \
                  str(self._const_loop_bounds) + "):\n"
         for entity in self._children:
             result += str(entity)+"\n"
@@ -363,7 +364,7 @@ class GOSchedule(Schedule):
         ''' Return the name of this object with control-codes for
         display in terminals that support colour '''
         from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-        return colored("GOSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     @property
     def iloop_stop(self):
@@ -401,7 +402,7 @@ class GOSchedule(Schedule):
 
     @const_loop_bounds.setter
     def const_loop_bounds(self, obj):
-        ''' Set whether the Schedule will use constant loop bounds or
+        ''' Set whether the InvokeSchedule will use constant loop bounds or
         will look them up from the field object for every loop '''
         self._const_loop_bounds = obj
 
@@ -633,7 +634,7 @@ class GOLoop(Loop):
         be replaced with the constant loop boundary variable, e.g.
         "{stop}+1" will become "istop+1" (or "jstop+1 depending on
         loop type).'''
-        schedule = self.ancestor(GOSchedule)
+        schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
             # Look for a child kernel in order to get the index offset.
@@ -708,7 +709,7 @@ class GOLoop(Loop):
         "{stop}+1" will become "istop+1" (or "jstop+1" depending on
         loop type).'''
 
-        schedule = self.ancestor(GOSchedule)
+        schedule = self.ancestor(GOInvokeSchedule)
         if schedule.const_loop_bounds:
             index_offset = ""
             # Look for a child kernel in order to get the index offset.
@@ -780,11 +781,11 @@ class GOLoop(Loop):
     def gen_code(self, parent):
         ''' Generate the Fortran source for this loop '''
         # Our schedule holds the names to use for the loop bounds.
-        # Climb up the tree looking for our enclosing Schedule
-        schedule = self.ancestor(GOSchedule)
-        if schedule is None or not isinstance(schedule, GOSchedule):
+        # Climb up the tree looking for our enclosing GOInvokeSchedule
+        schedule = self.ancestor(GOInvokeSchedule)
+        if schedule is None or not isinstance(schedule, GOInvokeSchedule):
             raise GenerationError("Internal error: cannot find parent"
-                                  " GOSchedule for this Do loop")
+                                  " GOInvokeSchedule for this Do loop")
 
         # Walk down the tree looking for a kernel so that we can
         # look-up what index-offset convention we are to use
@@ -974,7 +975,7 @@ class GOKern(Kern):
         parent.add(CallGen(parent, sub_name, arguments))
 
         # Get the name of the list of command queues (set in
-        # psyGen.Schedule)
+        # psyGen.InvokeSchedule)
         qlist = self._name_space_manager.create_name(
             root_name="cmd_queues", context="PSyVars", label="cmd_queues")
         flag = self._name_space_manager.create_name(
@@ -1126,7 +1127,7 @@ class GOKern(Kern):
                 ifthen.add(AssignGen(ifthen, lhs=nbytes, rhs=size_expr))
                 ifthen.add(CommentGen(ifthen, " Create buffer on device"))
                 # Get the name of the list of command queues (set in
-                # psyGen.Schedule)
+                # psyGen.InvokeSchedule)
                 qlist = self._name_space_manager.create_name(
                     root_name="cmd_queues", context="PSyVars",
                     label="cmd_queues")

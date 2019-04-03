@@ -57,24 +57,17 @@ def dist_mem(request):
 
 def pytest_addoption(parser):
     ''' Adds command-line options to py.test '''
+    # parser is already defined, and we can't rename the argument here
+    # (since pytest otherwise fails).
+    # pylint: disable=redefined-outer-name
     parser.addoption("--f90", action="store", default="gfortran",
                      help="The Fortran compiler to use")
     parser.addoption("--f90flags", action="store", default="",
                      help="Flags to pass to the Fortran compiler")
     parser.addoption("--compile", action="store_true", default=False,
                      help="run tests for code compilation")
-
-
-@pytest.fixture
-def f90(request):
-    ''' Gets the value of the f90 command-line option '''
-    return request.config.getoption("--f90")
-
-
-@pytest.fixture
-def f90flags(request):
-    ''' Gets the value of the f90flags command-line option '''
-    return request.config.getoption("--f90flags")
+    parser.addoption("--compileopencl", action="store_true", default=False,
+                     help="run tests for compilation of OpenCL code")
 
 
 @pytest.fixture
@@ -84,6 +77,33 @@ def have_graphviz():
     also have been installed for dag generation to work correctly. '''
     import sys
     return "graphviz" in sys.modules
+
+
+@pytest.fixture(scope="session", autouse=True)
+def infra_compile(tmpdir_factory, request):
+    '''A per-session initialisation function that sets the compilation flags
+    in the Compile class based on command line options for --compile,
+    --compileopencl, --f90, --f90flags. Then makes sure that the
+    infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
+    (if compilation was enabled).
+    '''
+    from psyclone_test_utils import Compile
+    Compile.store_compilation_flags(request.config)
+
+    from dynamo0p3_build import Dynamo0p3Build
+    # Create a temporary directory to store the compiled files.
+    # Note that this directory is unique even if compiled in
+    # parallel, i.e. each process has its own copy of the
+    # compiled infrastructure file, which avoids the problem
+    # of synchronisation between the processes.
+    tmpdir = tmpdir_factory.mktemp('dynamo_wrapper')
+    # This is the first instance created. This will trigger
+    # compilation of the infrastructure files.
+    Dynamo0p3Build(tmpdir)
+
+    from gocean1p0_build import GOcean1p0Build
+    tmpdir = tmpdir_factory.mktemp('dl_esm_inf')
+    GOcean1p0Build(tmpdir)
 
 
 @pytest.fixture(scope="session")

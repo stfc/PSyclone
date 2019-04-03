@@ -47,7 +47,7 @@ import traceback
 import fparser
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata
 from psyclone.psyGen import GenerationError
-from psyclone.parse import ParseError
+from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 

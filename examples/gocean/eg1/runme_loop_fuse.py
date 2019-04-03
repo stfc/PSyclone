@@ -63,7 +63,7 @@ Fortran. In subroutine invoke_0 you will see the loop-fused code:
 '''
 
 from __future__ import print_function
-from psyclone.parse import parse
+from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, TransInfo
 
 API = "gocean1.0"
