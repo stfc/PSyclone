@@ -566,4 +566,32 @@ As well as ensuring the correct data is copied to and from the remote
 device, OpenACC directives must also be added to a code in order to
 tell the compiler how it should be parallelised. PSyclone provides the
 ``ACCKernelsTrans``, ``ACCParallelTrans`` and ``ACCLoopTrans``
-transformations for this purpose.
+transformations for this purpose. The simplest of these is
+``ACCKernelsTrans`` (currently only supported for the NEMO API) which
+encloses the code represented by a sub-tree of the PSyIR within an
+OpenACC ``kernels`` region.  This essentially gives free-reign to the
+compiler to automatically parallelise any suitable loops within the
+specified region. An example of the use of ``ACCDataTrans`` and
+``ACCKernelsTrans`` may be found in PSyclone/examples/nemo/eg3.
+
+However, as with any "automatic" approach, a more
+performant solution can almost always be obtained by providing the
+compiler with more explicit direction on how to parallelise the code.
+The ``ACCParallelTrans`` and ``ACCLoopTrans`` transformations allow
+the user to define thread-parallel regions and, within those, define
+which loops should be parallelised. (Note that these two transformations
+are currently only supported for the GOcean1.0 and NEMO APIs.) For an
+example of their use please see PSyclone/examples/gocean/eg2.
+
+In order for a given section of code to be executed on a GPU, any
+routines called from within that section must also have been compiled
+for the GPU.  This then requires either that any such routines are
+in-lined or that the OpenACC ``routine`` directive be added to any
+such routines.  This situation will occur routinely in those PSyclone
+APIs that use the PSyKAl separation of concerns since the
+user-supplied kernel routines are called from within
+PSyclone-generated loops in the PSy layer. PSyclone therefore provides
+the ``ACCRoutineTrans`` transformation which, given a Kernel node in
+the PSyIR, creates a new version of that kernel with the ``routine``
+directive added. Again, please see PSyclone/examples/gocean/eg2 for an
+example.
