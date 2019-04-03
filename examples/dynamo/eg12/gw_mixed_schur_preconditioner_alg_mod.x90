@@ -1,0 +1,247 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! For further details please refer to the file LICENCE which you should have
+! received as part of this distribution.
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2019, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Modified by I. Kavcic, Met Office
+
+!>@brief Preconditioner for the gravity-wave system
+!>
+
+module gw_mixed_schur_preconditioner_alg_mod
+  use field_mod,                       only: field_type
+  use field_vector_mod,                only: field_vector_type
+  use constants_mod,                   only: i_def, r_def
+  use runtime_constants_mod,           only: get_mass_matrix,     &
+                                             get_div,             &
+                                             w0_id, w3_id,        &
+                                             w3inv_id, wt_id
+  use timestepping_config_mod,         only: dt
+  use gravity_wave_constants_config_mod, only: cs_square,                       &
+                                               b_space,                         &
+                                               gravity_wave_constants_b_space_w0, &
+                                               gravity_wave_constants_b_space_w3, &
+                                               gravity_wave_constants_b_space_wtheta
+  use operator_mod,                    only: operator_type
+  use preconditioner_mod,              only: abstract_preconditioner_type
+  use iterative_solver_mod,            only: abstract_iterative_solver_type
+  use field_indices_mod,               only: igw_u, igw_p, igw_b
+  use log_mod,                         only: log_event,       &
+                                             LOG_LEVEL_INFO,  &
+                                             LOG_LEVEL_DEBUG
+
+  implicit none
+
+  private
+
+  !>@brief Mixed preconditioner type
+  !>
+  !>@details Implements mixed preconditioner which can be used in the
+  !> iterative solver algorithms,
+  type, public, extends(abstract_preconditioner_type) :: &
+                        gw_mixed_schur_preconditioner_type
+
+     private
+     !> Off-centering parameter \f$\alpha\f$ in timestepping
+     real(kind=r_def) :: alpha
+     !> \f$Q\f$- matrix (projection in buoyancy equation)
+     type(operator_type) :: Q
+     !> increments for pressure, velocity and buoyancy
+     type(field_type) :: p_inc, b_inc, u_inc
+     !> temporary variable in pressure construction
+     type(field_type) :: rhs_p_tmp
+     !> modified right-hand \f$\textbf{R}_u^*\f$
+     type(field_type) :: rhs_u
+     !> modified right-hand \f$R_p^*\f$
+     type(field_type) :: rhs_p
+     !> 1-component field vector for right hand side in pressure system
+     type(field_vector_type) :: pressure_b
+     !> 1-component field vector for solution of pressure system
+     type(field_vector_type) :: pressure_x
+     !> temporary variable \f$H_B^{-1}\textbf{R}_u\f$
+     type(field_type) :: hb_ru
+     !> temporary variable \f$\tilde{M}_B^{-1}R_b\f$
+     type(field_type) :: mb_rb
+     !> lumped inverse \f$\tilde{M}^{-1}_{\theta}\f$
+     type(field_type) :: Mb_lumped_inv, Hb_lumped_inv
+     !> Pressure (Helmholtz) solver object
+     class(abstract_iterative_solver_type), pointer :: &
+        gw_pressure_solver
+
+     contains
+
+     !> Private methods
+     !> Build the right-hand-side for the Helmholtz equation
+     procedure, private :: build_pressure_rhs
+
+     !> Destructor
+     final :: destroy_gw_mixed_schur_preconditioner
+  end type gw_mixed_schur_preconditioner_type
+
+  ! Overload the default structure constructor                                 
+  interface gw_mixed_schur_preconditioner_type
+     module procedure gw_mixed_schur_preconditioner_constructor
+  end interface
+
+contains
+  !> @brief Construct a <code> gw_mixed_schur_preconditioner_type</code> object
+  !>
+  subroutine gw_mixed_schur_preconditioner_constructor(self,          &
+                                                       state,         &
+                                                       Hb_lumped_inv, &
+                                                       pressure_solver)
+
+    use function_space_mod,            only: function_space_type
+    use finite_element_config_mod,     only: element_order
+    use quadrature_xyoz_mod,           only: quadrature_xyoz_type
+    use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
+    use matrix_vector_kernel_mod,      only: matrix_vector_kernel_type
+    
+    implicit none
+
+    class(gw_mixed_schur_preconditioner_type), intent(inout) :: self
+    type(field_vector_type), intent(in) :: state
+    type(field_type), intent(in) :: Hb_lumped_inv
+    class(abstract_iterative_solver_type), target, intent(in) :: &
+      pressure_solver
+    type(function_space_type), pointer        :: wp => null(), &
+                                                 wu => null(), &
+                                                 wb => null()
+    type(field_type)                          :: ones, M_lumped
+    type(operator_type), pointer              :: Mb => null()
+    type(quadrature_xyoz_type)                :: qr
+    type(quadrature_rule_gaussian_type)       :: quadrature_rule
+
+    call log_event( 'Constructing gravity waves mixed preconditioner...', &
+                    LOG_LEVEL_INFO )
+
+    self%alpha = 0.5_r_def
+
+    ! Get required function spaces
+    wu => state%vector(igw_u)%get_function_space()
+    wp => state%vector(igw_p)%get_function_space()
+    wb => state%vector(igw_b)%get_function_space()
+
+    ! Create fields for increments
+    self%p_inc        = field_type(vector_space = wp)
+    self%b_inc        = field_type(vector_space = wb)
+    self%u_inc        = field_type(vector_space = wu)
+
+    ! Create fields for right-hand-side
+    self%rhs_u     = field_type(vector_space = wu)
+    self%rhs_p     = field_type(vector_space = wp)
+    self%rhs_p_tmp = field_type(vector_space = wp)
+    self%mb_rb     = field_type(vector_space = wb)
+    self%hb_ru     = field_type(vector_space = wu)
+
+    ! right hand side and solution as a one-component field-vector in
+    ! pressure space
+    self%pressure_b = field_vector_type(1)
+    self%pressure_x = field_vector_type(1)
+
+    ! Compute inverse approximate \f$ \tilde{M}_b^{-1} \f$
+    ones          = field_type(vector_space = wb)
+    M_lumped      = field_type(vector_space = wb)
+    self%Mb_lumped_inv = field_type(vector_space = wb)
+    select case(b_space)
+    case(gravity_wave_constants_b_space_w0)  
+       Mb => get_mass_matrix(w0_id)
+    case(gravity_wave_constants_b_space_w3)  
+       Mb => get_mass_matrix(w3_id)
+    case(gravity_wave_constants_b_space_wtheta)  
+       Mb => get_mass_matrix(wt_id)
+    end select
+    call invoke( setval_c( ones,     1.0_r_def ),               &
+                 setval_c( M_lumped, 0.0_r_def ),               &
+                 matrix_vector_kernel_type(M_lumped, ones, Mb), &
+                 X_divideby_Y(self%Mb_lumped_inv, ones, M_lumped) )
+
+    ! Set \f$ \tilde{H}_b^{-1}\f$
+    self%Hb_lumped_inv = Hb_lumped_inv
+
+    ! Set pressure solver
+    self%gw_pressure_solver => pressure_solver
+
+    call log_event( 'done', LOG_LEVEL_INFO )
+
+  end subroutine gw_mixed_schur_preconditioner_constructor
+
+  !>@brief Compute the right-hand-side for the Helmholtz-equation
+  !>
+  subroutine build_pressure_rhs(self,rhs0)
+    use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
+    use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
+
+    implicit none
+    class(gw_mixed_schur_preconditioner_type), intent(inout) :: self
+    type(field_vector_type),                   intent(in)    :: rhs0
+
+    type(operator_type), pointer :: div => null(), M3_inv => null()
+    
+    real(kind=r_def) :: const1, const2
+
+    ! rhs_u = R_u + alpha * dt * Q * Mb^-1 * R_b
+    ! rhs_p = R_p - alpha * dt * cs^2 * M3^-1 * D * HB^-1 * rhs_u
+
+    ! Compute rhs_u and enforce boundary conditions
+    const1 = self%alpha*dt
+    call invoke( X_times_Y(self%mb_rb,rhs0%vector(igw_b),self%Mb_lumped_inv), &
+                 setval_c( self%rhs_u, 0.0_r_def ),                           &
+                 matrix_vector_kernel_type(self%rhs_u, self%mb_rb, self%Q),   &
+                 inc_aX_plus_Y(const1, self%rhs_u, rhs0%vector(igw_u)) )
+
+    ! Compute rhs_p
+    div    => get_div()
+    M3_inv => get_mass_matrix(w3inv_id)
+    const2 = -self%alpha*dt*cs_square
+    call invoke( X_times_Y(self%hb_ru, self%rhs_u, self%Hb_lumped_inv),       &
+                 dg_matrix_vector_kernel_type(self%rhs_p_tmp,self%hb_ru, div),&
+                 dg_matrix_vector_kernel_type(self%rhs_p,self%rhs_p_tmp,M3_inv), &
+                 inc_aX_plus_Y(const2, self%rhs_p, rhs0%vector(igw_p)) )
+
+    call self%rhs_p%log_minmax(LOG_LEVEL_DEBUG,  'gw_pressure_rhs ')
+
+  end subroutine build_pressure_rhs
+
+  !>@brief Destructor
+  !>@param[inout] self Instance of type to be destroyed
+  subroutine destroy_gw_mixed_schur_preconditioner(self)
+    implicit none
+    type(gw_mixed_schur_preconditioner_type), intent(inout) :: self
+
+  end subroutine destroy_gw_mixed_schur_preconditioner
+
+end module gw_mixed_schur_preconditioner_alg_mod

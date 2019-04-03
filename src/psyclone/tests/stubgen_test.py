@@ -41,7 +41,7 @@ import sys
 import pytest
 
 
-def test_run(monkeypatch, capsys):
+def test_run(monkeypatch, capsys, tmpdir):
     ''' Basic test for the run() routine. '''
     from psyclone.gen_kernel_stub import run
     # Use a dynamo 0.3 kernel so that we check that the default API
@@ -57,16 +57,16 @@ def test_run(monkeypatch, capsys):
     assert "MODULE testkern_w0_mod" in result
 
     # Test without --limit, but with -o:
-    import tempfile
-    filetemp_psy = tempfile.NamedTemporaryFile()
-    psy_filename = filetemp_psy.name
+    psy_file = tmpdir.join("psy.f90")
     monkeypatch.setattr(sys, "argv", ["genkernelstub", str(kern_file),
-                                      "-api", "dynamo0.3", "-o", psy_filename])
+                                      "-api", "dynamo0.3", "-o",
+                                      str(psy_file)])
     run()
     result, _ = capsys.readouterr()
 
     # Now read output file into a string and check:
-    output = filetemp_psy.read()
+    with psy_file.open("r") as psy:
+        output = psy.read()
     assert "MODULE testkern_w0_mod" in str(output)
 
 
@@ -77,7 +77,7 @@ def test_failures(monkeypatch, capsys):
     '''
 
     from psyclone.gen_kernel_stub import generate, run
-    from psyclone.parse import ParseError
+    from psyclone.parse.algorithm import ParseError
     from psyclone.psyGen import GenerationError
 
     # Test error handling of command line options

@@ -42,10 +42,11 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.parse import parse, ParseError
+from psyclone.parse.algorithm import parse
+from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
-from psyclone_test_utils import code_compiles, TEST_COMPILE
+from dynamo0p3_build import Dynamo0p3Build
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -258,7 +259,7 @@ def test_operator():
             "weights_z_qr)") in generated_code
 
 
-def test_operator_different_spaces(tmpdir, f90, f90flags):
+def test_operator_different_spaces(tmpdir):
     '''tests that an operator with different to and from spaces is
     implemented correctly in the PSy layer'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -267,9 +268,7 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
@@ -397,7 +396,7 @@ def test_operator_different_spaces(tmpdir, f90, f90flags):
     assert output in generated_code
 
 
-def test_operator_nofield(tmpdir, f90, f90flags):
+def test_operator_nofield(tmpdir):
     ''' tests that an operator with no field on the same space is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -406,9 +405,7 @@ def test_operator_nofield(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_code_str = str(psy.gen)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert gen_code_str.find("SUBROUTINE invoke_0_testkern_operator_"
                              "nofield_type(mm_w2, chi, qr)") != -1
@@ -426,8 +423,7 @@ def test_operator_nofield(tmpdir, f90, f90flags):
             "weights_xy_qr, weights_z_qr)" in gen_code_str)
 
 
-def test_operator_nofield_different_space(
-        tmpdir, f90, f90flags):
+def test_operator_nofield_different_space(tmpdir):
     ''' tests that an operator with no field on different spaces is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -437,9 +433,7 @@ def test_operator_nofield_different_space(
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen = str(psy.gen)
 
-    if TEST_COMPILE:
-        # If compilation testing has been enabled (--compile flag to py.test)
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert "mesh => my_mapping%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
@@ -468,7 +462,7 @@ def test_operator_nofield_scalar():
             "weights_xy_qr, weights_z_qr)" in gen)
 
 
-def test_operator_nofield_scalar_deref(tmpdir, f90, f90flags, dist_mem):
+def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
     ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer when both
     are obtained by dereferencing derived type objects '''
@@ -480,8 +474,7 @@ def test_operator_nofield_scalar_deref(tmpdir, f90, f90flags, dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     gen = str(psy.gen)
 
-    if TEST_COMPILE:
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert "mesh => opbox_my_mapping%get_mesh()" in gen
@@ -503,7 +496,7 @@ def test_operator_nofield_scalar_deref(tmpdir, f90, f90flags, dist_mem):
         " weights_z_qr_get_instance)" in gen)
 
 
-def test_operator_orientation(tmpdir, f90, f90flags):
+def test_operator_orientation(tmpdir):
     ''' tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -512,8 +505,7 @@ def test_operator_orientation(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
 
-    if TEST_COMPILE:
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert gen_str.find("SUBROUTINE invoke_0_testkern_operator"
                         "_orient_type(mm_w1, chi, qr)") != -1
@@ -533,7 +525,7 @@ def test_operator_orientation(tmpdir, f90, f90flags):
             "weights_z_qr)" in gen_str)
 
 
-def test_op_orient_different_space(tmpdir, f90, f90flags):
+def test_op_orient_different_space(tmpdir):
     '''tests that an operator on different spaces requiring orientation
     information is implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -543,8 +535,7 @@ def test_op_orient_different_space(tmpdir, f90, f90flags):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
 
-    if TEST_COMPILE:
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)   
 
     assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
@@ -568,7 +559,7 @@ def test_op_orient_different_space(tmpdir, f90, f90flags):
             "weights_xy_qr, weights_z_qr)" in gen_str)
 
 
-def test_operator_deref(tmpdir, f90, f90flags, dist_mem):
+def test_operator_deref(tmpdir, dist_mem):
     ''' Tests that we generate correct names for an operator in the PSy
     layer when obtained by de-referencing a derived type in the Algorithm
     layer '''
@@ -577,8 +568,8 @@ def test_operator_deref(tmpdir, f90, f90flags, dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     generated_code = str(psy.gen)
-    if TEST_COMPILE:
-        assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert generated_code.find("SUBROUTINE invoke_0_testkern_operator"
                                "_type(mm_w0_op, chi, a, qr)") != -1
@@ -631,7 +622,7 @@ def test_operator_read_level1_halo():
             "However the containing loop goes out to level 2" in str(excinfo))
 
 
-def test_operator_bc_kernel(tmpdir, f90, f90flags):
+def test_operator_bc_kernel(tmpdir):
     ''' Tests that a kernel with a particular name is recognised as a
     kernel that applies boundary conditions to operators and that
     appropriate code is added to support this. '''
@@ -650,9 +641,8 @@ def test_operator_bc_kernel(tmpdir, f90, f90flags):
         "ndf_any_space_2_op_a, boundary_dofs_op_a)")
     assert output3 in generated_code
 
-    # If compilation testing has been enabled
-    # (--compile --f90="<compiler_name>" flags to py.test)
-    assert code_compiles(TEST_API, psy, tmpdir, f90, f90flags)
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+
 
 
 def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):

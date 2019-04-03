@@ -37,5 +37,5 @@ include *.py
 recursive-include contributions *
 recursive-include bin *
 recursive-include doc *.py *.rst Makefile
-include src/psyclone/*.f90
+include src/psyclone/parse/dynamo0p3_builtins_mod.f90
 include config/*.cfg

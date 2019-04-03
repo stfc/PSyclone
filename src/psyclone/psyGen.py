@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-19, Science and Technology Facilities Council.
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ except ImportError:
         :type text: string
         :param _: Fake argument, only required to match interface
                   provided by termcolor.colored
-        :return: The supplied text, unchanged
+        :returns: The supplied text, unchanged
         :rtype: string
         '''
         return text
@@ -109,12 +109,16 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Call": "magenta",
                        "KernCall": "magenta",
                        "Profile": "green",
+                       "Extract": "green",
                        "If": "red",
                        "Assignment": "blue",
                        "Reference": "yellow",
                        "BinaryOperation": "blue",
                        "Literal": "yellow",
                        "CodeBlock": "red"}
+
+# Default indentation string
+INDENTATION_STRING = "    "
 
 
 def get_api(api):
@@ -158,7 +162,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     then return all arguments.
 
     :param arg_list: List of kernel arguments to filter
-    :type arg_list: list of :py:class:`psyclone.parse.Descriptor`
+    :type arg_list: list of :py:class:`psyclone.parse.algorithm.Descriptor`
     :param arg_types: List of argument types (e.g. "GH_FIELD")
     :type arg_types: list of str
     :param arg_accesses: List of access types that arguments must have
@@ -168,7 +172,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     :param bool is_literal: Whether or not to include literal arguments in \
                             the returned list.
     :returns: list of kernel arguments matching the requirements
-    :rtype: list of :py:class:`psyclone.parse.Descriptor`
+    :rtype: list of :py:class:`psyclone.parse.algorithm.Descriptor`
     '''
     arguments = []
     for argument in arg_list:
@@ -257,7 +261,7 @@ class PSyFactory(object):
 
         :param invoke_info: information on the invoke()s found by parsing
                             the Algorithm layer.
-        :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+        :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
         :returns: an instance of the API-specifc sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
@@ -285,19 +289,18 @@ class PSy(object):
     '''
     Base class to help manage and generate PSy code for a single
     algorithm file. Takes the invocation information output from the
-    function :func:`parse.parse` as its input and stores this in a
+    function :func:`parse.algorithm.parse` as its input and stores this in a
     way suitable for optimisation and code generation.
 
     :param FileInfo invoke_info: An object containing the required \
                                  invocation information for code \
                                  optimisation and generation. Produced \
-                                 by the function :func:`parse.parse`.
-    :type invoke_info: :py:class:`psyclone.parse.FileInfo`
+                                 by the function :func:`parse.algorithm.parse`.
+    :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo`
 
     For example:
 
-    >>> import psyclone
-    >>> from psyclone.parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("argspec.F90")
     >>> from psyclone.psyGen import PSyFactory
     >>> api = "..."
@@ -339,12 +342,21 @@ class PSy(object):
 
 
 class Invokes(object):
-    ''' Manage the invoke calls '''
+    '''Manage the invoke calls
+
+    :param alg_calls: A list of invoke metadata extracted by the \
+    parser.
+    :type alg_calls: list of \
+    :py:class:`psyclone.parse.algorithm.InvokeCall`
+    :param Invoke: An api-specific Invoke class
+    :type Invoke: Specialisation of :py:class:`psyclone.psyGen.Invoke`
+
+    '''
     def __init__(self, alg_calls, Invoke):
         self.invoke_map = {}
         self.invoke_list = []
         from psyclone.profiler import Profiler
-        for idx, alg_invocation in enumerate(alg_calls.values()):
+        for idx, alg_invocation in enumerate(alg_calls):
             my_invoke = Invoke(alg_invocation, idx)
             self.invoke_map[my_invoke.name] = my_invoke
             self.invoke_list.append(my_invoke)
@@ -707,14 +719,14 @@ class Invoke(object):
         Returns a dictionary listing all required declarations for each
         type of intent ('inout', 'out' and 'in').
 
-        :param string datatype: the type of the kernel argument for the
-                                particular API for which the intent is
+        :param string datatype: the type of the kernel argument for the \
+                                particular API for which the intent is \
                                 required
-        :return: dictionary containing 'intent' keys holding the kernel
-                 argument intent and declarations of all kernel arguments
-                 for each type of intent
+        :returns: dictionary containing 'intent' keys holding the kernel \
+                  argument intent and declarations of all kernel arguments \
+                  for each type of intent
         :rtype: dict
-        :raises GenerationError: if the kernel argument is not a valid
+        :raises GenerationError: if the kernel argument is not a valid \
                                  datatype for the particular API.
 
         '''
@@ -881,6 +893,14 @@ class Node(object):
     :type parent: :py:class:`psyclone.psyGen.Node`
 
     '''
+    # Define two class constants: START_DEPTH and START_POSITION
+    # START_DEPTH is used to calculate depth of all Nodes in the tree
+    # (1 for main Nodes and increasing for their descendants).
+    START_DEPTH = 0
+    # START_POSITION is used to to calculate position of all Nodes in
+    # the tree (absolute or relative to a parent).
+    START_POSITION = 0
+
     def __init__(self, children=None, parent=None):
         if not children:
             self._children = []
@@ -987,10 +1007,10 @@ class Node(object):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. The default
-        implementation assumes the node has no directly associated
+        '''Return the list of arguments associated with this Node. The default
+        implementation assumes the Node has no directly associated
         arguments (i.e. is not a Call class or subclass). Arguments of
-        any of this nodes descendents are considered to be
+        any of this nodes descendants are considered to be
         associated. '''
         args = []
         for call in self.calls():
@@ -1001,7 +1021,7 @@ class Node(object):
         '''Returns the closest preceding Node that this Node has a direct
         dependence with or None if there is not one. Only Nodes with
         the same parent as self are returned. Nodes inherit their
-        descendents dependencies. The reason for this is that for
+        descendants' dependencies. The reason for this is that for
         correctness a node must maintain its parent if it is
         moved. For example a halo exchange and a kernel call may have
         a dependence between them but it is the loop body containing
@@ -1038,7 +1058,7 @@ class Node(object):
         '''Returns the closest following Node that this Node has a direct
         dependence with or None if there is not one. Only Nodes with
         the same parent as self are returned. Nodes inherit their
-        descendents dependencies. The reason for this is that for
+        descendants' dependencies. The reason for this is that for
         correctness a node must maintain its parent if it is
         moved. For example a halo exchange and a kernel call may have
         a dependence between them but it is the loop body containing
@@ -1134,8 +1154,13 @@ class Node(object):
 
     @property
     def depth(self):
-        ''' Returns this Node's depth in the tree. '''
-        my_depth = 0
+        '''
+        Returns this Node's depth in the tree: 1 for the Schedule
+        and increasing for its descendants at each level.
+        :returns: depth of the Node in the tree
+        :rtype: int
+        '''
+        my_depth = self.START_DEPTH
         node = self
         while node is not None:
             node = node.parent
@@ -1146,11 +1171,17 @@ class Node(object):
         raise NotImplementedError("BaseClass of a Node must implement the "
                                   "view method")
 
-    def indent(self, count, indent="    "):
-        result = ""
-        for i in range(count):
-            result += indent
-        return result
+    @staticmethod
+    def indent(count, indent=INDENTATION_STRING):
+        '''
+        Helper function to produce indentation strings.
+
+        :param int count: Number of indentation levels.
+        :param str indent: String representing one indentation level.
+        :returns: Complete indentation string.
+        :rtype: str
+        '''
+        return count * indent
 
     def list(self, indent=0):
         result = ""
@@ -1190,26 +1221,49 @@ class Node(object):
 
     @property
     def position(self):
+        '''
+        Find a Node's position relative to its parent Node (starting
+        with 0 if it does not have a parent).
+        :returns: relative position of a Node to its parent
+        :rtype: int
+        '''
         if self.parent is None:
-            return 0
+            return self.START_POSITION
         return self.parent.children.index(self)
 
     @property
     def abs_position(self):
-        ''' Find my position in the schedule. Needs to be computed
-            dynamically as my position may change. '''
-
-        if self.root == self:
-            return 0
-        found, position = self._find_position(self.root.children, 0)
+        '''
+        Find a Node's absolute position in the tree (starting with 0 if
+        it is the root). Needs to be computed dynamically from the
+        starting position (0) as its position may change.
+        :returns: absolute position of a Node in the tree
+        :raises InternalError: if the absolute position cannot be found
+        :rtype: int
+        '''
+        if self.root == self and isinstance(self.root, Schedule):
+            return self.START_POSITION
+        found, position = self._find_position(self.root.children,
+                                              self.START_POSITION)
         if not found:
-            raise Exception("Error in search for my position in "
-                            "the tree")
+            raise InternalError("Error in search for Node position "
+                                "in the tree")
         return position
 
     def _find_position(self, children, position):
-        ''' Recurse through the tree depth first returning position if
-            found.'''
+        '''
+        Recurse through the tree depth first returning position of
+        a Node if found.
+        :param children: list of Nodes which are children of this Node
+        :type children: list of :py:class:`psyclone.psyGen.Node`
+        :returns: position of the Node in the tree
+        :rtype: int
+        :raises InternalError: if the starting position is < 0
+        '''
+        if position < self.START_POSITION:
+            raise InternalError(
+                "Search for Node position started from {0} "
+                "instead of {1}.".format(position, self.START_POSITION))
         for child in children:
             position += 1
             if child == self:
@@ -1276,14 +1330,14 @@ class Node(object):
         return None
 
     def calls(self):
-        '''Return all calls that are descendents of this node.'''
+        '''Return all calls that are descendants of this node.'''
         return self.walk(self.children, Call)
 
     def following(self):
         '''Return all :py:class:`psyclone.psyGen.Node` nodes after me in the
         schedule. Ordering is depth first.
 
-        :return: a list of nodes
+        :returns: a list of nodes
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -1299,7 +1353,7 @@ class Node(object):
 
         :param: reverse: An optional, default `False`, boolean flag
         :type: reverse: bool
-        :return: A list of nodes
+        :returns: A list of nodes
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Node`
 
         '''
@@ -1364,6 +1418,14 @@ class Node(object):
     def gen_code(self):
         raise NotImplementedError("Please implement me")
 
+    def gen_c_code(self, indent=0):
+        '''Abstract method for the generation of C source code
+
+        :param int indent: Depth of indent for the output string.
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError("Please implement me")
+
     def update(self):
         ''' By default we assume there is no need to update the existing
         fparser2 AST which this Node represents. We simply call the update()
@@ -1377,9 +1439,9 @@ class Schedule(Node):
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
 
-    >>> from parse import parse
+    >>> from psyclone.parse.algorithm import parse
     >>> ast, info = parse("algorithm.f90")
-    >>> from psyGen import PSyFactory
+    >>> from psyclone.psyGen import PSyFactory
     >>> api = "..."
     >>> psy = PSyFactory(api).create(info)
     >>> invokes = psy.invokes
@@ -1394,21 +1456,23 @@ class Schedule(Node):
      creating built-ins. e.g. \
      :py:class:`psyclone.dynamo0p3_builtins.DynBuiltInCallFactory`.
     :param alg_calls: list of Kernel calls in the schedule.
-    :type alg_calls: list of :py:class:`psyclone.parse.KernelCall`
+    :type alg_calls: list of :py:class:`psyclone.parse.algorithm.KernelCall`
 
     '''
+
     def __init__(self, KernFactory, BuiltInFactory, alg_calls=None):
         # we need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
         # two entities.
+        if alg_calls is None:
+            alg_calls = []
         sequence = []
-        from psyclone.parse import BuiltInCall
-        if alg_calls:
-            for call in alg_calls:
-                if isinstance(call, BuiltInCall):
-                    sequence.append(BuiltInFactory.create(call, parent=self))
-                else:
-                    sequence.append(KernFactory.create(call, parent=self))
+        from psyclone.parse.algorithm import BuiltInCall
+        for call in alg_calls:
+            if isinstance(call, BuiltInCall):
+                sequence.append(BuiltInFactory.create(call, parent=self))
+            else:
+                sequence.append(KernFactory.create(call, parent=self))
         Node.__init__(self, children=sequence)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
@@ -1456,7 +1520,7 @@ class Schedule(Node):
         Returns the name of this node with appropriate control codes
         to generate coloured output in a terminal that supports it.
 
-        :return: Text containing the name of this node, possibly coloured
+        :returns: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
         return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
@@ -1547,7 +1611,7 @@ class Schedule(Node):
     @property
     def opencl(self):
         '''
-        :return: Whether or not we are generating OpenCL for this Schedule.
+        :returns: Whether or not we are generating OpenCL for this Schedule.
         :rtype: bool
         '''
         return self._opencl
@@ -1568,7 +1632,7 @@ class Schedule(Node):
 
 class Directive(Node):
     '''
-    Base class for all Directive statments.
+    Base class for all Directive statements.
 
     All classes that generate Directive statments (e.g. OpenMP,
     OpenACC, compiler-specific) inherit from this class.
@@ -1593,7 +1657,7 @@ class Directive(Node):
         Returns a string containing the name of this element with
         control codes for colouring in terminals that support it.
 
-        :return: Text containing the name of this node, possibly coloured
+        :returns: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
         return colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
@@ -1605,7 +1669,7 @@ class Directive(Node):
 
 
 class ACCDirective(Directive):
-    ''' Base class for all OpenACC directive statments. '''
+    ''' Base class for all OpenACC directive statements. '''
 
     @abc.abstractmethod
     def view(self, indent=0):
@@ -2082,7 +2146,7 @@ class OMPParallelDirective(OMPDirective):
         and any variables that have been declared private by a Call
         within the directive.
 
-        :return: list of variables to declare as thread private.
+        :returns: list of variables to declare as thread private.
         :rtype: list of str
 
         :raises InternalError: if a Call has local variable(s) but they \
@@ -2453,8 +2517,8 @@ class GlobalSum(Node):
         Return a string containing the (coloured) name of this node
         type
 
-        :return: A string containing the name of this node, possibly with
-                 control codes for colour
+        :returns: A string containing the name of this node, possibly with
+                  control codes for colour
         :rtype: string
         '''
         return colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
@@ -2615,7 +2679,7 @@ class HaloExchange(Node):
         '''
         Return a string containing the (coloured) name of this node type
 
-        :return: Name of this node type, possibly with colour control codes
+        :returns: Name of this node type, possibly with colour control codes
         :rtype: string
         '''
         return colored(
@@ -2628,7 +2692,7 @@ class Loop(Node):
     def dag_name(self):
         ''' Return the name to use in a dag for this node
 
-        :return: Return the dag name for this loop
+        :returns: Return the dag name for this loop
         :rtype: string
 
         '''
@@ -2713,8 +2777,8 @@ class Loop(Node):
         Returns a string containing the name of this node along with
         control characters for colouring in terminals that support it.
 
-        :return: The name of this node, possibly with control codes for
-                 colouring
+        :returns: The name of this node, possibly with control codes for
+                  colouring
         :rtype: string
         '''
         return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
@@ -2908,7 +2972,7 @@ class Call(Node):
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
     :param call: information on the call itself, as obtained by parsing \
                  the Algorithm layer code.
-    :type call: :py:class:`psyclone.parse.KernelCall`
+    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
     :param str name: the name of the routine being called.
     :param arguments: object holding information on the kernel arguments, \
                       as extracted from kernel meta-data.
@@ -3201,7 +3265,7 @@ class Kern(Call):
                                  :py:class:`psyclone.psyGen.Arguments` to \
                                  create.
     :param call: Details of the call to this kernel in the Algorithm layer.
-    :type call: :py:class:`psyclone.parse.KernelCall`.
+    :type call: :py:class:`psyclone.parse.algorithm.KernelCall`.
     :param parent: the parent of this Node (kernel call) in the Schedule.
     :type parent: sub-class of :py:class:`psyclone.psyGen.Node`.
     :param bool check: Whether or not to check that the number of arguments \
@@ -3240,7 +3304,7 @@ class Kern(Call):
         transformations that may subsequently be applied to the Schedule
         (but will not adapt to transformations applied to the fparser2 AST).
 
-        :return: Schedule representing the kernel code.
+        :returns: Schedule representing the kernel code.
         :rtype: :py:class:`psyclone.psyGen.KernelSchedule`
         '''
         if self._kern_schedule is None:
@@ -3254,7 +3318,7 @@ class Kern(Call):
     @property
     def module_name(self):
         '''
-        :return: The name of the Fortran module that contains this kernel
+        :returns: The name of the Fortran module that contains this kernel
         :rtype: string
         '''
         return self._module_name
@@ -3315,8 +3379,8 @@ class Kern(Call):
         '''
         Return text containing the (coloured) name of this node type
 
-        :return: the name of this node type, possibly with control codes
-                 for colour
+        :returns: the name of this node type, possibly with control codes
+                  for colour
         :rtype: string
         '''
         return colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
@@ -3360,7 +3424,7 @@ class Kern(Call):
         :param mapping: dictionary of access types (here INC) associated \
                         with arguments with their metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name.
+        :returns: a Fortran argument name.
         :rtype: str
         :raises FieldNotFoundError: if none is found.
 
@@ -3383,7 +3447,7 @@ class Kern(Call):
                         READWRITE) associated with arguments with their
                         metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
+        :returns: a Fortran argument name
         :rtype: string
         :raises FieldNotFoundError: if none is found.
 
@@ -3711,7 +3775,7 @@ class Arguments(object):
         :param mapping: dictionary of access types associated with arguments
                         with their metadata strings as keys
         :type mapping: dict
-        :return: a Fortran argument name
+        :returns: a Fortran argument name
         :rtype: string
         :raises GenerationError: if none such argument is found.
 
@@ -3910,7 +3974,7 @@ class Argument(object):
         :type call: :py:class:`psyclone.psyGen.Call`
         :param arg_info: Information about this argument collected by
         the parser
-        :type arg_info: :py:class:`psyclone.parse.Arg`
+        :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
         :param access: the way in which this argument is accessed in
         the 'Call'. Valid values are specified in 'MAPPING_ACCESSES'
         (and may be modified by the particular API).
@@ -3919,7 +3983,7 @@ class Argument(object):
         '''
         self._call = call
         self._text = arg_info.text
-        self._orig_name = arg_info.varName
+        self._orig_name = arg_info.varname
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
         self._access = access
@@ -4030,7 +4094,7 @@ class Argument(object):
         dependence with, or None if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :return: the first preceding argument this argument has a
+        :returns: the first preceding argument this argument has a
         dependence with
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
@@ -4047,7 +4111,7 @@ class Argument(object):
 
         :param: ignore_halos: An optional, default `False`, boolean flag
         :type: ignore_halos: bool
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4060,7 +4124,7 @@ class Argument(object):
         dependence with, or `None` if there is not one. The argument may
         exist in a call, a haloexchange, or a globalsum.
 
-        :return: the first following argument this argument has a
+        :returns: the first following argument this argument has a
         dependence with
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
@@ -4075,7 +4139,7 @@ class Argument(object):
         return an empty list. If self is not a writer then return an
         empty list.
 
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4088,7 +4152,7 @@ class Argument(object):
 
         :param: the list of nodes that this method examines
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
-        :return: An argument object or None
+        :returns: An argument object or None
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4107,7 +4171,7 @@ class Argument(object):
 
         :param: the list of nodes that this method examines
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4146,7 +4210,7 @@ class Argument(object):
         :type: :func:`list` of :py:class:`psyclone.psyGen.Node`
         :param: ignore_halos: An optional, default `False`, boolean flag
         :type: ignore_halos: bool
-        :return: a list of arguments that this argument has a dependence with
+        :returns: a list of arguments that this argument has a dependence with
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
@@ -4220,7 +4284,7 @@ class Argument(object):
         :param argument: the argument we will check to see whether
         there is a dependence with this argument instance (self)
         :type argument: :py:class:`psyclone.psyGen.Argument`
-        :return: True if there is a dependence and False if not
+        :returns: True if there is a dependence and False if not
         :rtype: bool
 
         '''
@@ -4395,9 +4459,9 @@ class DummyTransformation(Transformation):
 
 class IfBlock(Node):
     '''
-    Class representing an if-block within the PSyIRe.
+    Class representing an if-block within the PSyIR.
 
-    :param parent: the parent of this node within the PSyIRe tree.
+    :param parent: the parent of this node within the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, parent=None):
@@ -4412,8 +4476,8 @@ class IfBlock(Node):
         '''
         Return text containing the (coloured) name of this node type.
 
-        :return: the name of this node type, possibly with control codes \
-                 for colour.
+        :returns: the name of this node type, possibly with control codes \
+                  for colour.
         :rtype: str
         '''
         return colored("If", SCHEDULE_COLOUR_MAP["If"])
@@ -4434,7 +4498,7 @@ class IfClause(IfBlock):
     '''
     Represents a sub-clause of an If block - e.g. an "else if()".
 
-    :param parent: the parent of this node in the PSyIRe tree.
+    :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`.
 
     '''
@@ -4447,8 +4511,8 @@ class IfClause(IfBlock):
         '''
         Return text containing the (coloured) name of this node type.
 
-        :return: the name of this node type, possibly with control codes \
-                 for colour.
+        :returns: the name of this node type, possibly with control codes \
+                  for colour.
         :rtype: str
         '''
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
@@ -4457,7 +4521,7 @@ class IfClause(IfBlock):
 class Fparser2ASTProcessor(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
-    convert the nodes to PSyIRe.
+    convert the nodes to PSyIR.
     '''
 
     def __init__(self):
@@ -4485,7 +4549,7 @@ class Fparser2ASTProcessor(object):
         '''
         Create a CodeBlock for the supplied list of statements
         and then wipe the list of statements. A CodeBlock is a node
-        in the PSyIRe (Schedule) that represents a sequence of one or more
+        in the PSyIR (Schedule) that represents a sequence of one or more
         Fortran statements which PSyclone does not attempt to handle.
 
         :param parent: Node in the PSyclone AST to which to add this code \
@@ -4503,11 +4567,22 @@ class Fparser2ASTProcessor(object):
         del statements[:]
         return code_block
 
+    @staticmethod
+    def _create_schedule(name):
+        '''
+        Create an empty KernelSchedule.
+
+        :param str name: Name of the subroutine represented by the kernel.
+        :returns: New KernelSchedule empty object.
+        :rtype: py:class:`psyclone.psyGen.KernelSchedule`
+        '''
+        return KernelSchedule(name)
+
     def generate_schedule(self, name, module_ast):
         '''
         Create a KernelSchedule from the supplied fparser2 AST.
 
-        :param str name: Name of the subroutine representing the kernel.
+        :param str name: Name of the subroutine represented by the kernel.
         :param module_ast: fparser2 AST of the full module where the kernel \
                            code is located.
         :type module_ast: :py:class:`fparser.two.Fortran2003.Program`
@@ -4543,7 +4618,7 @@ class Fparser2ASTProcessor(object):
                     return node
             raise ValueError  # Subroutine not found
 
-        new_schedule = KernelSchedule(name)
+        new_schedule = self._create_schedule(name)
 
         # Assume just 1 Fortran module definition in the file
         if len(module_ast.content) > 1:
@@ -4597,12 +4672,12 @@ class Fparser2ASTProcessor(object):
         :param dimensions: fparser dimension attribute
         :type dimensions:
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
-        :return: Shape of the attribute in row-major order (leftmost \
-                 index is contiguous in memory). Each entry represents \
-                 an array dimension. If it is 'None' the extent of that \
-                 dimension is unknown, otherwise it holds an integer \
-                 with the extent. If it is an empy list then the symbol \
-                 represents a scalar.
+        :returns: Shape of the attribute in row-major order (leftmost \
+                  index is contiguous in memory). Each entry represents \
+                  an array dimension. If it is 'None' the extent of that \
+                  dimension is unknown, otherwise it holds an integer \
+                  with the extent. If it is an empy list then the symbol \
+                  represents a scalar.
         :rtype: list
         '''
         from fparser.two.utils import walk_ast
@@ -4657,7 +4732,7 @@ class Fparser2ASTProcessor(object):
             fixed.
             :param nodes: fparser2 AST node.
             :type nodes: None or List or :py:class:`fparser.two.utils.Base`
-            :return: Returns nodes but always encapsulated in a list
+            :returns: Returns nodes but always encapsulated in a list
             :rtype: list
             '''
             if nodes is None:
@@ -4754,12 +4829,12 @@ class Fparser2ASTProcessor(object):
     # parent information (fparser/#102).
     def process_nodes(self, parent, nodes, nodes_parent):
         '''
-        Create the PSyIRe of the supplied list of nodes in the
+        Create the PSyIR of the supplied list of nodes in the
         fparser2 AST. Currently also inserts parent information back
         into the fparser2 AST. This is a workaround until fparser2
         itself generates and stores this information.
 
-        :param parent: Parent node in the PSyIRe we are constructing.
+        :param parent: Parent node in the PSyIR we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :param nodes: List of sibling nodes in fparser2 AST.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
@@ -4791,17 +4866,17 @@ class Fparser2ASTProcessor(object):
 
     def _create_child(self, child, parent=None):
         '''
-        Create a PSyIRe node representing the supplied fparser 2 node.
+        Create a PSyIR node representing the supplied fparser 2 node.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
                 child type.
-        :return: Returns the PSyIRe representation of child, which can be a
-                 single node, a tree of nodes or None if the child can be
-                 ignored.
+        :returns: Returns the PSyIR representation of child, which can be a \
+                  single node, a tree of nodes or None if the child can be \
+                  ignored.
         :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
         '''
         handler = self.handlers.get(type(child))
@@ -4825,22 +4900,22 @@ class Fparser2ASTProcessor(object):
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: None
+        :returns: None
         :rtype: NoneType
         '''
         return None
 
     def _if_stmt_handler(self, node, parent):
         '''
-        Transforms an fparser2 If_Stmt to the PSyIRe representation.
+        Transforms an fparser2 If_Stmt to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.If_Stmt`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
         ifblock = IfBlock(parent=parent)
@@ -4852,13 +4927,13 @@ class Fparser2ASTProcessor(object):
 
     def _assignment_handler(self, node, parent):
         '''
-        Transforms an fparser2 Assignment_Stmt to the PSyIRe representation.
+        Transforms an fparser2 Assignment_Stmt to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Assignment`
         '''
         assignment = Assignment(parent=parent)
@@ -4871,13 +4946,13 @@ class Fparser2ASTProcessor(object):
 
     def _binary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 BinaryOp to the PSyIRe representation.
+        Transforms an fparser2 BinaryOp to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.BinaryOpBase`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
         '''
         # Get the operator
@@ -4893,28 +4968,28 @@ class Fparser2ASTProcessor(object):
 
     def _name_handler(self, node, parent):
         '''
-        Transforms an fparser2 Name to the PSyIRe representation.
+        Transforms an fparser2 Name to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Name`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Reference`
         '''
         return Reference(node.string, parent)
 
     def _parenthesis_handler(self, node, parent):
         '''
-        Transforms an fparser2 Parenthesis to the PSyIRe representation.
+        Transforms an fparser2 Parenthesis to the PSyIR representation.
         This means ignoring the parentheis and process the fparser2 children
         inside.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Parenthesis`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
         # Use the items[1] content of the node as it contains the required
@@ -4924,13 +4999,13 @@ class Fparser2ASTProcessor(object):
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIRe representation.
+        Transforms an fparser2 Part_Ref to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.Fortran2003.Part_Ref`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Array`
         '''
         from fparser.two import Fortran2003
@@ -4953,16 +5028,16 @@ class Fparser2ASTProcessor(object):
 
     def _number_handler(self, node, parent):
         '''
-        Transforms an fparser2 NumberBase to the PSyIRe representation.
+        Transforms an fparser2 NumberBase to the PSyIR representation.
 
         :param child: node in fparser2 AST.
         :type child:  :py:class:`fparser.two.utils.NumberBase`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Literal`
         '''
-        return Literal(node.items[0], parent=parent)
+        return Literal(str(node.items[0]), parent=parent)
 
 
 class Symbol(object):
@@ -5022,6 +5097,9 @@ class Symbol(object):
         self._shape = shape
 
         # The following attributes have setter methods (with error checking)
+        self._scope = None
+        self._is_input = None
+        self._is_output = None
         self.scope = scope
         self.is_input = is_input
         self.is_output = is_output
@@ -5029,7 +5107,7 @@ class Symbol(object):
     @property
     def name(self):
         '''
-        :return: Name of the Symbol.
+        :returns: Name of the Symbol.
         :rtype: string
         '''
         return self._name
@@ -5037,7 +5115,7 @@ class Symbol(object):
     @property
     def datatype(self):
         '''
-        :return: Datatype of the Symbol.
+        :returns: Datatype of the Symbol.
         :rtype: string
         '''
         return self._datatype
@@ -5045,8 +5123,8 @@ class Symbol(object):
     @property
     def is_input(self):
         '''
-        :return: Whether the symbol represents data that already exists \
-                 before kernel and is passed into upon entry.
+        :returns: Whether the symbol represents data that already exists \
+                  before kernel and is passed into upon entry.
         :rtype: bool
         '''
         return self._is_input
@@ -5070,8 +5148,8 @@ class Symbol(object):
     @property
     def is_output(self):
         '''
-        :return: Whether the variable respresented by this symbol survives \
-                 outside the kernel upon exit.
+        :returns: Whether the variable respresented by this symbol survives \
+                  outside the kernel upon exit.
         :rtype: bool
         '''
         return self._is_output
@@ -5095,11 +5173,11 @@ class Symbol(object):
     @property
     def shape(self):
         '''
-        :return: Shape of the symbol in row-major order (leftmost \
-                 index is contiguous in memory). Each entry represents \
-                 an array dimension. If not None then it holds the \
-                 extent of that dimension. If it is an empy list it \
-                 represents an scalar.
+        :returns: Shape of the symbol in row-major order (leftmost \
+                  index is contiguous in memory). Each entry represents \
+                  an array dimension. If not None then it holds the \
+                  extent of that dimension. If it is an empy list it \
+                  represents an scalar.
         :rtype: list
         '''
         return self._shape
@@ -5107,12 +5185,12 @@ class Symbol(object):
     @property
     def scope(self):
         '''
-        :return: Whether the symbol is 'local' (just exists inside the kernel \
-                 scope) or 'global_*' (data also lives outside the kernel). \
-                 Global-scoped symbols also have postfixed information about \
-                 the sharing mechanism, at the moment just 'global_argument' \
-                 is available for variables passed in/out of the kernel \
-                 by argument.
+        :returns: Whether the symbol is 'local' (just exists inside the \
+                  kernel scope) or 'global_*' (data also lives outside the \
+                  kernel). Global-scoped symbols also have postfixed \
+                  information about the sharing mechanism, at the moment \
+                  just 'global_argument' is available for variables passed \
+                  in/out of the kernel by argument.
         :rtype: str
         '''
         return self._scope
@@ -5137,6 +5215,36 @@ class Symbol(object):
 
         self._scope = new_scope
 
+    def gen_c_definition(self):
+        '''
+        Generates string representing the C language definition of the symbol.
+
+        :returns: The C definition of the symbol.
+        :rtype: str
+        :raises NotImplementedError: if there are some symbol types or nodes \
+                                     which are not implemented yet.
+        '''
+        code = ""
+        if self.datatype == "real":
+            code = code + "double "
+        elif self.datatype == "integer":
+            code = code + "int "
+        elif self.datatype == "character":
+            code = code + "char "
+        else:
+            raise NotImplementedError(
+                "Could not generate the C definition for the variable '{0}', "
+                "type '{1}' is currently not supported."
+                "".format(self.name, self.datatype))
+
+        # If the argument is an array, in C language we define it
+        # as an unaliased pointer.
+        if self.shape:
+            code += "* restrict "
+
+        code += self.name
+        return code
+
     def __str__(self):
         return (self.name + "<" + self.datatype + ", " + str(self.shape) +
                 ", " + self.scope + ">")
@@ -5147,12 +5255,20 @@ class SymbolTable(object):
     Encapsulates the symbol table and provides methods to declare new symbols
     and look up existing symbols. It is implemented as a single scope
     symbol table (nested scopes not supported).
+
+    :param kernel: Reference to the KernelSchedule to which this symbol table \
+        belongs.
+    :type kernel: :py:class:`psyclone.psyGen.KernelSchedule` or NoneType
     '''
-    def __init__(self):
+    # TODO: (Issue #321) Explore how the SymbolTable overlaps with the
+    # NameSpace class functionality.
+    def __init__(self, kernel=None):
         # Dict of Symbol objects with the symbol names as keys.
         self._symbols = {}
         # Ordered list of the arguments.
         self._argument_list = []
+        # Reference to KernelSchedule to which this symbol table belongs.
+        self._kernel = kernel
 
     def declare(self, name, datatype, shape=[], scope='local',
                 is_input=False, is_output=False):
@@ -5196,6 +5312,7 @@ class SymbolTable(object):
 
         :param list argument_name_list: Ordered list of the argument names.
         '''
+        self._argument_list = []
         for name in argument_name_list:
             symbol = self.lookup(name)
             # Declarations without explicit intent are provisionally identified
@@ -5220,6 +5337,71 @@ class SymbolTable(object):
             raise KeyError("Could not find '{0}' in the Symbol Table."
                            "".format(name))
 
+    def __contains__(self, key):
+        '''Check if the given key is part of the Symbol Table.
+
+        :param str key: key to check for existance.
+        :returns: Whether the Symbol Table contains the given key.
+        :rtype: bool
+        '''
+        return key in self._symbols
+
+    @property
+    def argument_list(self):
+        '''
+        :returns: Ordered list of arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        '''
+        return self._argument_list
+
+    @property
+    def local_symbols(self):
+        '''
+        :returns:  List of local symbols.
+        :rtype: list of :py:class:`psyclone.psyGen.Symbol`
+        '''
+        return [sym for sym in self._symbols.values() if sym.scope == "local"]
+
+    def gen_c_local_variables(self, indent=0):
+        '''
+        Generate C code that defines all local symbols in the Symbol Table.
+
+        :param int indent: Indentation level
+        :returns: C languague definition of the local symbols.
+        :rtype: str
+        '''
+        code = ""
+        for symbol in self.local_symbols:
+            code += Node.indent(indent) + symbol.gen_c_definition() + ";\n"
+        return code
+
+    def gen_ocl_argument_list(self, indent=0):
+        '''
+        Generate OpenCL argument list.
+
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError(
+            "A generic implementation of this method is not available.")
+
+    def gen_ocl_iteration_indices(self, indent=0):
+        '''
+        Generate OpenCL iteration indices declaration.
+
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError(
+            "A generic implementation of this method is not available.")
+
+    def gen_ocl_array_length(self, indent=0):
+        '''
+        Generate OpenCL array length variable declarations.
+
+        :raises NotImplementedError: is an abstract method.
+        '''
+        raise NotImplementedError(
+            "A generic implementation of this method is not available.")
+
     def view(self):
         '''
         Print a representation of this Symbol Table to stdout.
@@ -5243,12 +5425,20 @@ class KernelSchedule(Schedule):
     def __init__(self, name):
         super(KernelSchedule, self).__init__(None, None)
         self._name = name
-        self._symbol_table = SymbolTable()
+        self._symbol_table = SymbolTable(self)
+
+    @property
+    def name(self):
+        '''
+        :returns: Name of the Kernel
+        :rtype: str
+        '''
+        return self._name
 
     @property
     def symbol_table(self):
         '''
-        :return: Table containing symbol information for the kernel.
+        :returns: Table containing symbol information for the kernel.
         :rtype: :py:class:`psyclone.psyGen.SymbolTable`
         '''
         return self._symbol_table
@@ -5265,6 +5455,17 @@ class KernelSchedule(Schedule):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    def gen_ocl(self, indent=0):
+        '''
+        Generate a string representation of this node in the OpenCL language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: OpenCL language code representing the node.
+        :rtype: str
+        '''
+        raise NotImplementedError(
+            "A generic implementation of this method is not available.")
+
     def __str__(self):
         result = "Schedule[name:'" + self._name + "']:\n"
         for entity in self._children:
@@ -5276,13 +5477,13 @@ class KernelSchedule(Schedule):
 class CodeBlock(Node):
     '''
     Node representing some generic Fortran code that PSyclone does not attempt
-    to manipulate. As such it is a leaf in the PSyIRe and therefore has no
+    to manipulate. As such it is a leaf in the PSyIR and therefore has no
     children.
 
     :param statements: list of fparser2 AST nodes representing the Fortran \
                        code constituting the code block.
     :type statements: list of :py:class:`fparser.two.utils.Base`
-    :param parent: the parent node of this code block in the PSyIRe.
+    :param parent: the parent node of this code block in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, statements, parent=None):
@@ -5290,7 +5491,7 @@ class CodeBlock(Node):
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
-        # from the fparser2 AST to the PSyIRe.
+        # from the fparser2 AST to the PSyIR.
         self._statements = statements[:]
 
     @property
@@ -5299,7 +5500,7 @@ class CodeBlock(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        :return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
@@ -5316,6 +5517,15 @@ class CodeBlock(Node):
     def __str__(self):
         return "CodeBlock[{0} statements]".format(len(self._statements))
 
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :raises GenerationError: gen_c_code always fails for CodeBlocks.
+        '''
+        raise GenerationError("CodeBlock can not be translated to C")
+
 
 class Assignment(Node):
     '''
@@ -5324,7 +5534,7 @@ class Assignment(Node):
 
     :param ast: node in the fparser2 AST representing the assignment.
     :type ast: :py:class:`fparser.two.Fortran2003.Assignment_Stmt.
-    :param parent: the parent node of this Assignment in the PSyIRe.
+    :param parent: the parent node of this Assignment in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, parent=None):
@@ -5336,7 +5546,7 @@ class Assignment(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
@@ -5357,6 +5567,24 @@ class Assignment(Node):
             result += str(entity)
         return result
 
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        '''
+        if len(self.children) != 2:
+            raise GenerationError("Assignment malformed or "
+                                  "incomplete. It should have exactly 2 "
+                                  "children, but it found {0}."
+                                  "".format(str(len(self.children))))
+
+        return self.indent(indent) \
+            + self.children[0].gen_c_code() + " = " \
+            + self.children[1].gen_c_code() + ";"
+
 
 class Reference(Node):
     '''
@@ -5364,7 +5592,7 @@ class Reference(Node):
 
     :param ast: node in the fparser2 AST representing the reference.
     :type ast: :py:class:`fparser.two.Fortran2003.Name.
-    :param parent: the parent node of this Reference in the PSyIRe.
+    :param parent: the parent node of this Reference in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, reference_name, parent):
@@ -5377,7 +5605,7 @@ class Reference(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -5394,6 +5622,16 @@ class Reference(Node):
     def __str__(self):
         return "Reference[name:'" + self._reference + "']\n"
 
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        '''
+        return self._reference
+
 
 class BinaryOperation(Node):
     '''
@@ -5402,7 +5640,7 @@ class BinaryOperation(Node):
 
     :param ast: node in the fparser2 AST representing the binary operator.
     :type ast: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
-    :param parent: the parent node of this BinaryOperator in the PSyIRe.
+    :param parent: the parent node of this BinaryOperator in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, operator, parent=None):
@@ -5415,7 +5653,7 @@ class BinaryOperation(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("BinaryOperation",
@@ -5438,6 +5676,25 @@ class BinaryOperation(Node):
             result += str(entity)
         return result
 
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        '''
+
+        if len(self.children) != 2:
+            raise GenerationError("BinaryOperation malformed or "
+                                  "incomplete. It should have exactly 2 "
+                                  "children, but it found {0}."
+                                  "".format(str(len(self.children))))
+
+        return "(" + self._children[0].gen_c_code() + " " \
+            + self._operator + " " \
+            + self._children[1].gen_c_code() + ")"
+
 
 class Array(Reference):
     '''
@@ -5446,7 +5703,7 @@ class Array(Reference):
 
     :param ast: node in the fparser2 AST representing array.
     :type ast: :py:class:`fparser.two.Fortran2003.Part_Ref.
-    :param parent: the parent node of this Array in the PSyIRe.
+    :param parent: the parent node of this Array in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, reference_name, parent):
@@ -5458,7 +5715,7 @@ class Array(Reference):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -5479,14 +5736,44 @@ class Array(Reference):
             result += str(entity)
         return result
 
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        '''
+        code = super(Array, self).gen_c_code() + "["
+
+        dimensions_remaining = len(self._children)
+        if dimensions_remaining < 1:
+            raise GenerationError("Array must have at least 1 dimension.")
+
+        # In C array expressions should be reversed from the PSyIR order
+        # (column-major to row-major order) and flattened (1D).
+        for child in reversed(self._children):
+            code = code + child.gen_c_code()
+            # For each dimension bigger than one, it needs to write the
+            # appropriate operation to flatten the array. By convention,
+            # the array dimensions are <name>LEN<DIM>.
+            # (e.g. A[3,5,2] -> A[3 * ALEN2 * ALEN1 + 5 * ALEN1 + 2])
+            for dim in reversed(range(1, dimensions_remaining)):
+                dimstring = self._reference + "LEN" + str(dim)
+                code = code + " * " + dimstring
+            dimensions_remaining = dimensions_remaining - 1
+            code = code + " + "
+
+        code = code[:-3] + "]"  # Delete last ' + ' and close bracket
+        return code
+
 
 class Literal(Node):
     '''
     Node representing a Literal
 
-    :param ast: node in the fparser2 AST representing the literal.
-    :type ast: :py:class:`fparser.two.Fortran2003.NumberBase.
-    :param parent: the parent node of this Literal in the PSyIRe.
+    :param str value: string representing the literal value.
+    :param parent: the parent node of this Literal in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, value, parent=None):
@@ -5499,7 +5786,7 @@ class Literal(Node):
         Return the name of this node type with control codes for
         terminal colouring.
 
-        return: Name of node + control chars for colour.
+        :returns: Name of node + control chars for colour.
         :rtype: str
         '''
         return colored("Literal", SCHEDULE_COLOUR_MAP["Literal"])
@@ -5515,3 +5802,13 @@ class Literal(Node):
 
     def __str__(self):
         return "Literal[value:'" + self._value + "']\n"
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :returns: C language code representing the node.
+        :rtype: str
+        '''
+        return self._value

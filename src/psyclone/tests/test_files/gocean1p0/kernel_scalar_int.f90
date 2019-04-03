@@ -41,7 +41,10 @@ module kernel_scalar_int
 contains
   
   subroutine bc_ssh_code(ji, jj, istep, ssha, tmask)
-    use model_mod, only: rdt
+    ! This use statement is not necessary, it is only added 
+    ! to test that use statements are preserved, see test
+    ! gocean1p0_transformation.test_module_inline_with_sub_use
+    use grid_mod
     implicit none
     integer, intent(in)  :: ji, jj
     integer, dimension(:,:),  intent(in)    :: tmask
@@ -52,7 +55,7 @@ contains
 
     amp_tide   = 0.2_go_wp
     omega_tide = 2.0_go_wp * 3.14159_go_wp / (12.42_go_wp * 3600._go_wp)
-    rtime = real(istep,go_wp) * rdt
+    rtime = real(istep,go_wp) * 2.0_go_wp
 
     if(tmask(ji,jj) <= 0) return
     IF     (tmask(ji,jj-1) < 0) THEN

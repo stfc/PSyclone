@@ -564,7 +564,7 @@ end module vanilla
         ''' adds a subroutine to the module that is a raw f2py parse object.
             This is used for inlining kernel subroutines into a module.
         '''
-        from psyclone.parse import KernelProcedure
+        from psyclone.parse.kernel import KernelProcedure
         if not isinstance(content, KernelProcedure):
             raise Exception(
                 "Expecting a KernelProcedure type but received " +
