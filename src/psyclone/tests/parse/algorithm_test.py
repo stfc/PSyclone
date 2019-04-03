@@ -233,7 +233,7 @@ def test_getkernel_noexpr(parser, content):
     tree = Part_Ref("sub({0})".format(content))
     with pytest.raises(NotImplementedError) as excinfo:
         _, _ = get_kernel(tree, "dummy.f90")
-    assert "Expressions containing arguments are not yet supported" \
+    assert "Expressions containing variables are not yet supported" \
         in str(excinfo.value)
 
 
