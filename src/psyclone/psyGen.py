@@ -4667,7 +4667,7 @@ class Fparser2ASTProcessor(object):
         return new_schedule
 
     @staticmethod
-    def _parse_dimensions(dimensions):
+    def _parse_dimensions(dimensions, symbol_table):
         '''
         Parse the fparser dimension attribute into a shape list with
         the extent of each dimension.
@@ -4693,21 +4693,32 @@ class Fparser2ASTProcessor(object):
                 raise NotImplementedError(
                     "Could not process {0}. Assumed-size arrays"
                     " are not supported.".format(dimensions))
+
             elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
                 shape.append(None)
+
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
+                def _invalid_type_error(dimensions):
+                    raise TypeError(
+                        "Could not process {0}. Only scalar integer literals"
+                        " or symbols are allowed for explicit shape array "
+                        "declarations.".format(dimensions))
                 if isinstance(dim.items[1],
                               Fortran2003.Int_Literal_Constant):
                     shape.append(int(dim.items[1].items[0]))
+                elif isinstance(dim.items[1], Fortran2003.Name):
+                    sym = symbol_table.lookup(dim.items[1].string)
+                    if sym.datatype != 'integer' or len(sym.shape) > 0:
+                        _invalid_type_error(dimensions)
+                    shape.append(sym)
                 else:
-                    raise NotImplementedError(
-                        "Could not process {0}. Only integer "
-                        "literals are supported for explicit shape"
-                        " array declarations.".format(dimensions))
+                    _invalid_type_error(dimensions)
+
             else:
                 raise InternalError(
                     "Reached end of loop body and {0} has"
                     " not been handled.".format(type(dim)))
+
         return shape
 
     def process_declarations(self, parent, nodes, arg_list):
@@ -4791,7 +4802,7 @@ class Fparser2ASTProcessor(object):
                             "Could not process {0}. Unrecognized attribute "
                             "'{1}'.".format(decl.items, str(attr)))
                 elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                    shape = self._parse_dimensions(attr)
+                    shape = self._parse_dimensions(attr, parent.symbol_table)
                 else:
                     raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "

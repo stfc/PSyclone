@@ -2923,13 +2923,13 @@ def test_symbol_initialization():
         bad_dim = Symbol('dim', 'real', [])
         Symbol('a', 'real', [bad_dim], 'local')
     assert ("Symbols that are part of another symbol shape can "
-            "only be scalar integer, but found") in str(error.value)
+            "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(TypeError) as error:
         bad_dim = Symbol('dim', 'integer', [3])
         Symbol('a', 'real', [bad_dim], 'local')
     assert ("Symbols that are part of another symbol shape can "
-            "only be scalar integer, but found") in str(error.value)
+            "only be scalar integers, but found") in str(error.value)
 
 
 def test_symbol_scope_setter():
@@ -3489,35 +3489,44 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     from fparser.two.Fortran2003 import Specification_Part
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
+    sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [None]
 
     reader = FortranStringReader("dimension(:,:,:)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [None, None, None]
 
     reader = FortranStringReader("dimension(3,5)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [3, 5]
+
+    sym_table.declare('var1', 'integer', [])
+    reader = FortranStringReader("dimension(var1)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
+    assert len(shape) == 1
+    assert shape[0] == sym_table.lookup('var1')
 
     reader = FortranStringReader("dimension(*)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert "Assumed-size arrays are not supported." in str(error.value)
 
-    reader = FortranStringReader("dimension(var1)")
+    reader = FortranStringReader("dimension(var2)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    with pytest.raises(NotImplementedError) as error:
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    with pytest.raises(TypeError) as error:
+        sym_table.declare("var2", "real", [])
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
-    assert ("Only integer literals are supported for explicit shape array"
-            " declarations.") in str(error.value)
+    assert ("Only scalar integer literals or symbols are allowed for "
+            "explicit shape array declarations.") in str(error.value)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
@@ -3554,7 +3563,7 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(InternalError) as error:
-        shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+        shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, None)
     assert "Reached end of loop body and" in str(error.value)
     assert " has not been handled." in str(error.value)
 
