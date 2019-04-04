@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 
 ''' Tests of transformations with the Dynamo 0.3 API '''
@@ -3726,8 +3726,8 @@ def test_reprod_view(capsys, monkeypatch, annexed):
     from psyclone.dynamo0p3 import DynLoop
     from psyclone.psyGen import OMPDoDirective, colored, SCHEDULE_COLOUR_MAP
 
-    # Ensure we check to text containing the correct (colour) control codes
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    # Ensure we check for text containing the correct (colour) control codes
+    sched = colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     directive = colored("Directive", SCHEDULE_COLOUR_MAP["Directive"])
     gsum = colored("GlobalSum", SCHEDULE_COLOUR_MAP["GlobalSum"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
@@ -3756,7 +3756,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
         result, _ = capsys.readouterr()
         if distmem:  # annexed can be True or False
             expected = (
-                sched + "[invoke='invoke_0' dm=True]\n"
+                sched + "[invoke='invoke_0', dm=True]\n"
                 "    " + directive+"[OMP parallel]\n"
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"
@@ -3781,7 +3781,7 @@ def test_reprod_view(capsys, monkeypatch, annexed):
                 expected = expected.replace("nannexed", "ndofs")
         else:  # not distmem. annexed can be True or False
             expected = (
-                sched + "[invoke='invoke_0' dm=False]\n"
+                sched + "[invoke='invoke_0', dm=False]\n"
                 "    " + directive + "[OMP parallel]\n"
                 "        " + directive + "[OMP do][reprod=True]\n"
                 "            " + loop + "[type='dofs',"
@@ -5499,8 +5499,8 @@ def test_rc_wrong_parent(monkeypatch):
     # apply redundant computation to the loop
     with pytest.raises(TransformationError) as excinfo:
         schedule, _ = rc_trans.apply(schedule.children[3], depth=1)
-    assert ("the parent of the supplied loop must be the Schedule, or a Loop"
-            in str(excinfo.value))
+    assert ("the parent of the supplied loop must be the DynInvokeSchedule, "
+            "or a Loop") in str(excinfo.value)
 
 
 def test_rc_parent_loop_colour(monkeypatch):
@@ -5534,7 +5534,7 @@ def test_rc_parent_loop_colour(monkeypatch):
     schedule, _ = ctrans.apply(schedule.children[3])
 
     # make the parent of the outermost loop something other than
-    # Schedule (we use halo exchange in this case)
+    # InvokeSchedule (we use halo exchange in this case)
     monkeypatch.setattr(schedule.children[3], "parent", schedule.children[0])
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -5542,7 +5542,8 @@ def test_rc_parent_loop_colour(monkeypatch):
     with pytest.raises(TransformationError) as excinfo:
         _, _ = rc_trans.apply(schedule.children[3].children[0], depth=1)
     assert ("if the parent of the supplied Loop is also a Loop then the "
-            "parent's parent must be the Schedule" in str(excinfo.value))
+            "parent's parent must be the DynInvokeSchedule"
+            in str(excinfo.value))
 
     # make the outermost loop iterate over cells (it should be
     # colours). We can ignore the previous monkeypatch as this
@@ -6615,7 +6616,7 @@ def test_intergrid_err(dist_mem):
 def test_no_acc():
     '''
     Check that attempting to add any sort of OpenACC directive to a
-    dynamo0p3 Schedule causes an error.
+    dynamo0p3 InvokeSchedule causes an error.
 
     '''
     from psyclone.transformations import ACCDataTrans, ACCLoopTrans, \
@@ -6649,7 +6650,7 @@ def test_no_acc():
 
 def test_no_ocl():
     ''' Check that attempting to apply an OpenCL transformation to a Dynamo
-    Schedule raises the expected error. '''
+    InvokeSchedule raises the expected error. '''
     from psyclone.transformations import OCLTrans
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",

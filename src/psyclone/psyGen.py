@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -577,7 +577,7 @@ class Invoke(object):
             If not None, this number is added to the name ("invoke_").
         :type idx: Integer.
         :param schedule_class: The schedule class to create for this invoke.
-        :type schedule_class: Schedule class.
+        :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`.
         :param reserved_names: Optional argument: list of reserved names,
                i.e. names that should not be used e.g. as psyclone created
                variable name.
@@ -888,7 +888,7 @@ class Node(object):
     Base class for a node in the PSyIR (schedule).
 
     :param children: the PSyIR nodes that are children of this node.
-    :type children: :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
@@ -1435,6 +1435,70 @@ class Node(object):
 
 
 class Schedule(Node):
+    ''' Stores schedule information for a sequence of statements.
+
+    :param sequence: the sequence of PSyIR nodes that make up the schedule.
+    :type sequence: list of :py:class:`psyclone.psyGen.Node`
+    :param parent: that parent of this node in the PSyIR tree.
+    :type parent:  :py:class:`psyclone.psyGen.Node`
+    '''
+
+    def __init__(self, sequence, parent):
+        Node.__init__(self, children=sequence, parent=parent)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: The name of this node in the dag.
+        :rtype: str
+        '''
+        return "schedule"
+
+    # TODO: Method part of old GUI, it is untested and marked to be
+    # removed in issue #320
+    def tkinter_delete(self):
+        for entity in self._children:
+            entity.tkinter_delete()
+
+    # TODO: Method part of old GUI, it is untested and marked to be
+    # removed in issue #320
+    def tkinter_display(self, canvas, x, y):
+        y_offset = 0
+        for entity in self._children:
+            entity.tkinter_display(canvas, x, y+y_offset)
+            y_offset = y_offset+entity.height
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param int indent: Depth of indent for output text.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    @property
+    def coloured_text(self):
+        '''
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
+
+        :return: Text containing the name of this node, possibly coloured.
+        :rtype: str
+        '''
+        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+
+    def __str__(self):
+        result = "Schedule:\n"
+        for entity in self._children:
+            result += str(entity)+"\n"
+        result += "End Schedule"
+        return result
+
+
+class InvokeSchedule(Schedule):
     '''
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
@@ -1473,25 +1537,10 @@ class Schedule(Node):
                 sequence.append(BuiltInFactory.create(call, parent=self))
             else:
                 sequence.append(KernFactory.create(call, parent=self))
-        Node.__init__(self, children=sequence)
+        Schedule.__init__(self, sequence=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
         self._name_space_manager = NameSpaceFactory().create()
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "schedule"
-
-    def tkinter_delete(self):
-        for entity in self._children:
-            entity.tkinter_delete()
-
-    def tkinter_display(self, canvas, x, y):
-        y_offset = 0
-        for entity in self._children:
-            entity.tkinter_display(canvas, x, y+y_offset)
-            y_offset = y_offset+entity.height
 
     @property
     def invoke(self):
@@ -1523,10 +1572,10 @@ class Schedule(Node):
         :returns: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
-        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     def __str__(self):
-        result = "Schedule:\n"
+        result = "InvokeSchedule:\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
@@ -1611,7 +1660,8 @@ class Schedule(Node):
     @property
     def opencl(self):
         '''
-        :returns: Whether or not we are generating OpenCL for this Schedule.
+        :returns: Whether or not we are generating OpenCL for this \
+            InvokeSchedule.
         :rtype: bool
         '''
         return self._opencl
@@ -1625,8 +1675,9 @@ class Schedule(Node):
         :param bool value: whether or not to generate OpenCL.
         '''
         if not isinstance(value, bool):
-            raise ValueError("Schedule.opencl must be a bool but got {0}".
-                             format(type(value)))
+            raise ValueError(
+                "InvokeSchedule.opencl must be a bool but got {0}".
+                format(type(value)))
         self._opencl = value
 
 
@@ -1693,14 +1744,14 @@ class ACCDirective(Directive):
 class ACCDataDirective(ACCDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
-    a Schedule. Must be sub-classed for a particular API because the way
+    an InvokeSchedule. Must be sub-classed for a particular API because the way
     in which fields are marked as being on the remote device is API-
     -dependent.
 
     :param children: list of nodes which this directive should \
                      have as children.
     :type children: list of :py:class:`psyclone.psyGen.Node`.
-    :param parent: the node in the Schedule to which to add this \
+    :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
     :type parent: :py:class:`psyclone.psyGen.Node`.
     '''
@@ -1800,10 +1851,10 @@ class ACCDataDirective(ACCDirective):
     @abc.abstractmethod
     def data_on_device(self, parent):
         '''
-        Adds nodes into a Schedule to flag that the data required by the
+        Adds nodes into an InvokeSchedule to flag that the data required by the
         kernels in the data region is now on the device.
 
-        :param parent: the node in the Schedule to which to add nodes
+        :param parent: the node in the InvokeSchedule to which to add nodes
         :type parent: :py:class:`psyclone.psyGen.Node`
         '''
 
@@ -2511,6 +2562,9 @@ class GlobalSum(Node):
         print(self.indent(indent) + (
             "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name)))
 
+    def __str__(self):
+        return "GlobalSum[scalar='" + self._scalar.name + "']\n"
+
     @property
     def coloured_text(self):
         '''
@@ -2673,6 +2727,14 @@ class HaloExchange(Node):
             "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                       self._halo_type,
                                       self._halo_depth, self._check_dirty)))
+
+    def __str__(self):
+        result = "HaloExchange["
+        result += "field='" + str(self._field.name) + "', "
+        result += "type='" + str(self._halo_type) + "', "
+        result += "depth='" + str(self._halo_depth) + "', "
+        result += "check_dirty='" + str(self._check_dirty) + "']\n"
+        return result
 
     @property
     def coloured_text(self):
@@ -3259,7 +3321,7 @@ class Call(Node):
 
 class Kern(Call):
     '''
-    Class representing a Kernel call within the Schedule (AST) of an Invoke.
+    Class representing a call to a PSyclone Kernel.
 
     :param type KernelArguments: the API-specific sub-class of \
                                  :py:class:`psyclone.psyGen.Arguments` to \
@@ -5423,7 +5485,7 @@ class KernelSchedule(Schedule):
     '''
 
     def __init__(self, name):
-        super(KernelSchedule, self).__init__(None, None)
+        super(KernelSchedule, self).__init__(sequence=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
 
@@ -5467,7 +5529,7 @@ class KernelSchedule(Schedule):
             "A generic implementation of this method is not available.")
 
     def __str__(self):
-        result = "Schedule[name:'" + self._name + "']:\n"
+        result = "KernelSchedule[name:'" + self._name + "']:\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"

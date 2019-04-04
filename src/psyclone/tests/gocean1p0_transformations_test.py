@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing tests of Transformations when using the
@@ -60,7 +60,7 @@ API = "gocean1.0"
 def test_const_loop_bounds_not_schedule():
     ''' Check that we raise an error if we attempt to apply the
     constant loop-bounds transformation to something that is
-    not a Schedule '''
+    not an InvokeSchedule '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
@@ -370,7 +370,7 @@ def test_omp_region_no_slice(tmpdir):
 
 def test_omp_region_no_slice_no_const_bounds(tmpdir):
     ''' Test that we generate the correct code when we apply an OpenMP
-    PARALLEL region transformation to a list of nodes when the Schedule
+    PARALLEL region transformation to a list of nodes when the InvokeSchedule
     has been transformed to use loop-bound look-ups '''
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1271,7 +1271,6 @@ def test_module_inline_same_kernel():
     # No compilation test here, see test_module_inline_and_compile
 
 
-@Compile.COMPILE
 @pytest.mark.xfail(reason="Inline function uses a module variable (see #315)")
 def test_module_inline_and_compile(tmpdir):
     '''ATM incorrect code is produced if a kernel is inlined, that
@@ -1280,6 +1279,7 @@ def test_module_inline_and_compile(tmpdir):
     again only works if the module variable is accessible outside
     of the module)
     '''
+    Compile.skip_if_compilation_disabled()
     psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
                              idx=0)
     schedule = invoke.schedule
@@ -1441,7 +1441,7 @@ def test_ocl_apply():
     ocl = OCLTrans()
 
     # Check that we raise the correct error if we attempt to apply the
-    # transformation to something that is not a Schedule
+    # transformation to something that is not an InvokeSchedule
     with pytest.raises(TransformationError) as err:
         _, _ = ocl.apply(schedule.children[0])
     assert "the supplied node must be a (sub-class of) Schedule " in str(err)
@@ -1526,13 +1526,14 @@ def test_acc_incorrect_parallel_trans():
         _, _ = acct.apply([schedule.children[0].children[0],
                            schedule.children[0]])
 
-    assert ("supplied nodes are not children of the same Schedule/parent"
+    assert ("supplied nodes are not children of the same parent"
             in str(err))
 
 
 def test_acc_data_not_a_schedule():
     ''' Test that we raise an appropriate error if we attempt to apply
-    an OpenACC Data transformation to something that is not a Schedule. '''
+    an OpenACC Data transformation to something that is not an
+    InvokeSchedule. '''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 

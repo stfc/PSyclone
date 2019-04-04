@@ -140,7 +140,7 @@ when instrumenting invokes - all children of a Profile-Node will
 be part of the profiling region, including all loops created by
 PSyclone and all kernel calls::
 
-    GOSchedule[invoke='invoke_1',Constant loop bounds=True]
+    GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
         [Profile]
             Loop[type='outer',field_space='cu',it_space='internal_pts']
                 Loop[type='inner',field_space='cu',it_space='internal_pts']
@@ -156,7 +156,7 @@ And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
 region::
 
-    GOSchedule[invoke='invoke_1',Constant loop bounds=True]
+    GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
         [Profile]
             Loop[type='outer',field_space='cu',it_space='internal_pts']
                 Loop[type='inner',field_space='cu',it_space='internal_pts']
@@ -172,7 +172,7 @@ region::
 
 Both options can be specified at the same time::
 
-    GOSchedule[invoke='invoke_1',Constant loop bounds=True]
+    GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
         [Profile]
             [Profile]
                 Loop[type='outer',field_space='cu',it_space='internal_pts']
