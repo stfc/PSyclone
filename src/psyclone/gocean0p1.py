@@ -31,15 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module implements the emerging PSyclone GOcean API by specialising
-    the required base classes (PSy, Invokes, Invoke, Schedule, Loop, Kern,
-    Arguments and KernelArgument). '''
+    the required base classes (PSy, Invokes, Invoke, InvokeSchedule, Loop,
+    Kern, Arguments and KernelArgument). '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument
 from psyclone.parse.kernel import KernelType, Descriptor
 from psyclone.parse.utils import ParseError
@@ -148,8 +148,8 @@ class GOInvoke(Invoke):
     def __init__(self, alg_invocation, idx):
         # pylint: disable=using-constant-test
         if False:
-            self._schedule = GOSchedule(None)  # for pyreverse
-        Invoke.__init__(self, alg_invocation, idx, GOSchedule,
+            self._schedule = GOInvokeSchedule(None)  # for pyreverse
+        Invoke.__init__(self, alg_invocation, idx, GOInvokeSchedule,
                         reserved_names=["cf", "ct", "cu", "cv"])
 
     @property
@@ -208,13 +208,14 @@ class GOInvoke(Invoke):
             invoke_sub.add(my_decl_scalars)
 
 
-class GOSchedule(Schedule):
-    ''' The GOcean specific schedule class. All we have to do is supply our
-    API-specific factories to the base Schedule class constructor. '''
+class GOInvokeSchedule(InvokeSchedule):
+    ''' The GOcean specific InvokeSchedule sub-class. All we have to do is
+    supply our API-specific factories to the base InvokeSchedule class
+    constructor. '''
 
     def __init__(self, alg_calls):
-        Schedule.__init__(self, GOKernCallFactory, GOBuiltInCallFactory,
-                          alg_calls)
+        InvokeSchedule.__init__(self, GOKernCallFactory,
+                                GOBuiltInCallFactory, alg_calls)
 
 
 class GOLoop(Loop):
