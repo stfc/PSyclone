@@ -31,16 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
-''' This module provides the various transformations that can
-    be applied to the schedule associated with an invoke(). There
-    are both general and API-specific transformation classes in
-    this module where the latter typically apply API-specific
-    checks before calling the base class for the actual
-    transformation. '''
+''' This module provides the various transformations that can be applied to
+    PSyIR nodes. There are both general and API-specific transformation
+    classes in this module where the latter typically apply API-specific
+    checks before calling the base class for the actual transformation. '''
 
 from __future__ import absolute_import, print_function
 import abc
@@ -101,7 +99,7 @@ class RegionTrans(Transformation):
             if child.parent is not node_parent:
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes "
-                    "are not children of the same Schedule/parent."
+                    "are not children of the same parent."
                     .format(self.name))
             if prev_position >= 0 and prev_position+1 != child.position:
                 raise TransformationError(
@@ -133,7 +131,7 @@ def check_intergrid(node):
 
     # TODO remove this routine once #134 is complete.
 
-    :param node: the Node in the Schedule to check
+    :param node: The PSyIR node to check.
     :type node: :py:class:`psyGen.Node`
 
     :raises TransformationError: if the supplied node has an inter-grid
@@ -313,7 +311,7 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
         :type node1: :py:class:`psyclone.dynamo0p3.DynLoop`
         :param node2: Second Loop to fuse.
         :type node2: :py:class:`psyclone.dynamo0p3.DynLoop`
-        :returns: two-tuple of modified schedule and Memento
+        :returns: two-tuple of modified Schedule and Memento
         :rtype: :py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`
         :raises TransformationError: if either of the supplied loops contains \
@@ -789,9 +787,9 @@ class ACCLoopTrans(ParallelLoopTrans):
         :raises NotImplementedError: if an API other than GOcean 1.0 is \
                                      being used.
         '''
-        from psyclone.gocean1p0 import GOSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
         sched = node.root
-        if not isinstance(sched, GOSchedule):
+        if not isinstance(sched, GOInvokeSchedule):
             raise NotImplementedError(
                 "OpenACC loop transformations are currently only supported "
                 "for the gocean 1.0 API")
@@ -800,7 +798,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     def apply(self, node, collapse=None, independent=True):
         '''
         Apply the ACCLoop transformation to the specified node in a
-        Schedule. This node must be a Loop since this transformation
+        GOInvokeSchedule. This node must be a Loop since this transformation
         corresponds to inserting a directive immediately before a loop, e.g.:
 
         .. code-block:: fortran
@@ -822,9 +820,8 @@ class ACCLoopTrans(ParallelLoopTrans):
         :param bool independent: whether to add the "independent" clause to \
                                  the directive (not strictly necessary within \
                                  PARALLEL regions).
-        :returns: (:py:class:`psyclone.psyGen.Schedule`, \
-                   :py:class:`psyclone.undoredo.Memento`)
-
+        :returns: (:py:class:`psyclone.psyGen.GOInvokeSchedule`, \
+                  :py:class:`psyclone.undoredo.Memento`)
         '''
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
@@ -1332,7 +1329,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
 
         :returns: 2-tuple of new schedule and memento of transform
-        :rtype: (:py:class:`psyclone.dynamo0p3.DynSchedule`, \
+        :rtype: (:py:class:`psyclone.dynamo0p3.DynInvokeSchedule`, \
                  :py:class:`psyclone.undoredo.Memento`)
 
         '''
@@ -1429,7 +1426,7 @@ class ParallelRegionTrans(RegionTrans):
             if child.parent is not node_parent:
                 raise TransformationError(
                     "Error in {0} transformation: supplied nodes are not "
-                    "children of the same Schedule/parent.".format(self.name))
+                    "children of the same parent.".format(self.name))
         super(ParallelRegionTrans, self)._validate(node_list)
 
     def apply(self, nodes):
@@ -1638,9 +1635,9 @@ class ACCParallelTrans(ParallelRegionTrans):
         :raises NotImplementedError: if an API other than GOcean 1.0 is \
                                      being used.
         '''
-        from psyclone.gocean1p0 import GOSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
         sched = node_list[0].root
-        if not isinstance(sched, GOSchedule):
+        if not isinstance(sched, GOInvokeSchedule):
             raise NotImplementedError(
                 "OpenACC parallel regions are currently only "
                 "supported for the gocean 1.0 API")
@@ -1649,7 +1646,7 @@ class ACCParallelTrans(ParallelRegionTrans):
 
 class GOConstLoopBoundsTrans(Transformation):
     ''' Switch on (or off) the use of constant loop bounds within
-    a GOSchedule. In the absence of constant loop bounds, PSyclone will
+    a GOInvokeSchedule. In the absence of constant loop bounds, PSyclone will
     generate loops where the bounds are obtained by de-referencing a field
     object, e.g.:
     ::
@@ -1692,7 +1689,7 @@ class GOConstLoopBoundsTrans(Transformation):
     '''
 
     def __str__(self):
-        return "Use constant loop bounds for all loops in a GOSchedule"
+        return "Use constant loop bounds for all loops in a GOInvokeSchedule"
 
     @property
     def name(self):
@@ -1700,22 +1697,22 @@ class GOConstLoopBoundsTrans(Transformation):
         return "GOConstLoopBoundsTrans"
 
     def apply(self, node, const_bounds=True):
-        '''Switches constant loop bounds on or off for all loops in the
-        schedule :py:obj:`node`. Default is 'on'.
+        '''Switches constant loop bounds on or off for all loops in a
+        GOInvokeSchedule. Default is 'on'.
 
-        :param node: The schedule of which all loops will get the constant
-            loop bounds switched on or off.
-        :type node: :py:class:`psyclone.gocean1p0.GOSchedule`
+        :param node: The GOInvokeSchedule of which all loops will get the
+            constant loop bounds switched on or off.
+        :type node: :py:class:`psyclone.gocean1p0.GOInvokeSchedule`
         :param const_bounds: If the constant loop should be used (True)
             or not (False). Default is True.
         :type const_bounds: bool
         '''
 
         # Check node is a Schedule
-        from psyclone.gocean1p0 import GOSchedule
-        if not isinstance(node, GOSchedule):
+        from psyclone.gocean1p0 import GOInvokeSchedule
+        if not isinstance(node, GOInvokeSchedule):
             raise TransformationError("Error in GOConstLoopBoundsTrans: "
-                                      "node is not a GOSchedule")
+                                      "node is not a GOInvokeSchedule")
 
         keep = Memento(node, self)
 
@@ -1846,7 +1843,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         :py:class:`psyclone.psyGen.Directive`
         :raises GenerationError: if the parent of the loop is not a
         :py:class:`psyclone.psyGen.Loop` or a
-        :py:class:`psyclone.psyGen.Schedule`
+        :py:class:`psyclone.psyGen.DynInvokeSchedule`
         :raises GenerationError: if the parent of the loop is a
         :py:class:`psyclone.psyGen.Loop` but the original loop does
         not iterate over 'colour'
@@ -1855,7 +1852,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         iterate over 'colours'
         :raises GenerationError: if the parent of the loop is a
         :py:class:`psyclone.psyGen.Loop` but the parent's parent is
-        not a :py:class:`psyclone.psyGen.Schedule`
+        not a :py:class:`psyclone.psyGen.DynInvokeSchedule`
         :raises GenerationError: if this transformation is applied
         when distributed memory is not switched on
         :raises GenerationError: if the loop does not iterate over
@@ -1882,7 +1879,8 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
 
         '''
         # check node is a loop
-        from psyclone.psyGen import Loop, Schedule, Directive
+        from psyclone.psyGen import Loop, Directive
+        from psyclone.dynamo0p3 import DynInvokeSchedule
         if not isinstance(node, Loop):
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -1895,7 +1893,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
         # it actually makes sense to require redundant computation
         # transformations to be applied before adding directives so it
         # is not particularly important.
-        if not isinstance(node.parent, (Schedule, Loop)):
+        if not isinstance(node.parent, (DynInvokeSchedule, Loop)):
             if isinstance(node.parent, Directive):
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
@@ -1907,7 +1905,7 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method the parent of the supplied loop must be "
-                    "the Schedule, or a Loop, but found {0}".
+                    "the DynInvokeSchedule, or a Loop, but found {0}".
                     format(type(node.parent)))
         if isinstance(node.parent, Loop):
             if node.loop_type != "colour":
@@ -1922,12 +1920,13 @@ class Dynamo0p3RedundantComputationTrans(Transformation):
                     "apply method, if the parent of the supplied Loop is "
                     "also a Loop then the parent must iterate over "
                     "'colours', but found '{0}'".format(node.parent.loop_type))
-            if not isinstance(node.parent.parent, Schedule):
+            if not isinstance(node.parent.parent, DynInvokeSchedule):
                 raise TransformationError(
                     "In the Dynamo0p3RedundantComputation transformation "
                     "apply method, if the parent of the supplied Loop is "
                     "also a Loop then the parent's parent must be the "
-                    "Schedule, but found {0}".format(type(node.parent)))
+                    "DynInvokeSchedule, but found {0}"
+                    .format(type(node.parent)))
         if not Config.get().distributed_memory:
             raise TransformationError(
                 "In the Dynamo0p3RedundantComputation transformation apply "
@@ -2168,7 +2167,7 @@ class GOLoopSwapTrans(Transformation):
 class OCLTrans(Transformation):
     '''
     Switches on/off the generation of an OpenCL PSy layer for a given
-    Schedule. For example:
+    InvokeSchedule. For example:
 
     >>> invoke = ...
     >>> schedule = invoke.schedule
@@ -2187,14 +2186,14 @@ class OCLTrans(Transformation):
 
     def apply(self, sched, opencl=True):
         '''
-        Apply the OpenCL transformation to the supplied Schedule. This
+        Apply the OpenCL transformation to the supplied GOInvokeSchedule. This
         causes PSyclone to generate an OpenCL version of the corresponding
         PSy-layer routine. The generated code makes use of the FortCL
         library (https://github.com/stfc/FortCL) in order to manage the
         OpenCL device directly from Fortran.
 
-        :param sched: Schedule to transform.
-        :type sched: :py:class:`psyclone.psyGen.Schedule`
+        :param sched: InvokeSchedule to transform.
+        :type sched: :py:class:`psyclone.psyGen.GOInvokeSchedule`
         :param bool opencl: whether or not to enable OpenCL generation.
 
         '''
@@ -2220,9 +2219,9 @@ class OCLTrans(Transformation):
                                      passed by value.
         '''
         from psyclone.psyGen import Schedule, args_filter
-        from psyclone.gocean1p0 import GOSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
         if isinstance(sched, Schedule):
-            if not isinstance(sched, GOSchedule):
+            if not isinstance(sched, GOInvokeSchedule):
                 raise TransformationError(
                     "OpenCL generation is currently only supported for the "
                     "GOcean API but got a Schedule of type: '{0}'".
@@ -2490,9 +2489,9 @@ class ACCDataTrans(Transformation):
         '''
         # Check that the supplied node is a Schedule
         from psyclone.psyGen import Schedule
-        from psyclone.gocean1p0 import GOSchedule
+        from psyclone.gocean1p0 import GOInvokeSchedule
 
-        if isinstance(sched, GOSchedule):
+        if isinstance(sched, GOInvokeSchedule):
             from psyclone.gocean1p0 import GOACCDataDirective as AccDataDir
         elif isinstance(sched, Schedule):
             raise NotImplementedError(
@@ -2636,9 +2635,9 @@ class ACCRoutineTrans(Transformation):
 
 class NemoExplicitLoopTrans(Transformation):
     '''
-    Transforms the outermost array slice in an implicit loop in a NEMO
-    Schedule into an explicit loop. For example, if "implicit_loop.f90"
-    contained:
+    Transforms the outermost array slice in an implicit loop in a
+    NEMOInvokeSchedule into an explicit loop. For example, if
+    "implicit_loop.f90" contained:
 
     .. code-block:: fortran
 

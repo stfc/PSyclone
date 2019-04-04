@@ -49,10 +49,11 @@ end program hello
 '''
 
 
-@Compile.COMPILE
 def test_compiler_works(tmpdir):
     ''' Check that the specified compiler works for a hello-world
     example '''
+    Compile.skip_if_compilation_disabled()
+
     old_pwd = tmpdir.chdir()
     try:
         with open("hello_world.f90", "w") as ffile:
@@ -62,13 +63,13 @@ def test_compiler_works(tmpdir):
         old_pwd.chdir()
 
 
-@Compile.COMPILE
 def test_compiler_with_flags(tmpdir):
     ''' Check that we can pass through flags to the Fortran compiler.
     Since correct flags are compiler-dependent and hard to test,
     we pass something that is definitely not a flag and check that
     the compiler complains. This test is skipped if no compilation
     tests have been requested (--compile flag to py.test). '''
+    Compile.skip_if_compilation_disabled()
     old_pwd = tmpdir.chdir()
     try:
         with open("hello_world.f90", "w") as ffile:
@@ -86,11 +87,11 @@ def test_compiler_with_flags(tmpdir):
         old_pwd.chdir()
 
 
-@Compile.COMPILE
 def test_build_invalid_fortran(tmpdir):
     ''' Check that we raise the expected error when attempting
     to compile some invalid Fortran. Skips test if --compile not
     supplied to py.test on command-line. '''
+    Compile.skip_if_compilation_disabled()
     invalid_code = HELLO_CODE.replace("write", "wite", 1)
     old_pwd = tmpdir.chdir()
     try:
@@ -121,10 +122,10 @@ def test_find_fortran_file(tmpdir):
         old_pwd.chdir()
 
 
-@Compile.COMPILE
 def test_compile_str(monkeypatch, tmpdir):
     ''' Checks for the routine that compiles Fortran supplied as a string '''
     # Check that we always return True if compilation testing is disabled
+    Compile.skip_if_compilation_disabled()
     _compile = Compile(tmpdir)
     monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE", False)
     monkeypatch.setattr("psyclone_test_utils.Compile.TEST_COMPILE_OPENCL",
