@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -59,7 +59,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
@@ -461,12 +461,12 @@ def test_invokes_can_always_be_printed():
     assert inv.__str__() == "invoke()"
 
     invoke_call = InvokeCall([], "TestName")
-    inv = Invoke(invoke_call, 12, DynSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
     invoke_call._name = None
-    inv = Invoke(invoke_call, 12, DynSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     assert inv.__str__() == "invoke_12()"
 
     # Last test case: one kernel call - to avoid constructing
@@ -477,7 +477,7 @@ def test_invokes_can_always_be_printed():
         api="dynamo0.3")
 
     alg_invocation = invoke.calls[0]
-    inv = Invoke(alg_invocation, 0, DynSchedule)
+    inv = Invoke(alg_invocation, 0, DynInvokeSchedule)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1 % my_field, m1, m2)"
 
@@ -546,21 +546,56 @@ contains
 end module dummy_mod
 '''
 
+
 # Schedule class tests
 
-
 def test_sched_view(capsys):
-    ''' Check the view method of the Schedule class. We need a Schedule
-    object for this so go via the dynamo0.3 sub-class '''
+    ''' Check the view method of the Schedule class'''
+    from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = Schedule
+    psy.invokes.invoke_list[0].schedule.view()
+
+    output, _ = capsys.readouterr()
+    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+
+
+def test_sched_can_be_printed():
+    ''' Check the schedule class can always be printed'''
+    from psyclone.psyGen import Schedule
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = Schedule
+    output = str(psy.invokes.invoke_list[0].schedule)
+
+    assert "Schedule:\n" in output
+
+
+# InvokeSchedule class tests
+
+def test_invokeschedule_view(capsys):
+    ''' Check the view method of the InvokeSchedule class. We need an
+    InvokeSchedule object for this so go via the dynamo0.3 sub-class '''
     from psyclone import dynamo0p3
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    super(dynamo0p3.DynSchedule, psy.invokes.invoke_list[0].schedule).view()
+    super(dynamo0p3.DynInvokeSchedule,
+          psy.invokes.invoke_list[0].schedule
+          ).view()
     output, _ = capsys.readouterr()
-    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+    assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
 
 def test_sched_ocl_setter():
@@ -573,6 +608,21 @@ def test_sched_ocl_setter():
     with pytest.raises(ValueError) as err:
         psy.invokes.invoke_list[0].schedule.opencl = "a string"
     assert "Schedule.opencl must be a bool but got " in str(err)
+
+
+def test_invokeschedule_can_be_printed():
+    ''' Check the InvokeSchedule class can always be printed'''
+    from psyclone.psyGen import InvokeSchedule
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = InvokeSchedule
+    output = str(psy.invokes.invoke_list[0].schedule)
+
+    assert "InvokeSchedule:\n" in output
 
 
 # Kern class test
@@ -1524,6 +1574,21 @@ def test_call_args():
     # 2) builtin
     for idx, arg in enumerate(builtin.args):
         assert arg == builtin.arguments.args[idx]
+
+
+def test_haloexchange_can_be_printed():
+    '''Test that the HaloExchange class can always be printed'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    for haloexchange in schedule.children[:2]:
+        assert "HaloExchange[field='" in str(haloexchange)
+        assert "', type='" in str(haloexchange)
+        assert "', depth='" in str(haloexchange)
+        assert "', check_dirty='" in str(haloexchange)
 
 
 def test_haloexchange_args():

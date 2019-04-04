@@ -71,18 +71,6 @@ def pytest_addoption(parser):
 
 
 @pytest.fixture
-def f90(request):
-    ''' Gets the value of the f90 command-line option '''
-    return request.config.getoption("--f90")
-
-
-@pytest.fixture
-def f90flags(request):
-    ''' Gets the value of the f90flags command-line option '''
-    return request.config.getoption("--f90flags")
-
-
-@pytest.fixture
 def have_graphviz():
     ''' Whether or not the system has graphviz installed. Note that this
     only checks for the Python bindings. The underlying library must
@@ -92,10 +80,15 @@ def have_graphviz():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def infra_compile(tmpdir_factory):
-    '''A per-session initialisation function that makes sure that the
-    infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled.
+def infra_compile(tmpdir_factory, request):
+    '''A per-session initialisation function that sets the compilation flags
+    in the Compile class based on command line options for --compile,
+    --compileopencl, --f90, --f90flags. Then makes sure that the
+    infrastructure files for the dynamo0p3 and gocean1p0 APIs are compiled
+    (if compilation was enabled).
     '''
+    from psyclone_test_utils import Compile
+    Compile.store_compilation_flags(request.config)
 
     from dynamo0p3_build import Dynamo0p3Build
     # Create a temporary directory to store the compiled files.
