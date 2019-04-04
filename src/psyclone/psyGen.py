@@ -4872,7 +4872,7 @@ class Fparser2ASTProcessor(object):
         Create a PSyIR node representing the supplied fparser 2 node.
 
         :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.Base`
+        :type child: :py:class:`fparser.two.utils.Base`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
@@ -4901,8 +4901,8 @@ class Fparser2ASTProcessor(object):
         This handler returns None indicating that the associated
         fparser2 node can be ignored.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.Base`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.Base`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: None
@@ -4914,8 +4914,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 If_Stmt to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.If_Stmt`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.If_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -4930,13 +4930,13 @@ class Fparser2ASTProcessor(object):
 
     def _return_handler(self, node, parent):
         '''
-        Transforms an fparser2 Return_Stmt to the PSyIRe representation.
+        Transforms an fparser2 Return_Stmt to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child: :py:class:`fparser.two.Fortran2003.Return_Stmt`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Return_Stmt`
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Return`
         '''
         return Return(parent=parent)
@@ -4945,8 +4945,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Assignment_Stmt to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -4962,13 +4962,13 @@ class Fparser2ASTProcessor(object):
 
     def _unary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 UnaryOpBase to the PSyIRe representation.
+        Transforms an fparser2 UnaryOpBase to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child: :py:class:`fparser.two.utils.UnaryOpBase`
-        :param parent: Parent node of the PSyIRe node we are constructing.
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.UnaryOpBase`
+        :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: PSyIRe representation of node
+        :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
         '''
         # Get the operator
@@ -4984,8 +4984,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 BinaryOp to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.BinaryOpBase`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.BinaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5006,8 +5006,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Name to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Name`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Name`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5021,8 +5021,8 @@ class Fparser2ASTProcessor(object):
         This means ignoring the parentheis and process the fparser2 children
         inside.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Parenthesis`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Parenthesis`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5037,8 +5037,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Part_Ref to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5066,8 +5066,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 NumberBase to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.NumberBase`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.NumberBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5614,8 +5614,8 @@ class Assignment(Node):
         if len(self.children) != 2:
             raise GenerationError("Assignment malformed or "
                                   "incomplete. It should have exactly 2 "
-                                  "children, but it found {0}."
-                                  "".format(str(len(self.children))))
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
 
         return self.indent(indent) \
             + self.children[0].gen_c_code() + " = " \
@@ -5672,7 +5672,7 @@ class Reference(Node):
 class UnaryOperation(Node):
     '''
     Node representing a UnaryOperation expression. As such it has one operand
-    as children 0, and an attribute with the operator type.
+    as child 0, and an attribute with the operator type.
 
     :param str operator: string representing the unary operator.
     :param parent: the parent node of this UnaryOperation in the PSyIR.
@@ -5680,6 +5680,8 @@ class UnaryOperation(Node):
     '''
     def __init__(self, operator, parent=None):
         super(UnaryOperation, self).__init__(parent=parent)
+        # TODO: (Issue #339) Create an Operator entity to have more robust
+        # operators than the current string.
         self._operator = operator
 
     @property
@@ -5723,8 +5725,8 @@ class UnaryOperation(Node):
         if len(self.children) != 1:
             raise GenerationError("UnaryOperation malformed or "
                                   "incomplete. It should have exactly 1 "
-                                  "children, but it found {0}."
-                                  "".format(str(len(self.children))))
+                                  "child, but found {0}."
+                                  "".format(len(self.children)))
 
         return "(" + self._operator + " " \
             + self._children[0].gen_c_code() + ")"
@@ -5786,8 +5788,8 @@ class BinaryOperation(Node):
         if len(self.children) != 2:
             raise GenerationError("BinaryOperation malformed or "
                                   "incomplete. It should have exactly 2 "
-                                  "children, but it found {0}."
-                                  "".format(str(len(self.children))))
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
 
         return "(" + self._children[0].gen_c_code() + " " \
             + self._operator + " " \

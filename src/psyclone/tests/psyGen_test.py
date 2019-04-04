@@ -2668,7 +2668,7 @@ def test_assignment_gen_c_code():
     with pytest.raises(GenerationError) as err:
         _ = assignment.gen_c_code()
     assert("Assignment malformed or incomplete. It should have "
-           "exactly 2 children, but it found 0." in str(err.value))
+           "exactly 2 children, but found 0." in str(err.value))
     ref = Reference("a", assignment)
     lit = Literal("1", assignment)
     assignment.addchild(ref)
@@ -2820,7 +2820,7 @@ def test_binaryoperation_gen_c_code():
     with pytest.raises(GenerationError) as err:
         _ = binary_operation.gen_c_code()
     assert("BinaryOperation malformed or incomplete. It should have "
-           "exactly 2 children, but it found 0." in str(err.value))
+           "exactly 2 children, but found 0." in str(err.value))
     lit1 = Literal("1", binary_operation)
     lit2 = Literal("2", binary_operation)
     binary_operation.addchild(lit1)
@@ -2860,7 +2860,7 @@ def test_unaryoperation_gen_c_code():
     with pytest.raises(GenerationError) as err:
         _ = unary_operation.gen_c_code()
     assert("UnaryOperation malformed or incomplete. It should have "
-           "exactly 1 children, but it found 0." in str(err.value))
+           "exactly 1 child, but found 0." in str(err.value))
     lit1 = Literal("1", unary_operation)
     unary_operation.addchild(lit1)
     assert unary_operation.gen_c_code() == '(- 1)'
@@ -3759,9 +3759,10 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
+    from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
     reader = FortranStringReader("x=-4")
     fparser2unary_operation = Execution_Part.match(reader)[0][0].items[2]
+    assert isinstance(fparser2unary_operation, UnaryOpBase)
 
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
@@ -3774,14 +3775,15 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     assert new_node._operator == '-'
 
 
-def test_fparser2astprocessor_handling_retrun_stmt(f2008_parser):
+def test_fparser2astprocessor_handling_return_stmt(f2008_parser):
     ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
+    from fparser.two.Fortran2003 import Execution_Part, Return_Stmt
     reader = FortranStringReader("return")
     return_stmt = Execution_Part.match(reader)[0][0]
+    assert isinstance(return_stmt, Return_Stmt)
 
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
