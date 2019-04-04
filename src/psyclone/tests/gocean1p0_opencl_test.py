@@ -40,12 +40,19 @@ GOcean 1.0 API.'''
 from __future__ import print_function, absolute_import
 import pytest
 from gocean1p0_build import GOcean1p0OpenCLBuild
+from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
 from psyclone.psyGen import GenerationError
 from psyclone_test_utils import Compile, get_invoke
 
 API = "gocean1.0"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
 
 
 # ----------------------------------------------------------------------------

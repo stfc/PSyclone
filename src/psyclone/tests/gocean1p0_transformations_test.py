@@ -42,6 +42,7 @@ import os
 import re
 import pytest
 from gocean1p0_build import GOcean1p0Build
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
@@ -55,6 +56,12 @@ from psyclone_test_utils import count_lines, get_invoke, Compile
 # The version of the PSyclone API that the tests in this file
 # exercise
 API = "gocean1.0"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
 
 
 def test_const_loop_bounds_not_schedule():
@@ -1421,7 +1428,12 @@ def test_go_loop_swap_errors():
                          "test_files", "dynamo0p3",
                          "1.0.1_single_named_invoke.f90"),
                     api="dynamo0.3")
+    # TODO: that still doesn't work, we have inconsistent values
+    # in some psygen objects (read vs gh_read)
+    Config.get().api = "dynamo0.3"
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(info)
+    Config.get().api = "gocean1.0"
+
     invokes = psy.invokes
     invoke = invokes.get(list(invokes.names)[0])
     with pytest.raises(TransformationError) as error:

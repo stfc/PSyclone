@@ -46,7 +46,8 @@ from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InternalError
 
 
-def setup_module():
+@pytest.fixture(scope="module", autouse=True)
+def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
 
