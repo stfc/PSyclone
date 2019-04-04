@@ -41,6 +41,7 @@ import os
 import pytest
 from psyclone.generator import generate, GenerationError
 from psyclone.algGen import NoInvokesError, adduse
+from psyclone.psyGen import InternalError
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -511,6 +512,26 @@ def test_adduse_only_names2(parser):
             "  INTEGER :: i\n") in str(new_parse_tree)
 
 
+def test_adduse_only_names3(parser):
+    '''Test that the expected output is obtained in a Fortran function
+    when variable/function names are provided for a use statement and
+    only is True.
+
+    '''
+    parse_tree = get_parse_tree(
+        "integer function test()\n"
+        "  integer :: i\n"
+        "  return i\n"
+        "end function test\n", parser)
+    location = parse_tree.content[0].content[0]
+    name = "my_use"
+
+    new_parse_tree = adduse(parse_tree, location, name, only=True,
+                            funcnames=["a", "b", "c"])
+    assert ("INTEGER FUNCTION test()\n  USE my_use, ONLY: a, b, c\n"
+            "  INTEGER :: i\n") in str(new_parse_tree)
+
+
 def test_adduse_only_nonames(parser):
     '''Test that the expected output is obtained when no variable/function
     names are provided for a use statement and only is True.
@@ -619,27 +640,8 @@ def test_adduse_unsupportedparent1(parser):
 
     with pytest.raises(NotImplementedError) as excinfo:
         _ = adduse(parse_tree, location, name)
-    assert "Currently support is limited to subroutine and program." \
-        in str(excinfo.value)
-
-
-def test_adduse_unsupportedparent2(parser):
-    '''Test that the expected exception is raised when the specified
-    location has an ancestor that is a function.
-
-    '''
-    parse_tree = get_parse_tree(
-        "integer function test()\n"
-        "  integer :: i\n"
-        "  return i\n"
-        "end function test\n", parser)
-    location = parse_tree.content[0].content[0]
-    name = "my_use"
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = adduse(parse_tree, location, name)
-    assert "Currently support is limited to subroutine and program." \
-        in str(excinfo.value)
+    assert ("Currently support is limited to program, subroutine and "
+            "function.") in str(excinfo.value)
 
 
 def test_adduse_nospec(parser):
@@ -656,7 +658,7 @@ def test_adduse_nospec(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _ = adduse(parse_tree, location, name)
     assert ("The second child of the parent code (content[1]) is expected "
             "to be a specification part but found 'End_Program_Stmt"
