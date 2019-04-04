@@ -4780,11 +4780,13 @@ class Fparser2ASTProcessor(object):
                     datatype = 'integer'
                 elif str(type_spec.items[0]).lower() == 'character':
                     datatype = 'character'
+                elif str(type_spec.items[0]).lower() == 'logical':
+                    datatype = 'boolean'
             if datatype is None:
                 raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer' "
-                        "and 'character' intrinsic types are supported."
-                        "".format(str(decl.items)))
+                        "Could not process {0}. Only 'real', 'integer', "
+                        "'logical' and 'character' intrinsic types are "
+                        "supported.".format(str(decl.items)))
 
             # Parse declaration attributes
             # If no dimension is provided, it is a scalar
@@ -4824,14 +4826,15 @@ class Fparser2ASTProcessor(object):
             # parent symbol table for each entity found.
             for entity in iterateitems(entities):
                 (name, array_spec, char_len, initialization) = entity.items
+                entity_shape = shape
                 if (array_spec is not None):
                     # Check that shape has not been filled yet.
                     if shape:
                         raise InternalError(
                             "Could not process {}. Multiple dimension "
                             "specifications found.".format(decl.items))
-                    shape = self._parse_dimensions(array_spec,
-                                                   parent.symbol_table)
+                    entity_shape = self._parse_dimensions(
+                        array_spec, parent.symbol_table)
 
                 if (initialization is not None):
                     raise NotImplementedError(
@@ -4845,8 +4848,9 @@ class Fparser2ASTProcessor(object):
                         "specifications are not supported."
                         "".format(decl.items))
 
-                parent.symbol_table.declare(str(name), datatype, shape,
-                                            scope, is_input, is_output)
+                parent.symbol_table.declare(
+                    str(name), datatype, entity_shape, scope, is_input,
+                    is_output)
 
         try:
             arg_strings = [x.string for x in arg_list]
@@ -5108,7 +5112,7 @@ class Symbol(object):
     # Tuple with the valid values for the access attribute.
     valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.
-    valid_data_types = ('real', 'integer', 'character')
+    valid_data_types = ('real', 'integer', 'character', 'boolean')
 
     def __init__(self, name, datatype, shape=[], scope='local',
                  is_input=False, is_output=False):
@@ -5277,6 +5281,8 @@ class Symbol(object):
             code = code + "int "
         elif self.datatype == "character":
             code = code + "char "
+        elif self.datatype == "boolean":
+            code = code + "bool "
         else:
             raise NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "

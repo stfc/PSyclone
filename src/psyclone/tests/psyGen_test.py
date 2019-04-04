@@ -3387,8 +3387,14 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l4").datatype == 'integer'
     assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
 
+    reader = FortranStringReader("integer :: l5(2), l6(3)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l5").shape == [2]
+    assert fake_parent.symbol_table.lookup("l6").shape == [3]
+
     # Test multiple dimension declaration case
-    reader = FortranStringReader("integer, dimension(2) :: l5(l1)")
+    reader = FortranStringReader("integer, dimension(2) :: l7(l1)")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(InternalError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
@@ -3396,13 +3402,13 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert "Multiple dimension specifications found." in str(error.value)
 
     # Test with unsupported data type
-    reader = FortranStringReader("logical      ::      c2")
+    reader = FortranStringReader("doubleprecision     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
-    assert (". Only 'real', 'integer' and 'character' intrinsic types are"
-            " supported.") in str(error.value)
+    assert (". Only 'real', 'integer', 'logical' and 'character' intrinsic "
+            "types are supported.") in str(error.value)
 
     # Test with unsupported attribute
     reader = FortranStringReader("real, public :: p2")
