@@ -2950,6 +2950,7 @@ def test_symbol_initialization():
     assert isinstance(Symbol('a', 'real'), Symbol)
     assert isinstance(Symbol('a', 'integer'), Symbol)
     assert isinstance(Symbol('a', 'character'), Symbol)
+    assert isinstance(Symbol('a', 'boolean'), Symbol)
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
@@ -3073,6 +3074,9 @@ def test_symbol_gen_c_definition():
 
     sym_3 = Symbol("name", "real", [None, None])
     assert sym_3.gen_c_definition() == "double * restrict name"
+
+    sym_4 = Symbol("name", "boolean", [])
+    assert sym_4.gen_c_definition() == "bool name"
 
     sym_1._datatype = "invalid"
     with pytest.raises(NotImplementedError) as err:
@@ -3598,6 +3602,7 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     assert len(shape) == 1
     assert shape[0] == sym_table.lookup('var1')
 
+    # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
@@ -3605,10 +3610,21 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     assert "Could not process " in str(error.value)
     assert "Assumed-size arrays are not supported." in str(error.value)
 
+    # Explicit shape symbols must be integer
     reader = FortranStringReader("dimension(var2)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(TypeError) as error:
         sym_table.declare("var2", "real", [])
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
+    assert "Could not process " in str(error.value)
+    assert ("Only scalar integer literals or symbols are allowed for "
+            "explicit shape array declarations.") in str(error.value)
+
+    # Explicit shape symbols can only be Literal or Symbol
+    with pytest.raises(TypeError) as error:
+        class UnrecognizedType(object):
+            pass
+        fparser2spec.items[1].items[1].__class__ = UnrecognizedType
         _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are allowed for "
