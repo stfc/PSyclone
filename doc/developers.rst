@@ -1720,9 +1720,11 @@ The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 a PSyIR Schedule but with the addition of a Symbol Table
 (see :ref:`kernel_schedule-label`).
 
+Transformations
+###############
 
-OpenACC Support
----------------
+OpenACC
+=======
 
 PSyclone is able to generate code for execution on a GPU through the
 use of OpenACC. Support for generating OpenACC code is implemented via
@@ -1782,8 +1784,8 @@ description of the ``ACCDataTrans`` transformation in the
 
 .. _opencl_dev:
 
-OpenCL Support
-##############
+OpenCL
+======
 
 PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API. Such code may then be executed
@@ -1886,7 +1888,7 @@ of this setup is done, the kernel itself is launched by calling
 				  C_NULL_PTR, 0, C_NULL_PTR, C_NULL_PTR)
 
 Limitations
-===========
+-----------
 
 Currently PSyclone can only generate the OpenCL version of the PSy
 layer.  Execution of the resulting code requires that the kernels
