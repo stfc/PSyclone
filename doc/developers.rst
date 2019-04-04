@@ -1563,7 +1563,8 @@ Module: f2pygen
 ===============
 
 `f2pygen` provides functionality for generating Fortran code from
-scratch (i.e. when not modifying existing source).
+scratch and supports the addition of a use statement to an existing
+parse tree.
 
 Variable Declarations
 ---------------------
@@ -1605,6 +1606,26 @@ The full interface to each of these classes is detailed below:
 .. autoclass:: psyclone.f2pygen.TypeDeclGen
     :members:
     :noindex:
+
+Adding code
+-----------
+
+`f2pygen` supports the addition of use statements to an existing
+`fparser1` parse tree:
+
+.. autofunction:: psyclone.f2pygen.adduse
+
+
+The PSyclone code where the `adduse` function was used has recently
+been migrated from using `fparser1` to using `fparser2`. In
+recognition of this change a new version of `adduse` has been
+developed which adds use statements to an existing `fparser2` parse
+tree. For the timebeing this new version is located in the same file
+it is used - `algGen.py` - but will be migrated to `f2pygen` (or
+equivalent) in the future:
+
+.. autofunction:: psyclone.algGen.adduse
+
 
 Module: configuration
 ======================
