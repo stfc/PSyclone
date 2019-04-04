@@ -48,7 +48,7 @@ from fparser.two.Fortran2003 import Main_Program, Module, \
     Call_Stmt, Actual_Arg_Spec_List, Actual_Arg_Spec, Part_Ref, \
     Only_List, Char_Literal_Constant, Section_Subscript_List, \
     Name, Real_Literal_Constant, Data_Ref, Int_Literal_Constant, \
-    Function_Reference
+    Function_Reference, Level_2_Unary_Expr, Add_Operand, Parenthesis
 # pylint: enable=no-name-in-module
 
 from psyclone.configuration import Config
@@ -549,6 +549,7 @@ def get_kernel(parse_tree, alg_filename):
     :raises InternalError: if an unsupported argument format is found.
 
     '''
+    # pylint: disable=too-many-branches
     if not isinstance(parse_tree, Part_Ref):
         raise InternalError(
             "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref) "
@@ -572,19 +573,21 @@ def get_kernel(parse_tree, alg_filename):
 
     arguments = []
     for argument in argument_list:
-        if isinstance(argument, Name):
+        if isinstance(argument, (Real_Literal_Constant, Int_Literal_Constant)):
+            # A simple constant e.g. 1.0, or 1_i_def
+            arguments.append(Arg('literal', argument.tostr().lower()))
+        elif isinstance(argument, Name):
+            # A simple variable e.g. arg
             full_text = str(argument).lower()
             var_name = full_text
             arguments.append(Arg('variable', full_text, var_name))
-        elif isinstance(argument, Real_Literal_Constant):
-            arguments.append(Arg('literal', argument.tostr().lower()))
-        elif isinstance(argument, Int_Literal_Constant):
-            arguments.append(Arg('literal', argument.tostr().lower()))
         elif isinstance(argument, Part_Ref):
+            # An indexed variable e.g. arg(n)
             full_text = argument.tostr().lower()
             var_name = str(argument.items[0]).lower()
             arguments.append(Arg('indexed_variable', full_text, var_name))
         elif isinstance(argument, Function_Reference):
+            # A function reference e.g. func()
             full_text = argument.tostr().lower()
             designator = argument.items[0]
             lhs = designator.items[0]
@@ -594,9 +597,26 @@ def get_kernel(parse_tree, alg_filename):
             var_name = var_name.lower()
             arguments.append(Arg('indexed_variable', full_text, var_name))
         elif isinstance(argument, Data_Ref):
+            # A structure dereference e.g. base%arg, base%arg(n)
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
             arguments.append(Arg('variable', full_text, var_name))
+        elif isinstance(argument, (Level_2_Unary_Expr, Add_Operand,
+                                   Parenthesis)):
+            # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
+            # reason Add_Operation represents binary expressions in
+            # fparser2.  Walk the tree to look for an argument.
+            if not walk_ast([argument], [Name]):
+                # This is a literal so store the full expression as a
+                # string
+                arguments.append(Arg('literal', argument.tostr().lower()))
+            else:
+                raise NotImplementedError(
+                    "algorithm.py:get_kernel: Expressions containing "
+                    "variables are not yet supported '{0}', value '{1}', "
+                    "kernel '{2}' in file '{3}'.".format(
+                        type(argument), str(argument), parse_tree,
+                        alg_filename))
         else:
             raise InternalError(
                 "algorithm.py:get_kernel: Unsupported argument structure "
