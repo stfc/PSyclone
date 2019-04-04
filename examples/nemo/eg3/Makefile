@@ -63,7 +63,7 @@ dl_timer:
 	make -C ${TIMER_DIR} sm_lib
 
 psy.f90:
-	psyclone -l -api "nemo" -s ./nemo_kernels_trans.py -opsy psy.f90 ../code/tra_adv.F90
+	psyclone -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 ../code/tra_adv.F90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<

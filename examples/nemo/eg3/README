@@ -34,7 +34,7 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 This directory contains an example transformation script,
-nemo_kernels_trans.py, that demonstrates the use of PSyclone to add
+kernels_trans.py, that demonstrates the use of PSyclone to add
 OpenACC Kernel and Data directives for the tra_adv.F90
 code. Note, the transformations are indicative of what could be done -
 no claim is made as to the performance of the resulting code.
@@ -42,7 +42,7 @@ no claim is made as to the performance of the resulting code.
 Once you have installed PSyclone, this script may be supplied to
 PSyclone:
 
-    $ psyclone -api nemo -s ./nemo_kernels_trans.py ../code/tra_adv.F90
+    $ psyclone -api nemo -s ./kernels_trans.py ../code/tra_adv.F90
 
 Executing this will output 1) the PSyclone invokes found in the code,
 2) PSyclone's Schedule view of the original code, 3) PSyclone's

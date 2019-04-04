@@ -76,49 +76,49 @@ if __name__ == "__main__":
     from psyclone.parse.algorithm import parse
     from psyclone.psyGen import PSyFactory, TransInfo
 
-    api = "gocean1.0"
-    _, invokeinfo = parse("shallow_alg.f90", api=api)
-    psy = PSyFactory(api).create(invokeinfo)
-    print(psy.gen)
+    API = "gocean1.0"
+    _, INVOKEINFO = parse("shallow_alg.f90", api=API)
+    PSY = PSyFactory(API).create(INVOKEINFO)
+    print(PSY.gen)
 
-    print(psy.invokes.names)
-    schedule = psy.invokes.get('invoke_0').schedule
-    schedule.view()
+    print(PSY.invokes.names)
+    SCHEDULE = PSY.invokes.get('invoke_0').schedule
+    SCHEDULE.view()
 
-    trans_info = TransInfo()
-    print(trans_info.list)
-    fuse_trans = trans_info.get_trans_name('LoopFuse')
-    ptrans = trans_info.get_trans_name('ACCParallelTrans')
-    dtrans = trans_info.get_trans_name('ACCEnterDataTrans')
-    ltrans = trans_info.get_trans_name('ACCLoopTrans')
+    TRANS_INFO = TransInfo()
+    print(TRANS_INFO.list)
+    FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
+    PTRANS = TRANS_INFO.get_trans_name('ACCParallelTrans')
+    DTRANS = TRANS_INFO.get_trans_name('ACCEnterDataTrans')
+    LTRANS = TRANS_INFO.get_trans_name('ACCLoopTrans')
 
     # invoke0
     # fuse all outer loops
-    lf1_schedule, _ = fuse_trans.apply(schedule.children[0],
-                                       schedule.children[1])
-    lf2_schedule, _ = fuse_trans.apply(lf1_schedule.children[0],
-                                       lf1_schedule.children[1])
-    lf3_schedule, _ = fuse_trans.apply(lf2_schedule.children[0],
-                                       lf2_schedule.children[1])
-    lf3_schedule.view()
+    LF1_SCHEDULE, _ = FUSE_TRANS.apply(SCHEDULE.children[0],
+                                       SCHEDULE.children[1])
+    LF2_SCHEDULE, _ = FUSE_TRANS.apply(LF1_SCHEDULE.children[0],
+                                       LF1_SCHEDULE.children[1])
+    LF3_SCHEDULE, _ = FUSE_TRANS.apply(LF2_SCHEDULE.children[0],
+                                       LF2_SCHEDULE.children[1])
+    LF3_SCHEDULE.view()
 
     # fuse all inner loops
-    lf4_schedule, _ = fuse_trans.apply(lf3_schedule.children[0].children[0],
-                                       lf3_schedule.children[0].children[1])
-    lf5_schedule, _ = fuse_trans.apply(lf4_schedule.children[0].children[0],
-                                       lf4_schedule.children[0].children[1])
-    lf6_schedule, _ = fuse_trans.apply(lf5_schedule.children[0].children[0],
-                                       lf5_schedule.children[0].children[1])
-    lf6_schedule.view()
+    LF4_SCHEDULE, _ = FUSE_TRANS.apply(LF3_SCHEDULE.children[0].children[0],
+                                       LF3_SCHEDULE.children[0].children[1])
+    LF5_SCHEDULE, _ = FUSE_TRANS.apply(LF4_SCHEDULE.children[0].children[0],
+                                       LF4_SCHEDULE.children[0].children[1])
+    LF6_SCHEDULE, _ = FUSE_TRANS.apply(LF5_SCHEDULE.children[0].children[0],
+                                       LF5_SCHEDULE.children[0].children[1])
+    LF6_SCHEDULE.view()
 
     # Apply an OpenACC loop directive to the loop
-    sched, _ = ltrans.apply(lf6_schedule.children[0], collapse=2)
+    SCHED, _ = LTRANS.apply(LF6_SCHEDULE.children[0], collapse=2)
 
     # Create an OpenACC parallel region around the loop
-    ol_schedule, _ = ptrans.apply(sched.children[0])
-    ol_schedule.view()
+    OL_SCHEDULE, _ = PTRANS.apply(SCHED.children[0])
+    OL_SCHEDULE.view()
 
     # Add an OpenACC enter-data directive
-    sched, _ = dtrans.apply(ol_schedule)
-    psy.invokes.get('invoke_0').schedule = sched
-    print(psy.gen)
+    SCHED, _ = DTRANS.apply(OL_SCHEDULE)
+    PSY.invokes.get('invoke_0').schedule = SCHED
+    print(PSY.gen)

@@ -40,7 +40,7 @@ psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s nemo_kernels_trans.py some_source_file.f90
+ $ psyclone -api nemo -s kernels_trans.py some_source_file.f90
 
 This should produce a lot of output, ending with generated
 Fortran. Note that the Fortran source files provided to PSyclone must

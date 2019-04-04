@@ -44,13 +44,11 @@ def trans(psy):
     ''' Take the supplied psy object, apply OpenACC transformations
     to the schedule of invoke_0 and return the new psy object '''
     from psyclone.transformations import ACCParallelTrans, \
-        ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
-        KernelModuleInlineTrans
+        ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans
     ptrans = ACCParallelTrans()
     ltrans = ACCLoopTrans()
     dtrans = ACCEnterDataTrans()
     ktrans = ACCRoutineTrans()
-    itrans = KernelModuleInlineTrans()
 
     invoke = psy.invokes.get('invoke_0_inc_field')
     schedule = invoke.schedule

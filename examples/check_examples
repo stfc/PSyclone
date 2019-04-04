@@ -149,7 +149,7 @@ ${PSYCLONE} -api "nemo" -s ./omp_levels_trans.py ../code/traldf_iso.F90
 cd -
 echo "Running example nemo/eg3"
 cd nemo/eg3
-${PSYCLONE} -api "nemo" -s ./nemo_kernels_trans.py ../code/tra_adv.F90
+${PSYCLONE} -api "nemo" -s ./kernels_trans.py ../code/tra_adv.F90
 cd -
 
 echo "Running transformation examples"
