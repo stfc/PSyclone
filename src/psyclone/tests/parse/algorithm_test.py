@@ -39,6 +39,8 @@ tests for code that is not covered there.'''
 
 import pytest
 
+from fparser.two.Fortran2003 import Part_Ref
+
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
 
@@ -150,7 +152,6 @@ def test_getkernel_invalid_children(parser, monkeypatch):
 
     '''
     # pylint: disable=unused-argument
-    from fparser.two.Fortran2003 import Part_Ref
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
@@ -168,7 +169,6 @@ def test_getkernel_invalid_arg(parser, monkeypatch):
 
     '''
     # pylint: disable=unused-argument
-    from fparser.two.Fortran2003 import Part_Ref
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, "invalid"])
     with pytest.raises(InternalError) as excinfo:
@@ -178,6 +178,76 @@ def test_getkernel_invalid_arg(parser, monkeypatch):
     assert (
         "value 'invalid', kernel 'None(invalid)' in file 'dummy.f90'.") \
         in str(excinfo.value)
+
+
+@pytest.mark.parametrize('content',
+                         ["1.0", "1.0_r_def", "1_i_def", "- 1.0", "- 1",
+                          "1.0 * 1.0", "(1.0 * 1.0)"])
+def test_getkernel_isliteral(parser, content):
+    '''Test that the get_kernel function recognises the possible forms of
+    literal argument and returns them correctly.
+
+    '''
+    # pylint: disable=unused-argument
+    tree = Part_Ref("sub({0})".format(content))
+    kern_name, args = get_kernel(tree, "dummy.f90")
+    assert kern_name == "sub"
+    assert len(args) == 1
+    arg = args[0]
+    assert isinstance(arg, Arg)
+    assert arg.is_literal()
+    assert arg.text == content
+    assert arg.varname is None
+
+
+@pytest.mark.parametrize('content',
+                         ["a_rg", "a_rg(n)", "a % rg", "a % rg(n)",
+                          "a % rg()"])
+def test_getkernel_isarg(parser, content):
+    '''Test that the get_kernel function recognises standard arguments,
+    including a function reference, and returns them correctly
+
+    '''
+    # pylint: disable=unused-argument
+    tree = Part_Ref("sub({0})".format(content))
+    kern_name, args = get_kernel(tree, "dummy.f90")
+    assert kern_name == "sub"
+    assert len(args) == 1
+    arg = args[0]
+    assert isinstance(arg, Arg)
+    assert not arg.is_literal()
+    assert arg.text == content
+    assert arg.varname == "a_rg"
+
+
+@pytest.mark.parametrize('content',
+                         ["- arg", "1.0 * arg", "(1.0 * arg)",
+                          "1.0 * (1.0 * arg)", "arg1*arg2"])
+def test_getkernel_noexpr(parser, content):
+    '''Test that the get_kernel function recognises an expression
+    containing a variable and raises an exception (as this is not
+    currently supported).
+
+    '''
+    # pylint: disable=unused-argument
+    tree = Part_Ref("sub({0})".format(content))
+    with pytest.raises(NotImplementedError) as excinfo:
+        _, _ = get_kernel(tree, "dummy.f90")
+    assert "Expressions containing variables are not yet supported" \
+        in str(excinfo.value)
+
+
+def test_getkernel_argerror(monkeypatch, parser):
+    '''Test that the get_kernel function raises an exception if it does
+    not recognise the fparser2 parse tree for an argument.
+
+    '''
+    # pylint: disable=unused-argument
+    tree = Part_Ref("sub(dummy)")
+    monkeypatch.setattr(tree, "items", ["sub", None])
+    with pytest.raises(InternalError) as excinfo:
+        _, _ = get_kernel(tree, "dummy.f90")
+    assert "Unsupported argument structure " in str(excinfo.value)
 
 # function create_var_name() tests
 
