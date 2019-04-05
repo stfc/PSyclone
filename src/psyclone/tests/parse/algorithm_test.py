@@ -39,6 +39,8 @@ tests for code that is not covered there.'''
 
 import pytest
 
+from fparser.two.Fortran2003 import Part_Ref
+
 from psyclone.parse.algorithm import Parser, get_invoke_label, \
     get_kernel, create_var_name, KernelCall, BuiltInCall, Arg
 
@@ -92,6 +94,57 @@ def test_parser_updateargtomodulemap_invalid():
         tmp.update_arg_to_module_map("invalid")
     assert "Expected a use statement but found instance of" \
         in str(excinfo.value)
+
+
+def test_parser_caseinsensitive1():
+    '''Check that the test for the existance of a builtin call in a use
+    statement is case insensitive.
+
+    '''
+    from fparser.two import Fortran2003 as f2003
+    from fparser.two.parser import ParserFactory
+    ParserFactory().create(std="f2003")
+    parser = Parser()
+    use = f2003.Use_Stmt("use my_mod, only : SETVAL_X")
+    parser.update_arg_to_module_map(use)
+    with pytest.raises(ParseError) as excinfo:
+        parser.create_builtin_kernel_call("SetVal_X", None)
+    assert "A built-in cannot be named in a use statement" \
+        in str(excinfo.value)
+
+
+def test_parser_caseinsensitive2(monkeypatch):
+    '''Check that the test for the existance of a kernel call in a use
+    statement is case insensitive.
+
+    '''
+    def dummy_func(arg1, arg2, arg3, arg4):
+        '''A dummy function used by monkeypatch to override the get_kernel_ast
+        function. We don't care about the arguments as we just want to
+        raise an exception.
+
+        '''
+        # pylint: disable=unused-argument
+        raise NotImplementedError("test_parser_caseinsensitive2")
+
+    monkeypatch.setattr("psyclone.parse.kernel.get_kernel_ast", dummy_func)
+    from fparser.two import Fortran2003 as f2003
+    from fparser.two.parser import ParserFactory
+    ParserFactory().create(std="f2003")
+    parser = Parser()
+    use = f2003.Use_Stmt("use my_mod, only : MY_KERN")
+    parser.update_arg_to_module_map(use)
+    with pytest.raises(NotImplementedError) as excinfo:
+        # We have monkeypatched the function 'get_kernel_ast' to
+        # return 'NotImplementedError' with a string associated with
+        # this test so we know that we have got to this function if
+        # this exception is raised. The case insensitive test we
+        # really care about is before this function is called (and it
+        # raises a ParseError) so we know that if we don't get a
+        # ParseError then all is well.
+        parser.create_coded_kernel_call("My_Kern", None)
+    # Sanity check that the exception is the monkeypatched one.
+    assert str(excinfo.value) == "test_parser_caseinsensitive2"
 
 # function get_invoke_label() tests
 
@@ -150,7 +203,6 @@ def test_getkernel_invalid_children(parser, monkeypatch):
 
     '''
     # pylint: disable=unused-argument
-    from fparser.two.Fortran2003 import Part_Ref
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, None, None])
     with pytest.raises(InternalError) as excinfo:
@@ -168,7 +220,6 @@ def test_getkernel_invalid_arg(parser, monkeypatch):
 
     '''
     # pylint: disable=unused-argument
-    from fparser.two.Fortran2003 import Part_Ref
     parse_tree = Part_Ref("kernel(arg)")
     monkeypatch.setattr(parse_tree, "items", [None, "invalid"])
     with pytest.raises(InternalError) as excinfo:
@@ -178,6 +229,76 @@ def test_getkernel_invalid_arg(parser, monkeypatch):
     assert (
         "value 'invalid', kernel 'None(invalid)' in file 'dummy.f90'.") \
         in str(excinfo.value)
+
+
+@pytest.mark.parametrize('content',
+                         ["1.0", "1.0_r_def", "1_i_def", "- 1.0", "- 1",
+                          "1.0 * 1.0", "(1.0 * 1.0)"])
+def test_getkernel_isliteral(parser, content):
+    '''Test that the get_kernel function recognises the possible forms of
+    literal argument and returns them correctly.
+
+    '''
+    # pylint: disable=unused-argument
+    tree = Part_Ref("sub({0})".format(content))
+    kern_name, args = get_kernel(tree, "dummy.f90")
+    assert kern_name == "sub"
+    assert len(args) == 1
+    arg = args[0]
+    assert isinstance(arg, Arg)
+    assert arg.is_literal()
+    assert arg.text == content
+    assert arg.varname is None
+
+
+@pytest.mark.parametrize('content',
+                         ["a_rg", "a_rg(n)", "a % rg", "a % rg(n)",
+                          "a % rg()"])
+def test_getkernel_isarg(parser, content):
+    '''Test that the get_kernel function recognises standard arguments,
+    including a function reference, and returns them correctly
+
+    '''
+    # pylint: disable=unused-argument
+    tree = Part_Ref("sub({0})".format(content))
+    kern_name, args = get_kernel(tree, "dummy.f90")
+    assert kern_name == "sub"
+    assert len(args) == 1
+    arg = args[0]
+    assert isinstance(arg, Arg)
+    assert not arg.is_literal()
+    assert arg.text == content
+    assert arg.varname == "a_rg"
+
+
+@pytest.mark.parametrize('content',
+                         ["- arg", "1.0 * arg", "(1.0 * arg)",
+                          "1.0 * (1.0 * arg)", "arg1*arg2"])
+def test_getkernel_noexpr(parser, content):
+    '''Test that the get_kernel function recognises an expression
+    containing a variable and raises an exception (as this is not
+    currently supported).
+
+    '''
+    # pylint: disable=unused-argument
+    tree = Part_Ref("sub({0})".format(content))
+    with pytest.raises(NotImplementedError) as excinfo:
+        _, _ = get_kernel(tree, "dummy.f90")
+    assert "Expressions containing variables are not yet supported" \
+        in str(excinfo.value)
+
+
+def test_getkernel_argerror(monkeypatch, parser):
+    '''Test that the get_kernel function raises an exception if it does
+    not recognise the fparser2 parse tree for an argument.
+
+    '''
+    # pylint: disable=unused-argument
+    tree = Part_Ref("sub(dummy)")
+    monkeypatch.setattr(tree, "items", ["sub", None])
+    with pytest.raises(InternalError) as excinfo:
+        _, _ = get_kernel(tree, "dummy.f90")
+    assert "Unsupported argument structure " in str(excinfo.value)
 
 # function create_var_name() tests
 

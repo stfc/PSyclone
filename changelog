@@ -72,6 +72,12 @@
 	Introduces a new Schedule base class which KernelSchedule and
 	InvokeSchedule then sub-class.
 
+	24) #332 and PR #333. Bug fix for parsing of simple arithmetic
+	expressions in kernel argument lists in the Algorithm layer.
+
+	25) #337 and PR #341. Bug fix to make matching of kernel names
+	in module use statements (in the Algorithm) case insensitive.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
@@ -164,6 +170,9 @@ release 1.7.0 20th December 2018
 
         27) #158 and PR #253. Fix to remove unnecessary halo exchanges
 	related to GH_INC updates to kernel arguments.
+
+	28) #317 and PR #330. Fix to allow module use statements to be
+	added to functions.
 
 release 1.6.1 6th December 2018
 
