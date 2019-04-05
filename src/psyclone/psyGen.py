@@ -4737,7 +4737,7 @@ class Fparser2ASTProcessor(object):
         :param dimensions: fparser dimension attribute
         :type dimensions:
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
-        :param symbol_table: Symbol table of the declaration parent.
+        :param symbol_table: Symbol table of the declaration context.
         :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
         :returns: Shape of the attribute in row-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
@@ -4756,6 +4756,7 @@ class Fparser2ASTProcessor(object):
                                    Fortran2003.Assumed_Size_Spec)):
             dimensions_list = [dimensions]
         else:
+            # Depth-first-search list of shape specs
             dimensions_list = walk_ast(
                 dimensions.items,
                 [Fortran2003.Assumed_Shape_Spec,
@@ -5197,9 +5198,7 @@ class Symbol(object):
                         "Symbols that are part of another symbol shape can "
                         "only be scalar integers, but found '{}'"
                         "".format(str(dimension)))
-            elif isinstance(dimension, (type(None), int)):
-                pass  # None and int are valid types
-            else:
+            elif not isinstance(dimension, (type(None), int)):
                 raise TypeError("Symbol shape list elements can only be "
                                 "'Symbol', 'integer' or 'None'.")
 
