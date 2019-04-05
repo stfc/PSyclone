@@ -129,8 +129,9 @@ def test_collapse(parser):
 
 
 def test_collapse_err(parser):
-    ''' Check that attempting to apply the loop transformation with a 'collapse'
-    depth creater than the number of nested loops raises an error. '''
+    ''' Check that attempting to apply the loop transformation with a
+    'collapse' depth creater than the number of nested loops raises an
+    error. '''
     reader = FortranStringReader(DOUBLE_LOOP)
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)

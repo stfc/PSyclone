@@ -2517,7 +2517,6 @@ class ACCEnterDataTrans(Transformation):
 
         # Create a memento of the schedule and the proposed
         # transformation.
-        from psyclone.undoredo import Memento
         keep = Memento(sched, self, [sched])
 
         # Add the directive
@@ -2732,10 +2731,9 @@ class ACCKernelsTrans(RegionTrans):
                             :py:class:`psyclone.undoredo.Memento`).
 
         '''
-        self._validate(node_list, default_present)
+        self._validate(node_list)
 
         # Keep a record of this transformation
-        from psyclone.undoredo import Memento
         keep = Memento(node_list[:], self)
 
         parent = node_list[0].parent
@@ -2759,7 +2757,7 @@ class ACCKernelsTrans(RegionTrans):
         # Return the now modified kernel
         return schedule, keep
 
-    def _validate(self, node_list, default_present):
+    def _validate(self, node_list):
         '''
         Check that we can safely enclose the supplied list of nodes within
         OpenACC kernels ... end kernels directives.
@@ -2967,7 +2965,7 @@ class NemoExplicitLoopTrans(Transformation):
         keep = Memento(loop, self)
 
         # Find all uses of array syntax in the statement
-        subsections = walk_ast(loop._ast.items,
+        subsections = walk_ast(loop.ast.items,
                                [Fortran2003.Section_Subscript_List])
         # Create a list identifying which dimensions contain a range
         sliced_dimensions = []
@@ -2984,7 +2982,7 @@ class NemoExplicitLoopTrans(Transformation):
                 if [part for part in item.items if part]:
                     raise NotImplementedError(
                         "Support for implicit loops with specified bounds is "
-                        "not yet implemented: '{0}'".format(str(loop._ast)))
+                        "not yet implemented: '{0}'".format(str(loop.ast)))
                 # If an array index is a Subscript_Triplet then it is a range
                 # and thus we need to create an explicit loop for this
                 # dimension.
@@ -2995,7 +2993,7 @@ class NemoExplicitLoopTrans(Transformation):
         if outermost_dim < 0 or outermost_dim > 2:
             raise TransformationError(
                 "Array section in unsupported dimension ({0}) for code "
-                "'{1}'".format(outermost_dim+1, str(loop._ast)))
+                "'{1}'".format(outermost_dim+1, str(loop.ast)))
 
         # TODO (fparser/#102) since the fparser2 AST does not have parent
         # information (and no other way of getting to the root node), it is
@@ -3054,7 +3052,7 @@ class NemoExplicitLoopTrans(Transformation):
                 raise InternalError(
                     "Expecting a colon for index {0} but array only has {1} "
                     "dimensions: {2}".format(outermost_dim+1, len(indices),
-                                             str(loop._ast)))
+                                             str(loop.ast)))
             if not isinstance(indices[outermost_dim],
                               Fortran2003.Subscript_Triplet):
                 raise TransformationError(
@@ -3075,13 +3073,13 @@ class NemoExplicitLoopTrans(Transformation):
 
         # Insert it in the fparser2 AST at the location of the implicit
         # loop
-        parent_index = loop._ast._parent.content.index(loop._ast)
-        loop._ast._parent.content.insert(parent_index, new_loop)
+        parent_index = loop.ast._parent.content.index(loop.ast)
+        loop.ast._parent.content.insert(parent_index, new_loop)
         # Replace the content of the loop with the (modified) implicit
         # loop
-        new_loop.content[1] = loop._ast
+        new_loop.content[1] = loop.ast
         # Remove the implicit loop from its original parent in the AST
-        loop._ast._parent.content.remove(loop._ast)
+        loop.ast._parent.content.remove(loop.ast)
 
         # Now we must update the PSyIR to reflect the new AST
         # First we update the parent of the loop we have transformed
@@ -3089,7 +3087,7 @@ class NemoExplicitLoopTrans(Transformation):
         psyir_parent.children.remove(loop)
         # Next, we simply process the transformed fparser2 AST to generate
         # the new PSyIR of it
-        psyir_parent.process_nodes(psyir_parent, [new_loop], loop._ast._parent)
+        psyir_parent.process_nodes(psyir_parent, [new_loop], loop.ast._parent)
         # Delete the old PSyIR node that we have transformed
         del loop
         loop = None

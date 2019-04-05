@@ -768,7 +768,6 @@ class NemoIfClause(IfClause, NemoFparser2ASTProcessor):
         NemoFparser2ASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast_nodes[0]
-        self._ast_start = ast_nodes[0]
         self._ast_end = ast_nodes[-1]
         # Store what type of clause we are
         if isinstance(ast_nodes[0], Fortran2003.Else_Stmt):

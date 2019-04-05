@@ -944,10 +944,32 @@ class Node(object):
         else:
             self._children = children
         self._parent = parent
-        self._ast = ast  # Reference into fparser2 AST (if any)
+        # Reference into fparser2 AST (if any)
+        self._ast = ast
+         # Ref. to last fparser2 parse tree node associated with this Node.
+         # This is required when adding directives.
+        self._ast_end = None
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
+
+    @property
+    def ast(self):
+        '''
+        :returns: a reference to that part of the fparser2 parse tree that \
+                  this node represents or None.
+        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
+        '''
+        return self._ast
+
+    @property
+    def ast_end(self):
+        '''
+        :returns: a reference to the last node in the fparser2 parse tree that \
+                  represents a child of this PSyIR node or None.
+        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
+        '''
+        return self._ast_end
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
@@ -1827,22 +1849,22 @@ class ACCDirective(Directive):
         # the fparser2 parse tree has parent information (fparser/#102).
         parent = self._parent
         while parent:
-            if parent._ast and hasattr(parent._ast, "content"):
+            if parent.ast and hasattr(parent.ast, "content"):
                 break
             parent = parent._parent
-        fp_parent = parent._ast
+        fp_parent = parent.ast
 
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
-                                       self.children[0]._ast)
+                                       self.children[0].ast)
         if end_text:
-            try:
+            if self.children[-1].ast_end:
                 ast_end_index = object_index(fp_parent.content,
-                                             self.children[-1]._ast_end)
-            except AttributeError:
+                                             self.children[-1].ast_end)
+            else:
                 ast_end_index = object_index(fp_parent.content,
-                                             self.children[-1]._ast)
+                                             self.children[-1].ast)
 
             text = "!$ACC " + end_text
             directive = Comment(FortranStringReader(text,
@@ -1889,7 +1911,6 @@ class ACCDirective(Directive):
         directive._parent = fp_parent
 
         self._ast = directive
-        self._ast_start = directive
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -2453,10 +2474,10 @@ class OMPParallelDirective(OMPDirective):
         # directives...
         # Find the children of this node in the AST of our parent node
         try:
-            start_idx = object_index(self._parent._ast.content,
-                                     self._children[0]._ast)
-            end_idx = object_index(self._parent._ast.content,
-                                   self._children[-1]._ast)
+            start_idx = object_index(self._parent.ast.content,
+                                     self._children[0].ast)
+            end_idx = object_index(self._parent.ast.content,
+                                   self._children[-1].ast)
         except (IndexError, ValueError):
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
@@ -2472,13 +2493,12 @@ class OMPParallelDirective(OMPDirective):
         self._ast_end = enddir
         # If end_idx+1 takes us beyond the range of the list then the
         # element is appended to the list
-        self._parent._ast.content.insert(end_idx+1, enddir)
+        self._parent.ast.content.insert(end_idx+1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
         self._ast = startdir
-        self._ast_start = startdir
-        self._parent._ast.content.insert(start_idx, self._ast)
+        self._parent.ast.content.insert(start_idx, self._ast)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2681,7 +2701,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # We have to take care to find a parent node (in the fparser2 AST)
         # that has 'content'. This is because If-else-if blocks have their
         # 'content' as siblings of the If-then and else-if nodes.
-        parent = self._parent._ast
+        parent = self._parent.ast
         while parent:
             if hasattr(parent, "content"):
                 break
@@ -2690,7 +2710,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             raise InternalError("Failed to find parent node in which to "
                                 "insert OpenMP parallel do directive")
         start_idx = object_index(parent.content,
-                                 self._children[0]._ast)
+                                 self._children[0].ast)
 
         # Create the start directive
         text = ("!$omp parallel do default(shared), private({0}), "
@@ -2712,7 +2732,6 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # Insert the start directive (do this second so we don't have
         # to correct the location)
         self._ast = startdir
-        self._ast_start = startdir
         parent.content.insert(start_idx, self._ast)
 
 
@@ -4801,7 +4820,7 @@ class ACCKernelsDirective(ACCDirective):
     :raises NotImplementedError: if default_present is False.
 
     '''
-    def __init__(self, children=[], parent=None, default_present=False):
+    def __init__(self, children=None, parent=None, default_present=False):
         super(ACCKernelsDirective, self).__init__(children=children,
                                                   parent=parent)
         self._default_present = default_present
@@ -4959,9 +4978,8 @@ class Fparser2ASTProcessor(object):
         :return: 3-tuple of list of inputs, list of outputs, list of in-outs
         :rtype: (list of str, list of str, list of str)
         '''
-        from fparser.two.Fortran2003 import Name, Assignment_Stmt, Part_Ref, \
-            Section_Subscript_List, Loop_Control, Data_Ref, If_Then_Stmt, \
-            Structure_Constructor, Array_Section
+        from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
+            Data_Ref, If_Then_Stmt, Array_Section
         from fparser.two.utils import walk_ast
         readers = set()
         writers = set()
@@ -5993,11 +6011,9 @@ class CodeBlock(Node):
         # Store references back into the fparser2 AST
         if statements:
             self._ast = self._statements[0]
-            self._ast_start = self._ast
             self._ast_end = self._statements[-1]
         else:
             self._ast = None
-            self._ast_start = None
             self._ast_end = None
 
     @property

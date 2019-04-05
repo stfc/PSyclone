@@ -97,6 +97,8 @@ def test_kernels_view(parser, capsys):
 
 
 def test_kernels_dag_name(parser):
+    ''' Check that we get the correct name for a DAG node for an OpenACC
+    kernels directive. '''
     code = parser(FortranStringReader(EXPLICIT_LOOP))
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -105,8 +107,6 @@ def test_kernels_dag_name(parser):
     assert schedule.children[0].dag_name == "ACC_kernels_1"
 
 
-@pytest.mark.xfail(reason="Requires updated validate method in RegionTrans, "
-                   "#292")
 def test_no_kernels_error(parser):
     ''' Check that the transformation rejects an attempt to put things
     that aren't kernels inside a kernels region. '''
@@ -125,7 +125,7 @@ def test_no_kernels_error(parser):
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children[0:2], default_present=True)
-    assert "must contain blah blah" in str(err)
+    assert "cannot be enclosed by a ACCKernelsTrans transformation" in str(err)
 
 
 def test_no_loops(parser):
