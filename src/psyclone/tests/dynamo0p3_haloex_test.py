@@ -67,7 +67,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.12_halo_wdofs_to_inc.f90"),
                     api=API)
-    psy = PSyFactory(API).create(info)
+    psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     def check_schedule(schedule):
@@ -128,7 +128,7 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.12_halo_wdofs_to_inc.f90"),
                     api=API)
-    psy = PSyFactory(API).create(info)
+    psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     # 1st loop should iterate over dofs to ndofs. Check output
@@ -204,7 +204,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.13_halo_inc_to_inc.f90"),
                     api=API)
-    psy = PSyFactory(API).create(info)
+    psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     # check we have no halo exchanges for field "f1"
@@ -290,7 +290,7 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.13_halo_inc_to_inc.f90"),
                     api=API)
-    psy = PSyFactory(API).create(info)
+    psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
 
     def check(schedule, f1depth, f2depth):
@@ -362,7 +362,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     _, info = parse(os.path.join(BASE_PATH,
                                  "14.14_halo_inc_times3.f90"),
                     api=API)
-    psy = PSyFactory(API).create(info)
+    psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     rc_trans = Dynamo0p3RedundantComputationTrans()
 
