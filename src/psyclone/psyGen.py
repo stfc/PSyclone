@@ -5359,8 +5359,26 @@ class Symbol(object):
         return code
 
     def __str__(self):
-        return (self.name + "<" + self.datatype + ", " + str(self.shape) +
-                ", " + self.scope + ">")
+        ret = self.name + ": <" + self.datatype + ", " + self.scope + ", "
+        if self.shape:
+            ret += "Array["
+            for dimension in self.shape:
+                if isinstance(dimension, Symbol):
+                    ret += dimension.name
+                elif isinstance(dimension, int):
+                    ret += str(dimension)
+                elif dimension is None:
+                    ret += "'Unknown bound'"
+                else:
+                    raise InternalError(
+                        "Symbol shape list elements can only be 'Symbol', "
+                        "'integer' or 'None', but found '{}'."
+                        "".format(type(dimension)))
+                ret += ", "
+            ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
+        else:
+            ret += "Scalar"
+        return ret + ">"
 
 
 class SymbolTable(object):

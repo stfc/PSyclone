@@ -3058,8 +3058,17 @@ def test_symbol_is_output_setter():
 def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed. (i.e. is
     initialised fully)'''
-    symbol = Symbol("sname", "real")
-    assert "sname<real, [], local>" in str(symbol)
+    s1 = Symbol("s1", "integer")
+    assert "s1: <integer, local, Scalar>" in str(s1)
+
+    s2 = Symbol("s2", "real", [None, 2, s1])
+    assert "s2: <real, local, Array['Unknown bound', 2, s1]>" in str(s2)
+
+    s2._shape.append('invalid')
+    with pytest.raises(InternalError) as error:
+        _ = str(s2)
+    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
+            "'None', but found") in str(error.value)
 
 
 def test_symbol_gen_c_definition():
