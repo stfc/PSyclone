@@ -3618,21 +3618,21 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     # Explicit shape symbols must be integer
     reader = FortranStringReader("dimension(var2)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    with pytest.raises(TypeError) as error:
+    with pytest.raises(NotImplementedError) as error:
         sym_table.declare("var2", "real", [])
         _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
-    assert ("Only scalar integer literals or symbols are allowed for "
+    assert ("Only scalar integer literals or symbols are supported for "
             "explicit shape array declarations.") in str(error.value)
 
     # Explicit shape symbols can only be Literal or Symbol
-    with pytest.raises(TypeError) as error:
+    with pytest.raises(NotImplementedError) as error:
         class UnrecognizedType(object):
             pass
         fparser2spec.items[1].items[1].__class__ = UnrecognizedType
         _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
-    assert ("Only scalar integer literals or symbols are allowed for "
+    assert ("Only scalar integer literals or symbols are supported for "
             "explicit shape array declarations.") in str(error.value)
 
     # Test dimension and intent arguments together

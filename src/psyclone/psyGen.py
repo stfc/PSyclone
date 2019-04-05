@@ -4772,10 +4772,10 @@ class Fparser2ASTProcessor(object):
                 shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
-                def _invalid_type_error(dimensions):
-                    raise TypeError(
+                def _unsupported_type_error(dimensions):
+                    raise NotImplementedError(
                         "Could not process {0}. Only scalar integer literals"
-                        " or symbols are allowed for explicit shape array "
+                        " or symbols are supported for explicit shape array "
                         "declarations.".format(dimensions))
                 if isinstance(dim.items[1],
                               Fortran2003.Int_Literal_Constant):
@@ -4783,10 +4783,10 @@ class Fparser2ASTProcessor(object):
                 elif isinstance(dim.items[1], Fortran2003.Name):
                     sym = symbol_table.lookup(dim.items[1].string)
                     if sym.datatype != 'integer' or len(sym.shape) > 0:
-                        _invalid_type_error(dimensions)
+                        _unsupported_type_error(dimensions)
                     shape.append(sym)
                 else:
-                    _invalid_type_error(dimensions)
+                    _unsupported_type_error(dimensions)
 
             else:
                 raise InternalError(
