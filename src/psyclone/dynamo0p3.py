@@ -838,8 +838,8 @@ class DynKernMetadata(KernelType):
     ''' Captures the Kernel subroutine code and metadata describing
     the subroutine for the Dynamo 0.3 API.
 
-    :param ast: fparser1 AST for the kernel.
-    :type ast: :py:class:`fparser.block_statements.BeginSource`
+    :param ast: fparser2 AST for the kernel.
+    :type ast: :py:class:`fparser.two.Fortran2003.Program`
     :param str name: The name of this kernel.
 
     :raises ParseError: if the meta-data does not conform to the \
@@ -855,6 +855,7 @@ class DynKernMetadata(KernelType):
         # Query the meta-data for the evaluator shape (only required if
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
+        exit(1)
         self._eval_shape = self.get_integer_variable('gh_shape')
         # The list of function space names for which an evaluator is
         # required. We set this up below once we've processed the meta-

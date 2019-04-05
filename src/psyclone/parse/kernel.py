@@ -54,7 +54,8 @@ from fparser.one import parsefortran
 import psyclone.expression as expr
 from psyclone.psyGen import InternalError
 from psyclone.configuration import Config
-from psyclone.parse.utils import check_api, check_line_length, ParseError
+from psyclone.parse.utils import check_api, check_line_length, ParseError, \
+    parse_fp2
 
 
 def get_kernel_filepath(module_name, kernel_path, alg_filename):
@@ -136,35 +137,6 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
     return matches[0]
 
 
-def get_kernel_parse_tree(filepath):
-    '''Parse the file in filepath with fparser1 and return a parse tree.
-
-    :param str filepath: path to a file (hopefully) containing \
-    PSyclone kernel code.
-
-    :returns: Parse tree of the kernel code contained in the specified \
-    file.
-    :rtype: :py:class:`fparser.one.block_statements.BeginSource`
-
-    :raises ParseError: if fparser fails to parse the file
-
-    '''
-    parsefortran.FortranParser.cache.clear()
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    try:
-        parse_tree = fpapi.parse(filepath)
-        # parse_tree includes an extra comment line which contains
-        # file details. This line can be long which can cause line
-        # length issues. Therefore set the information (name) to be
-        # empty.
-        parse_tree.name = ""
-    except Exception:
-        raise ParseError(
-            "Failed to parse kernel code '{0}'. Is the Fortran "
-            "correct?".format(filepath))
-    return parse_tree
-
-
 def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
     '''Search for the kernel source code containing a module with the name
     'module_name' looking in the directory and subdirectories
@@ -183,13 +155,13 @@ def get_kernel_ast(module_name, alg_filename, kernel_path, line_length):
     (False).
 
     :returns: Parse tree of the kernel module with the name 'module_name'
-    :rtype: :py:class:`fparser.one.block_statements.BeginSource`
+    :rtype: :py:class:`fparser.two.Fortran2003.Program`
 
     '''
     filepath = get_kernel_filepath(module_name, kernel_path, alg_filename)
     if line_length:
         check_line_length(filepath)
-    parse_tree = get_kernel_parse_tree(filepath)
+    parse_tree = parse_fp2(filepath)
     return parse_tree
 
 
@@ -217,7 +189,7 @@ class KernelTypeFactory(object):
         created.
 
         :param parse_tree: The fparser1 parse tree for the Kernel code.
-        :type parse_tree: :py:class:`fparser.one.block_statements.BeginSource`
+        :type parse_tree: :py:class:`fparser.two.Fortran2003.Program`
 
         :param name: the name of the Kernel. Defaults to None if \
         one is not provided.
@@ -227,15 +199,18 @@ class KernelTypeFactory(object):
 
         '''
         if self._type == "dynamo0.1":
+            exit(1)
             from psyclone.dynamo0p1 import DynKernelType
             return DynKernelType(parse_tree, name=name)
         elif self._type == "dynamo0.3":
             from psyclone.dynamo0p3 import DynKernMetadata
             return DynKernMetadata(parse_tree, name=name)
         elif self._type == "gocean0.1":
+            exit(1)
             from psyclone.gocean0p1 import GOKernelType
             return GOKernelType(parse_tree, name=name)
         elif self._type == "gocean1.0":
+            exit(1)
             from psyclone.gocean1p0 import GOKernelType1p0
             return GOKernelType1p0(parse_tree, name=name)
         else:
@@ -584,21 +559,32 @@ def get_kernel_metadata(name, ast):
     :param str name: the metadata name (of a Fortran type). Also \
     the name referencing the kernel in the algorithm layer)
     :param ast: parse tree of the kernel module code
-    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+    :type ast: :py:class:`fparser.two.Fortran2003.Program`
 
     :returns: Parse tree of the metadata (a Fortran type with name \
     'name')
-    :rtype: :py:class:`fparser.one.block_statements.Type`
+    :rtype: :py:class:`fparser.two.Fortran2003.Derived_Type_Def`
 
     :raises ParseError: if the metadata type name is not found in \
     the kernel code parse tree
 
     '''
     ktype = None
-    for statement, _ in fpapi.walk(ast, -1):
-        if isinstance(statement, fparser1.block_statements.Type) \
-           and statement.name == name:
-            ktype = statement
+    for statement in walk_ast([ast]):
+        if isinstance(statement, fparser.two.Fortran2003.Derived_Type_Def):
+            derived_type_stmt = statement.content[0]
+            if not (isinstance(derived_type_stmt,
+                               fparser.two.Fortran2003.Derived_Type_Stmt)):
+                raise InternalError("ERROR")
+            if len(derived_type_stmt.items) != 3:
+                raise InternalError("ERROR2")
+            type_name = derived_type_stmt.items[1]
+            if not isinstance(type_name, fparser.two.Fortran2003.Type_Name):
+                raise InternalError("ERROR3")
+            type_name_str = str(type_name)
+            if type_name_str == name:
+                ktype = statement
+                break
     if ktype is None:
         raise ParseError("Kernel type {0} does not exist".format(name))
     return ktype
@@ -610,8 +596,8 @@ class KernelType(object):
     This contains the name of the elemental procedure and metadata associated
     with how that procedure is mapped over mesh entities.
 
-    :param ast: fparser1 AST for the parsed kernel meta-data.
-    :type ast: :py:class:`fparser.one.block_statements.BeginSource`
+    :param ast: fparser2 AST for the parsed kernel meta-data.
+    :type ast: :py:class:`fparser.two.Fortran2003.Program`
     :param str name: name of the Fortran derived type describing the kernel.
 
     :raises ParseError: if the supplied AST does not contain a Fortran \
@@ -628,6 +614,7 @@ class KernelType(object):
             # determine the type name. The assumed convention is that
             # the module is called <name/>_mod and the type is called
             # <name/>_type
+            exit(1)
             found = False
             for statement, _ in fpapi.walk(ast, -1):
                 if isinstance(statement, fparser1.block_statements.Module):
@@ -657,6 +644,7 @@ class KernelType(object):
         self._name = name
         self._ast = ast
         self._ktype = get_kernel_metadata(name, ast)
+        exit(1)
         self._iterates_over = self.get_integer_variable("iterates_over")
         self._procedure = KernelProcedure(self._ktype, name, ast)
         self._inits = self.getkerneldescriptors(self._ktype)
