@@ -3441,6 +3441,12 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
 
+    reader = FortranStringReader("LOGICAL      ::      b")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("b").name == "b"
+    assert fake_parent.symbol_table.lookup("b").datatype == 'boolean'
+
     # RHS array specifications
     reader = FortranStringReader("integer :: l3(l1)")
     fparser2spec = Specification_Part(reader).content[0]
@@ -3462,13 +3468,12 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l5").shape == [2]
     assert fake_parent.symbol_table.lookup("l6").shape == [3]
 
-    # Test multiple dimension declaration case
-    reader = FortranStringReader("integer, dimension(2) :: l7(l1)")
+    # Test that component-array-spec has priority over dimension attribute
+    reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
     fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(InternalError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert "Could not process " in str(error.value)
-    assert "Multiple dimension specifications found." in str(error.value)
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
+    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
 
     # Test with unsupported data type
     reader = FortranStringReader("doubleprecision     ::      c2")

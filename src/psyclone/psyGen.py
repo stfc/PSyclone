@@ -4850,13 +4850,12 @@ class Fparser2ASTProcessor(object):
                         "'logical' and 'character' intrinsic types are "
                         "supported.".format(str(decl.items)))
 
-            # Parse declaration attributes
-            # If no dimension is provided, it is a scalar
-            shape = []
-            # If no intent attribute is provided, it is
-            # provisionally marked as a local variable (when the argument
-            # list is parsed, arguments with no explicit intent are updated
-            # appropriately).
+            # Parse declaration attributes:
+            # 1) If no dimension attribute is provided, it defaults to scalar.
+            attribute_shape = []
+            # 2) If no intent attribute is provided, it is provisionally
+            # marked as a local variable (when the argument list is parsed,
+            # arguments with no explicit intent are updated appropriately).
             scope = 'local'
             is_input = False
             is_output = False
@@ -4878,7 +4877,8 @@ class Fparser2ASTProcessor(object):
                             "Could not process {0}. Unrecognized attribute "
                             "'{1}'.".format(decl.items, str(attr)))
                 elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                    shape = self._parse_dimensions(attr, parent.symbol_table)
+                    attribute_shape = self._parse_dimensions(
+                                            attr, parent.symbol_table)
                 else:
                     raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
@@ -4888,15 +4888,14 @@ class Fparser2ASTProcessor(object):
             # parent symbol table for each entity found.
             for entity in iterateitems(entities):
                 (name, array_spec, char_len, initialization) = entity.items
-                entity_shape = shape
+
+                # If the entity has an array-spec shape, it has priority.
+                # Otherwise use the declaration attribute shape.
                 if (array_spec is not None):
-                    # Check that shape has not been filled yet.
-                    if shape:
-                        raise InternalError(
-                            "Could not process {}. Multiple dimension "
-                            "specifications found.".format(decl.items))
                     entity_shape = self._parse_dimensions(
-                        array_spec, parent.symbol_table)
+                                        array_spec, parent.symbol_table)
+                else:
+                    entity_shape = attribute_shape
 
                 if (initialization is not None):
                     raise NotImplementedError(
