@@ -30,33 +30,48 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Author: A. R. Porter, STFC Daresbury Lab
 
-This directory contains various examples of the use of PSyclone
-to transform source code from the NEMO ocean model. See the READMEs
-in the individual example directories for further details.
+# Makefile for the 3rd NEMO example. Uses PSyclone (which must
+# be installed) to generate Fortran with OpenACC directives for
+# the tracer-advection benchmark. Depends upon the dl_timer
+# library (bitbucket.org/apeg/dl_timer) which must be installed
+# and the location specified in SHARED_DIR below.
+#
+# The compiler to use must be specified via the F90 environment
+# variable. e.g. to use PGI and OpenACC:
+#
+# export F90=pgf90
+# export F90FLAGS="-O1 -acc -ta=tesla,cc70 -Minfo=all"
+# export LDFLAGS="-acc -ta=tesla,cc70"
 
-code
-----
+# Location of the dl_timer library
+SHARED_DIR = /home/aporter/MyInstalls
+TIMER_DIR = ${SHARED_DIR}/dl_timer
+TIMER_INC = ${TIMER_DIR}/src
+TIMER_LIB = ${TIMER_DIR}/dl_timer_lib.a
 
-Contains 1) the Tracer advection benchmark routine (tra_adv), as
-provided by Silvia Mocavero of CMCC and 2) an unmodified NEMO
-subroutine computing the horizontal component of the lateral tracer
-mixing trend (traldf_iso).
+.PHONY: all clean allclean dl_timer
 
-Example 1
----------
+all: traadv.exe
 
-OpenMP parallelisation of tra_adv over levels.
+traadv.exe: dl_timer psy.o
+	${F90} ${LDFLAGS} psy.o ${TIMER_LIB} -o traadv.exe
 
-Example 2
----------
+dl_timer:
+	make -C ${TIMER_DIR} sm_lib
 
-OpenMP parallelisation of traldf_iso over levels.
+psy.f90:
+	psyclone -l -api "nemo" -s ./kernels_trans.py -opsy psy.f90 ../code/tra_adv.F90
 
-Example 3
----------
+%.o: %.f90
+	$(F90) $(F90FLAGS) -I${TIMER_INC} -c $<
 
-OpenACC parallelisation of tra_adv using the 'data' and 'kernels'
-directives.
+clean:
+	rm -f *.o *.mod *~
+
+# Delete generated Fortran and exe
+allclean: clean
+	rm -f psy.f90 traadv.exe
+	make -C ${TIMER_DIR} allclean

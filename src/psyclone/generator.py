@@ -418,7 +418,7 @@ def main(args):
         print("Type ...", file=sys.stderr)
         print(exc_type, file=sys.stderr)
         print("Stacktrace ...", file=sys.stderr)
-        traceback.print_tb(exc_tb, limit=10, file=sys.stderr)
+        traceback.print_tb(exc_tb, limit=20, file=sys.stderr)
         exit(1)
     if args.limit:
         fll = FortLineLength()

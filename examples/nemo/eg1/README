@@ -32,15 +32,20 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
-This directory contains tra_adv.F90 - a stand-alone version of one of
-the tracer- advection routines from the NEMO ocean model. It was
-originally extracted by Silvia Mocavero of CMCC. In addition, there is
-an example script, runme_openmp.py, that demonstrates the use of
-PSyclone to parallelise all loops over levels using OpenMP. Once you have
-installed PSyclone, this script may be run by doing:
+This directory contains an example script, runme_openmp.py, that
+demonstrates the use of PSyclone to parallelise all loops over levels
+for the tra_adv.F90 code, using OpenMP. Once you have installed
+PSyclone, this script may be run by doing:
 
     $ ./runme_openmp.py
 
 This will output PSyclone's Schedule view of the Fortran routine followed by
 the generated Fortran code with the OpenMP directives added.
+
+tra_adv.F90 - is a stand-alone version of one of the tracer-advection
+routines from the NEMO ocean model. It was originally extracted by
+Silvia Mocavero of CMCC. The code can be found in the ../code
+directory.
+

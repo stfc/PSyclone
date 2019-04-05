@@ -64,10 +64,19 @@ def test_identify_implicit_loop(parser):
     assert nemo.NemoImplicitLoop.match(stmts[0])
 
 
-def test_not_implicit_loop():
+def test_call_not_implicit_loop():
     ''' Check we do not incorrectly identify an implicit loop when array
     notation is used in the arguments to a function call. '''
     code = "z3d(1,:,:) =  ptr_sjk( pvtr(:,:,:), btmsk(:,:,jn)*btm30(:,:) )"
+    reader = FortranStringReader(code)
+    assign = Fortran2003.Assignment_Stmt(reader)
+    assert not nemo.NemoImplicitLoop.match(assign)
+
+
+def test_1d_array_not_implicit_loop():
+    ''' Check that we do not identify the use of array-notation in 1D loops
+    as being implicit loops (since we don't know what the loop is over). '''
+    code = "z1d(:) =  1.0d0"
     reader = FortranStringReader(code)
     assign = Fortran2003.Assignment_Stmt(reader)
     assert not nemo.NemoImplicitLoop.match(assign)
