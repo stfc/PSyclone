@@ -3684,7 +3684,7 @@ class Kern(Call):
         self.rename_and_write()
 
         parent.add(CallGen(parent, self._name,
-                           self.arguments.raw_arg_list(parent)))
+                           self.arguments.raw_arg_list()))
 
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
@@ -4028,14 +4028,11 @@ class Arguments(object):
         # subroutine call.
         self._raw_arg_list = []
 
-    def raw_arg_list(self, parent=None):
+    def raw_arg_list(self):
         '''
         Abstract method to construct the class-specific argument list for a
         kernel call. Must be overridden in API-specific sub-class.
 
-        :param parent: the parent (in the PSyIR) of the kernel call with \
-                       which this argument list is associated.
-        :type parent: sub-class of :py:class:`psyclone.psyGen.Call`
         :raises NotImplementedError: abstract method.
         '''
         raise NotImplementedError("Arguments.raw_arg_list must be "
