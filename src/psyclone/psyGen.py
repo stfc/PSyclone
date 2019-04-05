@@ -946,8 +946,8 @@ class Node(object):
         self._parent = parent
         # Reference into fparser2 AST (if any)
         self._ast = ast
-         # Ref. to last fparser2 parse tree node associated with this Node.
-         # This is required when adding directives.
+        # Ref. to last fparser2 parse tree node associated with this Node.
+        # This is required when adding directives.
         self._ast_end = None
 
     def __str__(self):
@@ -965,8 +965,8 @@ class Node(object):
     @property
     def ast_end(self):
         '''
-        :returns: a reference to the last node in the fparser2 parse tree that \
-                  represents a child of this PSyIR node or None.
+        :returns: a reference to the last node in the fparser2 parse tree \
+                  that represents a child of this PSyIR node or None.
         :rtype: sub-class of :py:class:`fparser.two.utils.Base`
         '''
         return self._ast_end
