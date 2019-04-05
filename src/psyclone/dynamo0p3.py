@@ -2142,8 +2142,8 @@ class DynOrientations(DynCollection):
         # our internal list.
         for call in self._calls:
             for unique_fs in call.arguments.unique_fss:
-                if call._fs_descriptors.exists(unique_fs):
-                    fs_descriptor = call._fs_descriptors.get_descriptor(
+                if call.fs_descriptors.exists(unique_fs):
+                    fs_descriptor = call.fs_descriptors.get_descriptor(
                         unique_fs)
                     if fs_descriptor.requires_orientation:
                         field = call.arguments.get_arg_on_space(unique_fs)
@@ -2209,12 +2209,11 @@ class DynFunctionSpaces(DynCollection):
                self._kernel and self._kernel.cma_operation != "matrix-matrix":
                 self._var_list.append(get_fs_ndf_name(function_space))
 
-            # If there is a field on this space then add undf to list to
-            # declare later. However, if the invoke contains only kernels
-            # that iterate
-            # over dofs and distributed memory is enabled then the
-            # number of dofs is obtained from the field proxy and undf is
-            # not required.
+            # If there is a field on this space then add undf to list
+            # to declare later. However, if the invoke contains only
+            # kernels that iterate over dofs and distributed memory is
+            # enabled then the number of dofs is obtained from the
+            # field proxy and undf is not required.
             if self._invoke and self._invoke.field_on_space(function_space):
                 if not (self._dofs_only and Config.get().distributed_memory):
                     self._var_list.append(get_fs_undf_name(function_space))

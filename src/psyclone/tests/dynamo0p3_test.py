@@ -42,7 +42,6 @@ import os
 import sys
 import pytest
 import fparser
-from dynamo0p3_build import Dynamo0p3Build
 from fparser import api as fpapi
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -55,6 +54,7 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
+from dynamo0p3_build import Dynamo0p3Build
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1280,7 +1280,7 @@ def test_vector_field_deref():
         generated_code = str(psy.gen)
         assert ("SUBROUTINE invoke_0_testkern_chi_type(f1, box_chi, f2)" in
                 generated_code)
-        assert ("TYPE(field_type), intent(inout) :: f1, box_chi(3)" in \
+        assert ("TYPE(field_type), intent(inout) :: f1, box_chi(3)" in
                 generated_code)
         assert "TYPE(field_type), intent(in) :: f2" in generated_code
 
@@ -5065,7 +5065,6 @@ def test_dynglobalsum_unsupported_scalar():
                      "1.6.1_single_invoke_1_int_scalar.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    generated_code = str(psy.gen)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[3]
     kernel = loop.children[0]
@@ -5084,7 +5083,6 @@ def test_dynglobalsum_nodm_error():
                      "1.9_single_invoke_2_real_scalars.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-    generated_code = str(psy.gen)
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.children[0]
     kernel = loop.children[0]

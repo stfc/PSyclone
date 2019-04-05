@@ -71,11 +71,9 @@ def test_kernel_stub_invalid_scalar_argument():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # sabotage the scalar argument to make it have an invalid type.
+    # Sabotage the scalar argument to make it have an invalid type.
     arg = kernel.arguments.args[1]
     arg._type = "invalid"
-    # create a temporary module to add code into
-    from psyclone.f2pygen import ModuleGen
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(InternalError) as excinfo:
@@ -117,9 +115,6 @@ def test_kernel_stub_ind_dofmap_errors():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # create a temporary module to add code into
-    from psyclone.f2pygen import ModuleGen
-    module = ModuleGen("module_name")
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
     # First call it without an argument object
@@ -143,9 +138,6 @@ def test_kernstubarglist_arglist_error():
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
     kernel.load_meta(metadata)
-    # create a temporary module to add code into
-    from psyclone.f2pygen import ModuleGen
-    module = ModuleGen("module_name")
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
     with pytest.raises(GenerationError) as excinfo:
@@ -681,9 +673,9 @@ def test_stub_stencil_extent():
     generated_code = str(kernel.gen_stub)
     result1 = (
         "SUBROUTINE testkern_stencil_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, field_3_w2, "
-        "field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, undf_w2, map_w2, "
-        "ndf_w3, undf_w3, map_w3)")
+        "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, "
+        "field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, "
+        "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
     assert result1 in generated_code
     result2 = "INTEGER, intent(in) :: field_2_stencil_size"
     assert result2 in generated_code

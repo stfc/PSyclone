@@ -535,7 +535,7 @@ def test_op_orient_different_space(tmpdir):
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     gen_str = str(psy.gen)
 
-    assert Dynamo0p3Build(tmpdir).code_compiles(psy)   
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
     assert (
         "INTEGER, pointer :: orientation_w1(:) => null(), orientation_w2(:)"
@@ -642,7 +642,6 @@ def test_operator_bc_kernel(tmpdir):
     assert output3 in generated_code
 
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
-
 
 
 def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):

@@ -1777,8 +1777,8 @@ def test_dynbasisfns_declns(monkeypatch):
         dbasis._basis_fn_declns()
     assert ("differential basis functions but do not have either a Kernel or "
             "an Invoke. Should be" in str(err))
-    for fn in dbasis._basis_fns:
-        fn['type'] = "broken"
+    for fun in dbasis._basis_fns:
+        fun['type'] = "broken"
     with pytest.raises(InternalError) as err:
         dbasis._basis_fn_declns()
     assert ("Unrecognised type of basis function: 'broken'. Should be "
