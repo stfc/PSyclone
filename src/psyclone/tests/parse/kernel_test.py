@@ -44,6 +44,12 @@ from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
 from psyclone.parse.utils import ParseError
 from fparser.api import parse
 
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.parser import ParserFactory
+import fparser.two.Fortran2003 as f2003
+from fparser.two.utils import walk_ast
+from psyclone.psyGen import InternalError
+
 # pylint: disable=invalid-name
 
 
@@ -62,6 +68,89 @@ CODE = (
     "end module test_mod\n"
 
     )
+
+# function get_kernel_metadata
+
+
+def test_getkernelmetadata_works(parser):
+    '''Check that get_kernel_metadata returns the expected type.'''
+    reader = FortranStringReader(CODE)
+    parse_tree = parser(reader)
+    result = get_kernel_metadata("test_type", parse_tree)
+    assert isinstance(result, f2003.Derived_Type_Def)
+    assert str(result.content[0].items[1]) == "test_type"
+
+
+def test_getkernelmetadata_error1(monkeypatch, parser):
+    '''Check that get_kernel_metadata raises an exception if an fparser2
+    class instance does not have the expected method, or if the
+    expected index is greater than the size of the list.
+
+    '''
+    reader = FortranStringReader(CODE)
+    parse_tree = parser(reader)
+    type_defs = walk_ast([parse_tree], [f2003.Derived_Type_Def])
+
+    monkeypatch.setattr(type_defs[0], "content", [None])
+    with pytest.raises(InternalError) as excinfo:
+        _ = get_kernel_metadata("test_type", parse_tree)
+    assert "Can't get name from derived type definition." in str(excinfo.value)
+
+    monkeypatch.setattr(type_defs[0], "content", [])
+    with pytest.raises(InternalError) as excinfo:
+        _ = get_kernel_metadata("test_type", parse_tree)
+    assert "Can't get name from derived type definition." in str(excinfo.value)
+
+
+def test_getkernelmetadata_error2(monkeypatch, parser):
+    '''Check that get_kernel_metadata raises an exception if an expected
+    Derived_Type_Stmt instance is in-fact a different class instance.
+
+    '''
+    reader = FortranStringReader(CODE)
+    parse_tree = parser(reader)
+    type_defs = walk_ast([parse_tree], [f2003.Derived_Type_Def])
+
+    class Dummy():
+        '''A dummy replacement class for derived type statement.'''
+        items = [None, None]
+
+    monkeypatch.setattr(type_defs[0], "content", [Dummy()])
+    with pytest.raises(InternalError) as excinfo:
+        _ = get_kernel_metadata("test_type", parse_tree)
+    assert ("First child of derived type definition is not a derived type "
+            "statement.") in str(excinfo.value)
+
+
+def test_getkernelmetadata_error3(monkeypatch, parser):
+    '''Check that get_kernel_metadata raises an exception if an expected
+    Name instance is in-fact a different class instance.
+
+    '''
+    reader = FortranStringReader(CODE)
+    parse_tree = parser(reader)
+    type_defs = walk_ast([parse_tree], [f2003.Derived_Type_Def])
+
+    monkeypatch.setattr(type_defs[0].content[0], "items", [None, None])
+    with pytest.raises(InternalError) as excinfo:
+        _ = get_kernel_metadata("test_type", parse_tree)
+    assert ("Second child of derived type statement is not a Name.") \
+        in str(excinfo.value)
+
+
+def test_getkernelmetadata_not_found(monkeypatch, parser):
+    '''Check that get_kernel_metadata raises an exception if an expected
+    Name instance is in-fact a different class instance.
+
+    '''
+    reader = FortranStringReader(CODE)
+    parse_tree = parser(reader)
+    type_defs = walk_ast([parse_tree], [f2003.Derived_Type_Def])
+
+    with pytest.raises(ParseError) as excinfo:
+        _ = get_kernel_metadata("does_not_exist", parse_tree)
+    assert ("Kernel type 'does_not_exist' does not exist.") \
+        in str(excinfo.value)
 
 # function get_kernel_filepath
 

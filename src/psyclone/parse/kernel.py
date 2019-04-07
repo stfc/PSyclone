@@ -572,21 +572,26 @@ def get_kernel_metadata(name, ast):
     ktype = None
     for statement in walk_ast([ast]):
         if isinstance(statement, fparser.two.Fortran2003.Derived_Type_Def):
-            derived_type_stmt = statement.content[0]
+            try:
+                derived_type_stmt = statement.content[0]
+                type_name = derived_type_stmt.items[1]
+            except (IndexError, TypeError, AttributeError):
+                raise InternalError(
+                    "Can't get name from derived type definition.")
             if not (isinstance(derived_type_stmt,
                                fparser.two.Fortran2003.Derived_Type_Stmt)):
-                raise InternalError("ERROR")
-            if len(derived_type_stmt.items) != 3:
-                raise InternalError("ERROR2")
-            type_name = derived_type_stmt.items[1]
+                raise InternalError(
+                    "First child of derived type definition is not a derived "
+                    "type statement.")
             if not isinstance(type_name, fparser.two.Fortran2003.Type_Name):
-                raise InternalError("ERROR3")
+                raise InternalError(
+                    "Second child of derived type statement is not a Name.")
             type_name_str = str(type_name)
             if type_name_str == name:
                 ktype = statement
                 break
     if ktype is None:
-        raise ParseError("Kernel type {0} does not exist".format(name))
+        raise ParseError("Kernel type '{0}' does not exist.".format(name))
     return ktype
 
 
