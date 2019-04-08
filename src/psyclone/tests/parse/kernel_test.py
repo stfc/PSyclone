@@ -39,10 +39,10 @@ tests for code that is not covered there.'''
 
 import os
 import pytest
+from fparser.api import parse
 from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
     KernelProcedure, Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath
 from psyclone.parse.utils import ParseError
-from fparser.api import parse
 
 # pylint: disable=invalid-name
 
@@ -96,6 +96,40 @@ def test_getkernelfilepath_multifile(tmpdir):
         _ = get_kernel_filepath("test_mod", str(tmpdir), None)
     assert ("More than one match for kernel file 'test_mod.[fF]90' "
             "found!") in str(excinfo.value)
+
+
+def test_getkernelfilepath_caseinsensitive1(tmpdir):
+    '''Test that a case insensitive match is performed when searching for
+    kernels with a supplied kernel search path.
+
+    '''
+    os.mkdir(str(tmpdir.join("tmp")))
+    filename = str(tmpdir.join("tmp", "test_mod.f90"))
+    ffile = open(filename, "w")
+    ffile.write("")
+    ffile.close()
+    result = get_kernel_filepath("TEST_MOD", str(tmpdir), None)
+    assert "tmp" in result
+    assert "test_mod.f90" in result
+
+
+def test_getkernelfilepath_caseinsensitive2(tmpdir):
+    '''Test that a case insensitive match is performed when searching for
+    kernels without a supplied kernel search path.
+
+    '''
+    os.mkdir(str(tmpdir.join("tmp")))
+    filename = str(tmpdir.join("tmp", "test_mod.f90"))
+    ffile = open(filename, "w")
+    ffile.write("")
+    ffile.close()
+    filename = str(tmpdir.join("tmp", "alg.f90"))
+    ffile = open(filename, "w")
+    ffile.write("")
+    ffile.close()
+    result = get_kernel_filepath("TEST_MOD", None, filename)
+    assert "tmp" in result
+    assert "test_mod.f90" in result
 
 # class BuiltInKernelTypeFactory():create test
 

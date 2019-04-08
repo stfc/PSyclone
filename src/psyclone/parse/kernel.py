@@ -89,11 +89,12 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
     is found
 
     '''
-    import fnmatch
 
-    # Only consider files with the suffixes .f90 and .F90
-    # when searching for the kernel source.
-    search_string = "{0}.[fF]90".format(module_name)
+    # Only consider files with the suffixes .f90 and .F90 when
+    # searching for the kernel source (we perform a case insensitive
+    # match).
+    search_string = "{0}.F90".format(module_name)
+    matches = []
 
     # If a search path has been specified then look there. Otherwise
     # look in the directory containing the algorithm definition file.
@@ -109,17 +110,20 @@ def get_kernel_filepath(module_name, kernel_path, alg_filename):
 
         # Recursively search down through the directory tree starting
         # at the specified path.
-        matches = []
         for root, _, filenames in os.walk(cdir):
-            for filename in fnmatch.filter(filenames, search_string):
-                matches.append(os.path.join(root, filename))
+            for filename in filenames:
+                # perform a case insensitive match
+                if filename.lower() == search_string.lower():
+                    matches.append(os.path.join(root, filename))
     else:
         # Look *only* in the directory that contained the algorithm
         # file.
         cdir = os.path.abspath(os.path.dirname(alg_filename))
         filenames = os.listdir(cdir)
-        matches = [os.path.join(cdir, fname) for fname in
-                   fnmatch.filter(filenames, search_string)]
+        for filename in filenames:
+            # perform a case insensitive match
+            if filename.lower() == search_string.lower():
+                matches.append(os.path.join(cdir, filename))
 
     if not matches:
         # There were no matches.
