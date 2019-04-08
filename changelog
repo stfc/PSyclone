@@ -85,6 +85,9 @@
 	directives and adds a sequential option to the OpenACC loop
 	directive transformation.
 
+	28) #319 and PR #331. Bug fix to make matching of kernel names
+	in module use statements (in the Kernel) case insensitive.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
