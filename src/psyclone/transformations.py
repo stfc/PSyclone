@@ -118,6 +118,15 @@ class RegionTrans(Transformation):
                         "Nodes of type '{0}' cannot be enclosed by a {1} "
                         "transformation".format(type(item), self.name))
 
+        # Check that we aren't attempting to include any else/else if's without
+        # their parent 'if'.
+        from psyclone.psyGen import IfClause
+        for node in node_list:
+            if isinstance(node, IfClause):
+                raise TransformationError(
+                    "Proposed transformation would split else/else-if clauses "
+                    "from their parent if-statement.")
+
 
 # =============================================================================
 def check_intergrid(node):
@@ -747,6 +756,7 @@ class ACCLoopTrans(ParallelLoopTrans):
         # Whether to add the "independent" clause
         # to the loop directive.
         self._independent = True
+        self._sequential = False
         super(ACCLoopTrans, self).__init__()
 
     def __str__(self):
@@ -773,7 +783,8 @@ class ACCLoopTrans(ParallelLoopTrans):
         directive = ACCLoopDirective(parent=parent,
                                      children=children,
                                      collapse=collapse,
-                                     independent=self._independent)
+                                     independent=self._independent,
+                                     sequential=self._sequential)
         return directive
 
     def _validate(self, node, collapse=None):
@@ -788,14 +799,15 @@ class ACCLoopTrans(ParallelLoopTrans):
                                      being used.
         '''
         from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.nemo import NemoInvokeSchedule
         sched = node.root
-        if not isinstance(sched, GOInvokeSchedule):
+        if not isinstance(sched, (GOInvokeSchedule, NemoInvokeSchedule)):
             raise NotImplementedError(
                 "OpenACC loop transformations are currently only supported "
-                "for the gocean 1.0 API")
+                "for the gocean 1.0 and nemo APIs")
         super(ACCLoopTrans, self)._validate(node, collapse)
 
-    def apply(self, node, collapse=None, independent=True):
+    def apply(self, node, collapse=None, independent=True, sequential=False):
         '''
         Apply the ACCLoop transformation to the specified node in a
         GOInvokeSchedule. This node must be a Loop since this transformation
@@ -826,6 +838,7 @@ class ACCLoopTrans(ParallelLoopTrans):
         # Store sub-class specific options. These are used when
         # creating the directive (in the _directive() method).
         self._independent = independent
+        self._sequential = sequential
         # Call the apply() method of the base class
         return super(ACCLoopTrans, self).apply(node, collapse)
 
@@ -1580,8 +1593,8 @@ class OMPParallelTrans(ParallelRegionTrans):
 class ACCParallelTrans(ParallelRegionTrans):
     '''
     Create an OpenACC parallel region by inserting directives. This parallel
-    region *must* come after an enter-data directive (see `ACCDataTrans`). For
-    example:
+    region *must* come after an enter-data directive (see `ACCEnterDataTrans`)
+    or within a data region (see `ACCDataTrans`). For example:
 
     >>> from psyclone.parse.algorithm import parse
     >>> from psyclone.psyGen import PSyFactory
@@ -1604,9 +1617,12 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> newschedule, _ = dtrans.apply(newschedule)
     >>> newschedule.view()
     '''
-    from psyclone import gocean1p0, psyGen
+    from psyclone import gocean1p0, nemo, psyGen
     valid_node_types = (gocean1p0.GOLoop, gocean1p0.GOKern,
-                        psyGen.ACCLoopDirective)
+                        nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
+                        nemo.NemoIfClause, psyGen.ACCLoopDirective,
+                        psyGen.Assignment, psyGen.Reference, psyGen.Literal,
+                        psyGen.BinaryOperation)
 
     def __init__(self):
         super(ACCParallelTrans, self).__init__()
@@ -1636,11 +1652,12 @@ class ACCParallelTrans(ParallelRegionTrans):
                                      being used.
         '''
         from psyclone.gocean1p0 import GOInvokeSchedule
+        from psyclone.nemo import NemoInvokeSchedule
         sched = node_list[0].root
-        if not isinstance(sched, GOInvokeSchedule):
+        if not isinstance(sched, (GOInvokeSchedule, NemoInvokeSchedule)):
             raise NotImplementedError(
                 "OpenACC parallel regions are currently only "
-                "supported for the gocean 1.0 API")
+                "supported for the gocean 1.0 and nemo APIs")
         super(ACCParallelTrans, self)._validate(node_list)
 
 
@@ -2049,14 +2066,14 @@ class GOLoopSwapTrans(Transformation):
 
      >>> from psyclone.parse.algorithm import parse
      >>> from psyclone.psyGen import PSyFactory
-     >>> ast,invokeInfo=parse("shallow_alg.f90")
-     >>> psy=PSyFactory("gocean1.0").create(invokeInfo)
-     >>> schedule=psy.invokes.get('invoke_0').schedule
+     >>> ast, invokeInfo = parse("shallow_alg.f90")
+     >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
+     >>> schedule = psy.invokes.get('invoke_0').schedule
      >>> schedule.view()
      >>>
      >>> from psyclone.transformations import GOLoopSwapTrans
-     >>> swap=GOLoopSwapTrans()
-     >>> new_schedule,memento=swap.apply(schedule.children[0])
+     >>> swap = GOLoopSwapTrans()
+     >>> new_schedule, memento = swap.apply(schedule.children[0])
      >>> new_schedule.view()
     '''
 
@@ -2436,7 +2453,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
                 .format(type(node)))
 
 
-class ACCDataTrans(Transformation):
+class ACCEnterDataTrans(Transformation):
     '''
     Adds an OpenACC "enter data" directive to a Schedule.
     For example:
@@ -2450,7 +2467,7 @@ class ACCDataTrans(Transformation):
     >>>
     >>> from psyclone.psyGen import TransInfo
     >>> t = TransInfo()
-    >>> dtrans = t.get_trans_name('ACCDataTrans')
+    >>> dtrans = t.get_trans_name('ACCEnterDataTrans')
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> schedule.view()
@@ -2469,7 +2486,7 @@ class ACCDataTrans(Transformation):
         :returns: the name of this transformation.
         :rtype: str
         '''
-        return "ACCDataTrans"
+        return "ACCEnterDataTrans"
 
     def apply(self, sched):
         '''Adds an OpenACC "enter data" directive to the invoke associated
@@ -2483,39 +2500,67 @@ class ACCDataTrans(Transformation):
                   transformation.
         :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
                 :py:class:`psyclone.undoredo.Memento`)
-        :raises NotImplementedError: for any API other than GOcean 1.0.
+        '''
+        from psyclone.gocean1p0 import GOInvokeSchedule
+
+        # Ensure that the proposed transformation is valid
+        self._validate(sched)
+
+        if isinstance(sched, GOInvokeSchedule):
+            from psyclone.gocean1p0 import GOACCEnterDataDirective as \
+                AccEnterDataDir
+        else:
+            # Should not get here provided that _validate() has done its job
+            raise InternalError(
+                "ACCEnterDataTrans._validate() has not rejected an "
+                "(unsupported) schedule of type {0}".format(type(sched)))
+
+        # Create a memento of the schedule and the proposed
+        # transformation.
+        keep = Memento(sched, self, [sched])
+
+        # Add the directive
+        data_dir = AccEnterDataDir(parent=sched, children=[])
+        sched.addchild(data_dir, index=0)
+
+        return sched, keep
+
+    def _validate(self, sched):
+        '''
+        Check that we can safely apply the OpenACC enter-data transformation
+        to the supplied Schedule.
+
+        :param sched: Schedule to which to add an "enter data" directive.
+        :type sched: sub-class of :py:class:`psyclone.psyGen.Schedule`.
+
+        :raises NotImplementedError: for any API other than GOcean 1.0 or NEMO.
         :raises TransformationError: if passed something that is not a \
                          (subclass of) :py:class:`psyclone.psyGen.Schedule`.
         '''
-        # Check that the supplied node is a Schedule
-        from psyclone.psyGen import Schedule
+        from psyclone.psyGen import Schedule, Directive, \
+            ACCDataDirective, ACCEnterDataDirective
         from psyclone.gocean1p0 import GOInvokeSchedule
 
-        if isinstance(sched, GOInvokeSchedule):
-            from psyclone.gocean1p0 import GOACCDataDirective as AccDataDir
-        elif isinstance(sched, Schedule):
-            raise NotImplementedError(
-                "ACCDataTrans: ACCDataDirective not implemented for a "
-                "schedule of type {0}".format(type(sched)))
-        else:
-            raise TransformationError("Cannot apply an OpenACC data "
+        super(ACCEnterDataTrans, self)._validate(sched)
+
+        if not isinstance(sched, Schedule):
+            raise TransformationError("Cannot apply an OpenACC enter-data "
                                       "directive to something that is "
                                       "not a Schedule")
-        schedule = sched
-        # Check that we don't already have a data region
-        data_directives = schedule.walk(schedule.children, AccDataDir)
-        if data_directives:
-            raise TransformationError("Schedule already has an OpenACC "
-                                      "data region - cannot add another.")
-        # create a memento of the schedule and the proposed
-        # transformation
-        keep = Memento(schedule, self, [schedule])
 
-        # Add the directive
-        data_dir = AccDataDir(parent=schedule, children=[])
-        schedule.addchild(data_dir, index=0)
+        if not isinstance(sched, GOInvokeSchedule):
+            raise NotImplementedError(
+                "ACCEnterDataTrans: ACCEnterDataDirective not implemented for "
+                "a schedule of type {0}".format(type(sched)))
 
-        return schedule, keep
+        # Check that we don't already have a data region of any sort
+        directives = sched.walk(sched.children, Directive)
+        data_directives = [True if isinstance(ddir, (ACCDataDirective,
+                                                     ACCEnterDataDirective))
+                           else False for ddir in directives]
+        if True in data_directives:
+            raise TransformationError("Schedule already has an OpenACC data "
+                                      "region - cannot add an enter data.")
 
 
 class ACCRoutineTrans(Transformation):
@@ -2633,6 +2678,213 @@ class ACCRoutineTrans(Transformation):
                                       format(kern.name))
 
 
+class ACCKernelsTrans(RegionTrans):
+    '''
+    Enclose a sub-set of nodes from a Schedule within an OpenACC kernels
+    region (i.e. within "!$acc kernels" ... "!$acc end kernels" directives).
+    Currently only supported for the NEMO API.
+
+    For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "NEMO"
+    >>> filename = "tra_adv.F90"
+    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import ACCKernelsTrans
+    >>> ktrans = ACCKernelsTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> kernels = schedule.children[0].children[0].children[0:-1]
+    >>> # Transform the kernel
+    >>> new_sched, _ = ktrans.apply(kernels)
+
+    '''
+    from psyclone import nemo, psyGen
+    valid_node_types = (nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
+                        nemo.NemoIfClause, psyGen.BinaryOperation,
+                        psyGen.Literal, psyGen.Assignment, psyGen.Reference)
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation class.
+        :rtype: str
+        '''
+        return "ACCKernelsTrans"
+
+    def apply(self, node_list, default_present=False):
+        '''
+        Enclose the supplied list of PSyIR nodes within an OpenACC
+        Kernels region.
+
+        :param node_list: The list of nodes in the PSyIR to enclose.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :param bool default_present: whether or not the kernels region \
+           should have the 'default present' attribute (indicating that data \
+           is already on the accelerator).
+        :returns: (transformed schedule, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`,
+                            :py:class:`psyclone.undoredo.Memento`).
+
+        '''
+        self._validate(node_list)
+
+        # Keep a record of this transformation
+        keep = Memento(node_list[:], self)
+
+        parent = node_list[0].parent
+        schedule = node_list[0].root
+
+        # Create the directive and insert it. Take a copy of the list
+        # as it may just be a reference to the parent.children list
+        # that we are about to modify.
+        from psyclone.psyGen import ACCKernelsDirective
+        directive = ACCKernelsDirective(parent=parent,
+                                        children=node_list[:],
+                                        default_present=default_present)
+        start_index = parent.children.index(node_list[0])
+
+        for child in directive.children:
+            parent.children.remove(child)
+            child.parent = directive
+
+        parent.children.insert(start_index, directive)
+
+        # Return the now modified kernel
+        return schedule, keep
+
+    def _validate(self, node_list):
+        '''
+        Check that we can safely enclose the supplied list of nodes within
+        OpenACC kernels ... end kernels directives.
+        '''
+        from psyclone.nemo import NemoInvokeSchedule
+        from psyclone.psyGen import Loop
+        # Check that the API is valid
+        sched = node_list[0].root
+        if not isinstance(sched, NemoInvokeSchedule):
+            raise NotImplementedError("OpenACC kernels regions are currently "
+                                      "only supported for the nemo API")
+        super(ACCKernelsTrans, self)._validate(node_list)
+
+        # Check that we have at least one loop within the proposed region
+        found = False
+        for node in node_list:
+            loops = node.walk(node.children, Loop)
+            if loops or isinstance(node, Loop):
+                found = True
+                break
+        if not found:
+            raise TransformationError("A kernels transformation must enclose "
+                                      "at least one loop but none were found.")
+
+
+class ACCDataTrans(RegionTrans):
+    '''
+    Add an OpenACC data region around a list of nodes in the PSyIR.
+    COPYIN, COPYOUT and COPY clauses are added as required.
+
+    For example:
+
+    >>> from psyclone.parse import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "NEMO"
+    >>> filename = "tra_adv.F90"
+    >>> ast, invokeInfo = parse(filename, api=api)
+    >>> psy = PSyFactory(api).create(invokeInfo)
+    >>>
+    >>> from psyclone.transformations import ACCDataTrans
+    >>> dtrans = ACCDataTrans()
+    >>>
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>> kernels = schedule.children[0].children[0].children[0:-1]
+    >>> # Enclose the kernels
+    >>> new_sched, _ = dtrans.apply(kernels)
+
+    '''
+    from psyclone import psyGen
+    valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
+                        psyGen.Directive, psyGen.IfBlock, psyGen.IfClause,
+                        psyGen.Literal, psyGen.Assignment, psyGen.Reference,
+                        psyGen.BinaryOperation)
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation.
+        :rtype: str
+
+        '''
+        return "ACCDataTrans"
+
+    def apply(self, node_list):
+        '''
+        Put the supplied list of nodes within an OpenACC data region.
+
+        :param node_list: The list of PSyIR nodes to enclose in the data \
+                          region.
+        :type node_list: list of :py:class:`psyclone.psyGen.Node`
+        :returns: (transformed schedule, memento of transformation)
+        :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`).
+
+        '''
+        self._validate(node_list)
+
+        # Keep a record of this transformation
+        keep = Memento(node_list[:], self)
+
+        parent = node_list[0].parent
+        schedule = node_list[0].root
+
+        # Create the directive and insert it. Take a copy of the list
+        # as it may just be a reference to the parent.children list
+        # that we are about to modify.
+        from psyclone.psyGen import ACCDataDirective
+        directive = ACCDataDirective(parent=parent, children=node_list[:])
+        start_index = parent.children.index(node_list[0])
+
+        for child in directive.children:
+            parent.children.remove(child)
+            child.parent = directive
+
+        parent.children.insert(start_index, directive)
+
+        # Return the now modified kernel
+        return schedule, keep
+
+    def _validate(self, node_list):
+        '''
+        Check that we can safely add a data region around the supplied list
+        of nodes.
+
+        :param node_list: the proposed list of nodes to enclose in a data \
+                          region.
+        :type node_list: list of subclasses of :py:class:`psyclone.psyGen.Node`
+
+        :raises TransformationError: if the Schedule to which the nodes \
+                                belong already has an 'enter data' directive.
+        :raises TransformationError: if any of the nodes are themselves \
+                                     data directives.
+        '''
+        from psyclone.psyGen import ACCEnterDataDirective
+        super(ACCDataTrans, self)._validate(node_list)
+
+        # Check that the Schedule to which the nodes belong does not already
+        # have an 'enter data' directive.
+        schedule = node_list[0].root
+        acc_dirs = schedule.walk(schedule.children, ACCEnterDataDirective)
+        if acc_dirs:
+            raise TransformationError(
+                "Cannot add an OpenACC data region to a schedule that "
+                "already contains an 'enter data' directive.")
+
+
 class NemoExplicitLoopTrans(Transformation):
     '''
     Transforms the outermost array slice in an implicit loop in a
@@ -2713,7 +2965,7 @@ class NemoExplicitLoopTrans(Transformation):
         keep = Memento(loop, self)
 
         # Find all uses of array syntax in the statement
-        subsections = walk_ast(loop._ast.items,
+        subsections = walk_ast(loop.ast.items,
                                [Fortran2003.Section_Subscript_List])
         # Create a list identifying which dimensions contain a range
         sliced_dimensions = []
@@ -2730,7 +2982,7 @@ class NemoExplicitLoopTrans(Transformation):
                 if [part for part in item.items if part]:
                     raise NotImplementedError(
                         "Support for implicit loops with specified bounds is "
-                        "not yet implemented: '{0}'".format(str(loop._ast)))
+                        "not yet implemented: '{0}'".format(str(loop.ast)))
                 # If an array index is a Subscript_Triplet then it is a range
                 # and thus we need to create an explicit loop for this
                 # dimension.
@@ -2741,7 +2993,7 @@ class NemoExplicitLoopTrans(Transformation):
         if outermost_dim < 0 or outermost_dim > 2:
             raise TransformationError(
                 "Array section in unsupported dimension ({0}) for code "
-                "'{1}'".format(outermost_dim+1, str(loop._ast)))
+                "'{1}'".format(outermost_dim+1, str(loop.ast)))
 
         # TODO (fparser/#102) since the fparser2 AST does not have parent
         # information (and no other way of getting to the root node), it is
@@ -2800,7 +3052,7 @@ class NemoExplicitLoopTrans(Transformation):
                 raise InternalError(
                     "Expecting a colon for index {0} but array only has {1} "
                     "dimensions: {2}".format(outermost_dim+1, len(indices),
-                                             str(loop._ast)))
+                                             str(loop.ast)))
             if not isinstance(indices[outermost_dim],
                               Fortran2003.Subscript_Triplet):
                 raise TransformationError(
@@ -2821,13 +3073,13 @@ class NemoExplicitLoopTrans(Transformation):
 
         # Insert it in the fparser2 AST at the location of the implicit
         # loop
-        parent_index = loop._ast._parent.content.index(loop._ast)
-        loop._ast._parent.content.insert(parent_index, new_loop)
+        parent_index = loop.ast._parent.content.index(loop.ast)
+        loop.ast._parent.content.insert(parent_index, new_loop)
         # Replace the content of the loop with the (modified) implicit
         # loop
-        new_loop.content[1] = loop._ast
+        new_loop.content[1] = loop.ast
         # Remove the implicit loop from its original parent in the AST
-        loop._ast._parent.content.remove(loop._ast)
+        loop.ast._parent.content.remove(loop.ast)
 
         # Now we must update the PSyIR to reflect the new AST
         # First we update the parent of the loop we have transformed
@@ -2835,7 +3087,7 @@ class NemoExplicitLoopTrans(Transformation):
         psyir_parent.children.remove(loop)
         # Next, we simply process the transformed fparser2 AST to generate
         # the new PSyIR of it
-        psyir_parent.process_nodes(psyir_parent, [new_loop], loop._ast._parent)
+        psyir_parent.process_nodes(psyir_parent, [new_loop], loop.ast._parent)
         # Delete the old PSyIR node that we have transformed
         del loop
         loop = None

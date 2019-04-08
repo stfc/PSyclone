@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ from psyclone.transformations import TransformationError, \
     GOConstLoopBoundsTrans, LoopFuseTrans, GOLoopSwapTrans, \
     OMPParallelTrans, GOceanOMPParallelLoopTrans, \
     GOceanOMPLoopTrans, KernelModuleInlineTrans, GOceanLoopFuseTrans, \
-    ACCParallelTrans, ACCDataTrans, ACCLoopTrans
+    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.generator import GenerationError
 from psyclone_test_utils import count_lines, get_invoke, Compile
 
@@ -1486,7 +1486,7 @@ def test_acc_parallel_trans(tmpdir):
     assert ("an ACC parallel region must also contain an ACC enter data "
             "directive but none was found for invoke_0" in str(err))
 
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     new_sched, _ = accdt.apply(schedule)
     invoke.schedule = new_sched
     code = str(psy.gen)
@@ -1537,12 +1537,12 @@ def test_acc_data_not_a_schedule():
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 
-    acct = ACCDataTrans()
+    acct = ACCEnterDataTrans()
 
     with pytest.raises(TransformationError) as err:
         _, _ = acct.apply(schedule.children[0])
-    assert ("Cannot apply an OpenACC data directive to something that is not "
-            "a Schedule" in str(err))
+    assert ("Cannot apply an OpenACC enter-data directive to something that "
+            "is not a Schedule" in str(err))
 
 
 def test_acc_parallel_invalid_node():
@@ -1551,7 +1551,7 @@ def test_acc_parallel_invalid_node():
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
 
-    acct = ACCDataTrans()
+    acct = ACCEnterDataTrans()
     accpara = ACCParallelTrans()
 
     # Add an enter-data directive to the schedule
@@ -1560,8 +1560,8 @@ def test_acc_parallel_invalid_node():
     # Attempt to enclose the enter-data directive within a parallel region
     with pytest.raises(TransformationError) as err:
         _, _ = accpara.apply(new_sched.children[0])
-    assert ("GOACCDataDirective'>' cannot be enclosed by a ACCParallelTrans "
-            "transformation" in str(err))
+    assert ("GOACCEnterDataDirective'>' cannot be enclosed by a "
+            "ACCParallelTrans transformation" in str(err))
 
 
 def test_acc_data_copyin(tmpdir):
@@ -1571,7 +1571,7 @@ def test_acc_data_copyin(tmpdir):
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1609,7 +1609,7 @@ def test_acc_data_grid_copyin(tmpdir):
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1647,7 +1647,7 @@ def test_acc_rscalar_update(tmpdir):
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1681,7 +1681,7 @@ def test_acc_iscalar_update(tmpdir):
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1716,7 +1716,7 @@ def test_acc_update_two_scalars(tmpdir):
     schedule = invoke.schedule
 
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     # Put each loop within an OpenACC parallel region
     for child in schedule.children:
@@ -1747,7 +1747,7 @@ def test_acc_data_parallel_commute(tmpdir):
     '''Test that we can apply the OpenACC parallel and data
     transformations in either order'''
     accpt = ACCParallelTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
@@ -1786,7 +1786,7 @@ def test_acc_data_parallel_commute(tmpdir):
 def test_accdata_duplicate():
     ''' Check that we raise an error if we attempt to add an OpenACC
     data directive to a schedule that already contains one '''
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
 
     _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
@@ -1809,7 +1809,7 @@ def test_accloop(tmpdir):
     ''' Tests that we can apply a '!$acc loop' directive to a loop '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
-    accdata = ACCDataTrans()
+    accdata = ACCEnterDataTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0)
     schedule = invoke.schedule
@@ -1862,7 +1862,7 @@ def test_acc_collapse(tmpdir):
     ''' Tests for the collapse clause to a loop directive '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
-    accdata = ACCDataTrans()
+    accdata = ACCEnterDataTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0")
@@ -1910,18 +1910,13 @@ def test_acc_indep(capsys, tmpdir):
     ''' Tests for the independent clause to a loop directive. '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
-    accdata = ACCDataTrans()
+    accdata = ACCEnterDataTrans()
 
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
                              name="invoke_0")
     schedule = invoke.schedule
     new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
     new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
-    # Check the view method
-    new_sched.view()
-    output, _ = capsys.readouterr()
-    assert "[ACC Loop]" in output
-    assert "[ACC Loop, independent]" in output
     new_sched, _ = accpara.apply(new_sched.children)
     new_sched, _ = accdata.apply(new_sched)
     # Check the generated code
@@ -1929,4 +1924,57 @@ def test_acc_indep(capsys, tmpdir):
     gen = str(psy.gen)
     assert "!$acc loop\n      DO j=2,jstop" in gen
     assert "!$acc loop independent\n      DO j=2,jstop+1" in gen
+
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
+
+
+def test_acc_loop_seq():
+    ''' Check that we can apply the sequential clause to an ACC LOOP
+    directive. '''
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                             name="invoke_0")
+    schedule = invoke.schedule
+    new_sched, _ = acclpt.apply(schedule.children[0], sequential=True)
+    new_sched, _ = accpara.apply(new_sched.children)
+    new_sched, _ = accdata.apply(new_sched)
+    # Check the generated code
+    invoke.schedule = new_sched
+    gen = str(psy.gen).lower()
+    assert ("      !$acc parallel default(present)\n"
+            "      !$acc loop seq\n"
+            "      do j=2,jstop\n" in gen)
+
+
+def test_acc_loop_view(capsys):
+    ''' Test for the view() method of ACCLoopDirective. '''
+    acclpt = ACCLoopTrans()
+
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                             name="invoke_0")
+    schedule = invoke.schedule
+    new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
+    new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
+    new_sched, _ = acclpt.apply(schedule.children[2], sequential=True)
+    # Check the view method
+    new_sched.view()
+    output, _ = capsys.readouterr()
+    assert "[ACC Loop]" in output
+    assert "[ACC Loop, independent]" in output
+    assert "[ACC Loop, seq]" in output
+
+
+def test_acc_kernels_error():
+    ''' Check that we refuse to allow the kernels transformation
+    for this API. '''
+    from psyclone.transformations import ACCKernelsTrans
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                             name="invoke_0")
+    schedule = invoke.schedule
+    accktrans = ACCKernelsTrans()
+    with pytest.raises(NotImplementedError) as err:
+        _, _ = accktrans.apply(schedule.children)
+    assert ("kernels regions are currently only supported for the nemo API"
+            in str(err))

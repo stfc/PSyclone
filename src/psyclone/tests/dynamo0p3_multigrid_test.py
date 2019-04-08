@@ -336,6 +336,8 @@ def test_field_restrict(tmpdir, monkeypatch, annexed):
             "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
             "      INTEGER, pointer :: map_any_space_1_field1(:,:) => null(), "
             "map_any_space_2_field2(:,:) => null()\n"
+            "      INTEGER ndf_any_space_1_field1, undf_any_space_1_field1, "
+            "ndf_any_space_2_field2, undf_any_space_2_field2\n"
             "      INTEGER ncell_field2, ncpc_field2_field1\n"
             "      INTEGER, pointer :: cell_map_field1(:,:) => null()\n"
             "      TYPE(mesh_map_type), pointer :: mmap_field2_field1 => "
