@@ -95,6 +95,57 @@ def test_parser_updateargtomodulemap_invalid():
     assert "Expected a use statement but found instance of" \
         in str(excinfo.value)
 
+
+def test_parser_caseinsensitive1():
+    '''Check that the test for the existance of a builtin call in a use
+    statement is case insensitive.
+
+    '''
+    from fparser.two import Fortran2003 as f2003
+    from fparser.two.parser import ParserFactory
+    ParserFactory().create(std="f2003")
+    parser = Parser()
+    use = f2003.Use_Stmt("use my_mod, only : SETVAL_X")
+    parser.update_arg_to_module_map(use)
+    with pytest.raises(ParseError) as excinfo:
+        parser.create_builtin_kernel_call("SetVal_X", None)
+    assert "A built-in cannot be named in a use statement" \
+        in str(excinfo.value)
+
+
+def test_parser_caseinsensitive2(monkeypatch):
+    '''Check that the test for the existance of a kernel call in a use
+    statement is case insensitive.
+
+    '''
+    def dummy_func(arg1, arg2, arg3, arg4):
+        '''A dummy function used by monkeypatch to override the get_kernel_ast
+        function. We don't care about the arguments as we just want to
+        raise an exception.
+
+        '''
+        # pylint: disable=unused-argument
+        raise NotImplementedError("test_parser_caseinsensitive2")
+
+    monkeypatch.setattr("psyclone.parse.kernel.get_kernel_ast", dummy_func)
+    from fparser.two import Fortran2003 as f2003
+    from fparser.two.parser import ParserFactory
+    ParserFactory().create(std="f2003")
+    parser = Parser()
+    use = f2003.Use_Stmt("use my_mod, only : MY_KERN")
+    parser.update_arg_to_module_map(use)
+    with pytest.raises(NotImplementedError) as excinfo:
+        # We have monkeypatched the function 'get_kernel_ast' to
+        # return 'NotImplementedError' with a string associated with
+        # this test so we know that we have got to this function if
+        # this exception is raised. The case insensitive test we
+        # really care about is before this function is called (and it
+        # raises a ParseError) so we know that if we don't get a
+        # ParseError then all is well.
+        parser.create_coded_kernel_call("My_Kern", None)
+    # Sanity check that the exception is the monkeypatched one.
+    assert str(excinfo.value) == "test_parser_caseinsensitive2"
+
 # function get_invoke_label() tests
 
 
