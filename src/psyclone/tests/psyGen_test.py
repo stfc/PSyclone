@@ -3637,7 +3637,10 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     # Explicit shape symbols can only be Literal or Symbol
     with pytest.raises(NotImplementedError) as error:
         class UnrecognizedType(object):
+            '''Type guaranteed to not be part of the _parse_dimensions
+            conditional type handler.'''
             pass
+
         fparser2spec.items[1].items[1].__class__ = UnrecognizedType
         _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)

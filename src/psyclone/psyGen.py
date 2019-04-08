@@ -4739,11 +4739,11 @@ class Fparser2ASTProcessor(object):
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
         :param symbol_table: Symbol table of the declaration context.
         :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
-        :returns: Shape of the attribute in row-major order (leftmost \
+        :returns: Shape of the attribute in column-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
                   an array dimension. If it is 'None' the extent of that \
                   dimension is unknown, otherwise it holds an integer \
-                  with the extent. If it is an empy list then the symbol \
+                  with the extent. If it is an empty list then the symbol \
                   represents a scalar.
         :rtype: list
         '''
@@ -4751,19 +4751,11 @@ class Fparser2ASTProcessor(object):
         from fparser.two import Fortran2003
         shape = []
 
-        if isinstance(dimensions, (Fortran2003.Assumed_Shape_Spec,
-                                   Fortran2003.Explicit_Shape_Spec,
-                                   Fortran2003.Assumed_Size_Spec)):
-            dimensions_list = [dimensions]
-        else:
-            # Depth-first-search list of shape specs
-            dimensions_list = walk_ast(
-                dimensions.items,
-                [Fortran2003.Assumed_Shape_Spec,
-                 Fortran2003.Explicit_Shape_Spec,
-                 Fortran2003.Assumed_Size_Spec])
+        # Traverse shape specs in Depth-first-search order
+        for dim in walk_ast([dimensions], [Fortran2003.Assumed_Shape_Spec,
+                                           Fortran2003.Explicit_Shape_Spec,
+                                           Fortran2003.Assumed_Size_Spec]):
 
-        for dim in dimensions_list:
             if isinstance(dim, Fortran2003.Assumed_Size_Spec):
                 raise NotImplementedError(
                     "Could not process {0}. Assumed-size arrays"
@@ -4833,7 +4825,7 @@ class Fparser2ASTProcessor(object):
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
 
-            # Parse type_spec, currently just 'real', 'integer' and
+            # Parse type_spec, currently just 'real', 'integer', 'logical' and
             # 'character' intrinsic types are supported.
             datatype = None
             if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
@@ -5141,13 +5133,13 @@ class Fparser2ASTProcessor(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in row-major order), the scope and for
+    the datatype, the shape (in column-major order), the scope and for
     global-scoped symbols whether the data is already defined and/or survives
     after the kernel.
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
-    :param list shape: Shape of the symbol in row-major order (leftmost \
+    :param list shape: Shape of the symbol in column-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
                        dimension is unknown, otherwise it holds an integer \
@@ -5196,7 +5188,7 @@ class Symbol(object):
                    len(dimension.shape) > 0:
                     raise TypeError(
                         "Symbols that are part of another symbol shape can "
-                        "only be scalar integers, but found '{}'"
+                        "only be scalar integers, but found '{0}'."
                         "".format(str(dimension)))
             elif not isinstance(dimension, (type(None), int)):
                 raise TypeError("Symbol shape list elements can only be "
@@ -5281,7 +5273,7 @@ class Symbol(object):
     @property
     def shape(self):
         '''
-        :returns: Shape of the symbol in row-major order (leftmost \
+        :returns: Shape of the symbol in column-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
                   an array dimension. If it is 'None' the extent of that \
                   dimension is unknown, otherwise it holds an integer \
@@ -5371,7 +5363,7 @@ class Symbol(object):
                 else:
                     raise InternalError(
                         "Symbol shape list elements can only be 'Symbol', "
-                        "'integer' or 'None', but found '{}'."
+                        "'integer' or 'None', but found '{0}'."
                         "".format(type(dimension)))
                 ret += ", "
             ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
@@ -5407,13 +5399,14 @@ class SymbolTable(object):
 
         :param str name: Name of the symbol.
         :param str datatype: Datatype of the symbol.
-        :param list shape: Shape of the symbol in row-major order (leftmost \
-                           index is contiguous in memory). Each entry \
-                           represents an array dimension. If it is 'None' \
-                           the extent of that dimension is unknown, otherwise \
-                           it holds an integer literal or a reference to an \
-                           integer symbol with the extent. If it is an empy \
-                           list then the symbol represents a scalar.
+        :param list shape: Shape of the symbol in column-major order \
+                           (leftmost index is contiguous in memory). Each \
+                           entry represents an array dimension. If it is \
+                           'None' the extent of that dimension is unknown, \
+                           otherwise it holds an integer literal or a \
+                           reference to an integer symbol with the extent. \
+                           If it is an empy list then the symbol represents a \
+                           scalar.
         :param str scope: It is 'local' if the symbol just exists inside the \
                           kernel scope or 'global_*' if the data survives \
                           outside of the kernel scope. Note that \
