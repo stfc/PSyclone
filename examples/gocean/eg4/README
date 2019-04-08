@@ -45,3 +45,15 @@ executing, e.g.::
 
     psyclone -api "gocean1.0" alg.f90
 
+The example algorithm file (alg.f90) contains a single Invoke that
+calls three kernels. Each of these illustrates a different aspect
+of kernels accessing data/routines via module use statements:
+
+1. kern_use_var - an example of a kernel that uses a variable
+   declared in another module;
+
+2. kern_call_kern - a kernel that calls another routine (kernel) defined
+   in another module;
+
+3. kern_nested_use - a kernel that calls another routine that itself
+   uses data defined in another module.

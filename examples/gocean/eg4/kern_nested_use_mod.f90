@@ -48,7 +48,7 @@ module kern_nested_use_mod
 contains
 
   subroutine kern_nested_use_code(i, j, fld)
-    use data_mod, only: another_kern
+    use another_mod, only: another_kern
     integer, intent(in) :: i, j
     real(go_wp), dimension(:,:), intent(inout) :: fld
 
@@ -56,4 +56,4 @@ contains
 
   end subroutine kern_nested_use_code
 
-end module kern_nested_use
+end module kern_nested_use_mod

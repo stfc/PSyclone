@@ -31,22 +31,16 @@
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter, STFC Daresbury Lab.
 
-module alg
+module another_mod
 
 contains
 
-  subroutine do_update(fld1, fld2)
-    use field_mod, only: r2d_field
-    use kern_use_var_mod, only: kern_use_var
-    use kern_call_kern_mod, only: kern_call_kern
-    use kern_nested_use_mod, only: kern_nested_use
-    implicit none
-    type(r2d_field), intent(inout) :: fld1, fld2
-
-    call invoke(kern_use_var(fld1),   &
-                kern_call_kern(fld2), &
-                kern_nested_use(fld1))
-    
-  end subroutine do_update
+  subroutine another_kern(i, j, fld)
+    !> A kernel that accesses a variable from another module
+    use data_mod, only: gravity
+    integer, intent(in) :: i, j
+    real(go_wp), dimension(:,:) :: fld
+    fld(i,j) = i*gravity
+  end subroutine another_kern
   
-end module alg
+end module another_mod
