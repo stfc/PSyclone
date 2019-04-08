@@ -5404,15 +5404,14 @@ class Fparser2ASTProcessor(object):
                 raise NotImplementedError()
         return handler(child, parent)
 
-    def _ignore_handler(self, node, parent):  # pylint: disable=unused-argument
+    def _ignore_handler(self, *_):
         '''
         This handler returns None indicating that the associated
         fparser2 node can be ignored.
 
-        :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        Note that this method contains ignored arguments to comform with
+        the handler(node, parent) method interface.
+
         :returns: None
         :rtype: NoneType
         '''
@@ -5436,12 +5435,13 @@ class Fparser2ASTProcessor(object):
                            nodes_parent=node)
         return ifblock
 
-    def _return_handler(self, node, parent):  # pylint: disable=unused-argument
+    def _return_handler(self, _, parent):
         '''
         Transforms an fparser2 Return_Stmt to the PSyIR representation.
 
-        :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.Fortran2003.Return_Stmt`
+        Note that this method contains ignored arguments to comform with
+        the handler(node, parent) method interface.
+
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :return: PSyIR representation of node
