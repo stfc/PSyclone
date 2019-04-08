@@ -138,6 +138,16 @@ cd gocean/eg2
 ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
 cd -
 
+echo "Running gocean/eg3"
+cd gocean/eg3
+${PSYCLONE} -api "gocean1.0" -s ./ocl_trans.py alg.f90
+cd -
+
+echo "Running gocean/eg4"
+cd gocean/eg4
+${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
+cd -
+
 echo "Running example nemo/eg1"
 cd nemo/eg1
 ./runme_openmp.py
