@@ -260,13 +260,37 @@ provides the following common interface:
     :members:
 
 
+Schedule
+===============
+
+The Schedule node represents a sequence of statments. It is a important node
+in PSyclone because two of its specialisations: InvokeSchedule and
+KernelSchedule (described below), are used as the root nodes of PSy-layer
+invokes and kernel subroutines. This makes them the starting points for any
+walking of the PSyIR tree in PSyclone transformation scripts and a common
+target for the application of transformations.
+
+.. autoclass:: psyclone.psyGen.Schedule
+    :members:
+
+
+InvokeSchedule
+--------------
+
+The InvokeSchedule is a PSyIR node that represents an invoke subroutine in
+the PSy-layer. It extends the `psyclone.psyGen.Schedule` functionality
+with a `psyclone.psyGen.NameSpace` and a reference to its associated
+`psyclone.psyGen.Invoke` object.
+
+.. autoclass:: psyclone.psyGen.InvokeSchedule
+    :members:
 
 .. _kernel_schedule-label:
 
-Kernel Schedule
-===============
+KernelSchedule
+---------------
 
-The Kernel Schedule is a PSyIR node that represent a kernel subroutine. It
+The KernelSchedule is a PSyIR node that represents a kernel subroutine. It
 extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
 (`psyclone.psyGen.SymbolTable`) that keeps a record of the Symbols
 (`psyclone.psyGen.Symbol`) used in the kernel scope. A Symbol is defined as:
@@ -284,7 +308,7 @@ Dependence Analysis
 ===================
 
 Dependence Analysis in PSyclone produces ordering constraints between
-instances of the `Argument` class within a PSyIRe.
+instances of the `Argument` class within a PSyIR.
 
 The `Argument` class is used to specify the data being passed into and
 out of instances of the `Call` class, `HaloExchange` Class and
@@ -304,18 +328,18 @@ In this case the PSyclone dependence analysis will determine that
 there is a flow dependence between the second argument of `Kernel1`
 and the first argument of `Kernel2` (a read after a write).
 
-Information about arguments is aggregated to the PSyIRe node level
+Information about arguments is aggregated to the PSyIR node level
 (`kernel1` and `kernel2` in this case) and then on to the parent
 `loop` node resulting in a flow dependence (a read after a write)
 between a loop containing `kernel1` and a loop containing
 `kernel2`. This dependence is used to ensure that a transformation is
-not able to move one loop before or after the other in the PSyIRe
+not able to move one loop before or after the other in the PSyIR
 schedule (as this would cause incorrect results).
 
 Dependence analysis is implemented in PSyclone to support
 functionality such as adding and removing halo exchanges,
-parallelisation and moving nodes in a PSyIRe schedule. Dependencies
-between nodes in a PSyIRe schedule can be viewed as a DAG using the
+parallelisation and moving nodes in a PSyIR schedule. Dependencies
+between nodes in a PSyIR schedule can be viewed as a DAG using the
 `dag()` method within the `Node` base class.
 
 DataAccess Class
@@ -365,14 +389,14 @@ assumed to be accessed when the argument is part of a `Call` or a
 single index of a field vector. Therefore there is one halo exchange
 per field vector index. For example::
 
-    Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+    InvokeSchedule[invoke='invoke_0_testkern_stencil_vector_type', dm=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
     ... Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
     ... ... KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
 
-In the above PSyIRe schedule, the field `f1` is a vector field and the
+In the above PSyIR schedule, the field `f1` is a vector field and the
 `Call` `testkern\_stencil\_vector\_code` is assumed to access data in
 all of the vector components. However, there is a separate `HaloExchange`
 for each component. This means that halo exchanges accessing the
@@ -402,14 +426,14 @@ covered.
 In PSyclone the above situation occurs when a vector field is accessed
 in a kernel and also requires halo exchanges e.g.::
 
-   Schedule[invoke='invoke_0_testkern_stencil_vector_type' dm=True]
+   InvokeSchedule[invoke='invoke_0_testkern_stencil_vector_type', dm=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       HaloExchange[field='f1', type='region', depth=1, check_dirty=True]
       Loop[type='',field_space='w0',it_space='cells', upper_bound='cell_halo(1)']
          KernCall testkern_stencil_vector_code(f1,f2) [module_inline=False]
 
-In this case the PSyIRe loop node needs to know about all 3 halo
+In this case the PSyIR loop node needs to know about all 3 halo
 exchanges before its access is fully `covered`. This functionality is
 implemented by passing instances of the `Argument` class to the
 `DataAccess` class `update_coverage()` method and testing the
@@ -665,7 +689,7 @@ TBD
 .. A new file needs to be created and the following classes found in
 .. psyGen.py need to be subclassed.
 .. 
-.. PSy, Invokes, Invoke, Schedule, Loop, Kern, Arguments, Argument
+.. PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Arguments, Argument
 .. You may also choose to subclass the Inf class if required.
 .. 
 .. The subclass of the PSy class then needs to be added as an option to
@@ -676,7 +700,7 @@ TBD
 .. 
 .. The parser information passed to the PSy layer is used to create an
 .. invokes object which in turn creates a list of invoke objects. Each
-.. invoke object contains a schedule and a schedule consists of loops and
+.. invoke object contains an InvokeSchedule which consists of loops and
 .. calls. Finally, a call contains an arguments object which itself
 .. contains a list of argument objects.
 .. 
@@ -1026,7 +1050,7 @@ annexed dof. This iteration space will necessarily also include all
 owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called `COMPUTE_ANNEXED_DOFS` and is
-found in the the `dynamo0.3` section of the `psyclone.cfg`
+found in the `dynamo0.3` section of the `psyclone.cfg`
 configuration file (see :ref:`configuration`). If it is ``true`` then
 annexed dofs are always computed in loops that iterate over dofs and
 if it is ``false`` then annexed dofs are not computed. The default in
@@ -1146,8 +1170,8 @@ exchanges are used for fields.
 First Creation
 ++++++++++++++
 
-When first run, PSyclone creates a separate schedule for each of the
-invokes found in the algorithm layer. A schedule includes all required
+When first run, PSyclone creates a separate InvokeSchedule for each of the
+invokes found in the algorithm layer. This schedule includes all required
 loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
 created then (if the `DISTRIBUTED_MEMORY` flag is set to ``true``) PSyclone
@@ -1539,7 +1563,8 @@ Module: f2pygen
 ===============
 
 `f2pygen` provides functionality for generating Fortran code from
-scratch (i.e. when not modifying existing source).
+scratch and supports the addition of a use statement to an existing
+parse tree.
 
 Variable Declarations
 ---------------------
@@ -1581,6 +1606,26 @@ The full interface to each of these classes is detailed below:
 .. autoclass:: psyclone.f2pygen.TypeDeclGen
     :members:
     :noindex:
+
+Adding code
+-----------
+
+`f2pygen` supports the addition of use statements to an existing
+`fparser1` parse tree:
+
+.. autofunction:: psyclone.f2pygen.adduse
+
+
+The PSyclone code where the `adduse` function was used has recently
+been migrated from using `fparser1` to using `fparser2`. In
+recognition of this change a new version of `adduse` has been
+developed which adds use statements to an existing `fparser2` parse
+tree. For the timebeing this new version is located in the same file
+it is used - `algGen.py` - but will be migrated to `f2pygen` (or
+equivalent) in the future:
+
+.. autofunction:: psyclone.algGen.adduse
+
 
 Module: configuration
 ======================
@@ -1654,6 +1699,57 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
+Module: psyGen
+==============
+
+Provides the base classes for PSy-layer code generation.
+
+Module: dynamo0p3
+=================
+
+Specialises various classes from the ``psyclone.psyGen`` module
+in order to support the Dynamo 0.3 API.
+
+When constructing the Fortran subroutine for either an Invoke or
+Kernel stub (see :ref:`stub-generation`), there are various groups of
+related quantities for which variables must be declared and
+(for Invokes) initialised. Each of these groupings is managed by a distinct
+sub-class of the ``DynCollection`` abstract class:
+
+.. autoclass:: psyclone.dynamo0p3.DynCollection
+   :members:
+   :private-members:
+   :noindex:
+
+(A single base class is used for both Invokes and Kernel stubs since it
+allows the code dealing with variable declarations to be shared.)
+A concrete sub-class of ``DynCollection`` must provide an
+implementation of the ``_invoke_declarations`` method. If the
+quantities associated with the collection require initialisation
+within the PSy layer then the ``initialise`` method must also be
+implemented. If stub-generation is to be supported for kernels that
+make use of the collection type then an implementation must also be
+provided for ``_stub_declarations.``
+
+Although instances of (sub-classes of) ``DynCollection`` handle all
+declarations and initialisation, there remains the problem of
+constructing the list of arguments for a kernel (or kernel stub). The
+``psyclone.dynamo0p3.ArgOrdering`` base class provides support for
+this:
+
+.. autoclass:: psyclone.dynamo0p3.ArgOrdering
+    :members:
+    :private-members:
+    :noindex:
+
+This class is then sub-classed in order to support the generation of
+argument lists when *calling* kernels (``KernCallArgList``) and when
+*creating* kernel stubs (``KernStubArgList``).  ``KernCallArgList`` is
+only used in ``DynKernelArguments.raw_arg_list()``.
+``KernStubArgList`` is only used in ``DynKern.gen_stub()``. These
+classes make use of ``DynCollection`` sub-classes in order
+to ensure that argument naming is consistent.
+
 Kernel Transformations
 ----------------------
 
@@ -1693,12 +1789,14 @@ for specific APIs when additional functionality is requiered
 
 The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyGen.KernelSchedule` which has the same functionality as
-a PSy Schedule but with the addition of a Symbol Table
+a PSyIR Schedule but with the addition of a Symbol Table
 (see :ref:`kernel_schedule-label`).
 
+Transformations
+###############
 
-OpenACC Support
----------------
+OpenACC
+=======
 
 PSyclone is able to generate code for execution on a GPU through the
 use of OpenACC. Support for generating OpenACC code is implemented via
@@ -1709,18 +1807,19 @@ they have their own, on-board memory which is separate from that of
 the host. Managing (i.e. minimising) data movement between host and
 GPU is then a very important part of obtaining good performance.
 
-Since PSyclone operates at the level of Invokes it has no information
+Since PSyclone operates at the level of Invokes, it has no information
 about when an application starts and thus no single place in which to
 initiate data transfers to a GPU. (We assume that the host is
 responsible for model I/O and therefore for populating fields with
-initial values.) Fortunately OpenACC provides support for this kind of
+initial values.) Fortunately, OpenACC provides support for this kind of
 situation with the ``enter data`` directive. This may be used to
 "define scalars, arrays and subarrays to be allocated in the current
 device memory for the remaining duration of the program"
-:cite:`openacc_enterdata`. The ``ACCDataTrans`` transformation adds
+:cite:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
 an ``enter data`` directive to an Invoke:
 
-.. autoclass:: psyclone.transformations.ACCDataTrans
+.. autoclass:: psyclone.transformations.ACCEnterDataTrans
+   :noindex:
 
 The resulting generated code will then contain an ``enter data``
 directive protected by an ``IF(this is the first time in this
@@ -1749,10 +1848,16 @@ updated) due to a previous Invoke. In this case, the fact that the
 OpenACC run-time does not copy over the now out-dated host version of
 the field is essential for correctness.
 
+In order to support the incremental porting and/or debugging of an
+application, PSyclone also supports the OpenACC ``data`` directive
+that creates a statically-scoped data region. See the
+description of the ``ACCDataTrans`` transformation in the
+:ref:`sec_transformations_available` section for more details.
+
 .. _opencl_dev:
 
-OpenCL Support
-##############
+OpenCL
+======
 
 PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API. Such code may then be executed
@@ -1760,7 +1865,7 @@ on devices such as GPUs and FPGAs (Field-Programmable Gate
 Arrays). Since OpenCL code is very different to that which PSyclone
 normally generates, its creation is handled by ``gen_ocl`` methods
 instead of the normal ``gen_code``. Which of these to use is
-determined by the value of the ``Schedule.opencl`` flag.  In turn,
+determined by the value of the ``InvokeSchedule.opencl`` flag.  In turn,
 this is set at a user level by the ``transformations.OCLTrans``
 transformation.
 
@@ -1855,7 +1960,7 @@ of this setup is done, the kernel itself is launched by calling
 				  C_NULL_PTR, 0, C_NULL_PTR, C_NULL_PTR)
 
 Limitations
-===========
+-----------
 
 Currently PSyclone can only generate the OpenCL version of the PSy
 layer.  Execution of the resulting code requires that the kernels

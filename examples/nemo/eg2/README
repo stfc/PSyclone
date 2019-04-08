@@ -32,17 +32,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified by R. W. Ford, STFC Daresbury Lab
 
-This directory contains a source file, traldf_iso.F90, taken from the
-NEMO ocean model.  In addition to this code, there are two python
-scripts demonstrating the use of PSyclone to add OpenMP parallelism.
-Once you have installed PSyclone, the standalone script (runme_openmp.py) may
-be run by doing:
+This directory contains two python scripts demonstrating the use of
+PSyclone to add OpenMP parallelism to the traldf_iso.F90 code.  Once
+you have installed PSyclone, the standalone script (runme_openmp.py)
+may be run by doing:
 
     $ ./runme_openmp.py
 
-This will output PSyclone's Schedule view of the Fortran routine followed by
-the generated Fortran code with the OpenMP directives added.
+This will output PSyclone's Schedule view of the Fortran routine
+followed by the generated Fortran code with the OpenMP directives
+added.
 
 The second script, omp_levels_trans.py, is intended to be provided to
 PSyclone as an optimisation script:
@@ -50,3 +51,6 @@ PSyclone as an optimisation script:
     $ psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
 
 Again, the generated Fortran will be written to stdout.
+
+traldf_iso.F90, is an unmodified NEMO ocean model routine. This code
+can be found in the ../code directory.

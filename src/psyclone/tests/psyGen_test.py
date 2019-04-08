@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -59,7 +59,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynSchedule
+from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
     DynamoLoopFuseTrans, Dynamo0p3RedundantComputationTrans
@@ -79,6 +79,19 @@ def f2008_parser():
     '''Initialize fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
+
+# Tests for utilities
+
+
+def test_object_index():
+    ''' Tests for the object_index() utility. '''
+    from psyclone.psyGen import object_index
+    two = "two"
+    my_list = ["one", two, "three"]
+    assert object_index(my_list, two) == 1
+    with pytest.raises(InternalError) as err:
+        _ = object_index(my_list, None)
+    assert "Cannot search for None item in list" in str(err)
 
 # PSyFactory class unit tests
 
@@ -461,12 +474,12 @@ def test_invokes_can_always_be_printed():
     assert inv.__str__() == "invoke()"
 
     invoke_call = InvokeCall([], "TestName")
-    inv = Invoke(invoke_call, 12, DynSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
     invoke_call._name = None
-    inv = Invoke(invoke_call, 12, DynSchedule)
+    inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     assert inv.__str__() == "invoke_12()"
 
     # Last test case: one kernel call - to avoid constructing
@@ -477,7 +490,7 @@ def test_invokes_can_always_be_printed():
         api="dynamo0.3")
 
     alg_invocation = invoke.calls[0]
-    inv = Invoke(alg_invocation, 0, DynSchedule)
+    inv = Invoke(alg_invocation, 0, DynInvokeSchedule)
     assert inv.__str__() == \
         "invoke_0_testkern_type(a, f1_my_field, f1 % my_field, m1, m2)"
 
@@ -546,21 +559,56 @@ contains
 end module dummy_mod
 '''
 
+
 # Schedule class tests
 
-
 def test_sched_view(capsys):
-    ''' Check the view method of the Schedule class. We need a Schedule
-    object for this so go via the dynamo0.3 sub-class '''
+    ''' Check the view method of the Schedule class'''
+    from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = Schedule
+    psy.invokes.invoke_list[0].schedule.view()
+
+    output, _ = capsys.readouterr()
+    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+
+
+def test_sched_can_be_printed():
+    ''' Check the schedule class can always be printed'''
+    from psyclone.psyGen import Schedule
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = Schedule
+    output = str(psy.invokes.invoke_list[0].schedule)
+
+    assert "Schedule:\n" in output
+
+
+# InvokeSchedule class tests
+
+def test_invokeschedule_view(capsys):
+    ''' Check the view method of the InvokeSchedule class. We need an
+    InvokeSchedule object for this so go via the dynamo0.3 sub-class '''
     from psyclone import dynamo0p3
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
-    super(dynamo0p3.DynSchedule, psy.invokes.invoke_list[0].schedule).view()
+    super(dynamo0p3.DynInvokeSchedule,
+          psy.invokes.invoke_list[0].schedule
+          ).view()
     output, _ = capsys.readouterr()
-    assert colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
+    assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
 
 def test_sched_ocl_setter():
@@ -573,6 +621,21 @@ def test_sched_ocl_setter():
     with pytest.raises(ValueError) as err:
         psy.invokes.invoke_list[0].schedule.opencl = "a string"
     assert "Schedule.opencl must be a bool but got " in str(err)
+
+
+def test_invokeschedule_can_be_printed():
+    ''' Check the InvokeSchedule class can always be printed'''
+    from psyclone.psyGen import InvokeSchedule
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+
+    # For this test use the generic class
+    psy.invokes.invoke_list[0].schedule.__class__ = InvokeSchedule
+    output = str(psy.invokes.invoke_list[0].schedule)
+
+    assert "InvokeSchedule:\n" in output
 
 
 # Kern class test
@@ -796,12 +859,12 @@ def test_ompdo_directive_class_view(capsys):
 
 def test_acc_dir_view(capsys):
     ''' Test the view() method of OpenACC directives '''
-    from psyclone.transformations import ACCDataTrans, ACCLoopTrans, \
+    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
         ACCParallelTrans
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
     acclt = ACCLoopTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
 
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
@@ -1041,35 +1104,33 @@ def test_named_invoke_name_clash():
     assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
 
 
-def test_invalid_reprod_pad_size(monkeypatch):
+def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     '''Check that we raise an exception if the pad size in psyclone.cfg is
     set to an invalid value '''
     # Make sure we monkey patch the correct Config object
-    from psyclone.configuration import Config
-    monkeypatch.setattr(Config._instance, "_reprod_pad_size", 0)
-    for distmem in [True, False]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
-            OMPParallelTrans
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], reprod=True)
-        # Apply an OpenMP Parallel directive around the OpenMP do directive
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        with pytest.raises(GenerationError) as excinfo:
-            _ = str(psy.gen)
-        assert (
-            "REPROD_PAD_SIZE in {0} should be a positive "
-            "integer".format(Config.get().filename) in str(excinfo.value))
+    config = Config.get()
+    monkeypatch.setattr(config._instance, "_reprod_pad_size", 0)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
+        OMPParallelTrans
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    schedule, _ = rtrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert (
+        "REPROD_PAD_SIZE in {0} should be a positive "
+        "integer".format(Config.get().filename) in str(excinfo.value))
 
 
 def test_argument_depends_on():
@@ -1524,6 +1585,21 @@ def test_call_args():
     # 2) builtin
     for idx, arg in enumerate(builtin.args):
         assert arg == builtin.arguments.args[idx]
+
+
+def test_haloexchange_can_be_printed():
+    '''Test that the HaloExchange class can always be printed'''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1_single_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    for haloexchange in schedule.children[:2]:
+        assert "HaloExchange[field='" in str(haloexchange)
+        assert "', type='" in str(haloexchange)
+        assert "', depth='" in str(haloexchange)
+        assert "', check_dirty='" in str(haloexchange)
 
 
 def test_haloexchange_args():
@@ -2014,14 +2090,14 @@ def test_omp_dag_names():
 def test_acc_dag_names():
     ''' Check that we generate the correct dag names for ACC parallel,
     ACC enter-data and ACC loop directive Nodes '''
-    from psyclone.psyGen import ACCDataDirective
-    from psyclone.transformations import ACCDataTrans, ACCParallelTrans, \
+    from psyclone.psyGen import ACCEnterDataDirective
+    from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
         ACCLoopTrans
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     schedule = invoke.schedule
 
     acclt = ACCLoopTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
     # Enter-data
     new_sched, _ = accdt.apply(schedule)
@@ -2033,18 +2109,19 @@ def test_acc_dag_names():
     new_sched, _ = acclt.apply(new_sched.children[1].children[0])
     assert schedule.children[1].children[0].dag_name == "ACC_loop_3"
     # Base class
-    name = super(ACCDataDirective, schedule.children[0]).dag_name
+    name = super(ACCEnterDataDirective, schedule.children[0]).dag_name
     assert name == "ACC_directive_1"
 
 
 def test_acc_datadevice_virtual():
-    ''' Check that we can't instantiate an instance of ACCDataDirective. '''
-    from psyclone.psyGen import ACCDataDirective
+    ''' Check that we can't instantiate an instance of
+    ACCEnterDataDirective. '''
+    from psyclone.psyGen import ACCEnterDataDirective
     # pylint:disable=abstract-class-instantiated
     with pytest.raises(TypeError) as err:
-        ACCDataDirective()
+        ACCEnterDataDirective()
     # pylint:enable=abstract-class-instantiated
-    assert ("instantiate abstract class ACCDataDirective with abstract "
+    assert ("instantiate abstract class ACCEnterDataDirective with abstract "
             "methods data_on_device" in str(err))
 
 

@@ -71,14 +71,27 @@ The generic transformations currently available are listed in
 alphabetical order below (a number of these have specialisations which
 can be found in the API-specific sections).
 
-.. note:: PSyclone currently only supports OpenACC and OpenCL
-	  transformations for the GOcean 1.0 API. Attempts to apply
-	  these transformations to (members of) Schedules from other
-	  APIs will be rejected.
+.. note:: PSyclone currently only supports OpenCL transformations
+	  for the GOcean 1.0 API and OpenACC transformations for the
+	  GOcean 1.0 and NEMO APIs. Attempts to apply these
+	  transformations to (members of) schedules from other
+	  APIs will be rejected. 
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCDataTrans
+    :noindex:
+    :members:
+
+####
+
+.. autoclass:: psyclone.transformations.ACCEnterDataTrans
+    :noindex:
+    :members:
+
+####
+
+.. autoclass:: psyclone.transformations.ACCKernelsTrans
     :noindex:
     :members:
 
@@ -178,7 +191,7 @@ Kernels
 
 PSyclone supports the transformation of Kernels as well as PSy-layer
 code. However, the transformation of kernels to produce new kernels
-brings with it additional considerations, especialy regarding the
+brings with it additional considerations, especially regarding the
 naming of the resulting kernels. PSyclone supports two use cases:
 
   1. the HPC expert wishes to optimise the same kernel in different ways,
@@ -220,6 +233,70 @@ any pre-existing transformed version of that kernel. If another
 transformed version of that kernel exists and does not match that
 created by the current transformation then PSyclone will raise an
 exception.
+
+Rules
++++++
+
+Kernel code that is to be transformed is subject to certain
+restrictions. These rules are intended to make kernel transformations
+as robust as possible, in particular by limiting the amount of
+code that must be parsed by PSyclone (via fparser). The rules are
+as follows:
+
+1) Any variable or procedure accessed by a kernel must either be explicitly
+   declared or named in the ``only`` clause of a module ``use`` statement
+   within the scope of the subroutine containing the kernel implementation.
+   This means that:
+
+   1) Kernel subroutines are forbidden from accessing data using COMMON
+      blocks;
+   2) Kernel subroutines are forbidden from calling proceduces declared via
+      the EXTERN statement;
+   3) Kernel subroutines must not access data or procedures made available
+      via their parent (containing) module.
+
+2) The full Fortran source of a kernel must be available to PSyclone.
+   This includes the source of any modules from which it accesses
+   either routines or data. (However, kernel routines are permitted to make
+   use of Fortran intrinsic routines.)
+
+For instance, consider the following Fortran module containing the
+``bc_ssh_code`` kernel:
+  
+.. code-block:: fortran
+
+  module boundary_conditions_mod
+    real :: forbidden_var
+
+  contains
+
+    subroutine bc_ssh_code(ji, jj, istep, ssha)
+      use kind_params_mod, only: go_wp
+      use model_mod, only: rdt
+      integer,                     intent(in)    :: ji, jj, istep
+      real(go_wp), dimension(:,:), intent(inout) :: ssha
+      real(go_wp) :: rtime
+
+      rtime = real(istep, go_wp) * rdt
+      ...
+    end subroutine bc_ssh_code
+
+  end module boundary_conditions_mod
+
+Since the kernel subroutine accesses data (the ``rdt`` variable) from
+the ``model_mod`` module, the source of that module must be available
+to PSyclone if a transformation is applied to this kernel. Should
+``rdt`` not actually be defined in ``model_mod`` (i.e. ``model_mod``
+itself imports it from another module) then the source containing its
+definition must also be available to PSyclone. Note that the rules
+forbid the ``bc_ssh_code`` kernel from accessing the ``forbidden_var``
+variable that is available to it from the enclosing module scope.
+
+.. note:: these rules *only* apply to kernels that are the target of
+	  PSyclone kernel transformations.
+
+Available Kernel Transformations
+++++++++++++++++++++++++++++++++
 
 PSyclone currently provides just one kernel transformation:
 
@@ -445,7 +522,7 @@ In common with OpenMP, the conversion of the generated code to use
 OpenCL is performed by a transformation (``OCLTrans`` - see the
 :ref:`sec_transformations_available` Section above). Currently this
 transformation is only supported for the GOcean1.0 API and is applied
-to the whole Schedule of an Invoke. This means that all kernels in
+to the whole InvokeSchedule of an Invoke. This means that all kernels in
 that Invoke will be executed on the OpenCL device. At present the
 ``OCLTrans`` transformation only alters the generated PSy-layer code. It
 is currently the user's responsibility to convert the actual kernel code
@@ -463,3 +540,58 @@ largely motivated by the need to target Field Programmable Gate Array
 compute devices that OpenCL supports (such as GPUs and multi-core CPUs) but
 this is a potentially fruitful area for future work.
 
+OpenACC
+-------
+
+PSyclone supports the generation of code targetting GPUs through the
+addition of OpenACC directives. This is achieved by a user applying
+various OpenACC transformations to the PSyIR before the final Fortran
+code is generated. The steps to parallelisation are very similar to
+those in OpenMP with the added complexity of managing the movement of
+data to and from the GPU device. For the latter task PSyclone provides
+the ``ACCDataTrans`` and ``ACCEnterDataTrans`` transformations, as
+described in the :ref:`sec_transformations_available` Section above.
+These two transformations add statically- and dynamically-scoped data
+regions, respectively. The former manages what data is on the remote
+device for a specific section of code while the latter allows run-time
+control of data movement. This second option is essential for
+minimising data movement as, without it, PSyclone-generated code would
+move data to and from the device upon every entry/exit of an
+Invoke. The first option is mainly provided as an aid to incremental
+porting and/or debugging of an OpenACC application as it provides
+explicit control over what data is present on a device for a given
+(part of an) Invoke routine.
+
+As well as ensuring the correct data is copied to and from the remote
+device, OpenACC directives must also be added to a code in order to
+tell the compiler how it should be parallelised. PSyclone provides the
+``ACCKernelsTrans``, ``ACCParallelTrans`` and ``ACCLoopTrans``
+transformations for this purpose. The simplest of these is
+``ACCKernelsTrans`` (currently only supported for the NEMO API) which
+encloses the code represented by a sub-tree of the PSyIR within an
+OpenACC ``kernels`` region.  This essentially gives free-reign to the
+compiler to automatically parallelise any suitable loops within the
+specified region. An example of the use of ``ACCDataTrans`` and
+``ACCKernelsTrans`` may be found in PSyclone/examples/nemo/eg3.
+
+However, as with any "automatic" approach, a more
+performant solution can almost always be obtained by providing the
+compiler with more explicit direction on how to parallelise the code.
+The ``ACCParallelTrans`` and ``ACCLoopTrans`` transformations allow
+the user to define thread-parallel regions and, within those, define
+which loops should be parallelised. (Note that these two transformations
+are currently only supported for the GOcean1.0 and NEMO APIs.) For an
+example of their use please see PSyclone/examples/gocean/eg2.
+
+In order for a given section of code to be executed on a GPU, any
+routines called from within that section must also have been compiled
+for the GPU.  This then requires either that any such routines are
+in-lined or that the OpenACC ``routine`` directive be added to any
+such routines.  This situation will occur routinely in those PSyclone
+APIs that use the PSyKAl separation of concerns since the
+user-supplied kernel routines are called from within
+PSyclone-generated loops in the PSy layer. PSyclone therefore provides
+the ``ACCRoutineTrans`` transformation which, given a Kernel node in
+the PSyIR, creates a new version of that kernel with the ``routine``
+directive added. Again, please see PSyclone/examples/gocean/eg2 for an
+example.

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -66,9 +66,20 @@ except ImportError:
         '''
         return text
 
+
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
+
+# The list of Fortran instrinsic functions that we know about (and can
+# therefore distinguish from array accesses). These should really be
+# provided by the parser (github.com/stfc/fparser/issues/189).
+FORTRAN_INTRINSICS = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM",
+                      "CEILING", "REAL", "KIND", "EXP", "SQRT",
+                      "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN",
+                      "LOG", "LOG10", "NINT",
+                      "MINVAL", "MAXVAL", "MINLOC", "MAXLOC", "TRIM",
+                      "RESHAPE"]
 
 # The following mappings will be set by a particular API if supported
 # and required. We provide a default here for API's which do not have
@@ -119,6 +130,30 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
 
 # Default indentation string
 INDENTATION_STRING = "    "
+
+
+def object_index(alist, item):
+    '''
+    A version of the `list.index()` method that checks object identity
+    rather that the content of the object.
+
+    TODO this is a workaround for the fact that fparser2 overrides the
+    comparison operator for all nodes in the parse tree. See fparser
+    issue 174.
+
+    :param list alist: list of objects to search.
+    :param obj item: object to search for in the list.
+    :returns: index of the item in the list.
+    :rtype: int
+    :raises ValueError: if object is not in the list.
+    '''
+    if item is None:
+        raise InternalError("Cannot search for None item in list.")
+    for idx, entry in enumerate(alist):
+        if entry is item:
+            return idx
+    raise ValueError(
+        "Item '{0}' not found in list: {1}".format(str(item), alist))
 
 
 def get_api(api):
@@ -577,7 +612,7 @@ class Invoke(object):
             If not None, this number is added to the name ("invoke_").
         :type idx: Integer.
         :param schedule_class: The schedule class to create for this invoke.
-        :type schedule_class: Schedule class.
+        :type schedule_class: :py:class:`psyclone.psyGen.InvokeSchedule`.
         :param reserved_names: Optional argument: list of reserved names,
                i.e. names that should not be used e.g. as psyclone created
                variable name.
@@ -887,8 +922,10 @@ class Node(object):
     '''
     Base class for a node in the PSyIR (schedule).
 
+    :param ast: reference into the fparser2 AST corresponding to this node.
+    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node.
-    :type children: :py:class:`psyclone.psyGen.Node`
+    :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
 
@@ -901,16 +938,38 @@ class Node(object):
     # the tree (absolute or relative to a parent).
     START_POSITION = 0
 
-    def __init__(self, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None):
         if not children:
             self._children = []
         else:
             self._children = children
         self._parent = parent
-        self._ast = None  # Reference into fparser2 AST (if any)
+        # Reference into fparser2 AST (if any)
+        self._ast = ast
+        # Ref. to last fparser2 parse tree node associated with this Node.
+        # This is required when adding directives.
+        self._ast_end = None
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
+
+    @property
+    def ast(self):
+        '''
+        :returns: a reference to that part of the fparser2 parse tree that \
+                  this node represents or None.
+        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
+        '''
+        return self._ast
+
+    @property
+    def ast_end(self):
+        '''
+        :returns: a reference to the last node in the fparser2 parse tree \
+                  that represents a child of this PSyIR node or None.
+        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
+        '''
+        return self._ast_end
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
@@ -1435,6 +1494,70 @@ class Node(object):
 
 
 class Schedule(Node):
+    ''' Stores schedule information for a sequence of statements.
+
+    :param sequence: the sequence of PSyIR nodes that make up the schedule.
+    :type sequence: list of :py:class:`psyclone.psyGen.Node`
+    :param parent: that parent of this node in the PSyIR tree.
+    :type parent:  :py:class:`psyclone.psyGen.Node`
+    '''
+
+    def __init__(self, sequence, parent):
+        Node.__init__(self, children=sequence, parent=parent)
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: The name of this node in the dag.
+        :rtype: str
+        '''
+        return "schedule"
+
+    # TODO: Method part of old GUI, it is untested and marked to be
+    # removed in issue #320
+    def tkinter_delete(self):
+        for entity in self._children:
+            entity.tkinter_delete()
+
+    # TODO: Method part of old GUI, it is untested and marked to be
+    # removed in issue #320
+    def tkinter_display(self, canvas, x, y):
+        y_offset = 0
+        for entity in self._children:
+            entity.tkinter_display(canvas, x, y+y_offset)
+            y_offset = y_offset+entity.height
+
+    def view(self, indent=0):
+        '''
+        Print a text representation of this node to stdout and then
+        call the view() method of any children.
+
+        :param int indent: Depth of indent for output text.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    @property
+    def coloured_text(self):
+        '''
+        Returns the name of this node with appropriate control codes
+        to generate coloured output in a terminal that supports it.
+
+        :return: Text containing the name of this node, possibly coloured.
+        :rtype: str
+        '''
+        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+
+    def __str__(self):
+        result = "Schedule:\n"
+        for entity in self._children:
+            result += str(entity)+"\n"
+        result += "End Schedule"
+        return result
+
+
+class InvokeSchedule(Schedule):
     '''
     Stores schedule information for an invocation call. Schedules can be
     optimised using transformations.
@@ -1473,25 +1596,10 @@ class Schedule(Node):
                 sequence.append(BuiltInFactory.create(call, parent=self))
             else:
                 sequence.append(KernFactory.create(call, parent=self))
-        Node.__init__(self, children=sequence)
+        Schedule.__init__(self, sequence=sequence, parent=None)
         self._invoke = None
         self._opencl = False  # Whether or not to generate OpenCL
         self._name_space_manager = NameSpaceFactory().create()
-
-    @property
-    def dag_name(self):
-        ''' Return the name to use in a dag for this node'''
-        return "schedule"
-
-    def tkinter_delete(self):
-        for entity in self._children:
-            entity.tkinter_delete()
-
-    def tkinter_display(self, canvas, x, y):
-        y_offset = 0
-        for entity in self._children:
-            entity.tkinter_display(canvas, x, y+y_offset)
-            y_offset = y_offset+entity.height
 
     @property
     def invoke(self):
@@ -1523,10 +1631,10 @@ class Schedule(Node):
         :returns: Text containing the name of this node, possibly coloured
         :rtype: string
         '''
-        return colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+        return colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
 
     def __str__(self):
-        result = "Schedule:\n"
+        result = "InvokeSchedule:\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
@@ -1611,7 +1719,8 @@ class Schedule(Node):
     @property
     def opencl(self):
         '''
-        :returns: Whether or not we are generating OpenCL for this Schedule.
+        :returns: Whether or not we are generating OpenCL for this \
+            InvokeSchedule.
         :rtype: bool
         '''
         return self._opencl
@@ -1625,8 +1734,9 @@ class Schedule(Node):
         :param bool value: whether or not to generate OpenCL.
         '''
         if not isinstance(value, bool):
-            raise ValueError("Schedule.opencl must be a bool but got {0}".
-                             format(type(value)))
+            raise ValueError(
+                "InvokeSchedule.opencl must be a bool but got {0}".
+                format(type(value)))
         self._opencl = value
 
 
@@ -1688,24 +1798,139 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
+    def _add_region(self, start_text, end_text=None, data_movement=None):
+        '''
+        Modifies the underlying fparser2 parse tree to include a subset
+        of nodes within a region. (e.g. a 'kernels' or 'data' region.)
+
+        :param str start_text: the directive body to insert at the \
+                               beginning of the region. "!$ACC " is \
+                               prepended to the supplied text.
+        :param str end_text: the directive body to insert at the end of \
+                             the region (or None). "!$ACC " is \
+                             prepended to the supplied text.
+        :param str data_movement: whether to include data-movement clauses and\
+                               if so, whether to determine them by analysing \
+                               the code within the region ("analyse") or to \
+                               specify 'default(present)' ("present").
+
+        :raises InternalError: if either start_text or end_text already
+                               begin with '!'.
+        :raises InternalError: if data_movement is not None and not one of \
+                               "present" or "analyse".
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        valid_data_movement = ["present", "analyse"]
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
+        # Check that we haven't already been called
+        if self._ast:
+            return
+
+        # Sanity check the supplied begin/end text
+        if start_text.lstrip()[0] == "!":
+            raise InternalError(
+                "_add_region: start_text must be a plain label without "
+                "directive or comment characters but got: '{0}'".
+                format(start_text))
+        if end_text and end_text.lstrip()[0] == "!":
+            raise InternalError(
+                "_add_region: end_text must be a plain label without directive"
+                " or comment characters but got: '{0}'".format(end_text))
+
+        # The parent node in the PSyIR might be a directive so we need to
+        # go back up the tree to find the node corresponding to our parent
+        # node in the fparser2 parse tree. This is the first node that
+        # has the 'content' attribute.
+        # TODO this can probably be simplified/removed altogether once
+        # the fparser2 parse tree has parent information (fparser/#102).
+        parent = self._parent
+        while parent:
+            if parent.ast and hasattr(parent.ast, "content"):
+                break
+            parent = parent._parent
+        fp_parent = parent.ast
+
+        # Find the location of the AST of our first child node in the
+        # list of child nodes of our parent in the fparser parse tree.
+        ast_start_index = object_index(fp_parent.content,
+                                       self.children[0].ast)
+        if end_text:
+            if self.children[-1].ast_end:
+                ast_end_index = object_index(fp_parent.content,
+                                             self.children[-1].ast_end)
+            else:
+                ast_end_index = object_index(fp_parent.content,
+                                             self.children[-1].ast)
+
+            text = "!$ACC " + end_text
+            directive = Comment(FortranStringReader(text,
+                                                    ignore_comments=False))
+            fp_parent.content.insert(ast_end_index+1, directive)
+            # Retro-fit parent information. # TODO remove/modify this once
+            # fparser/#102 is done (i.e. probably supply parent info as option
+            # to the Comment() constructor).
+            directive._parent = fp_parent
+            # Ensure this end directive is included with the set of statements
+            # belonging to this PSyIR node.
+            self._ast_end = directive
+
+        text = "!$ACC " + start_text
+
+        if data_movement:
+            if data_movement == "analyse":
+                # Identify the inputs and outputs to the region (variables that
+                # are read and written).
+                processor = Fparser2ASTProcessor()
+                readers, writers, readwrites = processor.get_inputs_outputs(
+                    fp_parent.content[ast_start_index:ast_end_index+1])
+
+                if readers:
+                    text += " COPYIN({0})".format(",".join(readers))
+                if writers:
+                    text += " COPYOUT({0})".format(",".join(writers))
+                if readwrites:
+                    text += " COPY({0})".format(",".join(readwrites))
+
+            elif data_movement == "present":
+                text += " DEFAULT(PRESENT)"
+            else:
+                raise InternalError(
+                    "_add_region: the optional data_movement argument must be "
+                    "one of {0} but got '{1}'".format(valid_data_movement,
+                                                      data_movement))
+        directive = Comment(FortranStringReader(text,
+                                                ignore_comments=False))
+        fp_parent.content.insert(ast_start_index, directive)
+        # Retro-fit parent information. # TODO remove/modify this once
+        # fparser/#102 is done (i.e. probably supply parent info as option
+        # to the Comment() constructor).
+        directive._parent = fp_parent
+
+        self._ast = directive
+
 
 @six.add_metaclass(abc.ABCMeta)
-class ACCDataDirective(ACCDirective):
+class ACCEnterDataDirective(ACCDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
-    a Schedule. Must be sub-classed for a particular API because the way
+    an InvokeSchedule. Must be sub-classed for a particular API because the way
     in which fields are marked as being on the remote device is API-
     -dependent.
 
     :param children: list of nodes which this directive should \
                      have as children.
     :type children: list of :py:class:`psyclone.psyGen.Node`.
-    :param parent: the node in the Schedule to which to add this \
+    :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
     :type parent: :py:class:`psyclone.psyGen.Node`.
     '''
     def __init__(self, children=None, parent=None):
-        super(ACCDataDirective, self).__init__(children, parent)
+        super(ACCEnterDataDirective, self).__init__(children=children,
+                                                    parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
     def view(self, indent=0):
@@ -1800,17 +2025,20 @@ class ACCDataDirective(ACCDirective):
     @abc.abstractmethod
     def data_on_device(self, parent):
         '''
-        Adds nodes into a Schedule to flag that the data required by the
+        Adds nodes into an InvokeSchedule to flag that the data required by the
         kernels in the data region is now on the device.
 
-        :param parent: the node in the Schedule to which to add nodes
+        :param parent: the node in the InvokeSchedule to which to add nodes
         :type parent: :py:class:`psyclone.psyGen.Node`
         '''
 
 
 class ACCParallelDirective(ACCDirective):
-    ''' Class for the !$ACC PARALLEL directive of OpenACC. '''
+    '''
+    Class representing the !$ACC PARALLEL directive of OpenACC
+    in the PSyIR.
 
+    '''
     def view(self, indent=0):
         '''
         Print a text representation of this Node to stdout.
@@ -1844,7 +2072,7 @@ class ACCParallelDirective(ACCDirective):
         # We can't use Node.ancestor() because the data directive does
         # not have children. Instead, we go back up to the Schedule and
         # walk down from there.
-        nodes = self.root.walk(self.root.children, ACCDataDirective)
+        nodes = self.root.walk(self.root.children, ACCEnterDataDirective)
         if len(nodes) != 1:
             raise GenerationError(
                 "A Schedule containing an ACC parallel region must also "
@@ -1924,6 +2152,13 @@ class ACCParallelDirective(ACCDirective):
                     scalars.append(arg)
         return scalars
 
+    def update(self):
+        '''
+        Update the underlying fparser2 parse tree with nodes for the start
+        and end of this parallel region.
+        '''
+        self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
+
 
 class ACCLoopDirective(ACCDirective):
     '''
@@ -1939,10 +2174,12 @@ class ACCLoopDirective(ACCDirective):
                              to the loop directive.
     '''
     def __init__(self, children=None, parent=None, collapse=None,
-                 independent=True):
+                 independent=True, sequential=False):
         self._collapse = collapse
         self._independent = independent
-        super(ACCLoopDirective, self).__init__(children, parent)
+        self._sequential = sequential
+        super(ACCLoopDirective, self).__init__(children=children,
+                                               parent=parent)
 
     @property
     def dag_name(self):
@@ -1959,10 +2196,13 @@ class ACCLoopDirective(ACCDirective):
         :param int indent: amount to indent output by
         '''
         text = self.indent(indent)+self.coloured_text+"[ACC Loop"
-        if self._collapse:
-            text += ", collapse={0}".format(self._collapse)
-        if self._independent:
-            text += ", independent"
+        if self._sequential:
+            text += ", seq"
+        else:
+            if self._collapse:
+                text += ", collapse={0}".format(self._collapse)
+            if self._independent:
+                text += ", independent"
         text += "]"
         print(text)
         for entity in self._children:
@@ -1993,16 +2233,34 @@ class ACCLoopDirective(ACCDirective):
 
         # Add any clauses to the directive
         options = []
-        if self._collapse:
-            options.append("collapse({0})".format(self._collapse))
-        if self._independent:
-            options.append("independent")
+        if self._sequential:
+            options.append("seq")
+        else:
+            if self._collapse:
+                options.append("collapse({0})".format(self._collapse))
+            if self._independent:
+                options.append("independent")
         options_str = " ".join(options)
 
         parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
 
         for child in self.children:
             child.gen_code(parent)
+
+    def update(self):
+        '''
+        Update the existing fparser2 parse tree with the code associated with
+        this ACC LOOP directive.
+        '''
+        text = "LOOP"
+        if self._sequential:
+            text += " SEQ"
+        else:
+            if self._independent:
+                text += " INDEPENDENT"
+            if self._collapse:
+                text += " COLLAPSE({0})".format(self._collapse)
+        self._add_region(start_text=text)
 
 
 class OMPDirective(Directive):
@@ -2204,15 +2462,22 @@ class OMPParallelDirective(OMPDirective):
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
         # Check that we haven't already been called
         if self._ast:
             return
+
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the children of this node in the AST of our parent node
         try:
-            start_idx = self._parent._ast.content.index(self._children[0]._ast)
-            end_idx = self._parent._ast.content.index(self._children[-1]._ast)
+            start_idx = object_index(self._parent.ast.content,
+                                     self._children[0].ast)
+            end_idx = object_index(self._parent.ast.content,
+                                   self._children[-1].ast)
         except (IndexError, ValueError):
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
@@ -2225,14 +2490,15 @@ class OMPParallelDirective(OMPDirective):
         # the AST representing our last child
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
+        self._ast_end = enddir
         # If end_idx+1 takes us beyond the range of the list then the
         # element is appended to the list
-        self._parent._ast.content.insert(end_idx+1, enddir)
+        self._parent.ast.content.insert(end_idx+1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
         self._ast = startdir
-        self._parent._ast.content.insert(start_idx, self._ast)
+        self._parent.ast.content.insert(start_idx, self._ast)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2411,9 +2677,14 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
         # Check that we haven't already been called
         if self._ast:
             return
+
         # Since this is an OpenMP (parallel) do, it can only be applied
         # to a single loop.
         if len(self._children) != 1:
@@ -2430,7 +2701,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # We have to take care to find a parent node (in the fparser2 AST)
         # that has 'content'. This is because If-else-if blocks have their
         # 'content' as siblings of the If-then and else-if nodes.
-        parent = self._parent._ast
+        parent = self._parent.ast
         while parent:
             if hasattr(parent, "content"):
                 break
@@ -2438,7 +2709,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         if not parent:
             raise InternalError("Failed to find parent node in which to "
                                 "insert OpenMP parallel do directive")
-        start_idx = parent.content.index(self._children[0]._ast)
+        start_idx = object_index(parent.content,
+                                 self._children[0].ast)
 
         # Create the start directive
         text = ("!$omp parallel do default(shared), private({0}), "
@@ -2455,6 +2727,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             parent.content.append(enddir)
         else:
             parent.content.insert(start_idx+1, enddir)
+        self._ast_end = enddir
 
         # Insert the start directive (do this second so we don't have
         # to correct the location)
@@ -2510,6 +2783,9 @@ class GlobalSum(Node):
         '''
         print(self.indent(indent) + (
             "{0}[scalar='{1}']".format(self.coloured_text, self._scalar.name)))
+
+    def __str__(self):
+        return "GlobalSum[scalar='" + self._scalar.name + "']\n"
 
     @property
     def coloured_text(self):
@@ -2673,6 +2949,14 @@ class HaloExchange(Node):
             "check_dirty={4}]".format(self.coloured_text, self._field.name,
                                       self._halo_type,
                                       self._halo_depth, self._check_dirty)))
+
+    def __str__(self):
+        result = "HaloExchange["
+        result += "field='" + str(self._field.name) + "', "
+        result += "type='" + str(self._halo_type) + "', "
+        result += "depth='" + str(self._halo_depth) + "', "
+        result += "check_dirty='" + str(self._check_dirty) + "']\n"
+        return result
 
     @property
     def coloured_text(self):
@@ -3259,7 +3543,7 @@ class Call(Node):
 
 class Kern(Call):
     '''
-    Class representing a Kernel call within the Schedule (AST) of an Invoke.
+    Class representing a call to a PSyclone Kernel.
 
     :param type KernelArguments: the API-specific sub-class of \
                                  :py:class:`psyclone.psyGen.Arguments` to \
@@ -3400,7 +3684,7 @@ class Kern(Call):
         self.rename_and_write()
 
         parent.add(CallGen(parent, self._name,
-                           self.arguments.raw_arg_list(parent)))
+                           self.arguments.raw_arg_list()))
 
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
@@ -3744,14 +4028,11 @@ class Arguments(object):
         # subroutine call.
         self._raw_arg_list = []
 
-    def raw_arg_list(self, parent=None):
+    def raw_arg_list(self):
         '''
         Abstract method to construct the class-specific argument list for a
         kernel call. Must be overridden in API-specific sub-class.
 
-        :param parent: the parent (in the PSyIR) of the kernel call with \
-                       which this argument list is associated.
-        :type parent: sub-class of :py:class:`psyclone.psyGen.Call`
         :raises NotImplementedError: abstract method.
         '''
         raise NotImplementedError("Arguments.raw_arg_list must be "
@@ -4521,6 +4802,117 @@ class IfClause(IfBlock):
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
 
+class ACCKernelsDirective(ACCDirective):
+    '''
+    Class representing the !$ACC KERNELS directive in the PSyIR.
+
+    :param children: the PSyIR nodes to be enclosed in the Kernels region \
+                     and which are therefore children of this node.
+    :type children: list of sub-classes of :py:class:`psyclone.psyGen.Node`
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :param bool default_present: whether or not to add the "default(present)" \
+                                 clause to the kernels directive.
+
+    :raises NotImplementedError: if default_present is False.
+
+    '''
+    def __init__(self, children=None, parent=None, default_present=False):
+        super(ACCKernelsDirective, self).__init__(children=children,
+                                                  parent=parent)
+        self._default_present = default_present
+        if not self._default_present:
+            raise NotImplementedError(
+                "Currently an OpenACC 'kernels' region must have the "
+                "'default(present)' clause.")
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this node in a dag.
+        :rtype: str
+        '''
+        return "ACC_kernels_" + str(self.abs_position)
+
+    def view(self, indent=0):
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print(self.indent(indent) + self.coloured_text +
+              "[ACC Kernels]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def gen_code(self, _):
+        '''
+        :raises InternalError: the ACC Kernels directive is currently only \
+                               supported for the NEMO API and that uses the \
+                               update() method to alter the underlying \
+                               fparser2 parse tree.
+        '''
+        raise InternalError(
+            "ACCKernelsDirective.gen_code should not have been called.")
+
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this ACC kernels
+        directive.
+        '''
+        self._add_region(start_text="KERNELS", end_text="END KERNELS",
+                         data_movement="present")
+
+
+class ACCDataDirective(ACCDirective):
+    '''
+    Class representing the !$ACC DATA ... !$ACC END DATA directive
+    in the PSyIR.
+
+    '''
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in a dag for this node.
+        :rtype: str
+        '''
+        return "ACC_data_" + str(self.abs_position)
+
+    def view(self, indent=0):
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print(self.indent(indent) + self.coloured_text +
+              "[ACC DATA]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def gen_code(self, _):
+        '''
+        :raises InternalError: the ACC data directive is currently only \
+                               supported for the NEMO API and that uses the \
+                               update() method to alter the underlying \
+                               fparser2 parse tree.
+        '''
+        raise InternalError(
+            "ACCDataDirective.gen_code should not have been called.")
+
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenACC Data
+        directive.
+
+        '''
+        self._add_region(start_text="DATA", end_text="END DATA",
+                         data_movement="analyse")
+
+
 class Fparser2ASTProcessor(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -4569,6 +4961,122 @@ class Fparser2ASTProcessor(object):
         parent.addchild(code_block)
         del statements[:]
         return code_block
+
+    @staticmethod
+    def get_inputs_outputs(nodes):
+        '''
+        Identify variables that are inputs and outputs to the section of
+        Fortran code represented by the supplied list of nodes in the
+        fparser2 parse tree. Loop variables are ignored.
+
+        :param nodes: list of Nodes in the fparser2 AST to analyse.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+
+        :return: 3-tuple of list of inputs, list of outputs, list of in-outs
+        :rtype: (list of str, list of str, list of str)
+        '''
+        from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
+            Data_Ref, If_Then_Stmt, Array_Section
+        from fparser.two.utils import walk_ast
+        readers = set()
+        writers = set()
+        readwrites = set()
+        # A dictionary of all array accesses that we encounter - used to
+        # sanity check the readers and writers we identify.
+        all_array_refs = {}
+
+        # Loop over a flat list of all the nodes in the supplied region
+        for node in walk_ast(nodes):
+
+            if isinstance(node, Assignment_Stmt):
+                # Found lhs = rhs
+                structure_name_str = None
+
+                lhs = node.items[0]
+                rhs = node.items[2]
+                # Do RHS first as we cull readers after writers but want to
+                # keep a = a + ... as the RHS is computed before assigning
+                # to the LHS
+                for node2 in walk_ast([rhs]):
+                    if isinstance(node2, Part_Ref):
+                        name = node2.items[0].string
+                        if name.upper() not in FORTRAN_INTRINSICS:
+                            if name not in writers:
+                                readers.add(name)
+                    if isinstance(node2, Data_Ref):
+                        # TODO we need a robust implementation - issue #309.
+                        raise NotImplementedError(
+                            "get_inputs_outputs: derived-type references on "
+                            "the RHS of assignments are not yet supported.")
+                # Now do LHS
+                if isinstance(lhs, Data_Ref):
+                    # This is a structure which contains an array access.
+                    structure_name_str = lhs.items[0].string
+                    writers.add(structure_name_str)
+                    lhs = lhs.items[1]
+                if isinstance(lhs, (Part_Ref, Array_Section)):
+                    # This is an array reference
+                    name_str = lhs.items[0].string
+                    if structure_name_str:
+                        # Array ref is part of a derived type
+                        name_str = "{0}%{1}".format(structure_name_str,
+                                                    name_str)
+                        structure_name_str = None
+                    writers.add(name_str)
+            elif isinstance(node, If_Then_Stmt):
+                # Check for array accesses in IF statements
+                array_refs = walk_ast([node], [Part_Ref])
+                for ref in array_refs:
+                    name = ref.items[0].string
+                    if name.upper() not in FORTRAN_INTRINSICS:
+                        if name not in writers:
+                            readers.add(name)
+            elif isinstance(node, Part_Ref):
+                # Keep a record of all array references to check that we
+                # haven't missed anything. Once #309 is done we should be
+                # able to get rid of this check.
+                name = node.items[0].string
+                if name.upper() not in FORTRAN_INTRINSICS and \
+                   name not in all_array_refs:
+                    all_array_refs[name] = node
+            elif node:
+                # TODO #309 handle array accesses in other contexts, e.g. as
+                # loop bounds in DO statements.
+                pass
+
+        # Sanity check that we haven't missed anything. To be replaced when
+        # #309 is done.
+        accesses = list(readers) + list(writers)
+        for name, node in all_array_refs.items():
+            if name not in accesses:
+                # A matching bare array access hasn't been found but it
+                # might have been part of a derived-type access so check
+                # for that.
+                found = False
+                for access in accesses:
+                    if "%"+name in access:
+                        found = True
+                        break
+                if not found:
+                    raise InternalError(
+                        "Array '{0}' present in source code ('{1}') but not "
+                        "identified as being read or written.".
+                        format(name, str(node)))
+        # Now we check for any arrays that are both read and written
+        readwrites = readers & writers
+        # Remove them from the readers and writers sets
+        readers = readers - readwrites
+        writers = writers - readwrites
+        # Convert sets to lists and sort so that we get consistent results
+        # between Python versions (for testing)
+        rlist = list(readers)
+        rlist.sort()
+        wlist = list(writers)
+        wlist.sort()
+        rwlist = list(readwrites)
+        rwlist.sort()
+
+        return (rlist, wlist, rwlist)
 
     @staticmethod
     def _create_schedule(name):
@@ -4932,14 +5440,15 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Assignment_Stmt to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :returns: PSyIR representation of node
+
+        :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Assignment`
         '''
-        assignment = Assignment(parent=parent)
+        assignment = Assignment(node, parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]],
                            nodes_parent=node)
         self.process_nodes(parent=assignment, nodes=[node.items[2]],
@@ -5426,7 +5935,7 @@ class KernelSchedule(Schedule):
     '''
 
     def __init__(self, name):
-        super(KernelSchedule, self).__init__(None, None)
+        super(KernelSchedule, self).__init__(sequence=None, parent=None)
         self._name = name
         self._symbol_table = SymbolTable(self)
 
@@ -5470,7 +5979,7 @@ class KernelSchedule(Schedule):
             "A generic implementation of this method is not available.")
 
     def __str__(self):
-        result = "Schedule[name:'" + self._name + "']:\n"
+        result = "KernelSchedule[name:'" + self._name + "']:\n"
         for entity in self._children:
             result += str(entity)+"\n"
         result += "End Schedule"
@@ -5496,6 +6005,13 @@ class CodeBlock(Node):
         # the list itself is a temporary product of the process of converting
         # from the fparser2 AST to the PSyIR.
         self._statements = statements[:]
+        # Store references back into the fparser2 AST
+        if statements:
+            self._ast = self._statements[0]
+            self._ast_end = self._statements[-1]
+        else:
+            self._ast = None
+            self._ast_end = None
 
     @property
     def coloured_text(self):
@@ -5540,8 +6056,8 @@ class Assignment(Node):
     :param parent: the parent node of this Assignment in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, parent=None):
-        super(Assignment, self).__init__(parent=parent)
+    def __init__(self, ast=None, parent=None):
+        super(Assignment, self).__init__(ast=ast, parent=parent)
 
     @property
     def coloured_text(self):
@@ -5641,13 +6157,14 @@ class BinaryOperation(Node):
     Node representing a BinaryOperator expression. As such it has two operands
     as children 0 and 1, and a attribute with the operator type.
 
-    :param ast: node in the fparser2 AST representing the binary operator.
-    :type ast: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
+    :param operator: node in the fparser2 AST representing the binary operator.
+    :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
     :param parent: the parent node of this BinaryOperator in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
+        self._ast = operator
         self._operator = operator
 
     @property
