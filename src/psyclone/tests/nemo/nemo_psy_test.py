@@ -41,13 +41,11 @@ from __future__ import print_function, absolute_import
 import os
 import pytest
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, InternalError, GenerationError, \
-    CodeBlock
+from psyclone.psyGen import PSyFactory, InternalError
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
-from fparser.two.utils import walk_ast
 
 # Constants
 API = "nemo"
@@ -148,7 +146,7 @@ def test_implicit_loop_assign():
     assert "NemoImplicitLoop[zftv(:, :, :)]" in txt
     # The other statements (that use array syntax) are not assignments
     # and therefore are not implicit loops
-    assert not(isinstance(sched.children[1], nemo.NemoLoop))
+    assert not isinstance(sched.children[1], nemo.NemoLoop)
 
 
 def test_complex_code():
@@ -160,8 +158,6 @@ def test_complex_code():
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 5
-    cblocks = sched.walk(sched.children, CodeBlock)
-    assert len(cblocks) == 4
     kerns = sched.kern_calls()
     assert len(kerns) == 1
     # The last loop does not contain a kernel
