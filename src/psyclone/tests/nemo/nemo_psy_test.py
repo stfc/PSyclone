@@ -41,13 +41,11 @@ from __future__ import print_function, absolute_import
 import os
 import pytest
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, InternalError, GenerationError, \
-    CodeBlock
+from psyclone.psyGen import PSyFactory, InternalError
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
-from fparser.two.utils import walk_ast
 
 # Constants
 API = "nemo"
@@ -148,7 +146,7 @@ def test_implicit_loop_assign():
     assert isinstance(sched.children[0], nemo.NemoLoop)
     # The other statements (that use array syntax) are not assignments
     # and therefore are not implicit loops
-    assert not(isinstance(sched.children[1], nemo.NemoLoop))
+    assert not isinstance(sched.children[1], nemo.NemoLoop)
     # Check that the loop variables have been declared just once
     for var in ["psy_ji", "psy_jj", "psy_jk"]:
         assert gen.count("integer :: {0}".format(var)) == 1

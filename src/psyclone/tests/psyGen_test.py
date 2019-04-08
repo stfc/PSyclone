@@ -3857,7 +3857,7 @@ def test_fparser2astprocessor_handling_return_stmt(f2008_parser):
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Return)
-    assert len(new_node.children) == 0
+    assert not new_node.children
 
 
 def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):

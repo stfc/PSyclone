@@ -4990,7 +4990,7 @@ class Fparser2ASTProcessor(object):
                            nodes_parent=node)
         return ifblock
 
-    def _return_handler(self, node, parent):
+    def _return_handler(self, node, parent):  # pylint: disable=unused-argument
         '''
         Transforms an fparser2 Return_Stmt to the PSyIR representation.
 
