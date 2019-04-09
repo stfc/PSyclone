@@ -113,6 +113,22 @@ def test_array_valued_function():
     assert not kernels
 
 
+def test_do_while():
+    ''' Check that do-while loops are put into CodeBlocks. Eventually we
+    will need to recognise them as Nodes in the Schedule in their
+    own right. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "do_while.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    sched.view()
+    # Do while loops are not currently handled and thus are put into
+    # CodeBlocks.
+    assert isinstance(sched.children[0], CodeBlock)
+    assert isinstance(sched.children[1], nemo.NemoLoop)
+    assert isinstance(sched.children[3], CodeBlock)
+
+
 def test_multi_kern():
     ''' Test that having multiple kernels within a single loop raises
     the expected error. '''
