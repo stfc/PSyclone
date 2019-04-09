@@ -91,7 +91,7 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         :return: Returns the PSyIRe representation of child.
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
-        if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
+        if NemoLoop.match(child):
             return NemoLoop(child, parent=parent)
         elif isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
             pass
@@ -555,6 +555,33 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
             return
         # It's not - walk on down the AST...
         self.process_nodes(self, self._ast.content, self._ast)
+
+    @staticmethod
+    def match(node):
+        '''
+        Tests the supplied node to see whether it is a recognised form of
+        NEMO loop.
+
+        :param node: the node in the fparser2 parse tree to test for a match.
+        :type node: :py:class:`fparser.two.utils.Base`
+
+        :returns: True if the node represents a recognised form of loop, \
+                  False otherwise.
+        :rtype: bool
+        '''
+        from fparser.two.utils import BinaryOpBase
+        if not isinstance(node, Fortran2003.Block_Nonlabel_Do_Construct):
+            return False
+        ctrl = walk_ast(node.content, my_types=[Fortran2003.Loop_Control])
+        if not ctrl:
+            return False
+        if ctrl[0].items[0]:
+            # If this is a DO WHILE then the first element of items will be a
+            # scalar logical expression. (See
+            # `fparser.two.Fortran2003.Loop_Control`.)
+            # TODO DO WHILE's are currently just put into CodeBlocks.
+            return False
+        return True
 
     def __str__(self):
         result = ("NemoLoop[" + self._loop_type + "]: " + self._variable_name +
