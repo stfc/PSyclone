@@ -1504,7 +1504,7 @@ class Schedule(Node):
     :type parent:  :py:class:`psyclone.psyGen.Node`
     '''
 
-    def __init__(self, sequence, parent):
+    def __init__(self, sequence=None, parent=None):
         Node.__init__(self, children=sequence, parent=parent)
 
     @property
@@ -4744,18 +4744,37 @@ class DummyTransformation(Transformation):
 
 
 class IfBlock(Node):
+    # TODO: Not sure if 3rd child needs to be optional, be None, be an empty
+    # Schedule, ...
     '''
-    Class representing an if-block within the PSyIR.
+    Class representing an if-block within the PSyIR. It has two mandatory
+    children: the first one represented the if-condition and the second one
+    the if-body; and an optional third child representing the else-body.
 
     :param parent: the parent of this node within the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, parent=None):
         super(IfBlock, self).__init__(parent=parent)
-        self._condition = ""
+        # self._condition = ""
 
     def __str__(self):
         return "If-block: "+self._condition
+
+    @property
+    def condition(self):
+        return self._children[0]
+
+    @property
+    def if_body(self):
+        return self._children[1]
+
+    @property
+    def else_body(self):
+        if len(self._children) == 3:
+            return self._children[2]
+        else:
+            return None
 
     @property
     def coloured_text(self):
@@ -4774,8 +4793,7 @@ class IfBlock(Node):
 
         :param int indent: the level to which to indent the output.
         '''
-        print(self.indent(indent) + self.coloured_text + "[" +
-              self._condition + "]")
+        print(self.indent(indent) + self.coloured_text + "[]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -4934,7 +4952,7 @@ class Fparser2ASTProcessor(object):
             utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
-            # Fortran2003.If_Construct: self._if_construct_handler,
+            Fortran2003.If_Construct: self._if_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
             Fortran2003.UnaryOpBase: self._unary_op_handler,
         }
@@ -5416,6 +5434,75 @@ class Fparser2ASTProcessor(object):
         :rtype: NoneType
         '''
         return None
+
+    def _if_construct_handler(self, node, parent):
+        '''
+        Transforms an fparser2 If_Construct to the PSyIR representation.
+
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.If_Construct`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        '''
+        from fparser.two import Fortran2003
+
+        # Check that the fparser2 AST has the expected structure
+        if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
+            raise InternalError("Failed to find opening if then statement: "
+                                "{0}".format(str(node)))
+        if not isinstance(node.content[-1], Fortran2003.End_If_Stmt):
+            raise InternalError("Failed to find closing end if statement: "
+                                "{0}".format(str(node)))
+
+        clause_indices = []
+        for idx, child in enumerate(node.content):
+            if isinstance(child, (Fortran2003.If_Then_Stmt,
+                                  Fortran2003.Else_Stmt,
+                                  Fortran2003.Else_If_Stmt,
+                                  Fortran2003.End_If_Stmt)):
+                clause_indices.append(idx)
+
+        ifblock = IfBlock(parent=parent)
+
+        # Create condition as first child
+        if not len(node.content[0].items) == 1:
+            raise InternalError("")
+        self.process_nodes(parent=ifblock,
+                           nodes=node.content[0].items,
+                           nodes_parent=node)
+
+        # Create the body of the main If as second child
+        ifbody = Schedule(parent=ifblock)
+        ifblock.addchild(ifbody)
+        end_idx = clause_indices[1]
+        self.process_nodes(parent=ifbody,
+                           nodes=node.content[1:end_idx],
+                           nodes_parent=node)
+
+        # Now deal with any other clauses (i.e. "else if" or "else")
+        # An If block has one fewer clauses than it has control statements
+        # (c.f. panels and posts):
+        num_clauses = len(clause_indices) - 1
+        for idx in range(1, num_clauses):
+            start_idx = clause_indices[idx]
+            # No need to subtract 1 here as Python's slice notation means
+            # that the end_idx'th element is excluded
+            end_idx = clause_indices[idx+1]
+            node.content[start_idx]._parent = node  # Retrofit parent info
+            if isinstance(node.content[start_idx], Fortran2003.Else_Stmt):
+                if not idx == num_clauses - 1:
+                    raise InternalError("")
+                elsebody = Schedule(parent=ifblock)
+                ifblock.addchild(elsebody)
+                self.process_nodes(parent=elsebody,
+                                   nodes=node.content[start_idx + 1:end_idx],
+                                   nodes_parent=node)
+            if isinstance(node.content[start_idx], Fortran2003.Else_If_Stmt):
+                raise NotImplementedError("")
+
+        return ifblock
 
     def _if_stmt_handler(self, node, parent):
         '''
