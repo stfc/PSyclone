@@ -503,7 +503,7 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, ast, parent=None):
-        from fparser.two.Fortran2003 import Loop_Control
+        from fparser.two.Fortran2003 import Loop_Control, BinaryOpBase
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         NemoFparser2ASTProcessor.__init__(self)
@@ -512,6 +512,15 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
 
         # Get the loop variable
         ctrl = walk_ast(ast.content, [Loop_Control])
+
+        # If this is a DO WHILE then the first element of items will be a
+        # scalar logical expression. (See
+        # `fparser.two.Fortran2003.Loop_Control`.) The `match` method should
+        # have already rejected such loops so we should never get to here.
+        if isinstance(ctrl[0].items[0], BinaryOpBase):
+            raise NotImplementedError(
+                "Cannot create a NemoLoop for a DO WHILE")
+
         # Second element of items member of Loop Control is itself a tuple
         # containing:
         #   Loop variable, [start value expression, end value expression, step
@@ -629,9 +638,12 @@ class NemoImplicitLoop(NemoLoop):
             return False
         # Now check the right-hand side...
         rhs = node.items[2]
-        colons = walk_ast(rhs.items, [Fortran2003.Subscript_Triplet])
-        if not colons:
-            # We don't have any array syntax on the RHS
+        try:
+            if not walk_ast(rhs.items, [Fortran2003.Subscript_Triplet]):
+                # We don't have any array syntax on the RHS
+                return True
+        except AttributeError:
+            # The rhs doesn't have the `items` attribute
             return True
         # Check that we haven't got array syntax used within the index
         # expression to another array. Array references are represented by
