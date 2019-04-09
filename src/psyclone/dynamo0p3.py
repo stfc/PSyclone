@@ -524,8 +524,11 @@ class DynArgDescriptor03(Descriptor):
     def __init__(self, arg_type):
         '''
         :param arg_type: dynamo0.3 argument type (scalar, field or operator)
-        :type arg_type: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :type arg_type: :py:class:`fparser.two.Fortran2003.Part_Ref`
         '''
+        print (type(arg_type))
+        print (arg_type)
+        exit(1)
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
             raise ParseError(
@@ -855,7 +858,6 @@ class DynKernMetadata(KernelType):
         # Query the meta-data for the evaluator shape (only required if
         # kernel uses quadrature or an evaluator). If it is not
         # present then eval_shape will be None.
-        exit(1)
         self._eval_shape = self.get_integer_variable('gh_shape')
         # The list of function space names for which an evaluator is
         # required. We set this up below once we've processed the meta-
@@ -871,6 +873,7 @@ class DynKernMetadata(KernelType):
         self._arg_descriptors = []
         for arg_type in self._inits:
             self._arg_descriptors.append(DynArgDescriptor03(arg_type))
+            exit(1)
         # parse the func_type metadata if it exists
         found = False
         for line in self._ktype.content:

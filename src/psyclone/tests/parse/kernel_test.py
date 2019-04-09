@@ -69,6 +69,11 @@ CODE = (
 
     )
 
+# class KernelType methods get_integer_array, getkerneldescriptors
+# TBD
+# class KernelProcedure method get_procedure
+# TBD
+
 # function get_kernel_metadata
 
 
