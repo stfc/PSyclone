@@ -4753,13 +4753,20 @@ class IfBlock(Node):
 
     :param parent: the parent of this node within the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
+    :param bool was_elseif: whether the ifblock had the elseif syntax in \
+                            the original code.
     '''
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, was_elseif=False):
         super(IfBlock, self).__init__(parent=parent)
+        self._hint_was_elseif = was_elseif
         # self._condition = ""
 
     def __str__(self):
         return "If-block: "+self._condition
+
+    @property
+    def hint_was_elseif(self):
+        return self._hint_was_elseif
 
     @property
     def condition(self):
@@ -4793,7 +4800,8 @@ class IfBlock(Node):
 
         :param int indent: the level to which to indent the output.
         '''
-        print(self.indent(indent) + self.coloured_text + "[]")
+        print(self.indent(indent) + self.coloured_text + "[was_elseif:" +
+              str(self.hint_was_elseif) + "]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -5447,6 +5455,8 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
         from fparser.two import Fortran2003
+        print(" ---- ")
+        print(node)
 
         # Check that the fparser2 AST has the expected structure
         if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
@@ -5481,27 +5491,53 @@ class Fparser2ASTProcessor(object):
                            nodes=node.content[1:end_idx],
                            nodes_parent=node)
 
-        # Now deal with any other clauses (i.e. "else if" or "else")
-        # An If block has one fewer clauses than it has control statements
-        # (c.f. panels and posts):
         num_clauses = len(clause_indices) - 1
         for idx in range(1, num_clauses):
             start_idx = clause_indices[idx]
-            # No need to subtract 1 here as Python's slice notation means
-            # that the end_idx'th element is excluded
-            end_idx = clause_indices[idx+1]
             node.content[start_idx]._parent = node  # Retrofit parent info
+
+        # Now deal with any other clauses (i.e. "else if" or "else")
+        # An If block has one fewer clauses than it has control statements
+        # (c.f. panels and posts):
+        currentifblock = ifblock
+        for idx in range(1, num_clauses):
+            start_idx = clause_indices[idx]
+            end_idx = clause_indices[idx+1]
+
             if isinstance(node.content[start_idx], Fortran2003.Else_Stmt):
                 if not idx == num_clauses - 1:
                     raise InternalError("")
-                elsebody = Schedule(parent=ifblock)
-                ifblock.addchild(elsebody)
+                elsebody = Schedule(parent=currentifblock)
+                currentifblock.addchild(elsebody)
                 self.process_nodes(parent=elsebody,
                                    nodes=node.content[start_idx + 1:end_idx],
                                    nodes_parent=node)
-            if isinstance(node.content[start_idx], Fortran2003.Else_If_Stmt):
-                raise NotImplementedError("")
 
+            if isinstance(node.content[start_idx], Fortran2003.Else_If_Stmt):
+                elsebody = Schedule(parent=currentifblock)
+                currentifblock.addchild(elsebody)
+                newifblock = IfBlock(parent=elsebody, was_elseif=True)
+                elsebody.addchild(newifblock)
+
+                # Create condition as first child
+                # print(node.content[start_idx].items[1])
+                # if not len(node.content[start_idx].items) == 1:
+                #     raise InternalError("")
+                self.process_nodes(parent=newifblock,
+                                   nodes=[node.content[start_idx].items[0]],
+                                   nodes_parent=node)
+
+                # Create if-body as second child
+                ifbody = Schedule(parent=ifblock)
+                newifblock.addchild(ifbody)
+                self.process_nodes(parent=ifbody,
+                                   nodes=node.content[start_idx + 1:end_idx],
+                                   nodes_parent=node)
+
+                currentifblock = newifblock
+
+        ifblock.view()
+        print(" End ---- ")
         return ifblock
 
     def _if_stmt_handler(self, node, parent):
