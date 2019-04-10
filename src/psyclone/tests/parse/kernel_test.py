@@ -131,6 +131,31 @@ def test_getkernelfilepath_caseinsensitive2(tmpdir):
     assert "tmp" in result
     assert "test_mod.f90" in result
 
+# function get_kernel_metadata
+
+def test_get_kernel_metadata_no_match():
+    module_parse_tree = parse(CODE)
+    kernel_type_name = "no_matching_kernel"
+    with pytest.raises(ParseError) as excinfo:
+        get_kernel_metadata(
+            kernel_type_name, module_parse_tree)
+    assert 'Kernel type no_matching_kernel does not exist' in str(excinfo)
+
+
+def test_get_kernel_metadata_match():
+    module_parse_tree = parse(CODE)
+    kernel_type_name = "test_type"
+    meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
+    assert meta is not None
+
+
+def test_get_kernel_metadata_match_case_insensitive():
+    module_parse_tree = parse(CODE)
+    kernel_type_name = "TeSt_TyPe"
+    meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
+    assert meta is not None
+
+
 # class BuiltInKernelTypeFactory():create test
 
 

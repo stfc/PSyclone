@@ -586,7 +586,7 @@ def get_kernel_metadata(name, ast):
     of the parse tree (a Fortran type) with the name 'name'.
 
     :param str name: the metadata name (of a Fortran type). Also \
-    the name referencing the kernel in the algorithm layer)
+    the name referencing the kernel in the algorithm layer). Case insensitive.
     :param ast: parse tree of the kernel module code
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
 
@@ -601,8 +601,9 @@ def get_kernel_metadata(name, ast):
     ktype = None
     for statement, _ in fpapi.walk(ast, -1):
         if isinstance(statement, fparser1.block_statements.Type) \
-           and statement.name == name:
+           and statement.name.lower() == name.lower():
             ktype = statement
+            break
     if ktype is None:
         raise ParseError("Kernel type {0} does not exist".format(name))
     return ktype
