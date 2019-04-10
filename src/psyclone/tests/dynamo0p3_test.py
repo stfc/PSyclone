@@ -4967,7 +4967,7 @@ def test_stencil_args_unique_3(dist_mem):
         assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
-def test_stencil_vector(dist_mem):
+def test_stencil_vector(dist_mem, tmpdir):
     '''Test that the expected declarations and lookups are produced when
     we have a stencil access with a vector field.
 
@@ -4978,7 +4978,6 @@ def test_stencil_vector(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     result = str(psy.gen)
-    print (result)
     assert (
         "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
         "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
@@ -5000,9 +4999,11 @@ def test_stencil_vector(dist_mem):
         "f2_proxy(4)%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell)") \
         in str(result)
 
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
-def test_stencil_xory_vector(dist_mem):
-    '''test that the expected declarations and lookups are produced when
+
+def test_stencil_xory_vector(dist_mem, tmpdir):
+    '''Test that the expected declarations and lookups are produced when
     we have a stencil access of type x or y with a vector field.
 
     '''
@@ -5046,6 +5047,8 @@ def test_stencil_xory_vector(dist_mem):
         "f2_proxy(4)%data, f2_stencil_size, f2_direction, "
         "f2_stencil_dofmap(:,:,cell)") \
         in result
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
 def test_dynloop_load_unexpected_func_space():

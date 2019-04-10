@@ -109,6 +109,13 @@ module argument_mod
   integer, public, parameter :: EVALUATOR           = 507
   integer, public, parameter :: GH_EVALUATOR        = 508
 
+  ! Stencil metadata
+  integer, public, parameter :: XORY1D = 1
+  integer, public, parameter :: X1D    = 2
+  integer, public, parameter :: Y1D    = 3
+  integer, public, parameter :: CROSS  = 4
+  integer, public, parameter :: STENCIL(4) = -1
+
   ! For inter-grid kernels
   integer, public, parameter :: GH_FINE = 701
   integer, public, parameter :: GH_COARSE = 702
