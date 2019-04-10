@@ -1787,11 +1787,6 @@ class DynStencils(DynCollection):
                         if_then = IfThenGen(parent, direction_name +
                                             " .eq. " + direction +
                                             "_direction")
-                        #if arg.vector_size > 1:
-                        #    print (arg.proxy_name)
-                        #    print (arg.proxy_name_indexed)
-                        #    #print (dir(arg))
-                        #    exit(1)
                         if_then.add(
                             AssignGen(if_then, pointer=True,
                                       lhs=map_name, rhs=arg.proxy_name_indexed +
@@ -1808,11 +1803,6 @@ class DynStencils(DynCollection):
                             "Supported mappings are {1}".
                             format(arg.descriptor.stencil['type'],
                                    str(STENCIL_MAPPING)))
-                    #if arg.vector_size > 1:
-                    #    print (arg.proxy_name)
-                    #    print (arg.proxy_name_indexed)
-                    #    #print (dir(arg))
-                    #    exit(1)
                     parent.add(
                         AssignGen(parent, pointer=True, lhs=map_name,
                                   rhs=arg.proxy_name_indexed +

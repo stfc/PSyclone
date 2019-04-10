@@ -4967,6 +4967,87 @@ def test_stencil_args_unique_3(dist_mem):
         assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
+def test_stencil_vector(dist_mem):
+    '''Test that the expected declarations and lookups are produced when
+    we have a stencil access with a vector field.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "14.4_halo_vector.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+    print (result)
+    assert (
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
+        in str(result)
+    assert(
+        "      INTEGER f2_stencil_size\n"
+        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n") \
+        in str(result)
+    assert(
+        "      f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
+        "(STENCIL_CROSS,f2_extent)\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size = f2_stencil_map%get_size()\n") \
+        in str(result)
+    assert(
+        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
+        "f2_proxy(4)%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell)") \
+        in str(result)
+
+
+def test_stencil_xory_vector(dist_mem):
+    '''test that the expected declarations and lookups are produced when
+    we have a stencil access of type x or y with a vector field.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "14.4.2_halo_vector_xory.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+    assert(
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
+        in result
+    assert(
+        "      INTEGER, intent(in) :: f2_extent\n"
+        "      INTEGER, intent(in) :: f2_direction\n") \
+        in result
+
+    assert(
+        "      INTEGER f2_stencil_size\n"
+        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n") \
+        in result
+    assert(
+        "      IF (f2_direction .eq. x_direction) THEN\n"
+        "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
+        "(STENCIL_1DX,f2_extent)\n"
+        "      END IF \n"
+        "      IF (f2_direction .eq. y_direction) THEN\n"
+        "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
+        "(STENCIL_1DY,f2_extent)\n"
+        "      END IF \n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size = f2_stencil_map%get_size()\n") \
+        in result
+    assert(
+        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
+        "f2_proxy(4)%data, f2_stencil_size, f2_direction, "
+        "f2_stencil_dofmap(:,:,cell)") \
+        in result
+
+
 def test_dynloop_load_unexpected_func_space():
     ''' The load function of an instance of the dynloop class raises an
     error if an unexpexted function space is found. This test makes
