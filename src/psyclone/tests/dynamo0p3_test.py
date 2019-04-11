@@ -5023,7 +5023,6 @@ def test_stencil_xory_vector(dist_mem, tmpdir):
         "      INTEGER, intent(in) :: f2_extent\n"
         "      INTEGER, intent(in) :: f2_direction\n") \
         in result
-
     assert(
         "      INTEGER f2_stencil_size\n"
         "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
