@@ -34,9 +34,9 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''This module implements the PSyclone NEMO API by specialising
-    the required base classes for both code generation (PSy, Invokes,
-    Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
-    and parsing (Descriptor and KernelType).
+   the required base classes for both code generation (PSy, Invokes,
+   Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
+   and parsing (Descriptor and KernelType).
 
 '''
 
@@ -100,7 +100,8 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         elif NemoIfBlock.match(child):
             return NemoIfBlock(child, parent=parent)
         else:
-            return super(NemoFparser2ASTProcessor, self)._create_child(child)
+            return super(NemoFparser2ASTProcessor,
+                         self)._create_child(child, parent=parent)
 
 
 class NemoInvoke(Invoke):
@@ -593,6 +594,10 @@ class NemoImplicitLoop(NemoLoop):
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
+    def __str__(self):
+        # Display the LHS of the assignment in the str representation
+        return "NemoImplicitLoop[{0}]\n".format(self._ast.items[0])
+
     @staticmethod
     def match(node):
         '''
@@ -763,6 +768,7 @@ class NemoIfClause(IfClause, NemoFparser2ASTProcessor):
         NemoFparser2ASTProcessor.__init__(self)
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast_nodes[0]
+        self._ast_end = ast_nodes[-1]
         # Store what type of clause we are
         if isinstance(ast_nodes[0], Fortran2003.Else_Stmt):
             self._clause_type = "Else"

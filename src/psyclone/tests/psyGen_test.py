@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Symbol, SymbolTable
+    KernelSchedule, Symbol, SymbolTable, UnaryOperation, Return
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -79,6 +79,19 @@ def f2008_parser():
     '''Initialize fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
+
+# Tests for utilities
+
+
+def test_object_index():
+    ''' Tests for the object_index() utility. '''
+    from psyclone.psyGen import object_index
+    two = "two"
+    my_list = ["one", two, "three"]
+    assert object_index(my_list, two) == 1
+    with pytest.raises(InternalError) as err:
+        _ = object_index(my_list, None)
+    assert "Cannot search for None item in list" in str(err)
 
 # PSyFactory class unit tests
 
@@ -846,12 +859,12 @@ def test_ompdo_directive_class_view(capsys):
 
 def test_acc_dir_view(capsys):
     ''' Test the view() method of OpenACC directives '''
-    from psyclone.transformations import ACCDataTrans, ACCLoopTrans, \
+    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
         ACCParallelTrans
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
 
     acclt = ACCLoopTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
 
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
@@ -1091,35 +1104,33 @@ def test_named_invoke_name_clash():
     assert "TYPE(field_type), intent(inout) :: invoke_a_1" in gen
 
 
-def test_invalid_reprod_pad_size(monkeypatch):
+def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     '''Check that we raise an exception if the pad size in psyclone.cfg is
     set to an invalid value '''
     # Make sure we monkey patch the correct Config object
-    from psyclone.configuration import Config
-    monkeypatch.setattr(Config._instance, "_reprod_pad_size", 0)
-    for distmem in [True, False]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "15.9.1_X_innerproduct_Y_builtin.f90"),
-            api="dynamo0.3")
-        psy = PSyFactory("dynamo0.3",
-                         distributed_memory=distmem).create(invoke_info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
-            OMPParallelTrans
-        otrans = Dynamo0p3OMPLoopTrans()
-        rtrans = OMPParallelTrans()
-        # Apply an OpenMP do directive to the loop
-        schedule, _ = otrans.apply(schedule.children[0], reprod=True)
-        # Apply an OpenMP Parallel directive around the OpenMP do directive
-        schedule, _ = rtrans.apply(schedule.children[0])
-        invoke.schedule = schedule
-        with pytest.raises(GenerationError) as excinfo:
-            _ = str(psy.gen)
-        assert (
-            "REPROD_PAD_SIZE in {0} should be a positive "
-            "integer".format(Config.get().filename) in str(excinfo.value))
+    config = Config.get()
+    monkeypatch.setattr(config._instance, "_reprod_pad_size", 0)
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3",
+                     distributed_memory=dist_mem).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    from psyclone.transformations import Dynamo0p3OMPLoopTrans, \
+        OMPParallelTrans
+    otrans = Dynamo0p3OMPLoopTrans()
+    rtrans = OMPParallelTrans()
+    # Apply an OpenMP do directive to the loop
+    schedule, _ = otrans.apply(schedule.children[0], reprod=True)
+    # Apply an OpenMP Parallel directive around the OpenMP do directive
+    schedule, _ = rtrans.apply(schedule.children[0])
+    invoke.schedule = schedule
+    with pytest.raises(GenerationError) as excinfo:
+        _ = str(psy.gen)
+    assert (
+        "REPROD_PAD_SIZE in {0} should be a positive "
+        "integer".format(Config.get().filename) in str(excinfo.value))
 
 
 def test_argument_depends_on():
@@ -2079,14 +2090,14 @@ def test_omp_dag_names():
 def test_acc_dag_names():
     ''' Check that we generate the correct dag names for ACC parallel,
     ACC enter-data and ACC loop directive Nodes '''
-    from psyclone.psyGen import ACCDataDirective
-    from psyclone.transformations import ACCDataTrans, ACCParallelTrans, \
+    from psyclone.psyGen import ACCEnterDataDirective
+    from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
         ACCLoopTrans
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     schedule = invoke.schedule
 
     acclt = ACCLoopTrans()
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
     # Enter-data
     new_sched, _ = accdt.apply(schedule)
@@ -2098,18 +2109,19 @@ def test_acc_dag_names():
     new_sched, _ = acclt.apply(new_sched.children[1].children[0])
     assert schedule.children[1].children[0].dag_name == "ACC_loop_3"
     # Base class
-    name = super(ACCDataDirective, schedule.children[0]).dag_name
+    name = super(ACCEnterDataDirective, schedule.children[0]).dag_name
     assert name == "ACC_directive_1"
 
 
 def test_acc_datadevice_virtual():
-    ''' Check that we can't instantiate an instance of ACCDataDirective. '''
-    from psyclone.psyGen import ACCDataDirective
+    ''' Check that we can't instantiate an instance of
+    ACCEnterDataDirective. '''
+    from psyclone.psyGen import ACCEnterDataDirective
     # pylint:disable=abstract-class-instantiated
     with pytest.raises(TypeError) as err:
-        ACCDataDirective()
+        ACCEnterDataDirective()
     # pylint:enable=abstract-class-instantiated
-    assert ("instantiate abstract class ACCDataDirective with abstract "
+    assert ("instantiate abstract class ACCEnterDataDirective with abstract "
             "methods data_on_device" in str(err))
 
 
@@ -2733,7 +2745,7 @@ def test_assignment_gen_c_code():
     with pytest.raises(GenerationError) as err:
         _ = assignment.gen_c_code()
     assert("Assignment malformed or incomplete. It should have "
-           "exactly 2 children, but it found 0." in str(err.value))
+           "exactly 2 children, but found 0." in str(err.value))
     ref = Reference("a", assignment)
     lit = Literal("1", assignment)
     assignment.addchild(ref)
@@ -2885,12 +2897,75 @@ def test_binaryoperation_gen_c_code():
     with pytest.raises(GenerationError) as err:
         _ = binary_operation.gen_c_code()
     assert("BinaryOperation malformed or incomplete. It should have "
-           "exactly 2 children, but it found 0." in str(err.value))
+           "exactly 2 children, but found 0." in str(err.value))
     lit1 = Literal("1", binary_operation)
     lit2 = Literal("2", binary_operation)
     binary_operation.addchild(lit1)
     binary_operation.addchild(lit2)
     assert binary_operation.gen_c_code() == '(1 + 2)'
+
+
+# Test UnaryOperation class
+
+def test_unaryoperation_view(capsys):
+    ''' Check the view and colored_text methods of the UnaryOperation
+    class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    unary_operation = UnaryOperation("-")
+    op1 = Literal("1", parent=unary_operation)
+    unary_operation.addchild(op1)
+    coloredtext = colored("UnaryOperation",
+                          SCHEDULE_COLOUR_MAP["UnaryOperation"])
+    unary_operation.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[operator:'-']" in output
+
+
+def test_unaryoperation_can_be_printed():
+    '''Test that a UnaryOperation instance can always be printed (i.e. is
+    initialised fully)'''
+    unary_operation = UnaryOperation("-")
+    op1 = Literal("1", parent=unary_operation)
+    unary_operation.addchild(op1)
+    assert "UnaryOperation[operator:'-']\n" in str(unary_operation)
+
+
+def test_unaryoperation_gen_c_code():
+    '''Test that a UnaryOperation node can generate its C representation'''
+
+    unary_operation = UnaryOperation("-")
+    with pytest.raises(GenerationError) as err:
+        _ = unary_operation.gen_c_code()
+    assert("UnaryOperation malformed or incomplete. It should have "
+           "exactly 1 child, but found 0." in str(err.value))
+    lit1 = Literal("1", unary_operation)
+    unary_operation.addchild(lit1)
+    assert unary_operation.gen_c_code() == '(- 1)'
+
+
+# Test Return class
+
+def test_return_view(capsys):
+    ''' Check the view and colored_text methods of the Return class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    return_stmt = Return()
+    coloredtext = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
+    return_stmt.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[]" in output
+
+
+def test_return_can_be_printed():
+    '''Test that a Return instance can always be printed (i.e. is
+    initialised fully)'''
+    return_stmt = Return()
+    assert "Return[]\n" in str(return_stmt)
+
+
+def test_return_gen_c_code():
+    '''Test that a Return node can generate its C representation'''
+    return_stmt = Return()
+    assert return_stmt.gen_c_code() == 'return;'
 
 
 # Test KernelSchedule Class
@@ -3610,7 +3685,7 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
 
 
 def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
-    ''' Test that fparser2 Assignment_Stmt is converted to expected PSyIR
+    ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3629,7 +3704,7 @@ def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_name(f2008_parser):
-    ''' Test that fparser2 Name is converted to expected PSyIR
+    ''' Test that fparser2 Name is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3648,7 +3723,7 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
-    ''' Test that fparser2 Parenthesis is converted to expected PSyIR
+    ''' Test that fparser2 Parenthesis is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3667,7 +3742,7 @@ def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_part_ref(f2008_parser):
-    ''' Test that fparser2 Part_Ref is converted to expected PSyIR
+    ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3699,7 +3774,7 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
-    ''' Test that fparser2 If_Stmt is converted to expected PSyIR
+    ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3718,7 +3793,7 @@ def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_numberbase(f2008_parser):
-    ''' Test that fparser2 NumberBase is converted to expected PSyIR
+    ''' Test that fparser2 NumberBase is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3737,7 +3812,7 @@ def test_fparser2astprocessor_handling_numberbase(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
-    ''' Test that fparser2 BinaryOpBase is converted to expected PSyIR
+    ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3754,6 +3829,47 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     assert isinstance(new_node, BinaryOperation)
     assert len(new_node.children) == 2
     assert new_node._operator == '+'
+
+
+def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
+    ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
+    tree structure.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
+    reader = FortranStringReader("x=-4")
+    fparser2unary_operation = Execution_Part.match(reader)[0][0].items[2]
+    assert isinstance(fparser2unary_operation, UnaryOpBase)
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2unary_operation], None)
+    # Check a new node was generated and connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, UnaryOperation)
+    assert len(new_node.children) == 1
+    assert new_node._operator == '-'
+
+
+def test_fparser2astprocessor_handling_return_stmt(f2008_parser):
+    ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
+    tree structure.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part, Return_Stmt
+    reader = FortranStringReader("return")
+    return_stmt = Execution_Part.match(reader)[0][0]
+    assert isinstance(return_stmt, Return_Stmt)
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [return_stmt], None)
+    # Check a new node was generated and connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Return)
+    assert not new_node.children
 
 
 def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):
