@@ -42,6 +42,7 @@
 from __future__ import print_function, absolute_import
 import abc
 import six
+from enum import Enum
 from psyclone.configuration import Config
 
 # We use the termcolor module (if available) to enable us to produce
@@ -91,10 +92,51 @@ MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 # Types of access for a kernel argument
 MAPPING_ACCESSES = {"inc": "inc", "write": "write",
                     "read": "read", "readwrite": "readwrite"}
+
+class AccessType(Enum):
+    '''A simple enum-class for the various valid access types.
+    '''
+
+    INC = 1
+    WRITE = 2
+    READ = 3
+    READWRITE = 4
+    SUM = 5
+
+    @staticmethod
+    def get_size():
+        ''':returns: The number of elements in this emnumerator.
+        :rtype int'''
+        return len(AccessType)
+
+    def api_name(self):
+        '''This convenient function returns the name of the type in the current API.
+        E.g. in a dynamo0.3 API, WRITE --> "gh_write"
+        :returns: The API specific name.
+        :rtype: str
+        '''
+        api_config = Config.get().api_conf()
+        rev_access_mapping = api_config.get_reverse_access_mapping()
+        print("self", self, api_config, rev_access_mapping, rev_access_mapping[self])
+        return rev_access_mapping[self]
+
+    @staticmethod
+    def from_string(access_string):
+        '''Convert a string (e.g. "read") into the corresponding
+        AccessType enum value (AccessType.READ).
+        :param str access_string: Access type as string.
+        :returns" Corresponding AccessType enum.
+        :Raises: KeyError if access_string is not a valid access type.
+        '''
+        for access in AccessType:
+            if access.name == access_string.upper():
+                return access
+        raise KeyError("Unknown access type '{0}'.".format(access_string))
+
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
 # List of all valid access types for a kernel argument
-VALID_ACCESS_DESCRIPTOR_NAMES = []
+VALID_ACCESS_DESCRIPTOR_NAMES = [AccessType.READ, AccessType.WRITE, AccessType.READWRITE, AccessType.INC]
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
@@ -180,7 +222,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
             if argument.type.lower() not in arg_types:
                 continue
         if arg_accesses:
-            if argument.access.lower() not in arg_accesses:
+            if argument.access not in arg_accesses:
                 continue
         if arg_meshes:
             if argument.mesh not in arg_meshes:
@@ -680,18 +722,15 @@ class Invoke(object):
 
     def unique_declarations(self, datatype, access=None):
         ''' Returns a list of all required declarations for the
-        specified datatype. If access is supplied (e.g. "gh_write") then
-        only declarations with that access are returned. '''
+        specified datatype. If access is supplied (e.g. "write") then
+        only declarations with that access are returned. 
+        '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
                 "unique_declarations called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
-        if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
-            raise GenerationError(
-                "unique_declarations called with an invalid access type. "
-                "Expected one of '{0}' but got '{1}'".
-                format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
+
         declarations = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
@@ -740,17 +779,11 @@ class Invoke(object):
         # inc (shared update), write, read and readwrite (independent
         # update). A single argument may be accessed in different ways
         # by different kernels.
-        access_mapping = Config.get().api_conf().get_access_mapping()
-        inc_args = self.unique_declarations(datatype,
-                                            access=access_mapping["inc"])
-        write_args = self.unique_declarations(datatype,
-                                              access=access_mapping["write"])
-        read_args = self.unique_declarations(datatype,
-                                             access=access_mapping["read"])
-        readwrite_args = self.unique_declarations(
-            datatype, access=access_mapping["readwrite"])
-        sum_args = self.unique_declarations(datatype,
-                                            access=MAPPING_REDUCTIONS["sum"])
+        inc_args = self.unique_declarations(datatype, access=AccessType.INC)
+        write_args = self.unique_declarations(datatype, access=AccessType.WRITE)
+        read_args = self.unique_declarations(datatype, access=AccessType.READ)
+        readwrite_args = self.unique_declarations(datatype, AccessType.READWRITE)
+        sum_args = self.unique_declarations(datatype, access=AccessType.SUM)
         # sum_args behave as if they are write_args from
         # the PSy-layer's perspective.
         write_args += sum_args
@@ -781,7 +814,7 @@ class Invoke(object):
             # access. If it is 'write' then the arg is only
             # intent(out), otherwise it is intent(inout)
             first_arg = self.first_access(name)
-            if first_arg.access != access_mapping["write"]:
+            if first_arg.access != AccessType.WRITE:
                 if name not in declns["inout"]:
                     declns["inout"].append(name)
             else:
@@ -795,7 +828,7 @@ class Invoke(object):
             # However, we deal with inc and readwrite args separately so we
             # do not consider those here.
             first_arg = self.first_access(name)
-            if first_arg.access == access_mapping["read"]:
+            if first_arg.access == AccessType.READ:
                 if name not in declns["inout"]:
                     declns["inout"].append(name)
             else:
@@ -2482,8 +2515,7 @@ class GlobalSum(Node):
             # Update scalar values appropriately
             # Here "readwrite" denotes how the class GlobalSum
             # accesses/updates a scalar
-            access_mapping = Config.get().api_conf().get_access_mapping()
-            self._scalar.access = access_mapping["readwrite"]
+            self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
 
     @property
@@ -2554,8 +2586,7 @@ class HaloExchange(Node):
             # Update fields values appropriately
             # Here "readwrite" denotes how the class HaloExchange
             # accesses a field rather than the field's continuity
-            access_mapping = Config.get().api_conf().get_access_mapping()
-            self._field.access = access_mapping["readwrite"]
+            self._field.access = AccessType.READWRITE
             self._field.call = self
         self._halo_type = None
         self._halo_depth = None
@@ -2895,18 +2926,16 @@ class Loop(Node):
         result += "EndLoop"
         return result
 
-    def has_inc_arg(self, mapping={}):
+    def has_inc_arg(self):
         ''' Returns True if any of the Kernels called within this
         loop have an argument with INC access. Returns False otherwise '''
-        assert mapping != {}, "psyGen:Loop:has_inc_arg: Error - a mapping "\
-            "must be provided"
         for kern_call in self.kern_calls():
             for arg in kern_call.arguments.args:
-                if arg.access.lower() == mapping["inc"]:
+                if arg.access == AccessType.INC:
                     return True
         return False
 
-    def unique_modified_args(self, mapping, arg_type):
+    def unique_modified_args(self, arg_type):
         '''Return all unique arguments of type arg_type from Kernels in this
         loop that are modified'''
         arg_names = []
@@ -2914,7 +2943,7 @@ class Loop(Node):
         for call in self.calls():
             for arg in call.arguments.args:
                 if arg.type.lower() == arg_type:
-                    if arg.access.lower() != mapping["read"]:
+                    if arg.access != AccessType.READ:
                         if arg.name not in arg_names:
                             arg_names.append(arg.name)
                             args.append(arg)
@@ -3420,26 +3449,22 @@ class Kern(Call):
         raise NotImplementedError("gen_arg_setter_code must be implemented "
                                   "by sub-class.")
 
-    def incremented_arg(self, mapping={}):
+    def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
 
-        :param mapping: dictionary of access types (here INC) associated \
-                        with arguments with their metadata strings as keys
         :type mapping: dict
         :returns: a Fortran argument name.
         :rtype: str
         :raises FieldNotFoundError: if none is found.
 
         '''
-        assert mapping != {}, "psyGen:Kern:incremented_arg: Error - a "\
-            "mapping must be provided"
         for arg in self.arguments.args:
-            if arg.access.lower() == mapping["inc"]:
+            if arg.access == AccessType.INC:
                 return arg
         raise FieldNotFoundError("Kernel {0} does not have an argument with "
-                                 "{1} access".
-                                 format(self.name, mapping["inc"]))
+                                 "increment access".
+                                 format(self.name))
 
     def written_arg(self, mapping={}):
         '''
@@ -3455,11 +3480,9 @@ class Kern(Call):
         :raises FieldNotFoundError: if none is found.
 
         '''
-        assert mapping != {}, "psyGen:Kern:written_arg: Error - a "\
-            "mapping must be provided"
-        for access in ["write", "readwrite"]:
+        for access in [AccessType.WRITE, AccessType.READWRITE]:
             for arg in self.arguments.args:
-                if arg.access.lower() == mapping[access]:
+                if arg.access == access:
                     return arg
         raise FieldNotFoundError("Kernel {0} does not have an argument with "
                                  "{1} or {2} access".
@@ -3773,25 +3796,20 @@ class Arguments(object):
     def args(self):
         return self._args
 
-    def iteration_space_arg(self, mapping={}):
+    def iteration_space_arg(self):
         '''
         Returns an argument that can be iterated over, i.e. modified
         (has WRITE, READWRITE or INC access).
 
-        :param mapping: dictionary of access types associated with arguments
-                        with their metadata strings as keys
-        :type mapping: dict
         :returns: a Fortran argument name
         :rtype: string
         :raises GenerationError: if none such argument is found.
 
         '''
-        assert mapping != {}, "psyGen:Arguments:iteration_space_arg: Error "
-        "a mapping needs to be provided"
         for arg in self._args:
-            if arg.access.lower() == mapping["write"] or \
-               arg.access.lower() == mapping["readwrite"] or \
-               arg.access.lower() == mapping["inc"]:
+            if arg.access == AccessType.WRITE or \
+               arg.access == AccessType.READWRITE or \
+               arg.access == AccessType.INC:
                 return arg
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
@@ -3992,6 +4010,8 @@ class Argument(object):
         self._orig_name = arg_info.varname
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
+        if not isinstance(access, AccessType):
+            print()
         self._access = access
         self._name_space_manager = NameSpaceFactory().create()
 
@@ -4015,15 +4035,13 @@ class Argument(object):
         # DynArgument (subclass of Argument) will use the
         # MAPPING_ACCESSES specified in the dynamo0p3 file which
         # overide the default ones in this file.
-        access_mapping = Config.get().api_conf().get_access_mapping()
-        print("Psygen: mapping is", access_mapping)
-        self._write_access_types = [access_mapping["write"],
-                                    access_mapping["readwrite"],
-                                    access_mapping["inc"],
-                                    MAPPING_REDUCTIONS["sum"]]
-        self._read_access_types = [access_mapping["read"],
-                                   access_mapping["readwrite"],
-                                   access_mapping["inc"]]
+        self._write_access_types = [AccessType.WRITE,
+                                    AccessType.READWRITE,
+                                    AccessType.INC,
+                                    AccessType.SUM]
+        self._read_access_types = [AccessType.READ,
+                                   AccessType.READWRITE,
+                                   AccessType.INC]
         self._vector_size = 1
 
     def __str__(self):
@@ -4052,7 +4070,20 @@ class Argument(object):
     @access.setter
     def access(self, value):
         ''' set the access type for this argument '''
+        if not isinstance(value, AccessType):
+            print()
+
         self._access = value
+
+    def is_read(self):
+        '''Checks if the argument is read, i.e. has access
+        type read, readwrite, or inc.'''
+        return self._access in [AccessType.READ, AccessType.READWRITE, AccessType.INC]
+
+    def is_written(self):
+        '''Checks if the argument is written, i.e. has access
+        type write, readwrite, or inc.'''
+        return self._access in [AccessType.WRITE, AccessType.READWRITE, AccessType.INC]
 
     @property
     def type(self):

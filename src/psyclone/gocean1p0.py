@@ -1275,9 +1275,9 @@ class GOKernelArguments(Arguments):
         :returns: the argument object from which to get grid properties.
         :rtype: :py:class:`psyclone.gocean1p0.GOKernelArgument` or None
         '''
-        for access in ["go_read", "go_readwrite", "go_write"]:
+        for access in ["read", "readwrite", "write"]:
             for arg in self._args:
-                if arg.type == "field" and arg.access.lower() == access:
+                if arg.type == "field" and arg.access == access:
                     return arg
         # We failed to find any kernel argument which could be used
         # to access the grid properties. This will only be a problem
@@ -1291,19 +1291,8 @@ class GOKernelArguments(Arguments):
             remove the need for this property (#279). '''
         return self._dofs
 
-    def iteration_space_arg(self, mapping=None):
-        if mapping:
-            my_mapping = mapping
-        else:
-            # We provide an empty mapping for inc as it is not supported
-            # in the GOcean 1.0 API. However, the entry has to be there
-            # in the dictionary as a field that has read access causes
-            # the code (that checks that a kernel has at least one argument
-            # that is written to) to attempt to lookup "inc".
-            my_mapping = {"write": "go_write", "read": "go_read",
-                          "readwrite": "go_readwrite", "inc": ""}
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
+    def iteration_space_arg(self):
+        return Arguments.iteration_space_arg(self)
 
     @property
     def acc_args(self):

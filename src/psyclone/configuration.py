@@ -596,9 +596,22 @@ class APISpecific(object):
         # the format: key1:value1, key2=value2, ...
         mapping = section.get("ACCESS_MAPPING")
         if mapping:
+            from psyclone.psyGen import AccessType
             self._access_mapping = APISpecific.create_dict_from_string(mapping)
-            # TODO: check that the keys are valid (and that all values
-            # are specified??)
+            # Now convert the string type ("read" etc) to AccessType
+            for api_access_name, access_type in self._access_mapping.items():
+                try:
+                    self._access_mapping[api_access_name] = \
+                        AccessType.from_string(access_type)
+                except KeyError:
+                    raise ConfigurationError("Unknown key '{0}' found."\
+                                            .format(api_access_name))
+            if len(self._access_mapping) != AccessType.get_size():\
+                raise ConfigurationError("Wrong number of keys in config file. "
+                                         "Expected {0}, got {1}".format(len(self._access_mapping),
+                                                                        AccessType.get_size()))
+            # And create the reverse lookup (for better error messages):
+            self._reverse_access_mapping = {v: k for k,v in self._access_mapping.items()}
 
     @staticmethod
     def create_dict_from_string(input_str):
@@ -629,14 +642,21 @@ class APISpecific(object):
         return return_dict
 
     def get_access_mapping(self):
-        '''Returns the mapping of psyclone internal access type
-        'read', 'write', ... to API specific string, e.g.:
-        'gh_read', 'gh_write'.
+        '''Returns the mapping of API-specific access strings (e.g.
+        gh_write) to the AccessType (e.g. AccessType.WRITE).
         :returns: The access mapping to be used by this API.
         :rtype: Dictionary of strings
         '''
         return self._access_mapping
 
+    def get_reverse_access_mapping(self):
+        '''Returns the reverse mapping of psyclone internal access type
+        AccessType.READ  to the API specific string, e.g.:
+        'gh_read'.
+        :returns: The access mapping to be used by this API.
+        :rtype: Dictionary of strings
+        '''
+        return self._reverse_access_mapping
 
 # =============================================================================
 class DynConfig(APISpecific):

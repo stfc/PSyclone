@@ -41,7 +41,7 @@
     a given built-in call. '''
 
 from psyclone import psyGen
-from psyclone.psyGen import BuiltIn, NameSpaceFactory
+from psyclone.psyGen import AccessType, BuiltIn, NameSpaceFactory
 from psyclone.parse.utils import ParseError
 from psyclone.dynamo0p3 import DynLoop, DynKernelArguments
 
@@ -148,7 +148,7 @@ class DynBuiltIn(BuiltIn):
         field_count = 0  # We must have one or more fields as arguments
         spaces = set()   # All field arguments must be on the same space
         for arg in self.arg_descriptors:
-            if arg.access in ["gh_write", "gh_sum", "gh_inc"]:
+            if arg.access in [AccessType.WRITE, AccessType.SUM, AccessType.INC]:
                 write_count += 1
             if arg.type == "gh_field":
                 field_count += 1
