@@ -13,14 +13,20 @@ dotty classes_dynamo0p3.dot # to view
 dot -Tsvg classes_dynamo0p3.dot > classes_dynamo0p3.svg # to generate svg
 dot -Tpng classes_dynamo0p3.dot > classes_dynamo0p3.png # to generate png
 
-# for gocean
-pyreverse -A -p gocean gocean.py
-dotty classes_gocean.dot
-dot -Tsvg classes_gocean.dot > classes_gocean.svg
+# for the gocean 1.0 api:
+pyreverse -A -p gocean1p0 gocean1p0.py
+dotty classes_gocean1p0.dot
+dot -Tsvg classes_gocean1p0.dot > classes_gocean1p0.svg
+dot -Tpng classes_gocean1p0.dot > classes_gocean1p0.png
 
-# to make the topclasses.png file I manually edited the dot file to
-remove any unwanted nodes and edges then added ... style=filled,
-fillcolor="antiquewhite" ... to the nodes that I wanted to shaded. I
-also manually removed internal variables, but I'm sure there is an
-option to automate this. The resultant dot file -
-dynamo0p3_topclasses.dot - is kept in the doc directory for reference.
+# To make the (dynamo0p3) topclasses.png file:
+# 1) Create the required dynamo0p3 dot file as described above.
+# 2) Manually edit the dot file to remove any unwanted nodes and
+  edges.
+# 3) Add ... style=filled, fillcolor="antiquewhite" ... to the nodes
+  that require shading.
+# 4) Manually remove internal variables (note, there may be a way to
+  avoid outputting these in the first place). The resultant dot file -
+  dynamo0p3_topclasses.dot - has been kept in the doc directory for
+  reference.
+# 5) Create the png file from the dot file as described above.

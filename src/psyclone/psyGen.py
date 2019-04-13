@@ -2973,12 +2973,15 @@ class Loop(Node):
 
     def __init__(self, parent=None,
                  variable_name="",
-                 valid_loop_types=[]):
+                 valid_loop_types=None):
 
         # we need to determine whether this is a built-in or kernel
         # call so our schedule can do the right thing.
 
-        self._valid_loop_types = valid_loop_types
+        if valid_loop_types is None:
+            self._valid_loop_types = []
+        else:
+            self._valid_loop_types = valid_loop_types
         self._loop_type = None        # inner, outer, colour, colours, ...
         self._field = None
         self._field_name = None       # name of the field
