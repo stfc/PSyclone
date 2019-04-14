@@ -10,11 +10,19 @@
 
 from __future__ import absolute_import
 import os
+import pytest
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import OMPParallelTrans
 
 TEST_API = "dynamo0.1"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.1"
 
 
 def test_openmp_region():

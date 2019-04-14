@@ -39,6 +39,7 @@
     Arguments and Argument). '''
 
 from __future__ import absolute_import
+from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, Schedule, Loop, Kern, \
         Arguments, Argument, GenerationError
 from psyclone.parse.kernel import KernelType, Descriptor
@@ -375,6 +376,7 @@ class DynKern(Kern):
                                  rhs = field_name+"%vspace%get_ndf()"),
                        position = ["before", position])
 
+
 class DynKernelArguments(Arguments):
     ''' Provides information about Dynamo kernel call arguments collectively,
         as specified by the kernel argument metadata. This class currently
@@ -382,21 +384,13 @@ class DynKernelArguments(Arguments):
         ensuring that initialisation is performed correctly. '''
     def __init__(self, call, parent_call):
         if False:
-            self._0_to_n = DynKernelArgument(None, None, None) # for pyreverse
+            self._0_to_n = DynKernelArgument(None, None, None)  # for pyreverse
         Arguments.__init__(self, parent_call)
         self._args = []
-        for (idx, arg) in enumerate (call.ktype.arg_descriptors):
+        for (idx, arg) in enumerate(call.ktype.arg_descriptors):
             self._args.append(DynKernelArgument(arg, call.args[idx],
                                                 parent_call))
         self._dofs = []
-
-    def iteration_space_arg(self, mapping={}):
-        if mapping != {}:
-            my_mapping = mapping
-        else:
-            my_mapping = {"write":"gh_write", "read":"gh_read","readwrite":"gh_rw", "inc":"gh_inc"}
-        arg = Arguments.iteration_space_arg(self,my_mapping)
-        return arg
 
     @property
     def dofs(self):
@@ -405,17 +399,22 @@ class DynKernelArguments(Arguments):
             need for this dofs property (#279). '''
         return self._dofs
 
+
 class DynKernelArgument(Argument):
     ''' Provides information about individual Dynamo kernel call arguments
         as specified by the kernel argument metadata. '''
     def __init__(self, arg, arg_info, call):
         self._arg = arg
-        Argument.__init__(self, call, arg_info, arg.access)
+        api_config = Config.get().api_conf()
+        access_mapping = api_config.get_access_mapping()
+        Argument.__init__(self, call, arg_info, access_mapping[arg.access])
+
     @property
     def function_space(self):
         ''' Returns the expected finite element function space for this
             argument as specified by the kernel argument metadata.'''
         return self._arg.function_space
+
     @property
     def requires_basis(self):
         ''' Returns true if the metadata for this argument specifies that
@@ -425,6 +424,7 @@ class DynKernelArgument(Argument):
         if self._arg.basis.lower() == ".false.":
             return False
         raise GenerationError("error: basis is not set to .true. or .false.")
+
     @property
     def requires_diff_basis(self):
         ''' Returns true if the metadata for this argument specifies that
@@ -436,6 +436,7 @@ class DynKernelArgument(Argument):
             return False
         raise GenerationError("error: diff_basis is not set to .true. "
                               "or .false.")
+
     @property
     def requires_gauss_quad(self):
         ''' Returns true if the metadata for this argument specifies that

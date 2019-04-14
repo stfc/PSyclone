@@ -285,6 +285,11 @@ class Config(object):
             if api in self._config:
                 if api == "dynamo0.3":
                     self._api_conf[api] = DynConfig(self, self._config[api])
+                elif api == "dynamo0.1":
+                    # For now we use the same class as dynamo0.3.
+                    # It still reads a different section of the config
+                    # file, so the dynamo0.1 mapping will be correctly used.
+                    self._api_conf[api] = DynConfig(self, self._config[api])
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
                 else:
@@ -591,7 +596,8 @@ class APISpecific(object):
         # Set a default mapping, this way the test cases all work without
         # having to specify those mappings.
         self._access_mapping = {"read": "read", "write": "write",
-                                "readwrite": "readwrite", "inc": "inc"}
+                                "readwrite": "readwrite", "inc": "inc",
+                                "sum": "sum"}
         # Get the mapping and convert it into a directory. The input is in
         # the format: key1:value1, key2=value2, ...
         mapping = section.get("ACCESS_MAPPING")
@@ -604,14 +610,16 @@ class APISpecific(object):
                     self._access_mapping[api_access_name] = \
                         AccessType.from_string(access_type)
                 except KeyError:
-                    raise ConfigurationError("Unknown key '{0}' found."\
-                                            .format(api_access_name))
-            if len(self._access_mapping) != AccessType.get_size():\
-                raise ConfigurationError("Wrong number of keys in config file. "
-                                         "Expected {0}, got {1}".format(len(self._access_mapping),
-                                                                        AccessType.get_size()))
+                    raise ConfigurationError("Unknown key '{0}' found."
+                                             .format(api_access_name))
+            if len(self._access_mapping) != AccessType.get_size():
+                raise ConfigurationError("Wrong number of keys in config file."
+                                         " Expected {0}, got {1}".
+                                         format(len(self._access_mapping),
+                                                AccessType.get_size()))
             # And create the reverse lookup (for better error messages):
-            self._reverse_access_mapping = {v: k for k,v in self._access_mapping.items()}
+            self._reverse_access_mapping = {v: k for k, v in
+                                            self._access_mapping.items()}
 
     @staticmethod
     def create_dict_from_string(input_str):
@@ -657,6 +665,7 @@ class APISpecific(object):
         :rtype: Dictionary of strings
         '''
         return self._reverse_access_mapping
+
 
 # =============================================================================
 class DynConfig(APISpecific):
