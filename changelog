@@ -88,6 +88,9 @@
 	28) #319 and PR #331. Bug fix to make matching of kernel names
 	in module use statements (in the Kernel) case insensitive.
 
+	29) #349 Bug fix for unicode characters in comment strings for
+	Python 3 to 3.6.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
