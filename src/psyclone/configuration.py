@@ -632,7 +632,8 @@ class APISpecific(object):
         :rtype: dict.
         :Raises Config
         '''
-        input_str = input_str.strip()
+        # Remove spaces and convert unicode to normal strings.
+        input_str = str(input_str.strip())
         if not input_str:
             # Split will otherwise return a list with '' as only element,
             # which then raises an exception

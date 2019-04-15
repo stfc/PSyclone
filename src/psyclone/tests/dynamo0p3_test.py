@@ -2418,8 +2418,8 @@ def test_operator_bc_kernel_wrong_access_err():
         with pytest.raises(GenerationError) as excinfo:
             _ = psy.gen
         assert ("applies boundary conditions to an operator. However its "
-                "operator argument has access read rather than "
-                "readwrite") in str(excinfo)
+                "operator argument has access gh_read rather than "
+                "gh_readwrite") in str(excinfo)
 
 
 def xtest_multikernel_invoke_1():
@@ -4045,17 +4045,21 @@ def xtest_arg_descriptor_init_error():
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
     # that GH_INVALID is actually valid
-    from psyclone.dynamo0p3 import VALID_ARG_TYPE_NAMES, DynArgDescriptor03
+    from psyclone.dynamo0p3 import GH_VALID_ARG_TYPE_NAMES, DynArgDescriptor03
     keep = []
-    keep.extend(VALID_ARG_TYPE_NAMES)
-    VALID_ARG_TYPE_NAMES.append("GH_INVALID")
+    keep.extend(GH_VALID_ARG_TYPE_NAMES)
+    GH_VALID_ARG_TYPE_NAMES.append("GH_INVALID")
     arg_type.args[0].name = "GH_INVALID"
+    # arg_type.args[1].name is now AccessType.READ. In order
+    # to get it accepted by DynARgDescriptor03, it must be
+    # converted back to a string again.
+    arg_type.args[1].name = arg_type.args[1].name.api_name()
     with pytest.raises(ParseError) as excinfo:
         _ = DynArgDescriptor03(arg_type)
     assert 'Internal error in DynArgDescriptor03.__init__' \
         in str(excinfo.value)
     # pylint: disable=invalid-name
-    VALID_ARG_TYPE_NAMES = keep
+    GH_VALID_ARG_TYPE_NAMES = keep
     # pylint: enable=invalid-name
 
 

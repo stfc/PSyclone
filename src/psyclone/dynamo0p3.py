@@ -4178,7 +4178,7 @@ class HaloDepth(object):
         return depth_str
 
 
-def halo_check_arg(field, access):
+def halo_check_arg(field, access_types):
     '''Support function which performs checks to ensure the first argument
     is a field, that the field is contained within Kernel or Builtin
     call and that the field is accessed in one of the ways specified
@@ -4187,9 +4187,8 @@ def halo_check_arg(field, access):
 
     :param field: the argument object we are checking
     :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
-    :param access: access type that the field access,
-    must be AccessType.READ or .WRITE.
-    :type access: :py:class:`psyclone.psyGen.AccessType`.
+    :param access_types: List of allowed access types.
+    :type access_types: List of :py:class:`psyclone.psyGen.AccessType`.
     :return: the call containing the argument object
     :rtype: :py:class:`psyclone.psyGen.Call`
     :raises GenerationError: if the first argument to this function is
@@ -4208,18 +4207,12 @@ def halo_check_arg(field, access):
             "HaloInfo class expects an argument of type DynArgument, or "
             "equivalent, on initialisation, but found, "
             "'{0}'".format(type(field)))
-    success = False
-    if access == AccessType.READ:
-        success = field.is_read()
-    elif access == AccessType.WRITE:
-        success = field.is_written()
-    else:
-        assert(False)
 
-    if not success:
+    if field.access not in access_types:
+        api_strings = [access.api_name() for access in access_types]
         raise GenerationError(
-            "In HaloInfo class, field '{0}' should be {1}, but found "
-            "'{2}'".format(field.name, access.api_name(), field.access))
+            "In HaloInfo class, field '{0}' should be one of {1}, but found "
+            "'{2}'".format(field.name, api_strings, field.access))
     from psyclone.dynamo0p3_builtins import DynBuiltIn
     if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
         raise GenerationError(
@@ -4270,7 +4263,7 @@ class HaloWriteAccess(HaloDepth):
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
-        call = halo_check_arg(field, AccessType.WRITE)
+        call = halo_check_arg(field, WRITE_ACCESSES)
         # no test required here as all calls exist within a loop
         loop = call.parent
         # The outermost halo level that is written to is dirty if it
@@ -4367,7 +4360,7 @@ class HaloReadAccess(HaloDepth):
 
         '''
         self._annexed_only = False
-        call = halo_check_arg(field, AccessType.READ)
+        call = halo_check_arg(field, READ_ACCESSES)
         # no test required here as all calls exist within a loop
         loop = call.parent
 

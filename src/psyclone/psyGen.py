@@ -104,6 +104,16 @@ class AccessType(Enum):
         :rtype int'''
         return len(AccessType)
 
+    def __str__(self):
+        '''Convert to a string representation. The test
+        test_arg_descriptor_repr needs this function to return
+        the api_name() (and not e.g. just name of the enum,
+        lile READ)..
+        :return: API name for this string.
+        :rtype: str
+        '''
+        return self.api_name()
+
     def api_name(self):
         '''This convenient function returns the name of the type in the current API.
         E.g. in a dynamo0.3 API, WRITE --> "gh_write"
@@ -112,7 +122,6 @@ class AccessType(Enum):
         '''
         api_config = Config.get().api_conf()
         rev_access_mapping = api_config.get_reverse_access_mapping()
-        print("self", self, api_config, rev_access_mapping, rev_access_mapping[self])
         return rev_access_mapping[self]
 
     @staticmethod
