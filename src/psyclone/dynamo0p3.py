@@ -964,7 +964,7 @@ class DynKernMetadata(KernelType):
            self._eval_shape and self._eval_shape.lower() == "gh_evaluator":
             # Use the FS of the kernel arguments that are updated
             write_args = psyGen.args_filter(self._arg_descriptors,
-                                            arg_accesses=GH_WRITE_ACCESSES)
+                                            arg_accesses=WRITE_ACCESSES)
             # We want the 'to' space of any operator arguments so get
             # the first FS associated with the kernel argument.
             _targets = [arg.function_spaces[0] for arg in write_args]
