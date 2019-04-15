@@ -82,11 +82,6 @@ MAPPING_REDUCTIONS = {"sum": "sum"}
 # directives exists in psyGen.py so this mapping should not be
 # overidden.
 OMP_OPERATOR_MAPPING = {"sum": "+"}
-# REDUCTION_OPERATOR_MAPPING is used to determine the operator to use
-# when creating a loop to sum partial sums sequentially, in order to
-# get reproducible results. The LHS is the datatype of the field in
-# question so needs to be overidden by the particular API.
-REDUCTION_OPERATOR_MAPPING = {"sum": "+"}
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 # Types of access for a kernel argument

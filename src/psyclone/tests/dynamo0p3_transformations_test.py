@@ -42,7 +42,8 @@ import pytest
 from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
-from psyclone.psyGen import PSyFactory, GenerationError, InternalError
+from psyclone.psyGen import AccessType, PSyFactory, GenerationError, \
+    InternalError
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
@@ -3865,7 +3866,7 @@ def test_list_multiple_reductions():
         call = omp_loop_directive.children[0].children[0]
         arg = call.arguments.args[2]
         arg._type = "gh_real"
-        arg.descriptor._access = "gh_sum"
+        arg.descriptor._access = AccessType.SUM
         result = omp_loop_directive._reduction_string()
         assert ", reduction(+:asum), reduction(+:f2)" in result
 
@@ -5077,7 +5078,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     # when a discontinuous field has readwrite access
     call = f4_write_loop.children[0]
     f4_arg = call.arguments.args[0]
-    monkeypatch.setattr(f4_arg, "_access", value="gh_readwrite")
+    monkeypatch.setattr(f4_arg, "_access", value=AccessType.READWRITE)
     monkeypatch.setattr(f4_write_loop, "_upper_bound_halo_depth", value=2)
     rc_trans.apply(f4_write_loop, depth=3)
     result = str(psy.gen)
@@ -5337,7 +5338,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     call = schedule.children[0].children[0]
     f1_arg = call.arguments.args[0]
-    monkeypatch.setattr(f1_arg, "_access", value="gh_write")
+    monkeypatch.setattr(f1_arg, "_access", value=AccessType.WRITE)
     rc_trans.apply(schedule.children[0], depth=3)
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[1], schedule.children[2])

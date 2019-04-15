@@ -180,7 +180,7 @@ FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
 VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 
 # Mappings used by non-API-Specific code in psyGen
-psyGen.MAPPING_REDUCTIONS = {"sum": "gh_sum"}
+psyGen.MAPPING_REDUCTIONS = {"sum": AccessType.SUM}
 psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
 psyGen.MAPPING_ACCESSES = FIELD_ACCESS_MAP
 psyGen.VALID_ARG_TYPE_NAMES = GH_VALID_ARG_TYPE_NAMES
@@ -4219,7 +4219,7 @@ def halo_check_arg(field, access):
     if not success:
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be {1}, but found "
-            "'{2}'".format(field.name, access, field.access))
+            "'{2}'".format(field.name, access.api_name(), field.access))
     from psyclone.dynamo0p3_builtins import DynBuiltIn
     if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
         raise GenerationError(
@@ -5517,13 +5517,13 @@ class DynKern(Kern):
     def incremented_arg(self):
         ''' Returns the argument corresponding to a field or operator that has
         INC access.  '''
-        return Kern.incremented_arg(self, FIELD_ACCESS_MAP)
+        return Kern.incremented_arg(self)
 
     @property
     def written_arg(self):
         ''' Returns the argument corresponding to a field or operator that has
         WRITE access '''
-        return Kern.written_arg(self, FIELD_ACCESS_MAP)
+        return Kern.written_arg(self)
 
     @property
     def updated_arg(self):
