@@ -586,7 +586,9 @@ def get_kernel_metadata(name, ast):
     of the parse tree (a Fortran type) with the name 'name'.
 
     :param str name: the metadata name (of a Fortran type). Also \
-    the name referencing the kernel in the algorithm layer). Case insensitive.
+    the name referencing the kernel in the algorithm layer. The name \
+    provided and the name of the kernel in the parse tree are case \
+    insensitive in this function.
     :param ast: parse tree of the kernel module code
     :type ast: :py:class:`fparser.one.block_statements.BeginSource`
 
