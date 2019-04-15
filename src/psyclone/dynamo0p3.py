@@ -53,7 +53,6 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
-    Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess, AccessType
 
@@ -611,7 +610,8 @@ class DynArgDescriptor03(Descriptor):
         api_config = Config.get().api_conf()
         access_mapping = api_config.get_access_mapping()
         rev_access_mapping = api_config.get_reverse_access_mapping()
-        self._access_descriptor.name = access_mapping[self._access_descriptor.name]
+        self._access_descriptor.name = \
+            access_mapping[self._access_descriptor.name]
 
         # Reduction access descriptors are only valid for real scalar arguments
         if self._type != "gh_real" and \
@@ -721,7 +721,6 @@ class DynArgDescriptor03(Descriptor):
                            arg_type))
             self._function_space2 = arg_type.args[3].name
             # Test allowed accesses for operators
-            print("QQQQ", self._access_descriptor.name)
             if self._access_descriptor.name == AccessType.INC:
                 raise ParseError(
                     "In the dynamo0.3 API operators cannot have a 'gh_inc' "
@@ -832,8 +831,8 @@ class DynArgDescriptor03(Descriptor):
         if self._vector_size > 1:
             res += "*"+str(self._vector_size)
         res += os.linesep
-        api_config = Config.get().api_conf()
-        res += "  access_descriptor[1]='{0}'".format(self._access_descriptor.name.api_name())\
+        res += "  access_descriptor[1]='{0}'"\
+               .format(self._access_descriptor.name.api_name())\
                + os.linesep
         if self._type == "gh_field":
             res += "  function_space[2]='{0}'".format(self._function_space1) \
@@ -1166,7 +1165,7 @@ class DynKernMetadata(KernelType):
         # Count the number of CMA operators that are written to
         write_count = 0
         for cop in cwise_ops:
-            if cop.access in GH_WRITE_ACCESSES:
+            if cop.access in WRITE_ACCESSES:
                 write_count += 1
 
         if write_count == 0:
@@ -1190,10 +1189,10 @@ class DynKernMetadata(KernelType):
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(self._arg_descriptors,
                                            arg_types=["gh_field"],
-                                           arg_accesses=GH_READ_ONLY_ACCESS)
+                                           arg_accesses=READ_ONLY_ACCESS)
             farg_write = psyGen.args_filter(self._arg_descriptors,
                                             arg_types=["gh_field"],
-                                            arg_accesses=GH_WRITE_ACCESSES)
+                                            arg_accesses=WRITE_ACCESSES)
             if len(farg_read) != 1:
                 raise ParseError(
                     "Kernel {0} has a read-only CMA operator. In order "
@@ -1229,7 +1228,7 @@ class DynKernMetadata(KernelType):
             # The kernel must not write to any args other than the CMA
             # operator
             write_args = psyGen.args_filter(self._arg_descriptors,
-                                            arg_accesses=GH_WRITE_ACCESSES)
+                                            arg_accesses=WRITE_ACCESSES)
             if len(write_args) > 1:
                 # Remove the one CMA operator from the list of arguments
                 # that are written to so that we can produce a nice
@@ -1250,7 +1249,7 @@ class DynKernMetadata(KernelType):
                 lma_read_ops = psyGen.args_filter(
                     self._arg_descriptors,
                     arg_types=["gh_operator"],
-                    arg_accesses=GH_READ_ONLY_ACCESS)
+                    arg_accesses=READ_ONLY_ACCESS)
                 if lma_read_ops:
                     return "assembly"
                 else:
@@ -5704,7 +5703,8 @@ class ArgOrdering(object):
                 raise GenerationError(
                     "Unexpected arg type found in dynamo0p3.py:"
                     "ArgOrdering:generate(). Expected one of '{0}' "
-                    "but found '{1}'".format(GH_VALID_ARG_TYPE_NAMES, arg.type))
+                    "but found '{1}'".format(GH_VALID_ARG_TYPE_NAMES,
+                                             arg.type))
         # For each function space (in the order they appear in the
         # metadata arguments)
         for unique_fs in self._kern.arguments.unique_fss:
