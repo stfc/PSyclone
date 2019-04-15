@@ -4756,17 +4756,20 @@ class IfBlock(Node):
     :param bool was_elseif: whether the ifblock had the elseif syntax in \
                             the original code.
     '''
-    def __init__(self, parent=None, was_elseif=False):
+    def __init__(self, parent=None, annotation=None):
         super(IfBlock, self).__init__(parent=parent)
-        self._hint_was_elseif = was_elseif
-        # self._condition = ""
+        valid_annotations = ('was_elseif')
+        self._annotations = []
+        if annotation:
+            if annotation in valid_annotations:
+                self._annotations.append(annotation)
 
     def __str__(self):
         return "If-block: "+self._condition
 
     @property
-    def hint_was_elseif(self):
-        return self._hint_was_elseif
+    def annotations(self):
+        return self._annotations
 
     @property
     def condition(self):
@@ -4800,8 +4803,10 @@ class IfBlock(Node):
 
         :param int indent: the level to which to indent the output.
         '''
-        print(self.indent(indent) + self.coloured_text + "[was_elseif:" +
-              str(self.hint_was_elseif) + "]")
+        print(self.indent(indent) + self.coloured_text + "[", end='')
+        if self.annotations:
+            print("annotations=" + ','.join(self.annotations) + " ,", end='')
+        print("]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
@@ -5455,8 +5460,6 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
         from fparser.two import Fortran2003
-        print(" ---- ")
-        print(node)
 
         # Check that the fparser2 AST has the expected structure
         if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
@@ -5466,6 +5469,7 @@ class Fparser2ASTProcessor(object):
             raise InternalError("Failed to find closing end if statement: "
                                 "{0}".format(str(node)))
 
+        # Search for all the If_Construct clauses
         clause_indices = []
         for idx, child in enumerate(node.content):
             if isinstance(child, (Fortran2003.If_Then_Stmt,
@@ -5474,57 +5478,35 @@ class Fparser2ASTProcessor(object):
                                   Fortran2003.End_If_Stmt)):
                 clause_indices.append(idx)
 
-        ifblock = IfBlock(parent=parent)
+        ifblock = None
 
-        # Create condition as first child
-        if not len(node.content[0].items) == 1:
-            raise InternalError("")
-        self.process_nodes(parent=ifblock,
-                           nodes=node.content[0].items,
-                           nodes_parent=node)
-
-        # Create the body of the main If as second child
-        ifbody = Schedule(parent=ifblock)
-        ifblock.addchild(ifbody)
-        end_idx = clause_indices[1]
-        self.process_nodes(parent=ifbody,
-                           nodes=node.content[1:end_idx],
-                           nodes_parent=node)
-
+        # Deal with each clause: "if", "else if" or "else".
+        currentparent = parent
         num_clauses = len(clause_indices) - 1
-        for idx in range(1, num_clauses):
-            start_idx = clause_indices[idx]
-            node.content[start_idx]._parent = node  # Retrofit parent info
-
-        # Now deal with any other clauses (i.e. "else if" or "else")
-        # An If block has one fewer clauses than it has control statements
-        # (c.f. panels and posts):
-        currentifblock = ifblock
-        for idx in range(1, num_clauses):
+        for idx in range(num_clauses):
             start_idx = clause_indices[idx]
             end_idx = clause_indices[idx+1]
+            clause = node.content[start_idx]
 
-            if isinstance(node.content[start_idx], Fortran2003.Else_Stmt):
-                if not idx == num_clauses - 1:
-                    raise InternalError("")
-                elsebody = Schedule(parent=currentifblock)
-                currentifblock.addchild(elsebody)
-                self.process_nodes(parent=elsebody,
-                                   nodes=node.content[start_idx + 1:end_idx],
-                                   nodes_parent=node)
-
-            if isinstance(node.content[start_idx], Fortran2003.Else_If_Stmt):
-                elsebody = Schedule(parent=currentifblock)
-                currentifblock.addchild(elsebody)
-                newifblock = IfBlock(parent=elsebody, was_elseif=True)
-                elsebody.addchild(newifblock)
+            if isinstance(clause, (Fortran2003.If_Then_Stmt,
+                                   Fortran2003.Else_If_Stmt)):
+                # If its an 'IF' clause just create an ifBlock, otherwise
+                # it is an 'ELSE' clause and it needs an IfBlock annotated
+                # with 'was_elseif' inside an Schedule.
+                newifblock = None
+                if isinstance(clause, Fortran2003.If_Then_Stmt):
+                    ifblock = IfBlock(parent=currentparent)
+                    newifblock = ifblock
+                else:
+                    elsebody = Schedule(parent=currentparent)
+                    currentparent.addchild(elsebody)
+                    newifblock = IfBlock(parent=elsebody,
+                                         annotation='was_elseif')
+                    elsebody.addchild(newifblock)
 
                 # Create condition as first child
-                # print(node.content[start_idx].items[1])
-                # if not len(node.content[start_idx].items) == 1:
-                #     raise InternalError("")
                 self.process_nodes(parent=newifblock,
-                                   nodes=[node.content[start_idx].items[0]],
+                                   nodes=[clause.items[0]],
                                    nodes_parent=node)
 
                 # Create if-body as second child
@@ -5534,10 +5516,22 @@ class Fparser2ASTProcessor(object):
                                    nodes=node.content[start_idx + 1:end_idx],
                                    nodes_parent=node)
 
-                currentifblock = newifblock
+                currentparent = newifblock
+
+            elif isinstance(clause, Fortran2003.Else_Stmt):
+                if not idx == num_clauses - 1:
+                    raise InternalError(
+                        "Else clause should only be found next to last "
+                        "clause, but found {0}".format(node.content))
+                elsebody = Schedule(parent=currentparent)
+                currentparent.addchild(elsebody)
+                self.process_nodes(parent=elsebody,
+                                   nodes=node.content[start_idx + 1:end_idx],
+                                   nodes_parent=node)
+            else:
+                pass  # We can safely ignore the 'End_If' clause
 
         ifblock.view()
-        print(" End ---- ")
         return ifblock
 
     def _if_stmt_handler(self, node, parent):
@@ -5554,7 +5548,9 @@ class Fparser2ASTProcessor(object):
         ifblock = IfBlock(parent=parent)
         self.process_nodes(parent=ifblock, nodes=[node.items[0]],
                            nodes_parent=node)
-        self.process_nodes(parent=ifblock, nodes=[node.items[1]],
+        ifbody = Schedule(parent=ifblock)
+        ifblock.addchild(ifbody)
+        self.process_nodes(parent=ifbody, nodes=[node.items[1]],
                            nodes_parent=node)
         return ifblock
 
@@ -6275,6 +6271,15 @@ class Reference(Node):
         self._reference = reference_name
 
     @property
+    def ref_name(self):
+        ''' Return the name of the referenced symbol.
+
+        :return: Name of the referenced symbol.
+        :rtype: str
+        '''
+        return self._reference
+
+    @property
     def coloured_text(self):
         '''
         Return the name of this node type with control codes for
@@ -6385,6 +6390,15 @@ class BinaryOperation(Node):
         super(BinaryOperation, self).__init__(parent=parent)
         self._ast = operator
         self._operator = operator
+
+    @property
+    def operator(self):
+        '''Return the operator of this BinaryOperation expression.
+
+        :returns: Operator
+        :rtype: str
+        '''
+        return self._operator
 
     @property
     def coloured_text(self):

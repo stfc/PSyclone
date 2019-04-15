@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Symbol, SymbolTable, UnaryOperation, Return
+    KernelSchedule, Schedule, Symbol, SymbolTable, UnaryOperation, Return
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -3790,6 +3790,85 @@ def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
     new_node = fake_parent.children[0]
     assert isinstance(new_node, IfBlock)
     assert len(new_node.children) == 2
+
+
+def test_fparser2astprocessor_handling_if_construct(f2008_parser):
+    ''' Test that fparser2 If_Construct is converted to the expected PSyIR
+    tree structure.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader(
+        '''if (condition1 == 1) then
+            branch1 = 1
+        elseif (condition2 == 2) then
+            branch2 = 1
+        else
+            branch3 = 1
+        endif''')
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2if_construct], None)
+
+    # Check a new node was properly generated and connected to parent
+    assert len(fake_parent.children) == 1
+    ifnode = fake_parent.children[0]
+    assert isinstance(ifnode, IfBlock)
+    assert 'was_elseif' not in ifnode.annotations
+
+    # First level contains: condition1, branch1 and elsebody
+    assert len(ifnode.children) == 3
+    assert ifnode.condition.children[0].ref_name == 'condition1'
+    assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.if_body.children[0].children[0].ref_name == 'branch1'
+    assert isinstance(ifnode.children[2], Schedule)
+
+    # Second level contains condition2, branch2, elsebody
+    ifnode = ifnode.else_body.children[0]
+    assert 'was_elseif' in ifnode.annotations
+    assert ifnode.condition.children[0].ref_name == 'condition2'
+    assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.if_body.children[0].children[0].ref_name == 'branch2'
+    assert isinstance(ifnode.children[2], Schedule)
+
+    # Third level is just branch3
+    elsenode = ifnode.else_body
+    assert elsenode.children[0].children[0].ref_name == 'branch3'
+
+
+def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
+    ''' Test that nested If_Construct structures and empty bodies are
+    handled properly.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+            if (condition3) then
+            elseif (condition4) then
+                if (condition6) found = 1
+            elseif (condition5) then
+            else
+            endif
+        else
+        endif''')
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2if_construct], None)
+
+    elseif = fake_parent.children[0].children[2].children[0]
+    assert 'was_elseif' in elseif.annotations
+    nested_if = elseif.children[1].children[0]
+    assert 'was_elseif' not in nested_if.annotations  # Was manually nested
+    elseif2 = nested_if.children[2].children[0]
+    assert 'was_elseif' in elseif2.annotations
+    nested_if2 = elseif2.children[1].children[0]
+    assert nested_if2.children[1].children[0].children[0].ref_name == 'found'
 
 
 def test_fparser2astprocessor_handling_numberbase(f2008_parser):
