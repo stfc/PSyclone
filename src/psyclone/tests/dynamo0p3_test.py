@@ -75,7 +75,7 @@ def setup():
 
 
 # tests
-def xtest_get_op_wrong_name():
+def test_get_op_wrong_name():
     ''' Tests that the get_operator_name() utility raises an error
     if passed the name of something that is not a valid operator '''
     from psyclone.dynamo0p3 import get_fs_operator_name
@@ -84,7 +84,7 @@ def xtest_get_op_wrong_name():
     assert "Unsupported name 'not_an_op' found" in str(err)
 
 
-def xtest_get_op_orientation_name():
+def test_get_op_orientation_name():
     ''' Test that get_operator_name() works for the orientation operator '''
     from psyclone.dynamo0p3 import get_fs_operator_name
     name = get_fs_operator_name("gh_orientation", FunctionSpace("w3", None))
@@ -121,7 +121,7 @@ end module testkern_qr
 # functions
 
 
-def xtest_arg_descriptor_wrong_type():
+def test_arg_descriptor_wrong_type():
     ''' Tests that an error is raised when the argument descriptor
     metadata is not of type arg_type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -135,7 +135,7 @@ def xtest_arg_descriptor_wrong_type():
         in str(excinfo.value)
 
 
-def xtest_arg_descriptor_vector_str():
+def test_arg_descriptor_vector_str():
     ''' Test the str method of an argument descriptor containing a vector '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     # Change the meta-data so that the second argument is a vector
@@ -152,7 +152,7 @@ def xtest_arg_descriptor_vector_str():
     assert expected in dkm_str
 
 
-def xtest_ad_scalar_type_too_few_args():
+def test_ad_scalar_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a real or an integer scalar has fewer than 2 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -167,7 +167,7 @@ def xtest_ad_scalar_type_too_few_args():
             in str(excinfo.value)
 
 
-def xtest_ad_scalar_type_too_many_args():
+def test_ad_scalar_type_too_many_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a real or an integer scalar has more than 2 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -182,7 +182,7 @@ def xtest_ad_scalar_type_too_many_args():
             in str(excinfo.value)
 
 
-def xtest_ad_scalar_type_no_write():
+def test_ad_scalar_type_no_write():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a real or an integer scalar specifies GH_WRITE '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -197,7 +197,7 @@ def xtest_ad_scalar_type_no_write():
                 "(['gh_sum']) but found 'gh_write'" in str(excinfo.value))
 
 
-def xtest_ad_scalar_type_no_inc():
+def test_ad_scalar_type_no_inc():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a real or an integer scalar specifies GH_INC '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -212,7 +212,7 @@ def xtest_ad_scalar_type_no_inc():
                 "(['gh_sum']) but found 'gh_inc'" in str(excinfo.value))
 
 
-def xtest_ad_int_scalar_type_no_sum():
+def test_ad_int_scalar_type_no_sum():
     ''' Tests that an error is raised when the argument descriptor
     metadata for an integer scalar specifies GH_SUM (reduction) '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -226,7 +226,7 @@ def xtest_ad_int_scalar_type_no_sum():
             "argument, but 'gh_integer' was found" in str(excinfo.value))
 
 
-def xtest_ad_field_type_too_few_args():
+def test_ad_field_type_too_few_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata for a field has fewer than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -240,7 +240,7 @@ def xtest_ad_field_type_too_few_args():
         in str(excinfo.value)
 
 
-def xtest_ad_fld_type_too_many_args():
+def test_ad_fld_type_too_many_args():
     ''' Tests that an error is raised when the argument descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -254,7 +254,7 @@ def xtest_ad_fld_type_too_many_args():
         in str(excinfo.value)
 
 
-def xtest_ad_fld_type_1st_arg():
+def test_ad_fld_type_1st_arg():
     ''' Tests that an error is raised when the 1st argument is
     invalid'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -268,7 +268,7 @@ def xtest_ad_fld_type_1st_arg():
         'argument type' in str(excinfo.value)
 
 
-def xtest_ad_op_type_too_few_args():
+def test_ad_op_type_too_few_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has fewer than 4 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -281,7 +281,7 @@ def xtest_ad_op_type_too_few_args():
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 
-def xtest_ad_op_type_too_many_args():
+def test_ad_op_type_too_many_args():
     ''' Tests that an error is raised when the operator descriptor
     metadata has more than 4 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -294,7 +294,7 @@ def xtest_ad_op_type_too_many_args():
     assert 'meta_arg entry must have 4 arguments' in str(excinfo.value)
 
 
-def xtest_ad_op_type_wrong_3rd_arg():
+def test_ad_op_type_wrong_3rd_arg():
     ''' Tests that an error is raised when the 3rd entry in the operator
     descriptor metadata is invalid. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -308,7 +308,7 @@ def xtest_ad_op_type_wrong_3rd_arg():
             "a valid function space name" in str(excinfo.value))
 
 
-def xtest_ad_op_type_1st_arg_not_space():
+def test_ad_op_type_1st_arg_not_space():
     ''' Tests that an error is raised when the operator descriptor
     metadata contains something that is not a valid space. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -322,7 +322,7 @@ def xtest_ad_op_type_1st_arg_not_space():
         str(excinfo.value)
 
 
-def xtest_ad_op_type_wrong_access():
+def test_ad_op_type_wrong_access():
     ''' Test that an error is raised if an operator has gh_inc access. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = CODE.replace("arg_type(gh_operator,gh_read, w2, w2)",
@@ -335,7 +335,7 @@ def xtest_ad_op_type_wrong_access():
             in str(excinfo.value))
 
 
-def xtest_ad_invalid_type():
+def test_ad_invalid_type():
     ''' Tests that an error is raised when an invalid descriptor type
     name is provided as the first argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -348,7 +348,7 @@ def xtest_ad_invalid_type():
         in str(excinfo.value)
 
 
-def xtest_ad_invalid_access_type():
+def test_ad_invalid_access_type():
     ''' Tests that an error is raised when an invalid access
     name is provided as the second argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -360,7 +360,7 @@ def xtest_ad_invalid_access_type():
     assert '2nd argument of a meta_arg entry' in str(excinfo.value)
 
 
-def xtest_arg_descriptor_invalid_fs1():
+def test_arg_descriptor_invalid_fs1():
     ''' Tests that an error is raised when an invalid function space
     name is provided as the third argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -372,7 +372,7 @@ def xtest_arg_descriptor_invalid_fs1():
     assert '3rd argument of a meta_arg entry' in str(excinfo.value)
 
 
-def xtest_arg_descriptor_invalid_fs2():
+def test_arg_descriptor_invalid_fs2():
     ''' Tests that an error is raised when an invalid function space
     name is provided as the third argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -384,7 +384,7 @@ def xtest_arg_descriptor_invalid_fs2():
     assert '4th argument of a meta_arg entry' in str(excinfo.value)
 
 
-def xtest_invalid_vector_operator():
+def test_invalid_vector_operator():
     ''' Tests that an error is raised when a vector does not use "*"
     as it's operator. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -396,7 +396,7 @@ def xtest_invalid_vector_operator():
     assert "must use '*' as the separator" in str(excinfo.value)
 
 
-def xtest_invalid_vector_value_type():
+def test_invalid_vector_value_type():
     ''' Tests that an error is raised when a vector value is not a valid
     integer '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -408,7 +408,7 @@ def xtest_invalid_vector_value_type():
     assert 'vector notation expects the format (field*n)' in str(excinfo.value)
 
 
-def xtest_invalid_vector_value_range():
+def test_invalid_vector_value_range():
     ''' Tests that an error is raised when a vector value is not a valid
     value (<2) '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -423,7 +423,7 @@ def xtest_invalid_vector_value_range():
 # not required here as it causes a parse error in the generic code.
 
 
-def xtest_fs_descriptor_wrong_type():
+def test_fs_descriptor_wrong_type():
     ''' Tests that an error is raised when the function space descriptor
     metadata is not of type func_type. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -436,7 +436,7 @@ def xtest_fs_descriptor_wrong_type():
         str(excinfo.value)
 
 
-def xtest_fs_descriptor_too_few_args():
+def test_fs_descriptor_too_few_args():
     ''' Tests that an error is raised when there are two few arguments in
     the function space descriptor metadata (must be at least 2). '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -448,7 +448,7 @@ def xtest_fs_descriptor_too_few_args():
     assert 'meta_func entry must have at least 2 args' in str(excinfo.value)
 
 
-def xtest_fs_desc_invalid_fs_type():
+def test_fs_desc_invalid_fs_type():
     ''' Tests that an error is raised when an invalid function space name
     is provided as the first argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -461,7 +461,7 @@ def xtest_fs_desc_invalid_fs_type():
         'space name' in str(excinfo.value)
 
 
-def xtest_fs_desc_replicated_fs_type():
+def test_fs_desc_replicated_fs_type():
     ''' Tests that an error is raised when a function space name
     is replicated. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -474,7 +474,7 @@ def xtest_fs_desc_replicated_fs_type():
         in str(excinfo.value)
 
 
-def xtest_fs_desc_invalid_op_type():
+def test_fs_desc_invalid_op_type():
     ''' Tests that an error is raised when an invalid function space
     operator name is provided as an argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -487,7 +487,7 @@ def xtest_fs_desc_invalid_op_type():
         'entry should be one of' in str(excinfo.value)
 
 
-def xtest_fs_desc_replicated_op_type():
+def test_fs_desc_replicated_op_type():
     ''' Tests that an error is raised when a function space
     operator name is replicated as an argument. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -501,7 +501,7 @@ def xtest_fs_desc_replicated_op_type():
         in str(excinfo.value)
 
 
-def xtest_fsdesc_fs_not_in_argdesc():
+def test_fsdesc_fs_not_in_argdesc():
     ''' Tests that an error is raised when a function space
     name is provided that has not been used in the arg descriptor. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -514,7 +514,7 @@ def xtest_fsdesc_fs_not_in_argdesc():
         'meta_args' in str(excinfo)
 
 
-def xtest_missing_shape_both():
+def test_missing_shape_both():
     ''' Check that we raise the correct error if a kernel requiring
     quadrature/evaluator fails to specify the shape of the evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -531,7 +531,7 @@ def xtest_missing_shape_both():
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
-def xtest_missing_shape_basis_only():
+def test_missing_shape_basis_only():
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -556,7 +556,7 @@ def xtest_missing_shape_basis_only():
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
-def xtest_missing_eval_shape_diff_basis_only():
+def test_missing_eval_shape_diff_basis_only():
     ''' Check that we raise the correct error if a kernel specifying
     that it needs gh_diff_basis fails to specify the shape of the evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -581,7 +581,7 @@ def xtest_missing_eval_shape_diff_basis_only():
             "for kernel 'testkern_qr_type'" in str(excinfo))
 
 
-def xtest_invalid_shape():
+def test_invalid_shape():
     ''' Check that we raise the correct error if a kernel requiring
     quadrature/evaluator specifies an unrecognised shape for the evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -599,7 +599,7 @@ def xtest_invalid_shape():
             "'testkern_qr_type'" in str(excinfo))
 
 
-def xtest_unecessary_shape():
+def test_unecessary_shape():
     ''' Check that we raise the correct error if a kernel meta-data specifies
     an evaluator shape but does not require quadrature or an evaluator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -622,7 +622,7 @@ def xtest_unecessary_shape():
             in str(excinfo))
 
 
-def xtest_field(tmpdir):
+def test_field(tmpdir):
     ''' Tests that a call with a set of fields, no basis functions and
     no distributed memory, produces correct code.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -700,7 +700,7 @@ def xtest_field(tmpdir):
     assert str(generated_code).find(output) != -1
 
 
-def xtest_field_deref():
+def test_field_deref():
     ''' Tests that a call with a set of fields (some obtained by
     de-referencing derived types) and no basis functions produces
     correct code.'''
@@ -827,7 +827,7 @@ def xtest_field_deref():
             assert output in generated_code
 
 
-def xtest_field_fs(tmpdir):
+def test_field_fs(tmpdir):
     ''' Tests that a call with a set of fields making use of all
     function spaces and no basis functions produces correct code '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.5_single_invoke_fs.f90"),
@@ -987,7 +987,7 @@ def xtest_field_fs(tmpdir):
     assert str(generated_code).find(output) != -1
 
 
-def xtest_real_scalar():
+def test_real_scalar():
     ''' tests that we generate correct code when a kernel takes a single,
     real scalar argument (plus fields)'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1069,7 +1069,7 @@ def xtest_real_scalar():
     assert expected in generated_code
 
 
-def xtest_int_scalar():
+def test_int_scalar():
     ''' tests that we generate correct code when a kernel takes a single,
     integer scalar argument (plus fields) '''
     _, invoke_info = parse(
@@ -1153,7 +1153,7 @@ def xtest_int_scalar():
     assert expected in generated_code
 
 
-def xtest_two_real_scalars():
+def test_two_real_scalars():
     ''' tests that we generate correct code when a kernel has two real,
     scalar arguments '''
     _, invoke_info = parse(
@@ -1237,7 +1237,7 @@ def xtest_two_real_scalars():
     assert expected in generated_code
 
 
-def xtest_two_int_scalars():
+def test_two_int_scalars():
     ''' tests that we generate correct code when a kernel has two integer,
     scalar arguments '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1327,7 +1327,7 @@ def xtest_two_int_scalars():
     assert expected in generated_code
 
 
-def xtest_two_scalars():
+def test_two_scalars():
     ''' tests that we generate correct code when a kernel has two scalar
     arguments, one real and one integer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1411,7 +1411,7 @@ def xtest_two_scalars():
     assert expected in generated_code
 
 
-def xtest_no_vector_scalar():
+def test_no_vector_scalar():
     ''' Tests that we raise an error when kernel meta-data erroneously
     specifies a vector real or integer scalar '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -1426,7 +1426,7 @@ def xtest_no_vector_scalar():
             str(excinfo.value)
 
 
-def xtest_vector_field():
+def test_vector_field():
     ''' tests that a vector field is declared correctly in the PSy
     layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field.f90"),
@@ -1441,7 +1441,7 @@ def xtest_vector_field():
     assert "TYPE(field_type), intent(in) :: f2" in str(generated_code)
 
 
-def xtest_vector_field_2():
+def test_vector_field_2():
     ''' Tests that a vector field is indexed correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
@@ -1456,7 +1456,7 @@ def xtest_vector_field_2():
                                     " chi_proxy(3)%data") != -1
 
 
-def xtest_vector_field_deref():
+def test_vector_field_deref():
     ''' tests that a vector field is declared correctly in the PSy
     layer when it is obtained by de-referencing a derived type in the
     Algorithm layer '''
@@ -1474,7 +1474,7 @@ def xtest_vector_field_deref():
         assert "TYPE(field_type), intent(in) :: f2" in str(generated_code)
 
 
-def xtest_orientation():
+def test_orientation():
     ''' tests that orientation information is created correctly in
     the PSy '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "9_orientation.f90"),
@@ -1488,7 +1488,7 @@ def xtest_orientation():
                                     "get_cell_orientation(cell)") != -1
 
 
-def xtest_operator():
+def test_operator():
     ''' tests that an operator is implemented correctly in the PSy
     layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
@@ -1510,7 +1510,7 @@ def xtest_operator():
             "weights_z_qr)") in generated_code
 
 
-def xtest_operator_different_spaces(tmpdir):
+def test_operator_different_spaces(tmpdir):
     '''tests that an operator with different to and from spaces is
     implemented correctly in the PSy layer'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1648,7 +1648,7 @@ def xtest_operator_different_spaces(tmpdir):
     assert output in generated_code
 
 
-def xtest_operator_nofield(tmpdir):
+def test_operator_nofield(tmpdir):
     ''' tests that an operator with no field on the same space is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1676,7 +1676,7 @@ def xtest_operator_nofield(tmpdir):
             "weights_xy_qr, weights_z_qr)" in gen_code_str)
 
 
-def xtest_operator_nofield_different_space(tmpdir):
+def test_operator_nofield_different_space(tmpdir):
     ''' tests that an operator with no field on different spaces is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1699,7 +1699,7 @@ def xtest_operator_nofield_different_space(tmpdir):
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
 
-def xtest_operator_nofield_scalar():
+def test_operator_nofield_scalar():
     ''' tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1717,7 +1717,7 @@ def xtest_operator_nofield_scalar():
             "weights_xy_qr, weights_z_qr)" in gen)
 
 
-def xtest_operator_nofield_scalar_deref(tmpdir):
+def test_operator_nofield_scalar_deref(tmpdir):
     ''' Tests that an operator with no field and a
     scalar argument is implemented correctly in the PSy layer when both
     are obtained by dereferencing derived type objects '''
@@ -1753,7 +1753,7 @@ def xtest_operator_nofield_scalar_deref(tmpdir):
             " weights_z_qr_get_instance)" in gen)
 
 
-def xtest_operator_orientation(tmpdir):
+def test_operator_orientation(tmpdir):
     ''' tests that an operator requiring orientation information is
     implemented correctly in the PSy layer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1783,7 +1783,7 @@ def xtest_operator_orientation(tmpdir):
             "weights_z_qr)" in gen_str)
 
 
-def xtest_op_orient_different_space(tmpdir):
+def test_op_orient_different_space(tmpdir):
     '''tests that an operator on different spaces requiring orientation
     information is implemented correctly in the PSy layer. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1818,7 +1818,7 @@ def xtest_op_orient_different_space(tmpdir):
             "weights_xy_qr, weights_z_qr)" in gen_str)
 
 
-def xtest_operator_deref(tmpdir):
+def test_operator_deref(tmpdir):
     ''' Tests that we generate correct names for an operator in the PSy
     layer when obtained by de-referencing a derived type in the Algorithm
     layer '''
@@ -1848,7 +1848,7 @@ def xtest_operator_deref(tmpdir):
             "weights_z_qr)") != -1
 
 
-def xtest_operator_no_dofmap_lookup():
+def test_operator_no_dofmap_lookup():
     ''' Check that we use a field rather than an operator to look-up
     a dofmap, even when the operator precedes the field in the argument
     list. '''
@@ -1863,7 +1863,7 @@ def xtest_operator_no_dofmap_lookup():
     assert gen_code.count("get_whole_dofmap") == 1
 
 
-def xtest_operator_read_level1_halo():
+def test_operator_read_level1_halo():
     ''' Check that we raise an error if a kernel attempts to read from an
     operator beyond the level-1 halo '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1883,7 +1883,7 @@ def xtest_operator_read_level1_halo():
             "However the containing loop goes out to level 2" in str(excinfo))
 
 
-def xtest_any_space_1(tmpdir):
+def test_any_space_1(tmpdir):
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes more than one type of any_space declaration
     and func_type basis functions on any_space. '''
@@ -1923,7 +1923,7 @@ def xtest_any_space_1(tmpdir):
             "diff_basis_w0_qr)" in generated_code)
 
 
-def xtest_any_space_2():
+def test_any_space_2():
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes multiple declarations of the same space, no
     func_type declarations and any_space used with an
@@ -1950,7 +1950,7 @@ def xtest_any_space_2():
         "ace_1_a, undf_any_space_1_a, map_any_space_1_a(:,cell))") != -1
 
 
-def xtest_op_any_space_different_space_1():
+def test_op_any_space_different_space_1():
     ''' tests that any_space is implemented correctly in the PSy
     layer. Includes different spaces for an operator and no other
     fields.'''
@@ -1965,7 +1965,7 @@ def xtest_op_any_space_different_space_1():
         "ndf_any_space_1_a = a_proxy%fs_to%get_ndf()") != -1
 
 
-def xtest_op_any_space_different_space_2(tmpdir):
+def test_op_any_space_different_space_2(tmpdir):
     ''' tests that any_space is implemented correctly in the PSy
     layer in a more complicated example. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "11.3_any_space.f90"),
@@ -1997,7 +1997,7 @@ def xtest_op_any_space_different_space_2(tmpdir):
         generated_code
 
 
-def xtest_invoke_uniq_declns():
+def test_invoke_uniq_declns():
     ''' tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2010,7 +2010,7 @@ def xtest_invoke_uniq_declns():
         in str(excinfo.value)
 
 
-def xtest_invoke_uniq_declns_invalid_access():
+def test_invoke_uniq_declns_invalid_access():
     ''' tests that we raise an error when Invoke.unique_declarations() is
     called for an invalid access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2024,7 +2024,7 @@ def xtest_invoke_uniq_declns_invalid_access():
         in str(excinfo.value)
 
 
-def xtest_invoke_uniq_declns_valid_access():
+def test_invoke_uniq_declns_valid_access():
     ''' tests that valid access modes ('read', 'write') are 
     accepted by  Invoke.unique_declarations() is called.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2038,7 +2038,7 @@ def xtest_invoke_uniq_declns_valid_access():
                                                     access=AccessType.WRITE)
 
 
-def xtest_invoke_uniq_proxy_declns():
+def test_invoke_uniq_proxy_declns():
     ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
     is called for an invalid type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2051,7 +2051,7 @@ def xtest_invoke_uniq_proxy_declns():
         in str(excinfo.value)
 
 
-def xtest_uniq_proxy_declns_invalid_access():
+def test_uniq_proxy_declns_invalid_access():
     ''' tests that we raise an error when DynInvoke.unique_proxy_declarations()
     is called for an invalid access type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2066,7 +2066,7 @@ def xtest_uniq_proxy_declns_invalid_access():
         in str(excinfo.value)
 
 
-def xtest_dyninvoke_first_access():
+def test_dyninvoke_first_access():
     ''' tests that we raise an error if DynInvoke.first_access(name) is
     called for an argument name that doesn't exist '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2079,7 +2079,7 @@ def xtest_dyninvoke_first_access():
         in str(excinfo.value)
 
 
-def xtest_dyninvoke_uniq_declns_inv_type():
+def test_dyninvoke_uniq_declns_inv_type():
     ''' tests that we raise an error when DynInvoke.unique_declns_by_intent()
     is called for an invalid argument type '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2092,7 +2092,7 @@ def xtest_dyninvoke_uniq_declns_inv_type():
         in str(excinfo.value)
 
 
-def xtest_dyninvoke_uniq_declns_intent_fields():
+def test_dyninvoke_uniq_declns_intent_fields():
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for gh_fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2105,7 +2105,7 @@ def xtest_dyninvoke_uniq_declns_intent_fields():
     assert args['in'] == ['f2', 'm1', 'm2']
 
 
-def xtest_dyninvoke_uniq_declns_intent_real():
+def test_dyninvoke_uniq_declns_intent_real():
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for gh_real '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2118,7 +2118,7 @@ def xtest_dyninvoke_uniq_declns_intent_real():
     assert args['in'] == ['a']
 
 
-def xtest_dyninvoke_uniq_declns_intent_int():
+def test_dyninvoke_uniq_declns_intent_int():
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for gh_integer '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2131,7 +2131,7 @@ def xtest_dyninvoke_uniq_declns_intent_int():
     assert args['in'] == ['istep']
 
 
-def xtest_dyninvoke_uniq_declns_intent_ops():
+def test_dyninvoke_uniq_declns_intent_ops():
     ''' tests that DynInvoke.unique_declns_by_intent() returns the correct
     list of arguments for operator arguments '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2144,7 +2144,7 @@ def xtest_dyninvoke_uniq_declns_intent_ops():
     assert args['in'] == []
 
 
-def xtest_dyninvoke_arg_for_fs():
+def test_dyninvoke_arg_for_fs():
     ''' tests that we raise an error when DynInvoke.arg_for_funcspace() is
     called for an un-used space '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2158,7 +2158,7 @@ def xtest_dyninvoke_arg_for_fs():
         in str(excinfo.value)
 
 
-def xtest_kernel_specific(tmpdir):
+def test_kernel_specific(tmpdir):
     ''' Test that a call to enforce boundary conditions is *not* added
     following a call to the matrix_vector_kernel_type kernel. Boundary
     conditions are now explicity specified in the Algorithm as required. '''
@@ -2195,7 +2195,7 @@ def xtest_kernel_specific(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def xtest_multi_kernel_specific(tmpdir):
+def test_multi_kernel_specific(tmpdir):
     '''Test that a call to enforce boundary conditions is *not* added following
     multiple calls to the matrix_vector_kernel_type kernel. Boundary conditions
     must now be explicitly specified as part of the Algorithm. '''
@@ -2259,7 +2259,7 @@ def xtest_multi_kernel_specific(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def xtest_field_bc_kernel(tmpdir):
+def test_field_bc_kernel(tmpdir):
     ''' Tests that a kernel with a particular name is recognised as a
     boundary condition kernel and that appopriate code is added to
     support this. This code is required as the dynamo0.3 api does not
@@ -2422,7 +2422,7 @@ def test_operator_bc_kernel_wrong_access_err():
                 "gh_readwrite") in str(excinfo)
 
 
-def xtest_multikernel_invoke_1():
+def test_multikernel_invoke_1():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke. We test the parts of the code that
     are incorrect at the time of writing '''
@@ -2443,7 +2443,7 @@ def xtest_multikernel_invoke_1():
     assert generated_code.count(output3) == 1
 
 
-def xtest_multikernel_invoke_qr():
+def test_multikernel_invoke_qr():
     ''' Test that correct code is produced when there are multiple
     kernels with (the same) QR within an invoke. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2455,7 +2455,7 @@ def xtest_multikernel_invoke_qr():
     assert str(generated_code).count("CALL testkern_qr_code") == 2
 
 
-def xtest_mkern_invoke_vec_fields():
+def test_mkern_invoke_vec_fields():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with vector fields '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2471,7 +2471,7 @@ def xtest_mkern_invoke_vec_fields():
     assert str(generated_code).find(output2) == -1
 
 
-def xtest_multikern_invoke_orient():
+def test_multikern_invoke_orient():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with orientation '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2488,7 +2488,7 @@ def xtest_multikern_invoke_orient():
     assert str(generated_code).find(output2) == -1
 
 
-def xtest_multikern_invoke_oper():
+def test_multikern_invoke_oper():
     ''' Test that correct code is produced when there are multiple
     kernels within an invoke with operators '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -2504,7 +2504,7 @@ def xtest_multikern_invoke_oper():
     assert str(generated_code).find(output2) == -1
 
 
-def xtest_2kern_invoke_any_space():
+def test_2kern_invoke_any_space():
     ''' Test correct code is generated when there are just two
     kernels within an invoke with kernel fields declared as
     any_space. '''
@@ -2533,7 +2533,7 @@ def xtest_2kern_invoke_any_space():
         in gen)
 
 
-def xtest_multikern_invoke_any_space(tmpdir):
+def test_multikern_invoke_any_space(tmpdir):
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''
@@ -2577,7 +2577,7 @@ def xtest_multikern_invoke_any_space(tmpdir):
             "weights_xy_qr, weights_z_qr" in gen)
 
 
-def xtest_mkern_invoke_multiple_any_spaces(tmpdir):
+def test_mkern_invoke_multiple_any_spaces(tmpdir):
     ''' Test that we generate correct code when there are multiple
     kernels within an invoke with kernel fields declared as
     any_space.  '''
@@ -2629,7 +2629,7 @@ def xtest_mkern_invoke_multiple_any_spaces(tmpdir):
 
 
 @pytest.mark.xfail(reason="bug : loop fuse replicates maps in loops")
-def xtest_loopfuse():
+def test_loopfuse():
     ''' Tests whether loop fuse actually fuses and whether
     multiple maps are produced or not. Multiple maps are not an
     error but it would be nicer if there were only one '''
@@ -2667,7 +2667,7 @@ def xtest_loopfuse():
         assert kern_id > do_idx and kern_id < enddo_idx
 
 
-def xtest_kern_colourmap(monkeypatch):
+def test_kern_colourmap(monkeypatch):
     ''' Tests for error conditions in the colourmap getter of DynKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
@@ -2684,7 +2684,7 @@ def xtest_kern_colourmap(monkeypatch):
             "been initialised" in str(err))
 
 
-def xtest_kern_ncolours(monkeypatch):
+def test_kern_ncolours(monkeypatch):
     ''' Tests for error conditions in the ncolours getter of DynKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
@@ -2701,7 +2701,7 @@ def xtest_kern_ncolours(monkeypatch):
             "been initialised" in str(err))
 
 
-def xtest_named_psy_routine():
+def test_named_psy_routine():
     ''' Check that we generate a subroutine with the expected name
     if an invoke is named '''
     for distmem in [False, True]:
@@ -2718,21 +2718,21 @@ def xtest_named_psy_routine():
 # tests for dynamo0.3 stub generator
 
 
-def xtest_stub_non_existant_filename():
+def test_stub_non_existant_filename():
     ''' fail if the file does not exist '''
     with pytest.raises(IOError) as excinfo:
         generate("non_existant_file.f90", api=TEST_API)
     assert "file 'non_existant_file.f90' not found" in str(excinfo.value)
 
 
-def xtest_stub_invalid_api():
+def test_stub_invalid_api():
     ''' fail if the specified api is not supported '''
     with pytest.raises(GenerationError) as excinfo:
         generate(os.path.join(BASE_PATH, "ru_kernel_mod.f90"), api="dynamo0.1")
     assert "Unsupported API 'dynamo0.1' specified" in str(excinfo.value)
 
 
-def xtest_stub_file_content_not_fortran():
+def test_stub_file_content_not_fortran():
     ''' fail if the kernel file does not contain fortran '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -2741,7 +2741,7 @@ def xtest_stub_file_content_not_fortran():
         in str(excinfo.value)
 
 
-def xtest_stub_file_fortran_invalid():
+def test_stub_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_invalid_fortran.F90"),
@@ -2749,7 +2749,7 @@ def xtest_stub_file_fortran_invalid():
     assert 'contain <== no parse pattern found' in str(excinfo.value)
 
 
-def xtest_file_fortran_not_kernel():
+def test_file_fortran_not_kernel():
     ''' fail if file is valid fortran but is not a kernel file '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -2758,7 +2758,7 @@ def xtest_file_fortran_not_kernel():
         in str(excinfo.value)
 
 
-def xtest_module_name_too_short():
+def test_module_name_too_short():
     ''' fail if length of kernel module name is too short '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_short_name.F90"),
@@ -2766,14 +2766,14 @@ def xtest_module_name_too_short():
     assert "too short to have '_mod' as an extension" in str(excinfo.value)
 
 
-def xtest_module_name_convention():
+def test_module_name_convention():
     ''' fail if kernel module name does not have _mod at end '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern.F90"), api=TEST_API)
     assert "does not have '_mod' as an extension" in str(excinfo.value)
 
 
-def xtest_kernel_datatype_not_found():
+def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
     with pytest.raises(ParseError) as excinfo:
         generate(os.path.join(BASE_PATH, "testkern_no_datatype.F90"),
@@ -2799,7 +2799,7 @@ SIMPLE = (
     "  END MODULE simple_mod")
 
 
-def xtest_stub_generate_working():
+def test_stub_generate_working():
     ''' check that the stub generate produces the expected output '''
     result = generate(os.path.join(BASE_PATH, "simple.f90"),
                       api=TEST_API)
@@ -2808,7 +2808,7 @@ def xtest_stub_generate_working():
     assert str(result).find(SIMPLE) != -1
 
 
-def xtest_stub_generate_working_noapi():
+def test_stub_generate_working_noapi():
     ''' check that the stub generate produces the expected output when
     we use the default api (which should be dynamo0.3)'''
     result = generate(os.path.join(BASE_PATH, "simple.f90"))
@@ -2836,7 +2836,7 @@ SIMPLE_WITH_SCALARS = (
     "  END MODULE simple_with_scalars_mod")
 
 
-def xtest_stub_generate_with_scalars():
+def test_stub_generate_with_scalars():
     ''' check that the stub generate produces the expected output when
     the kernel has scalar arguments '''
     result = generate(os.path.join(BASE_PATH, "simple_with_scalars.f90"),
@@ -2866,7 +2866,7 @@ SCALAR_SUMS = (
     "  END MODULE testkern_multiple_scalar_sums_mod")
 
 
-def xtest_stub_generate_with_scalar_sums():
+def test_stub_generate_with_scalar_sums():
     '''check that the stub generator raises an exception when a kernel has
     a reduction (since these are not permitted for user-supplied kernels)'''
     with pytest.raises(ParseError) as err:
@@ -2899,7 +2899,7 @@ end module dummy_mod
 '''
 
 
-def xtest_load_meta_wrong_type():
+def test_load_meta_wrong_type():
     ''' Test that the load_meta function raises an appropriate error
     if the meta-data contains an un-recognised type '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -2913,7 +2913,7 @@ def xtest_load_meta_wrong_type():
     assert "load_meta expected one of '['gh_field'," in str(excinfo.value)
 
 
-def xtest_intent():
+def test_intent():
     ''' test that field intent is generated correctly for kernel stubs '''
     ast = fpapi.parse(INTENT, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -2969,7 +2969,7 @@ end module dummy_mod
 '''
 
 
-def xtest_spaces():
+def test_spaces():
     ''' test that field spaces are handled correctly for kernel stubs '''
     ast = fpapi.parse(SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -3049,7 +3049,7 @@ end module dummy_mod
 '''
 
 
-def xtest_vectors():
+def test_vectors():
     ''' test that field vectors are handled correctly for kernel stubs '''
     ast = fpapi.parse(VECTORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -3081,7 +3081,7 @@ def xtest_vectors():
     assert str(generated_code).find(output) != -1
 
 
-def xtest_arg_descriptor_vec_str():
+def test_arg_descriptor_vec_str():
     ''' Tests that the string method for DynArgDescriptor03 works as
     expected when we have a vector quantity '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3120,7 +3120,7 @@ end module dummy_mod
 '''
 
 
-def xtest_operators():
+def test_operators():
     ''' test that operators are handled correctly for kernel stubs '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -3166,7 +3166,7 @@ def xtest_operators():
     assert str(generated_code).find(output) != -1
 
 
-def xtest_arg_descriptor_op_str():
+def test_arg_descriptor_op_str():
     ''' Tests that the string method for DynArgDescriptor03 works as
     expected when we have an operator '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3201,7 +3201,7 @@ end module dummy_mod
 '''
 
 
-def xtest_stub_operator_different_spaces():
+def test_stub_operator_different_spaces():
     ''' test that the correct function spaces are provided in the
     correct order when generating a kernel stub with an operator on
     different spaces '''
@@ -3250,7 +3250,7 @@ ORIENTATION_OUTPUT = (
     "  END MODULE dummy_orientation_mod")
 
 
-def xtest_orientation_stubs():
+def test_orientation_stubs():
     ''' Test that orientation is handled correctly for kernel
     stubs '''
     # Read-in the meta-data from file (it's in a file because it's also
@@ -3269,7 +3269,7 @@ def xtest_orientation_stubs():
     assert str(generated_code).find(ORIENTATION_OUTPUT) != -1
 
 
-def xtest_enforce_bc_kernel_stub_gen():
+def test_enforce_bc_kernel_stub_gen():
     ''' Test that the enforce_bc_kernel boundary layer argument modification
     is handled correctly for kernel stubs '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "enforce_bc_kernel_mod.f90"),
@@ -3303,7 +3303,7 @@ def xtest_enforce_bc_kernel_stub_gen():
     assert str(generated_code).find(output) != -1
 
 
-def xtest_enforce_op_bc_kernel_stub_gen():
+def test_enforce_op_bc_kernel_stub_gen():
     ''' Test that the enforce_operator_bc_kernel boundary dofs argument
     modification is handled correctly for kernel stubs '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -3358,7 +3358,7 @@ end module dummy_mod
 '''
 
 
-def xtest_sub_name():
+def test_sub_name():
     ''' Test for expected behaviour when the kernel subroutine does
     not conform to the convention of having "_code" at the end of its
     name. In this case we append "_code to the name and _mod to the
@@ -3391,7 +3391,7 @@ def xtest_sub_name():
     assert "_mod" not in kernel.base_name
 
 
-def xtest_kernel_stub_usage():
+def test_kernel_stub_usage():
     ''' Check that the kernel-stub generator prints a usage message
     if no arguments are supplied '''
     from subprocess import Popen, STDOUT, PIPE
@@ -3408,7 +3408,7 @@ def xtest_kernel_stub_usage():
     assert usage_msg in out.decode('utf-8')
 
 
-def xtest_kernel_stub_gen_cmd_line():
+def test_kernel_stub_gen_cmd_line():
     ''' Check that we can call the kernel-stub generator from the
     command line '''
     from subprocess import Popen, PIPE
@@ -3422,7 +3422,7 @@ def xtest_kernel_stub_gen_cmd_line():
     assert ORIENTATION_OUTPUT in out.decode('utf-8')
 
 
-def xtest_stub_stencil_extent():
+def test_stub_stencil_extent():
     ''' Check that correct stub code is produced when there is a stencil
     access '''
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
@@ -3445,7 +3445,7 @@ def xtest_stub_stencil_extent():
         ":: field_2_stencil_map" in generated_code)
 
 
-def xtest_stub_stencil_direction():
+def test_stub_stencil_direction():
     '''Check that correct stub code is produced when there is a stencil
     access which requires a direction argument '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -3470,7 +3470,7 @@ def xtest_stub_stencil_direction():
     assert result2 in generated_code
 
 
-def xtest_stub_stencil_vector():
+def test_stub_stencil_vector():
     '''Check that correct stub code is produced when there is a stencil
     access which is a vector '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -3495,7 +3495,7 @@ def xtest_stub_stencil_vector():
     assert result2 in generated_code
 
 
-def xtest_stub_stencil_multi():
+def test_stub_stencil_multi():
     '''Check that correct stub code is produced when there are multiple
     stencils'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -3550,7 +3550,7 @@ end module stencil_mod
 '''
 
 
-def xtest_stencil_metadata():
+def test_stencil_metadata():
     ''' Check that we can parse Kernels with stencil metadata '''
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
@@ -3562,7 +3562,7 @@ def xtest_stencil_metadata():
     assert stencil_descriptor_1.stencil['extent'] is None
 
 
-def xtest_field_metadata_too_many_arguments():
+def test_field_metadata_too_many_arguments():
     '''Check that we raise an exception if more than 4 arguments are
     provided in the metadata for a gh_field arg_type.'''
     result = STENCIL_CODE.replace(
@@ -3575,7 +3575,7 @@ def xtest_field_metadata_too_many_arguments():
         in str(excinfo.value)
 
 
-def xtest_invalid_stencil_form_1():
+def test_invalid_stencil_form_1():
     '''Check that we raise an exception if the stencil does not obey the
     stencil(<type>[,<extent>]) format by being a literal integer or
     just "stencil" '''
@@ -3596,7 +3596,7 @@ def xtest_invalid_stencil_form_1():
         in str(excinfo.value)
 
 
-def xtest_invalid_stencil_form_2():
+def test_invalid_stencil_form_2():
     '''Check that we raise an exception if the stencil does not obey the
     stencil(<type>[,<extent>]) format by having an invalid name'''
     result = STENCIL_CODE.replace("stencil(cross)", "stenci(cross)", 1)
@@ -3607,7 +3607,7 @@ def xtest_invalid_stencil_form_2():
         in str(excinfo.value)
 
 
-def xtest_invalid_stencil_form_3():
+def test_invalid_stencil_form_3():
     '''Check that we raise an exception if the stencil does not obey the
     stencil(<type>[,<extent>]) format by not having brackets'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil", 1)
@@ -3618,7 +3618,7 @@ def xtest_invalid_stencil_form_3():
         in str(excinfo.value)
 
 
-def xtest_invalid_stencil_form_4():
+def test_invalid_stencil_form_4():
     '''Check that we raise an exception if the stencil does not obey the
     stencil(<type>[,<extent>]) format by containing no values in
     the brackets '''
@@ -3629,7 +3629,7 @@ def xtest_invalid_stencil_form_4():
     assert "but found stencil()" in str(excinfo.value)
 
 
-def xtest_invalid_stencil_form_5():
+def test_invalid_stencil_form_5():
     '''Check that we raise an exception if the stencil does not obey the
     stencil(<type>[,<extent>]) format by containing no values in
     the brackets, with a separator '''
@@ -3641,7 +3641,7 @@ def xtest_invalid_stencil_form_5():
         in str(excinfo.value)
 
 
-def xtest_invalid_stencil_form_6():
+def test_invalid_stencil_form_6():
     '''Check that we raise an exception if the stencil does not obey the
     stencil(<type>[,<extent>]) format by containing more than two
     values in in the brackets '''
@@ -3655,7 +3655,7 @@ def xtest_invalid_stencil_form_6():
         in str(excinfo.value)
 
 
-def xtest_invalid_stencil_first_arg_1():
+def test_invalid_stencil_first_arg_1():
     '''Check that we raise an exception if the value of the stencil type in
     stencil(<type>[,<extent>]) is not valid and is an integer'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(1)", 1)
@@ -3666,7 +3666,7 @@ def xtest_invalid_stencil_first_arg_1():
     assert "is a literal" in str(excinfo.value)
 
 
-def xtest_invalid_stencil_first_arg_2():
+def test_invalid_stencil_first_arg_2():
     '''Check that we raise an exception if the value of the stencil type in
     stencil(<type>[,<extent>]) is not valid and is a name'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(cros)", 1)
@@ -3676,7 +3676,7 @@ def xtest_invalid_stencil_first_arg_2():
     assert "not one of the valid types" in str(excinfo.value)
 
 
-def xtest_invalid_stencil_first_arg_3():
+def test_invalid_stencil_first_arg_3():
     '''Check that we raise an exception if the value of the stencil type in
     stencil(<type>[,<extent>]) is not valid and has brackets'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d(xx))", 1)
@@ -3687,7 +3687,7 @@ def xtest_invalid_stencil_first_arg_3():
     assert "includes brackets" in str(excinfo.value)
 
 
-def xtest_invalid_stencil_second_arg_1():
+def test_invalid_stencil_second_arg_1():
     '''Check that we raise an exception if the value of the stencil extent in
     stencil(<type>[,<extent>]) is not an integer'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,x1d)", 1)
@@ -3698,7 +3698,7 @@ def xtest_invalid_stencil_second_arg_1():
     assert "is not an integer" in str(excinfo.value)
 
 
-def xtest_invalid_stencil_second_arg_2():
+def test_invalid_stencil_second_arg_2():
     '''Check that we raise an exception if the value of the stencil extent in
     stencil(<type>[,<extent>]) is less than 1'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,0)", 1)
@@ -3709,7 +3709,7 @@ def xtest_invalid_stencil_second_arg_2():
     assert "is less than 1" in str(excinfo.value)
 
 
-def xtest_unsupported_second_argument():
+def test_unsupported_second_argument():
     '''Check that we raise an exception if stencil extent is specified, as
     we do not currently support it'''
     result = STENCIL_CODE.replace("stencil(cross)", "stencil(x1d,1)", 1)
@@ -3720,7 +3720,7 @@ def xtest_unsupported_second_argument():
         in str(excinfo.value)
 
 
-def xtest_valid_stencil_types():
+def test_valid_stencil_types():
     ''' Check that we successfully parse all valid stencil types '''
     for stencil_type in VALID_STENCIL_TYPES:
         result = STENCIL_CODE.replace("stencil(cross)",
@@ -3729,7 +3729,7 @@ def xtest_valid_stencil_types():
         _ = DynKernMetadata(ast)
 
 
-def xtest_arg_descriptor_funcs_method_error():
+def test_arg_descriptor_funcs_method_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_spaces is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
@@ -3745,7 +3745,7 @@ def xtest_arg_descriptor_funcs_method_error():
         'not get to here' in str(excinfo.value)
 
 
-def xtest_DynKernelArgument_intent_invalid():
+def test_DynKernelArgument_intent_invalid():
     '''Tests that an error is raised in DynKernelArgument when an invalid
     intent value is found. Tests with and without distributed memory '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -3769,7 +3769,7 @@ def xtest_DynKernelArgument_intent_invalid():
             str(excinfo.value)
 
 
-def xtest_arg_ref_name_method_error1():
+def test_arg_ref_name_method_error1():
     ''' Tests that an internal error is raised in DynKernelArgument
     when ref_name() is called with a function space that is not
     associated with this field'''
@@ -3786,7 +3786,7 @@ def xtest_arg_ref_name_method_error1():
         in str(excinfo.value)
 
 
-def xtest_arg_ref_name_method_error2():
+def test_arg_ref_name_method_error2():
     ''' Tests that an internal error is raised in DynKernelArgument
     when ref_name() is called when the argument type is not one of
     gh_field or gh_operator'''
@@ -3802,7 +3802,7 @@ def xtest_arg_ref_name_method_error2():
     assert 'ref_name: Error, unsupported arg type' in str(excinfo)
 
 
-def xtest_arg_intent_error():
+def test_arg_intent_error():
     ''' Tests that an internal error is raised in DynKernelArgument
     when intent() is called and the argument access property is not one of
     gh_{read,write,inc,readwrite} '''
@@ -3824,7 +3824,7 @@ def xtest_arg_intent_error():
 @pytest.mark.skipif(
     sys.version_info > (3,),
     reason="Deepcopy of function_space not working in Python 3")
-def xtest_no_arg_on_space(monkeypatch):
+def test_no_arg_on_space(monkeypatch):
     ''' Tests that DynKernelArguments.get_arg_on_space[,_name] raise
     the appropriate error when there is no kernel argument on the
     supplied space. '''
@@ -3858,7 +3858,7 @@ def xtest_no_arg_on_space(monkeypatch):
             "name = 'not_a_space_name')" in str(excinfo))
 
 
-def xtest_arg_descriptor_func_method_error():
+def test_arg_descriptor_func_method_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
@@ -3874,7 +3874,7 @@ def xtest_arg_descriptor_func_method_error():
         'not get to here' in str(excinfo.value)
 
 
-def xtest_arg_descriptor_fld_str():
+def test_arg_descriptor_fld_str():
     ''' Tests that the string method for DynArgDescriptor03 works as
     expected for a field argument'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3891,7 +3891,7 @@ def xtest_arg_descriptor_fld_str():
     assert expected_output in result
 
 
-def xtest_arg_descriptor_real_scalar_str():
+def test_arg_descriptor_real_scalar_str():
     ''' Tests that the string method for DynArgDescriptor03 works as
     expected for a real scalar argument'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3907,7 +3907,7 @@ def xtest_arg_descriptor_real_scalar_str():
     assert expected_output in result
 
 
-def xtest_arg_descriptor_int_scalar_str():
+def test_arg_descriptor_int_scalar_str():
     ''' Tests that the string method for DynArgDescriptor03 works as
     expected for an integer scalar argument'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3923,7 +3923,7 @@ def xtest_arg_descriptor_int_scalar_str():
     assert expected_output in result
 
 
-def xtest_arg_descriptor_str_error():
+def test_arg_descriptor_str_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when __str__ is called and the internal type is an
     unexpected value. It should not be possible to get to here so we
@@ -3939,7 +3939,7 @@ def xtest_arg_descriptor_str_error():
         in str(excinfo.value)
 
 
-def xtest_arg_descriptor_repr():
+def test_arg_descriptor_repr():
     ''' Tests that the repr method for DynArgDescriptor03 works as
     expected '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -3952,7 +3952,7 @@ def xtest_arg_descriptor_repr():
         in result
 
 
-def xtest_arg_desc_func_space_tofrom_err():
+def test_arg_desc_func_space_tofrom_err():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space_to or function_space_from is called and the
     internal type is not gh_operator.'''
@@ -3970,7 +3970,7 @@ def xtest_arg_desc_func_space_tofrom_err():
             "'gh_columnwise_operator']") in str(excinfo.value)
 
 
-def xtest_mangle_no_space_error():
+def test_mangle_no_space_error():
     ''' Tests that an error is raised in mangle_fs_name()
     when none of the provided kernel arguments are on the
     specified space '''
@@ -3988,7 +3988,7 @@ def xtest_mangle_no_space_error():
         in str(excinfo.value)
 
 
-def xtest_mangle_function_space():
+def test_mangle_function_space():
     ''' Tests that we correctly mangle the function space name '''
     from psyclone.dynamo0p3 import mangle_fs_name
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4001,7 +4001,7 @@ def xtest_mangle_function_space():
     assert name == "any_space_2_f2"
 
 
-def xtest_no_mangle_specified_function_space():
+def test_no_mangle_specified_function_space():
     ''' Test that we do not name-mangle a function space that is not
     any_space '''
     from psyclone.dynamo0p3 import mangle_fs_name
@@ -4015,7 +4015,7 @@ def xtest_no_mangle_specified_function_space():
     assert name == "w2"
 
 
-def xtest_fsdescriptors_get_descriptor():
+def test_fsdescriptors_get_descriptor():
     ''' Test that FSDescriptors.get_descriptor() raises the expected error
     when passed a function space for which there is no corresponding kernel
     argument '''
@@ -4031,7 +4031,7 @@ def xtest_fsdescriptors_get_descriptor():
     assert "there is no descriptor for function space w0" in str(excinfo.value)
 
 
-def xtest_arg_descriptor_init_error():
+def test_arg_descriptor_init_error():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when an invalid type is provided. However this error never gets
     tripped due to an earlier test so we need to force the error by
@@ -4063,7 +4063,7 @@ def xtest_arg_descriptor_init_error():
     # pylint: enable=invalid-name
 
 
-def xtest_func_descriptor_repr():
+def test_func_descriptor_repr():
     ''' Tests the __repr__ output of a func_descriptor '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
@@ -4073,7 +4073,7 @@ def xtest_func_descriptor_repr():
     assert "DynFuncDescriptor03(func_type(w1, gh_basis))" in func_str
 
 
-def xtest_func_descriptor_str():
+def test_func_descriptor_str():
     ''' Tests the __str__ output of a func_descriptor '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     ast = fpapi.parse(CODE, ignore_comments=False)
@@ -4089,7 +4089,7 @@ def xtest_func_descriptor_str():
     assert output in func_str
 
 
-def xtest_dynkern_arg_for_fs():
+def test_dynkern_arg_for_fs():
     ''' Test that DynInvoke.arg_for_funcspace() raises an error if
     passed an invalid function space '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -4101,7 +4101,7 @@ def xtest_dynkern_arg_for_fs():
     assert "No argument found on 'waah' space" in str(err)
 
 
-def xtest_dist_memory_true():
+def test_dist_memory_true():
     ''' Test that the distributed memory flag is on by default. '''
     Config._instance = None
     config = Config()
@@ -4109,7 +4109,7 @@ def xtest_dist_memory_true():
     assert config.distributed_memory
 
 
-def xtest_halo_dirty_1():
+def test_halo_dirty_1():
     ''' check halo_dirty call is added correctly with a simple example '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
@@ -4125,7 +4125,7 @@ def xtest_halo_dirty_1():
     assert expected in generated_code
 
 
-def xtest_halo_dirty_2():
+def test_halo_dirty_2():
     ''' check halo_dirty calls only for write and inc (not for read) '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.1_halo_writers.f90"),
                            api=TEST_API)
@@ -4147,7 +4147,7 @@ def xtest_halo_dirty_2():
     assert expected in generated_code
 
 
-def xtest_halo_dirty_3():
+def test_halo_dirty_3():
     ''' check halo_dirty calls with multiple kernel calls '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4_multikernel_invokes.f90"),
@@ -4158,7 +4158,7 @@ def xtest_halo_dirty_3():
     assert str(generated_code).count("CALL f1_proxy%set_dirty()") == 2
 
 
-def xtest_halo_dirty_4():
+def test_halo_dirty_4():
     ''' check halo_dirty calls with field vectors '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "8_vector_field_2.f90"),
                            api=TEST_API)
@@ -4177,7 +4177,7 @@ def xtest_halo_dirty_4():
     assert expected in generated_code
 
 
-def xtest_halo_dirty_5():
+def test_halo_dirty_5():
     ''' check no halo_dirty calls for operators '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "10.1_operator_nofield.f90"),
@@ -4189,7 +4189,7 @@ def xtest_halo_dirty_5():
     assert "! Set halos dirty/clean" not in generated_code
 
 
-def xtest_no_halo_dirty():
+def test_no_halo_dirty():
     '''check that no halo_dirty code is produced if distributed_memory is
     set to False'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -4201,7 +4201,7 @@ def xtest_no_halo_dirty():
     assert "! Set halos dirty/clean" not in generated_code
 
 
-def xtest_halo_exchange():
+def test_halo_exchange():
     ''' test that a halo_exchange call is added for a loop with a
     stencil operation '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
@@ -4279,7 +4279,7 @@ def test_halo_exchange_inc(monkeypatch, annexed):
         assert result.count("halo_exchange") == 7
 
 
-def xtest_no_halo_exchange_for_operator():
+def test_no_halo_exchange_for_operator():
     ''' Test that no halo exchange is generated before a kernel that reads
     from an operator '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4293,7 +4293,7 @@ def xtest_no_halo_exchange_for_operator():
     assert "halo_exchange" not in result
 
 
-def xtest_no_set_dirty_for_operator():
+def test_no_set_dirty_for_operator():
     ''' Test that we do not call set_dirty for an operator that is written
     by a kernel. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4307,7 +4307,7 @@ def xtest_no_set_dirty_for_operator():
     assert "is_dirty" not in result
 
 
-def xtest_halo_exchange_different_spaces():
+def test_halo_exchange_different_spaces():
     '''test that all of our different function spaces with a stencil
     access result in halo calls including any_space'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4319,7 +4319,7 @@ def xtest_halo_exchange_different_spaces():
     assert result.count("halo_exchange") == 9
 
 
-def xtest_halo_exchange_vectors_1(monkeypatch, annexed):
+def test_halo_exchange_vectors_1(monkeypatch, annexed):
     '''Test that halo exchange produces correct code for vector fields
     including a field with a gh_inc access. Test when annexed = False
     and True as halo exchanges are only produced when annexed = False.
@@ -4382,7 +4382,7 @@ def test_halo_exchange_vectors(monkeypatch, annexed):
     assert expected in result
 
 
-def xtest_halo_exchange_depths():
+def test_halo_exchange_depths():
     '''test that halo exchange includes the correct halo depth with
     gh_write.
 
@@ -4409,7 +4409,7 @@ def xtest_halo_exchange_depths():
     assert expected in result
 
 
-def xtest_halo_exchange_depths_gh_inc(monkeypatch, annexed):
+def test_halo_exchange_depths_gh_inc(monkeypatch, annexed):
     '''test that halo exchange includes the correct halo depth when we
     have a gh_inc as this increases the required depth by 1 (as
     redundant computation is performed in the l1 halo). Test when
@@ -4451,7 +4451,7 @@ def xtest_halo_exchange_depths_gh_inc(monkeypatch, annexed):
     assert expected2 in result
 
 
-def xtest_stencil_read_only():
+def test_stencil_read_only():
     '''test that an error is raised if a field with a stencil is not
     accessed as gh_read'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -4463,7 +4463,7 @@ def xtest_stencil_read_only():
     assert "a stencil must be read only" in str(excinfo.value)
 
 
-def xtest_fs_discontinuous_and_inc_error():
+def test_fs_discontinuous_and_inc_error():
     ''' Test that an error is raised if a discontinuous function space
     and gh_inc are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -4479,7 +4479,7 @@ def xtest_fs_discontinuous_and_inc_error():
                 in str(excinfo.value))
 
 
-def xtest_fs_continuous_and_readwrite_error():
+def test_fs_continuous_and_readwrite_error():
     ''' Test that an error is raised if a continuous function space and
     gh_readwrite are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -4495,7 +4495,7 @@ def xtest_fs_continuous_and_readwrite_error():
                 in str(excinfo.value))
 
 
-def xtest_fs_anyspace_and_readwrite_error():
+def test_fs_anyspace_and_readwrite_error():
     ''' Test that an error is raised if any_space and
     gh_readwrite are provided for the same field in the metadata '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -4510,7 +4510,7 @@ def xtest_fs_anyspace_and_readwrite_error():
                 in str(excinfo.value))
 
 
-def xtest_halo_exchange_view(capsys):
+def test_halo_exchange_view(capsys):
     ''' test that the halo exchange view method returns what we expect '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH, "14.2_halo_readers.f90"),
@@ -4543,7 +4543,7 @@ def xtest_halo_exchange_view(capsys):
     assert expected in result
 
 
-def xtest_no_mesh_mod():
+def test_no_mesh_mod():
     '''test that we do not add a mesh module to the PSy layer if one is
     not required. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4557,7 +4557,7 @@ def xtest_no_mesh_mod():
     assert "mesh => a%get_mesh()" not in result
 
 
-def xtest_mesh_mod():
+def test_mesh_mod():
     '''test that a mesh module is added to the PSy layer and a mesh object
     is created when required. One is required when we determine loop
     bounds for distributed memory '''
@@ -4579,7 +4579,7 @@ def xtest_mesh_mod():
 # object from an operator
 
 
-def xtest_set_lower_bound_functions():
+def test_set_lower_bound_functions():
     '''test that we raise appropriate exceptions when the lower bound of
     a loop is set to invalid values '''
     my_loop = DynLoop()
@@ -4592,7 +4592,7 @@ def xtest_set_lower_bound_functions():
     assert "lower loop bound is invalid" in str(excinfo.value)
 
 
-def xtest_set_upper_bound_functions():
+def test_set_upper_bound_functions():
     '''test that we raise appropriate exceptions when the upper bound of
     a loop is set to invalid values '''
     my_loop = DynLoop()
@@ -4608,7 +4608,7 @@ def xtest_set_upper_bound_functions():
     assert "upper loop bound is invalid" in str(excinfo.value)
 
 
-def xtest_lower_bound_fortran_1():
+def test_lower_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
     method - first GenerationError'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -4622,7 +4622,7 @@ def xtest_lower_bound_fortran_1():
             str(excinfo.value))
 
 
-def xtest_lower_bound_fortran_2(monkeypatch):
+def test_lower_bound_fortran_2(monkeypatch):
     '''tests we raise an exception in the DynLoop:_lower_bound_fortran()
     method - second GenerationError'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -4638,7 +4638,7 @@ def xtest_lower_bound_fortran_2(monkeypatch):
             str(excinfo.value))
 
 
-def xtest_upper_bound_fortran_1():
+def test_upper_bound_fortran_1():
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method when 'cell_halo', 'dof_halo' or 'inner' are used'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -4655,7 +4655,7 @@ def xtest_upper_bound_fortran_1():
                 str(excinfo.value))
 
 
-def xtest_upper_bound_fortran_2(monkeypatch):
+def test_upper_bound_fortran_2(monkeypatch):
     '''tests we raise an exception in the DynLoop:_upper_bound_fortran()
     method if an invalid value is provided'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -4675,7 +4675,7 @@ def xtest_upper_bound_fortran_2(monkeypatch):
     assert "Failed to find a kernel within a loop over colours" in str(excinfo)
 
 
-def xtest_upper_bound_inner(monkeypatch):
+def test_upper_bound_inner(monkeypatch):
     ''' Check that we get the correct Fortran generated if a loop's upper
     bound is "inner" '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -4687,7 +4687,7 @@ def xtest_upper_bound_inner(monkeypatch):
     assert ubound == "mesh%get_last_inner_cell(1)"
 
 
-def xtest_intent_multi_kern():
+def test_intent_multi_kern():
     ''' Test that we correctly generate argument declarations when the
     same fields are passed to different kernels with different intents '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -4704,7 +4704,7 @@ def xtest_intent_multi_kern():
         assert "TYPE(quadrature_xyoz_type), intent(in) :: qr\n" in output
 
 
-def xtest_field_gh_sum_invalid():
+def test_field_gh_sum_invalid():
     ''' Tests that an error is raised when a field is specified with
     access type gh_sum '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -4719,7 +4719,7 @@ def xtest_field_gh_sum_invalid():
     assert "but 'gh_field' was found" in str(excinfo.value)
 
 
-def xtest_operator_gh_sum_invalid():
+def test_operator_gh_sum_invalid():
     ''' Tests that an error is raised when an operator is specified with
     access type gh_sum '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -4734,7 +4734,7 @@ def xtest_operator_gh_sum_invalid():
     assert "but 'gh_operator' was found" in str(excinfo.value)
 
 
-def xtest_derived_type_arg(dist_mem):
+def test_derived_type_arg(dist_mem):
     ''' Test that we generate a suitable name for a dummy variable
     in the PSy layer when its value in the algorithm layer is
     obtained from the component of a derived type or from a type-bound
@@ -4780,7 +4780,7 @@ def xtest_derived_type_arg(dist_mem):
         "undf_w3, map_w3(:,cell))" in gen)
 
 
-def xtest_multiple_derived_type_args(dist_mem):
+def test_multiple_derived_type_args(dist_mem):
     ''' Test that we generate correct code when kernel arguments are
     supplied from the algorithm layer as different components of the
     same derived type object '''
@@ -4825,7 +4825,7 @@ def xtest_multiple_derived_type_args(dist_mem):
         "undf_w3, map_w3(:,cell))" in gen)
 
 
-def xtest_single_stencil_extent(dist_mem):
+def test_single_stencil_extent(dist_mem):
     '''test a single stencil access with an extent value passed from the
     algorithm layer is treated correctly in the PSy layer. Test both
     sequential and distributed memory '''
@@ -4871,7 +4871,7 @@ def xtest_single_stencil_extent(dist_mem):
     assert output6 in result
 
 
-def xtest_single_stencil_xory1d(dist_mem):
+def test_single_stencil_xory1d(dist_mem):
     '''test a single stencil access with an extent and direction value
     passed from the algorithm layer is treated correctly in the PSy
     layer. Test both sequential and distributed memory '''
@@ -4926,7 +4926,7 @@ def xtest_single_stencil_xory1d(dist_mem):
     assert output6 in result
 
 
-def xtest_single_stencil_literal(dist_mem):
+def test_single_stencil_literal(dist_mem):
     '''test extent value is used correctly from the algorithm layer when
     it is a literal value so is not passed by argument'''
     _, invoke_info = parse(
@@ -4974,7 +4974,7 @@ def xtest_single_stencil_literal(dist_mem):
     assert output6 in result
 
 
-def xtest_stencil_region_unsupported(dist_mem):
+def test_stencil_region_unsupported(dist_mem):
     '''Check that we raise an exception if the value of the stencil type
     in stencil(<type>[,<extent>]) is region. This is not a parse error
     as region is a valid value, it is just that the LFRic
@@ -4990,7 +4990,7 @@ def xtest_stencil_region_unsupported(dist_mem):
         str(excinfo.value)
 
 
-def xtest_single_stencil_xory1d_literal(dist_mem):
+def test_single_stencil_xory1d_literal(dist_mem):
     '''test extent value is used correctly from the algorithm layer when
     it is a literal value so is not passed by argument'''
     _, invoke_info = parse(
@@ -5044,7 +5044,7 @@ def xtest_single_stencil_xory1d_literal(dist_mem):
     assert output6 in result
 
 
-def xtest_single_stencil_xory1d_literal_mixed(dist_mem):
+def test_single_stencil_xory1d_literal_mixed(dist_mem):
     '''test extent value is used correctly from the algorithm layer when
     it is a literal value so is not passed by argument and the case of the
     literal is specified in mixed case'''
@@ -5100,7 +5100,7 @@ def xtest_single_stencil_xory1d_literal_mixed(dist_mem):
     assert output6 in result
 
 
-def xtest_multiple_stencils(dist_mem):
+def test_multiple_stencils(dist_mem):
     '''test for correct output when there is more than one stencil in a
     kernel'''
     _, invoke_info = parse(
@@ -5182,7 +5182,7 @@ def xtest_multiple_stencils(dist_mem):
     assert output7 in result
 
 
-def xtest_multiple_stencil_same_name(dist_mem):
+def test_multiple_stencil_same_name(dist_mem):
     '''test the case when there is more than one stencil in a kernel with
     the same name for extent'''
     _, invoke_info = parse(
@@ -5248,7 +5248,7 @@ def xtest_multiple_stencil_same_name(dist_mem):
     assert output5 in result
 
 
-def xtest_multi_stencil_same_name_direction(dist_mem):
+def test_multi_stencil_same_name_direction(dist_mem):
     '''test the case where there is more than one stencil in a kernel with
     the same name for direction'''
     _, invoke_info = parse(
@@ -5328,7 +5328,7 @@ def xtest_multi_stencil_same_name_direction(dist_mem):
     assert output5 in result
 
 
-def xtest_multi_kerns_stencils_diff_fields(dist_mem):
+def test_multi_kerns_stencils_diff_fields(dist_mem):
     '''Test the case where we have multiple kernels with stencils and
     different fields for each. We also test extent names by having both
     shared and individual names.'''
@@ -5396,7 +5396,7 @@ def xtest_multi_kerns_stencils_diff_fields(dist_mem):
     assert output8 in result
 
 
-def xtest_extent_name_clash(dist_mem):
+def test_extent_name_clash(dist_mem):
     '''Test we can deal with name clashes for stencils. We have a single
     kernel with argument names passed from the algorithm layer that
     would clash with stencil-name, stencil-dofmap and stencil-size
@@ -5475,7 +5475,7 @@ def xtest_extent_name_clash(dist_mem):
     assert output9 in result
 
 
-def xtest_two_stencils_same_field(dist_mem):
+def test_two_stencils_same_field(dist_mem):
     '''Test two Kernels within an invoke, with the same field having a
     stencil access in each kernel. f2_w2 is the field we care
     about. '''
@@ -5538,7 +5538,7 @@ def xtest_two_stencils_same_field(dist_mem):
     assert output7 in result
 
 
-def xtest_stencils_same_field_literal_extent(dist_mem):
+def test_stencils_same_field_literal_extent(dist_mem):
     '''Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the extent being passed as a
     literal value. Extent is the same in two kernels and different in
@@ -5598,7 +5598,7 @@ def xtest_stencils_same_field_literal_extent(dist_mem):
         assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
-def xtest_stencils_same_field_literal_direct(dist_mem):
+def test_stencils_same_field_literal_direct(dist_mem):
     '''Test three Kernels within an invoke, with the same field having a
     stencil access in each kernel and the direction being passed as a
     literal value. In two kernels the direction value is the same and
@@ -5670,7 +5670,7 @@ def xtest_stencils_same_field_literal_direct(dist_mem):
         assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
-def xtest_stencil_extent_specified():
+def test_stencil_extent_specified():
     '''the function stencil_unique_str() raises an error if a stencil
     with an extent provided in the metadata is passed in. This is because
     this is not currently supported. This test checks that the appropriate
@@ -5693,7 +5693,7 @@ def xtest_stencil_extent_specified():
             "This is not coded for." in str(err))
 
 
-def xtest_haloexchange_unknown_halo_depth():
+def test_haloexchange_unknown_halo_depth():
     '''If a stencil extent is provided in the kernel metadata then the
     value is stored in an instance of the DynHaloExchange class. This test
     checks that the value is stored as expected (although stencil extents
@@ -5713,7 +5713,7 @@ def xtest_haloexchange_unknown_halo_depth():
     assert halo_exchange._compute_halo_depth() == '11'
 
 
-def xtest_haloexchange_correct_parent():
+def test_haloexchange_correct_parent():
     '''Test that a dynamo haloexchange has the correct parent once it has
     been added to a schedule.'''
     _, invoke_info = parse(
@@ -5785,7 +5785,7 @@ def test_one_kern_multi_field_same_stencil(dist_mem):
     assert output5 in result
 
 
-def xtest_single_kernel_any_space_stencil(dist_mem):
+def test_single_kernel_any_space_stencil(dist_mem):
     '''This is a test for stencils and any_space within a single kernel
     and between kernels. We test when any_space is the same and when
     it is different within kernels and between kernels for the case of
@@ -5838,7 +5838,7 @@ def xtest_single_kernel_any_space_stencil(dist_mem):
 
 
 @pytest.mark.xfail(reason="stencils and any_space produces too many dofmaps")
-def xtest_multi_kernel_any_space_stencil_1(dist_mem):
+def test_multi_kernel_any_space_stencil_1(dist_mem):
     '''This is a test for stencils and any_space with two kernels. We test
     when any_space is the same and when it is different for the same
     field. In our example we should have a single dofmap. However, at
@@ -5879,7 +5879,7 @@ def xtest_multi_kernel_any_space_stencil_1(dist_mem):
     assert output3 in result
 
 
-def xtest_stencil_args_unique_1(dist_mem):
+def test_stencil_args_unique_1(dist_mem):
     '''This test checks that stencil extent and direction arguments do not
     clash with internal names generated in the PSy-layer. f2_stencil_size
     and nlayers are chosen as the names that would clash.'''
@@ -5927,7 +5927,7 @@ def xtest_stencil_args_unique_1(dist_mem):
     assert output7 in result
 
 
-def xtest_stencil_args_unique_2(dist_mem):
+def test_stencil_args_unique_2(dist_mem):
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are accessed as
     indexed arrays, with the same array name, from the algorithm
@@ -5994,7 +5994,7 @@ def xtest_stencil_args_unique_2(dist_mem):
         assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
-def xtest_stencil_args_unique_3(dist_mem):
+def test_stencil_args_unique_3(dist_mem):
     '''This test checks that stencil extent and direction arguments are
     unique within the generated PSy-layer when they are dereferenced,
     with the same type/class name, from the algorithm layer. '''
@@ -6027,7 +6027,7 @@ def xtest_stencil_args_unique_3(dist_mem):
         assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
-def xtest_dynloop_load_unexpected_func_space():
+def test_dynloop_load_unexpected_func_space():
     ''' The load function of an instance of the dynloop class raises an
     error if an unexpexted function space is found. This test makes
     sure this error works correctly. It's a little tricky to raise
@@ -6063,7 +6063,7 @@ def xtest_dynloop_load_unexpected_func_space():
             "'any_w2'] but found 'broken'" in str(err))
 
 
-def xtest_dynkernargs_unexpect_stencil_extent():
+def test_dynkernargs_unexpect_stencil_extent():
     '''This test checks that we raise an error in DynKernelArguments if
     metadata is provided with an extent value. This is a litle tricky to
     raise as the parser does not not allow this to happen. We therefore
@@ -6087,7 +6087,7 @@ def xtest_dynkernargs_unexpect_stencil_extent():
     assert "extent metadata not yet supported" in str(err)
 
 
-def xtest_unsupported_halo_read_access():
+def test_unsupported_halo_read_access():
     '''This test checks that we raise an error if the halo_read_access
     method finds an upper bound other than halo or ncells. The
     particular issue at the moment is that if inner is specified we do
@@ -6115,7 +6115,7 @@ def xtest_unsupported_halo_read_access():
             "'inner'." in str(err))
 
 
-def xtest_dynglobalsum_unsupported_scalar():
+def test_dynglobalsum_unsupported_scalar():
     '''Check that an instance of the DynGlobalSum class raises an
     exception if an unsupported scalar type is provided when
     dm=True '''
@@ -6136,7 +6136,7 @@ def xtest_dynglobalsum_unsupported_scalar():
     assert "DynGlobalSum currently only supports '['gh_real']'" in str(err)
 
 
-def xtest_dynglobalsum_nodm_error():
+def test_dynglobalsum_nodm_error():
     '''Check that an instance of the DynGlobalSum class raises an
     exception if it is instantiated when dm=False'''
     # get an instance of a real scalar
@@ -6157,7 +6157,7 @@ def xtest_dynglobalsum_nodm_error():
             "dm=False") in str(err)
 
 
-def xtest_no_updated_args():
+def test_no_updated_args():
     ''' Check that we raise the expected exception when we encounter a
     kernel that does not write to any of its arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -6172,7 +6172,7 @@ def xtest_no_updated_args():
             "testkern_qr_type" in str(excinfo))
 
 
-def xtest_scalars_only_invalid():
+def test_scalars_only_invalid():
     ''' Check that we raise the expected exception if we encounter a
     kernel that only has (read-only) scalar arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -6201,7 +6201,7 @@ end module testkern
             "testkern_type" in str(excinfo))
 
 
-def xtest_multiple_updated_field_args():
+def test_multiple_updated_field_args():
     ''' Check that we successfully parse a kernel that writes to more
     than one of its field arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -6217,7 +6217,7 @@ def xtest_multiple_updated_field_args():
     assert count == 2
 
 
-def xtest_multiple_updated_op_args():
+def test_multiple_updated_op_args():
     ''' Check that we successfully parse the metadata for a kernel that
     writes to more than one of its field and operator arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -6235,7 +6235,7 @@ def xtest_multiple_updated_op_args():
     assert count == 2
 
 
-def xtest_multiple_updated_scalar_args():
+def test_multiple_updated_scalar_args():
     ''' Check that we raise the expected exception when we encounter a
     kernel that writes to more than one of its field and scalar arguments '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -6250,7 +6250,7 @@ def xtest_multiple_updated_scalar_args():
             str(excinfo))
 
 
-def xtest_itn_space_write_w2v_w1(tmpdir):
+def test_itn_space_write_w2v_w1(tmpdir):
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to two fields, the first on
     a discontinuous space (w2v) and the second on a continuous space (w1).
@@ -6279,7 +6279,7 @@ def xtest_itn_space_write_w2v_w1(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def xtest_itn_space_fld_and_op_writers(tmpdir):
+def test_itn_space_fld_and_op_writers(tmpdir):
     ''' Check that generated loop over cells in the psy layer has the
     correct upper bound when a kernel writes to both an operator and a
     field, the latter on a discontinuous space and first in the list
@@ -6308,7 +6308,7 @@ def xtest_itn_space_fld_and_op_writers(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def xtest_itn_space_any_w3(tmpdir):
+def test_itn_space_any_w3(tmpdir):
     ''' Check generated loop over cells has correct upper bound when
     a kernel writes to fields on any-space and W3 (discontinuous) '''
     _, invoke_info = parse(
@@ -6334,7 +6334,7 @@ def xtest_itn_space_any_w3(tmpdir):
         assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def xtest_itn_space_any_w1():
+def test_itn_space_any_w1():
     ''' Check generated loop over cells has correct upper bound when
     a kernel writes to fields on any-space and W1 (continuous) '''
     _, invoke_info = parse(
@@ -6361,7 +6361,7 @@ def xtest_itn_space_any_w1():
             assert output in generated_code
 
 
-def xtest_unexpected_type_error():
+def test_unexpected_type_error():
     '''Check that we raise an exception if an unexpected datatype is found
     when running the ArgOrdering generate method. As it is abstract we use
     the KernCallArgList sub class'''
@@ -6391,7 +6391,7 @@ def xtest_unexpected_type_error():
             "generate()") in str(excinfo.value)
 
 
-def xtest_argordering_exceptions():
+def test_argordering_exceptions():
     '''Check that we raise an exception if the abstract methods are called
     in an instance of the ArgOrdering class '''
     for distmem in [False, True]:
@@ -6438,7 +6438,7 @@ def xtest_argordering_exceptions():
                 method(None)
 
 
-def xtest_kernel_args_has_op():
+def test_kernel_args_has_op():
     ''' Check that we raise an exception if the arg. type supplied to
     DynKernelArguments.has_operator() is not a valid operator '''
     _, invoke_info = parse(
@@ -6453,7 +6453,7 @@ def xtest_kernel_args_has_op():
     assert "op_type must be a valid operator type" in str(excinfo)
 
 
-def xtest_kernel_stub_invalid_scalar_argument():
+def test_kernel_stub_invalid_scalar_argument():
     '''Check that we raise an exception if an unexpected datatype is found
     when using the KernStubArgList scalar method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -6478,7 +6478,7 @@ def xtest_kernel_stub_invalid_scalar_argument():
         "'gh_integer']' but got 'invalid'") in str(excinfo.value)
 
 
-def xtest_kernel_stub_ind_dofmap_errors():
+def test_kernel_stub_ind_dofmap_errors():
     '''Check that we raise the expected exceptions if the wrong arguments
     are supplied to KernelStubArgList.indirection_dofmap() '''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -6505,7 +6505,7 @@ def xtest_kernel_stub_ind_dofmap_errors():
             "got") in str(excinfo)
 
 
-def xtest_kerncallarglist_arglist_error():
+def test_kerncallarglist_arglist_error():
     '''Check that we raise an exception if we call the arglist method in
     kerncallarglist without first calling the generate method'''
     for distmem in [False, True]:
@@ -6532,7 +6532,7 @@ def xtest_kerncallarglist_arglist_error():
             "called?") in str(excinfo.value)
 
 
-def xtest_kernstubarglist_arglist_error():
+def test_kernstubarglist_arglist_error():
     '''Check that we raise an exception if we call the arglist method in
     kernstubarglist without first calling the generate method'''
     ast = fpapi.parse(os.path.join(BASE_PATH,
@@ -6555,7 +6555,7 @@ def xtest_kernstubarglist_arglist_error():
         "called?") in str(excinfo.value)
 
 
-def xtest_multi_anyw2():
+def test_multi_anyw2():
     '''Check generated code works correctly when we have multiple any_w2
     fields. Particularly check that we only generate a single lookup.'''
     _, invoke_info = parse(
@@ -6623,7 +6623,7 @@ def xtest_multi_anyw2():
             assert output in generated_code
 
 
-def xtest_anyw2_vectors():
+def test_anyw2_vectors():
     '''Check generated code works correctly when we have any_w2 field
     vectors'''
     _, invoke_info = parse(
@@ -6639,7 +6639,7 @@ def xtest_anyw2_vectors():
         assert "f3_proxy(1)%data, f3_proxy(2)%data" in generated_code
 
 
-def xtest_anyw2_operators():
+def test_anyw2_operators():
     '''Check generated code works correctly when we have any_w2 fields
     with operators'''
     _, invoke_info = parse(
@@ -6668,7 +6668,7 @@ def xtest_anyw2_operators():
         assert output in generated_code
 
 
-def xtest_anyw2_stencils():
+def test_anyw2_stencils():
     '''Check generated code works correctly when we have any_w2 fields
     with stencils'''
     _, invoke_info = parse(
@@ -6691,7 +6691,7 @@ def xtest_anyw2_stencils():
 
 
 # test that stub generation works with any_w2 space.
-def xtest_stub_generate_with_anyw2():
+def test_stub_generate_with_anyw2():
     '''check that the stub generate produces the expected output when we
     have any_w2 fields. In particular, check basis functions as these
     have specific sizes associated with the particular function space'''
@@ -6707,7 +6707,7 @@ def xtest_stub_generate_with_anyw2():
     assert expected_output in str(result)
 
 
-def xtest_no_halo_for_discontinous(tmpdir):
+def test_no_halo_for_discontinous(tmpdir):
     ''' Test that we do not create halo exchange calls when our loop
     only iterates over owned cells (e.g. it writes to a discontinuous
     field), we only read from a discontinous field and there are no
@@ -6723,7 +6723,7 @@ def xtest_no_halo_for_discontinous(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def xtest_halo_for_discontinuous(tmpdir, monkeypatch, annexed):
+def test_halo_for_discontinuous(tmpdir, monkeypatch, annexed):
     '''This test checks the case when our loop iterates over owned cells
     (e.g. it writes to a discontinuous field), we read from a
     continuous field, there are no stencil accesses, but we do not
@@ -6761,7 +6761,7 @@ def xtest_halo_for_discontinuous(tmpdir, monkeypatch, annexed):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def xtest_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
+def test_halo_for_discontinuous_2(tmpdir, monkeypatch, annexed):
     '''This test checks the case when our loop iterates over owned cells
     (e.g. it writes to a discontinuous field), we read from a
     continuous field, there are no stencil accesses, and the previous
@@ -6858,7 +6858,7 @@ def test_arg_discontinuous(monkeypatch, annexed):
     assert not field.discontinuous
 
 
-def xtest_halo_stencil_redundant_computation():
+def test_halo_stencil_redundant_computation():
     '''If a loop contains a kernel with a stencil access and the loop
     computes redundantly into the halo then the value of the stencil
     in the associated halo exchange is returned as type region
@@ -6876,7 +6876,7 @@ def xtest_halo_stencil_redundant_computation():
     assert stencil_halo_exchange._compute_stencil_type() == "region"
 
 
-def xtest_halo_same_stencils_no_red_comp():
+def test_halo_same_stencils_no_red_comp():
     '''If a halo has two or more different halo reads associated with it
     and the type of stencils are the same and the loops do not
     redundantly compute into the halo then the chosen stencil type for
@@ -6891,7 +6891,7 @@ def xtest_halo_same_stencils_no_red_comp():
     assert stencil_halo_exchange._compute_stencil_type() == "cross"
 
 
-def xtest_halo_different_stencils_no_red_comp():
+def test_halo_different_stencils_no_red_comp():
     '''If a halo has two or more different halo reads associated with it
     and the type of stencils are different and the loops do not
     redundantly compute into the halo then the chosen stencil type is
@@ -6907,7 +6907,7 @@ def xtest_halo_different_stencils_no_red_comp():
     assert stencil_halo_exchange._compute_stencil_type() == "region"
 
 
-def xtest_comp_halo_intern_err(monkeypatch):
+def test_comp_halo_intern_err(monkeypatch):
     '''Check that we raise an exception if the compute_halo_read_info method in
     dynhaloexchange does not find any read dependencies. This should
     never be the case. We use monkeypatch to force the exception to be
@@ -6925,7 +6925,7 @@ def xtest_comp_halo_intern_err(monkeypatch):
             "dependence for a halo exchange") in str(excinfo.value)
 
 
-def xtest_halo_exch_1_back_dep(monkeypatch):
+def test_halo_exch_1_back_dep(monkeypatch):
     '''Check that an internal error is raised if a halo exchange returns
     with more than one write dependency. It should only ever be 0 or 1.'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -6948,7 +6948,7 @@ def xtest_halo_exch_1_back_dep(monkeypatch):
     assert not halo_exchange._compute_halo_write_info()
 
 
-def xtest_halo_ex_back_dep_no_call(monkeypatch):
+def test_halo_ex_back_dep_no_call(monkeypatch):
     '''Check that an internal error is raised if a halo exchange
     write dependency is not a call.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -6975,7 +6975,7 @@ def xtest_halo_ex_back_dep_no_call(monkeypatch):
             in str(excinfo.value))
 
 
-def xtest_HaloReadAccess_input_field():
+def test_HaloReadAccess_input_field():
     '''The HaloReadAccess class expects a DynKernelArgument or equivalent
     object as input. If this is not the case an exception is raised. This
     test checks that this exception is raised correctly.'''
@@ -6987,7 +6987,7 @@ def xtest_HaloReadAccess_input_field():
         "'%s'" % type(None) in str(excinfo.value))
 
 
-def xtest_HaloReadAccess_field_in_call():
+def test_HaloReadAccess_field_in_call():
     '''The field passed to HaloReadAccess should be within a kernel or
     builtin. If it is not then an exception is raised. This test
     checks that this exception is raised correctly'''
@@ -7004,7 +7004,7 @@ def xtest_HaloReadAccess_field_in_call():
             in str(excinfo.value))
 
 
-def xtest_HaloReadAccess_field_not_reader():
+def test_HaloReadAccess_field_not_reader():
     ''' The field passed to HaloReadAccess should be read within its
     associated kernel or builtin. If it is not then an exception is raised.
     This test checks that this exception is raised correctly
@@ -7026,7 +7026,7 @@ def xtest_HaloReadAccess_field_not_reader():
         in str(excinfo.value))
 
 
-def xtest_HaloRead_inv_loop_upper(monkeypatch):
+def test_HaloRead_inv_loop_upper(monkeypatch):
     '''The upper bound of a loop in the compute_halo_read_info method within
     the HaloReadAccesss class should be recognised by the logic. If not an
     exception is raised and this test checks that this exception is
@@ -7048,7 +7048,7 @@ def xtest_HaloRead_inv_loop_upper(monkeypatch):
             "unexpected loop upper bound name 'invalid'") in str(excinfo.value)
 
 
-def xtest_HaloReadAccess_discontinuous_field(tmpdir):
+def test_HaloReadAccess_discontinuous_field(tmpdir):
     ''' When a discontinuous argument is read in a loop with an iteration
     space over 'ncells' then it only accesses local dofs. This test
     checks that HaloReadAccess works correctly in this situation '''
@@ -7069,7 +7069,7 @@ def xtest_HaloReadAccess_discontinuous_field(tmpdir):
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
 
 
-def xtest_loop_cont_read_inv_bound(monkeypatch, annexed):
+def test_loop_cont_read_inv_bound(monkeypatch, annexed):
     '''When a continuous argument is read it may access the halo. The
     logic for this is in _halo_read_access. If the loop type in this
     routine is not known then an exception is raised. This test checks
@@ -7101,7 +7101,7 @@ def xtest_loop_cont_read_inv_bound(monkeypatch, annexed):
             "and arg 'f1' access is 'gh_read'.") in str(excinfo.value)
 
 
-def xtest_new_halo_exch_vect_field(monkeypatch):
+def test_new_halo_exch_vect_field(monkeypatch):
     '''If a field requires (or may require) a halo exchange before it is
     accessed and it has more than one backward write dependency then it
     must be a vector (as a vector field requiring a halo exchange
@@ -7137,7 +7137,7 @@ def xtest_new_halo_exch_vect_field(monkeypatch):
             in str(excinfo.value))
 
 
-def xtest_new_halo_exch_vect_deps(monkeypatch):
+def test_new_halo_exch_vect_deps(monkeypatch):
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then
     it must be a vector (as a vector field requiring a halo exchange
@@ -7175,7 +7175,7 @@ def xtest_new_halo_exch_vect_deps(monkeypatch):
         "and the vector size is '3'." in str(excinfo.value))
 
 
-def xtest_new_halo_exch_vect_deps2(monkeypatch):
+def test_new_halo_exch_vect_deps2(monkeypatch):
     '''if a field requires (or may require) a halo exchange before it is
     called and it has more than one backward write dependencies then
     it must be a vector (as a vector field requiring a halo exchange
@@ -7213,7 +7213,7 @@ def xtest_new_halo_exch_vect_deps2(monkeypatch):
         "halo exchanges" in str(excinfo.value))
 
 
-def xtest_halo_req_no_read_deps(monkeypatch):
+def test_halo_req_no_read_deps(monkeypatch):
     '''If the required method in a halo exchange object does not find any
     read dependencies then there has been an internal error and an
     exception will be raised. This test checks that this exception is
@@ -7234,7 +7234,7 @@ def xtest_halo_req_no_read_deps(monkeypatch):
             "dependence for a halo exchange" in str(excinfo.value))
 
 
-def xtest_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
+def test_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
                                      annexed):
     '''If a kernel writes to a discontinuous field and also reads from a
     continuous field then that fields annexed dofs are read (but not
@@ -7267,7 +7267,7 @@ def xtest_no_halo_exchange_annex_dofs(tmpdir, monkeypatch,
     assert "CALL f2_proxy%halo_exchange" not in result
 
 
-def xtest_annexed_default():
+def test_annexed_default():
     ''' Test that we do not compute annexed dofs by default (i.e. when
     using the default configuration file). '''
     Config._instance = None
@@ -7276,7 +7276,7 @@ def xtest_annexed_default():
     assert not config.api_conf(TEST_API).compute_annexed_dofs
 
 
-def xtest_haloex_not_required(monkeypatch):
+def test_haloex_not_required(monkeypatch):
     '''The dynamic halo exchange required() logic should always return
     False if read dependencies are to annexed dofs and
     Config.compute_annexed_dofs is True, as they are computed by
