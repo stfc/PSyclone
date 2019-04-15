@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''This module tests the Dynamo 0.3 API-specific halo exchange
 implementation for gh_inc dependencies using pytest. '''
@@ -83,7 +83,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
         write-to-gh_inc dependence.
 
         :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`.
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
 
         '''
         assert len(schedule.children) == 3
@@ -240,7 +240,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
         field 'f1' is what we are expecting
 
         :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`.
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
         :param int f2depth: The expected depth of the halo exchange \
@@ -306,7 +306,7 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
         field 'f1' is what we are expecting
 
         :param schedule: a dynamo0.3 API schedule object
-        :type schedule: :py:class:`psyclone.dynamo0p3.DynSchedule`.
+        :type schedule: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule`.
         :param int f1depth: The expected depth of the halo exchange \
         associated with field f1
         :param int f2depth: The expected depth of the halo exchange \

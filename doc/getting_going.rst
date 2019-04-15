@@ -163,9 +163,9 @@ http://pyparsing.wikispaces.com/Download+and+Installation.
 graphviz
 ^^^^^^^^
 
-The data dependencies of a PSy-layer schedule (see Section
-:ref:`psy-layer-schedule`) determine the validity of changes to a
-schedule. PSyclone supports the visualisation of these dependencies as
+The data dependencies of a PSyIR schedule determine the validity of
+changes to this schedule.
+PSyclone supports the visualisation of these dependencies as
 a graph using graphviz. This visualisation is not needed to use
 PSyclone.
 
@@ -201,8 +201,8 @@ installed and removed in the following way:
 termcolor
 ^^^^^^^^^
 
-By default, the ``view()`` method of a ``schedule`` object (representing
-the schedule of a PSy-layer routine) prints a plain-text representation
+By default, the ``view()`` method available on any PSyIR (PSyclone
+Internal Representation) object prints a plain-text representation
 to standard-out. However, if the ``termcolor`` package is available
 then PSyclone uses this to add colour highlighting to the output text.
 

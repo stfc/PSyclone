@@ -32,7 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Authors A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified work Copyright (c) 2018-2019 by J. Henrichs, Bureau of Meteorology
 
 '''Tests for PSy-layer code generation that are specific to the
@@ -46,7 +46,7 @@ from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
-from psyclone.gocean1p0 import GOKern, GOLoop, GOSchedule
+from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone_test_utils import get_invoke
 
 API = "gocean1.0"
@@ -842,7 +842,7 @@ def test_offset_any_all_points(tmpdir):
 
 
 def test_goschedule_view(capsys):
-    ''' Test that the GOSchedule::view() method works as expected '''
+    ''' Test that the GOInvokeSchedule::view() method works as expected '''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -859,7 +859,7 @@ def test_goschedule_view(capsys):
     out, _ = capsys.readouterr()
 
     # Ensure we check for the correct (colour) control codes in the output
-    sched = colored("GOSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    sched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
     loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
     call = colored("KernCall", SCHEDULE_COLOUR_MAP["KernCall"])
 
@@ -882,7 +882,7 @@ def test_goschedule_view(capsys):
 
 
 def test_goschedule_str():
-    ''' Test that the GOSchedule::__str__ method works as expected '''
+    ''' Test that the GOInvokeSchedule::__str__ method works as expected '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
@@ -893,7 +893,7 @@ def test_goschedule_str():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     expected_sched = (
-        "GOSchedule(Constant loop bounds=True):\n"
+        "GOInvokeSchedule(Constant loop bounds=True):\n"
         "Loop[]: j= lower=2,jstop,1\n"
         "Loop[]: i= lower=2,istop+1,1\n"
         "kern call: compute_cu_code\n"
@@ -913,7 +913,7 @@ def test_goschedule_str():
     sched_str = str(schedule)
 
     expected_sched = (
-        "GOSchedule(Constant loop bounds=False):\n"
+        "GOInvokeSchedule(Constant loop bounds=False):\n"
         "Loop[]: j= lower=cu_fld%internal%ystart,cu_fld%internal%ystop,1\n"
         "Loop[]: i= lower=cu_fld%internal%xstart,cu_fld%internal%xstop,1\n"
         "kern call: compute_cu_code\n"
@@ -929,7 +929,7 @@ def test_goschedule_str():
 
 
 def test_gosched_ijstop():
-    ''' Test that the GOSchedule.{i,j}loop_stop rais an error if
+    ''' Test that the GOInvokeSchedule.{i,j}loop_stop rais an error if
     constant loop bounds are not being used '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -951,7 +951,7 @@ def test_gosched_ijstop():
 
 
 def test_goloop_no_parent():
-    ''' Attempt to generate code for a loop that has no GOSchedule
+    ''' Attempt to generate code for a loop that has no GOInvokeSchedule
     as a parent '''
     goloop = GOLoop(loop_type="inner")
     # Try and generate the code for this loop even though it
@@ -963,7 +963,7 @@ def test_goloop_no_parent():
 def test_goloop_no_children():
     ''' Attempt to generate code for a loop that has no child
     kernel calls '''
-    gosched = GOSchedule([])
+    gosched = GOInvokeSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
@@ -977,7 +977,7 @@ def test_goloop_no_children():
 def test_goloop_unsupp_offset():
     ''' Attempt to generate code for a loop with constant bounds with
     an unsupported index offset '''
-    gosched = GOSchedule([])
+    gosched = GOInvokeSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
@@ -994,7 +994,7 @@ def test_goloop_unsupp_offset():
 def test_goloop_unmatched_offsets():
     ''' Attempt to generate code for a loop with constant bounds with
     two different index offsets '''
-    gosched = GOSchedule([])
+    gosched = GOInvokeSchedule([])
     gojloop = GOLoop(parent=gosched, loop_type="outer")
     goiloop = GOLoop(parent=gosched, loop_type="inner")
     gosched.addchild(gojloop)
@@ -1016,7 +1016,7 @@ def test_goloop_unmatched_offsets():
 
 
 def test_writetoread_dag(tmpdir, have_graphviz):
-    ''' Test that the GOSchedule::dag() method works as expected when we
+    ''' Test that the GOInvokeSchedule::dag() method works as expected when we
     have two kernels with a write -> read dependency '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
@@ -1048,7 +1048,7 @@ def test_writetoread_dag(tmpdir, have_graphviz):
 
 
 def test_dag(tmpdir, have_graphviz):
-    ''' Test that the GOSchedule::dag() method works as expected '''
+    ''' Test that the GOInvokeSchedule::dag() method works as expected '''
     _, invoke_info = parse(os.path.join(os.path.
                                         dirname(os.path.
                                                 abspath(__file__)),
@@ -1268,7 +1268,7 @@ def test05p1_kernel_add_iteration_spaces():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     expected_sched = (
-        "GOSchedule(Constant loop bounds=True):\n"
+        "GOInvokeSchedule(Constant loop bounds=True):\n"
         "Loop[]: j= lower=1,2,1\n"
         "Loop[]: i= lower=3,istop,1\n"
         "kern call: compute_cu_code\n"

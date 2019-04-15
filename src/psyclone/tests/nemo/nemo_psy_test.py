@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the construction of a PSy
     representation of NEMO code '''
@@ -201,7 +201,7 @@ def test_schedule_view(capsys):
     # Have to allow for colouring of output text
     loop_str = colored("Loop", NEMO_SCHEDULE_COLOUR_MAP["Loop"])
     kern_str = colored("KernCall", NEMO_SCHEDULE_COLOUR_MAP["KernCall"])
-    sched_str = colored("Schedule", NEMO_SCHEDULE_COLOUR_MAP["Schedule"])
+    sched_str = colored("InvokeSchedule", NEMO_SCHEDULE_COLOUR_MAP["Schedule"])
 
     expected_sched = (
         sched_str + "[]\n"

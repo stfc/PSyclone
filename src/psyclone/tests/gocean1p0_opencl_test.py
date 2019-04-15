@@ -32,7 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Authors A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Tests for OpenCL PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -56,13 +56,13 @@ def setup():
 
 
 # ----------------------------------------------------------------------------
-@Compile.COMPILE_OPENCL
 def test_opencl_compiler_works(tmpdir):
     ''' Check that the specified compiler works for a hello-world
     opencl example. This is done in this file to alert the user
     that all compiles tests are skipped if only the '--compile'
     command line option is used (instead of --compileopencl)
     '''
+    Compile.skip_if_opencl_compilation_disabled()
     example_ocl_code = '''
 program hello
   USE fortcl
