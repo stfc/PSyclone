@@ -37,8 +37,6 @@
 function via the -s option. Transforms all kernels in the invoke
 to have them compiled for an OpenACC accelerator. '''
 
-from __future__ import print_function
-
 
 def trans(psy):
     ''' Take the supplied psy object, apply OpenACC transformations

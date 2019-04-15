@@ -32,6 +32,7 @@
 ! Author: A. R. Porter, STFC Daresbury Lab.
 
 module another_mod
+  use kind_params_mod, only: go_wp
 
 contains
 

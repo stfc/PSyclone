@@ -63,4 +63,6 @@ Example 4
 ---------
 
 Examples of the application of kernel transforms to kernels that access
-data and/or routines from other Fortran modules.
+data and/or routines from other Fortran modules. Note that this is not
+yet supported and is the subject of Issues #323 and #342.
+

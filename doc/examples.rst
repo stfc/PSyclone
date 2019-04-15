@@ -72,15 +72,15 @@ Example 3: OpenCL
 ^^^^^^^^^^^^^^^^^
 
 Example of the use of PSyclone to generate an OpenCL version of the
-PSy layer. The kernels are not yet transformed automaticall (Issue
+PSy layer. The kernels are not yet transformed automatically (Issue
 #249).
 
-Example 4: Transforming kernels containing use statements
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Example 4: Kernels containing use statements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Transforming kernels for use with either OpenACC or OpenCL requires
 that we handle those that access data and/or routines via module
-`use` statements. This examples shows the various forms for which
+`use` statements. This example shows the various forms for which
 support is planned (Issues #323 and #342).
 
 Dynamo
