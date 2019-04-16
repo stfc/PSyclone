@@ -41,8 +41,8 @@
 
 from __future__ import print_function, absolute_import
 import abc
-import six
 from enum import Enum
+import six
 from psyclone.configuration import Config
 
 # We use the termcolor module (if available) to enable us to produce
@@ -82,11 +82,13 @@ MAPPING_REDUCTIONS = {"sum": "sum"}
 # directives exists in psyGen.py so this mapping should not be
 # overidden.
 OMP_OPERATOR_MAPPING = {"sum": "+"}
+
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 # Types of access for a kernel argument
 MAPPING_ACCESSES = {"inc": "inc", "write": "write",
                     "read": "read", "readwrite": "readwrite"}
+
 
 class AccessType(Enum):
     '''A simple enum-class for the various valid access types.
@@ -115,8 +117,8 @@ class AccessType(Enum):
         return self.api_name()
 
     def api_name(self):
-        '''This convenient function returns the name of the type in the current API.
-        E.g. in a dynamo0.3 API, WRITE --> "gh_write"
+        '''This convenient function returns the name of the type in the
+        current API. E.g. in a dynamo0.3 API, WRITE --> "gh_write"
         :returns: The API specific name.
         :rtype: str
         '''
@@ -137,10 +139,16 @@ class AccessType(Enum):
                 return access
         raise KeyError("Unknown access type '{0}'.".format(access_string))
 
+
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
+
 # List of all valid access types for a kernel argument
-VALID_ACCESS_DESCRIPTOR_NAMES = [AccessType.READ, AccessType.WRITE, AccessType.READWRITE, AccessType.INC]
+VALID_ACCESS_DESCRIPTOR_NAMES = [AccessType.READ, AccessType.WRITE,
+                                 AccessType.READWRITE, AccessType.INC]
+
+# Mapping of access type to operator.
+REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
@@ -727,7 +735,7 @@ class Invoke(object):
     def unique_declarations(self, datatype, access=None):
         ''' Returns a list of all required declarations for the
         specified datatype. If access is supplied (e.g. "write") then
-        only declarations with that access are returned. 
+        only declarations with that access are returned.
         '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
@@ -784,9 +792,11 @@ class Invoke(object):
         # update). A single argument may be accessed in different ways
         # by different kernels.
         inc_args = self.unique_declarations(datatype, access=AccessType.INC)
-        write_args = self.unique_declarations(datatype, access=AccessType.WRITE)
+        write_args = self.unique_declarations(datatype,
+                                              access=AccessType.WRITE)
         read_args = self.unique_declarations(datatype, access=AccessType.READ)
-        readwrite_args = self.unique_declarations(datatype, AccessType.READWRITE)
+        readwrite_args = self.unique_declarations(datatype,
+                                                  AccessType.READWRITE)
         sum_args = self.unique_declarations(datatype, access=AccessType.SUM)
         # sum_args behave as if they are write_args from
         # the PSy-layer's perspective.
@@ -3282,11 +3292,12 @@ class Call(Node):
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
         except KeyError:
+            api_strings = [access.api_name()
+                           for access in REDUCTION_OPERATOR_MAPPING]
             raise GenerationError(
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
-                format(reduction_access,
-                       list(REDUCTION_OPERATOR_MAPPING.keys())))
+                format(reduction_access, api_strings))
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
         do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
                               reduction_operator + local_var_ref))
@@ -3526,19 +3537,20 @@ class Kern(Call):
         for arg in self.arguments.args:
             if arg.access == AccessType.INC:
                 return arg
-        raise FieldNotFoundError("Kernel {0} does not have an argument with "
-                                 "increment access".
-                                 format(self.name))
 
-    def written_arg(self, mapping={}):
+        api_config = Config.get().api_conf()
+        rev_access_mapping = api_config.get_reverse_access_mapping()
+
+        raise FieldNotFoundError("Kernel {0} does not have an argument with "
+                                 "{1} access".
+                                 format(self.name,
+                                        rev_access_mapping[AccessType.INC]))
+
+    def written_arg(self):
         '''
         Returns an argument that has WRITE or READWRITE access. Raises a
         FieldNotFoundError if none is found.
 
-        :param mapping: dictionary of access types (here WRITE or
-                        READWRITE) associated with arguments with their
-                        metadata strings as keys
-        :type mapping: dict
         :returns: a Fortran argument name
         :rtype: string
         :raises FieldNotFoundError: if none is found.
@@ -3548,10 +3560,14 @@ class Kern(Call):
             for arg in self.arguments.args:
                 if arg.access == access:
                     return arg
+        api_config = Config.get().api_conf()
+        rev_access_mapping = api_config.get_reverse_access_mapping()
         raise FieldNotFoundError("Kernel {0} does not have an argument with "
                                  "{1} or {2} access".
-                                 format(self.name, mapping["write"],
-                                        mapping["readwrite"]))
+                                 format(self.name,
+                                        rev_access_mapping[AccessType.WRITE],
+                                        rev_access_mapping
+                                        [AccessType.READWRITE]))
 
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
@@ -4142,12 +4158,14 @@ class Argument(object):
     def is_read(self):
         '''Checks if the argument is read, i.e. has access
         type read, readwrite, or inc.'''
-        return self._access in [AccessType.READ, AccessType.READWRITE, AccessType.INC]
+        return self._access in [AccessType.READ, AccessType.READWRITE,
+                                AccessType.INC]
 
     def is_written(self):
         '''Checks if the argument is written, i.e. has access
         type write, readwrite, or inc.'''
-        return self._access in [AccessType.WRITE, AccessType.READWRITE, AccessType.INC]
+        return self._access in [AccessType.WRITE, AccessType.READWRITE,
+                                AccessType.INC]
 
     @property
     def type(self):
@@ -4717,7 +4735,7 @@ class Fparser2ASTProcessor(object):
             '''
             for node in nodelist:
                 if (isinstance(node, Fortran2003.Subroutine_Subprogram) and
-                   str(node.content[0].get_name()) == searchname):
+                        str(node.content[0].get_name()) == searchname):
                     return node
             raise ValueError  # Subroutine not found
 
@@ -4859,9 +4877,9 @@ class Fparser2ASTProcessor(object):
                     datatype = 'character'
             if datatype is None:
                 raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer' "
-                        "and 'character' intrinsic types are supported."
-                        "".format(str(decl.items)))
+                    "Could not process {0}. Only 'real', 'integer' "
+                    "and 'character' intrinsic types are supported."
+                    "".format(str(decl.items)))
 
             # Parse declaration attributes
             # If no dimension is provided, it is a scalar
@@ -4894,24 +4912,24 @@ class Fparser2ASTProcessor(object):
                     shape = self._parse_dimensions(attr)
                 else:
                     raise NotImplementedError(
-                            "Could not process {0}. Unrecognized attribute "
-                            "type {1}.".format(decl.items, str(type(attr))))
+                        "Could not process {0}. Unrecognized attribute "
+                        "type {1}.".format(decl.items, str(type(attr))))
 
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
             for entity in iterateitems(entities):
                 (name, array_spec, char_len, initialization) = entity.items
-                if (array_spec is not None):
+                if array_spec is not None:
                     raise NotImplementedError("Could not process {0}. "
                                               "Array specifications after the"
                                               " variable name are not "
                                               "supported.".format(decl.items))
-                if (initialization is not None):
+                if initialization is not None:
                     raise NotImplementedError("Could not process {0}. "
                                               "Initializations on the"
                                               " declaration statements are not"
                                               " supported.".format(decl.items))
-                if (char_len is not None):
+                if char_len is not None:
                     raise NotImplementedError("Could not process {0}. "
                                               "Character length specifications"
                                               " are not supported."

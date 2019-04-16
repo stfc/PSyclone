@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Symbol, SymbolTable
+    KernelSchedule, Symbol, SymbolTable, AccessType
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -80,6 +80,13 @@ def f2008_parser():
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
 
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
+
+
 # PSyFactory class unit tests
 
 
@@ -95,7 +102,6 @@ def test_psyfactory_valid_return_object():
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from psyclone.configuration import Config
     _config = Config.get()
     apis = _config.supported_apis[:]
     apis.insert(0, "")
@@ -465,6 +471,7 @@ def test_invokes_can_always_be_printed():
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
+    # pylint: disable=protected-access
     invoke_call._name = None
     inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     assert inv.__str__() == "invoke_12()"
@@ -592,8 +599,7 @@ def test_invokeschedule_view(capsys):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     super(dynamo0p3.DynInvokeSchedule,
-          psy.invokes.invoke_list[0].schedule
-          ).view()
+          psy.invokes.invoke_list[0].schedule).view()
     output, _ = capsys.readouterr()
     assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
@@ -744,12 +750,13 @@ def test_incremented_arg():
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     for descriptor in metadata.arg_descriptors:
-        if descriptor.access == "gh_inc":
-            descriptor._access = "gh_read"
+        if descriptor.access == AccessType.INC:
+            # pylint: disable=protected-access
+            descriptor._access = AccessType.READ
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
-        Kern.incremented_arg(my_kern, mapping={"inc": "gh_inc"})
+        Kern.incremented_arg(my_kern)
     assert ("does not have an argument with gh_inc access"
             in str(excinfo.value))
 
@@ -769,14 +776,13 @@ def test_written_arg():
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     for descriptor in metadata.arg_descriptors:
-        if descriptor.access in ["gh_write", "gh_readwrite"]:
-            descriptor._access = "gh_read"
+        if descriptor.access in [AccessType.WRITE, AccessType.READWRITE]:
+            # pylint: disable=protected-access
+            descriptor._access = AccessType.READ
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
-        Kern.written_arg(my_kern,
-                         mapping={"write": "gh_write",
-                                  "readwrite": "gh_readwrite"})
+        Kern.written_arg(my_kern)
     assert ("does not have an argument with gh_write or "
             "gh_readwrite access" in str(excinfo.value))
 
@@ -853,7 +859,7 @@ def test_acc_dir_view(capsys):
     acclt = ACCLoopTrans()
     accdt = ACCDataTrans()
     accpt = ACCParallelTrans()
-
+    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
@@ -888,12 +894,14 @@ def test_acc_dir_view(capsys):
     out, _ = capsys.readouterr()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Loop, collapse=2, independent]")
+    Config.get().api = "dynamo0.3"
 
 
 def test_haloexchange_unknown_halo_depth():
     '''test the case when the halo exchange base class is called without
     a halo depth'''
     halo_exchange = HaloExchange(None)
+    # pylint: disable=protected-access
     assert halo_exchange._halo_depth is None
 
 
@@ -903,6 +911,7 @@ def test_globalsum_view(capsys):
     then call view() on that.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     from psyclone import dynamo0p3
+    Config.get().api = "dynamo0.3"
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -960,7 +969,7 @@ def test_args_filter2():
     loop = schedule.children[3]
 
     # arg_accesses
-    args = loop.args_filter(arg_accesses=["gh_read"])
+    args = loop.args_filter(arg_accesses=[AccessType.READ])
     expected_output = ["chi", "a"]
     for arg in args:
         assert arg.name in expected_output
@@ -992,6 +1001,7 @@ def test_reduction_var_error():
         schedule = psy.invokes.invoke_list[0].schedule
         call = schedule.calls()[0]
         # args[1] is of type gh_field
+        # pylint: disable=protected-access
         call._reduction_arg = call.arguments.args[1]
         with pytest.raises(GenerationError) as err:
             call.zero_reduction_variable(None)
@@ -1002,6 +1012,7 @@ def test_reduction_var_error():
 def test_reduction_sum_error():
     '''Check that we raise an exception if the reduction_sum_loop()
     method is provided with an incorrect type of argument'''
+    Config.get().api = "dynamo0.3"
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     for dist_mem in [False, True]:
@@ -1010,6 +1021,7 @@ def test_reduction_sum_error():
         schedule = psy.invokes.invoke_list[0].schedule
         call = schedule.calls()[0]
         # args[1] is of type gh_field
+        # pylint: disable=protected-access
         call._reduction_arg = call.arguments.args[1]
         with pytest.raises(GenerationError) as err:
             call.reduction_sum_loop(None)
@@ -1095,7 +1107,6 @@ def test_invalid_reprod_pad_size(monkeypatch):
     '''Check that we raise an exception if the pad size in psyclone.cfg is
     set to an invalid value '''
     # Make sure we monkey patch the correct Config object
-    from psyclone.configuration import Config
     monkeypatch.setattr(Config._instance, "_reprod_pad_size", 0)
     for distmem in [True, False]:
         _, invoke_info = parse(
@@ -1259,7 +1270,7 @@ def test_globalsum_arg():
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
     glob_sum_arg = glob_sum.scalar
-    assert glob_sum_arg.access == "gh_readwrite"
+    assert glob_sum_arg.access == AccessType.READWRITE
     assert glob_sum_arg.call == glob_sum
 
 
@@ -1275,7 +1286,7 @@ def test_haloexchange_arg():
     schedule = invoke.schedule
     halo_exchange = schedule.children[2]
     halo_exchange_arg = halo_exchange.field
-    assert halo_exchange_arg.access == "gh_readwrite"
+    assert halo_exchange_arg.access == AccessType.READWRITE
     assert halo_exchange_arg.call == halo_exchange
 
 
@@ -1990,6 +2001,7 @@ def test_node_is_valid_location():
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
     from psyclone.psyGen import Loop
+    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
@@ -1997,6 +2009,7 @@ def test_node_ancestor():
     assert isinstance(node, Loop)
     node = kern.ancestor(Node, excluding=[Loop])
     assert node is sched
+    Config.get().api = "dynamo0.3"
 
 
 def test_dag_names():
@@ -2082,6 +2095,7 @@ def test_acc_dag_names():
     from psyclone.psyGen import ACCDataDirective
     from psyclone.transformations import ACCDataTrans, ACCParallelTrans, \
         ACCLoopTrans
+    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     schedule = invoke.schedule
 
@@ -2100,6 +2114,7 @@ def test_acc_dag_names():
     # Base class
     name = super(ACCDataDirective, schedule.children[0]).dag_name
     assert name == "ACC_directive_1"
+    Config.get().api = "dynamo0.3"
 
 
 def test_acc_datadevice_virtual():
@@ -2546,6 +2561,7 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
 def test_loop_props():
     ''' Tests for the properties of a Loop object. '''
     from psyclone.psyGen import Loop
+    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].children[0]
@@ -2554,11 +2570,13 @@ def test_loop_props():
         loop.loop_type = "not_a_valid_type"
     assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
             "['inner', 'outer']" in str(err))
+    Config.get().api = "dynamo0.3"
 
 
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
+    Config.get().api = "gocean1.0"
     from psyclone.psyGen import Node
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
@@ -2572,18 +2590,21 @@ def test_node_abstract_methods():
     with pytest.raises(NotImplementedError) as err:
         Node.view(loop)
     assert "BaseClass of a Node must implement the view method" in str(err)
+    Config.get().api = "dynamo0.3"
 
 
 def test_kern_ast():
     ''' Test that we can obtain the fparser2 AST of a kernel. '''
     from psyclone.gocean1p0 import GOKern
     from fparser.two import Fortran2003
+    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
     assert isinstance(kern, GOKern)
     assert kern.ast
     assert isinstance(kern.ast, Fortran2003.Program)
+    Config.get().api = "dynamo0.3"
 
 
 def test_dataaccess_vector():

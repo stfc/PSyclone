@@ -37,9 +37,16 @@
 '''This module tests the PSyclone Dynamo 0.1 API.  '''
 
 import pytest
-from psyclone.parse.utils import ParseError
-from psyclone.dynamo0p1 import DynDescriptor, DynKernelType
 from fparser.api import parse as parse1
+from psyclone.parse.utils import ParseError
+from psyclone.configuration import Config
+from psyclone.dynamo0p1 import DynDescriptor, DynKernelType
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.1"
 
 
 def test_dyndescriptor():
