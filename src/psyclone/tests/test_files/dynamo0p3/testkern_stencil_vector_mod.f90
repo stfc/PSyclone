@@ -33,9 +33,13 @@
 ! Author R. W. Ford, STFC Daresbury Lab
 
 module testkern_stencil_vector_mod
+
   use argument_mod
   use kernel_mod
   use constants_mod
+
+  implicit none
+
   type, extends(kernel_type) :: testkern_stencil_vector_type
      type(arg_type), dimension(2) :: meta_args =                     &
           (/ arg_type(gh_field*3,gh_inc,w0),                         &
@@ -45,6 +49,7 @@ module testkern_stencil_vector_mod
    contains
      procedure, nopass :: code => testkern_stencil_vector_code
   end type testkern_stencil_vector_type
+
 contains
 
   subroutine testkern_stencil_vector_code(nlayers, field_1_w0_v1, &
@@ -52,8 +57,11 @@ contains
        field_2_w3_v3, field_2_w3_v4, field_2_stencil_size,        &
        field_2_stencil_dofmap, ndf_w0, undf_w0, map_w0, ndf_w3,   &
        undf_w3, map_w3)
-     USE constants_mod, ONLY: r_def
+
+      USE constants_mod, ONLY: r_def
+
       IMPLICIT NONE
+
       INTEGER, intent(in) :: nlayers
       INTEGER, intent(in) :: ndf_w0
       INTEGER, intent(in), dimension(ndf_w0) :: map_w0
@@ -69,6 +77,7 @@ contains
       REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v4
       INTEGER, intent(in) :: field_2_stencil_size
       INTEGER, intent(in), dimension(ndf_w3,field_2_stencil_size) :: field_2_stencil_dofmap
+
   end subroutine testkern_stencil_vector_code
 
 end module testkern_stencil_vector_mod

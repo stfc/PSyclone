@@ -4969,7 +4969,10 @@ def test_stencil_args_unique_3(dist_mem):
 
 def test_stencil_vector(dist_mem, tmpdir):
     '''Test that the expected declarations and lookups are produced when
-    we have a stencil access with a vector field.
+    we have a stencil access with a vector field. Any stencil could be
+    chosen here (other than xory1d) as they all produce the same code
+    structure, but STENCIL_CROSS is chosen as it is already used in an
+    existing suitable example (14.4).
 
     '''
     _, invoke_info = parse(

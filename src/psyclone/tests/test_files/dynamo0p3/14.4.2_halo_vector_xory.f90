@@ -35,10 +35,11 @@
 
 program halo_reader_vector_xory
 
-  ! test halo exchange calls, stencils and vector fields
+  ! Test halo exchange calls, stencils and vector fields.
   use testkern_stencil_vector_xory_mod, only: testkern_stencil_vector_xory_type
   use flux_direction_mod, only: x_direction
   use inf,      only: field_type
+
   implicit none
   type(field_type) :: f1, f2
   integer :: f2_extent=3
