@@ -39,11 +39,11 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from psyclone.psyGen import PSyFactory
+from fparser.api import parse as parse1
+from psyclone.psyGen import PSyFactory, AccessType
 from psyclone.gocean0p1 import GODescriptor, GOKernelType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from fparser.api import parse as parse1
 
 API = "gocean0.1"
 
@@ -96,7 +96,7 @@ def test_godescriptor():
 
     '''
     tmp = GODescriptor("read", "every", "pointwise")
-    assert tmp.access == "read"
+    assert tmp.access == AccessType.READ
     assert tmp.function_space == "every"
     assert tmp.stencil == "pointwise"
 
@@ -130,7 +130,7 @@ def test_gokerneltype():
     assert tmp.nargs == 1
     assert tmp.name == "test_type"
     descriptor = tmp.arg_descriptors[0]
-    assert descriptor.access == "read"
+    assert descriptor.access == AccessType.READ
     assert descriptor.function_space == "every"
     assert descriptor.stencil == "pointwise"
 
