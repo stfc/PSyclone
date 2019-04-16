@@ -508,21 +508,22 @@ Metadata
 ++++++++
 
 The code below outlines the elements of the Dynamo0.3 API kernel
-metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'gh_shape', 4)
-'iterates_over' and 5) 'procedure'.
+metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_init', 4) 'gh_shape', 5)
+'iterates_over' and 6) 'procedure'.
 
 ::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
     type(func_type) :: meta_funcs(...) = (/ ... /)
+    type(mesh_data_type) :: meta_init(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
   contains
     procedure, nopass :: my_kernel_code
   end type
 
-These five metadata elements are discussed in order in the following
+These six metadata elements are discussed in order in the following
 sections.
 
 .. _dynamo0.3-api-meta-args:
@@ -1048,6 +1049,25 @@ basis functions (``gh_diff_basis``) on one or more of the function
 spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
 functions for W1.
+
+meta-init
+#########
+
+A kernel that requires properties of the reference element specifies
+those properties through the meta_init metadata entry. (If no reference
+element properties are required then this metadata should be omitted.)
+Consider the following kernel metadata::
+
+  type, extends(kernel_type) :: testkern_type
+    type(arg_type), dimension(2) :: meta_args = &
+        (/ arg_type(gh_field, gh_read, w1),     &
+	   arg_type(gh_field, gh_write, w0) /)
+    type(mesh_data_type), dimension(2) :: meta_init = &
+        (/ mesh_data_type(adjacent_face),             &
+	   mesh_data_type(reference_element_normal_to_face ) /)
+  contains
+    procedure, nopass :: code => testkern_code
+  end type testkern_type
 
 .. _dynamo0.3-gh-shape:
 
