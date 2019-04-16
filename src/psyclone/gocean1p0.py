@@ -47,12 +47,13 @@
 '''
 
 from __future__ import print_function
+from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCDataDirective, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor
+    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor, AccessType
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -73,7 +74,8 @@ SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw", "go_offset_any"]
 VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
 
 # Valid values for the type of access a kernel argument may have
-VALID_ARG_ACCESSES = ["go_read", "go_write", "go_readwrite"]
+VALID_ARG_ACCESSES = [AccessType.READ, AccessType.WRITE, AccessType.READWRITE]
+GO_VALID_ARG_ACCESSES = ["go_read", "go_write", "go_readwrite"]
 
 # The list of valid stencil properties. We currently only support
 # pointwise. This property could probably be removed from the
@@ -1740,14 +1742,19 @@ class GO1p0Descriptor(Descriptor):
                        str(len(kernel_arg.args)),
                        kernel_arg.args))
 
-        if access.lower() not in VALID_ARG_ACCESSES:
+        api_config = Config.get().api_conf()
+        access_mapping = api_config.get_access_mapping()
+        access_type = access_mapping[access]
+
+        if access_type not in VALID_ARG_ACCESSES:
             raise ParseError("Meta-data error in kernel {0}: argument "
                              "access  is given as '{1}' but must be "
                              "one of {2}".
-                             format(kernel_name, access, VALID_ARG_ACCESSES))
+                             format(kernel_name, access,
+                                    GO_VALID_ARG_ACCESSES))
 
         # Finally we can call the __init__ method of our base class
-        Descriptor.__init__(self, access, funcspace, stencil_info)
+        Descriptor.__init__(self, access_type, funcspace, stencil_info)
 
     def __str__(self):
         return repr(self)
