@@ -1277,7 +1277,8 @@ class GOKernelArguments(Arguments):
         :returns: the argument object from which to get grid properties.
         :rtype: :py:class:`psyclone.gocean1p0.GOKernelArgument` or None
         '''
-        for access in ["read", "readwrite", "write"]:
+        for access in [AccessType.READ, AccessType.READWRITE,
+                       AccessType.WRITE]:
             for arg in self._args:
                 if arg.type == "field" and arg.access == access:
                     return arg
