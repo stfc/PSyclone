@@ -3822,20 +3822,20 @@ def test_fparser2astprocessor_handling_if_construct(f2008_parser):
     assert len(ifnode.children) == 3
     assert ifnode.condition.children[0].ref_name == 'condition1'
     assert isinstance(ifnode.children[1], Schedule)
-    assert ifnode.if_body.children[0].children[0].ref_name == 'branch1'
+    assert ifnode.if_body[0].children[0].ref_name == 'branch1'
     assert isinstance(ifnode.children[2], Schedule)
 
     # Second level contains condition2, branch2, elsebody
-    ifnode = ifnode.else_body.children[0]
+    ifnode = ifnode.else_body[0]
     assert 'was_elseif' in ifnode.annotations
     assert ifnode.condition.children[0].ref_name == 'condition2'
     assert isinstance(ifnode.children[1], Schedule)
-    assert ifnode.if_body.children[0].children[0].ref_name == 'branch2'
+    assert ifnode.if_body[0].children[0].ref_name == 'branch2'
     assert isinstance(ifnode.children[2], Schedule)
 
     # Third level is just branch3
-    elsenode = ifnode.else_body
-    assert elsenode.children[0].children[0].ref_name == 'branch3'
+    elsebody = ifnode.else_body[0]
+    assert elsebody.children[0].ref_name == 'branch3'
 
 
 def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):

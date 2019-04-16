@@ -4777,14 +4777,18 @@ class IfBlock(Node):
 
     @property
     def if_body(self):
-        return self._children[1]
+        ''' Return children of the Schedule executed when the condition
+        evaluates to True. '''
+        return self._children[1]._children
 
     @property
     def else_body(self):
+        ''' Return children of the Schedule executed when the condition
+        evaluates to False. '''
         if len(self._children) == 3:
-            return self._children[2]
+            return self._children[2]._children
         else:
-            return None
+            return []
 
     @property
     def coloured_text(self):
@@ -4809,30 +4813,6 @@ class IfBlock(Node):
         print("]")
         for entity in self._children:
             entity.view(indent=indent + 1)
-
-
-class IfClause(IfBlock):
-    '''
-    Represents a sub-clause of an If block - e.g. an "else if()".
-
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`.
-
-    '''
-    def __init__(self, parent=None):
-        super(IfClause, self).__init__(parent=parent)
-        self._clause_type = ""  # Whether this is an else, else-if etc.
-
-    @property
-    def coloured_text(self):
-        '''
-        Return text containing the (coloured) name of this node type.
-
-        :returns: the name of this node type, possibly with control codes \
-                  for colour.
-        :rtype: str
-        '''
-        return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
 
 class ACCKernelsDirective(ACCDirective):
@@ -5472,6 +5452,7 @@ class Fparser2ASTProcessor(object):
         # Search for all the If_Construct clauses
         clause_indices = []
         for idx, child in enumerate(node.content):
+            child._parent = node  # Retrofit parent info
             if isinstance(child, (Fortran2003.If_Then_Stmt,
                                   Fortran2003.Else_Stmt,
                                   Fortran2003.Else_If_Stmt,
@@ -5496,12 +5477,18 @@ class Fparser2ASTProcessor(object):
                 newifblock = None
                 if isinstance(clause, Fortran2003.If_Then_Stmt):
                     ifblock = IfBlock(parent=currentparent)
+                    ifblock._ast = node  # Keep pointer to fpaser2 AST
                     newifblock = ifblock
                 else:
                     elsebody = Schedule(parent=currentparent)
                     currentparent.addchild(elsebody)
                     newifblock = IfBlock(parent=elsebody,
                                          annotation='was_elseif')
+                    # Keep pointer to fpaser2 AST
+                    elsebody._ast = node.content[start_idx]
+                    newifblock._ast = node.content[start_idx]
+                    elsebody._ast_end = node.content[end_idx]
+                    newifblock._ast_end = node.content[end_idx]
                     elsebody.addchild(newifblock)
 
                 # Create condition as first child
@@ -5525,13 +5512,14 @@ class Fparser2ASTProcessor(object):
                         "clause, but found {0}".format(node.content))
                 elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
+                elsebody._ast = node.content[start_idx]
+                elsebody._ast_end = node.content[end_idx]
                 self.process_nodes(parent=elsebody,
                                    nodes=node.content[start_idx + 1:end_idx],
                                    nodes_parent=node)
             else:
                 pass  # We can safely ignore the 'End_If' clause
 
-        ifblock.view()
         return ifblock
 
     def _if_stmt_handler(self, node, parent):

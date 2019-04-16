@@ -43,7 +43,7 @@
 from __future__ import absolute_import, print_function
 import abc
 import six
-from psyclone.psyGen import Transformation, InternalError
+from psyclone.psyGen import Transformation, InternalError, Schedule
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
 
@@ -111,7 +111,8 @@ class RegionTrans(Transformation):
 
         # Check that the proposed region contains only supported node types
         for child in node_list:
-            flat_list = [child] + child.walk(child.children, object)
+            flat_list = [item for item in child.walk([child], object)
+                         if type(item) != Schedule]
             for item in flat_list:
                 if not isinstance(item, self.valid_node_types):
                     raise TransformationError(
@@ -120,9 +121,9 @@ class RegionTrans(Transformation):
 
         # Check that we aren't attempting to include any else/else if's without
         # their parent 'if'.
-        from psyclone.psyGen import IfClause
+        from psyclone.psyGen import IfBlock
         for node in node_list:
-            if isinstance(node, IfClause):
+            if isinstance(node, Schedule) and isinstance(node.parent, IfBlock):
                 raise TransformationError(
                     "Proposed transformation would split else/else-if clauses "
                     "from their parent if-statement.")
@@ -1619,9 +1620,9 @@ class ACCParallelTrans(ParallelRegionTrans):
     '''
     from psyclone import gocean1p0, nemo, psyGen
     valid_node_types = (gocean1p0.GOLoop, gocean1p0.GOKern,
-                        nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
-                        nemo.NemoIfClause, psyGen.ACCLoopDirective,
-                        psyGen.Assignment, psyGen.Reference, psyGen.Literal,
+                        nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
+                        psyGen.ACCLoopDirective, psyGen.Assignment,
+                        psyGen.Reference, psyGen.Literal,
                         psyGen.BinaryOperation)
 
     def __init__(self):
@@ -2704,9 +2705,9 @@ class ACCKernelsTrans(RegionTrans):
 
     '''
     from psyclone import nemo, psyGen
-    valid_node_types = (nemo.NemoLoop, nemo.NemoKern, nemo.NemoIfBlock,
-                        nemo.NemoIfClause, psyGen.BinaryOperation,
-                        psyGen.Literal, psyGen.Assignment, psyGen.Reference)
+    valid_node_types = (nemo.NemoLoop, nemo.NemoKern, psyGen.IfBlock,
+                        psyGen.BinaryOperation, psyGen.Literal,
+                        psyGen.Assignment, psyGen.Reference)
 
     @property
     def name(self):
@@ -2809,8 +2810,8 @@ class ACCDataTrans(RegionTrans):
     '''
     from psyclone import psyGen
     valid_node_types = (psyGen.Loop, psyGen.Kern, psyGen.BuiltIn,
-                        psyGen.Directive, psyGen.IfBlock, psyGen.IfClause,
-                        psyGen.Literal, psyGen.Assignment, psyGen.Reference,
+                        psyGen.Directive, psyGen.IfBlock, psyGen.Literal,
+                        psyGen.Assignment, psyGen.Reference,
                         psyGen.BinaryOperation)
 
     @property
