@@ -69,6 +69,7 @@ def setup_module():
     this module is first entered and the teardown function below guarantees
     it for subsequent tests.  (Necessary when running tests in parallel.)
     '''
+    # pylint: disable=protected-access
     Config._instance = None
 
 
@@ -78,6 +79,7 @@ def teardown_function():
     for any further test (and not a left-over one from a test here).
     '''
     # Enforce loading of the default config file
+    # pylint: disable=protected-access
     Config._instance = None
 
 
@@ -273,7 +275,6 @@ def test_dm():
     config.distributed_memory = False
     assert not config.distributed_memory
     with pytest.raises(ConfigurationError) as err:
-        # pylint: disable=redefined-variable-type
         config.distributed_memory = "not-a-bool"
     assert "distributed_memory must be a boolean but got " in str(err)
 
@@ -430,12 +431,18 @@ def test_wrong_api():
     assert "'invalid' is not a valid API" in str(err)
 
 
-def test_api_unimplemented(tmpdir):
+def test_api_unimplemented(tmpdir, monkeypatch):
     ''' Check that we raise the correct error if we supply a config file
         containing a section for an API for which we've not implemented
         API-specific configuration. '''
+    # Since all APIs need a API-specific section, for this error we
+    # need to temporarily add a new supported API, that will not
+    # be in the config file:
+
+    monkeypatch.setattr(Config, "_supported_api_list",
+                        Config._supported_api_list + ["UNIMPLEMENTED"])
     content = re.sub(r"^\[dynamo0.3\]$",
-                     "[gocean0.1]",
+                     "[UNIMPLEMENTED]",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file = tmpdir.join("config")
@@ -445,8 +452,8 @@ def test_api_unimplemented(tmpdir):
         config = Config()
         with pytest.raises(NotImplementedError) as err:
             config.load(str(config_file))
-        assert ("file contains a gocean0.1 section but no Config sub-class "
-                "has been implemented for this API" in str(err))
+        assert ("file contains a UNIMPLEMENTED section but no Config "
+                "sub-class has been implemented for this API" in str(err))
 
 
 def test_default_api(tmpdir):
@@ -491,7 +498,6 @@ def test_incl_path_errors(tmpdir):
     # Create a path that does not exist
     missing_path = tmpdir.join("does_not_exist")
     with pytest.raises(ConfigurationError) as cerr:
-        # pylint: disable=redefined-variable-type
         config.include_paths = [missing_path.strpath]
     assert "does_not_exist' does not exist" in str(cerr)
 
