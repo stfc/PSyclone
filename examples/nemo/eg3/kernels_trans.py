@@ -87,9 +87,8 @@ def valid_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoIfBlock, NemoIfClause
-    from psyclone.psyGen import CodeBlock
-    excluded_nodes = (CodeBlock, NemoIfBlock, NemoIfClause)
+    from psyclone.psyGen import CodeBlock, IfBlock
+    excluded_nodes = (CodeBlock, IfBlock)
     if isinstance(node, excluded_nodes):
         return False
     code_blocks = node.walk(node.children, excluded_nodes)

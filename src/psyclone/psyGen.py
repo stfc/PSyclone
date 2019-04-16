@@ -5498,6 +5498,8 @@ class Fparser2ASTProcessor(object):
 
                 # Create if-body as second child
                 ifbody = Schedule(parent=ifblock)
+                ifbody._ast = node.content[start_idx]
+                ifbody._ast_end = node.content[end_idx]
                 newifblock.addchild(ifbody)
                 self.process_nodes(parent=ifbody,
                                    nodes=node.content[start_idx + 1:end_idx],

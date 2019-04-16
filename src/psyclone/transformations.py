@@ -3088,7 +3088,8 @@ class NemoExplicitLoopTrans(Transformation):
         psyir_parent.children.remove(loop)
         # Next, we simply process the transformed fparser2 AST to generate
         # the new PSyIR of it
-        psyir_parent.process_nodes(psyir_parent, [new_loop], loop.ast._parent)
+        astprocessor = nemo.NemoFparser2ASTProcessor()
+        astprocessor.process_nodes(psyir_parent, [new_loop], loop.ast._parent)
         # Delete the old PSyIR node that we have transformed
         del loop
         loop = None
