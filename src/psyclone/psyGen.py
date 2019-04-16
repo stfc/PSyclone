@@ -108,7 +108,7 @@ class AccessType(Enum):
         '''Convert to a string representation. The test
         test_arg_descriptor_repr needs this function to return
         the api_name() (and not e.g. just name of the enum,
-        lile READ)..
+        like READ)..
         :return: API name for this string.
         :rtype: str
         '''
@@ -3519,8 +3519,6 @@ class Kern(Call):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
 
-        :type mapping: dict
-        :returns: a Fortran argument name.
         :rtype: str
         :raises FieldNotFoundError: if none is found.
 

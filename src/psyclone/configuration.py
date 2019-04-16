@@ -290,6 +290,11 @@ class Config(object):
                     # It still reads a different section of the config
                     # file, so the dynamo0.1 mapping will be correctly used.
                     self._api_conf[api] = DynConfig(self, self._config[api])
+                elif api == "gocean0.1":
+                    # For now we use the same class as gocean1.0.
+                    # It still reads a different section of the config
+                    # file
+                    self._api_conf[api] = GOceanConfig(self, self._config[api])
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
                 else:

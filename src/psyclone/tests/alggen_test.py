@@ -41,6 +41,13 @@ import os
 import pytest
 from psyclone.generator import generate, GenerationError
 from psyclone.algGen import NoInvokesError, adduse
+from psyclone.configuration import Config
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
+
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
@@ -410,6 +417,8 @@ def test_single_invoke_dynamo0p1():
         specified in an invoke call for the dynamo0.1 API. We use the
         generate function as parse and PSyFactory need to be called before
         AlgGen so it is simpler to use this. '''
+    Config.get().api = "dynamo0.1"
+
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                      "test_files", "dynamo0p1", "algorithm",
@@ -417,6 +426,7 @@ def test_single_invoke_dynamo0p1():
     gen = str(alg)
     assert "USE psy_single_function, ONLY: invoke_0_testkern_type" in gen
     assert "CALL invoke_0_testkern_type(f1, f2, m1)" in gen
+    Config.get().api = "dynamo0.3"
 
 
 def test_zero_invoke_dynamo0p1():
@@ -424,11 +434,14 @@ def test_zero_invoke_dynamo0p1():
         not contain any actual invoke() calls. We use the generate
         function as parse and PSyFactory need to be called before
         AlgGen so it is simpler to use this. '''
+    Config.get().api = "dynamo0.1"
     with pytest.raises(NoInvokesError):
         _, _ = generate(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p1", "missing_invokes.f90"),
             api="dynamo0.1")
+    Config.get().api = "dynamo0.3"
+
 
 # sample code for use in subsequent adduse tests.
 
