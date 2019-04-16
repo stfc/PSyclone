@@ -2716,8 +2716,67 @@ def test_codeblock_gen_c_code():
         cblock.gen_c_code()
     assert "CodeBlock can not be translated to C" in str(err.value)
 
-# Test Assignment class
 
+# Test IfBlock class
+
+def test_ifblock_view(capsys):
+    ''' Check the view and colored_text methods of the IfBlock class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+
+    coloredtext = colored("If", SCHEDULE_COLOUR_MAP["If"])
+
+    ifblock = IfBlock()
+    ifblock.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[]" in output
+
+    ifblock = IfBlock(annotation='was_elseif')
+    ifblock.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[annotations='was_elseif']" in output
+
+
+def test_ifblock_can_be_printed():
+    '''Test that an IfBlock instance can always be printed (i.e. is
+    initialised fully)'''
+    ifblock = IfBlock()
+    assert "If[]\n" in str(ifblock)
+
+
+def test_ifblock_gen_c_code():
+    '''Test that an IfBlock node can generate its C representation'''
+
+    ifblock = IfBlock()
+    with pytest.raises(GenerationError) as err:
+        _ = ifblock.gen_c_code()
+    assert("IfBlock malformed or incomplete. It should have "
+           "at least 2 children, but found 0." in str(err.value))
+
+    ref1 = Reference('condition1', parent=ifblock)
+    ifblock.addchild(ref1)
+    with pytest.raises(GenerationError) as err:
+        _ = ifblock.gen_c_code()
+    assert("IfBlock malformed or incomplete. It should have "
+           "at least 2 children, but found 1." in str(err.value))
+
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    ret = Return(parent=sch)
+    sch.addchild(ret)
+
+    assert "if (condition1) {\n" in ifblock.gen_c_code()
+    assert "return;\n" in ifblock.gen_c_code()
+    assert "}" in ifblock.gen_c_code()
+    assert "else" not in ifblock.gen_c_code()
+
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    ret = Return(parent=sch)
+    sch.addchild(ret)
+    assert "else" in ifblock.gen_c_code()
+
+
+# Test Assignment class
 
 def test_assignment_view(capsys):
     ''' Check the view and colored_text methods of the Assignment class.'''

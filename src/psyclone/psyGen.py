@@ -4677,7 +4677,10 @@ class IfBlock(Node):
                 self._annotations.append(annotation)
 
     def __str__(self):
-        return "If-block: "+self._condition
+        result = "If[]\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
 
     @property
     def annotations(self):
@@ -4685,12 +4688,25 @@ class IfBlock(Node):
 
     @property
     def condition(self):
+
+        if len(self.children) < 1:
+            raise GenerationError("IfBlock malformed or "
+                                  "incomplete. It should have exactly 2 "
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
         return self._children[0]
 
     @property
     def if_body(self):
         ''' Return children of the Schedule executed when the condition
         evaluates to True. '''
+
+        if len(self.children) < 2:
+            raise GenerationError("IfBlock malformed or "
+                                  "incomplete. It should have exactly 2 "
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
+
         return self._children[1]._children
 
     @property
@@ -4721,11 +4737,38 @@ class IfBlock(Node):
         '''
         print(self.indent(indent) + self.coloured_text + "[", end='')
         if self.annotations:
-            print("annotations=" + ','.join(self.annotations) + " ,", end='')
+            print("annotations='" + ','.join(self.annotations) + "'", end='')
         print("]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :return: C language code representing the node.
+        :rtype: str
+        '''
+        if len(self.children) < 2:
+            raise GenerationError("IfBlock malformed or "
+                                  "incomplete. It should have at least 2 "
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
+
+        retval = self.indent(indent) + "if ("
+        retval += self.condition.gen_c_code() + ") {\n"
+        for statement in self.if_body:
+            retval += statement.gen_c_code(indent + 1) + "\n"
+
+        if len(self.children) == 3:
+            retval += self.indent(indent) + "} else {\n"
+            for statement in self.else_body:
+                retval += statement.gen_c_code(indent + 1) + "\n"
+
+        retval += self.indent(indent) + "}\n"
+
+        return retval
 
 class ACCKernelsDirective(ACCDirective):
     '''
@@ -6511,4 +6554,4 @@ class Return(Node):
         :return: C language code representing the node.
         :rtype: str
         '''
-        return "return;"
+        return self.indent(indent) + "return;"
