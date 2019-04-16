@@ -38,6 +38,8 @@ the parser modules.
 
 '''
 
+import io
+
 from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.psyGen import InternalError
@@ -95,7 +97,7 @@ def check_line_length(filename):
     '''
     fll = FortLineLength()
     try:
-        with open(filename, "r") as myfile:
+        with io.open(filename, "r", encoding='utf8') as myfile:
             code_str = myfile.read()
     except IOError as excinfo:
         raise InternalError(
