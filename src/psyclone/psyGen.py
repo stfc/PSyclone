@@ -1515,20 +1515,6 @@ class Schedule(Node):
         '''
         return "schedule"
 
-    # TODO: Method part of old GUI, it is untested and marked to be
-    # removed in issue #320
-    def tkinter_delete(self):
-        for entity in self._children:
-            entity.tkinter_delete()
-
-    # TODO: Method part of old GUI, it is untested and marked to be
-    # removed in issue #320
-    def tkinter_display(self, canvas, x, y):
-        y_offset = 0
-        for entity in self._children:
-            entity.tkinter_display(canvas, x, y+y_offset)
-            y_offset = y_offset+entity.height
-
     def view(self, indent=0):
         '''
         Print a text representation of this node to stdout and then
@@ -2973,6 +2959,47 @@ class HaloExchange(Node):
 
 
 class Loop(Node):
+    '''Represents a loop in the PSyIR.
+
+    :param parent: Parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :param str variable_name: Optional name of the loop iterator \
+    variable. Defaults to an empty string.
+    :param valid_loop_types: A list of loop types that are specific \
+    to a particular API.
+    :type valid_loop_types: list of str
+
+    '''
+
+    def __init__(self, parent=None,
+                 variable_name="",
+                 valid_loop_types=None):
+
+        # we need to determine whether this is a built-in or kernel
+        # call so our schedule can do the right thing.
+
+        if valid_loop_types is None:
+            self._valid_loop_types = []
+        else:
+            self._valid_loop_types = valid_loop_types
+        self._loop_type = None        # inner, outer, colour, colours, ...
+        self._field = None
+        self._field_name = None       # name of the field
+        self._field_space = None      # v0, v1, ...,     cu, cv, ...
+        self._iteration_space = None  # cells, ...,      cu, cv, ...
+        self._kern = None             # Kernel associated with this loop
+
+        # TODO replace iterates_over with iteration_space
+        self._iterates_over = "unknown"
+
+        Node.__init__(self, parent=parent)
+
+        self._variable_name = variable_name
+
+        self._start = ""
+        self._stop = ""
+        self._step = ""
+        self._id = ""
 
     @property
     def dag_name(self):
@@ -3008,41 +3035,6 @@ class Loop(Node):
                 "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
-    def __init__(self, parent=None,
-                 variable_name="",
-                 topology_name="topology",
-                 valid_loop_types=[]):
-
-        # we need to determine whether this is a built-in or kernel
-        # call so our schedule can do the right thing.
-
-        self._valid_loop_types = valid_loop_types
-        self._loop_type = None        # inner, outer, colour, colours, ...
-        self._field = None
-        self._field_name = None       # name of the field
-        self._field_space = None      # v0, v1, ...,     cu, cv, ...
-        self._iteration_space = None  # cells, ...,      cu, cv, ...
-        self._kern = None             # Kernel associated with this loop
-
-        # TODO replace iterates_over with iteration_space
-        self._iterates_over = "unknown"
-
-        Node.__init__(self, parent=parent)
-
-        self._variable_name = variable_name
-
-        self._start = ""
-        self._stop = ""
-        self._step = ""
-        self._id = ""
-
-        # visual properties
-        self._width = 30
-        self._height = 30
-        self._shape = None
-        self._text = None
-        self._canvas = None
-
     def view(self, indent=0):
         '''
         Write out a textual summary of this Loop node to stdout
@@ -3068,52 +3060,6 @@ class Loop(Node):
         :rtype: string
         '''
         return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-
-    @property
-    def height(self):
-        calls_height = 0
-        for child in self.children:
-            calls_height += child.height
-        return self._height+calls_height
-
-    def tkinter_delete(self):
-        if self._shape is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._shape)
-        if self._text is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._text)
-        for child in self.children:
-            child.tkinter_delete()
-
-    def tkinter_display(self, canvas, x, y):
-        self.tkinter_delete()
-        self._canvas = canvas
-        from Tkinter import ROUND
-        name = "Loop"
-        min_call_width = 100
-        max_calls_width = min_call_width
-        calls_height = 0
-        for child in self.children:
-            calls_height += child.height
-            max_calls_width = max(max_calls_width, child.width)
-
-        self._shape = canvas.create_polygon(
-            x, y, x+self._width+max_calls_width, y,
-            x+self._width+max_calls_width, y+self._height,
-            x+self._width, y+self._height,
-            x+self._width, y+self._height+calls_height,
-            x, y+self._height+calls_height,
-            outline="red", fill="green", width=2,
-            activeoutline="blue", joinstyle=ROUND)
-        self._text = canvas.create_text(x+(self._width+max_calls_width)/2,
-                                        y+self._height/2, text=name)
-
-        call_height = 0
-        for child in self.children:
-            child.tkinter_display(canvas, x+self._width,
-                                  y+self._height+call_height)
-            call_height += child.height
 
     @property
     def field_space(self):
@@ -3287,12 +3233,6 @@ class Call(Node):
                 else:
                     arg_names.append(text)
 
-        # visual properties
-        self._width = 250
-        self._height = 30
-        self._shape = None
-        self._text = None
-        self._canvas = None
         self._arg_descriptors = None
 
         # initialise any reduction information
@@ -3334,34 +3274,6 @@ class Call(Node):
         ''' Return a string containing the (coloured) name of this node
         type '''
         return colored("Call", SCHEDULE_COLOUR_MAP["Call"])
-
-    @property
-    def width(self):
-        return self._width
-
-    @property
-    def height(self):
-        return self._height
-
-    def tkinter_delete(self):
-        if self._shape is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._shape)
-        if self._text is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._text)
-
-    def tkinter_display(self, canvas, x, y):
-        self.tkinter_delete()
-        self._canvas = canvas
-        self._x = x
-        self._y = y
-        self._shape = self._canvas.create_rectangle(
-            self._x, self._y, self._x+self._width, self._y+self._height,
-            outline="red", fill="yellow", activeoutline="blue", width=2)
-        self._text = self._canvas.create_text(self._x+self._width/2,
-                                              self._y+self._height/2,
-                                              text=self._name)
 
     @property
     def is_reduction(self):
