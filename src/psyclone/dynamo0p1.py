@@ -409,7 +409,7 @@ class DynKernelArgument(Argument):
         as specified by the kernel argument metadata. '''
     def __init__(self, arg, arg_info, call):
         self._arg = arg
-        api_config = Config.get().api_conf()
+        api_config = Config.get().api_conf("dynamo0.1")
         access_mapping = api_config.get_access_mapping()
         Argument.__init__(self, call, arg_info, access_mapping[arg.access])
 

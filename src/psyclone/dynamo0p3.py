@@ -607,7 +607,7 @@ class DynArgDescriptor03(Descriptor):
                                         arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
         # Now convert from GH_* names to the generic access type:
-        api_config = Config.get().api_conf()
+        api_config = Config.get().api_conf("dynamo0.3")
         access_mapping = api_config.get_access_mapping()
         rev_access_mapping = api_config.get_reverse_access_mapping()
         self._access_descriptor.name = \

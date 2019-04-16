@@ -62,7 +62,7 @@ class GODescriptor(Descriptor):
 
     '''
     def __init__(self, access, space, stencil=None, mesh=None):
-        api_config = Config.get().api_conf()
+        api_config = Config.get().api_conf("gocean0.1")
         access_mapping = api_config.get_access_mapping()
         access_type = access_mapping[access]
         super(GODescriptor, self).__init__(access_type, space, stencil, mesh)

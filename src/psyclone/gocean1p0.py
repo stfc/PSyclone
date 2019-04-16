@@ -1742,7 +1742,7 @@ class GO1p0Descriptor(Descriptor):
                        str(len(kernel_arg.args)),
                        kernel_arg.args))
 
-        api_config = Config.get().api_conf()
+        api_config = Config.get().api_conf("gocean1.0")
         access_mapping = api_config.get_access_mapping()
         access_type = access_mapping[access]
 
