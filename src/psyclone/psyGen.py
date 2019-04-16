@@ -4690,10 +4690,9 @@ class IfBlock(Node):
     def condition(self):
 
         if len(self.children) < 1:
-            raise GenerationError("IfBlock malformed or "
-                                  "incomplete. It should have exactly 2 "
-                                  "children, but found {0}."
-                                  "".format(len(self.children)))
+            raise InternalError(
+                "IfBlock malformed or incomplete. It should have at least 1 "
+                "children, but found {0}.".format(len(self.children)))
         return self._children[0]
 
     @property
@@ -4702,10 +4701,9 @@ class IfBlock(Node):
         evaluates to True. '''
 
         if len(self.children) < 2:
-            raise GenerationError("IfBlock malformed or "
-                                  "incomplete. It should have exactly 2 "
-                                  "children, but found {0}."
-                                  "".format(len(self.children)))
+            raise InternalError(
+                "IfBlock malformed or incomplete. It should have at least 2 "
+                "children, but found {0}.".format(len(self.children)))
 
         return self._children[1]._children
 
@@ -4769,6 +4767,7 @@ class IfBlock(Node):
         retval += self.indent(indent) + "}\n"
 
         return retval
+
 
 class ACCKernelsDirective(ACCDirective):
     '''
@@ -5398,11 +5397,13 @@ class Fparser2ASTProcessor(object):
 
         # Check that the fparser2 AST has the expected structure
         if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
-            raise InternalError("Failed to find opening if then statement: "
-                                "{0}".format(str(node)))
+            raise InternalError(
+                "Failed to find opening if then statement in: "
+                "{0}".format(str(node)))
         if not isinstance(node.content[-1], Fortran2003.End_If_Stmt):
-            raise InternalError("Failed to find closing end if statement: "
-                                "{0}".format(str(node)))
+            raise InternalError(
+                "Failed to find closing end if statement in: "
+                "{0}".format(str(node)))
 
         # Search for all the If_Construct clauses
         clause_indices = []
@@ -5475,7 +5476,9 @@ class Fparser2ASTProcessor(object):
                                    nodes=node.content[start_idx + 1:end_idx],
                                    nodes_parent=node)
             else:
-                pass  # We can safely ignore the 'End_If' clause
+                raise InternalError(
+                    "Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt "
+                    "are expected, but found {0}.".format(clause))
 
         return ifblock
 

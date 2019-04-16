@@ -2740,7 +2740,54 @@ def test_ifblock_can_be_printed():
     '''Test that an IfBlock instance can always be printed (i.e. is
     initialised fully)'''
     ifblock = IfBlock()
+    ref1 = Reference('condition1', parent=ifblock)
+    ifblock.addchild(ref1)
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    ret = Return(parent=sch)
+    sch.addchild(ret)
+
     assert "If[]\n" in str(ifblock)
+    assert "condition1" in str(ifblock)  # Test condition is printed
+    assert "Return[]" in str(ifblock)  # Test if_body is printed
+
+
+def test_ifblock_properties():
+    '''Test that an IfBlock node properties can be retrieved'''
+    ifblock = IfBlock()
+
+    # Condition can't be retrived before is added as a children.
+    with pytest.raises(InternalError) as err:
+        _ = ifblock.condition
+    assert("IfBlock malformed or incomplete. It should have "
+           "at least 1 children, but found 0." in str(err.value))
+
+    ref1 = Reference('condition1', parent=ifblock)
+    ifblock.addchild(ref1)
+
+    # If_body can't be retrived before is added as a children.
+    with pytest.raises(InternalError) as err:
+        _ = ifblock.if_body
+    assert("IfBlock malformed or incomplete. It should have "
+           "at least 2 children, but found 1." in str(err.value))
+
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    ret = Return(parent=sch)
+    sch.addchild(ret)
+
+    # Now we can retrive the condition and the if_body, but else is empty
+    assert ifblock.condition is ref1
+    assert ifblock.if_body[0] is ret
+    assert not ifblock.else_body
+
+    sch2 = Schedule(parent=ifblock)
+    ifblock.addchild(sch2)
+    ret2 = Return(parent=sch2)
+    sch2.addchild(ret2)
+
+    # Now we can retrive else_body
+    assert ifblock.else_body[0] is ret2
 
 
 def test_ifblock_gen_c_code():
@@ -3895,6 +3942,71 @@ def test_fparser2astprocessor_handling_if_construct(f2008_parser):
     # Third level is just branch3
     elsebody = ifnode.else_body[0]
     assert elsebody.children[0].ref_name == 'branch3'
+
+
+def test_fparser2astprocessor_handling_if_construct_errors(f2008_parser):
+    ''' Test that unsupported If_Construct structures raise the proper
+    errors.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+        endif''')
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+
+    # Test with no opening If_Then_Stmt
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    del fparser2if_construct.content[0]
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    assert "Failed to find opening if then statement in:" in str(error.value)
+
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+        endif''')
+
+    # Test with no closing End_If__Stmt
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    del fparser2if_construct.content[-1]
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    assert "Failed to find closing end if statement in:" in str(error.value)
+
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+        else
+        endif''')
+
+    # Test with else clause before and elseif clause
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    children = fparser2if_construct.content
+    children[1], children[2] = children[2], children[1]  # Swap clauses
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    assert ("Else clause should only be found next to last clause, but "
+            "found") in str(error.value)
+
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+        else
+        endif''')
+
+    # Test with unexpected clause
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    children = fparser2if_construct.content
+    children[1] = children[-1]  # Add extra End_If_Stmt
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    assert ("Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt are "
+            "expected, but found") in str(error.value)
 
 
 def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
