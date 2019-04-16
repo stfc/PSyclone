@@ -1050,13 +1050,13 @@ spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
 functions for W1.
 
-meta-init
+meta_init
 #########
 
 A kernel that requires properties of the reference element specifies
-those properties through the meta_init metadata entry. (If no reference
+those properties through the ``meta_init`` metadata entry. (If no reference
 element properties are required then this metadata should be omitted.)
-Consider the following kernel metadata::
+Consider the following example kernel metadata::
 
   type, extends(kernel_type) :: testkern_type
     type(arg_type), dimension(2) :: meta_args = &
@@ -1064,10 +1064,23 @@ Consider the following kernel metadata::
 	   arg_type(gh_field, gh_write, w0) /)
     type(mesh_data_type), dimension(2) :: meta_init = &
         (/ mesh_data_type(adjacent_face),             &
-	   mesh_data_type(reference_element_normal_to_face ) /)
+	   mesh_data_type(normal_to_face ) /)
   contains
     procedure, nopass :: code => testkern_code
   end type testkern_type
+
+This metadata specifies that the ``testkern_type`` kernel requires two
+properties of the reference element. The supported properties are
+listed below:
+
+=============== ==============================================
+Name            Description
+=============== ==============================================
+adjacent_face   Vector holding information on the neighbouring
+                face index for the current cell.
+normal_to_face  xxx
+out_face_normal xxx
+=============== =================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1191,27 +1204,68 @@ rules, along with PSyclone's naming conventions, are:
        name of this argument is ``"ndf_"<field_function_space>``.
     2) If there is a field on this space
 
-        1) Include the unique number of degrees of freedom for the function space. This is an integer and has intent ``in``. The name of this argument is ``"undf_"<field_function_space>``.
-        2) Include the dofmap for this function space. This is an integer array with intent ``in``. It has one dimension sized by the local degrees of freedom for the function space.
+        1) Include the unique number of degrees of freedom for the
+           function space. This is an integer and has intent
+           ``in``. The name of this argument is
+           ``"undf_"<field_function_space>``.
+        2) Include the dofmap for this function space. This is an
+           integer array with intent ``in``. It has one dimension
+           sized by the local degrees of freedom for the function
+           space.
 
-    3) For each operation on the function space (``basis``, ``diff_basis``, ``orientation``) in the order specified in the metadata
+    3) For each operation on the function space (``basis``,
+       ``diff_basis``, ``orientation``) in the order specified in the
+       metadata:
 
-        1) if it is a basis or differential basis function then we must pass real
-	   arrays of kind ``r_def`` with intent ``in``:
+        1) if it is a basis or differential basis function then we
+	   must pass real arrays of kind ``r_def`` with intent ``in``:
 
-	   1) if ``gh_shape`` is ``gh_quadrature_xyoz`` then the arrays are of
-	      rank 4 with extent (``dimension``, ``number_of_dofs``, ``np_xy``, ``np_z``). The name of the argument is ``"basis_"<field_function_space>`` or ``"diff_basis_"<field_function_space>``, as appropriate.
+	   1) if ``gh_shape`` is ``gh_quadrature_xyoz`` then the
+	      arrays are of rank 4 with extent (``dimension``,
+	      ``number_of_dofs``, ``np_xy``, ``np_z``). The name of
+	      the argument is ``"basis_"<field_function_space>`` or
+	      ``"diff_basis_"<field_function_space>``, as appropriate.
 
-	   2) if ``gh_shape`` is ``gh_evaluator`` then we pass one array for each
-	      target function space (e.g\. as specified by ``gh_evaluator_targets``).
-	      Each of these arrays are of rank 3 with extent (``dimension``, ``number_of_dofs``,
-	      ``ndf_<target_function_space>``). The name of the argument is ``"basis_"<field_function_space>"_on_"<target_function_space>`` or ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``, as appropriate.
+	   2) if ``gh_shape`` is ``gh_evaluator`` then we pass one
+	      array for each target function space (e.g\. as specified
+	      by ``gh_evaluator_targets``).  Each of these arrays are
+	      of rank 3 with extent (``dimension``,
+	      ``number_of_dofs``,
+	      ``ndf_<target_function_space>``). The name of the
+	      argument is
+	      ``"basis_"<field_function_space>"_on_"<target_function_space>``
+	      or
+	      ``"diff_basis_"<field_function_space>"_on_"<target_function_space>``,
+	      as appropriate.
 	      
-           where ``dimension`` is 1 or 3 and depends upon the function space and whether or not it is a basis or a differential basis function. For the former it is (w0=1, w1=3, w2=3, w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1, any_w2=3). ``number_of_dofs`` is the number of degrees of freedom (dofs) associated with the function space and ``np_*`` are the number of points to be evaluated: i) ``*_xyz`` in all directions (3D); ii) ``*_xy`` in the horizontal plane (2D); iii) ``*_x, *_y`` in the horizontal (1D); and iv) ``*_z`` in the vertical (1D).
+           where ``dimension`` is 1 or 3 and depends upon the function
+           space and whether or not it is a basis or a differential
+           basis function. For the former it is (w0=1, w1=3, w2=3,
+           w3=1, wtheta=1, w2h=3, w2v=3, any_w2=3). For the latter it
+           is (w0=3, w1=3, w2=1, w3=3, wtheta=3, w2h=1, w2v=1,
+           any_w2=3). ``number_of_dofs`` is the number of degrees of
+           freedom (dofs) associated with the function space and
+           ``np_*`` are the number of points to be evaluated: i)
+           ``*_xyz`` in all directions (3D); ii) ``*_xy`` in the
+           horizontal plane (2D); iii) ``*_x, *_y`` in the horizontal
+           (1D); and iv) ``*_z`` in the vertical (1D).
 
-        2) If it is an orientation array, include the associated argument. The argument is an integer array with intent ``in``. There is one dimension of size the local degrees of freedom for the function space. The name of the array is ``"orientation_"<field_function_space>``.
+        2) If it is an orientation array, include the associated
+           argument. The argument is an integer array with intent
+           ``in``. There is one dimension of size the local degrees of
+           freedom for the function space. The name of the array is
+           ``"orientation_"<field_function_space>``.
+	   
+5) For each required property of the reference element, in the order
+   specified in the ``meta_init`` metadata:
 
-5) If Quadrature is required (``gh_shape = gh_quadrature_*``)
+   1) For ``adjacent_face``, pass an integer array of rank 1 and an
+      integer scalar holding the number of TODO;
+   2) For ``normal_to_face``, pass an integer array of rank 2 and
+      two integer scalars - the first holding TODO
+   3) For ````, pass TODO
+
+6) If Quadrature is required (``gh_shape = gh_quadrature_*``):
 
     1) include integer, scalar arguments with intent ``in`` that specify the extent of the basis/diff-basis arrays:
 
