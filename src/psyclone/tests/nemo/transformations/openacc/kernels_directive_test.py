@@ -231,3 +231,16 @@ def test_no_code_block_kernels(parser):
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
     assert "CodeBlock'>' cannot be enclosed by a ACCKernelsTrans " in str(err)
+
+
+def test_no_default_present(parser):
+    ''' Check that we can create a kernels region with no 'default(present)'
+    clause (as we will want to do when using managed memory). '''
+    reader = FortranStringReader(EXPLICIT_LOOP)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    _, _ = acc_trans.apply(schedule.children, default_present=False)
+    gen_code = str(psy.gen)
+    assert "!$ACC KERNELS\n" in gen_code
