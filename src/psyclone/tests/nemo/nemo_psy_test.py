@@ -322,13 +322,27 @@ def test_kern_load_errors(monkeypatch):
         kerns[0].load("Not an fparser2 AST node")
     assert ("internal error: Expecting either Block_Nonlabel_Do_Construct "
             "or Assignment_Stmt but got " in str(err))
-    # TODO why haven't the Kernel or Loop objects got a valid _ast?
     loop = sched.children[0].children[0].children[0]._ast
     monkeypatch.setattr(loop, "content", ["not_a_loop"])
     with pytest.raises(InternalError) as err:
         kerns[0]._load_from_loop(loop)
     assert ("Expecting Nonlabel_Do_Stmt as first child of "
             "Block_Nonlabel_Do_Construct but got" in str(err))
+
+
+def test_kern_ast():
+    ''' Check that the ast property of a NemoKern behaves as expected. '''
+    from fparser.two.utils import Base
+    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
+                           api=API, line_length=False)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    invoke = psy.invokes.invoke_list[0]
+    sched = invoke.schedule
+    for kern in sched.kern_calls():
+        ast = kern.ast
+        # TODO #356 - currently we do not store a reference to the parse
+        # tree of the kernel so we should just have an empty list.
+        assert ast == []
 
 
 def test_no_inline():

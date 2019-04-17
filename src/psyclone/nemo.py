@@ -314,6 +314,7 @@ class NemoKern(Kern):
         a subsequent call to the load method if loop is None. '''
         # Create those member variables required for testing and to keep
         # pylint happy
+        self._parent = parent
         self._children = []
         self._name = ""
         # The Loop object created by fparser2 which holds the AST for the
