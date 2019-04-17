@@ -492,6 +492,18 @@ class NemoKern(Kern):
         print(self.indent(indent) + self.coloured_text + "[" +
               self.ktype + "]")
 
+    @property
+    def ast(self):
+        '''
+        Override the default ast method as, for the NEMO API, we don't need
+        to take any special action to get hold of the parse tree for the
+        kernel.
+
+        :returns: a reference to that part of the fparser2 parse tree that \
+                  describes this kernel.
+        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
+        '''
+        return self._ast
 
 class NemoLoop(Loop, NemoFparser2ASTProcessor):
     '''
