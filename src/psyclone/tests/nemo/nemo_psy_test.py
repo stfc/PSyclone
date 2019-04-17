@@ -52,11 +52,9 @@ API = "nemo"
 # Location of the Fortran files associated with these tests
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files")
-# Fortran parser
-_PARSER = ParserFactory().create()
 
 
-def test_unamed_unit():
+def test_unamed_unit(parser):
     '''
     Test that we raise the expected internal error if we fail to find
     a name for the PSy object.
@@ -128,6 +126,23 @@ def test_do_while():
     assert isinstance(sched.children[3], CodeBlock)
 
 
+def test_reject_dowhile(parser):
+    ''' Check that the NemoLoop constructor rejects DO WHILE loops. '''
+    from fparser.two.utils import walk_ast
+    reader = FortranStringReader("program do_while_prog\n"
+                                 "integer :: my_sum\n"
+                                 "my_sum = 0\n"
+                                 "do while(.true.)\n"
+                                 "  my_sum = my_sum + 1\n"
+                                 "end do\n"
+                                 "end program do_while_prog\n")
+    prog = parser(reader)
+    loops = walk_ast([prog], [Fortran2003.Block_Nonlabel_Do_Construct])
+    with pytest.raises(NotImplementedError) as err:
+        _ = nemo.NemoLoop(loops[0])
+    assert "Cannot create a NemoLoop for a DO WHILE" in str(err)
+
+
 def test_multi_kern():
     ''' Test that having multiple kernels within a single loop raises
     the expected error. '''
@@ -153,8 +168,6 @@ def test_implicit_loop_assign():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
-    sched.view()
-    gen = str(ast).lower()
     # We should have two implicit loops
     assert len(loops) == 2
     assert isinstance(sched.children[0], nemo.NemoLoop)
@@ -256,7 +269,7 @@ def test_kern_inside_if():
     assert isinstance(ifblock.children[2], nemo.NemoIfClause)
 
 
-def test_invalid_if_clause():
+def test_invalid_if_clause(parser):
     ''' Check that we raise the expected error if the NemoIfClause
     is passed something that isn't an if-clause. '''
     from psyclone.nemo import NemoIfClause
@@ -267,7 +280,7 @@ def test_invalid_if_clause():
     assert "Unrecognised member of if block: " in str(err)
 
 
-def test_ifblock_ast_err():
+def test_ifblock_ast_err(parser):
     ''' Check that the NemoIfBlock constructor raises the expected error if
     the fparser2 AST does not have the expected structure. '''
     reader = FortranStringReader("if(.true.)then\ndone=.true.\nend if\n")
@@ -284,7 +297,7 @@ def test_ifblock_ast_err():
     assert "Failed to find opening if then" in str(err)
 
 
-def test_ifblock_gencode_err():
+def test_ifblock_gencode_err(parser):
     ''' Check that calling gen_code() on a NemoIfBlock raises an error. '''
     reader = FortranStringReader("if(.true.)then\ndone=.true.\nend if\n")
     ifblock = Fortran2003.If_Construct(reader)

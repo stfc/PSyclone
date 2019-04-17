@@ -520,17 +520,15 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         NemoFparser2ASTProcessor.__init__(self)
-        # Keep a ptr to the corresponding node in the AST
+        # Keep a ptr to the corresponding node in the parse tree
         self._ast = ast
 
         # Get the loop variable
         ctrl = walk_ast(ast.content, [Loop_Control])
-
-        # If this is a DO WHILE then the first element of items will be a
-        # scalar logical expression. (See
-        # `fparser.two.Fortran2003.Loop_Control`.) The `match` method should
-        # have already rejected such loops so we should never get to here.
-        if isinstance(ctrl[0].items[0], BinaryOpBase):
+        # If this is a DO WHILE then the first element of items will
+        # not be None. The `match` method should have already rejected
+        # such loops so we should never get to here.
+        if ctrl[0].items[0]:
             raise NotImplementedError(
                 "Cannot create a NemoLoop for a DO WHILE")
 
