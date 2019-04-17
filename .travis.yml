@@ -35,7 +35,7 @@
 language: python
 python:
   - 2.7
-  - 3.6
+#  - 3.6
 # The env section allows us to specify multiple, different environments
 # in which the test suite must be run. The environment variables set
 # here are picked up in the bin/install_optional.sh script.
@@ -50,6 +50,7 @@ before_install:
   # fparser pointed to by the git submodule.
   - ./bin/install_optional.sh
   - pip install codecov
+  - pip install enum34
 install:
   - "pip install ."
 script:
