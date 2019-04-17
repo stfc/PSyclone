@@ -33,14 +33,17 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-This directory contains an example transformation script,
-kernels_trans.py, that demonstrates the use of PSyclone to add
-OpenACC Kernel and Data directives for the tra_adv.F90
-code. Note, the transformations are indicative of what could be done -
-no claim is made as to the performance of the resulting code.
+This directory contains two example transformation scripts,
+kernels_trans.py and kernels_managed_mem_trans.py.  The first of these
+demonstrates the use of PSyclone to add OpenACC Kernel and Data directives for
+NEMO code. The second script is similar but is designed to work with the PGI
+compiler's 'managed memory' (-ta=tesla:managed) option and thus no attempt is
+made to control data movement to/from the GPU. Note, the transformations are
+indicative of what could be done - no claim is made as to the performance of
+the resulting code.
 
-Once you have installed PSyclone, this script may be supplied to
-PSyclone:
+Once you have installed PSyclone, either of the scripts may be supplied to
+PSyclone via the -s option:
 
     $ psyclone -api nemo -s ./kernels_trans.py ../code/tra_adv.F90
 
@@ -50,6 +53,9 @@ Schedule view of the code after adding OpenACC Kernels directives, 4)
 PSyclone's Schedule view of the code after adding OpenACC Kernels and
 Data directives, and 5) the transformed Fortran code with the OpenACC
 directives added.
+
+Doing the same thing with kernels_managed_mem_trans will produce similar
+output but the Schedule will no longer contain Data directives.
 
 tra_adv.F90 is a stand-alone version of one of the tracer-advection
 routines from the NEMO ocean model. It was originally extracted by
