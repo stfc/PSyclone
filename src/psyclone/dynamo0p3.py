@@ -2993,7 +2993,7 @@ class DynInvoke(Invoke):
                 "Expected one of '{0}' but found '{1}'".
                 format(str(GH_VALID_ARG_TYPE_NAMES), datatype))
         if access and not isinstance(access, AccessType):
-            api_config = Config.get().api_config("dynamo0.3")
+            api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
             raise GenerationError(
                 "unique_proxy_declarations called with an invalid access "
