@@ -1026,7 +1026,7 @@ def test_writetoread_dag(tmpdir, have_graphviz):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     invoke.schedule.dag()
     if have_graphviz:
         dot_file = os.path.join(str(tmpdir), "dag")
@@ -1045,6 +1045,7 @@ def test_writetoread_dag(tmpdir, have_graphviz):
                 in dot or
                 '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
                 '[color=#00ff00]' in dot)
+    old_cwd.chdir()
 
 
 def test_dag(tmpdir, have_graphviz):
@@ -1057,7 +1058,7 @@ def test_dag(tmpdir, have_graphviz):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     invoke.schedule.dag()
     if have_graphviz:
         assert os.path.isfile(os.path.join(str(tmpdir), "dag.svg"))
@@ -1069,6 +1070,7 @@ def test_dag(tmpdir, have_graphviz):
         # have no forwards/backwards dependencies
         for col in ["red", "#ff0000", "green", "#00ff00"]:
             assert '[color={0}]'.format(col) not in dot
+    old_cwd.chdir()
 
 
 def test_find_grid_access(monkeypatch):
