@@ -110,12 +110,6 @@ WRITE_ACCESSES = [AccessType.WRITE, AccessType.READWRITE, AccessType.INC] + \
 # form
 GH_READ_ACCESSES = ["gh_read", "gh_readwrite", "gh_inc"]
 READ_ACCESSES = [AccessType.READ, AccessType.READWRITE, AccessType.INC]
-# Access type that is only a read, as a list for convenience
-GH_READ_ONLY_ACCESS = ["gh_read"]
-READ_ONLY_ACCESS = [AccessType.READ]
-
-GH_VALID_ACCESS_DESCRIPTOR_NAMES = GH_READ_ONLY_ACCESS + GH_WRITE_ACCESSES
-VALID_ACCESS_DESCRIPTOR_NAMES = READ_ONLY_ACCESS + WRITE_ACCESSES
 
 # Stencils
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
@@ -530,7 +524,8 @@ class DynArgDescriptor03(Descriptor):
     def __init__(self, arg_type):
         '''
         :param arg_type: dynamo0.3 argument type (scalar, field or operator)
-        :type arg_type: :py:class:`psyclone.dynamo0p3.DynKernelArgument`  #JH FunctionVar!!
+        :type arg_type: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        #TODO: This seems to be wrong, it's FunctionVar!!
         '''
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
@@ -599,19 +594,22 @@ class DynArgDescriptor03(Descriptor):
                 "not get to here")
 
         # The 2nd arg is an access descriptor
-        if arg_type.args[1].name not in GH_VALID_ACCESS_DESCRIPTOR_NAMES:
-            raise ParseError(
-                "In the dynamo0.3 API the 2nd argument of a meta_arg entry "
-                "must be a valid access descriptor (one of {0}), but found "
-                "'{1}' in '{2}'".format(GH_VALID_ACCESS_DESCRIPTOR_NAMES,
-                                        arg_type.args[1].name, arg_type))
         self._access_descriptor = arg_type.args[1]
+
         # Now convert from GH_* names to the generic access type:
         api_config = Config.get().api_conf("dynamo0.3")
         access_mapping = api_config.get_access_mapping()
         rev_access_mapping = api_config.get_reverse_access_mapping()
-        self._access_descriptor.name = \
-            access_mapping[self._access_descriptor.name]
+        try:
+            self._access_descriptor.name = \
+                access_mapping[self._access_descriptor.name]
+        except KeyError:
+            valid_names = api_config.get_valid_accesses_api()
+            raise ParseError(
+                "In the dynamo0.3 API the 2nd argument of a meta_arg entry "
+                "must be a valid access descriptor (one of {0}), but found "
+                "'{1}' in '{2}'".format(valid_names,
+                                        arg_type.args[1].name, arg_type))
 
         # Reduction access descriptors are only valid for real scalar arguments
         if self._type != "gh_real" and \
@@ -1189,7 +1187,7 @@ class DynKernMetadata(KernelType):
             # Check that the other two arguments are fields
             farg_read = psyGen.args_filter(self._arg_descriptors,
                                            arg_types=["gh_field"],
-                                           arg_accesses=READ_ONLY_ACCESS)
+                                           arg_accesses=[AccessType.READ])
             farg_write = psyGen.args_filter(self._arg_descriptors,
                                             arg_types=["gh_field"],
                                             arg_accesses=WRITE_ACCESSES)
@@ -1249,7 +1247,7 @@ class DynKernMetadata(KernelType):
                 lma_read_ops = psyGen.args_filter(
                     self._arg_descriptors,
                     arg_types=["gh_operator"],
-                    arg_accesses=READ_ONLY_ACCESS)
+                    arg_accesses=[AccessType.READ])
                 if lma_read_ops:
                     return "assembly"
                 else:
@@ -2975,11 +2973,13 @@ class DynInvoke(Invoke):
                     loop.parent.children.insert(loop.position+1, global_sum)
 
     def unique_declarations(self, datatype, access=None):
-        if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
+        if access and not isinstance(access, AccessType):
+            api_config = Config.get().api_conf("dynamo0.3")
+            valid_names = api_config.get_valid_accesses_api()
             raise GenerationError(
                 "unique_declarations called with an invalid access type. "
                 "Expected one of '{0}' but got '{1}'".
-                format(GH_VALID_ACCESS_DESCRIPTOR_NAMES, access))
+                format(valid_names, access))
 
         return super(DynInvoke, self).unique_declarations(datatype, access)
 
@@ -2992,11 +2992,13 @@ class DynInvoke(Invoke):
                 "unique_proxy_declarations called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
                 format(str(GH_VALID_ARG_TYPE_NAMES), datatype))
-        if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
+        if access and not isinstance(access, AccessType):
+            api_config = Config.get().api_config("dynamo0.3")
+            valid_names = api_config.get_valid_accesses_api()
             raise GenerationError(
                 "unique_proxy_declarations called with an invalid access "
                 "type. Expected one of '{0}' but got '{1}'".
-                format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
+                format(valid_names, access))
         declarations = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:

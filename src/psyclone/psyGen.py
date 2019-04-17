@@ -85,9 +85,6 @@ OMP_OPERATOR_MAPPING = {"sum": "+"}
 
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
-# Types of access for a kernel argument
-MAPPING_ACCESSES = {"inc": "inc", "write": "write",
-                    "read": "read", "readwrite": "readwrite"}
 
 
 class AccessType(Enum):
@@ -4090,8 +4087,6 @@ class Argument(object):
         self._orig_name = arg_info.varname
         self._form = arg_info.form
         self._is_literal = arg_info.is_literal()
-        if not isinstance(access, AccessType):
-            print()
         self._access = access
         self._name_space_manager = NameSpaceFactory().create()
 
@@ -4107,14 +4102,6 @@ class Argument(object):
             # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
-        # _writers and _readers need to be instances of this class,
-        # rather than static variables, as the mapping that is used
-        # depends on the API and this is only known when a subclass of
-        # Argument is created (as the local MAPPING_ACCESSES will be
-        # used). For example, a dynamo0p3 api instantiation of a
-        # DynArgument (subclass of Argument) will use the
-        # MAPPING_ACCESSES specified in the dynamo0p3 file which
-        # overide the default ones in this file.
         self._write_access_types = [AccessType.WRITE,
                                     AccessType.READWRITE,
                                     AccessType.INC,

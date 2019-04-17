@@ -41,13 +41,13 @@ GOcean 1.0 API.'''
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from gocean1p0_build import GOcean1p0Build
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone_test_utils import get_invoke
+from gocean1p0_build import GOcean1p0Build
 
 API = "gocean1.0"
 
@@ -1288,11 +1288,13 @@ def test06_kernel_invalid_access():
     ''' Check that we raise an error if a kernel's meta-data specifies
     an unrecognised access type for a kernel argument (i.e. something
     other than READ,WRITE,READWRITE) '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as err:
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test06_invoke_kernel_wrong_access.f90"),
               api="gocean1.0")
+    assert "compute_cu: argument access  is given as 'wrong' but must be one "\
+           "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value)
 
 
 def test07_kernel_wrong_gridpt_type():

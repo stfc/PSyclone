@@ -73,10 +73,6 @@ SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw", "go_offset_any"]
 # The sets of grid points that a kernel may operate on
 VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
 
-# Valid values for the type of access a kernel argument may have
-VALID_ARG_ACCESSES = [AccessType.READ, AccessType.WRITE, AccessType.READWRITE]
-GO_VALID_ARG_ACCESSES = ["go_read", "go_write", "go_readwrite"]
-
 # The list of valid stencil properties. We currently only support
 # pointwise. This property could probably be removed from the
 # GOcean API altogether.
@@ -1748,11 +1744,11 @@ class GO1p0Descriptor(Descriptor):
         try:
             access_type = access_mapping[access]
         except KeyError:
+            valid_names = api_config.get_valid_accesses_api()
             raise ParseError("Meta-data error in kernel {0}: argument "
                              "access  is given as '{1}' but must be "
                              "one of {2}".
-                             format(kernel_name, access,
-                                    GO_VALID_ARG_ACCESSES))
+                             format(kernel_name, access, valid_names))
 
         # Finally we can call the __init__ method of our base class
         Descriptor.__init__(self, access_type, funcspace, stencil_info)

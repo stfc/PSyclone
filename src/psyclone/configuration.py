@@ -676,6 +676,15 @@ class APISpecific(object):
         '''
         return self._reverse_access_mapping
 
+    def get_valid_accesses_api(self):
+        '''Returns the API specific sorted names of all valid access strings.
+        :returns: List of API specific strings.
+        :rtype: List of strings
+        '''
+        valid_names = self._access_mapping.keys()[:]
+        valid_names.sort()
+        return valid_names
+
 
 # =============================================================================
 class DynConfig(APISpecific):
