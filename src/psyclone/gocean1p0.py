@@ -1745,9 +1745,9 @@ class GO1p0Descriptor(Descriptor):
 
         api_config = Config.get().api_conf("gocean1.0")
         access_mapping = api_config.get_access_mapping()
-        access_type = access_mapping[access]
-
-        if access_type not in VALID_ARG_ACCESSES:
+        try:
+            access_type = access_mapping[access]
+        except KeyError:
             raise ParseError("Meta-data error in kernel {0}: argument "
                              "access  is given as '{1}' but must be "
                              "one of {2}".

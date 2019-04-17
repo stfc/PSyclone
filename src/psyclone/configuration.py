@@ -617,14 +617,18 @@ class APISpecific(object):
                 except KeyError:
                     raise ConfigurationError("Unknown key '{0}' found."
                                              .format(api_access_name))
-            if len(self._access_mapping) != AccessType.get_size():
-                raise ConfigurationError("Wrong number of keys in config file."
-                                         " Expected {0}, got {1}".
-                                         format(len(self._access_mapping),
-                                                AccessType.get_size()))
-            # And create the reverse lookup (for better error messages):
-            self._reverse_access_mapping = {v: k for k, v in
-                                            self._access_mapping.items()}
+            # TODO: For now the Gocean1.0 API only defines 3 out of 5
+            # access types. In order to preserve current behaviour
+            # (to not accept e.g. GO_INC) it does not specify a mapping
+            # value for INC etc. So the test below would abort in this case.
+            # if len(self._access_mapping) != AccessType.get_size():
+            #     raise ConfigurationError("Wrong number of keys in config "
+            #                              "file. Expected {0}, got {1}".
+            #                              format(len(self._access_mapping),
+            #                                     AccessType.get_size()))
+        # And create the reverse lookup (for better error messages):
+        self._reverse_access_mapping = {v: k for k, v in
+                                        self._access_mapping.items()}
 
     @staticmethod
     def create_dict_from_string(input_str):
