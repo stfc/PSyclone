@@ -4052,6 +4052,65 @@ def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
     assert nested_if2.children[1].children[0].children[0].ref_name == 'found'
 
 
+def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
+    ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
+    tree structure.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (label1)
+                branch1 = 1
+            CASE (label2)
+                branch2 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+
+    # Check a new node was properly generated and connected to parent
+    assert len(fake_parent.children) == 1
+    ifnode = fake_parent.children[0]
+    assert isinstance(ifnode, IfBlock)
+    assert 'was_case' in ifnode.annotations
+    assert ifnode.condition.children[0].ref_name == 'selector'
+    assert ifnode.condition.children[1].ref_name == 'label1'
+    assert ifnode.if_body[0].children[0].ref_name == 'branch1'
+    assert isinstance(ifnode.else_body[0], IfBlock)
+    assert ifnode.else_body[0].condition.children[1].ref_name == 'label2'
+    assert ifnode.else_body[0].if_body[0].children[0].ref_name == 'branch2'
+    assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
+
+    # CASE Value Ranges are not supported
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (label1:)
+                branch1 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+    # CASE DEFAULT Statment not supported
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE DEFAULT
+                branch3 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
 def test_fparser2astprocessor_handling_numberbase(f2008_parser):
     ''' Test that fparser2 NumberBase is converted to the expected PSyIR
     tree structure.

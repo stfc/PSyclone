@@ -4925,6 +4925,7 @@ class Fparser2ASTProcessor(object):
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
             Fortran2003.If_Construct: self._if_construct_handler,
+            Fortran2003.Case_Construct: self._case_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
             Fortran2003.UnaryOpBase: self._unary_op_handler,
         }
@@ -5525,6 +5526,83 @@ class Fparser2ASTProcessor(object):
         self.process_nodes(parent=ifbody, nodes=[node.items[1]],
                            nodes_parent=node)
         return ifblock
+
+    def _case_construct_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Case_Construct to the PSyIR representation.
+        '''
+        from fparser.two import Fortran2003
+        # Check that the fparser2 parsetree has the expected structure
+        if not isinstance(node.content[0], Fortran2003.Select_Case_Stmt):
+            raise InternalError(
+                "Failed to find opening case statement in: "
+                "{0}".format(str(node)))
+        if not isinstance(node.content[-1], Fortran2003.End_Select_Stmt):
+            raise InternalError(
+                "Failed to find closing case statement in: "
+                "{0}".format(str(node)))
+
+        # Search for all the CASE clauses in the Case_Construct
+        clause_indices = []
+        selector = None
+        for idx, child in enumerate(node.content):
+            child._parent = node  # Retrofit parent info
+            if isinstance(child, Fortran2003.Select_Case_Stmt):
+                selector = child.items[0]
+            if isinstance(child, (Fortran2003.Case_Stmt,
+                                  Fortran2003.End_Select_Stmt)):
+                clause_indices.append(idx)
+                # Case Default and value Ranges not supported yet
+                if 'DEFAULT' in str(child):
+                    raise NotImplementedError("Case Default Statment")
+                if ':' in str(child):
+                    raise NotImplementedError("Case Value Range Statment")
+
+        # Deal with each Case_Stmt
+        rootif = None
+        currentparent = parent
+        num_clauses = len(clause_indices) - 1
+        for idx in range(num_clauses):
+            start_idx = clause_indices[idx]
+            end_idx = clause_indices[idx+1]
+            clause = node.content[start_idx]
+
+            if isinstance(clause, Fortran2003.Case_Stmt):
+                case = clause.items[0]
+                if isinstance(case, Fortran2003.Case_Selector):
+                    ifblock = IfBlock(parent=currentparent,
+                                      annotation='was_case')
+
+                    # Add condition: selector == case
+                    bop = BinaryOperation(parent=ifblock, operator='==')
+                    self.process_nodes(parent=bop,
+                                       nodes=[selector],
+                                       nodes_parent=node)
+                    self.process_nodes(parent=bop,
+                                       nodes=[case.items[0]],
+                                       nodes_parent=node)
+                    ifblock.addchild(bop)
+
+                    # Add If_body
+                    sch = Schedule(parent=ifblock)
+                    self.process_nodes(parent=sch,
+                                       nodes=node.content[start_idx + 1:
+                                                          end_idx],
+                                       nodes_parent=node)
+                    ifblock.addchild(sch)
+
+                    if rootif:
+                        # If rootif is already initialise we chain the new
+                        # case in the last else branch.
+                        elsebody = Schedule(parent=currentparent)
+                        currentparent.addchild(elsebody)
+                        elsebody.addchild(ifblock)
+                    else:
+                        rootif = ifblock
+
+                    currentparent = ifblock
+
+        return rootif
 
     def _return_handler(self, _, parent):
         '''
