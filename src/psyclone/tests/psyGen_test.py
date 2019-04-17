@@ -2719,6 +2719,16 @@ def test_codeblock_gen_c_code():
 
 # Test IfBlock class
 
+def test_ifblock_invalid_annotation():
+    ''' Test that initialising IfBlock with invalid annotations produce the
+    expected error.'''
+
+    with pytest.raises(InternalError) as err:
+        _ = IfBlock(annotation="invalid")
+    assert ("IfBlock with unrecognized annotation 'invalid', valid "
+            "annotations are:") in str(err.value)
+
+
 def test_ifblock_view(capsys):
     ''' Check the view and colored_text methods of the IfBlock class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP

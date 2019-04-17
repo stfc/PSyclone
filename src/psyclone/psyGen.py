@@ -951,6 +951,8 @@ class Node(object):
         # Ref. to last fparser2 parse tree node associated with this Node.
         # This is required when adding directives.
         self._ast_end = None
+        # List of tags that provide additional information about this Node.
+        self._annotations = []
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
@@ -972,6 +974,15 @@ class Node(object):
         :rtype: sub-class of :py:class:`fparser.two.utils.Base`
         '''
         return self._ast_end
+
+    @property
+    def annotations(self):
+        ''' Return the list of annotations attached to this Node.
+
+        :return: List of anotations
+        :rtype: list of str
+        '''
+        return self._annotations
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
@@ -4667,23 +4678,16 @@ class IfBlock(Node):
         the node. The node should still be functionally correct when \
         ignoring this tags.
     '''
-    valid_annotations = ('was_elseif', 'was_single_stmt')
+    valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case')
 
     def __init__(self, parent=None, annotation=None):
         super(IfBlock, self).__init__(parent=parent)
-        self._annotations = []
-        if annotation:
-            if annotation in IfBlock.valid_annotations:
-                self._annotations.append(annotation)
-
-    @property
-    def annotations(self):
-        ''' Return the list of annotations attached to this Node.
-
-        :return: List of anotations
-        :rtype: list of str
-        '''
-        return self._annotations
+        if annotation in IfBlock.valid_annotations:
+            self._annotations.append(annotation)
+        elif annotation:
+            raise InternalError(
+                "IfBlock with unrecognized annotation '{0}', valid annotations"
+                " are: {1}.".format(annotation, IfBlock.valid_annotations))
 
     @property
     def condition(self):
