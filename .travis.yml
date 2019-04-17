@@ -35,7 +35,7 @@
 language: python
 python:
   - 2.7
-#  - 3.6
+  - 3.6
 # The env section allows us to specify multiple, different environments
 # in which the test suite must be run. The environment variables set
 # here are picked up in the bin/install_optional.sh script.
@@ -50,7 +50,10 @@ before_install:
   # fparser pointed to by the git submodule.
   - ./bin/install_optional.sh
   - pip install codecov
-  - pip install enum34
+  - python -V
+  # python 2.7.14 on travis does not have enum, so in this case install
+  # a compatible enum implementation.
+  - if [ "$(python --version 2>&1)" == "Python 2.7.14" ]; then pip install enum34; fi
 install:
   - "pip install ."
 script:
