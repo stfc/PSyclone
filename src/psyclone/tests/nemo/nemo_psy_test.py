@@ -224,6 +224,21 @@ def test_schedule_view(capsys):
     assert expected_sched2 in output
 
 
+def test_kern_inside_if():
+    ''' Check that we identify kernels when they are within an if block. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "imperfect_nest.f90"),
+                           api=API, line_length=False)
+
+    from psyclone.psyGen import IfBlock
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kerns = sched.kern_calls()
+    assert len(kerns) == 4
+    ifblock = sched.children[0].children[1]
+    assert isinstance(ifblock, IfBlock)
+    assert isinstance(ifblock.else_body[0], IfBlock)
+
+
 def test_kern_load_errors(monkeypatch):
     ''' Check that the various load methods of the NemoKern class raise
     the expected errors. '''

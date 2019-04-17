@@ -4656,8 +4656,6 @@ class DummyTransformation(Transformation):
 
 
 class IfBlock(Node):
-    # TODO: Not sure if 3rd child needs to be optional, be None, be an empty
-    # Schedule, ...
     '''
     Class representing an if-block within the PSyIR. It has two mandatory
     children: the first one represented the if-condition and the second one
@@ -4665,30 +4663,37 @@ class IfBlock(Node):
 
     :param parent: the parent of this node within the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
-    :param bool was_elseif: whether the ifblock had the elseif syntax in \
-                            the original code.
+    :param str annotation: Tags that provide additional information about \
+        the node. The node should still be functionally correct when \
+        ignoring this tags.
     '''
+    valid_annotations = ('was_elseif', 'was_single_stmt')
+
     def __init__(self, parent=None, annotation=None):
         super(IfBlock, self).__init__(parent=parent)
-        valid_annotations = ('was_elseif')
         self._annotations = []
         if annotation:
-            if annotation in valid_annotations:
+            if annotation in IfBlock.valid_annotations:
                 self._annotations.append(annotation)
-
-    def __str__(self):
-        result = "If[]\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
 
     @property
     def annotations(self):
+        ''' Return the list of annotations attached to this Node.
+
+        :return: List of anotations
+        :rtype: list of str
+        '''
         return self._annotations
 
     @property
     def condition(self):
+        ''' Return the PSyIR Node representing the conditional expression
+        of this IfBlock.
 
+        :return: IfBlock conditional expression.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        :raises InternalError: If the condition is not attached to the tree.
+        '''
         if len(self.children) < 1:
             raise InternalError(
                 "IfBlock malformed or incomplete. It should have at least 1 "
@@ -4697,8 +4702,13 @@ class IfBlock(Node):
 
     @property
     def if_body(self):
-        ''' Return children of the Schedule executed when the condition
-        evaluates to True. '''
+        ''' Return children of the Schedule executed when the IfBlock
+        evaluates to True.
+
+        :return: Statements to be executed when IfBlock evaluates to True.
+        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :raises InternalError: If child representing if body does not exist.
+        '''
 
         if len(self.children) < 2:
             raise InternalError(
@@ -4709,8 +4719,12 @@ class IfBlock(Node):
 
     @property
     def else_body(self):
-        ''' Return children of the Schedule executed when the condition
-        evaluates to False. '''
+        ''' Return children of the Schedule executed when the IfBlock
+        evaluates to False.
+
+        :return: Statements to be executed when IfBlock evaluates to False.
+        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        '''
         if len(self._children) == 3:
             return self._children[2]._children
         else:
@@ -4740,6 +4754,12 @@ class IfBlock(Node):
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    def __str__(self):
+        result = "If[]\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
+
     def gen_c_code(self, indent=0):
         '''
         Generate a string representation of this node using C language.
@@ -4747,6 +4767,7 @@ class IfBlock(Node):
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: str
+        :raises GenerationError: If mandatory children of IfBlock are missing.
         '''
         if len(self.children) < 2:
             raise GenerationError("IfBlock malformed or "
@@ -5386,7 +5407,7 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 If_Construct to the PSyIR representation.
 
-        :param node: node in fparser2 AST.
+        :param node: node in fparser2 tree.
         :type node: :py:class:`fparser.two.Fortran2003.If_Construct`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
@@ -5395,7 +5416,7 @@ class Fparser2ASTProcessor(object):
         '''
         from fparser.two import Fortran2003
 
-        # Check that the fparser2 AST has the expected structure
+        # Check that the fparser2 parsetree has the expected structure
         if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
             raise InternalError(
                 "Failed to find opening if then statement in: "
@@ -5405,7 +5426,7 @@ class Fparser2ASTProcessor(object):
                 "Failed to find closing end if statement in: "
                 "{0}".format(str(node)))
 
-        # Search for all the If_Construct clauses
+        # Search for all the conditional clauses in the If_Construct
         clause_indices = []
         for idx, child in enumerate(node.content):
             child._parent = node  # Retrofit parent info
@@ -5415,9 +5436,8 @@ class Fparser2ASTProcessor(object):
                                   Fortran2003.End_If_Stmt)):
                 clause_indices.append(idx)
 
-        ifblock = None
-
         # Deal with each clause: "if", "else if" or "else".
+        ifblock = None
         currentparent = parent
         num_clauses = len(clause_indices) - 1
         for idx in range(num_clauses):
@@ -5427,7 +5447,7 @@ class Fparser2ASTProcessor(object):
 
             if isinstance(clause, (Fortran2003.If_Then_Stmt,
                                    Fortran2003.Else_If_Stmt)):
-                # If its an 'IF' clause just create an ifBlock, otherwise
+                # If its an 'IF' clause just create an IfBlock, otherwise
                 # it is an 'ELSE' clause and it needs an IfBlock annotated
                 # with 'was_elseif' inside an Schedule.
                 newifblock = None
@@ -5493,7 +5513,7 @@ class Fparser2ASTProcessor(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
-        ifblock = IfBlock(parent=parent)
+        ifblock = IfBlock(parent=parent, annotation='was_single_stmt')
         self.process_nodes(parent=ifblock, nodes=[node.items[0]],
                            nodes_parent=node)
         ifbody = Schedule(parent=ifblock)
@@ -6338,15 +6358,6 @@ class BinaryOperation(Node):
         super(BinaryOperation, self).__init__(parent=parent)
         self._ast = operator
         self._operator = operator
-
-    @property
-    def operator(self):
-        '''Return the operator of this BinaryOperation expression.
-
-        :returns: Operator
-        :rtype: str
-        '''
-        return self._operator
 
     @property
     def coloured_text(self):

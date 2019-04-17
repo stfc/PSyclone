@@ -2756,7 +2756,7 @@ def test_ifblock_properties():
     '''Test that an IfBlock node properties can be retrieved'''
     ifblock = IfBlock()
 
-    # Condition can't be retrived before is added as a children.
+    # Condition can't be retrieved before is added as a children.
     with pytest.raises(InternalError) as err:
         _ = ifblock.condition
     assert("IfBlock malformed or incomplete. It should have "
@@ -2765,7 +2765,7 @@ def test_ifblock_properties():
     ref1 = Reference('condition1', parent=ifblock)
     ifblock.addchild(ref1)
 
-    # If_body can't be retrived before is added as a children.
+    # If_body can't be retrieved before is added as a children.
     with pytest.raises(InternalError) as err:
         _ = ifblock.if_body
     assert("IfBlock malformed or incomplete. It should have "
@@ -2776,7 +2776,7 @@ def test_ifblock_properties():
     ret = Return(parent=sch)
     sch.addchild(ret)
 
-    # Now we can retrive the condition and the if_body, but else is empty
+    # Now we can retrieve the condition and the if_body, but else is empty
     assert ifblock.condition is ref1
     assert ifblock.if_body[0] is ret
     assert not ifblock.else_body
@@ -2786,7 +2786,7 @@ def test_ifblock_properties():
     ret2 = Return(parent=sch2)
     sch2.addchild(ret2)
 
-    # Now we can retrive else_body
+    # Now we can retrieve else_body
     assert ifblock.else_body[0] is ret2
 
 
