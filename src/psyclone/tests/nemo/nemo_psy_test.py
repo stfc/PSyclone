@@ -115,6 +115,7 @@ def test_do_while():
     ''' Check that do-while loops are put into CodeBlocks. Eventually we
     will need to recognise them as Nodes in the Schedule in their
     own right. '''
+    from psyclone.psyGen import CodeBlock
     _, invoke_info = parse(os.path.join(BASE_PATH, "do_while.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
