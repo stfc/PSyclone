@@ -681,7 +681,7 @@ class APISpecific(object):
         :returns: List of API specific strings.
         :rtype: List of strings
         '''
-        valid_names = self._access_mapping.keys()[:]
+        valid_names = list(self._access_mapping.keys())
         valid_names.sort()
         return valid_names
 
