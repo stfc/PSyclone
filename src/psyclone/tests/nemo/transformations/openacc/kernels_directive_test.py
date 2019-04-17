@@ -56,20 +56,6 @@ EXPLICIT_LOOP = ("program do_loop\n"
                  "end program do_loop\n")
 
 
-def test_no_default_present(parser):
-    ''' Check that the transformation is rejected if default_present is
-    not True. '''
-    reader = FortranStringReader(EXPLICIT_LOOP)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    with pytest.raises(NotImplementedError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:2], default_present=False)
-    assert ("Currently an OpenACC 'kernels' region must have the "
-            "'default(present)' clause" in str(err))
-
-
 def test_kernels_no_gen_code(parser):
     ''' Check that the ACCKernels.gen_code() method raises the
     expected error. '''
