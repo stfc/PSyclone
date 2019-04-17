@@ -579,18 +579,22 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         :returns: True if the node represents a recognised form of loop, \
                   False otherwise.
         :rtype: bool
+
+        :raises InternalError: if the parse tree represents a loop but no \
+                               Loop_Control element is present.
+
         '''
-        from fparser.two.utils import BinaryOpBase
         if not isinstance(node, Fortran2003.Block_Nonlabel_Do_Construct):
             return False
         ctrl = walk_ast(node.content, my_types=[Fortran2003.Loop_Control])
         if not ctrl:
-            return False
+            raise InternalError("Unrecognised form of DO loop - failed to "
+                                "find Loop_Control element in parse tree.")
         if ctrl[0].items[0]:
-            # If this is a DO WHILE then the first element of items will be a
-            # scalar logical expression. (See
-            # `fparser.two.Fortran2003.Loop_Control`.)
-            # TODO DO WHILE's are currently just put into CodeBlocks.
+            # If this is a DO WHILE then the first element of items will not
+            # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
+            # TODO #359 DO WHILE's are currently just put into CodeBlocks
+            # rather than being properly described in the PSyIR.
             return False
         return True
 
@@ -681,7 +685,7 @@ class NemoImplicitLoop(NemoLoop):
                 # We don't have any array syntax on the RHS
                 return True
         except AttributeError:
-            # The rhs doesn't have the `items` attribute
+            # The RHS doesn't have the `items` attribute
             return True
         # Check that we haven't got array syntax used within the index
         # expression to another array. Array references are represented by
