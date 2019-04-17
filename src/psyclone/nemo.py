@@ -685,7 +685,8 @@ class NemoImplicitLoop(NemoLoop):
                 # We don't have any array syntax on the RHS
                 return True
         except AttributeError:
-            # The RHS doesn't have the `items` attribute
+            # The RHS doesn't have the `items` attribute (it may be just
+            # a Name for instance).
             return True
         # Check that we haven't got array syntax used within the index
         # expression to another array. Array references are represented by

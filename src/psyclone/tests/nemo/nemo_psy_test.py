@@ -45,7 +45,6 @@ from psyclone.psyGen import PSyFactory, InternalError
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.parser import ParserFactory
 
 # Constants
 API = "nemo"
@@ -187,13 +186,13 @@ def test_multi_kern():
 def test_implicit_loop_assign():
     ''' Check that we only identify an implicit loop when array syntax
     is used as part of an assignment statement. '''
-    ast, invoke_info = parse(os.path.join(BASE_PATH, "array_syntax.f90"),
-                             api=API, line_length=False)
+    _, invoke_info = parse(os.path.join(BASE_PATH, "array_syntax.f90"),
+                           api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
     # We should have two implicit loops
-    assert len(loops) == 2
+    assert len(loops) == 3
     assert isinstance(sched.children[0], nemo.NemoLoop)
     # Check the __str__ property of the implicit loop
     txt = str(sched.children[0])
@@ -369,7 +368,6 @@ def test_kern_load_errors(monkeypatch):
 
 def test_kern_ast():
     ''' Check that the ast property of a NemoKern behaves as expected. '''
-    from fparser.two.utils import Base
     _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)

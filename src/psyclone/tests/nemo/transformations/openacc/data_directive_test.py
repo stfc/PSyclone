@@ -205,7 +205,7 @@ def test_array_syntax():
     schedule = psy.invokes.get('tra_ldf_iso').schedule
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     # We do not permit arbitrary code blocks to be included in data
-    # regions so just put the two loops into regions.
+    # regions so just put two of the loops into regions.
     schedule, _ = acc_trans.apply([schedule.children[0]])
     schedule, _ = acc_trans.apply([schedule.children[-1]])
     gen_code = str(psy.gen)
@@ -215,8 +215,8 @@ def test_array_syntax():
             "  !$ACC DATA COPYOUT(zftv)\n"
             "  zftv(:, :, :) = 0.0D0" in gen_code)
 
-    assert ("  !$ACC DATA COPYOUT(zftu)\n"
-            "  zftu(:, :, 1) = 1.0D0\n"
+    assert ("  !$ACC DATA COPYOUT(tmask)\n"
+            "  tmask(:, :) = jpi\n"
             "  !$ACC END DATA\n"
             "END SUBROUTINE tra_ldf_iso" in gen_code)
 
