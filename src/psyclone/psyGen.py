@@ -5245,6 +5245,22 @@ class Fparser2ASTProcessor(object):
                 return nodes.items
             return [nodes]
 
+        # Look at any USE statments
+        for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
+
+            if not isinstance(decl.items[4],
+                              (Fortran2003.Name, Fortran2003.Only_List)):
+                # This USE doesn't have an ONLY clause so we skip it (this
+                # will only become a problem if this Schedule represents a
+                # kernel that is the target of a transformation).
+                continue
+            mod_name = str(decl.items[2])
+            for name in iterateitems(decl.items[4]):
+                print(name)
+            #scope='global_use'
+            #parent.symbol_table.declare(str(name), datatype, shape,
+            #                            scope, is_input, is_output)
+
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
 

@@ -1,7 +1,16 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
+!
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019, Science and Technology Facilities Council.
+! Modifications copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,33 +38,17 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: A. R. Porter, STFC Daresbury Lab.
 
-module kern_use_var_mod
+module flux_direction_mod
+
+  use constants_mod, only : i_native
+
   implicit none
 
-  type, extends(kernel_type) :: kern_use_var
-     type(arg), dimension(1) :: meta_args =              &
-          (/ go_arg(GO_READWRITE, GO_CT, GO_POINTWISE) /)
-     !> This kernel writes only to internal points of the
-     !! simulation domain.
-     integer :: ITERATES_OVER = GO_INTERNAL_PTS
+  private
 
-     integer :: index_offset = GO_OFFSET_SW
+  integer(i_native), public, parameter :: x_direction = 100
+  integer(i_native), public, parameter :: y_direction = 101
+  integer(i_native), public, parameter :: z_direction = 102
 
-  contains
-    procedure, nopass :: code => kern_use_var_code
-  end type kern_use_var
-
-contains
-
-  subroutine kern_use_var_code(i, j, fld)
-    use data_mod, only: gravity, friction
-    integer, intent(in) :: i, j
-    real(go_wp), dimension(:,:), intent(inout) :: fld
-
-    fld(i,j) = gravity * field(i,j)
-
-  end subroutine kern_use_var_code
-  
-end module kern_use_var_mod
+end module flux_direction_mod

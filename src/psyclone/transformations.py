@@ -2677,7 +2677,7 @@ class ACCRoutineTrans(Transformation):
             raise TransformationError("Cannot transform kernel {0} because "
                                       "it will be module-inlined.".
                                       format(kern.name))
-
+        sched = kern.get_kernel_schedule()
 
 class ACCKernelsTrans(RegionTrans):
     '''
