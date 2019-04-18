@@ -139,9 +139,10 @@ def test_reject_dowhile(parser):
     reader = FortranStringReader(DO_WHILE_PROG)
     prog = parser(reader)
     loops = walk_ast([prog], [Fortran2003.Block_Nonlabel_Do_Construct])
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(InternalError) as err:
         _ = nemo.NemoLoop(loops[0])
-    assert "Cannot create a NemoLoop for a DO WHILE" in str(err)
+    assert ("NemoLoop constructor should not have been called for a DO WHILE"
+            in str(err))
 
 
 def test_missing_loop_control(parser):

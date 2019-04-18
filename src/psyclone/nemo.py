@@ -76,9 +76,6 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     Specialisation of Fparser2ASTProcessor for the Nemo API. It is used
     as a Mixin in the Nemo API.
     '''
-    def __init__(self):
-        super(NemoFparser2ASTProcessor, self).__init__()
-
     def _create_child(self, child, parent=None):
         '''
         Adds Nemo API specific processors for certain fparser2 types
@@ -516,7 +513,7 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, ast, parent=None):
-        from fparser.two.Fortran2003 import Loop_Control, BinaryOpBase
+        from fparser.two.Fortran2003 import Loop_Control
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         NemoFparser2ASTProcessor.__init__(self)
@@ -529,8 +526,8 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         # not be None. The `match` method should have already rejected
         # such loops so we should never get to here.
         if ctrl[0].items[0]:
-            raise NotImplementedError(
-                "Cannot create a NemoLoop for a DO WHILE")
+            raise InternalError("NemoLoop constructor should not have been "
+                                "called for a DO WHILE")
 
         # Second element of items member of Loop Control is itself a tuple
         # containing:
