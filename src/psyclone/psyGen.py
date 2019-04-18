@@ -4677,6 +4677,7 @@ class IfBlock(Node):
     :param str annotation: Tags that provide additional information about \
         the node. The node should still be functionally correct when \
         ignoring this tags.
+    :raises InternalError: when initialised with invalid parameters.
     '''
     valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case')
 
@@ -4771,7 +4772,8 @@ class IfBlock(Node):
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: str
-        :raises GenerationError: If mandatory children of IfBlock are missing.
+        :raises GenerationError: If any mandatory children of the IfBlock \
+            node is missing.
         '''
         if len(self.children) < 2:
             raise GenerationError("IfBlock malformed or "
@@ -5418,6 +5420,8 @@ class Fparser2ASTProcessor(object):
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :raises InternalError: If the fparser2 tree has an unexpected \
+            structure.
         '''
         from fparser.two import Fortran2003
 
@@ -5530,6 +5534,17 @@ class Fparser2ASTProcessor(object):
     def _case_construct_handler(self, node, parent):
         '''
         Transforms an fparser2 Case_Construct to the PSyIR representation.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Case_Construct`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :raises InternalError: If the fparser2 tree has an unexpected \
+            structure.
+        :raises NotImplementedError: If the fparser2 tree contains an \
+            unsupported structure and should be placed in a CodeBlock.
         '''
         from fparser.two import Fortran2003
         # Check that the fparser2 parsetree has the expected structure
@@ -5554,9 +5569,9 @@ class Fparser2ASTProcessor(object):
                 clause_indices.append(idx)
                 # Case Default and value Ranges not supported yet
                 if 'DEFAULT' in str(child):
-                    raise NotImplementedError("Case Default Statment")
+                    raise NotImplementedError("Case Default Statement")
                 if ':' in str(child):
-                    raise NotImplementedError("Case Value Range Statment")
+                    raise NotImplementedError("Case Value Range Statement")
 
         # Deal with each Case_Stmt
         rootif = None

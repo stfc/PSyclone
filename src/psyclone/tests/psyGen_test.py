@@ -3981,7 +3981,7 @@ def test_fparser2astprocessor_handling_if_construct_errors(f2008_parser):
         elseif (condition2) then
         endif''')
 
-    # Test with no closing End_If__Stmt
+    # Test with no closing End_If_Stmt
     fparser2if_construct = Execution_Part.match(reader)[0][0]
     del fparser2if_construct.content[-1]
     with pytest.raises(InternalError) as error:
@@ -4084,6 +4084,14 @@ def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
     assert ifnode.else_body[0].if_body[0].children[0].ref_name == 'branch2'
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 
+
+def test_fparser2astprocessor_handling_invalid_Case_construct(f2008_parser):
+    ''' Test that the Case_Construct handler raises the proper errors when
+    it parses invalid or unsupported fparser2 trees.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+
     # CASE Value Ranges are not supported
     reader = FortranStringReader(
         '''SELECT CASE (selector)
@@ -4109,6 +4117,34 @@ def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2case_construct], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
+
+    # Test with no opening Select_Case_Stmt
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (label1)
+                branch1 = 1
+            CASE (label2)
+                branch2 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+    del fparser2case_construct.content[0]
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert "Failed to find opening case statement in:" in str(error.value)
+
+    # Test with no closing End_Select_Stmt
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (label1)
+                branch1 = 1
+            CASE (label2)
+                branch2 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+    del fparser2case_construct.content[-1]
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert "Failed to find closing case statement in:" in str(error.value)
 
 
 def test_fparser2astprocessor_handling_numberbase(f2008_parser):
