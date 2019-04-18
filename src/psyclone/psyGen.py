@@ -5163,7 +5163,7 @@ class Fparser2ASTProcessor(object):
             if type(nodes).__name__.endswith("_List"):
                 return nodes.items
             return [nodes]
-        import pdb; pdb.set_trace()
+
         # Look at any USE statments
         for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
 
