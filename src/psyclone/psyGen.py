@@ -5584,21 +5584,30 @@ class Fparser2ASTProcessor(object):
                     ifblock.addchild(bop)
 
                     # Add If_body
-                    sch = Schedule(parent=ifblock)
-                    self.process_nodes(parent=sch,
+                    ifbody = Schedule(parent=ifblock)
+                    self.process_nodes(parent=ifbody,
                                        nodes=node.content[start_idx + 1:
                                                           end_idx],
                                        nodes_parent=node)
-                    ifblock.addchild(sch)
+                    ifblock.addchild(ifbody)
+                    # Keep pointer to fpaser2 AST
+                    ifbody._ast = node.content[start_idx]
+                    ifbody._ast_end = node.content[end_idx]
 
                     if rootif:
-                        # If rootif is already initialise we chain the new
+                        # If rootif is already initialised we chain the new
                         # case in the last else branch.
                         elsebody = Schedule(parent=currentparent)
                         currentparent.addchild(elsebody)
                         elsebody.addchild(ifblock)
+                        # Keep pointer to fpaser2 AST
+                        elsebody._ast = node.content[start_idx]
+                        ifblock._ast = node.content[start_idx]
+                        elsebody._ast_end = node.content[end_idx]
+                        ifblock._ast_end = node.content[end_idx]
                     else:
                         rootif = ifblock
+                        rootif._ast = node  # Keep pointer to fpaser2 AST
 
                     currentparent = ifblock
 
