@@ -81,43 +81,42 @@ can be found in the API-specific sections).
 
 .. autoclass:: psyclone.transformations.ACCDataTrans
     :noindex:
-    :members:
+    :members: apply
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCEnterDataTrans
     :noindex:
-    :members:
+    :members: apply
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCKernelsTrans
     :noindex:
-    :members:
+    :members: apply
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCLoopTrans
-    :members:
+    :members: apply
     :noindex:
 
 ####
 
 .. autoclass:: psyclone.transformations.ACCParallelTrans
-    :members:
-    :inherited-members:
+    :members: apply
     :noindex:
 
 ####
 	       
 .. autoclass:: psyclone.transformations.ColourTrans
-    :members:
+    :members: apply
     :noindex:
 
 ####
 
 .. autoclass:: psyclone.transformations.ExtractRegionTrans
-    :members:
+    :members: apply
     :noindex:
 
 ####
@@ -561,6 +560,13 @@ Invoke. The first option is mainly provided as an aid to incremental
 porting and/or debugging of an OpenACC application as it provides
 explicit control over what data is present on a device for a given
 (part of an) Invoke routine.
+
+The PGI compiler provides an alternative approach to controlling data
+movement through its 'unified memory' option
+(``-ta=tesla:managed``). When this is enabled the compiler itself takes
+on the task of ensuring that data is copied to/from the GPU when
+required. (Note that this approach can struggle with Fortran code
+containing derived types however.)
 
 As well as ensuring the correct data is copied to and from the remote
 device, OpenACC directives must also be added to a code in order to
