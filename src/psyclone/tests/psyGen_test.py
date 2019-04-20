@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Symbol, SymbolTable
+    KernelSchedule, Symbol, SymbolTable, UnaryOperation, Return
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -2745,7 +2745,7 @@ def test_assignment_gen_c_code():
     with pytest.raises(GenerationError) as err:
         _ = assignment.gen_c_code()
     assert("Assignment malformed or incomplete. It should have "
-           "exactly 2 children, but it found 0." in str(err.value))
+           "exactly 2 children, but found 0." in str(err.value))
     ref = Reference("a", assignment)
     lit = Literal("1", assignment)
     assignment.addchild(ref)
@@ -2897,12 +2897,75 @@ def test_binaryoperation_gen_c_code():
     with pytest.raises(GenerationError) as err:
         _ = binary_operation.gen_c_code()
     assert("BinaryOperation malformed or incomplete. It should have "
-           "exactly 2 children, but it found 0." in str(err.value))
+           "exactly 2 children, but found 0." in str(err.value))
     lit1 = Literal("1", binary_operation)
     lit2 = Literal("2", binary_operation)
     binary_operation.addchild(lit1)
     binary_operation.addchild(lit2)
     assert binary_operation.gen_c_code() == '(1 + 2)'
+
+
+# Test UnaryOperation class
+
+def test_unaryoperation_view(capsys):
+    ''' Check the view and colored_text methods of the UnaryOperation
+    class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    unary_operation = UnaryOperation("-")
+    op1 = Literal("1", parent=unary_operation)
+    unary_operation.addchild(op1)
+    coloredtext = colored("UnaryOperation",
+                          SCHEDULE_COLOUR_MAP["UnaryOperation"])
+    unary_operation.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[operator:'-']" in output
+
+
+def test_unaryoperation_can_be_printed():
+    '''Test that a UnaryOperation instance can always be printed (i.e. is
+    initialised fully)'''
+    unary_operation = UnaryOperation("-")
+    op1 = Literal("1", parent=unary_operation)
+    unary_operation.addchild(op1)
+    assert "UnaryOperation[operator:'-']\n" in str(unary_operation)
+
+
+def test_unaryoperation_gen_c_code():
+    '''Test that a UnaryOperation node can generate its C representation'''
+
+    unary_operation = UnaryOperation("-")
+    with pytest.raises(GenerationError) as err:
+        _ = unary_operation.gen_c_code()
+    assert("UnaryOperation malformed or incomplete. It should have "
+           "exactly 1 child, but found 0." in str(err.value))
+    lit1 = Literal("1", unary_operation)
+    unary_operation.addchild(lit1)
+    assert unary_operation.gen_c_code() == '(- 1)'
+
+
+# Test Return class
+
+def test_return_view(capsys):
+    ''' Check the view and colored_text methods of the Return class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    return_stmt = Return()
+    coloredtext = colored("Return", SCHEDULE_COLOUR_MAP["Return"])
+    return_stmt.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[]" in output
+
+
+def test_return_can_be_printed():
+    '''Test that a Return instance can always be printed (i.e. is
+    initialised fully)'''
+    return_stmt = Return()
+    assert "Return[]\n" in str(return_stmt)
+
+
+def test_return_gen_c_code():
+    '''Test that a Return node can generate its C representation'''
+    return_stmt = Return()
+    assert return_stmt.gen_c_code() == 'return;'
 
 
 # Test KernelSchedule Class
@@ -3700,7 +3763,7 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
 
 
 def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
-    ''' Test that fparser2 Assignment_Stmt is converted to expected PSyIR
+    ''' Test that fparser2 Assignment_Stmt is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3719,7 +3782,7 @@ def test_fparser2astprocessor_handling_assignment_stmt(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_name(f2008_parser):
-    ''' Test that fparser2 Name is converted to expected PSyIR
+    ''' Test that fparser2 Name is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3738,7 +3801,7 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
-    ''' Test that fparser2 Parenthesis is converted to expected PSyIR
+    ''' Test that fparser2 Parenthesis is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3757,7 +3820,7 @@ def test_fparser2astprocessor_handling_parenthesis(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_part_ref(f2008_parser):
-    ''' Test that fparser2 Part_Ref is converted to expected PSyIR
+    ''' Test that fparser2 Part_Ref is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3789,7 +3852,7 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
-    ''' Test that fparser2 If_Stmt is converted to expected PSyIR
+    ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3808,7 +3871,7 @@ def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_numberbase(f2008_parser):
-    ''' Test that fparser2 NumberBase is converted to expected PSyIR
+    ''' Test that fparser2 NumberBase is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3827,7 +3890,7 @@ def test_fparser2astprocessor_handling_numberbase(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
-    ''' Test that fparser2 BinaryOpBase is converted to expected PSyIR
+    ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
     '''
     from fparser.common.readfortran import FortranStringReader
@@ -3844,6 +3907,47 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     assert isinstance(new_node, BinaryOperation)
     assert len(new_node.children) == 2
     assert new_node._operator == '+'
+
+
+def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
+    ''' Test that fparser2 UnaryOpBase is converted to the expected PSyIR
+    tree structure.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
+    reader = FortranStringReader("x=-4")
+    fparser2unary_operation = Execution_Part.match(reader)[0][0].items[2]
+    assert isinstance(fparser2unary_operation, UnaryOpBase)
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2unary_operation], None)
+    # Check a new node was generated and connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, UnaryOperation)
+    assert len(new_node.children) == 1
+    assert new_node._operator == '-'
+
+
+def test_fparser2astprocessor_handling_return_stmt(f2008_parser):
+    ''' Test that fparser2 Return_Stmt is converted to the expected PSyIR
+    tree structure.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part, Return_Stmt
+    reader = FortranStringReader("return")
+    return_stmt = Execution_Part.match(reader)[0][0]
+    assert isinstance(return_stmt, Return_Stmt)
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [return_stmt], None)
+    # Check a new node was generated and connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Return)
+    assert not new_node.children
 
 
 def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):

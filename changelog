@@ -85,6 +85,23 @@
 	directives and adds a sequential option to the OpenACC loop
 	directive transformation.
 
+	28) #319 and PR #331. Bug fix to make matching of kernel names
+	in module use statements (in the Kernel) case insensitive.
+
+	29) #349 Bug fix for unicode characters in comment strings for
+	Python 3 to 3.6.
+
+	30) #320 and PR #334. Remove obsolete GUI-related code.
+
+	31) #322 and PR #343. Add gocean1.0 api example which contains
+	kernels with use statements.
+
+        32) #345 and PR #352. Makes the search for kernels within the parse
+        tree case insensitive.
+
+        33) #350 and PR #351. Bug fix in the stencil lookup for field
+        vectors in the Dynamo0.3 API.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

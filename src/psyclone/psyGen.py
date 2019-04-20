@@ -125,7 +125,9 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Assignment": "blue",
                        "Reference": "yellow",
                        "BinaryOperation": "blue",
+                       "UnaryOperation": "blue",
                        "Literal": "yellow",
+                       "Return": "yellow",
                        "CodeBlock": "red"}
 
 # Default indentation string
@@ -1512,20 +1514,6 @@ class Schedule(Node):
         :rtype: str
         '''
         return "schedule"
-
-    # TODO: Method part of old GUI, it is untested and marked to be
-    # removed in issue #320
-    def tkinter_delete(self):
-        for entity in self._children:
-            entity.tkinter_delete()
-
-    # TODO: Method part of old GUI, it is untested and marked to be
-    # removed in issue #320
-    def tkinter_display(self, canvas, x, y):
-        y_offset = 0
-        for entity in self._children:
-            entity.tkinter_display(canvas, x, y+y_offset)
-            y_offset = y_offset+entity.height
 
     def view(self, indent=0):
         '''
@@ -2971,6 +2959,47 @@ class HaloExchange(Node):
 
 
 class Loop(Node):
+    '''Represents a loop in the PSyIR.
+
+    :param parent: Parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :param str variable_name: Optional name of the loop iterator \
+    variable. Defaults to an empty string.
+    :param valid_loop_types: A list of loop types that are specific \
+    to a particular API.
+    :type valid_loop_types: list of str
+
+    '''
+
+    def __init__(self, parent=None,
+                 variable_name="",
+                 valid_loop_types=None):
+
+        # we need to determine whether this is a built-in or kernel
+        # call so our schedule can do the right thing.
+
+        if valid_loop_types is None:
+            self._valid_loop_types = []
+        else:
+            self._valid_loop_types = valid_loop_types
+        self._loop_type = None        # inner, outer, colour, colours, ...
+        self._field = None
+        self._field_name = None       # name of the field
+        self._field_space = None      # v0, v1, ...,     cu, cv, ...
+        self._iteration_space = None  # cells, ...,      cu, cv, ...
+        self._kern = None             # Kernel associated with this loop
+
+        # TODO replace iterates_over with iteration_space
+        self._iterates_over = "unknown"
+
+        Node.__init__(self, parent=parent)
+
+        self._variable_name = variable_name
+
+        self._start = ""
+        self._stop = ""
+        self._step = ""
+        self._id = ""
 
     @property
     def dag_name(self):
@@ -3006,41 +3035,6 @@ class Loop(Node):
                 "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
-    def __init__(self, parent=None,
-                 variable_name="",
-                 topology_name="topology",
-                 valid_loop_types=[]):
-
-        # we need to determine whether this is a built-in or kernel
-        # call so our schedule can do the right thing.
-
-        self._valid_loop_types = valid_loop_types
-        self._loop_type = None        # inner, outer, colour, colours, ...
-        self._field = None
-        self._field_name = None       # name of the field
-        self._field_space = None      # v0, v1, ...,     cu, cv, ...
-        self._iteration_space = None  # cells, ...,      cu, cv, ...
-        self._kern = None             # Kernel associated with this loop
-
-        # TODO replace iterates_over with iteration_space
-        self._iterates_over = "unknown"
-
-        Node.__init__(self, parent=parent)
-
-        self._variable_name = variable_name
-
-        self._start = ""
-        self._stop = ""
-        self._step = ""
-        self._id = ""
-
-        # visual properties
-        self._width = 30
-        self._height = 30
-        self._shape = None
-        self._text = None
-        self._canvas = None
-
     def view(self, indent=0):
         '''
         Write out a textual summary of this Loop node to stdout
@@ -3066,52 +3060,6 @@ class Loop(Node):
         :rtype: string
         '''
         return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-
-    @property
-    def height(self):
-        calls_height = 0
-        for child in self.children:
-            calls_height += child.height
-        return self._height+calls_height
-
-    def tkinter_delete(self):
-        if self._shape is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._shape)
-        if self._text is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._text)
-        for child in self.children:
-            child.tkinter_delete()
-
-    def tkinter_display(self, canvas, x, y):
-        self.tkinter_delete()
-        self._canvas = canvas
-        from Tkinter import ROUND
-        name = "Loop"
-        min_call_width = 100
-        max_calls_width = min_call_width
-        calls_height = 0
-        for child in self.children:
-            calls_height += child.height
-            max_calls_width = max(max_calls_width, child.width)
-
-        self._shape = canvas.create_polygon(
-            x, y, x+self._width+max_calls_width, y,
-            x+self._width+max_calls_width, y+self._height,
-            x+self._width, y+self._height,
-            x+self._width, y+self._height+calls_height,
-            x, y+self._height+calls_height,
-            outline="red", fill="green", width=2,
-            activeoutline="blue", joinstyle=ROUND)
-        self._text = canvas.create_text(x+(self._width+max_calls_width)/2,
-                                        y+self._height/2, text=name)
-
-        call_height = 0
-        for child in self.children:
-            child.tkinter_display(canvas, x+self._width,
-                                  y+self._height+call_height)
-            call_height += child.height
 
     @property
     def field_space(self):
@@ -3285,12 +3233,6 @@ class Call(Node):
                 else:
                     arg_names.append(text)
 
-        # visual properties
-        self._width = 250
-        self._height = 30
-        self._shape = None
-        self._text = None
-        self._canvas = None
         self._arg_descriptors = None
 
         # initialise any reduction information
@@ -3332,34 +3274,6 @@ class Call(Node):
         ''' Return a string containing the (coloured) name of this node
         type '''
         return colored("Call", SCHEDULE_COLOUR_MAP["Call"])
-
-    @property
-    def width(self):
-        return self._width
-
-    @property
-    def height(self):
-        return self._height
-
-    def tkinter_delete(self):
-        if self._shape is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._shape)
-        if self._text is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._text)
-
-    def tkinter_display(self, canvas, x, y):
-        self.tkinter_delete()
-        self._canvas = canvas
-        self._x = x
-        self._y = y
-        self._shape = self._canvas.create_rectangle(
-            self._x, self._y, self._x+self._width, self._y+self._height,
-            outline="red", fill="yellow", activeoutline="blue", width=2)
-        self._text = self._canvas.create_text(self._x+self._width/2,
-                                              self._y+self._height/2,
-                                              text=self._name)
 
     @property
     def is_reduction(self):
@@ -4932,11 +4846,9 @@ class Fparser2ASTProcessor(object):
             utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
-            # TODO: Issue #256, to cover all nemolite2D kernels we need:
             # Fortran2003.If_Construct: self._if_construct_handler,
-            # Fortran2003.Return_Stmt: self._return_handler,
-            # Fortran2003.UnaryOpBase: self._unaryOp_handler,
-            # ... (some already partially implemented in nemo.py)
+            Fortran2003.Return_Stmt: self._return_handler,
+            Fortran2003.UnaryOpBase: self._unary_op_handler,
         }
 
     @staticmethod
@@ -5405,7 +5317,7 @@ class Fparser2ASTProcessor(object):
         Create a PSyIR node representing the supplied fparser 2 node.
 
         :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.Base`
+        :type child: :py:class:`fparser.two.utils.Base`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
@@ -5429,15 +5341,14 @@ class Fparser2ASTProcessor(object):
                 raise NotImplementedError()
         return handler(child, parent)
 
-    def _ignore_handler(self, node, parent):  # pylint: disable=unused-argument
+    def _ignore_handler(self, *_):
         '''
         This handler returns None indicating that the associated
         fparser2 node can be ignored.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        Note that this method contains ignored arguments to comform with
+        the handler(node, parent) method interface.
+
         :returns: None
         :rtype: NoneType
         '''
@@ -5447,8 +5358,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 If_Stmt to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.If_Stmt`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.If_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5460,6 +5371,20 @@ class Fparser2ASTProcessor(object):
         self.process_nodes(parent=ifblock, nodes=[node.items[1]],
                            nodes_parent=node)
         return ifblock
+
+    def _return_handler(self, _, parent):
+        '''
+        Transforms an fparser2 Return_Stmt to the PSyIR representation.
+
+        Note that this method contains ignored arguments to comform with
+        the handler(node, parent) method interface.
+
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :return: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.Return`
+        '''
+        return Return(parent=parent)
 
     def _assignment_handler(self, node, parent):
         '''
@@ -5481,12 +5406,32 @@ class Fparser2ASTProcessor(object):
 
         return assignment
 
+    def _unary_op_handler(self, node, parent):
+        '''
+        Transforms an fparser2 UnaryOpBase to the PSyIR representation.
+
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.UnaryOpBase`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :return: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+        '''
+        # Get the operator
+        operator = node.items[0]
+
+        unary_op = UnaryOperation(operator, parent=parent)
+        self.process_nodes(parent=unary_op, nodes=[node.items[1]],
+                           nodes_parent=node)
+
+        return unary_op
+
     def _binary_op_handler(self, node, parent):
         '''
         Transforms an fparser2 BinaryOp to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.BinaryOpBase`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.BinaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5507,8 +5452,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Name to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Name`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Name`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5522,8 +5467,8 @@ class Fparser2ASTProcessor(object):
         This means ignoring the parentheis and process the fparser2 children
         inside.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Parenthesis`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Parenthesis`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5538,8 +5483,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Part_Ref to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5567,8 +5512,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 NumberBase to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.NumberBase`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.NumberBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -6157,8 +6102,8 @@ class Assignment(Node):
         if len(self.children) != 2:
             raise GenerationError("Assignment malformed or "
                                   "incomplete. It should have exactly 2 "
-                                  "children, but it found {0}."
-                                  "".format(str(len(self.children))))
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
 
         return self.indent(indent) \
             + self.children[0].gen_c_code() + " = " \
@@ -6212,6 +6157,69 @@ class Reference(Node):
         return self._reference
 
 
+class UnaryOperation(Node):
+    '''
+    Node representing a UnaryOperation expression. As such it has one operand
+    as child 0, and an attribute with the operator type.
+
+    :param str operator: string representing the unary operator.
+    :param parent: the parent node of this UnaryOperation in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, operator, parent=None):
+        super(UnaryOperation, self).__init__(parent=parent)
+        # TODO: (Issue #339) Create an Operator entity to have more robust
+        # operators than the current string.
+        self._operator = operator
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("UnaryOperation",
+                       SCHEDULE_COLOUR_MAP["UnaryOperation"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "UnaryOperation[operator:'" + self._operator + "']\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :return: C language code representing the node.
+        :rtype: str
+        :raises GenerationError: if the node or its children are invalid.
+        '''
+        if len(self.children) != 1:
+            raise GenerationError("UnaryOperation malformed or "
+                                  "incomplete. It should have exactly 1 "
+                                  "child, but found {0}."
+                                  "".format(len(self.children)))
+
+        return "(" + self._operator + " " \
+            + self._children[0].gen_c_code() + ")"
+
+
 class BinaryOperation(Node):
     '''
     Node representing a BinaryOperator expression. As such it has two operands
@@ -6263,13 +6271,14 @@ class BinaryOperation(Node):
         :param int indent: Depth of indent for the output string.
         :returns: C language code representing the node.
         :rtype: str
+        :raises GenerationError: if the node or its children are invalid.
         '''
 
         if len(self.children) != 2:
             raise GenerationError("BinaryOperation malformed or "
                                   "incomplete. It should have exactly 2 "
-                                  "children, but it found {0}."
-                                  "".format(str(len(self.children))))
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
 
         return "(" + self._children[0].gen_c_code() + " " \
             + self._operator + " " \
@@ -6352,7 +6361,7 @@ class Literal(Node):
     '''
     Node representing a Literal
 
-    :param str value: string representing the literal value.
+    :param str value: String representing the literal value.
     :param parent: the parent node of this Literal in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
@@ -6392,3 +6401,47 @@ class Literal(Node):
         :rtype: str
         '''
         return self._value
+
+
+class Return(Node):
+    '''
+    Node representing a Return statement (subroutine break without return
+    value).
+
+    :param parent: the parent node of this Return in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, parent=None):
+        super(Return, self).__init__(parent=parent)
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+
+    def __str__(self):
+        return "Return[]\n"
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :return: C language code representing the node.
+        :rtype: str
+        '''
+        return "return;"

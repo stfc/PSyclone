@@ -37,8 +37,11 @@
 file.
 
 '''
+import tempfile
 
 import pytest
+import six
+
 from psyclone.parse.utils import check_line_length, parse_fp2, ParseError
 from psyclone.psyGen import InternalError
 
@@ -54,6 +57,43 @@ def test_no_file():
         check_line_length("file_does_not_exist")
     assert ("In utils.py:check_line_length: [Errno 2] No such file or "
             "directory: 'file_does_not_exist'") in str(excinfo.value)
+
+
+def test_line_length_too_long():
+    '''Check that a file containing a long comment
+    raises a ParseError.
+
+    '''
+    with tempfile.NamedTemporaryFile(mode='w') as tmp_file:
+        tmp_file.write('''
+            ! A fortran line that is too long... {}
+        '''.format('a' * 100))
+        tmp_file.flush()
+        with pytest.raises(ParseError) as excinfo:
+            check_line_length(tmp_file.name)
+    expected = 'file does not conform to the specified 132 line length limit'
+    assert expected in str(excinfo.value)
+
+
+def test_line_length_unicode():
+    '''Check that a file containing unicode character comments
+    parses correctly.
+
+    Note: This test failed with Python >3,<3.7 before explicit codecs
+          were defined in the open(filename, ...) call.
+    '''
+    kwargs = dict(encoding='utf8') if six.PY3 else {}
+    with tempfile.NamedTemporaryFile(mode='w', **kwargs) as tmp_file:
+        content = u'''
+            ! A fortran comment with a unicode character "{}"
+        '''.format(u"\u2014")
+        if six.PY3:
+            tmp_file.write(content)
+        else:
+            tmp_file.write(content.encode('utf8'))
+        tmp_file.flush()
+
+        assert check_line_length(tmp_file.name) is None
 
 # function parse_fp2() tests
 
