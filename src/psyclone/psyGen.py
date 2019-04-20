@@ -5536,7 +5536,7 @@ class Symbol(object):
                        an array dimension. If it is 'None' the extent of that \
                        dimension is unknown, otherwise it holds an integer \
                        literal or a reference to an integer symbol with the \
-                       extent. If it is an empy list then the symbol \
+                       extent. If it is an empty list then the symbol \
                        represents a scalar.
     :param str scope: It is 'local' if the symbol just exists inside the \
                       kernel scope or 'global_*' if the data survives outside \
@@ -5670,7 +5670,7 @@ class Symbol(object):
                   an array dimension. If it is 'None' the extent of that \
                   dimension is unknown, otherwise it holds an integer \
                   literal or a reference to an integer symbol with the \
-                  extent. If it is an empy list then the symbol \
+                  extent. If it is an empty list then the symbol \
                   represents a scalar.
         :rtype: list
         '''
@@ -5797,7 +5797,7 @@ class SymbolTable(object):
                            'None' the extent of that dimension is unknown, \
                            otherwise it holds an integer literal or a \
                            reference to an integer symbol with the extent. \
-                           If it is an empy list then the symbol represents a \
+                           If it is an empty list then the symbol represents a \
                            scalar.
         :param str scope: It is 'local' if the symbol just exists inside the \
                           kernel scope or 'global_*' if the data survives \
