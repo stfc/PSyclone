@@ -76,7 +76,7 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 @pytest.fixture(scope="module")
 def f2008_parser():
-    '''Initialize fparser2 with Fortran2008 standard'''
+    '''Initialise fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
 
@@ -108,7 +108,6 @@ def test_psyfactory_valid_return_object():
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from psyclone.configuration import Config
     _config = Config.get()
     apis = _config.supported_apis[:]
     apis.insert(0, "")
@@ -605,8 +604,7 @@ def test_invokeschedule_view(capsys):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     super(dynamo0p3.DynInvokeSchedule,
-          psy.invokes.invoke_list[0].schedule
-          ).view()
+          psy.invokes.invoke_list[0].schedule).view()
     output, _ = capsys.readouterr()
     assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
@@ -2571,7 +2569,6 @@ def test_loop_props():
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
-    from psyclone.psyGen import Node
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].children[0]
@@ -3017,7 +3014,7 @@ def test_kernelschedule_abstract_methods():
 
 
 # Test Symbol Class
-def test_symbol_initialization():
+def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
 
@@ -3042,7 +3039,7 @@ def test_symbol_initialization():
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
-    assert ("Symbol can only be initialized with {0} datatypes."
+    assert ("Symbol can only be initialised with {0} datatypes."
             "".format(str(Symbol.valid_data_types)))in str(error.value)
 
     with pytest.raises(ValueError) as error:
@@ -3133,15 +3130,15 @@ def test_symbol_is_output_setter():
 def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed. (i.e. is
     initialised fully)'''
-    s1 = Symbol("s1", "integer")
-    assert "s1: <integer, local, Scalar>" in str(s1)
+    sym1 = Symbol("s1", "integer")
+    assert "s1: <integer, local, Scalar>" in str(sym1)
 
-    s2 = Symbol("s2", "real", [None, 2, s1])
-    assert "s2: <real, local, Array['Unknown bound', 2, s1]>" in str(s2)
+    sym2 = Symbol("s2", "real", [None, 2, sym1])
+    assert "s2: <real, local, Array['Unknown bound', 2, s1]>" in str(sym2)
 
-    s2._shape.append('invalid')
+    sym2._shape.append('invalid')
     with pytest.raises(InternalError) as error:
-        _ = str(s2)
+        _ = str(sym2)
     assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
             "'None', but found") in str(error.value)
 
@@ -3581,7 +3578,7 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Initializations on the declaration statements are not "
+    assert ("Initialisations on the declaration statements are not "
             "supported.") in str(error.value)
 
     # Char lengths are not supported
@@ -3744,10 +3741,12 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
     import fparser
 
-    def walk_ast_return(arg1, arg2):
+    def walk_ast_return(_1, _2):
         '''Function that returns a unique object that will not be part
         of the implemented handling in the walk_ast method caller.'''
         class invalid(object):
+            '''Class that would be invalid to return from an fparser2 parse
+            tree.'''
             pass
         newobject = invalid()
         return [newobject]
@@ -3757,7 +3756,7 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(InternalError) as error:
-        shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, None)
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, None)
     assert "Reached end of loop body and" in str(error.value)
     assert " has not been handled." in str(error.value)
 
@@ -3964,7 +3963,7 @@ def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2enddo], None)
-    assert len(fake_parent.children) == 0  # No new children created
+    assert not fake_parent.children  # No new children created
 
 
 def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
@@ -3980,4 +3979,4 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2endsub], None)
-    assert len(fake_parent.children) == 0  # No new children created
+    assert not fake_parent.children  # No new children created

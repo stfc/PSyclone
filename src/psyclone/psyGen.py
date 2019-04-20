@@ -5093,7 +5093,7 @@ class Fparser2ASTProcessor(object):
         the extent of each dimension.
 
         :param dimensions: fparser dimension attribute
-        :type dimensions:
+        :type dimensions: \
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
         :param symbol_table: Symbol table of the declaration context.
         :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
@@ -5133,7 +5133,7 @@ class Fparser2ASTProcessor(object):
                     shape.append(int(dim.items[1].items[0]))
                 elif isinstance(dim.items[1], Fortran2003.Name):
                     sym = symbol_table.lookup(dim.items[1].string)
-                    if sym.datatype != 'integer' or len(sym.shape) > 0:
+                    if sym.datatype != 'integer' or sym.shape:
                         _unsupported_type_error(dimensions)
                     shape.append(sym)
                 else:
@@ -5238,7 +5238,7 @@ class Fparser2ASTProcessor(object):
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
             for entity in iterateitems(entities):
-                (name, array_spec, char_len, initialization) = entity.items
+                (name, array_spec, char_len, initialisation) = entity.items
 
                 # If the entity has an array-spec shape, it has priority.
                 # Otherwise use the declaration attribute shape.
@@ -5248,9 +5248,9 @@ class Fparser2ASTProcessor(object):
                 else:
                     entity_shape = attribute_shape
 
-                if (initialization is not None):
+                if (initialisation is not None):
                     raise NotImplementedError(
-                        "Could not process {0}. Initializations on the"
+                        "Could not process {0}. Initialisations on the"
                         " declaration statements are not supported."
                         "".format(decl.items))
 
@@ -5306,7 +5306,7 @@ class Fparser2ASTProcessor(object):
                 if psy_child:
                     self.nodes_to_code_block(parent, code_block_nodes)
                     parent.addchild(psy_child)
-                # If psy_child is not initialized but it didn't produce a
+                # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
 
         # Complete any unfinished code-block
@@ -5567,7 +5567,7 @@ class Symbol(object):
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
-                "Symbol can only be initialized with {0} datatypes."
+                "Symbol can only be initialised with {0} datatypes."
                 "".format(str(Symbol.valid_data_types)))
         self._datatype = datatype
 
@@ -5576,8 +5576,7 @@ class Symbol(object):
 
         for dimension in shape:
             if isinstance(dimension, Symbol):
-                if dimension.datatype != "integer" or \
-                   len(dimension.shape) > 0:
+                if dimension.datatype != "integer" or dimension.shape:
                     raise TypeError(
                         "Symbols that are part of another symbol shape can "
                         "only be scalar integers, but found '{0}'."
@@ -5797,8 +5796,8 @@ class SymbolTable(object):
                            'None' the extent of that dimension is unknown, \
                            otherwise it holds an integer literal or a \
                            reference to an integer symbol with the extent. \
-                           If it is an empty list then the symbol represents a \
-                           scalar.
+                           If it is an empty list then the symbol represents \
+                           a scalar.
         :param str scope: It is 'local' if the symbol just exists inside the \
                           kernel scope or 'global_*' if the data survives \
                           outside of the kernel scope. Note that \
