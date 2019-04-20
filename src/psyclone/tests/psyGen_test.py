@@ -76,7 +76,7 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 @pytest.fixture(scope="module")
 def f2008_parser():
-    '''Initialize fparser2 with Fortran2008 standard'''
+    '''Initialise fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
 
@@ -108,7 +108,6 @@ def test_psyfactory_valid_return_object():
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from psyclone.configuration import Config
     _config = Config.get()
     apis = _config.supported_apis[:]
     apis.insert(0, "")
@@ -605,8 +604,7 @@ def test_invokeschedule_view(capsys):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     super(dynamo0p3.DynInvokeSchedule,
-          psy.invokes.invoke_list[0].schedule
-          ).view()
+          psy.invokes.invoke_list[0].schedule).view()
     output, _ = capsys.readouterr()
     assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
@@ -2571,7 +2569,6 @@ def test_loop_props():
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
-    from psyclone.psyGen import Node
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].children[0]
@@ -3017,7 +3014,7 @@ def test_kernelschedule_abstract_methods():
 
 
 # Test Symbol Class
-def test_symbol_initialization():
+def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
 
@@ -3025,6 +3022,7 @@ def test_symbol_initialization():
     assert isinstance(Symbol('a', 'real'), Symbol)
     assert isinstance(Symbol('a', 'integer'), Symbol)
     assert isinstance(Symbol('a', 'character'), Symbol)
+    assert isinstance(Symbol('a', 'boolean'), Symbol)
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
@@ -3034,11 +3032,14 @@ def test_symbol_initialization():
                              True, True), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
                              True, False), Symbol)
+    dim = Symbol('dim', 'integer', [])
+    assert isinstance(Symbol('a', 'real', [dim], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'real', [3, dim, None], 'local'), Symbol)
 
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
-    assert ("Symbol can only be initialized with {0} datatypes."
+    assert ("Symbol can only be initialised with {0} datatypes."
             "".format(str(Symbol.valid_data_types)))in str(error.value)
 
     with pytest.raises(ValueError) as error:
@@ -3053,8 +3054,20 @@ def test_symbol_initialization():
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', ['invalidshape'], 'local')
-    assert ("Symbol shape list elements can only be "
+    assert ("Symbol shape list elements can only be 'Symbol', "
             "'integer' or 'None'.") in str(error.value)
+
+    with pytest.raises(TypeError) as error:
+        bad_dim = Symbol('dim', 'real', [])
+        Symbol('a', 'real', [bad_dim], 'local')
+    assert ("Symbols that are part of another symbol shape can "
+            "only be scalar integers, but found") in str(error.value)
+
+    with pytest.raises(TypeError) as error:
+        bad_dim = Symbol('dim', 'integer', [3])
+        Symbol('a', 'real', [bad_dim], 'local')
+    assert ("Symbols that are part of another symbol shape can "
+            "only be scalar integers, but found") in str(error.value)
 
 
 def test_symbol_scope_setter():
@@ -3117,8 +3130,17 @@ def test_symbol_is_output_setter():
 def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed. (i.e. is
     initialised fully)'''
-    symbol = Symbol("sname", "real")
-    assert "sname<real, [], local>" in str(symbol)
+    sym1 = Symbol("s1", "integer")
+    assert "s1: <integer, local, Scalar>" in str(sym1)
+
+    sym2 = Symbol("s2", "real", [None, 2, sym1])
+    assert "s2: <real, local, Array['Unknown bound', 2, s1]>" in str(sym2)
+
+    sym2._shape.append('invalid')
+    with pytest.raises(InternalError) as error:
+        _ = str(sym2)
+    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
+            "'None', but found") in str(error.value)
 
 
 def test_symbol_gen_c_definition():
@@ -3133,6 +3155,9 @@ def test_symbol_gen_c_definition():
 
     sym_3 = Symbol("name", "real", [None, None])
     assert sym_3.gen_c_definition() == "double * restrict name"
+
+    sym_4 = Symbol("name", "boolean", [])
+    assert sym_4.gen_c_definition() == "bool name"
 
     sym_1._datatype = "invalid"
     with pytest.raises(NotImplementedError) as err:
@@ -3497,14 +3522,48 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
 
+    reader = FortranStringReader("LOGICAL      ::      b")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("b").name == "b"
+    assert fake_parent.symbol_table.lookup("b").datatype == 'boolean'
+
+    # RHS array specifications
+    reader = FortranStringReader("integer :: l3(l1)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l3").name == 'l3'
+    assert fake_parent.symbol_table.lookup("l3").datatype == 'integer'
+    assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
+
+    reader = FortranStringReader("integer :: l4(l1, 2)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l4").name == 'l4'
+    assert fake_parent.symbol_table.lookup("l4").datatype == 'integer'
+    assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
+
+    reader = FortranStringReader("integer :: l5(2), l6(3)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l5").shape == [2]
+    assert fake_parent.symbol_table.lookup("l6").shape == [3]
+
+    # Test that component-array-spec has priority over dimension attribute
+    reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
+    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
+
     # Test with unsupported data type
-    reader = FortranStringReader("logical      ::      c2")
+    reader = FortranStringReader("doubleprecision     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
-    assert (". Only 'real', 'integer' and 'character' intrinsic types are"
-            " supported.") in str(error.value)
+    assert (". Only 'real', 'integer', 'logical' and 'character' intrinsic "
+            "types are supported.") in str(error.value)
 
     # Test with unsupported attribute
     reader = FortranStringReader("real, public :: p2")
@@ -3514,20 +3573,12 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert "Could not process " in str(error.value)
     assert "Unrecognized attribute type " in str(error.value)
 
-    # RHS array specifications are not supported
-    reader = FortranStringReader("integer :: l1(4)")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Array specifications after the variable name are not "
-            "supported.") in str(error.value)
-
     # Initialisations are not supported
     reader = FortranStringReader("integer :: l1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Initializations on the declaration statements are not "
+    assert ("Initialisations on the declaration statements are not "
             "supported.") in str(error.value)
 
     # Char lengths are not supported
@@ -3614,35 +3665,59 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     from fparser.two.Fortran2003 import Specification_Part
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
+    sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [None]
 
     reader = FortranStringReader("dimension(:,:,:)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [None, None, None]
 
     reader = FortranStringReader("dimension(3,5)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [3, 5]
 
+    sym_table.declare('var1', 'integer', [])
+    reader = FortranStringReader("dimension(var1)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
+    assert len(shape) == 1
+    assert shape[0] == sym_table.lookup('var1')
+
+    # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert "Assumed-size arrays are not supported." in str(error.value)
 
-    reader = FortranStringReader("dimension(var1)")
+    # Explicit shape symbols must be integer
+    reader = FortranStringReader("dimension(var2)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+        sym_table.declare("var2", "real", [])
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
-    assert ("Only integer literals are supported for explicit shape array"
-            " declarations.") in str(error.value)
+    assert ("Only scalar integer literals or symbols are supported for "
+            "explicit shape array declarations.") in str(error.value)
+
+    # Explicit shape symbols can only be Literal or Symbol
+    with pytest.raises(NotImplementedError) as error:
+        class UnrecognizedType(object):
+            '''Type guaranteed to not be part of the _parse_dimensions
+            conditional type handler.'''
+            pass
+
+        fparser2spec.items[1].items[1].__class__ = UnrecognizedType
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
+    assert "Could not process " in str(error.value)
+    assert ("Only scalar integer literals or symbols are supported for "
+            "explicit shape array declarations.") in str(error.value)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
@@ -3666,10 +3741,12 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
     import fparser
 
-    def walk_ast_return(arg1, arg2):
+    def walk_ast_return(_1, _2):
         '''Function that returns a unique object that will not be part
         of the implemented handling in the walk_ast method caller.'''
         class invalid(object):
+            '''Class that would be invalid to return from an fparser2 parse
+            tree.'''
             pass
         newobject = invalid()
         return [newobject]
@@ -3679,7 +3756,7 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(InternalError) as error:
-        shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, None)
     assert "Reached end of loop body and" in str(error.value)
     assert " has not been handled." in str(error.value)
 
@@ -3886,7 +3963,7 @@ def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2enddo], None)
-    assert len(fake_parent.children) == 0  # No new children created
+    assert not fake_parent.children  # No new children created
 
 
 def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
@@ -3902,4 +3979,4 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2endsub], None)
-    assert len(fake_parent.children) == 0  # No new children created
+    assert not fake_parent.children  # No new children created
