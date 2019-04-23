@@ -5175,10 +5175,10 @@ class Fparser2ASTProcessor(object):
                 continue
             mod_name = str(decl.items[2])
             for name in iterateitems(decl.items[4]):
-                print(name)
-            #scope='global_use'
-            #parent.symbol_table.declare(str(name), datatype, shape,
-            #                            scope, is_input, is_output)
+                # TODO need to provide mod_name in annotation
+                parent.symbol_table.declare(str(name), datatype='deferred',
+                                            scope='global_use',
+                                            is_input=True, is_output=False)
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -5546,9 +5546,9 @@ class Symbol(object):
     '''
 
     # Tuple with the valid values for the access attribute.
-    valid_scope_types = ('local', 'global_argument')
+    valid_scope_types = ('local', 'global_argument', 'global_use')
     # Tuple with the valid datatypes.
-    valid_data_types = ('real', 'integer', 'character')
+    valid_data_types = ('real', 'integer', 'character', 'deferred')
 
     def __init__(self, name, datatype, shape=[], scope='local',
                  is_input=False, is_output=False):

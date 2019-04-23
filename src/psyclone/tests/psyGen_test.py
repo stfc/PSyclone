@@ -3034,6 +3034,8 @@ def test_symbol_initialization():
                              True, True), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
                              True, False), Symbol)
+    assert isinstance(Symbol('a', 'deferred', scope='global_use',
+                             is_input=True, is_output=False), Symbol)
 
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
