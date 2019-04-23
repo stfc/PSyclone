@@ -55,6 +55,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
     FORTRAN_INTENT_NAMES, DataAccess
+import fparser.two.Fortran2003 as f2003
 
 # First section : Parser specialisations and classes
 
@@ -519,128 +520,157 @@ class DynFuncDescriptor03(object):
 
 class DynArgDescriptor03(Descriptor):
     ''' This class captures the information specified in an argument
-    descriptor.'''
+    descriptor.
 
+    :param arg_type: dynamo0.3 argument type (scalar, field or operator)
+    :type arg_type: :py:class:`fparser.two.Fortran2003.Part_Ref`
+    
+    '''
     def __init__(self, arg_type):
-        '''
-        :param arg_type: dynamo0.3 argument type (scalar, field or operator)
-        :type arg_type: :py:class:`fparser.two.Fortran2003.Part_Ref`
-        '''
-        print (type(arg_type))
-        print (arg_type)
-        exit(1)
+
         self._arg_type = arg_type
-        if arg_type.name != 'arg_type':
+        name = str(arg_type.items[0]).lower()
+        if name != 'arg_type':
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must be of type "
-                "'arg_type', but found '{0}'".format(arg_type.name))
+                "'arg_type', but found '{0}'".format(name))
 
         # We require at least 2 args
-        if len(arg_type.args) < 2:
+        args = arg_type.items[1]
+        if not args or isinstance(args, f2003.Name):
+            # There are no args or only a single arg
             raise ParseError(
                 "In the dynamo0.3 API each meta_arg entry must have at least "
                 "2 args, but found '{0}'".format(len(arg_type.args)))
 
+        # Two or more args is represented as a list object so get the
+        # actual list
+        args = args.items
+
         # The first arg is the type of field, possibly with a *n appended
         self._vector_size = 1
-        if isinstance(arg_type.args[0], expr.BinaryOperator):
-            # We expect 'field_type * n' to have been specified
-            self._type = arg_type.args[0].toks[0].name
-            operator = arg_type.args[0].toks[1]
-            try:
-                self._vector_size = int(arg_type.args[0].toks[2])
-            except TypeError:
-                raise ParseError(
-                    "In the dynamo0.3 API vector notation expects the format "
-                    "(field*n) where n is an integer, but the following was "
-                    "found '{0}' in '{1}'.".
-                    format(str(arg_type.args[0].toks[2]), arg_type))
-            if self._type not in VALID_ARG_TYPE_NAMES:
-                raise ParseError(
-                    "In the dynamo0.3 API the 1st argument of a meta_arg "
-                    "entry should be a valid argument type (one of {0}), but "
-                    "found '{1}' in '{2}'".format(VALID_ARG_TYPE_NAMES,
-                                                  self._type, arg_type))
-            if self._type in VALID_SCALAR_NAMES and self._vector_size > 1:
-                raise ParseError(
-                    "In the dynamo0.3 API vector notation is not supported "
-                    "for scalar arguments (found '{0}')".
-                    format(arg_type.args[0]))
-            if operator != "*":
-                raise ParseError(
-                    "In the dynamo0.3 API the 1st argument of a meta_arg "
-                    "entry may be a vector but if so must use '*' as the "
-                    "separator in the format (field*n), but found '{0}' in "
-                    "'{1}'".format(operator, arg_type))
-            if self._vector_size <= 1:
-                raise ParseError(
-                    "In the dynamo0.3 API the 1st argument of a meta_arg "
-                    "entry may be a vector but if so must contain a valid "
-                    "integer vector size in the format (field*n where n>1), "
-                    "but found '{0}' in '{1}'".format(self._vector_size,
-                                                      arg_type))
 
-        elif isinstance(arg_type.args[0], expr.FunctionVar):
+        first_arg = str(args[0]).lower()
+
+        if isinstance(args[0], f2003.Name):
             # We expect 'field_type' to have been specified
-            if arg_type.args[0].name not in VALID_ARG_TYPE_NAMES:
+            if first_arg not in VALID_ARG_TYPE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 1st argument of a "
                     "meta_arg entry should be a valid argument type (one of "
                     "{0}), but found '{1}' in '{2}'".
-                    format(VALID_ARG_TYPE_NAMES, arg_type.args[0].name,
+                    format(VALID_ARG_TYPE_NAMES, first_arg,
                            arg_type))
-            self._type = arg_type.args[0].name
+            self._type = first_arg
         else:
-            raise ParseError(
-                "Internal error in DynArgDescriptor03.__init__, (1) should "
-                "not get to here")
+            print (first_arg)
+            print (type(first_arg))
+            exit(1)
+
+        #if isinstance(arg_type.args[0], expr.BinaryOperator):
+        #    # We expect 'field_type * n' to have been specified
+        #    self._type = arg_type.args[0].toks[0].name
+        #    operator = arg_type.args[0].toks[1]
+        #    try:
+        #        self._vector_size = int(arg_type.args[0].toks[2])
+        #    except TypeError:
+        #        raise ParseError(
+        #            "In the dynamo0.3 API vector notation expects the format "
+        #            "(field*n) where n is an integer, but the following was "
+        #            "found '{0}' in '{1}'.".
+        #            format(str(arg_type.args[0].toks[2]), arg_type))
+        #    if self._type not in VALID_ARG_TYPE_NAMES:
+        #        raise ParseError(
+        #            "In the dynamo0.3 API the 1st argument of a meta_arg "
+        #            "entry should be a valid argument type (one of {0}), but "
+        #            "found '{1}' in '{2}'".format(VALID_ARG_TYPE_NAMES,
+        #                                          self._type, arg_type))
+        #    if self._type in VALID_SCALAR_NAMES and self._vector_size > 1:
+        #        raise ParseError(
+        #            "In the dynamo0.3 API vector notation is not supported "
+        #            "for scalar arguments (found '{0}')".
+        #            format(arg_type.args[0]))
+        #    if operator != "*":
+        #        raise ParseError(
+        #            "In the dynamo0.3 API the 1st argument of a meta_arg "
+        #            "entry may be a vector but if so must use '*' as the "
+        #            "separator in the format (field*n), but found '{0}' in "
+        #            "'{1}'".format(operator, arg_type))
+        #    if self._vector_size <= 1:
+        #        raise ParseError(
+        #            "In the dynamo0.3 API the 1st argument of a meta_arg "
+        #            "entry may be a vector but if so must contain a valid "
+        #            "integer vector size in the format (field*n where n>1), "
+        #            "but found '{0}' in '{1}'".format(self._vector_size,
+        #                                              arg_type))
+
+        #elif isinstance(arg_type.args[0], expr.FunctionVar):
+        #    # We expect 'field_type' to have been specified
+        #    if arg_type.args[0].name not in VALID_ARG_TYPE_NAMES:
+        #        raise ParseError(
+        #            "In the dynamo0.3 API the 1st argument of a "
+        #            "meta_arg entry should be a valid argument type (one of "
+        #            "{0}), but found '{1}' in '{2}'".
+        #            format(VALID_ARG_TYPE_NAMES, arg_type.args[0].name,
+        #                   arg_type))
+        #    self._type = arg_type.args[0].name
+        #else:
+        #    raise ParseError(
+        #        "Internal error in DynArgDescriptor03.__init__, (1) should "
+        #        "not get to here")
+
+        second_arg = str(args[1]).lower()
 
         # The 2nd arg is an access descriptor
-        if arg_type.args[1].name not in VALID_ACCESS_DESCRIPTOR_NAMES:
+        if second_arg not in VALID_ACCESS_DESCRIPTOR_NAMES:
             raise ParseError(
                 "In the dynamo0.3 API the 2nd argument of a meta_arg entry "
                 "must be a valid access descriptor (one of {0}), but found "
                 "'{1}' in '{2}'".format(VALID_ACCESS_DESCRIPTOR_NAMES,
-                                        arg_type.args[1].name, arg_type))
-        self._access_descriptor = arg_type.args[1]
+                                        second_arg, arg_type))
+        self._access_descriptor = second_arg
         # Reduction access descriptors are only valid for real scalar arguments
         if self._type != "gh_real" and \
-           self._access_descriptor.name in VALID_REDUCTION_NAMES:
+           self._access_descriptor in VALID_REDUCTION_NAMES:
             raise ParseError(
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found".
-                format(self._access_descriptor.name, self._type))
+                format(self._access_descriptor, self._type))
 
         # FIELD, OPERATOR and SCALAR datatypes descriptors and rules
         stencil = None
         mesh = None
         # Fields
         if self._type == "gh_field":
-            if len(arg_type.args) < 3:
+            
+            if len(args) < 3:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have at "
                     "least 3 arguments if its first argument is gh_field, but "
-                    "found {0} in '{1}'".format(len(arg_type.args), arg_type)
+                    "found {0} in '{1}'".format(len(args), arg_type)
                     )
             # There must be at most 4 arguments.
-            if len(arg_type.args) > 4:
+            if len(args) > 4:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have at "
                     "most 4 arguments if its first argument is gh_field, but "
-                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+                    "found {0} in '{1}'".format(len(args), arg_type))
             # The 3rd argument must be a function space name
-            if arg_type.args[2].name not in VALID_FUNCTION_SPACE_NAMES:
+            third_arg = str(args[2]).lower()
+            if third_arg not in VALID_FUNCTION_SPACE_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API the 3rd argument of a meta_arg "
                     "entry must be a valid function space name if its first "
                     "argument is gh_field (one of {0}), but found '{1}' in "
                     "'{2}".format(VALID_FUNCTION_SPACE_NAMES,
-                                  arg_type.args[2].name, arg_type))
-            self._function_space1 = arg_type.args[2].name
+                                  third_arg, arg_type))
+            self._function_space1 = third_arg
 
             # The optional 4th argument is either a stencil specification
             # or a mesh identifier (for inter-grid kernels)
-            if len(arg_type.args) == 4:
+            if len(args) == 4:
+                print ("field")
+                exit(1)
                 try:
                     from psyclone.parse.kernel import get_stencil, get_mesh
                     if "stencil" in str(arg_type.args[3]):
@@ -659,32 +689,34 @@ class DynArgDescriptor03(Descriptor):
                         "entry {0} raised the following error: {1}".
                         format(arg_type, str(err)))
             # Test allowed accesses for fields
-            if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
-               and self._access_descriptor.name.lower() == "gh_inc":
+            if self._function_space1 in DISCONTINUOUS_FUNCTION_SPACES \
+               and self._access_descriptor == "gh_inc":
                 raise ParseError(
                     "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
-                    format(self._function_space1.lower()))
+                    format(self._function_space1))
             # TODO: extend for "gh_write"
-            if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
-               and self._access_descriptor.name.lower() == "gh_readwrite":
+            if self._function_space1 in CONTINUOUS_FUNCTION_SPACES \
+               and self._access_descriptor == "gh_readwrite":
                 raise ParseError(
                     "It does not make sense for a field on a continuous "
                     "space ({0}) to have a 'gh_readwrite' access".
-                    format(self._function_space1.lower()))
+                    format(self._function_space1))
             # TODO: extend for "gh_write"
-            if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
-               and self._access_descriptor.name.lower() == "gh_readwrite":
+            if self._function_space1 in VALID_ANY_SPACE_NAMES \
+               and self._access_descriptor == "gh_readwrite":
                 raise ParseError(
                     "In the dynamo0.3 API a field on any_space cannot "
                     "have 'gh_readwrite' access because it is treated "
                     "as continuous")
-            if stencil and self._access_descriptor.name.lower() != "gh_read":
+            if stencil and self._access_descriptor != "gh_read":
                 raise ParseError("a stencil must be read only so its access "
                                  "should be gh_read")
 
         # Operators
         elif self._type in VALID_OPERATOR_NAMES:
+            print ("operator")
+            exit(1)
             # we expect 4 arguments with the 3rd and 4th each being a
             # function space
             if len(arg_type.args) != 4:
@@ -717,19 +749,19 @@ class DynArgDescriptor03(Descriptor):
 
         # Scalars
         elif self._type in VALID_SCALAR_NAMES:
-            if len(arg_type.args) != 2:
+            if len(args) != 2:
                 raise ParseError(
                     "In the dynamo0.3 API each meta_arg entry must have 2 "
                     "arguments if its first argument is gh_{{r,i}}scalar, but "
-                    "found {0} in '{1}'".format(len(arg_type.args), arg_type))
+                    "found {0} in '{1}'".format(len(args), arg_type))
             # Test allowed accesses for scalars (read_only or reduction)
-            if self._access_descriptor.name not in ["gh_read"] + \
+            if self._access_descriptor not in ["gh_read"] + \
                VALID_REDUCTION_NAMES:
                 raise ParseError(
                     "In the dynamo0.3 API scalar arguments must be "
                     "read-only (gh_read) or a reduction ({0}) but found "
                     "'{1}' in '{2}'".format(VALID_REDUCTION_NAMES,
-                                            self._access_descriptor.name,
+                                            self._access_descriptor,
                                             arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
@@ -739,7 +771,7 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError(
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")
-        Descriptor.__init__(self, self._access_descriptor.name,
+        Descriptor.__init__(self, self._access_descriptor,
                             self._function_space1, stencil=stencil,
                             mesh=mesh)
 
@@ -873,20 +905,21 @@ class DynKernMetadata(KernelType):
         self._arg_descriptors = []
         for arg_type in self._inits:
             self._arg_descriptors.append(DynArgDescriptor03(arg_type))
-            exit(1)
         # parse the func_type metadata if it exists
         found = False
         for line in self._ktype.content:
-            if isinstance(line, fparser.one.typedecl_statements.Type):
-                for entry in line.selector:
-                    if entry == "func_type":
-                        if line.entity_decls[0].split()[0].split("(")[0] == \
-                                "meta_funcs":
-                            found = True
-                            break
+            if isinstance(line, f2003.Component_Part):
+                component_def_stmt = line.content[0]
+                component_decl = component_def_stmt.items[2]
+                name = str(component_decl.items[0]).lower()
+                if name == "meta_funcs":
+                    found = True
+                    break
+
         if not found:
             func_types = []
         else:
+            exit(1)
             # use the base class method to extract the information
             func_types = self.getkerneldescriptors(self._ktype,
                                                    var_name="meta_funcs")
