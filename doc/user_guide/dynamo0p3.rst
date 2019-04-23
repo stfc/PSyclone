@@ -508,15 +508,15 @@ Metadata
 ++++++++
 
 The code below outlines the elements of the Dynamo0.3 API kernel
-metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_init', 4) 'gh_shape', 5)
-'iterates_over' and 6) 'procedure'.
+metadata, 1) 'meta_args', 2) 'meta_funcs', 3) 'meta_reference_element',
+4) 'gh_shape', 5) 'iterates_over' and 6) 'procedure'.
 
 ::
 
   type, public, extends(kernel_type) :: my_kernel_type
     type(arg_type) :: meta_args(...) = (/ ... /)
     type(func_type) :: meta_funcs(...) = (/ ... /)
-    type(mesh_data_type) :: meta_init(...) = (/ ... /)
+    type(reference_element_data_type) :: meta_reference_element(...) = (/ ... /)
     integer :: gh_shape = gh_quadrature_XYoZ
     integer :: iterates_over = cells
   contains
@@ -1050,20 +1050,22 @@ spaces associated with the arguments listed in ``meta_args``.  In this
 case we require both for the W0 function space but only basis
 functions for W1.
 
-meta_init
-#########
+meta_reference_element
+######################
 
 A kernel that requires properties of the reference element specifies
-those properties through the ``meta_init`` metadata entry. (If no reference
-element properties are required then this metadata should be omitted.)
-Consider the following example kernel metadata::
+those properties through the ``meta_reference_element`` metadata
+entry.  (If no reference element properties are required then this
+metadata should be omitted.)  Consider the following example kernel
+metadata::
 
   type, extends(kernel_type) :: testkern_type
     type(arg_type), dimension(2) :: meta_args = &
         (/ arg_type(gh_field, gh_read, w1),     &
 	   arg_type(gh_field, gh_write, w0) /)
-    type(mesh_data_type), dimension(2) :: meta_init = &
-        (/ mesh_data_type(adjacent_face),             &
+    type(reference_element_data_type), dimension(2) :: &
+      meta_reference_element =                         &
+        (/ mesh_data_type(number_horizontal_faces),    &
 	   mesh_data_type(normal_to_face ) /)
   contains
     procedure, nopass :: code => testkern_code
@@ -1073,14 +1075,15 @@ This metadata specifies that the ``testkern_type`` kernel requires two
 properties of the reference element. The supported properties are
 listed below:
 
-=============== ==============================================
-Name            Description
-=============== ==============================================
-adjacent_face   Vector holding information on the neighbouring
-                face index for the current cell.
-normal_to_face  xxx
-out_face_normal xxx
-=============== =================================
+======================= ===================================================
+Name                    Description
+======================= ===================================================
+normal_to_face          Array of normals for each horizontal face indexed
+                        as (face, component).
+number_horizontal_faces Number of horizontal faces on the reference element.
+out_face_normal         Array of normals for each horizontal face indexed
+                        as (component, face).
+======================= ===================================================
 
 .. _dynamo0.3-gh-shape:
 
@@ -1256,14 +1259,17 @@ rules, along with PSyclone's naming conventions, are:
            freedom for the function space. The name of the array is
            ``"orientation_"<field_function_space>``.
 	   
-5) For each required property of the reference element, in the order
-   specified in the ``meta_init`` metadata:
+5) If either the ``normal_to_face`` or ``out_face_normal`` properties
+   of the reference element are required then pass the number of
+   horizontal faces of the reference element (``nfaces_re_h``). Then,
+   in the order specified in the ``meta_reference_element`` metadata:
 
-   1) For ``adjacent_face``, pass an integer array of rank 1 and an
-      integer scalar holding the number of TODO;
-   2) For ``normal_to_face``, pass an integer array of rank 2 and
-      two integer scalars - the first holding TODO
-   3) For ````, pass TODO
+   1) For ``normal_to_face``, pass a rank-2 integer array
+      with dimensions ``(nfaces_re_h, 3)``.
+   2) For ``out_face_normal``, pass a rank-2 integer array with dimensions
+      ``(3, nfaces_re_h)``.
+   3) For ``number_horizontal_faces``, if not already supplied, pass the
+      ``nfaces_re_h`` integer.
 
 6) If Quadrature is required (``gh_shape = gh_quadrature_*``):
 
@@ -1329,6 +1335,27 @@ and at W1)::
   subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
        local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
        basis_w0_on_w0, basis_w0_on_w1, ndf_w1)
+
+If the metadata specifies that the kernel requires a property of the
+reference element::
+
+  type, extends(kernel_type) :: testkern_operator_type
+     type(arg_type), dimension(2) :: meta_args =      &
+          (/ arg_type(gh_operator, gh_write, w0, w1), &
+             arg_type(gh_field*3, gh_read, w0) /)
+     type(reference_element_data_type) :: meta_reference_element(1) =  &
+          (/ reference_element_data_type(normal_to_face) /)
+     integer :: iterates_over = cells
+   contains
+     procedure, nopass :: code => testkern_operator_code
+  end type testkern_operator_type
+
+Then the kernel must be passed the number of horizontal faces of the
+reference element and the array of face normals::
+  
+  subroutine testkern_operator_code(cell, nlayers, ncell_3d,        &
+       local_stencil, xdata, ydata, zdata, ndf_w0, undf_w0, map_w0, &
+       nfaces_re_h, face_normals)
 
 Rules for CMA Kernels
 #####################
