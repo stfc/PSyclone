@@ -109,7 +109,6 @@ def test_array_valued_function():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
     assert len(sched.children) == 2
     # We should just have two assignments and no Kernels
     kernels = sched.walk(sched.children, nemo.NemoKern)
@@ -125,7 +124,6 @@ def test_do_while():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    sched.view()
     # Do while loops are not currently handled and thus are put into
     # CodeBlocks.
     assert isinstance(sched.children[0], CodeBlock)
@@ -192,7 +190,7 @@ def test_implicit_loop_assign():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
-    # We should have two implicit loops
+    # We should have three implicit loops
     assert len(loops) == 3
     assert isinstance(sched.children[0], nemo.NemoLoop)
     # Check the __str__ property of the implicit loop

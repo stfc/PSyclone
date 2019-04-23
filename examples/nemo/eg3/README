@@ -54,7 +54,7 @@ PSyclone's Schedule view of the code after adding OpenACC Kernels and
 Data directives, and 5) the transformed Fortran code with the OpenACC
 directives added.
 
-Doing the same thing with kernels_managed_mem_trans will produce similar
+Running PSyclone with the kernels_managed_mem_trans will produce similar
 output but the Schedule will no longer contain Data directives.
 
 tra_adv.F90 is a stand-alone version of one of the tracer-advection

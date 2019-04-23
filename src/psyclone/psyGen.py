@@ -4772,11 +4772,11 @@ class ACCKernelsDirective(ACCDirective):
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
         '''
+        data_movement = None
         if self._default_present:
-            self._add_region(start_text="KERNELS", end_text="END KERNELS",
-                             data_movement="present")
-        else:
-            self._add_region(start_text="KERNELS", end_text="END KERNELS")
+            data_movement = "present"
+        self._add_region(start_text="KERNELS", end_text="END KERNELS",
+                         data_movement=data_movement)
 
 
 class ACCDataDirective(ACCDirective):
