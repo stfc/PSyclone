@@ -607,7 +607,7 @@ class APISpecific(object):
         # the format: key1:value1, key2=value2, ...
         mapping = section.get("ACCESS_MAPPING")
         if mapping:
-            from psyclone.psyGen import AccessType
+            from psyclone.core.access_type import AccessType
             self._access_mapping = APISpecific.create_dict_from_string(mapping)
             # Now convert the string type ("read" etc) to AccessType
             for api_access_name, access_type in self._access_mapping.items():

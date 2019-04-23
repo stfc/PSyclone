@@ -44,6 +44,7 @@ import abc
 from enum import Enum
 import six
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -85,56 +86,6 @@ OMP_OPERATOR_MAPPING = {"sum": "+"}
 
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
-
-
-class AccessType(Enum):
-    '''A simple enum-class for the various valid access types.
-    '''
-
-    INC = 1
-    WRITE = 2
-    READ = 3
-    READWRITE = 4
-    SUM = 5
-
-    @staticmethod
-    def get_size():
-        ''':returns: The number of elements in this emnumerator.
-        :rtype int'''
-        return len(AccessType)
-
-    def __str__(self):
-        '''Convert to a string representation. The test
-        test_arg_descriptor_repr needs this function to return
-        the api_name() (and not e.g. just name of the enum,
-        like READ)..
-        :return: API name for this string.
-        :rtype: str
-        '''
-        return self.api_name()
-
-    def api_name(self):
-        '''This convenient function returns the name of the type in the
-        current API. E.g. in a dynamo0.3 API, WRITE --> "gh_write"
-        :returns: The API specific name.
-        :rtype: str
-        '''
-        api_config = Config.get().api_conf()
-        rev_access_mapping = api_config.get_reverse_access_mapping()
-        return rev_access_mapping[self]
-
-    @staticmethod
-    def from_string(access_string):
-        '''Convert a string (e.g. "read") into the corresponding
-        AccessType enum value (AccessType.READ).
-        :param str access_string: Access type as string.
-        :returns" Corresponding AccessType enum.
-        :Raises: KeyError if access_string is not a valid access type.
-        '''
-        for access in AccessType:
-            if access.name == access_string.upper():
-                return access
-        raise KeyError("Unknown access type '{0}'.".format(access_string))
 
 
 # Valid types of argument to a kernel call

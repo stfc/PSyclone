@@ -51,10 +51,11 @@ from psyclone.parse.utils import ParseError
 import psyclone.expression as expr
 from psyclone import psyGen
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument, NameSpaceFactory, GenerationError, \
     InternalError, FieldNotFoundError, HaloExchange, GlobalSum, \
-    FORTRAN_INTENT_NAMES, DataAccess, AccessType
+    FORTRAN_INTENT_NAMES, DataAccess
 
 # First section : Parser specialisations and classes
 

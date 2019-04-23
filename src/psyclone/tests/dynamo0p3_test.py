@@ -44,9 +44,10 @@ import pytest
 import fparser
 from dynamo0p3_build import Dynamo0p3Build
 from fparser import api as fpapi
+from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import PSyFactory, GenerationError, InternalError, AccessType
+from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
@@ -2025,7 +2026,7 @@ def test_invoke_uniq_declns_invalid_access():
 
 
 def test_invoke_uniq_declns_valid_access():
-    ''' tests that valid access modes ('read', 'write') are 
+    ''' tests that valid access modes ('read', 'write') are
     accepted by  Invoke.unique_declarations() is called.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
@@ -2033,9 +2034,9 @@ def test_invoke_uniq_declns_valid_access():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     print("type is", type(psy.invokes.invoke_list[0]))
     psy.invokes.invoke_list[0].unique_declarations("gh_field",
-                                                    access=AccessType.READ)
+                                                   access=AccessType.READ)
     psy.invokes.invoke_list[0].unique_declarations("gh_field",
-                                                    access=AccessType.WRITE)
+                                                   access=AccessType.WRITE)
 
 
 def test_invoke_uniq_proxy_declns():
@@ -6212,7 +6213,8 @@ def test_multiple_updated_field_args():
     metadata = DynKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
-        if descriptor.type == "gh_field" and descriptor.access != AccessType.READ:
+        if descriptor.type == "gh_field" and \
+                descriptor.access != AccessType.READ:
             count += 1
     assert count == 2
 

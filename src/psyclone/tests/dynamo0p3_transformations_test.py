@@ -40,10 +40,10 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from dynamo0p3_build import Dynamo0p3Build
+from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
-from psyclone.psyGen import AccessType, PSyFactory, GenerationError, \
-    InternalError
+from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.transformations import TransformationError, \
     OMPParallelTrans, \
     Dynamo0p3ColourTrans, \
