@@ -3060,7 +3060,7 @@ class NemoExplicitLoopTrans(Transformation):
                     "all array range specifications occur in the same "
                     "dimension(s) of each array in an assignment.")
             # Replace the colon with our new variable name
-            indices[outermost_dim] = loop_var
+            indices[outermost_dim] = name
             # Replace the original tuple with a new one
             subsec.items = tuple(indices)
 
