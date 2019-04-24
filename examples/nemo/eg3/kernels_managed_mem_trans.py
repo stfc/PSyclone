@@ -33,14 +33,18 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
-'''A transformation script that seeks to apply OpenACC DATA and KERNELS
-directives to NEMO style code.  In order to use
-it you must first install PSyclone. See README.md in the top-level
-psyclone directory.
+'''A transformation script that applies OpenACC KERNELS
+directives to NEMO style code but makes no attempt to manage data movement.
+The resulting code must therefore be compiled using
+PGI's unified-memory support (-ta=tesla:managed) in order to automate the
+movement of data between the host and the GPU.
+
+In order to use this script you must first install PSyclone. See
+README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s kernels_trans.py some_source_file.f90
+ $ psyclone -api nemo -s kernels_managed_mem_trans.py some_source_file.f90
 
 This should produce a lot of output, ending with generated
 Fortran. Note that the Fortran source files provided to PSyclone must
@@ -56,14 +60,6 @@ routine) then the script moves a level down the tree and then repeats
 the process of attempting to create the largest possible Kernel
 region.
 
-Once the Kernels regions have been created, the script then simply
-encloses each of them within an OpenACC Data region (since these have
-already been made as large as possible). In reality, the purpose of a
-data region is to keep data on the remote GPU device for as long as
-possible, ideally between Kernel regions. However, this requires more
-sophisticated dependency analysis than is yet implemented in
-PSyclone. Issue #309 will tackle this limitation.
-
 '''
 
 from __future__ import print_function
@@ -72,7 +68,6 @@ from psyclone.psyGen import TransInfo
 
 # Get the PSyclone transformations we will use
 ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
-ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 
 
 def valid_kernel(node):
@@ -87,7 +82,7 @@ def valid_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoIfBlock, NemoIfClause, NemoKern
+    from psyclone.nemo import NemoIfBlock, NemoIfClause
     from psyclone.psyGen import CodeBlock
     from fparser.two.utils import walk_ast
     from fparser.two import Fortran2003
@@ -182,8 +177,6 @@ def trans(psy):
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
     '''
-    from psyclone.psyGen import ACCDirective
-
     print("Invokes found:\n{0}\n".format(
         "\n".join([str(name) for name in psy.invokes.names])))
 
@@ -200,4 +193,3 @@ def trans(psy):
         add_kernels(sched.children)
         sched.view()
         invoke.schedule = sched
-
