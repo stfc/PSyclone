@@ -52,11 +52,11 @@ def test_str():
 
     Config.get().api = "dynamo0.3"
 
-    assert str(AccessType.INC) == "gh_inc"
-    assert str(AccessType.WRITE) == "gh_write"
-    assert str(AccessType.READ) == "gh_read"
-    assert str(AccessType.READWRITE) == "gh_readwrite"
-    assert str(AccessType.SUM) == "gh_sum"
+    assert str(AccessType.INC) == "INC"
+    assert str(AccessType.WRITE) == "WRITE"
+    assert str(AccessType.READ) == "READ"
+    assert str(AccessType.READWRITE) == "READWRITE"
+    assert str(AccessType.SUM) == "SUM"
 
 
 def test_api_name():

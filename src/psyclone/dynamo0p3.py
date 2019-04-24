@@ -847,9 +847,6 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError("Internal error in DynArgDescriptor03.__str__")
         return res
 
-    def __repr__(self):
-        return "DynArgDescriptor03({0})".format(self._arg_type)
-
 
 class DynKernMetadata(KernelType):
     ''' Captures the Kernel subroutine code and metadata describing
@@ -998,7 +995,8 @@ class DynKernMetadata(KernelType):
                         "A user-supplied Dynamo 0.3 kernel must not "
                         "write/update a scalar argument but kernel {0} has "
                         "{1} with {2} access".format(self.name,
-                                                     arg.type, arg.access))
+                                                     arg.type,
+                                                     arg.access.api_name()))
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
@@ -4215,7 +4213,7 @@ def halo_check_arg(field, access_types):
         api_strings = [access.api_name() for access in access_types]
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be one of {1}, but found "
-            "'{2}'".format(field.name, api_strings, field.access))
+            "'{2}'".format(field.name, api_strings, field.access.api_name()))
     from psyclone.dynamo0p3_builtins import DynBuiltIn
     if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
         raise GenerationError(

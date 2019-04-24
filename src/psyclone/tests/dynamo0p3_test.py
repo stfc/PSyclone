@@ -3940,19 +3940,6 @@ def test_arg_descriptor_str_error():
         in str(excinfo.value)
 
 
-def test_arg_descriptor_repr():
-    ''' Tests that the repr method for DynArgDescriptor03 works as
-    expected '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    field_descriptor = metadata.arg_descriptors[0]
-    result = repr(field_descriptor)
-    print(result)
-    assert 'DynArgDescriptor03(arg_type(gh_real, gh_read))' \
-        in result
-
-
 def test_arg_desc_func_space_tofrom_err():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space_to or function_space_from is called and the

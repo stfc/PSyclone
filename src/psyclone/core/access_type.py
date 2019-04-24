@@ -34,6 +34,7 @@
 # Author J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
+'''This module implements the AccessType used throughout PSyclone.'''
 
 from __future__ import print_function, absolute_import
 from enum import Enum
@@ -64,7 +65,7 @@ class AccessType(Enum):
         :return: API name for this string.
         :rtype: str
         '''
-        return self.api_name()
+        return self.name
 
     def api_name(self):
         '''This convenient function returns the name of the type in the
