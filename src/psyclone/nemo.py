@@ -77,6 +77,7 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     as a Mixin in the Nemo API.
     '''
     def __init__(self):
+        # TODO get rid of this
         super(NemoFparser2ASTProcessor, self).__init__()
 
     def _create_child(self, child, parent=None):
@@ -309,7 +310,7 @@ class NemoKern(Kern):
     :param parent: the parent of this Kernel node in the PSyclone AST
     type parent: :py:class:`psyclone.nemo.NemoLoop`
     '''
-    def __init__(self, loop=None, parent=None):
+    def __init__(self, parse_tree, loop=None, parent=None):
         ''' Create an empty NemoKern object. The object is given state via
         a subsequent call to the load method if loop is None. '''
         # Create those member variables required for testing and to keep
@@ -335,39 +336,27 @@ class NemoKern(Kern):
         # Type of kernel (2D, 3D..)
         self._kernel_type = ""
         self._body = []
-        # Will point to the corresponding set of nodes in the fparser2 AST
-        self._ast = []
+        # The corresponding set of nodes in the fparser2 parse tree
+        self._ast = parse_tree
         if loop:
             self.load(loop)
 
     @staticmethod
     def match(node):
         '''
-        Whether or not the AST fragment pointed to by node represents a
+        Whether or not the PSyIR sub-tree pointed to by node represents a
         kernel. A kernel is defined as a section of code that sits
         within a recognised loop structure and does not itself contain
-        loops or IO operations.
+        loops, subroutine calls or IO operations.
 
-        :param node: Node in fparser2 AST to check.
-        :type node: :py:class:`fparser.two.Fortran2003.Base`
+        :param node: Node in the PSyIR to check.
+        :type node: :py:class:`psyclone.psyGen.Node`
         :returns: True if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
-        from fparser.two.Fortran2003 import Subscript_Triplet,  \
-            Block_Nonlabel_Do_Construct, Write_Stmt, Read_Stmt
-        child_loops = walk_ast(node.content,
-                               [Block_Nonlabel_Do_Construct, Write_Stmt,
-                                Read_Stmt])
-        if child_loops:
-            # A kernel cannot contain other loops or reads or writes
-            return False
-
-        # Currently a kernel cannot contain implicit loops.
-        # TODO we may have to differentiate between implicit loops over
-        # grid points and any other implicit loop. Possibly using the
-        # scope of the array being accessed?
-        impl_loops = walk_ast(node.content, [Subscript_Triplet])
-        if impl_loops:
+        from psyclone.psyGen import CodeBlock
+        if node.walk(node.children, (CodeBlock, NemoLoop, NemoImplicitLoop)):
+            # A kernel cannot contain other loops, reads or writes or calls
             return False
 
         return True
@@ -540,12 +529,18 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
             # Default loop increment is 1
             self._step = "1"
 
-        # Is this loop body a kernel?
-        if NemoKern.match(self._ast):
-            self.addchild(NemoKern(self._ast, parent=self))
-            return
-        # It's not - walk on down the AST...
+        # First process the rest of the parse tree below this point
         self.process_nodes(self, self._ast.content, self._ast)
+        # Now check the PSyIR of this loop body to see whether it is
+        # a valid kernel
+        if NemoKern.match(self):
+            # It is, so we create a new kernel object
+            # TODO supply constructor with PSyIR sub-tree
+            kernel = NemoKern(self._ast, parent=self)
+            # and then replace all of our children with it
+            for child in self.children[:]:
+                self.children.remove(child)
+            self.addchild(kernel)
 
     def __str__(self):
         result = ("NemoLoop[" + self._loop_type + "]: " + self._variable_name +
