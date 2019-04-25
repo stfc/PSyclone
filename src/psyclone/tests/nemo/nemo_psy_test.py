@@ -136,8 +136,6 @@ def test_implicit_loop_assign():
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
-    sched.view()
-    gen = str(ast).lower()
     # We should have two implicit loops
     assert len(loops) == 2
     assert isinstance(sched.children[0], nemo.NemoLoop)
@@ -174,6 +172,27 @@ def test_io_not_kernel():
     # We should have only 1 actual kernel
     kerns = sched.kern_calls()
     assert len(kerns) == 1
+
+
+def test_fn_call_no_kernel(parser):
+    ''' Check that we don't create a kernel if the loop body contains a
+    function call. '''
+    from psyclone.nemo import NemoLoop
+    from psyclone.psyGen import Assignment
+    reader = FortranStringReader("program fn_call\n"
+                                 "real(kind=wp) :: sto_tmp(5)\n"
+                                 "do ji = 1,jpj\n"
+                                 "sto_tmp(ji) = my_func()\n"
+                                 "end do\n"
+                                 "end program fn_call\n")
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    schedule.view()
+    loop = schedule.children[0]
+    assert isinstance(loop, NemoLoop)
+    # Child of loop should be an Assignment, not a Kernel.
+    assert isinstance(loop.children[0], Assignment)
 
 
 def test_schedule_view(capsys):
