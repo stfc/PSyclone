@@ -503,6 +503,7 @@ class NemoKern(Kern):
         '''
         return self._ast
 
+
 class NemoLoop(Loop, NemoFparser2ASTProcessor):
     '''
     Class representing a Loop in NEMO.

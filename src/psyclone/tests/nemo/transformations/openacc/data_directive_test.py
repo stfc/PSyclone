@@ -41,10 +41,10 @@
 from __future__ import print_function, absolute_import
 import os
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, TransInfo, InternalError
 from psyclone.transformations import TransformationError
+from fparser.common.readfortran import FortranStringReader
 
 
 # Constants

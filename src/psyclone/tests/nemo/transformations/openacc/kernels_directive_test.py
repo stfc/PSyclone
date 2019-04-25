@@ -40,9 +40,9 @@
 
 from __future__ import print_function, absolute_import
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo, InternalError
 from psyclone.transformations import TransformationError
+from fparser.common.readfortran import FortranStringReader
 
 
 # The PSyclone API under test
