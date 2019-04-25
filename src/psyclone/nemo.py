@@ -76,10 +76,6 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     Specialisation of Fparser2ASTProcessor for the Nemo API. It is used
     as a Mixin in the Nemo API.
     '''
-    def __init__(self):
-        # TODO get rid of this
-        super(NemoFparser2ASTProcessor, self).__init__()
-
     def _create_child(self, child, parent=None):
         '''
         Adds Nemo API specific processors for certain fparser2 types
@@ -94,15 +90,14 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         '''
         if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
             return NemoLoop(child, parent=parent)
-        elif isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
-            pass
-        elif NemoImplicitLoop.match(child):
+        if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
+            return None
+        if NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
-        elif NemoIfBlock.match(child):
+        if NemoIfBlock.match(child):
             return NemoIfBlock(child, parent=parent)
-        else:
-            return super(NemoFparser2ASTProcessor,
-                         self)._create_child(child, parent=parent)
+        return super(NemoFparser2ASTProcessor,
+                     self)._create_child(child, parent=parent)
 
 
 class NemoInvoke(Invoke):
