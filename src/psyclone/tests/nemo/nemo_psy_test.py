@@ -310,29 +310,6 @@ def test_elseif_gencode_err():
     assert "This method should not have been called" in str(err)
 
 
-def test_kern_load_errors(monkeypatch):
-    ''' Check that the various load methods of the NemoKern class raise
-    the expected errors. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "explicit_do.f90"),
-                           api=API, line_length=False)
-    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    sched = invoke.schedule
-    # The schedule should contain 3 loop objects
-    kerns = sched.kern_calls()
-    with pytest.raises(InternalError) as err:
-        kerns[0].load("Not an fparser2 AST node")
-    assert ("internal error: Expecting either Block_Nonlabel_Do_Construct "
-            "or Assignment_Stmt but got " in str(err))
-    # TODO why haven't the Kernel or Loop objects got a valid _ast?
-    loop = sched.children[0].children[0].children[0]._ast
-    monkeypatch.setattr(loop, "content", ["not_a_loop"])
-    with pytest.raises(InternalError) as err:
-        kerns[0]._load_from_loop(loop)
-    assert ("Expecting Nonlabel_Do_Stmt as first child of "
-            "Block_Nonlabel_Do_Construct but got" in str(err))
-
-
 def test_no_inline():
     ''' Check that calling the NemoPSy.inline() method raises the expected
     error (since we haven't implemented it yet). '''

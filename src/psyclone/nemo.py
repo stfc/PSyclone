@@ -301,45 +301,27 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
 
 class NemoKern(Kern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. Kernels are leaves in the PSyIR (i.e. they have
-    no children).
+    NEMO code. Kernels are leaves in the PSyIR. I.e. they have
+    no self._children but they do have a KernelSchedule.
 
-    :param loop: Reference to the loop (in the fparser2 AST) containing \
-                 this kernel
+    :param loop: Reference to the loop (in the fparser2 parse tree) \
+                 containing this kernel.
     :type loop: :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-    :param parent: the parent of this Kernel node in the PSyclone AST
+    :param parent: the parent of this Kernel node in the PSyIR.
     type parent: :py:class:`psyclone.nemo.NemoLoop`
     '''
-    def __init__(self, parse_tree, loop=None, parent=None):
-        ''' Create an empty NemoKern object. The object is given state via
-        a subsequent call to the load method if loop is None. '''
-        # Create those member variables required for testing and to keep
-        # pylint happy
-        self._children = []
+    def __init__(self, psyir_nodes, parse_tree, parent=None):
+        from psyclone.psyGen import KernelSchedule
         self._name = ""
-        # The Loop object created by fparser2 which holds the AST for the
-        # section of code associated with this kernel
-        self._loop = None
-        # List of the loop variables, one for each loop
-        self._loop_vars = []
-        # A list of 2-tuples, one for each loop
-        self._loop_ranges = []
-        # List of variable names that must be thread-private
-        self._private_vars = None
-        # List of variable names that must be first-private because they
-        # are scalars with a first access of read
-        self._first_private_vars = None
-        # Whether or not this kernel performs a reduction
-        self._reduction = False
-        # List of variables that are shared between threads
-        self._shared_vars = None
-        # Type of kernel (2D, 3D..)
-        self._kernel_type = ""
-        self._body = []
+        self._parent = parent
         # The corresponding set of nodes in the fparser2 parse tree
         self._ast = parse_tree
-        if loop:
-            self.load(loop)
+        # Create a kernel schedule and attach the PSyIR sub-tree to it
+        self._kern_schedule = KernelSchedule(self._name)
+        self._kern_schedule.children = psyir_nodes[:]
+        # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
+        # We therefore don't have any children.
+        self._children = []
 
     @staticmethod
     def match(node):
@@ -361,110 +343,6 @@ class NemoKern(Kern):
 
         return True
 
-    @property
-    def ktype(self):
-        '''
-        :returns: what type of kernel this is.
-        :rtype: str
-        '''
-        return self._kernel_type
-
-    def load(self, loop):
-        ''' Populate the state of this NemoKern object.
-
-        :param loop: node in the fparser2 AST representing a loop (explicit \
-                     or implicit).
-        :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt` or \
-                :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-
-        :raises InternalError: if the supplied loop node is not recognised.
-        '''
-        from fparser.two.Fortran2003 import Block_Nonlabel_Do_Construct, \
-            Assignment_Stmt
-
-        if isinstance(loop, Block_Nonlabel_Do_Construct):
-            self._load_from_loop(loop)
-        elif isinstance(loop, Assignment_Stmt):
-            self._load_from_implicit_loop(loop)
-        else:
-            raise InternalError(
-                "Expecting either Block_Nonlabel_Do_Construct or "
-                "Assignment_Stmt but got {0}".format(str(type(loop))))
-
-    def _load_from_loop(self, loop):
-        '''
-        Populate the state of this NemoKern object from an fparser2
-        AST for an explicit loop.
-
-        :param loop: Node in the fparser2 AST representing an implicit loop.
-        :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-
-        :raises InternalError: if first child of supplied loop node is not a \
-                           :py:class:`fparser.two.Fortran2003.Nonlabel_Do_Stmt`
-        '''
-        from fparser.two.Fortran2003 import Nonlabel_Do_Stmt, End_Do_Stmt
-
-        # Keep a pointer to the original loop in the AST
-        self._loop = loop
-
-        if not isinstance(loop.content[0], Nonlabel_Do_Stmt):
-            raise InternalError("Expecting Nonlabel_Do_Stmt as first child "
-                                "of Block_Nonlabel_Do_Construct but "
-                                "got {0}".format(type(loop.content[0])))
-        self._body = []
-        for content in loop.content[1:]:
-            if isinstance(content, End_Do_Stmt):
-                break
-            self._body.append(content)
-
-        # Kernel is "explicit" since we have a coded loop nest rather than
-        # array notation
-        self._kernel_type = "Explicit"
-
-        # TODO decide how to provide this functionality. Do we use
-        # Habakkuk or something else?
-        #  Analyse the loop body to identify private and shared variables
-        #  for use when parallelising with OpenMP.
-        # from habakkuk.make_dag import dag_of_code_block
-        #  Create a DAG of the kernel code block using Habakkuk
-        # kernel_dag = dag_of_code_block(loop, "nemo_kernel")
-        # inputs = kernel_dag.input_nodes()
-        # outputs = kernel_dag.output_nodes()
-        # print "Kernel has {0} outputs: ".format(len(outputs)) + \
-        #     ",".join([node.variable.orig_name for node in outputs])
-        self._shared_vars = set()
-        self._first_private_vars = set()
-        self._private_vars = set()
-        #  If there are scalar variables that are inputs to the DAG (other than
-        #  the loop counters) then they must be declared first-private in an
-        #  OpenMP loop directive.
-        # for node in inputs:
-        #     if not node.node_type:
-        #         if node.name not in NEMO_LOOP_TYPE_MAPPING:
-        #             self._first_private_vars.add(node.name)
-        # for key, node in kernel_dag._nodes.iteritems():
-        #     if node.node_type == "array_ref":
-        #         self._shared_vars.add(node.variable.orig_name)
-        #     elif not node.node_type:
-        #         self._private_vars.add(node.variable.orig_name)
-        # self._private_vars -= self._first_private_vars
-        # print "OpenMP shared vars: " + ",".join(self._shared_vars)
-        # print "OpenMP private vars: " + ",".join(self._private_vars)
-        # print "OpenMP first-private vars: " + \
-        #     ",".join(self._first_private_vars)
-
-    def _load_from_implicit_loop(self, loop):
-        '''
-        Populate the state of this NemoKern object from an fparser2
-        AST for an implicit loop (Fortran array syntax).
-
-        :param loop: Node in the fparser2 AST representing an implicit loop.
-        :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        '''
-        # TODO implement this method!
-        self._kernel_type = "Implicit"
-        self._loop = loop
-
     def local_vars(self):
         '''
         :returns: list of the variable (names) that are local to this loop \
@@ -478,8 +356,7 @@ class NemoKern(Kern):
         Print representation of this node to stdout.
         :param int indent: level to which to indent output.
         '''
-        print(self.indent(indent) + self.coloured_text + "[" +
-              self.ktype + "]")
+        print(self.indent(indent) + self.coloured_text + "[]")
 
 
 class NemoLoop(Loop, NemoFparser2ASTProcessor):
@@ -535,8 +412,7 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         # a valid kernel
         if NemoKern.match(self):
             # It is, so we create a new kernel object
-            # TODO supply constructor with PSyIR sub-tree
-            kernel = NemoKern(self._ast, parent=self)
+            kernel = NemoKern(self.children, self._ast, parent=self)
             # and then replace all of our children with it
             for child in self.children[:]:
                 self.children.remove(child)
