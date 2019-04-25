@@ -62,112 +62,8 @@ region.
 
 '''
 
-from __future__ import print_function
-from psyclone.psyGen import TransInfo
-
-
-# Get the PSyclone transformations we will use
-ACC_KERN_TRANS = TransInfo().get_trans_name('ACCKernelsTrans')
-
-
-def valid_kernel(node):
-    '''
-    Whether the sub-tree that has `node` at its root is eligible to be
-    enclosed within an OpenACC KERNELS directive.
-
-    :param node: the node in the PSyIR to check.
-    :type node: :py:class:`psyclone.psyGen.Node`
-
-    :returns: True if the sub-tree can be enclosed in a KERNELS region.
-    :rtype: bool
-
-    '''
-    from psyclone.nemo import NemoIfBlock, NemoIfClause
-    from psyclone.psyGen import CodeBlock
-    from fparser.two.utils import walk_ast
-    from fparser.two import Fortran2003
-    excluded_nodes = (CodeBlock, NemoIfBlock, NemoIfClause)
-    if isinstance(node, excluded_nodes):
-        return False
-    code_blocks = node.walk(node.children, excluded_nodes)
-    if code_blocks:
-        return False
-    # Check that there are no derived-type references in the sub-tree (because
-    # PGI deep-copy doesn't like them).
-    if walk_ast([node.ast], [Fortran2003.Data_Ref]):
-        return False
-    return True
-
-
-def have_loops(nodes):
-    '''
-    Checks to see whether there are any Loops in the list of nodes and
-    their sub-trees.
-
-    :param nodes: list of PSyIR nodes to check for Loops.
-    :type nodes: list of :py:class:`psyclone.psyGen.Node`
-    :returns: True if a Loop is found, False otherwise.
-    :rtype: bool
-
-    '''
-    from psyclone.nemo import NemoLoop
-    for node in nodes:
-        if isinstance(node, NemoLoop):
-            return True
-        loops = node.walk(node.children, NemoLoop)
-        if loops:
-            return True
-    return False
-
-
-def add_kernels(children):
-    '''
-    Walks through the PSyIR inserting OpenACC KERNELS directives at as
-    high a level as possible.
-
-    :param children: list of sibling Nodes in PSyIR that are candidates for \
-                     inclusion in an ACC KERNELS region.
-    :type children: list of :py:class:`psyclone.psyGen.Node`
-
-    '''
-    if not children:
-        return
-
-    node_list = []
-    for child in children[:]:
-        # Can this node be included in a kernels region?
-        if not valid_kernel(child):
-            if have_loops(node_list):
-                try_kernels_trans(node_list)
-                node_list = []
-            # It can't so go down a level and try again
-            add_kernels(child.children)
-        else:
-            node_list.append(child)
-    if have_loops(node_list):
-        try_kernels_trans(node_list)
-
-
-def try_kernels_trans(nodes):
-    '''
-    Attempt to enclose the supplied list of nodes within a kernels
-    region. If the transformation fails then the error message is
-    reported but execution continues.
-
-    :param nodes: list of Nodes to enclose within a Kernels region.
-    :type nodes: list of :py:class:`psyclone.psyGen.Node`
-
-    '''
-    from psyclone.psyGen import InternalError
-    from psyclone.transformations import TransformationError
-    try:
-        # Since this script is intended for use with PGI's managed-memory
-        # option we create KERNELS regions without any default(present)
-        # clause.
-        _, _ = ACC_KERN_TRANS.apply(nodes, default_present=False)
-    except (TransformationError, InternalError) as err:
-        print("Failed to transform nodes: {0}", nodes)
-        print("Error was: {0}".format(str(err)))
+from __future__ import print_function, absolute_import
+from kernel_utils import add_kernels
 
 
 def trans(psy):
@@ -190,6 +86,6 @@ def trans(psy):
         sched.view()
         # Since this script is intended to be used with PGI's managed-memory
         # option we make no attempt to manage data movement.
-        add_kernels(sched.children)
+        add_kernels(sched.children, default_present=False)
         sched.view()
         invoke.schedule = sched
