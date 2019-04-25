@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
 '''A transformation script that applies OpenACC KERNELS
 directives to NEMO style code but makes no attempt to manage data movement.
@@ -44,7 +44,7 @@ README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s kernels_managed_mem_trans.py some_source_file.f90
+ $ psyclone -api nemo -s ./kernels_managed_mem_trans.py some_source_file.f90
 
 This should produce a lot of output, ending with generated
 Fortran. Note that the Fortran source files provided to PSyclone must
@@ -75,7 +75,7 @@ def valid_kernel(node):
     Whether the sub-tree that has `node` at its root is eligible to be
     enclosed within an OpenACC KERNELS directive.
 
-    :param node: the node in the PSyIRe to check.
+    :param node: the node in the PSyIR to check.
     :type node: :py:class:`psyclone.psyGen.Node`
 
     :returns: True if the sub-tree can be enclosed in a KERNELS region.
