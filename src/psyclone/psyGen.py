@@ -5087,47 +5087,63 @@ class Fparser2ASTProcessor(object):
         return new_schedule
 
     @staticmethod
-    def _parse_dimensions(dimensions):
+    def _parse_dimensions(dimensions, symbol_table):
         '''
         Parse the fparser dimension attribute into a shape list with
         the extent of each dimension.
 
         :param dimensions: fparser dimension attribute
-        :type dimensions:
+        :type dimensions: \
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
-        :returns: Shape of the attribute in row-major order (leftmost \
+        :param symbol_table: Symbol table of the declaration context.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :returns: Shape of the attribute in column-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
                   an array dimension. If it is 'None' the extent of that \
                   dimension is unknown, otherwise it holds an integer \
-                  with the extent. If it is an empy list then the symbol \
+                  with the extent. If it is an empty list then the symbol \
                   represents a scalar.
         :rtype: list
         '''
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
         shape = []
-        for dim in walk_ast(dimensions.items, [Fortran2003.Assumed_Shape_Spec,
-                                               Fortran2003.Explicit_Shape_Spec,
-                                               Fortran2003.Assumed_Size_Spec]):
+
+        # Traverse shape specs in Depth-first-search order
+        for dim in walk_ast([dimensions], [Fortran2003.Assumed_Shape_Spec,
+                                           Fortran2003.Explicit_Shape_Spec,
+                                           Fortran2003.Assumed_Size_Spec]):
+
             if isinstance(dim, Fortran2003.Assumed_Size_Spec):
                 raise NotImplementedError(
                     "Could not process {0}. Assumed-size arrays"
                     " are not supported.".format(dimensions))
+
             elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
                 shape.append(None)
+
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
+                def _unsupported_type_error(dimensions):
+                    raise NotImplementedError(
+                        "Could not process {0}. Only scalar integer literals"
+                        " or symbols are supported for explicit shape array "
+                        "declarations.".format(dimensions))
                 if isinstance(dim.items[1],
                               Fortran2003.Int_Literal_Constant):
                     shape.append(int(dim.items[1].items[0]))
+                elif isinstance(dim.items[1], Fortran2003.Name):
+                    sym = symbol_table.lookup(dim.items[1].string)
+                    if sym.datatype != 'integer' or sym.shape:
+                        _unsupported_type_error(dimensions)
+                    shape.append(sym)
                 else:
-                    raise NotImplementedError(
-                        "Could not process {0}. Only integer "
-                        "literals are supported for explicit shape"
-                        " array declarations.".format(dimensions))
+                    _unsupported_type_error(dimensions)
+
             else:
                 raise InternalError(
                     "Reached end of loop body and {0} has"
                     " not been handled.".format(type(dim)))
+
         return shape
 
     def process_declarations(self, parent, nodes, arg_list):
@@ -5184,7 +5200,7 @@ class Fparser2ASTProcessor(object):
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
 
-            # Parse type_spec, currently just 'real', 'integer' and
+            # Parse type_spec, currently just 'real', 'integer', 'logical' and
             # 'character' intrinsic types are supported.
             datatype = None
             if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
@@ -5194,19 +5210,20 @@ class Fparser2ASTProcessor(object):
                     datatype = 'integer'
                 elif str(type_spec.items[0]).lower() == 'character':
                     datatype = 'character'
+                elif str(type_spec.items[0]).lower() == 'logical':
+                    datatype = 'boolean'
             if datatype is None:
                 raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer' "
-                        "and 'character' intrinsic types are supported."
-                        "".format(str(decl.items)))
+                        "Could not process {0}. Only 'real', 'integer', "
+                        "'logical' and 'character' intrinsic types are "
+                        "supported.".format(str(decl.items)))
 
-            # Parse declaration attributes
-            # If no dimension is provided, it is a scalar
-            shape = []
-            # If no intent attribute is provided, it is
-            # provisionally marked as a local variable (when the argument
-            # list is parsed, arguments with no explicit intent are updated
-            # appropriately).
+            # Parse declaration attributes:
+            # 1) If no dimension attribute is provided, it defaults to scalar.
+            attribute_shape = []
+            # 2) If no intent attribute is provided, it is provisionally
+            # marked as a local variable (when the argument list is parsed,
+            # arguments with no explicit intent are updated appropriately).
             scope = 'local'
             is_input = False
             is_output = False
@@ -5228,7 +5245,8 @@ class Fparser2ASTProcessor(object):
                             "Could not process {0}. Unrecognized attribute "
                             "'{1}'.".format(decl.items, str(attr)))
                 elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                    shape = self._parse_dimensions(attr)
+                    attribute_shape = self._parse_dimensions(
+                                            attr, parent.symbol_table)
                 else:
                     raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
@@ -5237,24 +5255,31 @@ class Fparser2ASTProcessor(object):
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
             for entity in iterateitems(entities):
-                (name, array_spec, char_len, initialization) = entity.items
+                (name, array_spec, char_len, initialisation) = entity.items
+
+                # If the entity has an array-spec shape, it has priority.
+                # Otherwise use the declaration attribute shape.
                 if (array_spec is not None):
-                    raise NotImplementedError("Could not process {0}. "
-                                              "Array specifications after the"
-                                              " variable name are not "
-                                              "supported.".format(decl.items))
-                if (initialization is not None):
-                    raise NotImplementedError("Could not process {0}. "
-                                              "Initializations on the"
-                                              " declaration statements are not"
-                                              " supported.".format(decl.items))
+                    entity_shape = self._parse_dimensions(
+                                        array_spec, parent.symbol_table)
+                else:
+                    entity_shape = attribute_shape
+
+                if (initialisation is not None):
+                    raise NotImplementedError(
+                        "Could not process {0}. Initialisations on the"
+                        " declaration statements are not supported."
+                        "".format(decl.items))
+
                 if (char_len is not None):
-                    raise NotImplementedError("Could not process {0}. "
-                                              "Character length specifications"
-                                              " are not supported."
-                                              "".format(decl.items))
-                parent.symbol_table.declare(str(name), datatype, shape,
-                                            scope, is_input, is_output)
+                    raise NotImplementedError(
+                        "Could not process {0}. Character length "
+                        "specifications are not supported."
+                        "".format(decl.items))
+
+                parent.symbol_table.declare(
+                    str(name), datatype, entity_shape, scope, is_input,
+                    is_output)
 
         try:
             arg_strings = [x.string for x in arg_list]
@@ -5298,7 +5323,7 @@ class Fparser2ASTProcessor(object):
                 if psy_child:
                     self.nodes_to_code_block(parent, code_block_nodes)
                     parent.addchild(psy_child)
-                # If psy_child is not initialized but it didn't produce a
+                # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
 
         # Complete any unfinished code-block
@@ -5517,17 +5542,18 @@ class Fparser2ASTProcessor(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in row-major order), the scope and, for
+    the datatype, the shape (in column-major order), the scope and, for
     global-scoped symbols, whether the data is already defined and/or survives
     after the kernel.
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
-    :param list shape: Shape of the symbol in row-major order (leftmost \
+    :param list shape: Shape of the symbol in column-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
                        dimension is unknown, otherwise it holds an integer \
-                       with the extent. If it is an empy list then the symbol \
+                       literal or a reference to an integer symbol with the \
+                       extent. If it is an empty list then the symbol \
                        represents a scalar.
     :param str scope: It is 'local' if the symbol just exists inside the \
                       kernel scope or 'global_*' if the data survives outside \
@@ -5559,6 +5585,7 @@ class Symbol(object):
     valid_data_types = ('real',  # Floating point
                         'integer',
                         'character',
+                        'boolean',
                         'deferred'  # Type of this symbol has not yet
                                     # been determined
     )
@@ -5570,16 +5597,24 @@ class Symbol(object):
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
-                "Symbol can only be initialized with {0} datatypes."
+                "Symbol can only be initialised with {0} datatypes."
                 "".format(str(Symbol.valid_data_types)))
         self._datatype = datatype
 
         if not isinstance(shape, list):
             raise TypeError("Symbol shape attribute must be a list.")
 
-        if False in [isinstance(x, (type(None), int)) for x in shape]:
-            raise TypeError("Symbol shape list elements can only be "
-                            "'integer' or 'None'.")
+        for dimension in shape:
+            if isinstance(dimension, Symbol):
+                if dimension.datatype != "integer" or dimension.shape:
+                    raise TypeError(
+                        "Symbols that are part of another symbol shape can "
+                        "only be scalar integers, but found '{0}'."
+                        "".format(str(dimension)))
+            elif not isinstance(dimension, (type(None), int)):
+                raise TypeError("Symbol shape list elements can only be "
+                                "'Symbol', 'integer' or 'None'.")
+
         self._shape = shape
 
         if annotation:
@@ -5667,11 +5702,13 @@ class Symbol(object):
     @property
     def shape(self):
         '''
-        :returns: Shape of the symbol in row-major order (leftmost \
+        :returns: Shape of the symbol in column-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
-                  an array dimension. If not None then it holds the \
-                  extent of that dimension. If it is an empy list it \
-                  represents an scalar.
+                  an array dimension. If it is 'None' the extent of that \
+                  dimension is unknown, otherwise it holds an integer \
+                  literal or a reference to an integer symbol with the \
+                  extent. If it is an empty list then the symbol \
+                  represents a scalar.
         :rtype: list
         '''
         return self._shape
@@ -5734,6 +5771,8 @@ class Symbol(object):
             code = code + "int "
         elif self.datatype == "character":
             code = code + "char "
+        elif self.datatype == "boolean":
+            code = code + "bool "
         else:
             raise NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "
@@ -5749,9 +5788,27 @@ class Symbol(object):
         return code
 
     def __str__(self):
-        return (self.name + "<" +
-                ", ".join([self.datatype, str(self.shape),
-                           self.scope, str(self.annotation)]) + ">")
+        ret = self.name + ": <" + self.datatype + ", " + self.scope + ", "
+        if self.shape:
+            ret += "Array["
+            for dimension in self.shape:
+                if isinstance(dimension, Symbol):
+                    ret += dimension.name
+                elif isinstance(dimension, int):
+                    ret += str(dimension)
+                elif dimension is None:
+                    ret += "'Unknown bound'"
+                else:
+                    raise InternalError(
+                        "Symbol shape list elements can only be 'Symbol', "
+                        "'integer' or 'None', but found '{0}'."
+                        "".format(type(dimension)))
+                ret += ", "
+            ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
+        else:
+            ret += "Scalar"
+        ret += ", " + str(self.annotation) + ">"
+        return ret
 
 
 class SymbolTable(object):
@@ -5781,11 +5838,14 @@ class SymbolTable(object):
 
         :param str name: Name of the symbol.
         :param str datatype: Datatype of the symbol.
-        :param list shape: Shape of the symbol in row-major order (leftmost \
-                       index is contiguous in memory). Each entry represents \
-                       an array dimension. If not None then it holds the \
-                       extent of that dimension. If it is an empy list it \
-                       represents an scalar.
+        :param list shape: Shape of the symbol in column-major order \
+                           (leftmost index is contiguous in memory). Each \
+                           entry represents an array dimension. If it is \
+                           'None' the extent of that dimension is unknown, \
+                           otherwise it holds an integer literal or a \
+                           reference to an integer symbol with the extent. \
+                           If it is an empty list then the symbol represents \
+                           a scalar.
         :param str scope: It is 'local' if the symbol just exists inside the \
                           kernel scope or 'global_*' if the data survives \
                           outside of the kernel scope. Note that \

@@ -102,6 +102,10 @@
         33) #350 and PR #351. Bug fix in the stencil lookup for field
         vectors in the Dynamo0.3 API.
 
+	34) #336 and PR #338. PSyIR Fortran array parsing support (logical
+	type, a(xx) dimension specifications and array size can be an
+	integer variable).
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
