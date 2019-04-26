@@ -5188,10 +5188,14 @@ class Fparser2ASTProcessor(object):
                 # This USE doesn't have an ONLY clause so we skip it. We
                 # don't raise an error as this will only become a problem if
                 # this Schedule represents a kernel that is the target of a
-                # transformation.
+                # transformation. See #315.
                 continue
             mod_name = str(decl.items[2])
             for name in iterateitems(decl.items[4]):
+                # Create an entry in the SymbolTable for each symbol named
+                # in the ONLY clause. We assume that any data accessed in
+                # this way is read-only.
+                # TODO #315 check that the kernel conforms to this assumption.
                 parent.symbol_table.declare(
                     str(name), datatype='deferred',
                     scope='global',
