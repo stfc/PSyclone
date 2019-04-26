@@ -5581,6 +5581,9 @@ class Symbol(object):
                          'global'  # Global scope but not a routine
                                    # argument
     )
+    # Those scopes that are only valid with annotation (that tell us how
+    # to access the data via some language-specific mechanism).
+    scopes_require_annotation = ('global')
     # Tuple with the valid datatypes.
     valid_data_types = ('real',  # Floating point
                         'integer',
@@ -5730,19 +5733,27 @@ class Symbol(object):
     def scope(self, new_scope):
         '''
         :param str scope: It is 'local' if the symbol just exists inside the \
-                          kernel scope or 'global_*' if the data survives \
-                          outside of the kernel scope. Note that \
-                          global-scoped symbols also have postfixed \
-                          information about the sharing mechanism, at the \
-                          moment just 'global_argument' is available for \
-                          variables passed in/out of the kernel by argument.
-        :raises ValueError: New scope parameter has an invalid value.
+                          kernel scope or 'global*' if the data survives \
+                          outside of the kernel scope. Note that some \
+                          global-scoped symbols must have postfixed \
+                          information about the sharing mechanism, stored in \
+                          the self._annotation dictionary.
+        :raises ValueError: New scope parameter has an invalid value or is \
+                            one of those that requires that a symbol also \
+                            have an annotation which this symbol lacks.
         '''
         if new_scope not in Symbol.valid_scope_types:
             raise ValueError("Symbol scope attribute can only be one of {0}"
                              " but got '{1}'."
                              "".format(str(Symbol.valid_scope_types),
                                        str(new_scope)))
+        if new_scope in self.scopes_require_annotation and \
+           not self._annotation:
+            raise ValueError(
+                "Cannot set the scope of symbol '{0}' to be '{1}' because a "
+                "symbol with that scope requires an annotation (to specify the"
+                " language-specific mechanism by which the data is accessed)".
+                format(self._name, new_scope))
 
         self._scope = new_scope
 

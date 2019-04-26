@@ -3091,6 +3091,13 @@ def test_symbol_scope_setter():
             str(Symbol.valid_scope_types) +
             " but got 'invalidscope'.") in str(error.value)
 
+    # Test with a scope that requires that the symbol have an attribute
+    # which it lacks
+    with pytest.raises(ValueError) as error:
+        sym.scope = 'global'
+    assert ("Cannot set the scope of symbol 'a' to be 'global' because a "
+            "symbol with that scope requires an annotation" in str(error))
+
 
 def test_symbol_is_input_setter():
     '''Test that a Symbol is_input can be set if given a new valid
