@@ -299,11 +299,16 @@ class NemoKern(Kern):
     NEMO code. Kernels are leaves in the PSyIR. I.e. they have
     no self._children but they do have a KernelSchedule.
 
-    :param loop: Reference to the loop (in the fparser2 parse tree) \
-                 containing this kernel.
-    :type loop: :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
+    :param psyir_nodes: the list of PSyIR nodes that represent the body \
+                        of this kernel.
+    :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
+    :param parse_tree: Reference to the innermost loop in the fparser2 parse \
+                       tree that encloses this kernel.
+    :type parse_tree: \
+              :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
     :param parent: the parent of this Kernel node in the PSyIR.
-    type parent: :py:class:`psyclone.nemo.NemoLoop`
+    :type parent: :py:class:`psyclone.nemo.NemoLoop`
+
     '''
     def __init__(self, psyir_nodes, parse_tree, parent=None):
         from psyclone.psyGen import KernelSchedule
@@ -311,9 +316,18 @@ class NemoKern(Kern):
         self._parent = parent
         # The corresponding set of nodes in the fparser2 parse tree
         self._ast = parse_tree
-        # Create a kernel schedule and attach the PSyIR sub-tree to it
+        # Create a kernel schedule
         self._kern_schedule = KernelSchedule(self._name)
+        # Attach the PSyIR sub-tree to it
         self._kern_schedule.children = psyir_nodes[:]
+        # Update the parent info for each node we've moved
+        for node in self._kern_schedule.children:
+            node.parent = parent
+        # Reset the list of children of the parent node (if supplied) so
+        # that it only contains this Kernel object.
+        if parent:
+            parent.children = []
+            parent.addchild(self)
         # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
         # We therefore don't have any children.
         self._children = []
@@ -408,10 +422,6 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         if NemoKern.match(self):
             # It is, so we create a new kernel object
             kernel = NemoKern(self.children, self._ast, parent=self)
-            # and then replace all of our children with it
-            for child in self.children[:]:
-                self.children.remove(child)
-            self.addchild(kernel)
 
     def __str__(self):
         result = ("NemoLoop[" + self._loop_type + "]: " + self._variable_name +
