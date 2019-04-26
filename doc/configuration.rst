@@ -63,14 +63,20 @@ and a an optional API specific section, for example for
 ::
 
    [dynamo0.3]
+   access_mapping = gh_read:read, gh_write:write, gh_rw:readwrite,
+                    gh_inc:inc, gh_sum:sum
+
    COMPUTE_ANNEXED_DOFS = false
+
 
 or for ``gocean1.0``:
 ::
 
    [gocean1.0]
-   iteration-spaces=offset_sw:ct:internal_we_halo:1:2:3:4
-                    offset_sw:ct:internal_ns_halo:1:{stop}:1:{stop}+1
+   access_mapping = go_read:read, go_write:write, go_readwrite:readwrite
+
+   iteration-spaces = offset_sw:ct:internal_we_halo:1:2:3:4
+                      offset_sw:ct:internal_ns_halo:1:{stop}:1:{stop}+1
 
 The meaning of the various entries is described in the following sub-sections.
 
@@ -88,12 +94,12 @@ supported by PSyclone.
 .. tabularcolumns:: |l|L|
 
 ======================= =======================================================
-Entry         		Description
+Entry                   Description
 ======================= =======================================================
 API                     The API that PSyclone assumes an Algorithm/Kernl
                         conforms to if no API is specified. Must be one of the
                         APIs supported by PSyclone (dynamo0.1, dynamo0.3,
-			gocean0.1, gocean1.0 and nemo). If there is no
+                        gocean0.1, gocean1.0 and nemo). If there is no
                         API specified and there is only one API-specific
                         section in the config file loaded, this API will be
                         used. This value can be overwritten by the command
@@ -114,6 +120,33 @@ REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
                         accumulates its local reduction. (This prevents false
                         sharing of cache lines by different threads.)
 ======================= =======================================================
+
+Common Sections
+^^^^^^^^^^^^^^^
+
+The following entries must be defined for each API in order for PSyclone to
+work as expected:
+
+.. tabularcolumns:: |l|L|
+
+======================= =======================================================
+Entry                   Description
+======================= =======================================================
+access_mapping          This field defines the strings that are used by a
+                        particular API to indicate write, read, ... access. Its
+                        value is a comma separated list of access-string:access
+                        pairs, e.g.:
+
+                        ``gh_read:read, gh_write:write, gh_rw:readwrite,
+                        gh_inc:inc, gh_sum:sum``
+
+                        At this stage these 5 types are defined for read, write,
+                        read+write, incremendt and summation access by PSyclone.
+                        The gocean APIs does not support increment or sum, so
+                        they only define three mappings for read, write, and 
+                        readwrite.
+======================= =======================================================
+
 
 ``dynamo0.3`` Section
 ^^^^^^^^^^^^^^^^^^^^^
