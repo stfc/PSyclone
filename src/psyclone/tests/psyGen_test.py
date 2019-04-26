@@ -3034,8 +3034,10 @@ def test_symbol_initialization():
                              True, True), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
                              True, False), Symbol)
-    assert isinstance(Symbol('a', 'deferred', scope='global_use',
-                             is_input=True, is_output=False), Symbol)
+    assert isinstance(
+        Symbol('a', 'deferred', scope='global_use',
+               is_input=True, is_output=False,
+               annotation={'fortran_module': 'some_mod'}), Symbol)
 
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
@@ -3120,7 +3122,23 @@ def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed. (i.e. is
     initialised fully)'''
     symbol = Symbol("sname", "real")
-    assert "sname<real, [], local>" in str(symbol)
+    assert "sname<real, [], local, {}>" in str(symbol)
+
+
+def test_symbol_annotation_not_dict():
+    ''' Check that the Symbol constructor rejects the annotation argument if
+    it is not a dict. '''
+    with pytest.raises(TypeError) as err:
+        _ = Symbol("some_var", "real", annotation="use")
+    assert "Symbol annotation must be a dict but got" in str(err)
+
+
+def test_symbol_annotation():
+    ''' Check the annotation getter on a Symbol. '''
+    symbol = Symbol("some_var", "real",
+                    annotation={"fortran_module": "my_mod"})
+    ann = symbol.annotation
+    assert ann["fortran_module"] == "my_mod"
 
 
 def test_symbol_gen_c_definition():
@@ -3152,13 +3170,16 @@ def test_symboltable_declare():
     sym_table = SymbolTable()
 
     # Declare a symbol
-    sym_table.declare("var1", "real", [5, 1], "global_argument", True, True)
+    sym_table.declare("var1", "real", [5, 1], "global_argument", True, True,
+                      {"fortran_module": "some_mod"})
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
     assert sym_table._symbols["var1"].scope == "global_argument"
     assert sym_table._symbols["var1"].is_input is True
     assert sym_table._symbols["var1"].is_output is True
+    assert (sym_table._symbols["var1"].annotation["fortran_module"] ==
+            "some_mod")
 
     # Declare a duplicate name symbol
     with pytest.raises(KeyError) as error:
@@ -3207,9 +3228,13 @@ def test_symboltable_can_be_printed():
     sym_table = SymbolTable()
     sym_table.declare("var1", "real")
     sym_table.declare("var2", "integer")
-    assert "Symbol Table:\n" in str(sym_table)
-    assert "var1" in str(sym_table)
-    assert "var2" in str(sym_table)
+    sym_table.declare("var3", "deferred", annotation={"fortran_module":
+                                                      "my_mod"})
+    sym_table_text = str(sym_table)
+    assert "Symbol Table:\n" in sym_table_text
+    assert "var1" in sym_table_text
+    assert "var2" in sym_table_text
+    assert "fortran_module" in sym_table_text
 
 
 def test_symboltable_specify_argument_list():

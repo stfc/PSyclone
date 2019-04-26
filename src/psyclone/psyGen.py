@@ -5175,10 +5175,11 @@ class Fparser2ASTProcessor(object):
                 continue
             mod_name = str(decl.items[2])
             for name in iterateitems(decl.items[4]):
-                # TODO need to provide mod_name in annotation
-                parent.symbol_table.declare(str(name), datatype='deferred',
-                                            scope='global_use',
-                                            is_input=True, is_output=False)
+                parent.symbol_table.declare(
+                    str(name), datatype='deferred',
+                    scope='global_use',
+                    is_input=True, is_output=False,
+                    annotation={"fortran_module": mod_name})
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -5516,8 +5517,8 @@ class Fparser2ASTProcessor(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in row-major order), the scope and for
-    global-scoped symbols whether the data is already defined and/or survives
+    the datatype, the shape (in row-major order), the scope and, for
+    global-scoped symbols, whether the data is already defined and/or survives
     after the kernel.
 
     :param str name: Name of the symbol.
@@ -5540,18 +5541,30 @@ class Symbol(object):
                           into the kernel.
     :param bool is_output: Whether the symbol represents data that is passed \
                            outside the kernel upon exit.
+    :param dict annotation: A dict containing any language-specific \
+                            annotations or None.
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
     '''
 
     # Tuple with the valid values for the access attribute.
-    valid_scope_types = ('local', 'global_argument', 'global_use')
+    valid_scope_types = ('local',  # Locally-scoped
+                         'global_argument',  # Global scope accessed as a
+                                             # routine argument
+                         'global_use'  # Global scope but not a routine
+                                       # argument
+    )
     # Tuple with the valid datatypes.
-    valid_data_types = ('real', 'integer', 'character', 'deferred')
+    valid_data_types = ('real',  # Floating point
+                        'integer',
+                        'character',
+                        'deferred'  # Type of this symbol has not yet
+                                    # been determined
+    )
 
     def __init__(self, name, datatype, shape=[], scope='local',
-                 is_input=False, is_output=False):
+                 is_input=False, is_output=False, annotation=None):
 
         self._name = name
 
@@ -5568,6 +5581,14 @@ class Symbol(object):
             raise TypeError("Symbol shape list elements can only be "
                             "'integer' or 'None'.")
         self._shape = shape
+
+        if annotation:
+            if not isinstance(annotation, dict):
+                raise TypeError("Symbol annotation must be a dict but got: "
+                                "{0}".format(type(annotation)))
+            self._annotation = annotation
+        else:
+            self._annotation = {}
 
         # The following attributes have setter methods (with error checking)
         self._scope = None
@@ -5688,6 +5709,15 @@ class Symbol(object):
 
         self._scope = new_scope
 
+    @property
+    def annotation(self):
+        '''
+        :returns: the dictionary of all annotations associated with \
+                  this Symbol.
+        :rtype: dict
+        '''
+        return self._annotation
+
     def gen_c_definition(self):
         '''
         Generates string representing the C language definition of the symbol.
@@ -5719,8 +5749,9 @@ class Symbol(object):
         return code
 
     def __str__(self):
-        return (self.name + "<" + self.datatype + ", " + str(self.shape) +
-                ", " + self.scope + ">")
+        return (self.name + "<" +
+                ", ".join([self.datatype, str(self.shape),
+                           self.scope, str(self.annotation)]) + ">")
 
 
 class SymbolTable(object):
@@ -5744,7 +5775,7 @@ class SymbolTable(object):
         self._kernel = kernel
 
     def declare(self, name, datatype, shape=[], scope='local',
-                is_input=False, is_output=False):
+                is_input=False, is_output=False, annotation=None):
         '''
         Declare a new symbol in the symbol table.
 
@@ -5767,6 +5798,8 @@ class SymbolTable(object):
                               into the kernel.
         :param bool is_output: Whether the symbol represents data that is \
                                survives outside the kernel upon exit.
+        :param dict annotation: Any language-specific annotations provided \
+                                as a dict (or None).
         :raises KeyError: The provided name can not be used as key in the
                           table.
         '''
@@ -5775,7 +5808,7 @@ class SymbolTable(object):
                            " name '{0}'.".format(name))
 
         self._symbols[name] = Symbol(name, datatype, shape, scope, is_input,
-                                     is_output)
+                                     is_output, annotation)
 
     def specify_argument_list(self, argument_name_list):
         '''
