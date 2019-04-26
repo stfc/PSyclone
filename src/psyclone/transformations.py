@@ -2453,6 +2453,213 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
                 .format(type(node)))
 
 
+class Dynamo0p3KernelConstTrans(Transformation):
+    '''Modifies a kernel so that the number of dofs, number of layers and
+    number of quadrature points are fixed in the kernel rather than
+    being passed in by argument.
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "dynamo0.3"
+    >>> ast, invokeInfo = parse("file.f90", api=api)
+    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
+    >>> trans = Dynamo0p3KernelConstTrans()
+    >>> for kernel in schedule.kern_calls():
+    >>>     new_schedule, _ = trans.apply(kernel)
+    >>>     kernel_schedule = kernel.get_kernel_schedule()
+    >>>     kernel_schedule.symbol_table.view()
+
+    '''
+
+    def __str__(self):
+        return ("Makes the number of degrees of freedom for a space, the "
+                "number of quadrature points and the number of layers "
+                "constant in a Kernel.")
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+        return "Dynamo0p3KernelConstTrans"
+
+    def apply(self, node, cellshape="quadrilateral", element_order=None,
+              number_of_layers=None, quadrature=False):
+        '''Transforms a kernel so that the values for the number of degrees of
+        freedom (if a valid value for the element_order arg is
+        provided), the number of quadrature points (if the quadrature
+        arg is set to True) and the number of layers (if a valid value
+        for the number_of_layers arg is provided) are constant in a
+        kernel rather than being passed in by argument.
+
+        The "cellshape", "element_order" and "number_of_layers"
+        arguments mirror the namelist values that are provided as
+        input when running an LFRic model.
+
+        The number of quadrature points (for horizontal and vertical)
+        are currently set to the element_order + 3 in the LFRic
+        infrastructure so their value is derived.
+
+        :param node: A kernel node
+        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type str cellshape: the shape of the cells. This is provided \
+        as it helps determine the number of dofs a field has for a \
+        particular function space. Currently only "quadrilateral" is \
+        supported which is also the default value.
+        :type int element_order: the order of the cell. With cellshape \
+        this determines the number of dofs a field has for a \
+        particular function space. If it is set to None (the default) \
+        then a constant dofs value isn't set in the kernel.
+        :type int number_of_layers: the number of layers used for this \
+        particular run. If this is set to None (the default) then a \
+        constant nlayers value is not set in the kernel.
+        :type bool quadrature: whether constant number of quadrature \
+        points values are set in the kernel (True) or not (False). The \
+        default is False.
+
+        :returns: Tuple of the modified schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+        
+        # ndofs for quadrilaterals and function spaces (formulas
+        # kindly provided by Tom Melvin)
+        space_to_dofs = {"w3":     (lambda n: (n+1)**3),
+                         "w2":     (lambda n: 3*(n+2)*(n+1)**2),
+                         "w1":     (lambda n: 3*(n+2)**2*(n+1)),
+                         "w0":     (lambda n: (n+2)**3),
+                         "wtheta": (lambda n: 2*(n+2)*(n+1)**2),
+                         "w2h":    (lambda n: 2*(n+2)*(n+1)**2),
+                         "w2v":    (lambda n: (n+2)*(n+1)**2)}
+
+        self._validate(node, cellshape, element_order, number_of_layers,
+                       quadrature)
+
+        schedule = node.root
+        kernel = node
+
+        # create a memento of the schedule and the proposed transformation
+        keep = Memento(schedule, self, [kernel])
+
+        arguments = kernel.arguments
+        from psyclone.dynamo0p3 import KernCallArgList
+        arg_list_info = KernCallArgList(kernel)
+        arg_list_info.generate()
+        try:
+            kernel_schedule = kernel.get_kernel_schedule()
+        except NotImplementedError as excinfo:
+            raise TransformationError("Failed to parse kernel {0}"
+                                      "".format(kernel.name))
+
+        symbol_table = kernel_schedule.symbol_table
+        if number_of_layers:
+            # Here is where I will modify the symbol table for nlayers
+            print ("    Modify mesh height, arg position {0}, value {1}"
+                   "".format(arg_list_info.nlayers_positions[0],
+                             number_of_layers))
+        if quadrature and arg_list_info.nqp_h_positions and \
+           arg_list_info.nqp_h_positions[0]:
+            # Modify the symbol table for horizontal quadrature here.
+            print ("    Modify horizontal quadrature, arg position {0}, value {1}"
+                   "".format(arg_list_info.nqp_h_positions[0],
+                             element_order+3))
+        if quadrature and arg_list_info.nqp_h_positions:
+            # Modify the symbol table for vertical quadrature here.
+            print ("    Modify vertical quadrature, arg position {0}, "
+                   "value {1}".format(arg_list_info.nqp_v_positions[0],
+                                      element_order+3))
+        if element_order is not None:
+            # Modify the symbol table for degrees of freedom here.
+            for (position, space) in arg_list_info.ndf_positions:
+                if "any_space_" in space:
+                    print (
+                        "    Skipping dofs, arg position {0}, function_space "
+                        "{1}".format(position, space))
+                else:
+                    print ("    Modify dofs, arg position {0}, function space "
+                           "{1}, value {2}".format(
+                               position, space,
+                               space_to_dofs[space](element_order)))
+        return schedule, keep
+
+    def _validate(self, node, cellshape, element_order, number_of_layers,
+                  quadrature):
+        '''Internal method to check whether the node is valid for this
+        transformation.
+
+        :param node: A dynamo 0.3 kernel node
+        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type str cellshape: the shape of the cells. This is provided
+        as it helps determine the number of dofs a field has for a
+        particular function space. Currently only "quadrilateral" is
+        supported.
+        :type int element_order: the order of the cell. With cellshape
+        this determines the number of dofs a field has for a
+        particular function space.
+        :type int number_of_layers: the number of layers used for this
+        particular run. If this is set to None (the default) then a
+        constant nlayers value is not set in the kernel.
+        :type bool quadrature: whether constant number of quadrature
+        points values are set in the kernel (True) or not (False). The
+        default is False.
+
+        :raises TransformationError: if the node argument is not a \
+                         dynamo 0.3 Kernel ************
+
+        '''
+        from psyclone.dynamo0p3 import DynKern
+        if not isinstance(node, DynKern):
+            raise TransformationError(
+                "Error in Dynamo0p3KernelConstTrans transformation. Supplied "
+                "node must be a dynamo kernel but found '{0}'."
+                .format(type(node)))
+
+        if cellshape.lower() != "quadrilateral":
+            # Only quadrilaterals are currently supported
+            print ("ERROR1")
+            raise TransformationError(
+                "ERROR")
+
+        if element_order is not None and \
+           (not isinstance(element_order, int) or element_order < 0):
+            # element order must be 0 or a positive integer
+            print ("ERROR2")
+            raise TransformationError(
+                "ERROR")
+
+        if number_of_layers is not None and \
+           (not isinstance(number_of_layers, int) or number_of_layers < 1):
+            # number of layers must be a positive integer
+            print ("ERROR3")
+            raise TransformationError(
+                "ERROR")
+
+        if not quadrature in [False, True]:
+            # quadrature must be a boolean value
+            print ("ERROR4")
+            raise TransformationError(
+                "ERROR")
+        
+        if not element_order and not number_of_layers:
+            # As a minimum, element order or number of layers must have values.
+            print ("ERROR5")
+            raise TransformationError(
+                "ERROR")
+
+        if quadrature and element_order is None:
+            # if quadrature then element order
+            print ("ERROR6")
+            raise TransformationError(
+                "ERROR")
+
+
 class ACCEnterDataTrans(Transformation):
     '''
     Adds an OpenACC "enter data" directive to a Schedule.

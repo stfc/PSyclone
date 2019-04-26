@@ -45,20 +45,25 @@ $ psyclone -s ./kernel_constants.py ../code/gw_mixed_schur_preconditioner_alg_mo
 '''
 
 from __future__ import print_function
+from psyclone.transformations import Dynamo0p3KernelConstTrans
 
 def trans(psy):
-    ''' PSyclone transformation script for the Dynamo0.3 API to
-    make the ndof values in kernels constant. '''
+    '''PSyclone transformation script for the Dynamo0.3 API to make the
+    kernel values of ndofs, nlayers and nquadrature-point sizes constant.
+
+    '''
+    from psyclone.transformations import TransformationError
+
+    const_trans = Dynamo0p3KernelConstTrans()
 
     for invoke in psy.invokes.invoke_list:
-        print ("**********")
+        print ("invoke '{0}'".format(invoke.name))
         schedule = invoke.schedule
         for kernel in schedule.kern_calls():
-            print (kernel.name.lower())
+            print ("  kernel '{0}'".format(kernel.name.lower()))
             try:
-                kernel_schedule = kernel.get_kernel_schedule()
-                kernel_schedule.view()
-                #kernel_schedule.symbol_table.view()
-            except NotImplementedError as excinfo:
-                print ("Failed to parse")
+                const_trans.apply(kernel, number_of_layers=30, element_order=0,
+                                  quadrature=True)
+            except TransformationError as excinfo:
+                print ("    Failed to modify kernel '{0}'".format(kernel.name))
     return psy

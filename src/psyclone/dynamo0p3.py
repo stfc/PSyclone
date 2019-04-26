@@ -7004,6 +7004,10 @@ class KernCallArgList(ArgOrdering):
         ArgOrdering.__init__(self, kern)
         self._arglist = []
         self._name_space_manager = NameSpaceFactory().create()
+        self._nlayers_positions = []
+        self._nqp_h_positions = []
+        self._nqp_v_positions = []
+        self._ndf_positions = []
 
     def cell_position(self):
         ''' add a cell argument to the argument list'''
@@ -7039,6 +7043,7 @@ class KernCallArgList(ArgOrdering):
         nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
         self._arglist.append(nlayers_name)
+        self._nlayers_positions.append(len(self._arglist))
 
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
@@ -7152,6 +7157,8 @@ class KernCallArgList(ArgOrdering):
         # There is currently one argument: "ndf"
         ndf_name = get_fs_ndf_name(function_space)
         self._arglist.append(ndf_name)
+        self._ndf_positions.append((len(self._arglist),
+                                    function_space.orig_name))
 
     def fs_compulsory_field(self, function_space):
         '''add compulsory arguments to the argument list, when there is a
@@ -7283,7 +7290,10 @@ class KernCallArgList(ArgOrdering):
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
+        self._nqp_h_positions.append(len(self._arglist) + 1)
+        self._nqp_v_positions.append(len(self._arglist) + 2)
         self._arglist.extend(self._kern.qr_args)
+
 
     def banded_dofmap(self, function_space):
         ''' Add banded dofmap (required for CMA operator assembly) '''
@@ -7295,6 +7305,55 @@ class KernCallArgList(ArgOrdering):
     def indirection_dofmap(self, function_space, operator=None):
         ''' Add indirection dofmap required when applying a CMA operator '''
         self._arglist.append(get_cma_indirection_map_name(function_space))
+
+    @property
+    def nlayers_positions(self):
+        '''
+        :return: the position(s) in the argument list of the \
+        variable(s) that passes the number of layers. The generate \
+        function must be called first otherwise an empty list will be \
+        returned.
+        :rtype: list of int.
+
+        '''
+        return self._nlayers_positions
+
+    @property
+    def nqp_h_positions(self):
+        '''
+        :return: the position(s) in the argument list of the \
+        variable(s) that pass(es) the number of quadrature points in \
+        the horizontal direction. The generate function must be called \
+        first otherwise an empty list will be returned.
+        :rtype: list of int.
+
+        '''
+        return self._nqp_h_positions
+
+    @property
+    def nqp_v_positions(self):
+        '''
+        :return: the position(s) in the argument list of the \
+        variable(s) that pass(es) the number of quadrature points in the \
+        vertical direction. The generate function must be called \
+        first otherwise an empty list will be returned.
+        :rtype: list of int.
+
+        '''
+        return self._nqp_v_positions
+
+    @property
+    def ndf_positions(self):
+        '''
+        :return: the position(s) in the argument list and the function \
+        space(s) associated with the variable(s) that pass(es) the \
+        number of degrees of freedom for the function space. The \
+        generate function must be called first otherwise an empty list \
+        will be returned.
+        :rtype: list of (int, str).
+
+        '''
+        return self._ndf_positions
 
     @property
     def arglist(self):
