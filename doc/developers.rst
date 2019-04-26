@@ -1606,6 +1606,9 @@ The full interface to each of these classes is detailed below:
     :members:
     :noindex:
 
+
+.. _dev_configuration:
+
 Module: configuration
 ======================
 
@@ -1621,7 +1624,19 @@ using  ``Config.get()``. Only one such instance will ever exist:
 
 The ``Config`` class is responsible for finding the configuration file
 (if no filename is passed to the constructor), parsing it and then storing
-the various configuration options. It also stores the list of supported
+the various configuration options.
+If PSyclone is started via pytest, the path ``<PSYCLONEHOME/config>``
+is added to the default configuration file search path (see
+:ref:`configuration`). This means that the configuration file stored in
+the PSyclone repository will be used for all test.
+
+.. warning::
+  If the user should have a PSyclone config file installed, it will be
+  used instead of the file in ``<PSYCLONEHOME/config>``, which depending
+  on the content of the config file might cause test failures.
+
+
+The config file also stores the list of supported
 APIs (``Config._supported_api_list``) and the default API to use if none
 is specified in either a config file or the command line
 (``Config._default_api``.)

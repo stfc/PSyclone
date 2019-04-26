@@ -7,9 +7,9 @@ PSyclone reads various run-time configuration options from
 the ``psyclone.cfg`` file. As described in
 :ref:`getting-going-configuration`, the default ``psyclone.cfg``
 configuration file is installed in ``<python-base-prefix>/share/psyclone/``
-during the installation process. (The original version of this file
-may be found in the ``PSyclone/config`` directory of the PSyclone
-distribution.)
+during the installation process. The original version of this file
+is in the ``PSyclone/config`` directory of the PSyclone
+distribution.
 
 At execution-time, the user can specify a custom configuration file to
 be used. This can either be done with the ``--config`` command line
@@ -39,6 +39,8 @@ locations searched is now:
 2. ``<python-base-dir>/share/psyclone/``
 3. ``${HOME}/.local/share/psyclone/``
 
+Note that for developers a slightly different configuration handling
+is implemented, see :ref:`dev_configuration` for details.
 
 Options
 -------

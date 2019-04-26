@@ -351,7 +351,11 @@ class Config(object):
               <base-dir-of-virtual-env>/share/psyclone/
         - ${HOME}/.local/share/psyclone/
         - <system-install-prefix>/share/psyclone/
+        - ../../config/
 
+        The last entry is used for development when no installation was done.
+        It will then pick the psyclone.cfg file that is part of the
+        repository.
         :returns: the fully-qualified path to the configuration file
         :rtype: str
 
@@ -380,6 +384,16 @@ class Config(object):
         if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
+
+        if "pytest" in sys.modules:
+            # If PSyclone is invoked from pytest, add "../../config" to
+            # the search path. This is useful for development since it
+            # does not require an installation of PSyclone, since the
+            # psyclone.cfg file in the git repository will be used. The
+            # other search paths are left unmodified, since some tests in
+            # config_test.py check the search path behaviour.
+            this_dir = os.path.dirname(os.path.abspath(__file__))
+            _file_paths.append(os.path.join(this_dir, "..", "..", "config"))
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):
