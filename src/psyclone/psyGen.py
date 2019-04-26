@@ -5185,9 +5185,10 @@ class Fparser2ASTProcessor(object):
 
             if not isinstance(decl.items[4],
                               (Fortran2003.Name, Fortran2003.Only_List)):
-                # This USE doesn't have an ONLY clause so we skip it (this
-                # will only become a problem if this Schedule represents a
-                # kernel that is the target of a transformation).
+                # This USE doesn't have an ONLY clause so we skip it. We
+                # don't raise an error as this will only become a problem if
+                # this Schedule represents a kernel that is the target of a
+                # transformation.
                 continue
             mod_name = str(decl.items[2])
             for name in iterateitems(decl.items[4]):

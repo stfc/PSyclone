@@ -3788,6 +3788,7 @@ def test_fparser2astprocessor_use(f2008_parser):
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2ASTProcessor()
     reader = FortranStringReader("use my_mod, only: some_var\n"
+                                 "use this_mod\n"
                                  "use other_mod, only: var1, var2\n")
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
