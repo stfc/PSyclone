@@ -5177,7 +5177,7 @@ class Fparser2ASTProcessor(object):
             for name in iterateitems(decl.items[4]):
                 parent.symbol_table.declare(
                     str(name), datatype='deferred',
-                    scope='global_use',
+                    scope='global',
                     is_input=True, is_output=False,
                     annotation={"fortran_module": mod_name})
 
@@ -5552,8 +5552,8 @@ class Symbol(object):
     valid_scope_types = ('local',  # Locally-scoped
                          'global_argument',  # Global scope accessed as a
                                              # routine argument
-                         'global_use'  # Global scope but not a routine
-                                       # argument
+                         'global'  # Global scope but not a routine
+                                   # argument
     )
     # Tuple with the valid datatypes.
     valid_data_types = ('real',  # Floating point

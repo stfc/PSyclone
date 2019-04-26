@@ -3035,7 +3035,7 @@ def test_symbol_initialization():
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
                              True, False), Symbol)
     assert isinstance(
-        Symbol('a', 'deferred', scope='global_use',
+        Symbol('a', 'deferred', scope='global',
                is_input=True, is_output=False,
                annotation={'fortran_module': 'some_mod'}), Symbol)
 
@@ -3290,6 +3290,11 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var2") in sym_table.local_symbols
     assert sym_table.lookup("var3") in sym_table.local_symbols
 
+    sym_table.declare("var4", "real", [], "global",
+                      annotation={"fortran_module": "my_mod"})
+    assert len(sym_table.local_symbols) == 2
+    assert sym_table.lookup("var4") not in sym_table.local_symbols
+
 
 def test_symboltable_gen_c_local_variables():
     ''' Test that it returns a concatenation of just the multiple local
@@ -3517,6 +3522,7 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l1").scope == 'local'
     assert fake_parent.symbol_table.lookup("l1").is_input is False
     assert fake_parent.symbol_table.lookup("l1").is_output is False
+    assert fake_parent.symbol_table.lookup("l1").annotation == {}
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
@@ -3682,6 +3688,26 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
     assert fake_parent.symbol_table.lookup("array3").scope == "global_argument"
     assert fake_parent.symbol_table.lookup("array3").is_input is True
+
+
+def test_fparser2astprocessor_use(f2008_parser):
+    ''' Check that SymbolTable entries are correctly created from
+    module use statements. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+    reader = FortranStringReader("use my_mod, only: some_var\n"
+                                 "use other_mod, only: var1, var2\n")
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
+    for var in ["some_var", "var1", "var2"]:
+        assert fake_parent.symbol_table.lookup(var).name == var
+        assert fake_parent.symbol_table.lookup(var).scope == "global"
+    assert fake_parent.symbol_table.lookup("some_var").annotation == \
+        {"fortran_module": "my_mod"}
+    assert fake_parent.symbol_table.lookup("var2").annotation == \
+        {"fortran_module": "other_mod"}
 
 
 def test_fparser2astprocessor_parse_array_dimensions_unhandled(
