@@ -5807,8 +5807,9 @@ class Symbol(object):
             ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
         else:
             ret += "Scalar"
-        ret += ", " + str(self.annotation) + ">"
-        return ret
+        if self.annotation:
+            ret += ", " + str(self.annotation)
+        return ret + ">"
 
 
 class SymbolTable(object):

@@ -3133,15 +3133,20 @@ def test_symbol_is_output_setter():
 
 def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed. (i.e. is
-    initialised fully)'''
+    initialised fully.)'''
     symbol = Symbol("sname", "real")
-    assert "sname: <real, local, Scalar, {}>" in str(symbol)
+    assert "sname: <real, local, Scalar>" in str(symbol)
 
     sym1 = Symbol("s1", "integer")
-    assert "s1: <integer, local, Scalar, {}>" in str(sym1)
+    assert "s1: <integer, local, Scalar>" in str(sym1)
 
     sym2 = Symbol("s2", "real", [None, 2, sym1])
-    assert "s2: <real, local, Array['Unknown bound', 2, s1], {}>" in str(sym2)
+    assert "s2: <real, local, Array['Unknown bound', 2, s1]>" in str(sym2)
+
+    sym3 = Symbol("s3", "real", scope="global",
+                  annotation={"fortran_module": "my_mod"})
+    assert ("s3: <real, global, Scalar, {'fortran_module': 'my_mod'}"
+            in str(sym3))
 
     sym2._shape.append('invalid')
     with pytest.raises(InternalError) as error:
