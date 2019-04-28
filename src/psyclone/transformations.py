@@ -2476,9 +2476,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
     '''
 
     def __str__(self):
-        return ("Makes the number of degrees of freedom for a space, the "
-                "number of quadrature points and the number of layers "
-                "constant in a Kernel.")
+        return ("Makes the number of degrees of freedom, the number of "
+                "quadrature points and the number of layers constant in "
+                "a Kernel.")
 
     @property
     def name(self):
@@ -2498,8 +2498,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
         kernel rather than being passed in by argument.
 
         The "cellshape", "element_order" and "number_of_layers"
-        arguments mirror the namelist values that are provided as
-        input when running an LFRic model.
+        arguments are provided to mirror the namelist values that are
+        input into an LFRic model when it is run.
 
         The number of quadrature points (for horizontal and vertical)
         are currently set to the element_order + 3 in the LFRic
@@ -2511,16 +2511,18 @@ class Dynamo0p3KernelConstTrans(Transformation):
         as it helps determine the number of dofs a field has for a \
         particular function space. Currently only "quadrilateral" is \
         supported which is also the default value.
-        :type int element_order: the order of the cell. With cellshape \
-        this determines the number of dofs a field has for a \
-        particular function space. If it is set to None (the default) \
-        then a constant dofs value isn't set in the kernel.
+        :type int element_order: the order of the cell. In \
+        combinations with cellshape, this determines the number of \
+        dofs a field has for a particular function space. If it is set \
+        to None (the default) then the dofs values are not set as \
+        constants in the kernel, otherwise they are.
         :type int number_of_layers: the number of layers used for this \
-        particular run. If this is set to None (the default) then a \
-        constant nlayers value is not set in the kernel.
-        :type bool quadrature: whether constant number of quadrature \
-        points values are set in the kernel (True) or not (False). The \
-        default is False.
+        particular run. If this is set to None (the default) then the \
+        nlayers value is not set as a constant in the kernel, \
+        otherwise it is.
+        :type bool quadrature: whether the number of quadrature \
+        points values are set as constants in the kernel (True) or not \
+        (False). The default is False.
 
         :returns: Tuple of the modified schedule and a record of the \
                   transformation.
@@ -2528,9 +2530,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 :py:class:`psyclone.undoredo.Memento`)
 
         '''
-        
-        # ndofs for quadrilaterals and function spaces (formulas
-        # kindly provided by Tom Melvin)
+
+        # ndofs for different function spaces on a quadrilateral
+        # element. Formulas kindly provided by Tom Melvin.
         space_to_dofs = {"w3":     (lambda n: (n+1)**3),
                          "w2":     (lambda n: 3*(n+2)*(n+1)**2),
                          "w1":     (lambda n: 3*(n+2)**2*(n+1)),
@@ -2548,45 +2550,45 @@ class Dynamo0p3KernelConstTrans(Transformation):
         # create a memento of the schedule and the proposed transformation
         keep = Memento(schedule, self, [kernel])
 
-        arguments = kernel.arguments
         from psyclone.dynamo0p3 import KernCallArgList
         arg_list_info = KernCallArgList(kernel)
         arg_list_info.generate()
         try:
             kernel_schedule = kernel.get_kernel_schedule()
         except NotImplementedError as excinfo:
-            raise TransformationError("Failed to parse kernel {0}"
-                                      "".format(kernel.name))
+            raise TransformationError(
+                "Failed to parse kernel '{0}'. Error reported was '{1}'"
+                "".format(kernel.name, str(excinfo)))
 
-        symbol_table = kernel_schedule.symbol_table
+        _ = kernel_schedule.symbol_table
         if number_of_layers:
             # Here is where I will modify the symbol table for nlayers
-            print ("    Modify mesh height, arg position {0}, value {1}"
-                   "".format(arg_list_info.nlayers_positions[0],
-                             number_of_layers))
+            print("    Modify mesh height, arg position {0}, value {1}"
+                  "".format(arg_list_info.nlayers_positions[0],
+                            number_of_layers))
         if quadrature and arg_list_info.nqp_h_positions and \
            arg_list_info.nqp_h_positions[0]:
             # Modify the symbol table for horizontal quadrature here.
-            print ("    Modify horizontal quadrature, arg position {0}, value {1}"
-                   "".format(arg_list_info.nqp_h_positions[0],
-                             element_order+3))
+            print("    Modify horizontal quadrature, arg position {0}, "
+                  "value {1}".format(arg_list_info.nqp_h_positions[0],
+                                     element_order+3))
         if quadrature and arg_list_info.nqp_h_positions:
             # Modify the symbol table for vertical quadrature here.
-            print ("    Modify vertical quadrature, arg position {0}, "
-                   "value {1}".format(arg_list_info.nqp_v_positions[0],
-                                      element_order+3))
+            print("    Modify vertical quadrature, arg position {0}, "
+                  "value {1}".format(arg_list_info.nqp_v_positions[0],
+                                     element_order+3))
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
             for (position, space) in arg_list_info.ndf_positions:
                 if "any_space_" in space:
-                    print (
+                    print(
                         "    Skipping dofs, arg position {0}, function_space "
                         "{1}".format(position, space))
                 else:
-                    print ("    Modify dofs, arg position {0}, function space "
-                           "{1}, value {2}".format(
-                               position, space,
-                               space_to_dofs[space](element_order)))
+                    print("    Modify dofs, arg position {0}, function space "
+                          "{1}, value {2}".format(
+                              position, space,
+                              space_to_dofs[space](element_order)))
         return schedule, keep
 
     def _validate(self, node, cellshape, element_order, number_of_layers,
@@ -2623,39 +2625,39 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         if cellshape.lower() != "quadrilateral":
             # Only quadrilaterals are currently supported
-            print ("ERROR1")
+            print("ERROR1")
             raise TransformationError(
                 "ERROR")
 
         if element_order is not None and \
            (not isinstance(element_order, int) or element_order < 0):
             # element order must be 0 or a positive integer
-            print ("ERROR2")
+            print("ERROR2")
             raise TransformationError(
                 "ERROR")
 
         if number_of_layers is not None and \
            (not isinstance(number_of_layers, int) or number_of_layers < 1):
             # number of layers must be a positive integer
-            print ("ERROR3")
+            print("ERROR3")
             raise TransformationError(
                 "ERROR")
 
-        if not quadrature in [False, True]:
+        if quadrature not in [False, True]:
             # quadrature must be a boolean value
-            print ("ERROR4")
+            print("ERROR4")
             raise TransformationError(
                 "ERROR")
-        
+
         if not element_order and not number_of_layers:
             # As a minimum, element order or number of layers must have values.
-            print ("ERROR5")
+            print("ERROR5")
             raise TransformationError(
                 "ERROR")
 
         if quadrature and element_order is None:
             # if quadrature then element order
-            print ("ERROR6")
+            print("ERROR6")
             raise TransformationError(
                 "ERROR")
 

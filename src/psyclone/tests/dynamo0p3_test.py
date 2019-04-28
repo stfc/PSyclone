@@ -50,7 +50,8 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES
+    VALID_ANY_SPACE_NAMES, KernCallArgList
+
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
@@ -5400,7 +5401,6 @@ def test_unexpected_type_error():
         # sabotage one of the arguments to make it have an invalid type.
         kernel.arguments.args[0]._type = "invalid"
         # Now call KernCallArgList to raise an exception
-        from psyclone.dynamo0p3 import KernCallArgList
         create_arg_list = KernCallArgList(kernel)
         with pytest.raises(GenerationError) as excinfo:
             create_arg_list.generate()
@@ -5488,7 +5488,6 @@ def test_kerncallarglist_arglist_error():
             index = 0
         loop = schedule.children[index]
         kernel = loop.children[0]
-        from psyclone.dynamo0p3 import KernCallArgList
         create_arg_list = KernCallArgList(kernel)
         with pytest.raises(GenerationError) as excinfo:
             _ = create_arg_list.arglist
@@ -6302,3 +6301,64 @@ def test_dyncelliterators_err(monkeypatch):
         _ = DynCellIterators(invoke)
     assert ("Cannot create an Invoke with no field/operator arguments"
             in str(err))
+
+# tests for class kerncallarglist position methods
+
+
+def test_kerncallarglist_positions_noquad(dist_mem):
+    '''Check that the positions methods (nlayers_positions,
+    nqp_h_positions, nqp_v_positions, ndf_positions) return the
+    expected values when a kernel has no quadrature.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    index = 0
+    if dist_mem:
+        index = 3
+    loop = schedule.children[index]
+    kernel = loop.children[0]
+    create_arg_list = KernCallArgList(kernel)
+    create_arg_list.generate()
+    assert len(create_arg_list.nlayers_positions) == 1
+    assert create_arg_list.nlayers_positions[0] == 1
+    assert not create_arg_list.nqp_h_positions
+    assert not create_arg_list.nqp_v_positions
+    assert len(create_arg_list.ndf_positions) == 3
+    assert create_arg_list.ndf_positions[0] == (7, "w1")
+    assert create_arg_list.ndf_positions[1] == (10, "w2")
+    assert create_arg_list.ndf_positions[2] == (13, "w3")
+
+
+def test_kerncallarglist_positions_quad(dist_mem):
+    '''Check that the positions methods (nlayers_positions,
+    nqp_h_positions, nqp_v_positions, ndf_positions) return the
+    expected values when a kernel has quadrature.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    index = 0
+    if dist_mem:
+        index = 3
+    loop = schedule.children[index]
+    kernel = loop.children[0]
+    create_arg_list = KernCallArgList(kernel)
+    create_arg_list.generate()
+    assert len(create_arg_list.nlayers_positions) == 1
+    assert create_arg_list.nlayers_positions[0] == 1
+    assert len(create_arg_list.nqp_h_positions) == 1
+    assert create_arg_list.nqp_h_positions[0] == 21
+    assert len(create_arg_list.nqp_v_positions) == 1
+    assert create_arg_list.nqp_v_positions[0] == 22
+    assert len(create_arg_list.ndf_positions) == 3
+    assert create_arg_list.ndf_positions[0] == (8, "w1")
+    assert create_arg_list.ndf_positions[1] == (12, "w2")
+    assert create_arg_list.ndf_positions[2] == (16, "w3")

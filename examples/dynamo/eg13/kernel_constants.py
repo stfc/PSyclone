@@ -35,35 +35,51 @@
 
 
 '''An example PSyclone transformation script which makes ndofs, nqp*
-and nlevels constant in an LFRic kernel by applying the
+and nlevels constant in all LFRic kernels called from within invokes
+in the supplied algorithm code. This is achieved by applying the
 DynKernelConstTrans transformation.
+
+In the case where a space is defined as "any_space" in a kernel, the
+associated ndofs value will not be modified (as the actual value could
+change from one call to the next).
+
+The DynKernelConstTrans transformation is work in progress and the
+current version is limited to printing out the arguments that would be
+transformed and the values they would take.
 
 This script can be applied via the '-s' option when running PSyclone:
 
-$ psyclone -s ./kernel_constants.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+$ psyclone -s ./kernel_constants.py \
+../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+-oalg alg.f90 -opsy psy.f90
 
 '''
 
 from __future__ import print_function
-from psyclone.transformations import Dynamo0p3KernelConstTrans
+from psyclone.transformations import Dynamo0p3KernelConstTrans, \
+    TransformationError
+
+NUMBER_OF_LAYERS = 20
+ELEMENT_ORDER = 0
+CONSTANT_QUADRATURE = True
+
 
 def trans(psy):
     '''PSyclone transformation script for the Dynamo0.3 API to make the
     kernel values of ndofs, nlayers and nquadrature-point sizes constant.
 
     '''
-    from psyclone.transformations import TransformationError
-
     const_trans = Dynamo0p3KernelConstTrans()
 
     for invoke in psy.invokes.invoke_list:
-        print ("invoke '{0}'".format(invoke.name))
+        print("invoke '{0}'".format(invoke.name))
         schedule = invoke.schedule
         for kernel in schedule.kern_calls():
-            print ("  kernel '{0}'".format(kernel.name.lower()))
+            print("  kernel '{0}'".format(kernel.name.lower()))
             try:
-                const_trans.apply(kernel, number_of_layers=30, element_order=0,
-                                  quadrature=True)
-            except TransformationError as excinfo:
-                print ("    Failed to modify kernel '{0}'".format(kernel.name))
+                const_trans.apply(kernel, number_of_layers=NUMBER_OF_LAYERS,
+                                  element_order=ELEMENT_ORDER,
+                                  quadrature=CONSTANT_QUADRATURE)
+            except TransformationError:
+                print("    Failed to modify kernel '{0}'".format(kernel.name))
     return psy

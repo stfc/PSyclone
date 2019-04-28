@@ -6992,13 +6992,15 @@ class ArgOrdering(object):
 
 
 class KernCallArgList(ArgOrdering):
-    '''
-    Creates the argument list required to call kernel "kern" from the
-    PSy-layer. The ordering and type of arguments is captured by the base
-    class.
+    '''Creates the argument list required to call kernel "kern" from the
+    PSy-layer and captures the positions in the argument list of
+    nlayers argument, number of quadrature arguments and number of
+    degrees of freedom arguments. The ordering and type of arguments
+    is captured by the base class.
 
     :param kern: The kernel that is being called.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
     '''
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)

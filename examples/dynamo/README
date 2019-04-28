@@ -249,13 +249,14 @@ Example 13: Kernel Constants
 ----------------------------
 
 This example shows how LFRic kernels can be modified so that the
-values for the number of degress of freedom, the number of quadrature
-points and the number of layers can be made constant.
-
+values for the number of degrees of freedom, the number of quadrature
+points and the number of layers can be made constant (as they are
+passed in by argument by default). To run:
 ::
     cd eg13/
     psyclone -s ./kernel_constants.py \
-    ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+    ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+    -oalg alg.f90 -opsy psy.f90
 
 code
 ----
