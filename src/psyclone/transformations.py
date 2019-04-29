@@ -2782,6 +2782,12 @@ class ACCKernelsTrans(RegionTrans):
             raise TransformationError("A kernels transformation must enclose "
                                       "at least one loop but none were found.")
 
+        # TODO #315 Check that the SymbolTable associated with the
+        # KernelSchedule does not have any symbols with `deferred` type (as
+        # that indicates that we haven't yet worked out what they are). We
+        # can't do that yet as we can't create the PSyIR for our test kernels.
+        # That's the subject of #256.
+
 
 class ACCDataTrans(RegionTrans):
     '''
