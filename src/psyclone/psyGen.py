@@ -5549,7 +5549,19 @@ class Symbol(object):
     Symbol item for the Symbol Table. It contains information about: the name,
     the datatype, the shape (in column-major order), the scope and, for
     global-scoped symbols, whether the data is already defined and/or survives
-    after the kernel.
+    after the kernel. `scope` may be one of the following:
+
+    .. tabularcolumns:: |p{65pt}|p{260pt}|
+
+    ================ ======================================================
+    **Scope**        **Definition**
+    ================ ======================================================
+    local            Symbol exists only within the scope of the Kernel.
+    global_argument  Symbol exists outside the kernel and is passed by
+                     argument.
+    global           Symbol exists outside the kernel and is shared in some
+                     language-specific way (must have an `annotation`).
+    ================ ======================================================
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
@@ -5561,12 +5573,10 @@ class Symbol(object):
                        extent. If it is an empty list then the symbol \
                        represents a scalar.
     :param str scope: It is 'local' if the symbol just exists inside the \
-                      kernel scope or 'global_*' if the data survives outside \
+                      kernel scope or 'global*' if the data survives outside \
                       of the kernel scope. Note that global-scoped symbols \
-                      also have postfixed information about the sharing \
-                      mechanism, at the moment just 'global_argument' is \
-                      available for variables passed in/out of the kernel \
-                      by argument.
+                      may also have postfixed information about the sharing \
+                      mechanism, provided via 'annotations'.
     :param bool is_input: Whether the symbol represents data that exists \
                           before the kernel is entered and that is passed \
                           into the kernel.
@@ -5579,7 +5589,7 @@ class Symbol(object):
     :raises ValueError: Provided parameters contain invalid values.
     '''
 
-    # Tuple with the valid values for the access attribute.
+    # Tuple with the valid values for the scope attribute.
     valid_scope_types = ('local',  # Locally-scoped
                          'global_argument',  # Global scope accessed as a
                                              # routine argument
@@ -5864,12 +5874,11 @@ class SymbolTable(object):
                            If it is an empty list then the symbol represents \
                            a scalar.
         :param str scope: It is 'local' if the symbol just exists inside the \
-                          kernel scope or 'global_*' if the data survives \
+                          kernel scope or 'global*' if the data survives \
                           outside of the kernel scope. Note that \
-                          global-scoped symbols also have postfixed \
-                          information about the sharing mechanism, at the \
-                          moment just 'global_argument' is available for \
-                          variables passed in/out of the kernel by argument.
+                          global-scoped symbols may also have 'annotations' \
+                          which provide information about the \
+                          (language-specific) sharing mechanism.
         :param bool is_input: Whether the symbol represents data that exists \
                               before the kernel is entered and that is passed \
                               into the kernel.
