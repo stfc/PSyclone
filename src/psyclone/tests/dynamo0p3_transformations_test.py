@@ -7330,7 +7330,7 @@ def test_kern_const_apply(capsys):
 
     # element_order, nlayers and quadrature
     _, _ = kctrans.apply(kernel, element_order=0, number_of_layers=20,
-                                  quadrature=True)
+                         quadrature=True)
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + quadrature_expected + \
         element_order_expected
@@ -7470,7 +7470,7 @@ def test_kern_const_invalid():
     # Quadrature but not element order
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, number_of_layers=20,
-                                      quadrature=True)
+                             quadrature=True)
     assert "If quadrature is set then element_order must also be set" \
         in str(excinfo.value)
 
@@ -7495,7 +7495,33 @@ def test_kern_const_invalid_dofs(monkeypatch):
 
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, element_order=0)
-    assert ("Unsupported function space 'w1' found. Expecting one of ") \
+    assert "Unsupported function space 'w1' found. Expecting one of " \
         in str(excinfo.value)
-    assert ("'wa'") in str(excinfo.value)
-    assert ("'wb'") in str(excinfo.value)
+    assert "'wa'" in str(excinfo.value)
+    assert "'wb'" in str(excinfo.value)
+
+
+def test_kern_const_invalid_kern(monkeypatch):
+    '''Check that we raise the expected exception when the Fortran to
+    PSyIR parser fails to parse a kernel.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+    kctrans = Dynamo0p3KernelConstTrans()
+
+    def dummy():
+        '''A dummy function that always raises an exception.'''
+        raise NotImplementedError("Monkeypatch error")
+    monkeypatch.setattr(kernel, "get_kernel_schedule", dummy)
+    with pytest.raises(TransformationError) as excinfo:
+        kctrans.apply(kernel, element_order=0)
+    assert (
+        "Failed to parse kernel 'testkern_code'. Error reported was "
+        "'Monkeypatch error'.") in str(excinfo.value)

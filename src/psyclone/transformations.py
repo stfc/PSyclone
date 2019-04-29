@@ -2558,7 +2558,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             kernel_schedule = kernel.get_kernel_schedule()
         except NotImplementedError as excinfo:
             raise TransformationError(
-                "Failed to parse kernel '{0}'. Error reported was '{1}'"
+                "Failed to parse kernel '{0}'. Error reported was '{1}'."
                 "".format(kernel.name, str(excinfo)))
 
         _ = kernel_schedule.symbol_table
