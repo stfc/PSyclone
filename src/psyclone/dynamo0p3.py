@@ -525,8 +525,7 @@ class DynArgDescriptor03(Descriptor):
     def __init__(self, arg_type):
         '''
         :param arg_type: dynamo0.3 argument type (scalar, field or operator)
-        :type arg_type: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        #TODO: This seems to be wrong, it's FunctionVar!!
+        :type arg_type: :py:class:`psyclone.expression.FunctionVar`
         '''
         self._arg_type = arg_type
         if arg_type.name != 'arg_type':
