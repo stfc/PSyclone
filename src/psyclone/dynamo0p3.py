@@ -97,21 +97,6 @@ GH_VALID_OPERATOR_NAMES = ["gh_operator", "gh_columnwise_operator"]
 GH_VALID_ARG_TYPE_NAMES = ["gh_field"] + GH_VALID_OPERATOR_NAMES + \
     GH_VALID_SCALAR_NAMES
 
-# Access types
-GH_VALID_REDUCTION_NAMES = ["gh_sum"]
-VALID_REDUCTION_NAMES = [AccessType.SUM]
-
-# List of all access types that involve writing to an argument
-# in some form
-GH_WRITE_ACCESSES = ["gh_write", "gh_readwrite", "gh_inc"] + \
-                     GH_VALID_REDUCTION_NAMES
-WRITE_ACCESSES = [AccessType.WRITE, AccessType.READWRITE, AccessType.INC] + \
-                  VALID_REDUCTION_NAMES
-# List of all access types that involve reading an argument in some
-# form
-GH_READ_ACCESSES = ["gh_read", "gh_readwrite", "gh_inc"]
-READ_ACCESSES = [AccessType.READ, AccessType.READWRITE, AccessType.INC]
-
 # Stencils
 VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross", "region"]
 # Note, can't use VALID_STENCIL_DIRECTIONS at all locations in this
@@ -165,10 +150,6 @@ VALID_LOOP_BOUNDS_NAMES = (["start",     # the starting
                                          # dofs.
                            + HALO_ACCESS_LOOP_BOUNDS)
 
-# The mapping from meta-data strings to field-access types
-# used in this API.
-FIELD_ACCESS_MAP = {"write": "gh_write", "read": "gh_read",
-                    "inc": "gh_inc", "readwrite": "gh_readwrite"}
 
 # Valid Dynamo0.3 loop types. The default is "" which is over cells (in the
 # horizontal plane).
@@ -177,7 +158,6 @@ VALID_LOOP_TYPES = ["dofs", "colours", "colour", ""]
 # Mappings used by non-API-Specific code in psyGen
 psyGen.MAPPING_REDUCTIONS = {"sum": AccessType.SUM}
 psyGen.MAPPING_SCALARS = {"iscalar": "gh_integer", "rscalar": "gh_real"}
-psyGen.MAPPING_ACCESSES = FIELD_ACCESS_MAP
 psyGen.VALID_ARG_TYPE_NAMES = GH_VALID_ARG_TYPE_NAMES
 
 # Functions
@@ -613,7 +593,8 @@ class DynArgDescriptor03(Descriptor):
 
         # Reduction access descriptors are only valid for real scalar arguments
         if self._type != "gh_real" and \
-           self._access_descriptor.name in VALID_REDUCTION_NAMES:
+           self._access_descriptor.name in \
+           AccessType.get_valid_reduction_modes():
             raise ParseError(
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found".
@@ -733,13 +714,13 @@ class DynArgDescriptor03(Descriptor):
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
             # Test allowed accesses for scalars (read_only or reduction)
             if self._access_descriptor.name not in [AccessType.READ] + \
-               VALID_REDUCTION_NAMES:
+               AccessType.get_valid_reduction_modes():
                 api_name = rev_access_mapping[self._access_descriptor.name]
-
+                valid_reductions = AccessType.get_valid_reduction_names()
                 raise ParseError(
                     "In the dynamo0.3 API scalar arguments must be "
                     "read-only (gh_read) or a reduction ({0}) but found "
-                    "'{1}' in '{2}'".format(GH_VALID_REDUCTION_NAMES,
+                    "'{1}' in '{2}'".format(valid_reductions,
                                             api_name,
                                             arg_type))
             # Scalars don't have a function space
@@ -957,8 +938,9 @@ class DynKernMetadata(KernelType):
         if not _targets and \
            self._eval_shape and self._eval_shape.lower() == "gh_evaluator":
             # Use the FS of the kernel arguments that are updated
+            write_accesses = AccessType.all_write_accesses()
             write_args = psyGen.args_filter(self._arg_descriptors,
-                                            arg_accesses=WRITE_ACCESSES)
+                                            arg_accesses=write_accesses)
             # We want the 'to' space of any operator arguments so get
             # the first FS associated with the kernel argument.
             _targets = [arg.function_spaces[0] for arg in write_args]
@@ -1161,7 +1143,7 @@ class DynKernMetadata(KernelType):
         # Count the number of CMA operators that are written to
         write_count = 0
         for cop in cwise_ops:
-            if cop.access in WRITE_ACCESSES:
+            if cop.access in AccessType.all_write_accesses():
                 write_count += 1
 
         if write_count == 0:
@@ -1186,9 +1168,10 @@ class DynKernMetadata(KernelType):
             farg_read = psyGen.args_filter(self._arg_descriptors,
                                            arg_types=["gh_field"],
                                            arg_accesses=[AccessType.READ])
+            write_accesses = AccessType.all_write_accesses()
             farg_write = psyGen.args_filter(self._arg_descriptors,
                                             arg_types=["gh_field"],
-                                            arg_accesses=WRITE_ACCESSES)
+                                            arg_accesses=write_accesses)
             if len(farg_read) != 1:
                 raise ParseError(
                     "Kernel {0} has a read-only CMA operator. In order "
@@ -1223,8 +1206,9 @@ class DynKernMetadata(KernelType):
             # or performing a matrix-matrix operation...
             # The kernel must not write to any args other than the CMA
             # operator
+            write_accesses = AccessType.all_write_accesses()
             write_args = psyGen.args_filter(self._arg_descriptors,
-                                            arg_accesses=WRITE_ACCESSES)
+                                            arg_accesses=write_accesses)
             if len(write_args) > 1:
                 # Remove the one CMA operator from the list of arguments
                 # that are written to so that we can produce a nice
@@ -2960,7 +2944,8 @@ class DynInvoke(Invoke):
             for loop in self.schedule.loops():
                 for scalar in loop.args_filter(
                         arg_types=GH_VALID_SCALAR_NAMES,
-                        arg_accesses=VALID_REDUCTION_NAMES, unique=True):
+                        arg_accesses=AccessType.get_valid_reduction_modes(),
+                        unique=True):
                     if scalar.type.lower() == "gh_integer":
                         raise GenerationError(
                             "Integer reductions are not currently supported "
@@ -4263,7 +4248,7 @@ class HaloWriteAccess(HaloDepth):
         :type field: :py:class:`psyclone.dynamo0p3.DynArgument`
 
         '''
-        call = halo_check_arg(field, WRITE_ACCESSES)
+        call = halo_check_arg(field, AccessType.all_write_accesses())
         # no test required here as all calls exist within a loop
         loop = call.parent
         # The outermost halo level that is written to is dirty if it
@@ -4360,7 +4345,7 @@ class HaloReadAccess(HaloDepth):
 
         '''
         self._annexed_only = False
-        call = halo_check_arg(field, READ_ACCESSES)
+        call = halo_check_arg(field, AccessType.all_read_accesses())
         # no test required here as all calls exist within a loop
         loop = call.parent
 
@@ -4934,7 +4919,7 @@ class DynLoop(Loop):
         # dependence on a halo exchange but no longer does
         for call in self.calls():
             for arg in call.arguments.args:
-                if arg.access in WRITE_ACCESSES:
+                if arg.access in AccessType.all_write_accesses():
                     dep_arg_list = arg.forward_read_dependencies()
                     for dep_arg in dep_arg_list:
                         if isinstance(dep_arg.call, DynHaloExchange):
@@ -7233,7 +7218,7 @@ class DynKernelArguments(Arguments):
         specified in the kernel metadata) '''
         return self._unique_fs_names
 
-    def iteration_space_arg(self, mapping=None):
+    def iteration_space_arg(self):
         '''
         Returns an argument we can use to dereference the iteration
         space. This can be a field or operator that is modified or
@@ -7241,17 +7226,16 @@ class DynKernelArguments(Arguments):
         are modified. If a kernel writes to more than one argument then
         that requiring the largest iteration space is selected.
 
-        :param dict mapping: un-used argument. Retained for consistency
-                             with base class.
         :return: Kernel argument from which to obtain iteration space
         :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         '''
 
         # Since we always compute operators out to the L1 halo we first
         # check whether this kernel writes to an operator
+        write_accesses = AccessType.all_write_accesses()
         op_args = psyGen.args_filter(self._args,
                                      arg_types=GH_VALID_OPERATOR_NAMES,
-                                     arg_accesses=WRITE_ACCESSES)
+                                     arg_accesses=write_accesses)
         if op_args:
             return op_args[0]
 
@@ -7273,9 +7257,10 @@ class DynKernelArguments(Arguments):
         # finally we try discontinuous function spaces. We do this
         # because if a quantity on a continuous FS is modified then
         # our iteration space must be larger (include L1 halo cells)
+        write_accesses = AccessType.all_write_accesses()
         fld_args = psyGen.args_filter(self._args,
                                       arg_types=["gh_field"],
-                                      arg_accesses=WRITE_ACCESSES)
+                                      arg_accesses=write_accesses)
         if fld_args:
             for spaces in [CONTINUOUS_FUNCTION_SPACES,
                            VALID_ANY_SPACE_NAMES,
@@ -7555,13 +7540,15 @@ class DynKernelArgument(KernelArgument):
             return "out"
         elif self.access == AccessType.READWRITE:
             return "inout"
-        elif self.access in [AccessType.INC] + VALID_REDUCTION_NAMES:
+        elif self.access in [AccessType.INC] + \
+                AccessType.get_valid_reduction_modes():
             return "inout"
         else:
+            valid_reductions = AccessType.get_valid_reduction_names()
             raise GenerationError(
                 "Expecting argument access to be one of 'gh_read, gh_write, "
                 "gh_inc', 'gh_readwrite' or one of {0}, but found '{1}'".
-                format(str(GH_VALID_REDUCTION_NAMES), self.access))
+                format(valid_reductions, self.access))
 
     @property
     def discontinuous(self):

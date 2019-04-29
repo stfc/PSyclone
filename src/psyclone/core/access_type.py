@@ -82,10 +82,44 @@ class AccessType(Enum):
         '''Convert a string (e.g. "read") into the corresponding
         AccessType enum value (AccessType.READ).
         :param str access_string: Access type as string.
-        :returns" Corresponding AccessType enum.
+        :returns: Corresponding AccessType enum.
         :Raises: KeyError if access_string is not a valid access type.
         '''
         for access in AccessType:
             if access.name == access_string.upper():
                 return access
         raise KeyError("Unknown access type '{0}'.".format(access_string))
+
+    @staticmethod
+    def all_write_accesses():
+        ''':returns: A list of all access types that involve writing to an
+                     argument in some form.
+        :rtype: List of py:class:`psyclone.core.AccessType`.
+        '''
+        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC] + \
+            AccessType.get_valid_reduction_modes()
+
+    @staticmethod
+    def all_read_accesses():
+        ''':returns: A list of all access types that involve reading to an
+                     argument in some form.
+        :rtype: List of py:class:`psyclone.core.AccessType`.
+        '''
+        return [AccessType.READ, AccessType.READWRITE, AccessType.INC]
+
+    @staticmethod
+    def get_valid_reduction_modes():
+        '''
+        :returns: A list of valid reduction access modes.
+        :rtype: List of py:class:`psyclone.core.AccessType`.
+        '''
+        return [AccessType.SUM]
+
+    @staticmethod
+    def get_valid_reduction_names():
+        '''
+        :returns: A list of valid reduction access names.
+        :rtype: List of strings.
+        '''
+        return [access.api_name() for access in
+                AccessType.get_valid_reduction_modes()]
