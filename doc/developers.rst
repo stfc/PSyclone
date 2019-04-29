@@ -1625,25 +1625,16 @@ using  ``Config.get()``. Only one such instance will ever exist:
 The ``Config`` class is responsible for finding the configuration file
 (if no filename is passed to the constructor), parsing it and then storing
 the various configuration options.
-If PSyclone is started via pytest, the path ``<PSYCLONEHOME/config>``
-is added to the default configuration file search path (see
-:ref:`configuration`). This means that the configuration file stored in
-the PSyclone repository will be used for all test.
-
-.. warning::
-  If the user should have a PSyclone config file installed, it will be
-  used instead of the file in ``<PSYCLONEHOME/config>``, which depending
-  on the content of the config file might cause test failures.
-
+If PSyclone is started via ``pytest``, the environment variable
+``PSYCLONE_CONFIG`` is set to ``<PSYCLONEHOME/config>``. This will
+guarantee that all tests use the config file provided in the PSyclone
+repository, and not a (potentially modified) user installed version.
 
 The config file also stores the list of supported
 APIs (``Config._supported_api_list``) and the default API to use if none
 is specified in either a config file or the command line
-(``Config._default_api``.)
-
-
-It also performs some basic consistency
-checks on the values it obtains from the configuration file.
+(``Config._default_api``). Additionally, it performs some basic
+consistency checks on the values it obtains from the configuration file.
 
 Since the PSyclone API to use can be read from the configuration
 file, it is not possible to have API-specifc sub-classes of ``Config``
