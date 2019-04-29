@@ -123,7 +123,6 @@ def test_get_repo_config_file():
     '''
     config_file = Config.get_repository_config_file()
     assert "../../config/psyclone.cfg" in config_file
-    assert os.path.isfile(config_file)
 
 
 def test_singleton_create():
@@ -450,6 +449,7 @@ def test_api_unimplemented(tmpdir, monkeypatch):
     # need to temporarily add a new supported API, that will not
     # be in the config file:
 
+    # pylint: disable=protected-access
     monkeypatch.setattr(Config, "_supported_api_list",
                         Config._supported_api_list + ["UNIMPLEMENTED"])
     content = re.sub(r"^\[dynamo0.3\]$",
