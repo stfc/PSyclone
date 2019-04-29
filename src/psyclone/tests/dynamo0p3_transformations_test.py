@@ -7495,5 +7495,6 @@ def test_kern_const_invalid_dofs(monkeypatch):
 
     with pytest.raises(TransformationError) as excinfo:
         _, _ = kctrans.apply(kernel, element_order=0)
-    assert ("Unsupported function space 'w1' found. Expecting one of "
-            "['wb', 'wa'].") in str(excinfo.value)
+    assert ("Unsupported function space 'w1' found. Expecting one of ") \
+        in str(excinfo.value)
+    assert ("['wb', 'wa'].") in str(excinfo.value)
