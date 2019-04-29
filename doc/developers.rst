@@ -73,6 +73,12 @@ new code must be covered (i.e. executed) by one or more tests. As
 described in :ref:`getting-going`, the test suite is written for use
 with ``pytest``.
 
+Tests should be run from the ``<PSYCLONEHOME>/src/psyclone`` directory,
+from which all tests in subdirectories (e.g. ``tests``, ``core/tests``)
+will be automatically found and started. If only a subset of all tests
+need to be run, ``pytest`` can be invoked from the corresponding subdirectory.
+
+
 Coverage
 --------
 
@@ -154,13 +160,6 @@ significantly increases the time taken to run the test suite.
 .. note:: Compilaton testing is currently only supported for the
           "dynamo0.3" and "gocean1.0" APIs.
 
-
-Since configuration of these tests uses a pytest fixture, the tests must be
-run from the ``tests`` directory when requesting that compilation
-checks be performed::
-
-  > cd <PSYCLONEHOME>/src/psyclone/tests
-  > py.test --compile
 
 The Gnu Fortran compiler (gfortran) is used by default. If you wish to
 use a different compiler and/or supply specific flags then these are
