@@ -89,7 +89,16 @@ def setup_psyclone_config():
     '''
     from psyclone.configuration import Config
     import os
-    os.environ["PSYCLONE_CONFIG"] = Config.get_repository_config_file()
+    config_file = Config.get_repository_config_file()
+
+    # In case that PSyclone is installed and tested (e.g. travis),
+    # the 'repository' config file does not exist (since it is
+    # installed in a different directory). In that case the standard
+    # search path of the Configuration object will find the right
+    # config file. So only overwrite the default search path behaviour
+    # if the repository config file is actually found:
+    if os.path.isfile(config_file):
+        os.environ["PSYCLONE_CONFIG"] = config_file
 
 
 @pytest.fixture(scope="session", autouse=True)
