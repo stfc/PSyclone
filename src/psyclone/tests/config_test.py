@@ -63,21 +63,22 @@ COMPUTE_ANNEXED_DOFS = false
 '''
 
 
-def setup_module():
+@pytest.fixture(scope="function", autouse=True)
+def clear_config_instance():
     ''' The tests in this module all assume that there is no pre-existing
-    Config object. This setup routine ensures that this is the case when
-    this module is first entered and the teardown function below guarantees
-    it for subsequent tests.  (Necessary when running tests in parallel.)
+    Config object, so this fixture ensures that the config instance is
+    deleted before and after each test function. The latter makes sure that
+    any other test executed next will automatically reload the default
+    config file.
     '''
+
+    # Enforce loading of the default config file
     # pylint: disable=protected-access
     Config._instance = None
 
+    # Now execute all tests
+    yield
 
-def teardown_function():
-    '''This teardown function is called at the end of each test and makes
-    sure that we wipe the Config object so we get a fresh/default one
-    for any further test (and not a left-over one from a test here).
-    '''
     # Enforce loading of the default config file
     # pylint: disable=protected-access
     Config._instance = None
@@ -86,8 +87,6 @@ def teardown_function():
 # Disable this pylint warning because otherwise it gets upset about the
 # use of these fixtures in the test code.
 # pylint:disable=redefined-outer-name
-
-
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
@@ -117,6 +116,14 @@ def int_entry(request):
     :rtype: str
     '''
     return request.param
+
+
+def test_get_repo_config_file():
+    '''Check that we can find the expected config file in the repository.
+    '''
+    config_file = Config.get_repository_config_file()
+    assert "../../config/psyclone.cfg" in config_file
+    assert os.path.isfile(config_file)
 
 
 def test_singleton_create():
@@ -154,7 +161,9 @@ def test_missing_file(tmpdir):
 
 def test_search_path(monkeypatch, tmpdir):
     ''' Check that the search path for a configuration file is as
-    expected '''
+    expected. It is important to use monkeypatch for manipulating
+    PSYCLONE_CONFIG, since all other tests rely on this variable
+    (see conftest.setup_psyclone_config).'''
     import sys
     # Ensure that PSYCLONE_CONFIG is not set
     monkeypatch.delitem(os.environ, "PSYCLONE_CONFIG", raising=False)
@@ -202,7 +211,9 @@ def test_search_path(monkeypatch, tmpdir):
 
 def test_search_env(monkeypatch, tmpdir):
     ''' Check that we pick up the configuration file specified in an
-    environment variable '''
+    environment variable. It is important to use monkeypatch for manipulating
+    PSYCLONE_CONFIG, since all other tests rely on this variable
+    (see conftest.setup_psyclone_config).'''
     try:
         oldpwd = tmpdir.chdir()
         cwd = str(tmpdir)
@@ -231,7 +242,7 @@ def test_search_env(monkeypatch, tmpdir):
 
 def test_read_values():
     '''
-    Check that we get the expected values from the test config file
+    Check that we get the expected values from the test config file.
     '''
     _config = Config.get()
     _config.load(config_file=TEST_CONFIG)

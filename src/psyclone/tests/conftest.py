@@ -80,6 +80,19 @@ def have_graphviz():
 
 
 @pytest.fixture(scope="session", autouse=True)
+def setup_psyclone_config():
+    '''This per session fixture defines the environment variable
+    PSYCLONE_CONFIG to point to the config file included in the
+    PSyclone repo. This way all tests will get the same config,
+    independent of a potential psyclone config file installed by
+    the user.
+    '''
+    from psyclone.configuration import Config
+    import os
+    os.environ["PSYCLONE_CONFIG"] = Config.get_repository_config_file()
+
+
+@pytest.fixture(scope="session", autouse=True)
 def infra_compile(tmpdir_factory, request):
     '''A per-session initialisation function that sets the compilation flags
     in the Compile class based on command line options for --compile,

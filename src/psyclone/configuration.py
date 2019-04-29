@@ -122,6 +122,18 @@ class Config(object):
         return Config._instance
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def get_repository_config_file():
+        '''This function returns the absolute path to the config file included
+        in the PSyclone repository. It is used by the testing framework to make
+        sure all tests get the same config file (see tests/config_tests for the
+        only exception).
+        '''
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(this_dir, "..", "..", "config",
+                            "psyclone.cfg")
+
+    # -------------------------------------------------------------------------
     def __init__(self):
         '''This is the basic constructor that only sets the supported APIs
         and stub APIs, it does not load a config file. The Config instance
@@ -384,16 +396,6 @@ class Config(object):
         if not within_virtual_env():
             # 4. <python-installation-base>/share/psyclone/
             _file_paths.append(share_dir)
-
-        if "pytest" in sys.modules:
-            # If PSyclone is invoked from pytest, add "../../config" to
-            # the search path. This is useful for development since it
-            # does not require an installation of PSyclone, since the
-            # psyclone.cfg file in the git repository will be used. The
-            # other search paths are left unmodified, since some tests in
-            # config_test.py check the search path behaviour.
-            this_dir = os.path.dirname(os.path.abspath(__file__))
-            _file_paths.append(os.path.join(this_dir, "..", "..", "config"))
 
         for cfile in [os.path.join(cdir, _FILE_NAME) for cdir in _file_paths]:
             if os.path.isfile(cfile):
