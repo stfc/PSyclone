@@ -38,6 +38,8 @@
     workaround the vagaries of the PGI compiler's support for OpenACC.
 '''
 
+from __future__ import print_function
+
 
 def valid_kernel(node):
     '''
@@ -57,14 +59,13 @@ def valid_kernel(node):
     from fparser.two import Fortran2003
     # PGI (18.10) often produces code that fails at run time if a Kernels
     # region includes If constructs.
-    excluded_nodes = (CodeBlock, NemoIfBlock, NemoIfClause)
-    if isinstance(node, excluded_nodes):
-        return False
-    code_blocks = node.walk(node.children, excluded_nodes)
-    if code_blocks:
+    excluded_node_types = (CodeBlock, NemoIfBlock, NemoIfClause)
+    if node.walk([node], excluded_node_types):
         return False
     # Check that there are no derived-type references in the sub-tree (because
     # PGI deep-copy doesn't like them).
+    # TODO #365 - this check should be part of our identification of valid
+    # NEMO kernels.
     if walk_ast([node.ast], [Fortran2003.Data_Ref]):
         return False
     return True
@@ -83,10 +84,7 @@ def have_loops(nodes):
     '''
     from psyclone.nemo import NemoLoop
     for node in nodes:
-        if isinstance(node, NemoLoop):
-            return True
-        loops = node.walk(node.children, NemoLoop)
-        if loops:
+        if node.walk([node], NemoLoop):
             return True
     return False
 
