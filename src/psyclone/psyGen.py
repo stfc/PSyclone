@@ -72,17 +72,11 @@ except ImportError:
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
 
-# The following mappings will be set by a particular API if supported
-# and required. We provide a default here for API's which do not have
-# their own mapping (or support this mapping). This allows codes with
-# no support to run.
-# MAPPING_REDUCTIONS gives the names of reduction operations
-MAPPING_REDUCTIONS = {"sum": "sum"}
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive. All code for OpenMP
 # directives exists in psyGen.py so this mapping should not be
 # overidden.
-OMP_OPERATOR_MAPPING = {"sum": "+"}
+OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
@@ -168,7 +162,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     :param arg_types: List of argument types (e.g. "GH_FIELD")
     :type arg_types: list of str
     :param arg_accesses: List of access types that arguments must have
-    :type arg_accesses: list of str
+    :type arg_accesses: List of :py:class:`psyclone.core.access_type`.
     :param arg_meshes: List of meshes that arguments must be on
     :type arg_meshes: list of str
     :param bool is_literal: Whether or not to include literal arguments in \
@@ -2079,13 +2073,16 @@ class OMPDirective(Directive):
 
     def _get_reductions_list(self, reduction_type):
         '''Return the name of all scalars within this region that require a
-        reduction of type reduction_type. Returned names will be unique. '''
+        reduction of type reduction_type. Returned names will be unique.
+        :param: reduction_type
+        :type reduction_type: :py:class:`psyclone.core.AccessType`
+        '''
+        print("Called")
         result = []
         for call in self.calls():
             for arg in call.arguments.args:
                 if arg.type in MAPPING_SCALARS.values():
-                    if arg.descriptor.access == \
-                       MAPPING_REDUCTIONS[reduction_type]:
+                    if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
         return result
@@ -2338,7 +2335,7 @@ class OMPDoDirective(OMPDirective):
     def _reduction_string(self):
         ''' Return the OMP reduction information as a string '''
         reduction_str = ""
-        for reduction_type in MAPPING_REDUCTIONS.keys():
+        for reduction_type in AccessType.get_valid_reduction_modes():
             reductions = self._get_reductions_list(reduction_type)
             for reduction in reductions:
                 reduction_str += ", reduction({0}:{1})".format(
@@ -3066,9 +3063,10 @@ class Call(Node):
         self._arg_descriptors = None
 
         # initialise any reduction information
+        reduction_modes = AccessType.get_valid_reduction_modes()
         args = args_filter(arguments.args,
                            arg_types=MAPPING_SCALARS.values(),
-                           arg_accesses=MAPPING_REDUCTIONS.values())
+                           arg_accesses=reduction_modes)
         if args:
             self._reduction = True
             if len(args) != 1:
