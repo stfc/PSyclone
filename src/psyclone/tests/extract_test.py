@@ -237,13 +237,13 @@ def test_no_parent_accdirective():
     ''' Test that applying Extract Transformation on an orphaned
     ACCLoopDirective without its ancestor ACCParallelDirective
     when optimisations are applied raises a TransformationError. '''
-    from psyclone.transformations import ACCParallelTrans, ACCDataTrans, \
+    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans, \
         ACCLoopTrans
 
     etrans = GOceanExtractRegionTrans()
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
-    accdata = ACCDataTrans()
+    accdata = ACCEnterDataTrans()
 
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH,
                                         "single_invoke_three_kernels.f90"),
@@ -258,7 +258,7 @@ def test_no_parent_accdirective():
             schedule, _ = acclpt.apply(child)
     # Enclose all of these loops within a single ACC Parallel region
     schedule, _ = accpara.apply(schedule.children)
-    # Add a mandatory ACC data region
+    # Add a mandatory ACC enter-data directive
     schedule, _ = accdata.apply(schedule)
 
     orphaned_directive = schedule.children[1].children[0]

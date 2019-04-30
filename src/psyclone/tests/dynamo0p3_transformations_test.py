@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -6623,9 +6623,9 @@ def test_no_acc():
     dynamo0p3 InvokeSchedule causes an error.
 
     '''
-    from psyclone.transformations import ACCDataTrans, ACCLoopTrans, \
+    from psyclone.transformations import ACCEnterDataTrans, ACCLoopTrans, \
         ACCParallelTrans
-    accdt = ACCDataTrans()
+    accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
     acclt = ACCLoopTrans()
 
@@ -6638,18 +6638,18 @@ def test_no_acc():
 
     with pytest.raises(NotImplementedError) as err:
         _ = accdt.apply(sched)
-    assert ("ACCDataDirective not implemented for a schedule of type "
+    assert ("ACCEnterDataDirective not implemented for a schedule of type "
             in str(err))
 
     with pytest.raises(NotImplementedError) as err:
         _ = accpt.apply(sched.children)
     assert ("OpenACC parallel regions are currently only supported for "
-            "the gocean 1.0 API" in str(err))
+            "the gocean 1.0 and nemo APIs" in str(err))
 
     with pytest.raises(NotImplementedError) as err:
         _ = acclt.apply(sched.children[0])
     assert ("OpenACC loop transformations are currently only supported for "
-            "the gocean 1.0 API" in str(err))
+            "the gocean 1.0 and nemo APIs" in str(err))
 
 
 def test_no_ocl():

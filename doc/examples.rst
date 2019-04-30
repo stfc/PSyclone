@@ -49,16 +49,17 @@ README files in the associated directories.
 GOcean
 ------
 
-Example 1
-^^^^^^^^^
+Example 1: Loop transformations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Examples of applying various transformations (loop fusion, OpenMP,
 OpenACC) to the semi-PSyKAl'd version of the Shallow
 benchmark. ("semi" because not all kernels are called from within
-invoke()'s.) Also includes an example of generating a DAG from an InvokeSchedule.
+invoke()'s.) Also includes an example of generating a DAG from an
+InvokeSchedule.
 
-Example 2
-^^^^^^^^^
+Example 2: OpenACC
+^^^^^^^^^^^^^^^^^^
 
 This is a simple but complete example of using PSyclone to enable an
 application to run on a GPU by adding OpenACC directives. A Makefile
@@ -66,6 +67,21 @@ is included which will use PSyclone to generate the PSy code and
 transformed kernels and then compile the application. This compilation
 requires that the dl_esm_inf library (github.com/stfc/dl_esm_inf) be
 installed.
+
+Example 3: OpenCL
+^^^^^^^^^^^^^^^^^
+
+Example of the use of PSyclone to generate an OpenCL version of the
+PSy layer. The kernels are not yet transformed automatically (Issue
+#249).
+
+Example 4: Kernels containing use statements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Transforming kernels for use with either OpenACC or OpenCL requires
+that we handle those that access data and/or routines via module
+`use` statements. This example shows the various forms for which
+support is planned (Issues #323 and #342).
 
 Dynamo
 ------

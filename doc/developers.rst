@@ -1049,7 +1049,7 @@ annexed dof. This iteration space will necessarily also include all
 owned dofs due to the ordering of dof indices discussed earlier.
 
 The configuration variable is called `COMPUTE_ANNEXED_DOFS` and is
-found in the the `dynamo0.3` section of the `psyclone.cfg`
+found in the `dynamo0.3` section of the `psyclone.cfg`
 configuration file (see :ref:`configuration`). If it is ``true`` then
 annexed dofs are always computed in loops that iterate over dofs and
 if it is ``false`` then annexed dofs are not computed. The default in
@@ -1562,7 +1562,8 @@ Module: f2pygen
 ===============
 
 `f2pygen` provides functionality for generating Fortran code from
-scratch (i.e. when not modifying existing source).
+scratch and supports the addition of a use statement to an existing
+parse tree.
 
 Variable Declarations
 ---------------------
@@ -1604,6 +1605,25 @@ The full interface to each of these classes is detailed below:
 .. autoclass:: psyclone.f2pygen.TypeDeclGen
     :members:
     :noindex:
+
+Adding code
+-----------
+
+`f2pygen` supports the addition of use statements to an existing
+`fparser1` parse tree:
+
+.. autofunction:: psyclone.f2pygen.adduse
+
+
+The PSyclone code where the `adduse` function was used has recently
+been migrated from using `fparser1` to using `fparser2`. In
+recognition of this change a new version of `adduse` has been
+developed which adds use statements to an existing `fparser2` parse
+tree. For the timebeing this new version is located in the same file
+it is used - `algGen.py` - but will be migrated to `f2pygen` (or
+equivalent) in the future:
+
+.. autofunction:: psyclone.algGen.adduse
 
 
 .. _dev_configuration:
@@ -1683,6 +1703,57 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
+Module: psyGen
+==============
+
+Provides the base classes for PSy-layer code generation.
+
+Module: dynamo0p3
+=================
+
+Specialises various classes from the ``psyclone.psyGen`` module
+in order to support the Dynamo 0.3 API.
+
+When constructing the Fortran subroutine for either an Invoke or
+Kernel stub (see :ref:`stub-generation`), there are various groups of
+related quantities for which variables must be declared and
+(for Invokes) initialised. Each of these groupings is managed by a distinct
+sub-class of the ``DynCollection`` abstract class:
+
+.. autoclass:: psyclone.dynamo0p3.DynCollection
+   :members:
+   :private-members:
+   :noindex:
+
+(A single base class is used for both Invokes and Kernel stubs since it
+allows the code dealing with variable declarations to be shared.)
+A concrete sub-class of ``DynCollection`` must provide an
+implementation of the ``_invoke_declarations`` method. If the
+quantities associated with the collection require initialisation
+within the PSy layer then the ``initialise`` method must also be
+implemented. If stub-generation is to be supported for kernels that
+make use of the collection type then an implementation must also be
+provided for ``_stub_declarations.``
+
+Although instances of (sub-classes of) ``DynCollection`` handle all
+declarations and initialisation, there remains the problem of
+constructing the list of arguments for a kernel (or kernel stub). The
+``psyclone.dynamo0p3.ArgOrdering`` base class provides support for
+this:
+
+.. autoclass:: psyclone.dynamo0p3.ArgOrdering
+    :members:
+    :private-members:
+    :noindex:
+
+This class is then sub-classed in order to support the generation of
+argument lists when *calling* kernels (``KernCallArgList``) and when
+*creating* kernel stubs (``KernStubArgList``).  ``KernCallArgList`` is
+only used in ``DynKernelArguments.raw_arg_list()``.
+``KernStubArgList`` is only used in ``DynKern.gen_stub()``. These
+classes make use of ``DynCollection`` sub-classes in order
+to ensure that argument naming is consistent.
+
 Kernel Transformations
 ----------------------
 
@@ -1725,9 +1796,11 @@ The results of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 a PSyIR Schedule but with the addition of a Symbol Table
 (see :ref:`kernel_schedule-label`).
 
+Transformations
+###############
 
-OpenACC Support
----------------
+OpenACC
+=======
 
 PSyclone is able to generate code for execution on a GPU through the
 use of OpenACC. Support for generating OpenACC code is implemented via
@@ -1738,18 +1811,19 @@ they have their own, on-board memory which is separate from that of
 the host. Managing (i.e. minimising) data movement between host and
 GPU is then a very important part of obtaining good performance.
 
-Since PSyclone operates at the level of Invokes it has no information
+Since PSyclone operates at the level of Invokes, it has no information
 about when an application starts and thus no single place in which to
 initiate data transfers to a GPU. (We assume that the host is
 responsible for model I/O and therefore for populating fields with
-initial values.) Fortunately OpenACC provides support for this kind of
+initial values.) Fortunately, OpenACC provides support for this kind of
 situation with the ``enter data`` directive. This may be used to
 "define scalars, arrays and subarrays to be allocated in the current
 device memory for the remaining duration of the program"
-:cite:`openacc_enterdata`. The ``ACCDataTrans`` transformation adds
+:cite:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
 an ``enter data`` directive to an Invoke:
 
-.. autoclass:: psyclone.transformations.ACCDataTrans
+.. autoclass:: psyclone.transformations.ACCEnterDataTrans
+   :noindex:
 
 The resulting generated code will then contain an ``enter data``
 directive protected by an ``IF(this is the first time in this
@@ -1778,10 +1852,16 @@ updated) due to a previous Invoke. In this case, the fact that the
 OpenACC run-time does not copy over the now out-dated host version of
 the field is essential for correctness.
 
+In order to support the incremental porting and/or debugging of an
+application, PSyclone also supports the OpenACC ``data`` directive
+that creates a statically-scoped data region. See the
+description of the ``ACCDataTrans`` transformation in the
+:ref:`sec_transformations_available` section for more details.
+
 .. _opencl_dev:
 
-OpenCL Support
-##############
+OpenCL
+======
 
 PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API. Such code may then be executed
@@ -1884,7 +1964,7 @@ of this setup is done, the kernel itself is launched by calling
 				  C_NULL_PTR, 0, C_NULL_PTR, C_NULL_PTR)
 
 Limitations
-===========
+-----------
 
 Currently PSyclone can only generate the OpenCL version of the PSy
 layer.  Execution of the resulting code requires that the kernels

@@ -68,9 +68,20 @@ except ImportError:
         '''
         return text
 
+
 # The types of 'intent' that an argument to a Fortran subroutine
 # may have
 FORTRAN_INTENT_NAMES = ["inout", "out", "in"]
+
+# The list of Fortran instrinsic functions that we know about (and can
+# therefore distinguish from array accesses). These should really be
+# provided by the parser (github.com/stfc/fparser/issues/189).
+FORTRAN_INTRINSICS = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM",
+                      "CEILING", "REAL", "KIND", "EXP", "SQRT",
+                      "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN",
+                      "LOG", "LOG10", "NINT",
+                      "MINVAL", "MAXVAL", "MINLOC", "MAXLOC", "TRIM",
+                      "RESHAPE"]
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive. All code for OpenMP
@@ -110,11 +121,37 @@ SCHEDULE_COLOUR_MAP = {"Schedule": "white",
                        "Assignment": "blue",
                        "Reference": "yellow",
                        "BinaryOperation": "blue",
+                       "UnaryOperation": "blue",
                        "Literal": "yellow",
+                       "Return": "yellow",
                        "CodeBlock": "red"}
 
 # Default indentation string
 INDENTATION_STRING = "    "
+
+
+def object_index(alist, item):
+    '''
+    A version of the `list.index()` method that checks object identity
+    rather that the content of the object.
+
+    TODO this is a workaround for the fact that fparser2 overrides the
+    comparison operator for all nodes in the parse tree. See fparser
+    issue 174.
+
+    :param list alist: list of objects to search.
+    :param obj item: object to search for in the list.
+    :returns: index of the item in the list.
+    :rtype: int
+    :raises ValueError: if object is not in the list.
+    '''
+    if item is None:
+        raise InternalError("Cannot search for None item in list.")
+    for idx, entry in enumerate(alist):
+        if entry is item:
+            return idx
+    raise ValueError(
+        "Item '{0}' not found in list: {1}".format(str(item), alist))
 
 
 def get_api(api):
@@ -877,6 +914,8 @@ class Node(object):
     '''
     Base class for a node in the PSyIR (schedule).
 
+    :param ast: reference into the fparser2 AST corresponding to this node.
+    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node.
     :type children: list of :py:class:`psyclone.psyGen.Node`
     :param parent: that parent of this node in the PSyIR tree.
@@ -891,16 +930,38 @@ class Node(object):
     # the tree (absolute or relative to a parent).
     START_POSITION = 0
 
-    def __init__(self, children=None, parent=None):
+    def __init__(self, ast=None, children=None, parent=None):
         if not children:
             self._children = []
         else:
             self._children = children
         self._parent = parent
-        self._ast = None  # Reference into fparser2 AST (if any)
+        # Reference into fparser2 AST (if any)
+        self._ast = ast
+        # Ref. to last fparser2 parse tree node associated with this Node.
+        # This is required when adding directives.
+        self._ast_end = None
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
+
+    @property
+    def ast(self):
+        '''
+        :returns: a reference to that part of the fparser2 parse tree that \
+                  this node represents or None.
+        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
+        '''
+        return self._ast
+
+    @property
+    def ast_end(self):
+        '''
+        :returns: a reference to the last node in the fparser2 parse tree \
+                  that represents a child of this PSyIR node or None.
+        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
+        '''
+        return self._ast_end
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
@@ -1444,20 +1505,6 @@ class Schedule(Node):
         '''
         return "schedule"
 
-    # TODO: Method part of old GUI, it is untested and marked to be
-    # removed in issue #320
-    def tkinter_delete(self):
-        for entity in self._children:
-            entity.tkinter_delete()
-
-    # TODO: Method part of old GUI, it is untested and marked to be
-    # removed in issue #320
-    def tkinter_display(self, canvas, x, y):
-        y_offset = 0
-        for entity in self._children:
-            entity.tkinter_display(canvas, x, y+y_offset)
-            y_offset = y_offset+entity.height
-
     def view(self, indent=0):
         '''
         Print a text representation of this node to stdout and then
@@ -1729,9 +1776,123 @@ class ACCDirective(Directive):
         '''
         return "ACC_directive_" + str(self.abs_position)
 
+    def _add_region(self, start_text, end_text=None, data_movement=None):
+        '''
+        Modifies the underlying fparser2 parse tree to include a subset
+        of nodes within a region. (e.g. a 'kernels' or 'data' region.)
+
+        :param str start_text: the directive body to insert at the \
+                               beginning of the region. "!$ACC " is \
+                               prepended to the supplied text.
+        :param str end_text: the directive body to insert at the end of \
+                             the region (or None). "!$ACC " is \
+                             prepended to the supplied text.
+        :param str data_movement: whether to include data-movement clauses and\
+                               if so, whether to determine them by analysing \
+                               the code within the region ("analyse") or to \
+                               specify 'default(present)' ("present").
+
+        :raises InternalError: if either start_text or end_text already
+                               begin with '!'.
+        :raises InternalError: if data_movement is not None and not one of \
+                               "present" or "analyse".
+        '''
+        from fparser.common.readfortran import FortranStringReader
+        from fparser.two.Fortran2003 import Comment
+        valid_data_movement = ["present", "analyse"]
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
+        # Check that we haven't already been called
+        if self._ast:
+            return
+
+        # Sanity check the supplied begin/end text
+        if start_text.lstrip()[0] == "!":
+            raise InternalError(
+                "_add_region: start_text must be a plain label without "
+                "directive or comment characters but got: '{0}'".
+                format(start_text))
+        if end_text and end_text.lstrip()[0] == "!":
+            raise InternalError(
+                "_add_region: end_text must be a plain label without directive"
+                " or comment characters but got: '{0}'".format(end_text))
+
+        # The parent node in the PSyIR might be a directive so we need to
+        # go back up the tree to find the node corresponding to our parent
+        # node in the fparser2 parse tree. This is the first node that
+        # has the 'content' attribute.
+        # TODO this can probably be simplified/removed altogether once
+        # the fparser2 parse tree has parent information (fparser/#102).
+        parent = self._parent
+        while parent:
+            if parent.ast and hasattr(parent.ast, "content"):
+                break
+            parent = parent._parent
+        fp_parent = parent.ast
+
+        # Find the location of the AST of our first child node in the
+        # list of child nodes of our parent in the fparser parse tree.
+        ast_start_index = object_index(fp_parent.content,
+                                       self.children[0].ast)
+        if end_text:
+            if self.children[-1].ast_end:
+                ast_end_index = object_index(fp_parent.content,
+                                             self.children[-1].ast_end)
+            else:
+                ast_end_index = object_index(fp_parent.content,
+                                             self.children[-1].ast)
+
+            text = "!$ACC " + end_text
+            directive = Comment(FortranStringReader(text,
+                                                    ignore_comments=False))
+            fp_parent.content.insert(ast_end_index+1, directive)
+            # Retro-fit parent information. # TODO remove/modify this once
+            # fparser/#102 is done (i.e. probably supply parent info as option
+            # to the Comment() constructor).
+            directive._parent = fp_parent
+            # Ensure this end directive is included with the set of statements
+            # belonging to this PSyIR node.
+            self._ast_end = directive
+
+        text = "!$ACC " + start_text
+
+        if data_movement:
+            if data_movement == "analyse":
+                # Identify the inputs and outputs to the region (variables that
+                # are read and written).
+                processor = Fparser2ASTProcessor()
+                readers, writers, readwrites = processor.get_inputs_outputs(
+                    fp_parent.content[ast_start_index:ast_end_index+1])
+
+                if readers:
+                    text += " COPYIN({0})".format(",".join(readers))
+                if writers:
+                    text += " COPYOUT({0})".format(",".join(writers))
+                if readwrites:
+                    text += " COPY({0})".format(",".join(readwrites))
+
+            elif data_movement == "present":
+                text += " DEFAULT(PRESENT)"
+            else:
+                raise InternalError(
+                    "_add_region: the optional data_movement argument must be "
+                    "one of {0} but got '{1}'".format(valid_data_movement,
+                                                      data_movement))
+        directive = Comment(FortranStringReader(text,
+                                                ignore_comments=False))
+        fp_parent.content.insert(ast_start_index, directive)
+        # Retro-fit parent information. # TODO remove/modify this once
+        # fparser/#102 is done (i.e. probably supply parent info as option
+        # to the Comment() constructor).
+        directive._parent = fp_parent
+
+        self._ast = directive
+
 
 @six.add_metaclass(abc.ABCMeta)
-class ACCDataDirective(ACCDirective):
+class ACCEnterDataDirective(ACCDirective):
     '''
     Abstract class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
@@ -1746,7 +1907,8 @@ class ACCDataDirective(ACCDirective):
     :type parent: :py:class:`psyclone.psyGen.Node`.
     '''
     def __init__(self, children=None, parent=None):
-        super(ACCDataDirective, self).__init__(children, parent)
+        super(ACCEnterDataDirective, self).__init__(children=children,
+                                                    parent=parent)
         self._acc_dirs = None  # List of parallel directives
 
     def view(self, indent=0):
@@ -1850,8 +2012,11 @@ class ACCDataDirective(ACCDirective):
 
 
 class ACCParallelDirective(ACCDirective):
-    ''' Class for the !$ACC PARALLEL directive of OpenACC. '''
+    '''
+    Class representing the !$ACC PARALLEL directive of OpenACC
+    in the PSyIR.
 
+    '''
     def view(self, indent=0):
         '''
         Print a text representation of this Node to stdout.
@@ -1885,7 +2050,7 @@ class ACCParallelDirective(ACCDirective):
         # We can't use Node.ancestor() because the data directive does
         # not have children. Instead, we go back up to the Schedule and
         # walk down from there.
-        nodes = self.root.walk(self.root.children, ACCDataDirective)
+        nodes = self.root.walk(self.root.children, ACCEnterDataDirective)
         if len(nodes) != 1:
             raise GenerationError(
                 "A Schedule containing an ACC parallel region must also "
@@ -1965,6 +2130,13 @@ class ACCParallelDirective(ACCDirective):
                     scalars.append(arg)
         return scalars
 
+    def update(self):
+        '''
+        Update the underlying fparser2 parse tree with nodes for the start
+        and end of this parallel region.
+        '''
+        self._add_region(start_text="PARALLEL", end_text="END PARALLEL")
+
 
 class ACCLoopDirective(ACCDirective):
     '''
@@ -1980,10 +2152,12 @@ class ACCLoopDirective(ACCDirective):
                              to the loop directive.
     '''
     def __init__(self, children=None, parent=None, collapse=None,
-                 independent=True):
+                 independent=True, sequential=False):
         self._collapse = collapse
         self._independent = independent
-        super(ACCLoopDirective, self).__init__(children, parent)
+        self._sequential = sequential
+        super(ACCLoopDirective, self).__init__(children=children,
+                                               parent=parent)
 
     @property
     def dag_name(self):
@@ -2000,10 +2174,13 @@ class ACCLoopDirective(ACCDirective):
         :param int indent: amount to indent output by
         '''
         text = self.indent(indent)+self.coloured_text+"[ACC Loop"
-        if self._collapse:
-            text += ", collapse={0}".format(self._collapse)
-        if self._independent:
-            text += ", independent"
+        if self._sequential:
+            text += ", seq"
+        else:
+            if self._collapse:
+                text += ", collapse={0}".format(self._collapse)
+            if self._independent:
+                text += ", independent"
         text += "]"
         print(text)
         for entity in self._children:
@@ -2034,16 +2211,34 @@ class ACCLoopDirective(ACCDirective):
 
         # Add any clauses to the directive
         options = []
-        if self._collapse:
-            options.append("collapse({0})".format(self._collapse))
-        if self._independent:
-            options.append("independent")
+        if self._sequential:
+            options.append("seq")
+        else:
+            if self._collapse:
+                options.append("collapse({0})".format(self._collapse))
+            if self._independent:
+                options.append("independent")
         options_str = " ".join(options)
 
         parent.add(DirectiveGen(parent, "acc", "begin", "loop", options_str))
 
         for child in self.children:
             child.gen_code(parent)
+
+    def update(self):
+        '''
+        Update the existing fparser2 parse tree with the code associated with
+        this ACC LOOP directive.
+        '''
+        text = "LOOP"
+        if self._sequential:
+            text += " SEQ"
+        else:
+            if self._independent:
+                text += " INDEPENDENT"
+            if self._collapse:
+                text += " COLLAPSE({0})".format(self._collapse)
+        self._add_region(start_text=text)
 
 
 class OMPDirective(Directive):
@@ -2248,15 +2443,22 @@ class OMPParallelDirective(OMPDirective):
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
         # Check that we haven't already been called
         if self._ast:
             return
+
         # Find the locations in which we must insert the begin/end
         # directives...
         # Find the children of this node in the AST of our parent node
         try:
-            start_idx = self._parent._ast.content.index(self._children[0]._ast)
-            end_idx = self._parent._ast.content.index(self._children[-1]._ast)
+            start_idx = object_index(self._parent.ast.content,
+                                     self._children[0].ast)
+            end_idx = object_index(self._parent.ast.content,
+                                   self._children[-1].ast)
         except (IndexError, ValueError):
             raise InternalError("Failed to find locations to insert "
                                 "begin/end directives.")
@@ -2269,14 +2471,15 @@ class OMPParallelDirective(OMPDirective):
         # the AST representing our last child
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
+        self._ast_end = enddir
         # If end_idx+1 takes us beyond the range of the list then the
         # element is appended to the list
-        self._parent._ast.content.insert(end_idx+1, enddir)
+        self._parent.ast.content.insert(end_idx+1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
         self._ast = startdir
-        self._parent._ast.content.insert(start_idx, self._ast)
+        self._parent.ast.content.insert(start_idx, self._ast)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2455,9 +2658,14 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         '''
         from fparser.common.readfortran import FortranStringReader
         from fparser.two.Fortran2003 import Comment
+
+        # Ensure the fparser2 AST is up-to-date for all of our children
+        Node.update(self)
+
         # Check that we haven't already been called
         if self._ast:
             return
+
         # Since this is an OpenMP (parallel) do, it can only be applied
         # to a single loop.
         if len(self._children) != 1:
@@ -2474,7 +2682,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # We have to take care to find a parent node (in the fparser2 AST)
         # that has 'content'. This is because If-else-if blocks have their
         # 'content' as siblings of the If-then and else-if nodes.
-        parent = self._parent._ast
+        parent = self._parent.ast
         while parent:
             if hasattr(parent, "content"):
                 break
@@ -2482,7 +2690,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         if not parent:
             raise InternalError("Failed to find parent node in which to "
                                 "insert OpenMP parallel do directive")
-        start_idx = parent.content.index(self._children[0]._ast)
+        start_idx = object_index(parent.content,
+                                 self._children[0].ast)
 
         # Create the start directive
         text = ("!$omp parallel do default(shared), private({0}), "
@@ -2499,6 +2708,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             parent.content.append(enddir)
         else:
             parent.content.insert(start_idx+1, enddir)
+        self._ast_end = enddir
 
         # Insert the start directive (do this second so we don't have
         # to correct the location)
@@ -2742,6 +2952,47 @@ class HaloExchange(Node):
 
 
 class Loop(Node):
+    '''Represents a loop in the PSyIR.
+
+    :param parent: Parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :param str variable_name: Optional name of the loop iterator \
+    variable. Defaults to an empty string.
+    :param valid_loop_types: A list of loop types that are specific \
+    to a particular API.
+    :type valid_loop_types: list of str
+
+    '''
+
+    def __init__(self, parent=None,
+                 variable_name="",
+                 valid_loop_types=None):
+
+        # we need to determine whether this is a built-in or kernel
+        # call so our schedule can do the right thing.
+
+        if valid_loop_types is None:
+            self._valid_loop_types = []
+        else:
+            self._valid_loop_types = valid_loop_types
+        self._loop_type = None        # inner, outer, colour, colours, ...
+        self._field = None
+        self._field_name = None       # name of the field
+        self._field_space = None      # v0, v1, ...,     cu, cv, ...
+        self._iteration_space = None  # cells, ...,      cu, cv, ...
+        self._kern = None             # Kernel associated with this loop
+
+        # TODO replace iterates_over with iteration_space
+        self._iterates_over = "unknown"
+
+        Node.__init__(self, parent=parent)
+
+        self._variable_name = variable_name
+
+        self._start = ""
+        self._stop = ""
+        self._step = ""
+        self._id = ""
 
     @property
     def dag_name(self):
@@ -2777,41 +3028,6 @@ class Loop(Node):
                 "{1}.".format(value, self._valid_loop_types))
         self._loop_type = value
 
-    def __init__(self, parent=None,
-                 variable_name="",
-                 topology_name="topology",
-                 valid_loop_types=[]):
-
-        # we need to determine whether this is a built-in or kernel
-        # call so our schedule can do the right thing.
-
-        self._valid_loop_types = valid_loop_types
-        self._loop_type = None        # inner, outer, colour, colours, ...
-        self._field = None
-        self._field_name = None       # name of the field
-        self._field_space = None      # v0, v1, ...,     cu, cv, ...
-        self._iteration_space = None  # cells, ...,      cu, cv, ...
-        self._kern = None             # Kernel associated with this loop
-
-        # TODO replace iterates_over with iteration_space
-        self._iterates_over = "unknown"
-
-        Node.__init__(self, parent=parent)
-
-        self._variable_name = variable_name
-
-        self._start = ""
-        self._stop = ""
-        self._step = ""
-        self._id = ""
-
-        # visual properties
-        self._width = 30
-        self._height = 30
-        self._shape = None
-        self._text = None
-        self._canvas = None
-
     def view(self, indent=0):
         '''
         Write out a textual summary of this Loop node to stdout
@@ -2837,52 +3053,6 @@ class Loop(Node):
         :rtype: string
         '''
         return colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-
-    @property
-    def height(self):
-        calls_height = 0
-        for child in self.children:
-            calls_height += child.height
-        return self._height+calls_height
-
-    def tkinter_delete(self):
-        if self._shape is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._shape)
-        if self._text is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._text)
-        for child in self.children:
-            child.tkinter_delete()
-
-    def tkinter_display(self, canvas, x, y):
-        self.tkinter_delete()
-        self._canvas = canvas
-        from Tkinter import ROUND
-        name = "Loop"
-        min_call_width = 100
-        max_calls_width = min_call_width
-        calls_height = 0
-        for child in self.children:
-            calls_height += child.height
-            max_calls_width = max(max_calls_width, child.width)
-
-        self._shape = canvas.create_polygon(
-            x, y, x+self._width+max_calls_width, y,
-            x+self._width+max_calls_width, y+self._height,
-            x+self._width, y+self._height,
-            x+self._width, y+self._height+calls_height,
-            x, y+self._height+calls_height,
-            outline="red", fill="green", width=2,
-            activeoutline="blue", joinstyle=ROUND)
-        self._text = canvas.create_text(x+(self._width+max_calls_width)/2,
-                                        y+self._height/2, text=name)
-
-        call_height = 0
-        for child in self.children:
-            child.tkinter_display(canvas, x+self._width,
-                                  y+self._height+call_height)
-            call_height += child.height
 
     @property
     def field_space(self):
@@ -3054,12 +3224,6 @@ class Call(Node):
                 else:
                     arg_names.append(text)
 
-        # visual properties
-        self._width = 250
-        self._height = 30
-        self._shape = None
-        self._text = None
-        self._canvas = None
         self._arg_descriptors = None
 
         # initialise any reduction information
@@ -3102,34 +3266,6 @@ class Call(Node):
         ''' Return a string containing the (coloured) name of this node
         type '''
         return colored("Call", SCHEDULE_COLOUR_MAP["Call"])
-
-    @property
-    def width(self):
-        return self._width
-
-    @property
-    def height(self):
-        return self._height
-
-    def tkinter_delete(self):
-        if self._shape is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._shape)
-        if self._text is not None:
-            assert self._canvas is not None, "Error"
-            self._canvas.delete(self._text)
-
-    def tkinter_display(self, canvas, x, y):
-        self.tkinter_delete()
-        self._canvas = canvas
-        self._x = x
-        self._y = y
-        self._shape = self._canvas.create_rectangle(
-            self._x, self._y, self._x+self._width, self._y+self._height,
-            outline="red", fill="yellow", activeoutline="blue", width=2)
-        self._text = self._canvas.create_text(self._x+self._width/2,
-                                              self._y+self._height/2,
-                                              text=self._name)
 
     @property
     def is_reduction(self):
@@ -3455,7 +3591,7 @@ class Kern(Call):
         self.rename_and_write()
 
         parent.add(CallGen(parent, self._name,
-                           self.arguments.raw_arg_list(parent)))
+                           self.arguments.raw_arg_list()))
 
         if not self.module_inline:
             parent.add(UseGen(parent, name=self._module_name, only=True,
@@ -3796,14 +3932,11 @@ class Arguments(object):
         # subroutine call.
         self._raw_arg_list = []
 
-    def raw_arg_list(self, parent=None):
+    def raw_arg_list(self):
         '''
         Abstract method to construct the class-specific argument list for a
         kernel call. Must be overridden in API-specific sub-class.
 
-        :param parent: the parent (in the PSyIR) of the kernel call with \
-                       which this argument list is associated.
-        :type parent: sub-class of :py:class:`psyclone.psyGen.Call`
         :raises NotImplementedError: abstract method.
         '''
         raise NotImplementedError("Arguments.raw_arg_list must be "
@@ -4579,6 +4712,117 @@ class IfClause(IfBlock):
         return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
 
 
+class ACCKernelsDirective(ACCDirective):
+    '''
+    Class representing the !$ACC KERNELS directive in the PSyIR.
+
+    :param children: the PSyIR nodes to be enclosed in the Kernels region \
+                     and which are therefore children of this node.
+    :type children: list of sub-classes of :py:class:`psyclone.psyGen.Node`
+    :param parent: the parent of this node in the PSyIR.
+    :type parent: sub-class of :py:class:`psyclone.psyGen.Node`
+    :param bool default_present: whether or not to add the "default(present)" \
+                                 clause to the kernels directive.
+
+    :raises NotImplementedError: if default_present is False.
+
+    '''
+    def __init__(self, children=None, parent=None, default_present=False):
+        super(ACCKernelsDirective, self).__init__(children=children,
+                                                  parent=parent)
+        self._default_present = default_present
+        if not self._default_present:
+            raise NotImplementedError(
+                "Currently an OpenACC 'kernels' region must have the "
+                "'default(present)' clause.")
+
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use for this node in a dag.
+        :rtype: str
+        '''
+        return "ACC_kernels_" + str(self.abs_position)
+
+    def view(self, indent=0):
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print(self.indent(indent) + self.coloured_text +
+              "[ACC Kernels]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def gen_code(self, _):
+        '''
+        :raises InternalError: the ACC Kernels directive is currently only \
+                               supported for the NEMO API and that uses the \
+                               update() method to alter the underlying \
+                               fparser2 parse tree.
+        '''
+        raise InternalError(
+            "ACCKernelsDirective.gen_code should not have been called.")
+
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this ACC kernels
+        directive.
+        '''
+        self._add_region(start_text="KERNELS", end_text="END KERNELS",
+                         data_movement="present")
+
+
+class ACCDataDirective(ACCDirective):
+    '''
+    Class representing the !$ACC DATA ... !$ACC END DATA directive
+    in the PSyIR.
+
+    '''
+    @property
+    def dag_name(self):
+        '''
+        :returns: the name to use in a dag for this node.
+        :rtype: str
+        '''
+        return "ACC_data_" + str(self.abs_position)
+
+    def view(self, indent=0):
+        '''
+        Write out a textual summary of the OpenMP Parallel Do Directive
+        and then call the view() method of any children.
+
+        :param indent: Depth of indent for output text
+        :type indent: integer
+        '''
+        print(self.indent(indent) + self.coloured_text +
+              "[ACC DATA]")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def gen_code(self, _):
+        '''
+        :raises InternalError: the ACC data directive is currently only \
+                               supported for the NEMO API and that uses the \
+                               update() method to alter the underlying \
+                               fparser2 parse tree.
+        '''
+        raise InternalError(
+            "ACCDataDirective.gen_code should not have been called.")
+
+    def update(self):
+        '''
+        Updates the fparser2 AST by inserting nodes for this OpenACC Data
+        directive.
+
+        '''
+        self._add_region(start_text="DATA", end_text="END DATA",
+                         data_movement="analyse")
+
+
 class Fparser2ASTProcessor(object):
     '''
     Class to encapsulate the functionality for processing the fparser2 AST and
@@ -4598,11 +4842,9 @@ class Fparser2ASTProcessor(object):
             utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
-            # TODO: Issue #256, to cover all nemolite2D kernels we need:
             # Fortran2003.If_Construct: self._if_construct_handler,
-            # Fortran2003.Return_Stmt: self._return_handler,
-            # Fortran2003.UnaryOpBase: self._unaryOp_handler,
-            # ... (some already partially implemented in nemo.py)
+            Fortran2003.Return_Stmt: self._return_handler,
+            Fortran2003.UnaryOpBase: self._unary_op_handler,
         }
 
     @staticmethod
@@ -4627,6 +4869,122 @@ class Fparser2ASTProcessor(object):
         parent.addchild(code_block)
         del statements[:]
         return code_block
+
+    @staticmethod
+    def get_inputs_outputs(nodes):
+        '''
+        Identify variables that are inputs and outputs to the section of
+        Fortran code represented by the supplied list of nodes in the
+        fparser2 parse tree. Loop variables are ignored.
+
+        :param nodes: list of Nodes in the fparser2 AST to analyse.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+
+        :return: 3-tuple of list of inputs, list of outputs, list of in-outs
+        :rtype: (list of str, list of str, list of str)
+        '''
+        from fparser.two.Fortran2003 import Assignment_Stmt, Part_Ref, \
+            Data_Ref, If_Then_Stmt, Array_Section
+        from fparser.two.utils import walk_ast
+        readers = set()
+        writers = set()
+        readwrites = set()
+        # A dictionary of all array accesses that we encounter - used to
+        # sanity check the readers and writers we identify.
+        all_array_refs = {}
+
+        # Loop over a flat list of all the nodes in the supplied region
+        for node in walk_ast(nodes):
+
+            if isinstance(node, Assignment_Stmt):
+                # Found lhs = rhs
+                structure_name_str = None
+
+                lhs = node.items[0]
+                rhs = node.items[2]
+                # Do RHS first as we cull readers after writers but want to
+                # keep a = a + ... as the RHS is computed before assigning
+                # to the LHS
+                for node2 in walk_ast([rhs]):
+                    if isinstance(node2, Part_Ref):
+                        name = node2.items[0].string
+                        if name.upper() not in FORTRAN_INTRINSICS:
+                            if name not in writers:
+                                readers.add(name)
+                    if isinstance(node2, Data_Ref):
+                        # TODO we need a robust implementation - issue #309.
+                        raise NotImplementedError(
+                            "get_inputs_outputs: derived-type references on "
+                            "the RHS of assignments are not yet supported.")
+                # Now do LHS
+                if isinstance(lhs, Data_Ref):
+                    # This is a structure which contains an array access.
+                    structure_name_str = lhs.items[0].string
+                    writers.add(structure_name_str)
+                    lhs = lhs.items[1]
+                if isinstance(lhs, (Part_Ref, Array_Section)):
+                    # This is an array reference
+                    name_str = lhs.items[0].string
+                    if structure_name_str:
+                        # Array ref is part of a derived type
+                        name_str = "{0}%{1}".format(structure_name_str,
+                                                    name_str)
+                        structure_name_str = None
+                    writers.add(name_str)
+            elif isinstance(node, If_Then_Stmt):
+                # Check for array accesses in IF statements
+                array_refs = walk_ast([node], [Part_Ref])
+                for ref in array_refs:
+                    name = ref.items[0].string
+                    if name.upper() not in FORTRAN_INTRINSICS:
+                        if name not in writers:
+                            readers.add(name)
+            elif isinstance(node, Part_Ref):
+                # Keep a record of all array references to check that we
+                # haven't missed anything. Once #309 is done we should be
+                # able to get rid of this check.
+                name = node.items[0].string
+                if name.upper() not in FORTRAN_INTRINSICS and \
+                   name not in all_array_refs:
+                    all_array_refs[name] = node
+            elif node:
+                # TODO #309 handle array accesses in other contexts, e.g. as
+                # loop bounds in DO statements.
+                pass
+
+        # Sanity check that we haven't missed anything. To be replaced when
+        # #309 is done.
+        accesses = list(readers) + list(writers)
+        for name, node in all_array_refs.items():
+            if name not in accesses:
+                # A matching bare array access hasn't been found but it
+                # might have been part of a derived-type access so check
+                # for that.
+                found = False
+                for access in accesses:
+                    if "%"+name in access:
+                        found = True
+                        break
+                if not found:
+                    raise InternalError(
+                        "Array '{0}' present in source code ('{1}') but not "
+                        "identified as being read or written.".
+                        format(name, str(node)))
+        # Now we check for any arrays that are both read and written
+        readwrites = readers & writers
+        # Remove them from the readers and writers sets
+        readers = readers - readwrites
+        writers = writers - readwrites
+        # Convert sets to lists and sort so that we get consistent results
+        # between Python versions (for testing)
+        rlist = list(readers)
+        rlist.sort()
+        wlist = list(writers)
+        wlist.sort()
+        rwlist = list(readwrites)
+        rwlist.sort()
+
+        return (rlist, wlist, rwlist)
 
     @staticmethod
     def _create_schedule(name):
@@ -4725,47 +5083,63 @@ class Fparser2ASTProcessor(object):
         return new_schedule
 
     @staticmethod
-    def _parse_dimensions(dimensions):
+    def _parse_dimensions(dimensions, symbol_table):
         '''
         Parse the fparser dimension attribute into a shape list with
         the extent of each dimension.
 
         :param dimensions: fparser dimension attribute
-        :type dimensions:
+        :type dimensions: \
             :py:class:`fparser.two.Fortran2003.Dimension_Attr_Spec`
-        :returns: Shape of the attribute in row-major order (leftmost \
+        :param symbol_table: Symbol table of the declaration context.
+        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+        :returns: Shape of the attribute in column-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
                   an array dimension. If it is 'None' the extent of that \
                   dimension is unknown, otherwise it holds an integer \
-                  with the extent. If it is an empy list then the symbol \
+                  with the extent. If it is an empty list then the symbol \
                   represents a scalar.
         :rtype: list
         '''
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
         shape = []
-        for dim in walk_ast(dimensions.items, [Fortran2003.Assumed_Shape_Spec,
-                                               Fortran2003.Explicit_Shape_Spec,
-                                               Fortran2003.Assumed_Size_Spec]):
+
+        # Traverse shape specs in Depth-first-search order
+        for dim in walk_ast([dimensions], [Fortran2003.Assumed_Shape_Spec,
+                                           Fortran2003.Explicit_Shape_Spec,
+                                           Fortran2003.Assumed_Size_Spec]):
+
             if isinstance(dim, Fortran2003.Assumed_Size_Spec):
                 raise NotImplementedError(
                     "Could not process {0}. Assumed-size arrays"
                     " are not supported.".format(dimensions))
+
             elif isinstance(dim, Fortran2003.Assumed_Shape_Spec):
                 shape.append(None)
+
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
+                def _unsupported_type_error(dimensions):
+                    raise NotImplementedError(
+                        "Could not process {0}. Only scalar integer literals"
+                        " or symbols are supported for explicit shape array "
+                        "declarations.".format(dimensions))
                 if isinstance(dim.items[1],
                               Fortran2003.Int_Literal_Constant):
                     shape.append(int(dim.items[1].items[0]))
+                elif isinstance(dim.items[1], Fortran2003.Name):
+                    sym = symbol_table.lookup(dim.items[1].string)
+                    if sym.datatype != 'integer' or sym.shape:
+                        _unsupported_type_error(dimensions)
+                    shape.append(sym)
                 else:
-                    raise NotImplementedError(
-                        "Could not process {0}. Only integer "
-                        "literals are supported for explicit shape"
-                        " array declarations.".format(dimensions))
+                    _unsupported_type_error(dimensions)
+
             else:
                 raise InternalError(
                     "Reached end of loop body and {0} has"
                     " not been handled.".format(type(dim)))
+
         return shape
 
     def process_declarations(self, parent, nodes, arg_list):
@@ -4805,7 +5179,7 @@ class Fparser2ASTProcessor(object):
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
 
-            # Parse type_spec, currently just 'real', 'integer' and
+            # Parse type_spec, currently just 'real', 'integer', 'logical' and
             # 'character' intrinsic types are supported.
             datatype = None
             if isinstance(type_spec, Fortran2003.Intrinsic_Type_Spec):
@@ -4815,19 +5189,20 @@ class Fparser2ASTProcessor(object):
                     datatype = 'integer'
                 elif str(type_spec.items[0]).lower() == 'character':
                     datatype = 'character'
+                elif str(type_spec.items[0]).lower() == 'logical':
+                    datatype = 'boolean'
             if datatype is None:
                 raise NotImplementedError(
-                    "Could not process {0}. Only 'real', 'integer' "
-                    "and 'character' intrinsic types are supported."
-                    "".format(str(decl.items)))
+                        "Could not process {0}. Only 'real', 'integer', "
+                        "'logical' and 'character' intrinsic types are "
+                        "supported.".format(str(decl.items)))
 
-            # Parse declaration attributes
-            # If no dimension is provided, it is a scalar
-            shape = []
-            # If no intent attribute is provided, it is
-            # provisionally marked as a local variable (when the argument
-            # list is parsed, arguments with no explicit intent are updated
-            # appropriately).
+            # Parse declaration attributes:
+            # 1) If no dimension attribute is provided, it defaults to scalar.
+            attribute_shape = []
+            # 2) If no intent attribute is provided, it is provisionally
+            # marked as a local variable (when the argument list is parsed,
+            # arguments with no explicit intent are updated appropriately).
             scope = 'local'
             is_input = False
             is_output = False
@@ -4849,7 +5224,8 @@ class Fparser2ASTProcessor(object):
                             "Could not process {0}. Unrecognized attribute "
                             "'{1}'.".format(decl.items, str(attr)))
                 elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                    shape = self._parse_dimensions(attr)
+                    attribute_shape = self._parse_dimensions(
+                                            attr, parent.symbol_table)
                 else:
                     raise NotImplementedError(
                         "Could not process {0}. Unrecognized attribute "
@@ -4858,24 +5234,31 @@ class Fparser2ASTProcessor(object):
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
             for entity in iterateitems(entities):
-                (name, array_spec, char_len, initialization) = entity.items
-                if array_spec is not None:
-                    raise NotImplementedError("Could not process {0}. "
-                                              "Array specifications after the"
-                                              " variable name are not "
-                                              "supported.".format(decl.items))
-                if initialization is not None:
-                    raise NotImplementedError("Could not process {0}. "
-                                              "Initializations on the"
-                                              " declaration statements are not"
-                                              " supported.".format(decl.items))
-                if char_len is not None:
-                    raise NotImplementedError("Could not process {0}. "
-                                              "Character length specifications"
-                                              " are not supported."
-                                              "".format(decl.items))
-                parent.symbol_table.declare(str(name), datatype, shape,
-                                            scope, is_input, is_output)
+                (name, array_spec, char_len, initialisation) = entity.items
+
+                # If the entity has an array-spec shape, it has priority.
+                # Otherwise use the declaration attribute shape.
+                if (array_spec is not None):
+                    entity_shape = self._parse_dimensions(
+                                        array_spec, parent.symbol_table)
+                else:
+                    entity_shape = attribute_shape
+
+                if (initialisation is not None):
+                    raise NotImplementedError(
+                        "Could not process {0}. Initialisations on the"
+                        " declaration statements are not supported."
+                        "".format(decl.items))
+
+                if (char_len is not None):
+                    raise NotImplementedError(
+                        "Could not process {0}. Character length "
+                        "specifications are not supported."
+                        "".format(decl.items))
+
+                parent.symbol_table.declare(
+                    str(name), datatype, entity_shape, scope, is_input,
+                    is_output)
 
         try:
             arg_strings = [x.string for x in arg_list]
@@ -4919,7 +5302,7 @@ class Fparser2ASTProcessor(object):
                 if psy_child:
                     self.nodes_to_code_block(parent, code_block_nodes)
                     parent.addchild(psy_child)
-                # If psy_child is not initialized but it didn't produce a
+                # If psy_child is not initialised but it didn't produce a
                 # NotImplementedError, it means it is safe to ignore it.
 
         # Complete any unfinished code-block
@@ -4930,7 +5313,7 @@ class Fparser2ASTProcessor(object):
         Create a PSyIR node representing the supplied fparser 2 node.
 
         :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.Base`
+        :type child: :py:class:`fparser.two.utils.Base`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :raises NotImplementedError: There isn't a handler for the provided \
@@ -4954,15 +5337,14 @@ class Fparser2ASTProcessor(object):
                 raise NotImplementedError()
         return handler(child, parent)
 
-    def _ignore_handler(self, node, parent):  # pylint: disable=unused-argument
+    def _ignore_handler(self, *_):
         '''
         This handler returns None indicating that the associated
         fparser2 node can be ignored.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.Base`
-        :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyGen.Node`
+        Note that this method contains ignored arguments to comform with
+        the handler(node, parent) method interface.
+
         :returns: None
         :rtype: NoneType
         '''
@@ -4972,8 +5354,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 If_Stmt to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.If_Stmt`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.If_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -4986,18 +5368,33 @@ class Fparser2ASTProcessor(object):
                            nodes_parent=node)
         return ifblock
 
+    def _return_handler(self, _, parent):
+        '''
+        Transforms an fparser2 Return_Stmt to the PSyIR representation.
+
+        Note that this method contains ignored arguments to comform with
+        the handler(node, parent) method interface.
+
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :return: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.Return`
+        '''
+        return Return(parent=parent)
+
     def _assignment_handler(self, node, parent):
         '''
         Transforms an fparser2 Assignment_Stmt to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :returns: PSyIR representation of node
+
+        :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyGen.Assignment`
         '''
-        assignment = Assignment(parent=parent)
+        assignment = Assignment(node, parent=parent)
         self.process_nodes(parent=assignment, nodes=[node.items[0]],
                            nodes_parent=node)
         self.process_nodes(parent=assignment, nodes=[node.items[2]],
@@ -5005,12 +5402,32 @@ class Fparser2ASTProcessor(object):
 
         return assignment
 
+    def _unary_op_handler(self, node, parent):
+        '''
+        Transforms an fparser2 UnaryOpBase to the PSyIR representation.
+
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.UnaryOpBase`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :return: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+        '''
+        # Get the operator
+        operator = node.items[0]
+
+        unary_op = UnaryOperation(operator, parent=parent)
+        self.process_nodes(parent=unary_op, nodes=[node.items[1]],
+                           nodes_parent=node)
+
+        return unary_op
+
     def _binary_op_handler(self, node, parent):
         '''
         Transforms an fparser2 BinaryOp to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.BinaryOpBase`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.BinaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5031,8 +5448,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Name to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Name`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Name`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5046,8 +5463,8 @@ class Fparser2ASTProcessor(object):
         This means ignoring the parentheis and process the fparser2 children
         inside.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Parenthesis`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Parenthesis`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5062,8 +5479,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 Part_Ref to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.Fortran2003.Part_Ref`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5091,8 +5508,8 @@ class Fparser2ASTProcessor(object):
         '''
         Transforms an fparser2 NumberBase to the PSyIR representation.
 
-        :param child: node in fparser2 AST.
-        :type child:  :py:class:`fparser.two.utils.NumberBase`
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.utils.NumberBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
         :returns: PSyIR representation of node
@@ -5104,17 +5521,18 @@ class Fparser2ASTProcessor(object):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in row-major order), the scope and for
+    the datatype, the shape (in column-major order), the scope and for
     global-scoped symbols whether the data is already defined and/or survives
     after the kernel.
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
-    :param list shape: Shape of the symbol in row-major order (leftmost \
+    :param list shape: Shape of the symbol in column-major order (leftmost \
                        index is contiguous in memory). Each entry represents \
                        an array dimension. If it is 'None' the extent of that \
                        dimension is unknown, otherwise it holds an integer \
-                       with the extent. If it is an empy list then the symbol \
+                       literal or a reference to an integer symbol with the \
+                       extent. If it is an empty list then the symbol \
                        represents a scalar.
     :param str scope: It is 'local' if the symbol just exists inside the \
                       kernel scope or 'global_*' if the data survives outside \
@@ -5136,7 +5554,7 @@ class Symbol(object):
     # Tuple with the valid values for the access attribute.
     valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.
-    valid_data_types = ('real', 'integer', 'character')
+    valid_data_types = ('real', 'integer', 'character', 'boolean')
 
     def __init__(self, name, datatype, shape=[], scope='local',
                  is_input=False, is_output=False):
@@ -5145,16 +5563,24 @@ class Symbol(object):
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
-                "Symbol can only be initialized with {0} datatypes."
+                "Symbol can only be initialised with {0} datatypes."
                 "".format(str(Symbol.valid_data_types)))
         self._datatype = datatype
 
         if not isinstance(shape, list):
             raise TypeError("Symbol shape attribute must be a list.")
 
-        if False in [isinstance(x, (type(None), int)) for x in shape]:
-            raise TypeError("Symbol shape list elements can only be "
-                            "'integer' or 'None'.")
+        for dimension in shape:
+            if isinstance(dimension, Symbol):
+                if dimension.datatype != "integer" or dimension.shape:
+                    raise TypeError(
+                        "Symbols that are part of another symbol shape can "
+                        "only be scalar integers, but found '{0}'."
+                        "".format(str(dimension)))
+            elif not isinstance(dimension, (type(None), int)):
+                raise TypeError("Symbol shape list elements can only be "
+                                "'Symbol', 'integer' or 'None'.")
+
         self._shape = shape
 
         # The following attributes have setter methods (with error checking)
@@ -5234,11 +5660,13 @@ class Symbol(object):
     @property
     def shape(self):
         '''
-        :returns: Shape of the symbol in row-major order (leftmost \
+        :returns: Shape of the symbol in column-major order (leftmost \
                   index is contiguous in memory). Each entry represents \
-                  an array dimension. If not None then it holds the \
-                  extent of that dimension. If it is an empy list it \
-                  represents an scalar.
+                  an array dimension. If it is 'None' the extent of that \
+                  dimension is unknown, otherwise it holds an integer \
+                  literal or a reference to an integer symbol with the \
+                  extent. If it is an empty list then the symbol \
+                  represents a scalar.
         :rtype: list
         '''
         return self._shape
@@ -5292,6 +5720,8 @@ class Symbol(object):
             code = code + "int "
         elif self.datatype == "character":
             code = code + "char "
+        elif self.datatype == "boolean":
+            code = code + "bool "
         else:
             raise NotImplementedError(
                 "Could not generate the C definition for the variable '{0}', "
@@ -5307,8 +5737,26 @@ class Symbol(object):
         return code
 
     def __str__(self):
-        return (self.name + "<" + self.datatype + ", " + str(self.shape) +
-                ", " + self.scope + ">")
+        ret = self.name + ": <" + self.datatype + ", " + self.scope + ", "
+        if self.shape:
+            ret += "Array["
+            for dimension in self.shape:
+                if isinstance(dimension, Symbol):
+                    ret += dimension.name
+                elif isinstance(dimension, int):
+                    ret += str(dimension)
+                elif dimension is None:
+                    ret += "'Unknown bound'"
+                else:
+                    raise InternalError(
+                        "Symbol shape list elements can only be 'Symbol', "
+                        "'integer' or 'None', but found '{0}'."
+                        "".format(type(dimension)))
+                ret += ", "
+            ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
+        else:
+            ret += "Scalar"
+        return ret + ">"
 
 
 class SymbolTable(object):
@@ -5338,11 +5786,14 @@ class SymbolTable(object):
 
         :param str name: Name of the symbol.
         :param str datatype: Datatype of the symbol.
-        :param list shape: Shape of the symbol in row-major order (leftmost \
-                       index is contiguous in memory). Each entry represents \
-                       an array dimension. If not None then it holds the \
-                       extent of that dimension. If it is an empy list it \
-                       represents an scalar.
+        :param list shape: Shape of the symbol in column-major order \
+                           (leftmost index is contiguous in memory). Each \
+                           entry represents an array dimension. If it is \
+                           'None' the extent of that dimension is unknown, \
+                           otherwise it holds an integer literal or a \
+                           reference to an integer symbol with the extent. \
+                           If it is an empty list then the symbol represents \
+                           a scalar.
         :param str scope: It is 'local' if the symbol just exists inside the \
                           kernel scope or 'global_*' if the data survives \
                           outside of the kernel scope. Note that \
@@ -5554,6 +6005,13 @@ class CodeBlock(Node):
         # the list itself is a temporary product of the process of converting
         # from the fparser2 AST to the PSyIR.
         self._statements = statements[:]
+        # Store references back into the fparser2 AST
+        if statements:
+            self._ast = self._statements[0]
+            self._ast_end = self._statements[-1]
+        else:
+            self._ast = None
+            self._ast_end = None
 
     @property
     def coloured_text(self):
@@ -5598,8 +6056,8 @@ class Assignment(Node):
     :param parent: the parent node of this Assignment in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
-    def __init__(self, parent=None):
-        super(Assignment, self).__init__(parent=parent)
+    def __init__(self, ast=None, parent=None):
+        super(Assignment, self).__init__(ast=ast, parent=parent)
 
     @property
     def coloured_text(self):
@@ -5639,8 +6097,8 @@ class Assignment(Node):
         if len(self.children) != 2:
             raise GenerationError("Assignment malformed or "
                                   "incomplete. It should have exactly 2 "
-                                  "children, but it found {0}."
-                                  "".format(str(len(self.children))))
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
 
         return self.indent(indent) \
             + self.children[0].gen_c_code() + " = " \
@@ -5694,18 +6152,82 @@ class Reference(Node):
         return self._reference
 
 
+class UnaryOperation(Node):
+    '''
+    Node representing a UnaryOperation expression. As such it has one operand
+    as child 0, and an attribute with the operator type.
+
+    :param str operator: string representing the unary operator.
+    :param parent: the parent node of this UnaryOperation in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, operator, parent=None):
+        super(UnaryOperation, self).__init__(parent=parent)
+        # TODO: (Issue #339) Create an Operator entity to have more robust
+        # operators than the current string.
+        self._operator = operator
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("UnaryOperation",
+                       SCHEDULE_COLOUR_MAP["UnaryOperation"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "UnaryOperation[operator:'" + self._operator + "']\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :return: C language code representing the node.
+        :rtype: str
+        :raises GenerationError: if the node or its children are invalid.
+        '''
+        if len(self.children) != 1:
+            raise GenerationError("UnaryOperation malformed or "
+                                  "incomplete. It should have exactly 1 "
+                                  "child, but found {0}."
+                                  "".format(len(self.children)))
+
+        return "(" + self._operator + " " \
+            + self._children[0].gen_c_code() + ")"
+
+
 class BinaryOperation(Node):
     '''
     Node representing a BinaryOperator expression. As such it has two operands
     as children 0 and 1, and a attribute with the operator type.
 
-    :param ast: node in the fparser2 AST representing the binary operator.
-    :type ast: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
+    :param operator: node in the fparser2 AST representing the binary operator.
+    :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
     :param parent: the parent node of this BinaryOperator in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
+        self._ast = operator
         self._operator = operator
 
     @property
@@ -5744,13 +6266,14 @@ class BinaryOperation(Node):
         :param int indent: Depth of indent for the output string.
         :returns: C language code representing the node.
         :rtype: str
+        :raises GenerationError: if the node or its children are invalid.
         '''
 
         if len(self.children) != 2:
             raise GenerationError("BinaryOperation malformed or "
                                   "incomplete. It should have exactly 2 "
-                                  "children, but it found {0}."
-                                  "".format(str(len(self.children))))
+                                  "children, but found {0}."
+                                  "".format(len(self.children)))
 
         return "(" + self._children[0].gen_c_code() + " " \
             + self._operator + " " \
@@ -5833,7 +6356,7 @@ class Literal(Node):
     '''
     Node representing a Literal
 
-    :param str value: string representing the literal value.
+    :param str value: String representing the literal value.
     :param parent: the parent node of this Literal in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
@@ -5873,3 +6396,47 @@ class Literal(Node):
         :rtype: str
         '''
         return self._value
+
+
+class Return(Node):
+    '''
+    Node representing a Return statement (subroutine break without return
+    value).
+
+    :param parent: the parent node of this Return in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, parent=None):
+        super(Return, self).__init__(parent=parent)
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("Return", SCHEDULE_COLOUR_MAP["Return"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[]")
+
+    def __str__(self):
+        return "Return[]\n"
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :return: C language code representing the node.
+        :rtype: str
+        '''
+        return "return;"

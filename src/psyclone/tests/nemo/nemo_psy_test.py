@@ -41,13 +41,11 @@ from __future__ import print_function, absolute_import
 import os
 import pytest
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory, InternalError, GenerationError, \
-    CodeBlock
+from psyclone.psyGen import PSyFactory, InternalError
 from psyclone import nemo
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
-from fparser.two.utils import walk_ast
 
 # Constants
 API = "nemo"
@@ -130,8 +128,6 @@ def test_multi_kern():
             "one kernel but this loop contains 2" in str(err))
 
 
-@pytest.mark.xfail(reason="Do not currently check for previous variable"
-                   "declarations when adding loop variables")
 def test_implicit_loop_assign():
     ''' Check that we only identify an implicit loop when array syntax
     is used as part of an assignment statement. '''
@@ -142,16 +138,15 @@ def test_implicit_loop_assign():
     loops = sched.walk(sched.children, nemo.NemoLoop)
     sched.view()
     gen = str(ast).lower()
-    print(gen)
-    # Our implicit loops gives us 5 explicit loops
-    assert len(loops) == 5
+    # We should have two implicit loops
+    assert len(loops) == 2
     assert isinstance(sched.children[0], nemo.NemoLoop)
+    # Check the __str__ property of the implicit loop
+    txt = str(sched.children[0])
+    assert "NemoImplicitLoop[zftv(:, :, :)]" in txt
     # The other statements (that use array syntax) are not assignments
     # and therefore are not implicit loops
-    assert not(isinstance(sched.children[1], nemo.NemoLoop))
-    # Check that the loop variables have been declared just once
-    for var in ["psy_ji", "psy_jj", "psy_jk"]:
-        assert gen.count("integer :: {0}".format(var)) == 1
+    assert not isinstance(sched.children[1], nemo.NemoLoop)
 
 
 def test_complex_code():
@@ -163,8 +158,6 @@ def test_complex_code():
     sched = psy.invokes.invoke_list[0].schedule
     loops = sched.walk(sched.children, nemo.NemoLoop)
     assert len(loops) == 5
-    cblocks = sched.walk(sched.children, CodeBlock)
-    assert len(cblocks) == 4
     kerns = sched.kern_calls()
     assert len(kerns) == 1
     # The last loop does not contain a kernel

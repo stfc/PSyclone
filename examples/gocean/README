@@ -51,3 +51,18 @@ a compilable and executable OpenACC code. Note that compiling this
 example requires that the dl_esm_inf library (github.com/stfc/dl_esm_inf)
 be installed first.
 
+Example 3
+---------
+
+Illustrates the use of PSyclone to generate an OpenCL driver layer for
+a four-kernel invoke. Currently the kernels themselves must be converted
+from Fortran to OpenCL manually but work is in progress to automate this
+(Issue #249).
+
+Example 4
+---------
+
+Examples of the application of kernel transforms to kernels that access
+data and/or routines from other Fortran modules. Note that this is not
+yet supported and is the subject of Issues #323 and #342.
+

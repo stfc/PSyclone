@@ -72,6 +72,40 @@
 	Introduces a new Schedule base class which KernelSchedule and
 	InvokeSchedule then sub-class.
 
+	24) #332 and PR #333. Bug fix for parsing of simple arithmetic
+	expressions in kernel argument lists in the Algorithm layer.
+
+	25) #337 and PR #341. Bug fix to make matching of kernel names
+	in module use statements (in the Algorithm) case insensitive.
+
+	26) #268 and PR #306. Restructure of PSy and stub code generation.
+
+	27) #248 and PR #287. Extends OpenACC transformation support to
+	the nemo api, adds transformations for OpenACC data and kernel
+	directives and adds a sequential option to the OpenACC loop
+	directive transformation.
+
+	28) #319 and PR #331. Bug fix to make matching of kernel names
+	in module use statements (in the Kernel) case insensitive.
+
+	29) #349 Bug fix for unicode characters in comment strings for
+	Python 3 to 3.6.
+
+	30) #320 and PR #334. Remove obsolete GUI-related code.
+
+	31) #322 and PR #343. Add gocean1.0 api example which contains
+	kernels with use statements.
+
+        32) #345 and PR #352. Makes the search for kernels within the parse
+        tree case insensitive.
+
+        33) #350 and PR #351. Bug fix in the stencil lookup for field
+        vectors in the Dynamo0.3 API.
+
+	34) #336 and PR #338. PSyIR Fortran array parsing support (logical
+	type, a(xx) dimension specifications and array size can be an
+	integer variable).
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
@@ -164,6 +198,9 @@ release 1.7.0 20th December 2018
 
         27) #158 and PR #253. Fix to remove unnecessary halo exchanges
 	related to GH_INC updates to kernel arguments.
+
+	28) #317 and PR #330. Fix to allow module use statements to be
+	added to functions.
 
 release 1.6.1 6th December 2018
 
