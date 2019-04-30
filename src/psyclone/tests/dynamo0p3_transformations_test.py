@@ -7356,7 +7356,7 @@ def test_kern_const_anyspace_apply(capsys):
     _, _ = kctrans.apply(kernel, element_order=0)
     result, _ = capsys.readouterr()
     assert result == (
-        "    Skipping dofs, arg position 9, function_space any_space_1\n"
+        "    Skipping dofs, arg position 9, function space any_space_1\n"
         "    Modify dofs, arg position 12, function space w2, value 6\n"
         "    Modify dofs, arg position 15, function space w3, value 1\n"
         "    Modify dofs, arg position 18, function space wtheta, value 2\n"
@@ -7384,7 +7384,7 @@ def test_kern_const_anyw2_apply(capsys):
     _, _ = kctrans.apply(kernel, element_order=0)
     result, _ = capsys.readouterr()
     assert result == (
-        "    Skipping dofs, arg position 5, function_space any_w2\n")
+        "    Skipping dofs, arg position 5, function space any_w2\n")
 
 
 # space_to_dofs values
@@ -7493,7 +7493,7 @@ def test_kern_const_invalid_dofs(monkeypatch):
     monkeypatch.setattr(Dynamo0p3KernelConstTrans, "space_to_dofs",
                         {"wa": [], "wb": []})
 
-    with pytest.raises(TransformationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         _, _ = kctrans.apply(kernel, element_order=0)
     assert "Unsupported function space 'w1' found. Expecting one of " \
         in str(excinfo.value)

@@ -5471,30 +5471,54 @@ def test_kernel_args_has_op():
     assert "op_type must be a valid operator type" in str(excinfo)
 
 
-def test_kerncallarglist_arglist_error():
-    '''Check that we raise an exception if we call the arglist method in
-    kerncallarglist without first calling the generate method'''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "1.0.1_single_named_invoke.f90"),
-            api=TEST_API)
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=distmem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        if distmem:
-            index = 3
-        else:
-            index = 0
-        loop = schedule.children[index]
-        kernel = loop.children[0]
-        create_arg_list = KernCallArgList(kernel)
-        with pytest.raises(GenerationError) as excinfo:
-            _ = create_arg_list.arglist
-        assert (
-            "Internal error. The argument list in KernCallArgList:arglist() "
-            "is empty. Has the generate() method been "
-            "called?") in str(excinfo.value)
+def test_kerncallarglist_args_error(dist_mem):
+    '''Check that we raise an exception if we call the methods that return
+    information in kerncallarglist without first calling the generate
+    method
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.0.1_single_named_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if dist_mem:
+        index = 3
+    else:
+        index = 0
+    loop = schedule.children[index]
+    kernel = loop.children[0]
+    create_arg_list = KernCallArgList(kernel)
+
+    # nlayers_positions method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.nlayers_positions
+    assert (
+        "KernCallArgList: the generate() method should be called before "
+        "the nlayers_positions() method") in str(excinfo.value)
+
+    # nqp_positions method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.nqp_positions
+    assert (
+        "KernCallArgList: the generate() method should be called before "
+        "the nqp_positions() method") in str(excinfo.value)
+
+    # ndf_positions method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.ndf_positions
+    assert (
+        "KernCallArgList: the generate() method should be called before "
+        "the ndf_positions() method") in str(excinfo.value)
+
+    # arglist method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.arglist
+    assert (
+        "KernCallArgList: the generate() method should be called before "
+        "the arglist() method") in str(excinfo.value)
 
 
 def test_multi_anyw2():
@@ -6323,8 +6347,7 @@ def test_kerncallarglist_positions_noquad(dist_mem):
     kernel = loop.children[0]
     create_arg_list = KernCallArgList(kernel)
     create_arg_list.generate()
-    assert len(create_arg_list.nlayers_positions) == 1
-    assert create_arg_list.nlayers_positions[0] == 1
+    assert create_arg_list.nlayers_positions == [1]
     assert not create_arg_list.nqp_positions
     assert len(create_arg_list.ndf_positions) == 3
     assert create_arg_list.ndf_positions[0] == (7, "w1")
@@ -6351,8 +6374,7 @@ def test_kerncallarglist_positions_quad(dist_mem):
     kernel = loop.children[0]
     create_arg_list = KernCallArgList(kernel)
     create_arg_list.generate()
-    assert len(create_arg_list.nlayers_positions) == 1
-    assert create_arg_list.nlayers_positions[0] == 1
+    assert create_arg_list.nlayers_positions == [1]
     assert len(create_arg_list.nqp_positions) == 1
     assert create_arg_list.nqp_positions[0]["horizontal"] == 21
     assert create_arg_list.nqp_positions[0]["vertical"] == 22

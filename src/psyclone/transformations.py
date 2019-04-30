@@ -46,6 +46,7 @@ import six
 from psyclone.psyGen import Transformation, InternalError
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
+from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -2475,9 +2476,10 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
     '''
 
-    # ndofs for different function spaces on a quadrilateral
-    # element for different orders. Formulas kindly provided by
-    # Tom Melvin.
+    # ndofs for different function spaces on a quadrilateral element
+    # for different orders. Formulas kindly provided by Tom
+    # Melvin. See the Qr table at http://femtable.org/background.html,
+    # for computed values of w0, w1, w2 and w3 up to order 7.
     space_to_dofs = {"w3":     (lambda n: (n+1)**3),
                      "w2":     (lambda n: 3*(n+2)*(n+1)**2),
                      "w1":     (lambda n: 3*(n+2)**2*(n+1)),
@@ -2512,9 +2514,11 @@ class Dynamo0p3KernelConstTrans(Transformation):
         arguments are provided to mirror the namelist values that are
         input into an LFRic model when it is run.
 
-        The number of quadrature points (for horizontal and vertical)
-        are currently set to the element_order + 3 in the LFRic
-        infrastructure so their value is derived.
+        Quadrature support is currently limited to XYoZ in ths
+        transformation. In the case of XYoZ the number of quadrature
+        points (for horizontal and vertical) are set to the
+        element_order + 3 in the LFRic infrastructure so their value
+        is derived.
 
         :param node: A kernel node
         :type node: :py:obj:`psyclone.psygen.DynKern`
@@ -2523,14 +2527,14 @@ class Dynamo0p3KernelConstTrans(Transformation):
         particular function space. Currently only "quadrilateral" is \
         supported which is also the default value.
         :type int element_order: the order of the cell. In \
-        combinations with cellshape, this determines the number of \
+        combination with cellshape, this determines the number of \
         dofs a field has for a particular function space. If it is set \
         to None (the default) then the dofs values are not set as \
         constants in the kernel, otherwise they are.
-        :type int number_of_layers: the number of layers used for this \
-        particular run. If this is set to None (the default) then the \
-        nlayers value is not set as a constant in the kernel, \
-        otherwise it is.
+        :type int number_of_layers: the number of vertical layers in \
+        the LFRic model mesh used for this particular run. If this is \
+        set to None (the default) then the nlayers value is not set as \
+        a constant in the kernel, otherwise it is.
         :type bool quadrature: whether the number of quadrature \
         points values are set as constants in the kernel (True) or not \
         (False). The default is False.
@@ -2587,25 +2591,29 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
-            for (position, space) in arg_list_info.ndf_positions:
-                if "any_" in space.lower():  # skip any_space_* and any_w2
+            for info in arg_list_info.ndf_positions:
+                if info.function_space.lower() in (VALID_ANY_SPACE_NAMES +
+                                                   ["any_w2"]):
+                    # skip any_space_* and any_w2
                     print(
-                        "    Skipping dofs, arg position {0}, function_space "
-                        "{1}".format(position, space))
+                        "    Skipping dofs, arg position {0}, function space "
+                        "{1}".format(info.position, info.function_space))
                 else:
                     try:
                         print(
                             "    Modify dofs, arg position {0}, function "
                             "space {1}, value {2}".format(
-                                position, space,
+                                info.position, info.function_space,
                                 Dynamo0p3KernelConstTrans.
-                                space_to_dofs[space](element_order)))
+                                space_to_dofs[info.function_space]
+                                (element_order)))
                     except KeyError:
-                        raise TransformationError(
+                        raise InternalError(
                             "Error in Dynamo0p3KernelConstTrans "
                             "transformation. Unsupported function space "
                             "'{0}' found. Expecting one of {1}."
-                            "".format(space, Dynamo0p3KernelConstTrans.
+                            "".format(info.function_space,
+                                      Dynamo0p3KernelConstTrans.
                                       space_to_dofs.keys()))
         return schedule, keep
 
@@ -2616,21 +2624,14 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         :param node: A dynamo 0.3 kernel node
         :type node: :py:obj:`psyclone.psygen.DynKern`
-        :type str cellshape: the shape of the cells. This is provided \
-        as it helps determine the number of dofs a field has for a \
-        particular function space. Currently only "quadrilateral" is \
-        supported.
-        :type int element_order: the order of the cell. In combination \
-        with cellshape this determines the number of dofs a field has \
-        for a particular function space.
-        :type int number_of_layers: the number of layers used for this \
-        particular run.
-        :type bool quadrature: whether constant number of quadrature \
-        points values are set in the kernel (True) or not (False).
-
+        :type str cellshape: the shape of the elements/cells.
+        :type int element_order: the order of the elements/cells.
+        :type int number_of_layers: the number of layers to use.
+        :type bool quadrature: whether quadrature dimension sizes \
+        should or shouldn't be set as constants in a kernel.
         :raises TransformationError: if the node argument is not a \
         dynamo 0.3 kernel, the cellshape argument is not set to \
-        "quadrilateral, the element_order argument is not a 0 or a \
+        "quadrilateral", the element_order argument is not a 0 or a \
         positive integer, the number of layers argument is not a \
         positive integer, the quadrature argument is not a boolean, \
         neither element order nor number of layers arguments are set \
@@ -2688,7 +2689,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             raise TransformationError(
                 "Error in Dynamo0p3KernelConstTrans transformation. If "
                 "quadrature is set then element_order must also be set (as "
-                "the value of the former is derived from the latter.")
+                "the values of the former are derived from the latter.")
 
 
 class ACCEnterDataTrans(Transformation):

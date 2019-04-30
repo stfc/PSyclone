@@ -6637,6 +6637,7 @@ class ArgOrdering(object):
     a Kernel call.'''
     def __init__(self, kern):
         self._kern = kern
+        self._generate_called = False
 
     def generate(self):
         '''
@@ -6647,6 +6648,7 @@ class ArgOrdering(object):
         :raises GenerationError: if the kernel arguments break the
                                  rules for the Dynamo 0.3 API.
         '''
+        self._generate_called = True
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
             self.cell_position()
@@ -7000,6 +7002,8 @@ class KernCallArgList(ArgOrdering):
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
 
     '''
+    NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
+
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
         self._arglist = []
@@ -7156,8 +7160,9 @@ class KernCallArgList(ArgOrdering):
         # There is currently one argument: "ndf"
         ndf_name = get_fs_ndf_name(function_space)
         self._arglist.append(ndf_name)
-        self._ndf_positions.append((len(self._arglist),
-                                    function_space.orig_name))
+        self._ndf_positions.append(
+            KernCallArgList.NdfInfo(position=len(self._arglist),
+                                    function_space=function_space.orig_name))
 
     def fs_compulsory_field(self, function_space):
         '''add compulsory arguments to the argument list, when there is a
@@ -7313,11 +7318,17 @@ class KernCallArgList(ArgOrdering):
         '''
         :return: the position(s) in the argument list of the \
         variable(s) that passes the number of layers. The generate \
-        function must be called first otherwise an empty list will be \
-        returned.
+        method must be called first.
         :rtype: list of int.
 
+        :raises InternalError: if the generate() method has not been
+        called.
+
         '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the nlayers_positions() method")
         return self._nlayers_positions
 
     @property
@@ -7330,11 +7341,17 @@ class KernCallArgList(ArgOrdering):
         being the keys to the dictionaries and their position in the \
         argument list being the values. At the moment only XYoZ is \
         supported (which has horizontal and vertical quadrature \
-        points). The generate function must be called first otherwise \
-        an empty list will be returned.
+        points). The generate method must be called first.
         :rtype: [{str: int, ...}]
 
+        :raises InternalError: if the generate() method has not been
+        called.
+
         '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the nqp_positions() method")
         return self._nqp_positions
 
     @property
@@ -7343,26 +7360,34 @@ class KernCallArgList(ArgOrdering):
         :return: the position(s) in the argument list and the function \
         space(s) associated with the variable(s) that pass(es) the \
         number of degrees of freedom for the function space. The \
-        generate function must be called first otherwise an empty list \
-        will be returned.
-        :rtype: list of (int, str).
+        generate method must be called first.
+        :rtype: list of namedtuple (position=int, function_space=str).
+
+        :raises InternalError: if the generate() method has not been
+        called.
 
         '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the ndf_positions() method")
         return self._ndf_positions
 
     @property
     def arglist(self):
         '''
-        :return: the kernel argument list. The generate function must be \
-                 called first.
+        :return: the kernel argument list. The generate method must be \
+        called first.
         :rtype: list of str.
 
-        :raises GenerationError: if the argument list is empty.
+        :raises InternalError: if the generate() method has not been
+        called.
+
         '''
-        if not self._arglist:
-            raise GenerationError(
-                "Internal error. The argument list in KernCallArgList:"
-                "arglist() is empty. Has the generate() method been called?")
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the arglist() method")
         return self._arglist
 
     @property
