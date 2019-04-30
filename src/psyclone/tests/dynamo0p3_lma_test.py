@@ -42,6 +42,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
+from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
@@ -707,7 +708,7 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
     loop = schedule.children[0]
     call = loop.children[0]
     arg = call.arguments.args[0]
-    arg._access = "gh_read"
+    arg._access = AccessType.READ
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("applies boundary conditions to an operator. However its "

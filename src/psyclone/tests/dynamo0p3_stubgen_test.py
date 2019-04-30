@@ -98,12 +98,12 @@ def test_dynscalars_err(monkeypatch):
     arg = kernel.arguments.args[1]
     arg._type = "invalid-scalar-type"
     # Monkeypatch the list of supported scalar types to include this one
-    monkeypatch.setattr(dynamo0p3, "VALID_SCALAR_NAMES",
+    monkeypatch.setattr(dynamo0p3, "GH_VALID_SCALAR_NAMES",
                         ["gh_real", "gh_integer", "invalid-scalar-type"])
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(kernel)
-    assert ("Scalar type 'invalid-scalar-type' is in VALID_SCALAR_NAMES but "
-            "not handled" in str(err))
+    assert ("Scalar type 'invalid-scalar-type' is in GH_VALID_SCALAR_NAMES "
+            "but not handled" in str(err))
 
 
 def test_kernel_stub_ind_dofmap_errors():
