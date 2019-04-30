@@ -6306,9 +6306,9 @@ def test_dyncelliterators_err(monkeypatch):
 
 
 def test_kerncallarglist_positions_noquad(dist_mem):
-    '''Check that the positions methods (nlayers_positions,
-    nqp_h_positions, nqp_v_positions, ndf_positions) return the
-    expected values when a kernel has no quadrature.
+    '''Check that the positions methods (nlayers_positions, nqp_positions,
+    ndf_positions) return the expected values when a kernel has no
+    quadrature.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -6325,8 +6325,7 @@ def test_kerncallarglist_positions_noquad(dist_mem):
     create_arg_list.generate()
     assert len(create_arg_list.nlayers_positions) == 1
     assert create_arg_list.nlayers_positions[0] == 1
-    assert not create_arg_list.nqp_h_positions
-    assert not create_arg_list.nqp_v_positions
+    assert not create_arg_list.nqp_positions
     assert len(create_arg_list.ndf_positions) == 3
     assert create_arg_list.ndf_positions[0] == (7, "w1")
     assert create_arg_list.ndf_positions[1] == (10, "w2")
@@ -6335,8 +6334,8 @@ def test_kerncallarglist_positions_noquad(dist_mem):
 
 def test_kerncallarglist_positions_quad(dist_mem):
     '''Check that the positions methods (nlayers_positions,
-    nqp_h_positions, nqp_v_positions, ndf_positions) return the
-    expected values when a kernel has quadrature.
+    nqp_positions, nqp_positions, ndf_positions) return the
+    expected values when a kernel has xyoz quadrature.
 
     '''
     _, invoke_info = parse(
@@ -6354,10 +6353,9 @@ def test_kerncallarglist_positions_quad(dist_mem):
     create_arg_list.generate()
     assert len(create_arg_list.nlayers_positions) == 1
     assert create_arg_list.nlayers_positions[0] == 1
-    assert len(create_arg_list.nqp_h_positions) == 1
-    assert create_arg_list.nqp_h_positions[0] == 21
-    assert len(create_arg_list.nqp_v_positions) == 1
-    assert create_arg_list.nqp_v_positions[0] == 22
+    assert len(create_arg_list.nqp_positions) == 1
+    assert create_arg_list.nqp_positions[0]["horizontal"] == 21
+    assert create_arg_list.nqp_positions[0]["vertical"] == 22
     assert len(create_arg_list.ndf_positions) == 3
     assert create_arg_list.ndf_positions[0] == (8, "w1")
     assert create_arg_list.ndf_positions[1] == (12, "w2")

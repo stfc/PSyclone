@@ -45,7 +45,7 @@
 from __future__ import print_function, absolute_import
 import abc
 import os
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import fparser
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -2129,7 +2129,6 @@ class DynOrientations(DynCollection):
     '''
     # We use a named-tuple to manage the storage of the various quantities
     # that we require. This is neater and more robust than a dict.
-    from collections import namedtuple
     Orientation = namedtuple("Orientation", ["name", "field",
                                              "function_space"])
 
@@ -4019,7 +4018,6 @@ class DynBoundaryConditions(DynCollection):
     '''
     # Define a BoundaryDofs namedtuple to help us manage the arrays that
     # are required.
-    from collections import namedtuple
     BoundaryDofs = namedtuple("BoundaryDofs", ["argument", "function_space"])
 
     def __init__(self, node):
@@ -6993,10 +6991,10 @@ class ArgOrdering(object):
 
 class KernCallArgList(ArgOrdering):
     '''Creates the argument list required to call kernel "kern" from the
-    PSy-layer and captures the positions in the argument list of
-    nlayers argument, number of quadrature arguments and number of
-    degrees of freedom arguments. The ordering and type of arguments
-    is captured by the base class.
+    PSy-layer and captures the positions of the following arguments in
+    the argument list: nlayers, number of quadrature points and number
+    of degrees of freedom. The ordering and type of arguments is
+    captured by the base class.
 
     :param kern: The kernel that is being called.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
@@ -7007,8 +7005,7 @@ class KernCallArgList(ArgOrdering):
         self._arglist = []
         self._name_space_manager = NameSpaceFactory().create()
         self._nlayers_positions = []
-        self._nqp_h_positions = []
-        self._nqp_v_positions = []
+        self._nqp_positions = []
         self._ndf_positions = []
 
     def cell_position(self):
@@ -7292,10 +7289,13 @@ class KernCallArgList(ArgOrdering):
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
-        self._nqp_h_positions.append(len(self._arglist) + 1)
-        self._nqp_v_positions.append(len(self._arglist) + 2)
-        self._arglist.extend(self._kern.qr_args)
+        # At the moment we only support XYoZ quadrature which requires
+        # a number of quadrature points in the horizontal and
+        # vertical.
 
+        self._nqp_positions.append({"horizontal": len(self._arglist) + 1,
+                                    "vertical": len(self._arglist) + 2})
+        self._arglist.extend(self._kern.qr_args)
 
     def banded_dofmap(self, function_space):
         ''' Add banded dofmap (required for CMA operator assembly) '''
@@ -7321,28 +7321,21 @@ class KernCallArgList(ArgOrdering):
         return self._nlayers_positions
 
     @property
-    def nqp_h_positions(self):
+    def nqp_positions(self):
         '''
-        :return: the position(s) in the argument list of the \
-        variable(s) that pass(es) the number of quadrature points in \
-        the horizontal direction. The generate function must be called \
-        first otherwise an empty list will be returned.
-        :rtype: list of int.
+        :return: the positions in the argument list of the variables that \
+        pass the number of quadrature points. The number and type of \
+        these will change depending on the type of quadrature. A list \
+        of dictionaries is returned with the quadrature directions \
+        being the keys to the dictionaries and their position in the \
+        argument list being the values. At the moment only XYoZ is \
+        supported (which has horizontal and vertical quadrature \
+        points). The generate function must be called first otherwise \
+        an empty list will be returned.
+        :rtype: [{str: int, ...}]
 
         '''
-        return self._nqp_h_positions
-
-    @property
-    def nqp_v_positions(self):
-        '''
-        :return: the position(s) in the argument list of the \
-        variable(s) that pass(es) the number of quadrature points in the \
-        vertical direction. The generate function must be called \
-        first otherwise an empty list will be returned.
-        :rtype: list of int.
-
-        '''
-        return self._nqp_v_positions
+        return self._nqp_positions
 
     @property
     def ndf_positions(self):

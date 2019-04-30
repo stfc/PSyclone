@@ -2567,16 +2567,24 @@ class Dynamo0p3KernelConstTrans(Transformation):
             print("    Modify mesh height, arg position {0}, value {1}"
                   "".format(arg_list_info.nlayers_positions[0],
                             number_of_layers))
-        if quadrature and arg_list_info.nqp_h_positions:
-            # Modify the symbol table for horizontal quadrature here.
-            print("    Modify horizontal quadrature, arg position {0}, "
-                  "value {1}".format(arg_list_info.nqp_h_positions[0],
-                                     element_order+3))
-        if quadrature and arg_list_info.nqp_v_positions:
-            # Modify the symbol table for vertical quadrature here.
-            print("    Modify vertical quadrature, arg position {0}, "
-                  "value {1}".format(arg_list_info.nqp_v_positions[0],
-                                     element_order+3))
+        if quadrature and arg_list_info.nqp_positions:
+            if kernel.eval_shape.lower() == "gh_quadrature_xyoz":
+                # Modify the symbol table for horizontal and vertical
+                # quadrature here.
+                print("    Modify horizontal quadrature, arg position {0}, "
+                      "value {1}".format(
+                          arg_list_info.nqp_positions[0]["horizontal"],
+                          element_order+3))
+                print("    Modify vertical quadrature, arg position {0}, "
+                      "value {1}".format(
+                          arg_list_info.nqp_positions[0]["vertical"],
+                          element_order+3))
+            else:
+                raise TransformationError(
+                    "Error in Dynamo0p3KernelConstTrans transformation. "
+                    "Support is currently limited to xyoz quadrature but "
+                    "found '{0}'.".format(kernel.quadrature))
+
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
             for (position, space) in arg_list_info.ndf_positions:

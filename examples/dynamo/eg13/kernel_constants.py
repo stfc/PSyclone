@@ -59,8 +59,16 @@ from __future__ import print_function
 from psyclone.transformations import Dynamo0p3KernelConstTrans, \
     TransformationError
 
+# The number of layers to use when modifying a kernel to make the
+# associated kernel value constant (rather than passing it in by
+# argument).
 NUMBER_OF_LAYERS = 20
+# The element order to use when modifying a kernel to make the
+# associated degrees of freedom values constant (rather than passing
+# them in by argument).
 ELEMENT_ORDER = 0
+# Whether or not to make the number of quadrature points constant in a
+# kernel (rather than passing them in by argument).
 CONSTANT_QUADRATURE = True
 
 
