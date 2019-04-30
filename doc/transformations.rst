@@ -122,7 +122,7 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.KernelModuleInlineTrans
-    :members:
+    :members: apply
     :noindex:
 
 .. note:: PSyclone does not currently permit module-inlining of
@@ -131,7 +131,7 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.LoopFuseTrans
-    :members:
+    :members: apply
     :noindex:
 
 ####
@@ -139,13 +139,13 @@ can be found in the API-specific sections).
 .. _sec_move_trans:
 
 .. autoclass:: psyclone.transformations.MoveTrans
-    :members:
+    :members: apply
     :noindex:
 
 ####
 
 .. autoclass:: psyclone.transformations.OCLTrans
-      :members:
+      :members: apply
       :noindex:
 
 .. note:: OpenCL support is still under development. See
@@ -154,19 +154,20 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.OMPLoopTrans
-    :members:
+    :members: apply, omp_schedule
     :noindex:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPParallelLoopTrans
-    :members:
+    :members: apply
     :noindex:
 
 ####
 
 .. autoclass:: psyclone.transformations.OMPParallelTrans
-    :members:
+    :inherited-members:
+    :exclude-members: name, psyGen
     :noindex:
 
 .. note:: PSyclone does not support (distributed-memory) halo swaps or
@@ -182,7 +183,7 @@ can be found in the API-specific sections).
 ####
 
 .. autoclass:: psyclone.transformations.ProfileRegionTrans
-    :members:
+    :members: apply
     :noindex:
 
 Kernels
