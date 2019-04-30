@@ -4085,9 +4085,13 @@ class Argument(object):
 
     @access.setter
     def access(self, value):
-        ''' set the access type for this argument '''
+        '''Set the access type for this argument.
+        :param value: New access type.
+        :type value: :py:class:`psyclone.core.access_type`.
+        :raises ValueError if value is not an AccessType.
+        '''
         if not isinstance(value, AccessType):
-            print()
+            raise ValueError("Invalid access type: '{0}'.".format(value))
 
         self._access = value
 
