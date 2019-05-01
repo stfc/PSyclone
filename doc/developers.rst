@@ -76,7 +76,8 @@ with ``pytest``.
 Tests should be run from the ``<PSYCLONEHOME>/src/psyclone`` directory,
 from which all tests in subdirectories (e.g. ``tests``, ``core/tests``)
 will be automatically found and started. If only a subset of all tests
-need to be run, ``pytest`` can be invoked from the corresponding subdirectory.
+need to be run, ``pytest`` can be invoked from the corresponding
+subdirectory or with that subdirectory as an argument.
 
 
 Coverage
@@ -1649,7 +1650,7 @@ If PSyclone is started via ``pytest``, the environment variable
 guarantee that all tests use the config file provided in the PSyclone
 repository, and not a (potentially modified) user installed version.
 
-The config file also stores the list of supported
+The ``Config`` class also stores the list of supported
 APIs (``Config._supported_api_list``) and the default API to use if none
 is specified in either a config file or the command line
 (``Config._default_api``). Additionally, it performs some basic

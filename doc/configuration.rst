@@ -141,8 +141,8 @@ access_mapping          This field defines the strings that are used by a
                         gh_inc:inc, gh_sum:sum``
 
                         At this stage these 5 types are defined for read, write,
-                        read+write, incremendt and summation access by PSyclone.
-                        The gocean APIs does not support increment or sum, so
+                        read+write, increment and summation access by PSyclone.
+                        The gocean APIs do not support increment or sum, so
                         they only define three mappings for read, write, and 
                         readwrite.
 ======================= =======================================================
