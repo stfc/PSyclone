@@ -1788,11 +1788,12 @@ class DynStencils(DynCollection):
                                             " .eq. " + direction +
                                             "_direction")
                         if_then.add(
-                            AssignGen(if_then, pointer=True,
-                                      lhs=map_name, rhs=arg.proxy_name +
-                                      "%vspace%get_stencil_dofmap("
-                                      "STENCIL_1D" + direction.upper() +
-                                      ","+self.extent_value(arg)+")"))
+                            AssignGen(
+                                if_then, pointer=True, lhs=map_name,
+                                rhs=arg.proxy_name_indexed +
+                                "%vspace%get_stencil_dofmap("
+                                "STENCIL_1D" + direction.upper() +
+                                ","+self.extent_value(arg)+")"))
                         parent.add(if_then)
                 else:
                     try:
@@ -1805,7 +1806,7 @@ class DynStencils(DynCollection):
                                    str(STENCIL_MAPPING)))
                     parent.add(
                         AssignGen(parent, pointer=True, lhs=map_name,
-                                  rhs=arg.proxy_name +
+                                  rhs=arg.proxy_name_indexed +
                                   "%vspace%get_stencil_dofmap(" +
                                   stencil_name + "," +
                                   self.extent_value(arg) + ")"))
