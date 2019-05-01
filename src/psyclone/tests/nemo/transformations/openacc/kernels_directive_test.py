@@ -40,9 +40,9 @@
 
 from __future__ import print_function, absolute_import
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo, InternalError
 from psyclone.transformations import TransformationError
+from fparser.common.readfortran import FortranStringReader
 
 
 # The PSyclone API under test
@@ -54,20 +54,6 @@ EXPLICIT_LOOP = ("program do_loop\n"
                  "  sto_tmp(ji) = 1.0d0\n"
                  "end do\n"
                  "end program do_loop\n")
-
-
-def test_no_default_present(parser):
-    ''' Check that the transformation is rejected if default_present is
-    not True. '''
-    reader = FortranStringReader(EXPLICIT_LOOP)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    with pytest.raises(NotImplementedError) as err:
-        _, _ = acc_trans.apply(schedule.children[0:2], default_present=False)
-    assert ("Currently an OpenACC 'kernels' region must have the "
-            "'default(present)' clause" in str(err))
 
 
 def test_kernels_no_gen_code(parser):
@@ -246,3 +232,16 @@ def test_no_code_block_kernels(parser):
     with pytest.raises(TransformationError) as err:
         _, _ = acc_trans.apply(schedule.children)
     assert "CodeBlock'>' cannot be enclosed by a ACCKernelsTrans " in str(err)
+
+
+def test_no_default_present(parser):
+    ''' Check that we can create a kernels region with no 'default(present)'
+    clause (as we will want to do when using managed memory). '''
+    reader = FortranStringReader(EXPLICIT_LOOP)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    _, _ = acc_trans.apply(schedule.children, default_present=False)
+    gen_code = str(psy.gen)
+    assert "!$ACC KERNELS\n" in gen_code

@@ -37,8 +37,7 @@ module data_mod
   use kind_params_mod, only: go_wp
   implicit none
   real(go_wp), parameter :: gravity = -9.8
-  real(go_wp), parameter :: friction = 0.1
-
+  
 contains
 
   function my_function(val)

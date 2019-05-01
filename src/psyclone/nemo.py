@@ -76,9 +76,6 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     Specialisation of Fparser2ASTProcessor for the Nemo API. It is used
     as a Mixin in the Nemo API.
     '''
-    def __init__(self):
-        super(NemoFparser2ASTProcessor, self).__init__()
-
     def _create_child(self, child, parent=None):
         '''
         Adds Nemo API specific processors for certain fparser2 types
@@ -91,7 +88,7 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         :return: Returns the PSyIRe representation of child.
         :rtype: :py:class:`psyclone.psyGen.Node`
         '''
-        if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
+        if NemoLoop.match(child):
             return NemoLoop(child, parent=parent)
         elif isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
             pass
@@ -312,6 +309,7 @@ class NemoKern(Kern):
         a subsequent call to the load method if loop is None. '''
         # Create those member variables required for testing and to keep
         # pylint happy
+        self._parent = parent
         self._children = []
         self._name = ""
         # The Loop object created by fparser2 which holds the AST for the
@@ -490,6 +488,19 @@ class NemoKern(Kern):
         print(self.indent(indent) + self.coloured_text + "[" +
               self.ktype + "]")
 
+    @property
+    def ast(self):
+        '''
+        Override the default ast method as, for the NEMO API, we don't need
+        to take any special action to get hold of the parse tree for the
+        kernel.
+
+        :returns: a reference to that part of the fparser2 parse tree that \
+                  describes this kernel.
+        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
+        '''
+        return self._ast
+
 
 class NemoLoop(Loop, NemoFparser2ASTProcessor):
     '''
@@ -505,11 +516,18 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         NemoFparser2ASTProcessor.__init__(self)
-        # Keep a ptr to the corresponding node in the AST
+        # Keep a ptr to the corresponding node in the parse tree
         self._ast = ast
 
         # Get the loop variable
         ctrl = walk_ast(ast.content, [Loop_Control])
+        # If this is a DO WHILE then the first element of items will
+        # not be None. The `match` method should have already rejected
+        # such loops so we should never get to here.
+        if ctrl[0].items[0]:
+            raise InternalError("NemoLoop constructor should not have been "
+                                "called for a DO WHILE")
+
         # Second element of items member of Loop Control is itself a tuple
         # containing:
         #   Loop variable, [start value expression, end value expression, step
@@ -544,6 +562,37 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
             return
         # It's not - walk on down the AST...
         self.process_nodes(self, self._ast.content, self._ast)
+
+    @staticmethod
+    def match(node):
+        '''
+        Tests the supplied node to see whether it is a recognised form of
+        NEMO loop.
+
+        :param node: the node in the fparser2 parse tree to test for a match.
+        :type node: :py:class:`fparser.two.utils.Base`
+
+        :returns: True if the node represents a recognised form of loop, \
+                  False otherwise.
+        :rtype: bool
+
+        :raises InternalError: if the parse tree represents a loop but no \
+                               Loop_Control element is present.
+
+        '''
+        if not isinstance(node, Fortran2003.Block_Nonlabel_Do_Construct):
+            return False
+        ctrl = walk_ast(node.content, my_types=[Fortran2003.Loop_Control])
+        if not ctrl:
+            raise InternalError("Unrecognised form of DO loop - failed to "
+                                "find Loop_Control element in parse tree.")
+        if ctrl[0].items[0]:
+            # If this is a DO WHILE then the first element of items will not
+            # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
+            # TODO #359 DO WHILE's are currently just put into CodeBlocks
+            # rather than being properly described in the PSyIR.
+            return False
+        return True
 
     def __str__(self):
         result = ("NemoLoop[" + self._loop_type + "]: " + self._variable_name +
@@ -627,9 +676,13 @@ class NemoImplicitLoop(NemoLoop):
             return False
         # Now check the right-hand side...
         rhs = node.items[2]
-        colons = walk_ast(rhs.items, [Fortran2003.Subscript_Triplet])
-        if not colons:
-            # We don't have any array syntax on the RHS
+        try:
+            if not walk_ast(rhs.items, [Fortran2003.Subscript_Triplet]):
+                # We don't have any array syntax on the RHS
+                return True
+        except AttributeError:
+            # The RHS doesn't have the `items` attribute (it may be just
+            # a Name for instance).
             return True
         # Check that we haven't got array syntax used within the index
         # expression to another array. Array references are represented by
