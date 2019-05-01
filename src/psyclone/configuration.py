@@ -130,8 +130,10 @@ class Config(object):
         only exception).
         '''
         this_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(this_dir, "..", "..", "config",
-                            "psyclone.cfg")
+        # The psyclone root dir is "../.." from this directory,
+        # so to remain portable use dirname twice:
+        psyclone_root_dir = os.path.dirname(os.path.dirname(this_dir))
+        return os.path.join(psyclone_root_dir, "config", "psyclone.cfg")
 
     # -------------------------------------------------------------------------
     def __init__(self):

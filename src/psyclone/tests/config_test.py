@@ -122,7 +122,7 @@ def test_get_repo_config_file():
     '''Check that we can find the expected config file in the repository.
     '''
     config_file = Config.get_repository_config_file()
-    assert "../../config/psyclone.cfg" in config_file
+    assert "config/psyclone.cfg" in config_file
 
 
 def test_singleton_create():
