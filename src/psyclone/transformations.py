@@ -2587,7 +2587,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 raise TransformationError(
                     "Error in Dynamo0p3KernelConstTrans transformation. "
                     "Support is currently limited to xyoz quadrature but "
-                    "found '{0}'.".format(kernel.quadrature))
+                    "found '{0}'.".format(kernel.eval_shape))
 
         if element_order is not None:
             # Modify the symbol table for degrees of freedom here.
