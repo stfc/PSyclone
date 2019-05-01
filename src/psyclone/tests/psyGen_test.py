@@ -2766,16 +2766,16 @@ def test_ifblock_properties():
     '''Test that an IfBlock node properties can be retrieved'''
     ifblock = IfBlock()
 
-    # Condition can't be retrieved before is added as a children.
+    # Condition can't be retrieved before is added as a child.
     with pytest.raises(InternalError) as err:
         _ = ifblock.condition
     assert("IfBlock malformed or incomplete. It should have "
-           "at least 1 children, but found 0." in str(err.value))
+           "at least 2 children, but found 0." in str(err.value))
 
     ref1 = Reference('condition1', parent=ifblock)
     ifblock.addchild(ref1)
 
-    # If_body can't be retrieved before is added as a children.
+    # If_body can't be retrieved before is added as a child.
     with pytest.raises(InternalError) as err:
         _ = ifblock.if_body
     assert("IfBlock malformed or incomplete. It should have "
@@ -2830,7 +2830,8 @@ def test_ifblock_gen_c_code():
     ifblock.addchild(sch)
     ret = Return(parent=sch)
     sch.addchild(ret)
-    assert "else" in ifblock.gen_c_code()
+    assert "if (condition1) {\n    return;\n} else {\n    return;\n}\n" \
+        in ifblock.gen_c_code()
 
 
 # Test Assignment class
@@ -3936,22 +3937,22 @@ def test_fparser2astprocessor_handling_if_construct(f2008_parser):
 
     # First level contains: condition1, branch1 and elsebody
     assert len(ifnode.children) == 3
-    assert ifnode.condition.children[0].ref_name == 'condition1'
+    assert ifnode.condition.children[0].name == 'condition1'
     assert isinstance(ifnode.children[1], Schedule)
-    assert ifnode.if_body[0].children[0].ref_name == 'branch1'
+    assert ifnode.if_body[0].children[0].name == 'branch1'
     assert isinstance(ifnode.children[2], Schedule)
 
     # Second level contains condition2, branch2, elsebody
     ifnode = ifnode.else_body[0]
     assert 'was_elseif' in ifnode.annotations
-    assert ifnode.condition.children[0].ref_name == 'condition2'
+    assert ifnode.condition.children[0].name == 'condition2'
     assert isinstance(ifnode.children[1], Schedule)
-    assert ifnode.if_body[0].children[0].ref_name == 'branch2'
+    assert ifnode.if_body[0].children[0].name == 'branch2'
     assert isinstance(ifnode.children[2], Schedule)
 
     # Third level is just branch3
     elsebody = ifnode.else_body[0]
-    assert elsebody.children[0].ref_name == 'branch3'
+    assert elsebody.children[0].name == 'branch3'
 
 
 def test_fparser2astprocessor_handling_if_construct_errors(f2008_parser):
@@ -4049,7 +4050,7 @@ def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
     elseif2 = nested_if.children[2].children[0]
     assert 'was_elseif' in elseif2.annotations
     nested_if2 = elseif2.children[1].children[0]
-    assert nested_if2.children[1].children[0].children[0].ref_name == 'found'
+    assert nested_if2.children[1].children[0].children[0].name == 'found'
 
 
 def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
@@ -4076,12 +4077,12 @@ def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
     ifnode = fake_parent.children[0]
     assert isinstance(ifnode, IfBlock)
     assert 'was_case' in ifnode.annotations
-    assert ifnode.condition.children[0].ref_name == 'selector'
-    assert ifnode.condition.children[1].ref_name == 'label1'
-    assert ifnode.if_body[0].children[0].ref_name == 'branch1'
+    assert ifnode.condition.children[0].name == 'selector'
+    assert ifnode.condition.children[1].name == 'label1'
+    assert ifnode.if_body[0].children[0].name == 'branch1'
     assert isinstance(ifnode.else_body[0], IfBlock)
-    assert ifnode.else_body[0].condition.children[1].ref_name == 'label2'
-    assert ifnode.else_body[0].if_body[0].children[0].ref_name == 'branch2'
+    assert ifnode.else_body[0].condition.children[1].name == 'label2'
+    assert ifnode.else_body[0].if_body[0].children[0].name == 'branch2'
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 
 

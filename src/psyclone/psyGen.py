@@ -4669,14 +4669,19 @@ class DummyTransformation(Transformation):
 class IfBlock(Node):
     '''
     Class representing an if-block within the PSyIR. It has two mandatory
-    children: the first one represented the if-condition and the second one
+    children: the first one represents the if-condition and the second one
     the if-body; and an optional third child representing the else-body.
 
     :param parent: the parent of this node within the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
     :param str annotation: Tags that provide additional information about \
         the node. The node should still be functionally correct when \
-        ignoring this tags.
+        ignoring these tags. Currently, it includes: 'was_elseif' to tag
+        nested ifs originally written with the 'else if' languague syntactic \
+        constructs, 'was_single_stmt' to tag ifs with a 1-statement body \
+        which were originally written in a single line, and 'was_case' to \
+        tag an conditional structure which was originally written with the \
+        Fortran 'case' or C 'switch' syntactic constructs.
     :raises InternalError: when initialised with invalid parameters.
     '''
     valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case')
@@ -4697,11 +4702,12 @@ class IfBlock(Node):
 
         :return: IfBlock conditional expression.
         :rtype: :py:class:`psyclone.psyGen.Node`
-        :raises InternalError: If the condition is not attached to the tree.
+        :raises InternalError: If the IfBlock node does not have the correct \
+            number of children.
         '''
-        if len(self.children) < 1:
+        if len(self.children) < 2:
             raise InternalError(
-                "IfBlock malformed or incomplete. It should have at least 1 "
+                "IfBlock malformed or incomplete. It should have at least 2 "
                 "children, but found {0}.".format(len(self.children)))
         return self._children[0]
 
@@ -4712,7 +4718,8 @@ class IfBlock(Node):
 
         :return: Statements to be executed when IfBlock evaluates to True.
         :rtype: list of :py:class:`psyclone.psyGen.Node`
-        :raises InternalError: If child representing if body does not exist.
+        :raises InternalError: If the IfBlock node does not have the correct \
+            number of children.
         '''
 
         if len(self.children) < 2:
@@ -4772,8 +4779,8 @@ class IfBlock(Node):
         :param int indent: Depth of indent for the output string.
         :return: C language code representing the node.
         :rtype: str
-        :raises GenerationError: If any mandatory children of the IfBlock \
-            node is missing.
+        :raises InternalError: If any mandatory children of the IfBlock \
+            node are missing.
         '''
         if len(self.children) < 2:
             raise GenerationError("IfBlock malformed or "
@@ -5456,9 +5463,9 @@ class Fparser2ASTProcessor(object):
 
             if isinstance(clause, (Fortran2003.If_Then_Stmt,
                                    Fortran2003.Else_If_Stmt)):
-                # If its an 'IF' clause just create an IfBlock, otherwise
+                # If it's an 'IF' clause just create an IfBlock, otherwise
                 # it is an 'ELSE' clause and it needs an IfBlock annotated
-                # with 'was_elseif' inside an Schedule.
+                # with 'was_elseif' inside a Schedule.
                 newifblock = None
                 if isinstance(clause, Fortran2003.If_Then_Stmt):
                     ifblock = IfBlock(parent=currentparent)
@@ -5566,12 +5573,13 @@ class Fparser2ASTProcessor(object):
                 selector = child.items[0]
             if isinstance(child, (Fortran2003.Case_Stmt,
                                   Fortran2003.End_Select_Stmt)):
-                clause_indices.append(idx)
                 # Case Default and value Ranges not supported yet
                 if 'DEFAULT' in str(child):
                     raise NotImplementedError("Case Default Statement")
-                if ':' in str(child):
+                elif ':' in str(child):
                     raise NotImplementedError("Case Value Range Statement")
+                else:
+                    clause_indices.append(idx)
 
         # Deal with each Case_Stmt
         rootif = None
@@ -6345,7 +6353,7 @@ class Reference(Node):
         self._reference = reference_name
 
     @property
-    def ref_name(self):
+    def name(self):
         ''' Return the name of the referenced symbol.
 
         :return: Name of the referenced symbol.

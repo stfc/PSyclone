@@ -306,15 +306,16 @@ The Symbol Table has the following interface:
 Control Flow Nodes
 ==================
 
-PSyIR has two control flow nodes: IfBlock and Loop. This nodes represent
-the canonical structure to build conditional branching constructs and
-iteration constructs. Additional language-specific syntax for branching
+The PSyIR has two control flow nodes: IfBlock and Loop. These nodes represent
+the canonical structure with which conditional branching constructs and
+iteration constructs are build. Additional language-specific syntax for branching
 and iteration will be normalized to use these same constructs.
 For example, Fortran has the additional branching constructs `ELSE IF`
-and `CASE`, when a Fortran code is translated to PSyIR, Psyclone will
-build a semantic equivalent implementation using IfBlocks.
+and `CASE` when a Fortran code is translated into the PSyIR, Psyclone will
+build a semantically equivalent implementation using IfBlocks.
 However, the necessary nodes in the new tree structure will be annotated
-with information to recreate the language-specific syntax.
+with information to enable the original language-specific syntax to be
+recreated if required.
 
 .. autoclass:: psyclone.psyGen.IfBlock
     :members:
