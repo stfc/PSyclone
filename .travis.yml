@@ -50,13 +50,11 @@ before_install:
   # fparser pointed to by the git submodule.
   - ./bin/install_optional.sh
   - pip install codecov
-  - python -V
-  # python 2.7.14 on travis does not have enum, so in this case install
-  # a compatible enum implementation.
-  - if [ "$(python --version 2>&1)" == "Python 2.7.14" ]; then pip install enum34; fi
 install:
   - "pip install ."
 script:
+  # We specify the tests directory to avoid pytest running the fparser test
+  # suite (pulled in with the fparser submodule)
   - coverage run --source=psyclone -m py.test src/psyclone
   - coverage report -m
   # Invoke the directory change and check_examples script as a single command
