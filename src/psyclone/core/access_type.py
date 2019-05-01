@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council.
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,12 +51,6 @@ class AccessType(Enum):
     READWRITE = 4
     SUM = 5
 
-    @staticmethod
-    def get_size():
-        ''':returns: The number of elements in this emnumerator.
-        :rtype int'''
-        return len(AccessType)
-
     def __str__(self):
         '''Convert to a string representation. The test
         test_arg_descriptor_repr needs this function to return
@@ -68,7 +62,7 @@ class AccessType(Enum):
         return self.name
 
     def api_name(self):
-        '''This convenient function returns the name of the type in the
+        '''This convenience function returns the name of the type in the
         current API. E.g. in a dynamo0.3 API, WRITE --> "gh_write"
         :returns: The API specific name.
         :rtype: str
@@ -83,12 +77,12 @@ class AccessType(Enum):
         AccessType enum value (AccessType.READ).
         :param str access_string: Access type as string.
         :returns: Corresponding AccessType enum.
-        :Raises: KeyError if access_string is not a valid access type.
+        :Raises: ValueError if access_string is not a valid access type.
         '''
         for access in AccessType:
             if access.name == access_string.upper():
                 return access
-        raise KeyError("Unknown access type '{0}'.".format(access_string))
+        raise ValueError("Unknown access type '{0}'.".format(access_string))
 
     @staticmethod
     def all_write_accesses():
@@ -101,7 +95,7 @@ class AccessType(Enum):
 
     @staticmethod
     def all_read_accesses():
-        ''':returns: A list of all access types that involve reading to an
+        ''':returns: A list of all access types that involve reading an
                      argument in some form.
         :rtype: List of py:class:`psyclone.core.AccessType`.
         '''

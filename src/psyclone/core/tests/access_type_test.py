@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council.
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: Joerg Henrichs, Bureau of Meteorology
+# Author: Joerg Henrichs, Bureau of Meteorology
 
 '''This module tests AccessType.'''
 
@@ -42,15 +42,8 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 
 
-def test_generic():
-    '''Generic tests.'''
-    assert AccessType.get_size() == 5
-
-
 def test_str():
-    '''Tests conversion to an (API specific) string'''
-
-    Config.get().api = "dynamo0.3"
+    '''Tests conversion to a string.'''
 
     assert str(AccessType.INC) == "INC"
     assert str(AccessType.WRITE) == "WRITE"
@@ -60,7 +53,11 @@ def test_str():
 
 
 def test_api_name():
-    '''Tests api_name(). '''
+    '''Tests api_name(), i.e. conversion to an
+    API-specific string. '''
+
+    Config.get().api = "dynamo0.3"
+
     assert AccessType.INC.api_name() == "gh_inc"
     assert AccessType.WRITE.api_name() == "gh_write"
     assert AccessType.READ.api_name() == "gh_read"
@@ -77,6 +74,6 @@ def test_from_string():
     assert AccessType.from_string("readwrite") == AccessType.READWRITE
     assert AccessType.from_string("sum") == AccessType.SUM
 
-    with pytest.raises(KeyError) as err:
+    with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
     assert "Unknown access type 'invalid'" in str(err)
