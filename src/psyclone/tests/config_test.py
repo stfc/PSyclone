@@ -44,6 +44,8 @@ import six
 import pytest
 from psyclone.configuration import APISpecificConfig, ConfigurationError, \
     Config
+from psyclone.core.access_type import AccessType
+
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -450,7 +452,6 @@ def test_api_unimplemented(tmpdir, monkeypatch):
     # need to temporarily add a new supported API, that will not
     # be in the config file:
 
-    # pylint: disable=protected-access
     monkeypatch.setattr(Config, "_supported_api_list",
                         Config._supported_api_list + ["UNIMPLEMENTED"])
     content = re.sub(r"^\[dynamo0.3\]$",
@@ -531,3 +532,40 @@ def test_mappings():
     with pytest.raises(ConfigurationError) as err:
         mapping = APISpecificConfig.create_dict_from_string("k1:v1, k2=v2")
     assert "Invalid format for mapping: k2=v2" in str(err)
+
+
+def test_invalid_access_mapping(tmpdir):
+    '''Test that providing an invalid an invalid access type (i.e. not
+    'read', 'write', ...) raises an exception.
+    '''
+    # Test for an invalid key
+    content = _CONFIG_CONTENT + "access_mapping = gh_read:invalid"
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as cerr:
+            config.load(str(config_file))
+        assert "Unknown access type 'invalid' found for key 'gh_read'" \
+            in str(cerr)
+
+    # Test that all values of the mapping are access types:
+    api_config = Config.get().api_conf("dynamo0.3")
+    for access_mode in api_config.get_access_mapping().values():
+        assert isinstance(access_mode, AccessType)
+
+
+def test_default_access_mapping(tmpdir):
+    '''Test that the default access mapping is correctly converted
+    to AccessTypes.'''
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(_CONFIG_CONTENT)
+        new_cfg.close()
+        config = Config()
+        config.load(str(config_file))
+
+        api_config = config.api_conf("dynamo0.3")
+        for access_mode in api_config.get_access_mapping().values():
+            assert isinstance(access_mode, AccessType)

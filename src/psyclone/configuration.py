@@ -128,6 +128,8 @@ class Config(object):
         in the PSyclone repository. It is used by the testing framework to make
         sure all tests get the same config file (see tests/config_tests for the
         only exception).
+        :return str: Absolute path to the config file included in the PSyclone
+                     repository.
         '''
         this_dir = os.path.dirname(os.path.abspath(__file__))
         # The psyclone root dir is "../.." from this directory,
@@ -205,7 +207,6 @@ class Config(object):
         else:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
-
         from configparser import ConfigParser, MissingSectionHeaderError
         self._config = ConfigParser()
         try:
@@ -301,13 +302,14 @@ class Config(object):
                     self._api_conf[api] = DynConfig(self, self._config[api])
                 elif api == "dynamo0.1":
                     # For now we use the same class as dynamo0.3.
-                    # It still reads a different section of the config
-                    # file, so the dynamo0.1 mapping will be correctly used.
+                    # However, we use it to read a different section of the
+                    # config file, so the dynamo0.1 mapping will be correctly
+                    # used.
                     self._api_conf[api] = DynConfig(self, self._config[api])
                 elif api == "gocean0.1":
                     # For now we use the same class as gocean1.0.
-                    # It still reads a different section of the config
-                    # file
+                    # However, we use it to read a different section of the
+                    # config file
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
@@ -365,11 +367,7 @@ class Config(object):
               <base-dir-of-virtual-env>/share/psyclone/
         - ${HOME}/.local/share/psyclone/
         - <system-install-prefix>/share/psyclone/
-        - ../../config/
 
-        The last entry is used for development when no installation was done.
-        It will then pick the psyclone.cfg file that is part of the
-        repository.
         :returns: the fully-qualified path to the configuration file
         :rtype: str
 
@@ -613,6 +611,9 @@ class APISpecificConfig(object):
     '''A base class for functions that each API-specific class must provide.
     At the moment that is a function access_mapping().
     :param section: :py:class:`configparser.SectionProxy`
+    :Raises ConfigurationError: if an access-mapping is provided that
+        assigns an invalid value (i.e. not one of 'read', 'write',
+        'readwrite'), 'inc' or 'sum') to a string.
     '''
 
     def __init__(self, section):
@@ -625,27 +626,22 @@ class APISpecificConfig(object):
         # the format: key1:value1, key2=value2, ...
         mapping = section.get("ACCESS_MAPPING")
         if mapping:
-            from psyclone.core.access_type import AccessType
             self._access_mapping = \
                 APISpecificConfig.create_dict_from_string(mapping)
-            # Now convert the string type ("read" etc) to AccessType
-            for api_access_name, access_type in self._access_mapping.items():
-                try:
-                    self._access_mapping[api_access_name] = \
-                        AccessType.from_string(access_type)
-                except KeyError:
-                    raise ConfigurationError("Unknown key '{0}' found."
-                                             .format(api_access_name))
-            # TODO: For now the Gocean1.0 API only defines 3 out of 5
-            # access types. In order to preserve current behaviour
-            # (to not accept e.g. GO_INC) it does not specify a mapping
-            # value for INC etc. So the test below would abort in this case.
-            # if len(self._access_mapping) != AccessType.get_size():
-            #     raise ConfigurationError("Wrong number of keys in config "
-            #                              "file. Expected {0}, got {1}".
-            #                              format(len(self._access_mapping),
-            #                                     AccessType.get_size()))
-        # And create the reverse lookup (for better error messages):
+        # Now convert the string type ("read" etc) to AccessType
+        from psyclone.core.access_type import AccessType
+        for api_access_name, access_type in self._access_mapping.items():
+            try:
+                self._access_mapping[api_access_name] = \
+                    AccessType.from_string(access_type)
+            except ValueError:
+                # Raised by from_string()
+                raise ConfigurationError("Unknown access type '{0}' found "
+                                         "for key '{1}'"
+                                         .format(access_type,
+                                                 api_access_name))
+
+        # Now create the reverse lookup (for better error messages):
         self._reverse_access_mapping = {v: k for k, v in
                                         self._access_mapping.items()}
 
@@ -658,7 +654,8 @@ class APISpecificConfig(object):
         :param str input_str: The input string.
         :returns: A dictionary with the key,value pairs from the input string.
         :rtype: dict.
-        :Raises Config
+        :Raises ConfigurationError if the input string contains an entry
+                that is does not have a ":".
         '''
         # Remove spaces and convert unicode to normal strings.
         input_str = str(input_str.strip())
@@ -673,6 +670,7 @@ class APISpecificConfig(object):
             try:
                 key, value = entry.split(":", 1)
             except ValueError:
+                # Raised when split does not return two elements:
                 raise ConfigurationError("Invalid format for mapping: {0}".
                                          format(entry.strip()))
             return_dict[key.strip()] = value.strip()
@@ -687,17 +685,18 @@ class APISpecificConfig(object):
         return self._access_mapping
 
     def get_reverse_access_mapping(self):
-        '''Returns the reverse mapping of psyclone internal access type
-        AccessType.READ  to the API specific string, e.g.:
-        'gh_read'.
-        :returns: The access mapping to be used by this API.
+        '''Returns the reverse mapping of a PSyclone internal access type
+        to the API specific string, e.g.: AccessType.READ to 'gh_read'.
+        This is used to provide the user with API specific error messages.
+        :returns: The mapping of access types to API-specific strings.
         :rtype: Dictionary of strings
         '''
         return self._reverse_access_mapping
 
     def get_valid_accesses_api(self):
-        '''Returns the API specific sorted names of all valid access strings.
-        :returns: List of API specific strings.
+        '''Returns the sorted, API-specific sorted names of all valid access
+        names.
+        :returns: Sorted list of API-specific valid strings.
         :rtype: List of strings
         '''
         valid_names = list(self._access_mapping.keys())
@@ -773,6 +772,7 @@ class GOceanConfig(APISpecificConfig):
                 for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
             elif key == "access_mapping":
+                # Handled in the base class APISpecificConfig
                 pass
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
