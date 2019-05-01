@@ -609,7 +609,7 @@ class Config(object):
 
 
 # =============================================================================
-class APISpecific(object):
+class APISpecificConfig(object):
     '''A base class for functions that each API-specific class must provide.
     At the moment that is a function access_mapping().
     :param section: :py:class:`configparser.SectionProxy`
@@ -626,7 +626,8 @@ class APISpecific(object):
         mapping = section.get("ACCESS_MAPPING")
         if mapping:
             from psyclone.core.access_type import AccessType
-            self._access_mapping = APISpecific.create_dict_from_string(mapping)
+            self._access_mapping = \
+                APISpecificConfig.create_dict_from_string(mapping)
             # Now convert the string type ("read" etc) to AccessType
             for api_access_name, access_type in self._access_mapping.items():
                 try:
@@ -705,7 +706,7 @@ class APISpecific(object):
 
 
 # =============================================================================
-class DynConfig(APISpecific):
+class DynConfig(APISpecificConfig):
     '''
     Dynamo0.3-specific Config sub-class. Holds configuration options specific
     to the Dynamo 0.3 API.
@@ -742,7 +743,7 @@ class DynConfig(APISpecific):
 
 
 # =============================================================================
-class GOceanConfig(APISpecific):
+class GOceanConfig(APISpecificConfig):
     '''Gocean1.0-specific Config sub-class. Holds configuration options
     specific to the GOcean 1.0 API.
 
