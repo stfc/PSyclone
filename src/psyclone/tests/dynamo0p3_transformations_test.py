@@ -39,7 +39,6 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
@@ -55,6 +54,7 @@ from psyclone.transformations import TransformationError, \
     Dynamo0p3AsyncHaloExchangeTrans, \
     Dynamo0p3KernelConstTrans
 from psyclone.configuration import Config
+from dynamo0p3_build import Dynamo0p3Build
 
 
 # The version of the API that the tests in this file
@@ -7525,3 +7525,31 @@ def test_kern_const_invalid_kern(monkeypatch):
     assert (
         "Failed to parse kernel 'testkern_code'. Error reported was "
         "'Monkeypatch error'.") in str(excinfo.value)
+
+
+def test_kern_const_invalid_quad(monkeypatch):
+    '''Check that we raise the expected exception when the type of
+    quadrature is not supported by the transformation (we are
+    currently limited to XYoZ).
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.1.0_single_invoke_xyoz_qr.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+    kctrans = Dynamo0p3KernelConstTrans()
+    import psyclone
+    # Add an unsupported quadrature to the list of valid ones.
+    monkeypatch.setattr(psyclone.dynamo0p3, "VALID_QUADRATURE_SHAPES",
+                        ["gh_quadrature_xyoz", "monkey"])
+    # Set the kernel to use the unsupported quadrature.
+    monkeypatch.setattr(kernel, "_eval_shape", "monkey")
+    with pytest.raises(TransformationError) as excinfo:
+        kctrans.apply(kernel, element_order=0, quadrature=True)
+    assert (
+        "Support is currently limited to xyoz quadrature but found "
+        "'monkey'.") in str(excinfo.value)
