@@ -155,8 +155,6 @@ def object_index(alist, item):
     for idx, entry in enumerate(alist):
         if entry is item:
             return idx
-    if alist is item.content:
-        return 0
     raise ValueError(
         "Item '{0}' not found in list: {1}".format(str(item), alist))
 
@@ -1846,12 +1844,14 @@ class ACCDirective(Directive):
         # The parent node in the PSyIR might be a directive so we need to
         # go back up the tree to find the node corresponding to our parent
         # node in the fparser2 parse tree. This is the first node that
-        # has the 'content' attribute.
+        # has the 'content' attribute and does not match with the directive
+        # children ast.
         # TODO this can probably be simplified/removed altogether once
         # the fparser2 parse tree has parent information (fparser/#102).
         parent = self._parent
         while parent:
-            if parent.ast and hasattr(parent.ast, "content"):
+            if parent.ast and hasattr(parent.ast, "content") and \
+               parent.ast is not self.children[0].ast:
                 break
             parent = parent._parent
         fp_parent = parent.ast
@@ -2705,7 +2705,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # 'content' as siblings of the If-then and else-if nodes.
         parent = self._parent.ast
         while parent:
-            if hasattr(parent, "content"):
+            if hasattr(parent, "content") and \
+               parent is not self.children[0].ast:
                 break
             parent = parent._parent
         if not parent:
