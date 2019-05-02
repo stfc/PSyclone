@@ -5488,7 +5488,7 @@ def test_kerncallarglist_args_error(dist_mem):
         loop = schedule.children[3]
     else:
         loop = schedule.children[0]
-    create_arg_list = KernCallArgList(kernel)
+    create_arg_list = KernCallArgList(loop.children[0])
 
     # nlayers_positions method
     with pytest.raises(InternalError) as excinfo:
