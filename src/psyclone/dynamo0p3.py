@@ -7344,7 +7344,7 @@ class KernCallArgList(ArgOrdering):
         points). The generate method must be called first.
         :rtype: [{str: int, ...}]
 
-        :raises InternalError: if the generate() method has not been
+        :raises InternalError: if the generate() method has not been \
         called.
 
         '''
@@ -7363,7 +7363,7 @@ class KernCallArgList(ArgOrdering):
         generate method must be called first.
         :rtype: list of namedtuple (position=int, function_space=str).
 
-        :raises InternalError: if the generate() method has not been
+        :raises InternalError: if the generate() method has not been \
         called.
 
         '''
@@ -7380,7 +7380,7 @@ class KernCallArgList(ArgOrdering):
         called first.
         :rtype: list of str.
 
-        :raises InternalError: if the generate() method has not been
+        :raises InternalError: if the generate() method has not been \
         called.
 
         '''

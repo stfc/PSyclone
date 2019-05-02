@@ -5485,11 +5485,9 @@ def test_kerncallarglist_args_error(dist_mem):
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     if dist_mem:
-        index = 3
+        loop = schedule.children[3]
     else:
-        index = 0
-    loop = schedule.children[index]
-    kernel = loop.children[0]
+        loop = schedule.children[0]
     create_arg_list = KernCallArgList(kernel)
 
     # nlayers_positions method
