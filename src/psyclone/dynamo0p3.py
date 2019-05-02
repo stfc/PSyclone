@@ -562,14 +562,11 @@ class DynArgDescriptor03(Descriptor):
                 "not get to here")
 
         # The 2nd arg is an access descriptor
-        self._access_descriptor = arg_type.args[1]
-
-        # Now convert from GH_* names to the generic access type:
+        # Convert from GH_* names to the generic access type:
         api_config = Config.get().api_conf("dynamo0.3")
         access_mapping = api_config.get_access_mapping()
         try:
-            self._access_descriptor.name = \
-                access_mapping[self._access_descriptor.name]
+            self._access_type = access_mapping[arg_type.args[1].name]
         except KeyError:
             valid_names = api_config.get_valid_accesses_api()
             raise ParseError(
@@ -580,12 +577,12 @@ class DynArgDescriptor03(Descriptor):
 
         # Reduction access descriptors are only valid for real scalar arguments
         if self._type != "gh_real" and \
-           self._access_descriptor.name in \
+           self._access_type in \
            AccessType.get_valid_reduction_modes():
             raise ParseError(
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found".
-                format(self._access_descriptor.name.api_name(),
+                format(self._access_type.api_name(),
                        self._type))
 
         # FIELD, OPERATOR and SCALAR datatypes descriptors and rules
@@ -637,26 +634,26 @@ class DynArgDescriptor03(Descriptor):
                         format(arg_type, str(err)))
             # Test allowed accesses for fields
             if self._function_space1.lower() in DISCONTINUOUS_FUNCTION_SPACES \
-               and self._access_descriptor.name == AccessType.INC:
+               and self._access_type == AccessType.INC:
                 raise ParseError(
                     "It does not make sense for a field on a discontinuous "
                     "space ({0}) to have a 'gh_inc' access".
                     format(self._function_space1.lower()))
             # TODO: extend for "gh_write"
             if self._function_space1.lower() in CONTINUOUS_FUNCTION_SPACES \
-               and self._access_descriptor.name == AccessType.READWRITE:
+               and self._access_type == AccessType.READWRITE:
                 raise ParseError(
                     "It does not make sense for a field on a continuous "
                     "space ({0}) to have a 'gh_readwrite' access".
                     format(self._function_space1.lower()))
             # TODO: extend for "gh_write"
             if self._function_space1.lower() in VALID_ANY_SPACE_NAMES \
-               and self._access_descriptor.name == AccessType.READWRITE:
+               and self._access_type == AccessType.READWRITE:
                 raise ParseError(
                     "In the dynamo0.3 API a field on any_space cannot "
                     "have 'gh_readwrite' access because it is treated "
                     "as continuous")
-            if stencil and self._access_descriptor.name != AccessType.READ:
+            if stencil and self._access_type != AccessType.READ:
                 raise ParseError("a stencil must be read only so its access "
                                  "should be gh_read")
 
@@ -687,7 +684,7 @@ class DynArgDescriptor03(Descriptor):
                            arg_type))
             self._function_space2 = arg_type.args[3].name
             # Test allowed accesses for operators
-            if self._access_descriptor.name == AccessType.INC:
+            if self._access_type == AccessType.INC:
                 raise ParseError(
                     "In the dynamo0.3 API operators cannot have a 'gh_inc' "
                     "access because they behave as discontinuous quantities")
@@ -700,10 +697,10 @@ class DynArgDescriptor03(Descriptor):
                     "arguments if its first argument is gh_{{r,i}}scalar, but "
                     "found {0} in '{1}'".format(len(arg_type.args), arg_type))
             # Test allowed accesses for scalars (read_only or reduction)
-            if self._access_descriptor.name not in [AccessType.READ] + \
+            if self._access_type not in [AccessType.READ] + \
                AccessType.get_valid_reduction_modes():
                 rev_access_mapping = api_config.get_reverse_access_mapping()
-                api_name = rev_access_mapping[self._access_descriptor.name]
+                api_name = rev_access_mapping[self._access_type]
                 valid_reductions = AccessType.get_valid_reduction_names()
                 raise ParseError(
                     "In the dynamo0.3 API scalar arguments must be "
@@ -720,7 +717,7 @@ class DynArgDescriptor03(Descriptor):
                 "Internal error in DynArgDescriptor03.__init__, (2) should "
                 "not get to here")
 
-        Descriptor.__init__(self, self._access_descriptor.name,
+        Descriptor.__init__(self, self._access_type,
                             self._function_space1, stencil=stencil,
                             mesh=mesh)
 
@@ -799,7 +796,7 @@ class DynArgDescriptor03(Descriptor):
             res += "*"+str(self._vector_size)
         res += os.linesep
         res += "  access_descriptor[1]='{0}'"\
-               .format(self._access_descriptor.name.api_name())\
+               .format(self._access_type.api_name())\
                + os.linesep
         if self._type == "gh_field":
             res += "  function_space[2]='{0}'".format(self._function_space1) \

@@ -3031,10 +3031,6 @@ def test_arg_descriptor_init_error():
     keep.extend(GH_VALID_ARG_TYPE_NAMES)
     GH_VALID_ARG_TYPE_NAMES.append("GH_INVALID")
     arg_type.args[0].name = "GH_INVALID"
-    # arg_type.args[1].name is now AccessType.READ. In order
-    # to get it accepted by DynARgDescriptor03, it must be
-    # converted back to a string again.
-    arg_type.args[1].name = arg_type.args[1].name.api_name()
     with pytest.raises(ParseError) as excinfo:
         _ = DynArgDescriptor03(arg_type)
     assert 'Internal error in DynArgDescriptor03.__init__' \
