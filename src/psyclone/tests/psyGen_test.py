@@ -3086,26 +3086,30 @@ def test_symbol_initialisation():
     with pytest.raises(ValueError) as error:
         Symbol('a', 'integer', constant_value=9.81)
     assert ("This Symbol instance's datatype is 'integer' which means the "
-            "constant value is expected to be '<type 'int'>' but found "
-            "'<type 'float'>'.") in str(error.value)
+            "constant value is expected to be") in str(error.value)
+    assert "'int'>' but found " in str(error.value)
+    assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', constant_value=False)
     assert ("This Symbol instance's datatype is 'real' which means the "
-            "constant value is expected to be '<type 'float'>' but found "
-            "'<type 'bool'>'.") in str(error.value)
+            "constant value is expected to be") in str(error.value)
+    assert "'float'>' but found " in str(error.value)
+    assert "'bool'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'character', constant_value=42)
     assert ("This Symbol instance's datatype is 'character' which means the "
-            "constant value is expected to be '<type 'str'>' but found "
-            "'<type 'int'>'.") in str(error.value)
+            "constant value is expected to be") in str(error.value)
+    assert "'str'>' but found " in str(error.value)
+    assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'boolean', constant_value="hello")
     assert ("This Symbol instance's datatype is 'boolean' which means the "
-            "constant value is expected to be '<type 'bool'>' but found "
-            "'<type 'str'>'.") in str(error.value)
+            "constant value is expected to be") in str(error.value)
+    assert "'bool'>' but found " in str(error.value)
+    assert "'str'>'." in str(error.value)
 
 
 def test_symbol_map():
