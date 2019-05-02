@@ -5260,8 +5260,8 @@ class Fparser2ASTProcessor(object):
                         "".format(decl.items))
 
                 parent.symbol_table.declare(
-                    str(name), datatype, entity_shape, scope, is_input,
-                    is_output)
+                    str(name), datatype, shape=entity_shape, scope=scope,
+                    is_input=is_input, is_output=is_output)
 
         try:
             arg_strings = [x.string for x in arg_list]
@@ -5522,9 +5522,8 @@ class Fparser2ASTProcessor(object):
 
 
 class Symbol(object):
-    '''
-    Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in column-major order), the scope and for
+    '''Symbol item for the Symbol Table. It contains information about: the
+    name, the datatype, the shape (in column-major order), the scope and for
     global-scoped symbols whether the data is already defined and/or survives
     after the kernel.
 
@@ -5544,6 +5543,12 @@ class Symbol(object):
                       mechanism, at the moment just 'global_argument' is \
                       available for variables passed in/out of the kernel \
                       by argument.
+    :param constant_value: Sets the value of the constant for this \
+                           Symbol. If the value is None (the default) \
+                           then this symbol is not a constant. The \
+                           datatype of the constant value must be \
+                           compatible with the datatype of the symbol.
+    :type: int, float, str or bool
     :param bool is_input: Whether the symbol represents data that exists \
                           before the kernel is entered and that is passed \
                           into the kernel.
@@ -5552,6 +5557,7 @@ class Symbol(object):
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
+
     '''
 
     # Tuple with the valid values for the access attribute.
@@ -5559,7 +5565,8 @@ class Symbol(object):
     # Tuple with the valid datatypes.
     valid_data_types = ('real', 'integer', 'character', 'boolean')
     # Mapping from valid_data_types to internal Python types
-    mapping = {'real': float, 'integer': int, 'character': str, 'boolean': bool}
+    mapping = {'real': float, 'integer': int, 'character': str,
+               'boolean': bool}
 
     def __init__(self, name, datatype, shape=[], scope='local',
                  constant_value=None, is_input=False, is_output=False):
@@ -5747,7 +5754,7 @@ class Symbol(object):
         :raises ValueError: If a non-None value is provided and 1) \
         this Symbol instance does not have local scope, or 2) this \
         Symbol instance is not a scalar (as the shape attribute is not \
-        empty, or 3) the type of the value provided is not compatible \
+        empty), or 3) the type of the value provided is not compatible \
         with the datatype of this Symbol instance.
 
         '''
@@ -5821,6 +5828,8 @@ class Symbol(object):
             ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
         else:
             ret += "Scalar"
+        if self.is_constant:
+            ret += ", constant, value={0}".format(self.constant_value)
         return ret + ">"
 
 
@@ -5845,9 +5854,8 @@ class SymbolTable(object):
         self._kernel = kernel
 
     def declare(self, name, datatype, shape=[], scope='local',
-                is_input=False, is_output=False):
-        '''
-        Declare a new symbol in the symbol table.
+                constant_value=None, is_input=False, is_output=False):
+        '''Declare a new symbol in the symbol table.
 
         :param str name: Name of the symbol.
         :param str datatype: Datatype of the symbol.
@@ -5866,6 +5874,13 @@ class SymbolTable(object):
                           information about the sharing mechanism, at the \
                           moment just 'global_argument' is available for \
                           variables passed in/out of the kernel by argument.
+        :param constant_value: Sets the value of the constant for this \
+                               Symbol. If the value is None (the \
+                               default) then this symbol is not a \
+                               constant. The datatype of the constant \
+                               value must be compatible with the \
+                               datatype of the symbol.
+        :type: int, float, str or bool
         :param bool is_input: Whether the symbol represents data that exists \
                               before the kernel is entered and that is passed \
                               into the kernel.
@@ -5873,13 +5888,16 @@ class SymbolTable(object):
                                survives outside the kernel upon exit.
         :raises KeyError: The provided name can not be used as key in the
                           table.
+
         '''
         if name in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(name))
 
-        self._symbols[name] = Symbol(name, datatype, shape, scope, is_input,
-                                     is_output)
+        self._symbols[name] = Symbol(
+            name, datatype, shape=shape, scope=scope,
+            constant_value=constant_value, is_input=is_input,
+            is_output=is_output)
 
     def specify_argument_list(self, argument_name_list):
         '''

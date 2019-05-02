@@ -3116,7 +3116,18 @@ def test_symbol_map():
     '''
     assert len(Symbol.valid_data_types) == len(Symbol.mapping)
     for data_type in Symbol.valid_data_types:
-        Symbol.mapping[datatype]
+        Symbol.mapping[data_type]
+
+
+def test_symbol_name_setter():
+    '''Test that a Symbol name can be set if given a new valid name value.
+
+    '''
+    # Test with a valid name
+    sym = Symbol('a', 'real')
+    assert sym.name == 'a'
+    sym.name = 'b'
+    assert sym.name == 'b'
 
 
 def test_symbol_scope_setter():
@@ -3137,11 +3148,25 @@ def test_symbol_scope_setter():
             " but got 'invalidscope'.") in str(error.value)
 
 
+def test_symbol_constant_value_setter():
+    '''Test that a Symbol constant value can be set if given a new valid
+    constant value.
+
+    '''
+
+    # Test with valid constant value
+    sym = Symbol('a', 'real', constant_value=3.14)
+    assert sym.constant_value == 3.14
+    sym.constant_value = 9.81
+    assert sym.constant_value == 9.81
+
+
 def test_symbol_is_input_setter():
     '''Test that a Symbol is_input can be set if given a new valid
     value, otherwise it raises a relevant exception'''
 
-    sym = Symbol('a', 'real', [], 'global_argument', False, False)
+    sym = Symbol('a', 'real', shape=[], scope='global_argument',
+                 is_input=False, is_output=False)
     sym.is_input = True
     assert sym.is_input is True
 
@@ -3160,7 +3185,8 @@ def test_symbol_is_input_setter():
 def test_symbol_is_output_setter():
     '''Test that a Symbol is_output can be set if given a new valid
     value, otherwise it raises a relevant exception'''
-    sym = Symbol('a', 'real', [], 'global_argument', False, False)
+    sym = Symbol('a', 'real', shape=[], scope='global_argument',
+                 is_input=False, is_output=False)
     sym.is_output = True
     assert sym.is_output is True
 
@@ -3191,6 +3217,9 @@ def test_symbol_can_be_printed():
     assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
             "'None', but found") in str(error.value)
 
+    sym3 = Symbol("s3", "integer", constant_value=12)
+    assert "s3: <integer, local, Scalar, constant, value=12>" in str(sym3)
+
 
 def test_symbol_gen_c_definition():
     '''Test that the Symbol gen_c_definition method generates the expected
@@ -3219,12 +3248,13 @@ def test_symbol_gen_c_definition():
 
 def test_symboltable_declare():
     '''Test that the declare method inserts new symbols in the symbol
-    table, but raises appropiate errors when provied with wrong parameters
+    table, but raises appropiate errors when provided with wrong parameters
     or duplicate declarations.'''
     sym_table = SymbolTable()
 
     # Declare a symbol
-    sym_table.declare("var1", "real", [5, 1], "global_argument", True, True)
+    sym_table.declare("var1", "real", shape=[5, 1], scope="global_argument",
+                      is_input=True, is_output=True)
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
