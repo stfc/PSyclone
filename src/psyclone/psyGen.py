@@ -3144,8 +3144,11 @@ class Loop(Node):
     def unique_modified_args(self, arg_type):
         '''Return all unique arguments of type arg_type from Kernels in this
         loop that are modified.
-        :param arg_type:
-        :type arg_type:'''
+        :param str arg_type: 'gh_field'
+        :returns: all unique arguments of type arg_type from Kernels in this
+        loop that are modified.
+        :rtype: List of :py:class:`psyclone.psyGen.DynKernelArgument`.
+        '''
         arg_names = []
         args = []
         for call in self.calls():
@@ -5242,7 +5245,7 @@ class Fparser2ASTProcessor(object):
                 # Otherwise use the declaration attribute shape.
                 if array_spec is not None:
                     entity_shape = \
-                    self._parse_dimensions(array_spec, parent.symbol_table)
+                        self._parse_dimensions(array_spec, parent.symbol_table)
                 else:
                     entity_shape = attribute_shape
 
