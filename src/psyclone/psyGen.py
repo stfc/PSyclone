@@ -143,7 +143,8 @@ def object_index(alist, item):
     comparison operator for all nodes in the parse tree. See fparser
     issue 174.
 
-    :param list alist: list of objects to search.
+    :param alist: single object or list of objects to search.
+    :type alist: list or :py:class:`fparser.two.utils.Base`
     :param obj item: object to search for in the list.
     :returns: index of the item in the list.
     :rtype: int
@@ -154,6 +155,8 @@ def object_index(alist, item):
     for idx, entry in enumerate(alist):
         if entry is item:
             return idx
+    if alist is item.content:
+        return 0
     raise ValueError(
         "Item '{0}' not found in list: {1}".format(str(item), alist))
 
@@ -5500,12 +5503,11 @@ class Fparser2ASTProcessor(object):
                     currentparent.addchild(elsebody)
                     newifblock = IfBlock(parent=elsebody,
                                          annotation='was_elseif')
+                    elsebody.addchild(newifblock)
+
                     # Keep pointer to fpaser2 AST
                     elsebody._ast = node.content[start_idx]
                     newifblock._ast = node.content[start_idx]
-                    elsebody._ast_end = node.content[end_idx]
-                    newifblock._ast_end = node.content[end_idx]
-                    elsebody.addchild(newifblock)
 
                 # Create condition as first child
                 self.process_nodes(parent=newifblock,
@@ -5514,8 +5516,8 @@ class Fparser2ASTProcessor(object):
 
                 # Create if-body as second child
                 ifbody = Schedule(parent=ifblock)
-                ifbody._ast = node.content[start_idx]
-                ifbody._ast_end = node.content[end_idx]
+                ifbody._ast = node.content[start_idx + 1]
+                ifbody._ast_end = node.content[end_idx - 1]
                 newifblock.addchild(ifbody)
                 self.process_nodes(parent=ifbody,
                                    nodes=node.content[start_idx + 1:end_idx],
@@ -5619,6 +5621,8 @@ class Fparser2ASTProcessor(object):
                 if isinstance(case, Fortran2003.Case_Selector):
                     ifblock = IfBlock(parent=currentparent,
                                       annotation='was_case')
+                    ifblock._ast = node.content[start_idx]
+                    ifblock._ast_end = node.content[end_idx - 1]
 
                     # Add condition: selector == case
                     bop = BinaryOperation(parent=ifblock, operator='==')
@@ -5637,9 +5641,8 @@ class Fparser2ASTProcessor(object):
                                                           end_idx],
                                        nodes_parent=node)
                     ifblock.addchild(ifbody)
-                    # Keep pointer to fpaser2 AST
-                    ifbody._ast = node.content[start_idx]
-                    ifbody._ast_end = node.content[end_idx]
+                    ifbody._ast = node.content[start_idx + 1]
+                    ifbody._ast_end = node.content[end_idx - 1]
 
                     if rootif:
                         # If rootif is already initialised we chain the new
@@ -5647,14 +5650,10 @@ class Fparser2ASTProcessor(object):
                         elsebody = Schedule(parent=currentparent)
                         currentparent.addchild(elsebody)
                         elsebody.addchild(ifblock)
-                        # Keep pointer to fpaser2 AST
                         elsebody._ast = node.content[start_idx]
-                        ifblock._ast = node.content[start_idx]
                         elsebody._ast_end = node.content[end_idx]
-                        ifblock._ast_end = node.content[end_idx]
                     else:
                         rootif = ifblock
-                        rootif._ast = node  # Keep pointer to fpaser2 AST
 
                     currentparent = ifblock
 

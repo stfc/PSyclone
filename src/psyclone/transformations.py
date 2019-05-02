@@ -119,15 +119,6 @@ class RegionTrans(Transformation):
                         "Nodes of type '{0}' cannot be enclosed by a {1} "
                         "transformation".format(type(item), self.name))
 
-        # Check that we aren't attempting to include any else/else if's without
-        # their parent 'if'.
-        from psyclone.psyGen import IfBlock
-        for node in node_list:
-            if isinstance(node, Schedule) and isinstance(node.parent, IfBlock):
-                raise TransformationError(
-                    "Proposed transformation would split else/else-if clauses "
-                    "from their parent if-statement.")
-
 
 # =============================================================================
 def check_intergrid(node):
