@@ -300,6 +300,7 @@ def test_opencl_kernel_gen_wrong_kernel():
     ''' Tests that gen_ocl method raises the proper error when the
     GOKernelSchedule does not represent a proper GOcean kernel.
     '''
+    from psyclone.psyGen import FortranInterface, SymbolAccess
 
     kschedule = GOKernelSchedule('test')
 
@@ -311,8 +312,8 @@ def test_opencl_kernel_gen_wrong_kernel():
             "Table for kernel 'test' has only 0 argument(s).") in str(err)
 
     # Test gen_ocl with 1 kernel argument
-    kschedule.symbol_table.declare("arg1", "integer", [], "global_argument",
-                                   True, False)
+    kschedule.symbol_table.declare("arg1", "integer", [],
+                                   FortranInterface(access=SymbolAccess.READ))
     kschedule.symbol_table.specify_argument_list(["arg1"])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
@@ -321,8 +322,8 @@ def test_opencl_kernel_gen_wrong_kernel():
             "Table for kernel 'test' has only 1 argument(s).") in str(err)
 
     # Test gen_ocl with 2 kernel argument
-    kschedule.symbol_table.declare("arg2", "integer", [], "global_argument",
-                                   True, False)
+    kschedule.symbol_table.declare("arg2", "integer", [],
+                                   FortranInterface(access=SymbolAccess.READ))
     kschedule.symbol_table.specify_argument_list(["arg1", "arg2"])
     kschedule.gen_ocl()
 
@@ -344,8 +345,9 @@ def test_opencl_kernel_gen_wrong_kernel():
     kschedule.symbol_table.lookup("arg2")._shape = []  # restore
 
     # Test gen_ocl with clashing variable names for array lengths.
-    kschedule.symbol_table.declare("array", "integer", [None],
-                                   "global_argument", True, True)
+    kschedule.symbol_table.declare(
+            "array", "integer", [None],
+            FortranInterface(access=SymbolAccess.READWRITE))
     kschedule.symbol_table.declare("arrayLEN1", "integer", [])
     kschedule.symbol_table.specify_argument_list(["arg1", "arg2", "array"])
     with pytest.raises(GenerationError) as err:

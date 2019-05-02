@@ -41,6 +41,7 @@
 
 from __future__ import print_function, absolute_import
 import abc
+from enum import Enum
 import six
 from psyclone.configuration import Config
 
@@ -5193,14 +5194,10 @@ class Fparser2ASTProcessor(object):
             mod_name = str(decl.items[2])
             for name in iterateitems(decl.items[4]):
                 # Create an entry in the SymbolTable for each symbol named
-                # in the ONLY clause. We assume that any data accessed in
-                # this way is read-only.
-                # TODO #315 check that the kernel conforms to this assumption.
+                # in the ONLY clause.
                 parent.symbol_table.declare(
                     str(name), datatype='deferred',
-                    scope='global',
-                    is_input=True, is_output=False,
-                    annotation={"fortran_module": mod_name})
+                    interface=FortranInterface(module_use=mod_name))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -5229,22 +5226,17 @@ class Fparser2ASTProcessor(object):
             # 2) If no intent attribute is provided, it is provisionally
             # marked as a local variable (when the argument list is parsed,
             # arguments with no explicit intent are updated appropriately).
-            scope = 'local'
-            is_input = False
-            is_output = False
+            interface = None
             for attr in iterateitems(attr_specs):
                 if isinstance(attr, Fortran2003.Attr_Spec):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if "intent(in)" in normalized_string:
-                        scope = 'global_argument'
-                        is_input = True
+                        interface = FortranInterface(access=SymbolAccess.READ)
                     elif "intent(out)" in normalized_string:
-                        scope = 'global_argument'
-                        is_output = True
+                        interface = FortranInterface(access=SymbolAccess.WRITE)
                     elif "intent(inout)" in normalized_string:
-                        scope = 'global_argument'
-                        is_input = True
-                        is_output = True
+                        interface = FortranInterface(
+                            access=SymbolAccess.READWRITE)
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
@@ -5282,9 +5274,8 @@ class Fparser2ASTProcessor(object):
                         "specifications are not supported."
                         "".format(decl.items))
 
-                parent.symbol_table.declare(
-                    str(name), datatype, entity_shape, scope, is_input,
-                    is_output)
+                parent.symbol_table.declare(str(name), datatype, entity_shape,
+                                            interface=interface)
 
         try:
             arg_strings = [x.string for x in arg_list]
@@ -5544,24 +5535,129 @@ class Fparser2ASTProcessor(object):
         return Literal(str(node.items[0]), parent=parent)
 
 
+class SymbolAccess(Enum):
+    '''
+    Enumeration for the different types of access that a Symbol is
+    permitted to have.
+
+    '''
+    # The symbol is only ever read within the current scoping block.
+    READ = 1
+    # The first access of the symbol in the scoping block is a write and
+    # therefore any value that it may have had upon entry is discarded.
+    WRITE = 2
+    # The first access of the symbol in the scoping block is a read but
+    # it is subsequently written to.
+    READWRITE = 3
+    # The way in which the symbol is accessed in the scoping block is
+    # unknown
+    UNKNOWN = 4
+
+
+class SymbolInterface(object):
+    '''
+    Base class for capturing the way that symbols with global scope (i.e.
+    that exist outside the section of code being represented in the PSyIR)
+    are accessed.
+
+    :param bool argument: True if the symbol is passed as a routine argument \
+                          (the default).
+    :param access: How the symbol is accessed within the section of code or \
+                   None (if unknown).
+    :type access: :py:class:`psyclone.psyGen.SymbolAccess`
+    '''
+    def __init__(self, argument=True, access=None):
+        self._is_arg = argument
+        self._access = SymbolAccess.UNKNOWN
+        if access:
+            self.access = access
+
+    @property
+    def is_argument(self):
+        '''
+        :returns: Whether or not this symbol is passed as a routine argument.
+        :rtype: bool
+        '''
+        return self._is_arg
+
+    @property
+    def access(self):
+        '''
+        :returns: the access-type for this symbol.
+        :rtype: :py:class:`psyclone.psyGen.SymbolAccess`
+        '''
+        return self._access
+
+    @access.setter
+    def access(self, value):
+        '''
+        Setter for the access type of this symbol.
+
+        :param value: the new access type.
+        :type value: :py:class:`psyclon.psyGen.SymbolAccess`
+
+        :raises TypeError: if the supplied value is not of the correct type.
+        '''
+        if not isinstance(value, SymbolAccess):
+            raise TypeError("SymbolInterface.access must be a SymbolAccess "
+                            "but got {0}".format(type(value)))
+        self._access = value
+
+    def __str__(self):
+        if self.is_argument:
+            return "Argument={0}".format(self.is_argument)
+        return ""
+
+
+class FortranInterface(SymbolInterface):
+    '''
+    Describes the interface to a Fortran Symbol. If no arguments are passed
+    to the constructor then the interface represents a routine argument
+    with the default INTENT of INOUT.
+
+    :param access: the manner in which the Symbol is accessed in the \
+                   associated code section. If None is supplied then the \
+                   access is SymbolAccess.UNKNOWN.
+    :type access: :py:class:`psyclone.psyGen.SymbolAccess` or None.
+    :param str module_use: the name of the Fortran module from which the \
+                           symbol is imported (or None if this symbol is a \
+                           routine argument).
+    '''
+    def __init__(self, access=None, module_use=None):
+        # By default a FortranInterface represents a routine argument
+        argument = False
+        if not module_use:
+            argument = True
+        super(FortranInterface, self).__init__(argument=argument,
+                                               access=access)
+        if self.is_argument and not access:
+            # In Fortran a routine argument without an explicit INTENT
+            # attribute has intent INOUT
+            self._access = SymbolAccess.READWRITE
+        self._module_name = module_use
+
+    def __str__(self):
+        if self.module_name:
+            return "FortranModule({0})".format(self.module_name)
+        else:
+            return super(FortranInterface, self).__str__()
+
+    @property
+    def module_name(self):
+        '''
+        :returns: the name of the Fortran module from which the symbol is \
+                  imported or None if it is not a module variable.
+        :rtype: str or None
+        '''
+        return self._module_name
+
+
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name,
     the datatype, the shape (in column-major order), the scope and, for
-    global-scoped symbols, whether the data is already defined and/or survives
-    after the kernel. `scope` may be one of the following:
-
-    .. tabularcolumns:: |p{65pt}|p{260pt}|
-
-    ================ ======================================================
-    **Scope**        **Definition**
-    ================ ======================================================
-    local            Symbol exists only within the scope of the Kernel.
-    global_argument  Symbol exists outside the kernel and is passed by
-                     argument.
-    global           Symbol exists outside the kernel and is shared in some
-                     language-specific way (must have an `annotation`).
-    ================ ======================================================
+    global-scoped symbols, the interface to those symbols (i.e. the mechanism
+    by which they are accessed).
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
@@ -5572,33 +5668,16 @@ class Symbol(object):
                        literal or a reference to an integer symbol with the \
                        extent. If it is an empty list then the symbol \
                        represents a scalar.
-    :param str scope: It is 'local' if the symbol just exists inside the \
-                      kernel scope or 'global*' if the data survives outside \
-                      of the kernel scope. Note that global-scoped symbols \
-                      may also have postfixed information about the sharing \
-                      mechanism, provided via 'annotations'.
-    :param bool is_input: Whether the symbol represents data that exists \
-                          before the kernel is entered and that is passed \
-                          into the kernel.
-    :param bool is_output: Whether the symbol represents data that is passed \
-                           outside the kernel upon exit.
-    :param dict annotation: A dict containing any language-specific \
-                            annotations or None.
+    :param interface: Object describing the interface to this symbol (i.e. \
+                      whether it is passed as a routine argument or accessed \
+                      in some other way) or None if the symbol is local.
+    :type interface: :py:class:`psyclone.psyGen.SymbolInterface`
+
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
     '''
 
-    # Tuple with the valid values for the scope attribute.
-    valid_scope_types = ('local',  # Locally-scoped
-                         'global_argument',  # Global scope accessed as a
-                                             # routine argument
-                         'global'  # Global scope but not a routine
-                                   # argument
-    )
-    # Those scopes that are only valid with annotation (that tell us how
-    # to access the data via some language-specific mechanism).
-    scopes_require_annotation = ('global')
     # Tuple with the valid datatypes.
     valid_data_types = ('real',  # Floating point
                         'integer',
@@ -5608,8 +5687,7 @@ class Symbol(object):
                                     # been determined
     )
 
-    def __init__(self, name, datatype, shape=[], scope='local',
-                 is_input=False, is_output=False, annotation=None):
+    def __init__(self, name, datatype, shape=[], interface=None):
 
         self._name = name
 
@@ -5632,24 +5710,13 @@ class Symbol(object):
             elif not isinstance(dimension, (type(None), int)):
                 raise TypeError("Symbol shape list elements can only be "
                                 "'Symbol', 'integer' or 'None'.")
-
         self._shape = shape
+        self._interface = None
 
-        if annotation:
-            if not isinstance(annotation, dict):
-                raise TypeError("Symbol annotation must be a dict but got: "
-                                "{0}".format(type(annotation)))
-            self._annotation = annotation
-        else:
-            self._annotation = {}
-
-        # The following attributes have setter methods (with error checking)
-        self._scope = None
-        self._is_input = None
-        self._is_output = None
-        self.scope = scope
-        self.is_input = is_input
-        self.is_output = is_output
+        if interface:
+            # If an interface is specified for this symbol then it must
+            # have 'global' scope (exist outside of this kernel)
+            self.interface = interface
 
     @property
     def name(self):
@@ -5668,54 +5735,11 @@ class Symbol(object):
         return self._datatype
 
     @property
-    def is_input(self):
-        '''
-        :returns: Whether the symbol represents data that already exists \
-                  before kernel and is passed into upon entry.
-        :rtype: bool
-        '''
-        return self._is_input
-
-    @is_input.setter
-    def is_input(self, new_is_input):
-        '''
-        :param bool new_is_input: Whether the symbol represents data that \
-                                  exists before the kernel is entered and \
-                                  that is passed into the kernel.
-        :raises TypeError: Provided parameters have invalid error type.
-        :raises ValueError: 'new_is_input' contains an invalid value.
-        '''
-        if not isinstance(new_is_input, bool):
-            raise TypeError("Symbol 'is_input' attribute must be a boolean.")
-        if self.scope == 'local' and new_is_input is True:
-            raise ValueError("Symbol with 'local' scope can not have "
-                             "'is_input' attribute set to True.")
-        self._is_input = new_is_input
-
-    @property
-    def is_output(self):
-        '''
-        :returns: Whether the variable respresented by this symbol survives \
-                  outside the kernel upon exit.
-        :rtype: bool
-        '''
-        return self._is_output
-
-    @is_output.setter
-    def is_output(self, new_is_output):
-        '''
-        :param bool new_is_output: Whether the variable represented by this \
-                                   symbol survives outside the kernel \
-                                   upon exit.
-        :raises TypeError: Provided parameters have invalid error type.
-        :raises ValueError: 'new_is_output' contains an invalid value.
-        '''
-        if not isinstance(new_is_output, bool):
-            raise TypeError("Symbol 'is_output' attribute must be a boolean.")
-        if self.scope == 'local' and new_is_output is True:
-            raise ValueError("Symbol with 'local' scope can not have "
-                             "'is_output' attribute set to True.")
-        self._is_output = new_is_output
+    def access(self):
+        if self._interface:
+            return self._interface.access
+        # This symbol has no interface info and therefore is local
+        return None
 
     @property
     def shape(self):
@@ -5735,51 +5759,32 @@ class Symbol(object):
     def scope(self):
         '''
         :returns: Whether the symbol is 'local' (just exists inside the \
-                  kernel scope) or 'global_*' (data also lives outside the \
-                  kernel). Global-scoped symbols also have postfixed \
-                  information about the sharing mechanism, at the moment \
-                  just 'global_argument' is available for variables passed \
-                  in/out of the kernel by argument.
+                  kernel scope) or 'global' (data also lives outside the \
+                  kernel). Global-scoped symbols must have an associated \
+                  'interface' that specifies the mechanism by which the \
+                  kernel accesses it.
         :rtype: str
         '''
-        return self._scope
-
-    @scope.setter
-    def scope(self, new_scope):
-        '''
-        :param str scope: It is 'local' if the symbol just exists inside the \
-                          kernel scope or 'global*' if the data survives \
-                          outside of the kernel scope. Note that some \
-                          global-scoped symbols must have postfixed \
-                          information about the sharing mechanism, stored in \
-                          the self._annotation dictionary.
-        :raises ValueError: New scope parameter has an invalid value or is \
-                            one of those that requires that a symbol also \
-                            have an annotation which this symbol lacks.
-        '''
-        if new_scope not in Symbol.valid_scope_types:
-            raise ValueError("Symbol scope attribute can only be one of {0}"
-                             " but got '{1}'."
-                             "".format(str(Symbol.valid_scope_types),
-                                       str(new_scope)))
-        if new_scope in self.scopes_require_annotation and \
-           not self._annotation:
-            raise ValueError(
-                "Cannot set the scope of symbol '{0}' to be '{1}' because a "
-                "symbol with that scope requires an annotation (to specify the"
-                " language-specific mechanism by which the data is accessed)".
-                format(self._name, new_scope))
-
-        self._scope = new_scope
+        if self._interface:
+            return "global"
+        return "local"
 
     @property
-    def annotation(self):
+    def interface(self):
         '''
-        :returns: the dictionary of all annotations associated with \
-                  this Symbol.
-        :rtype: dict
+        :returns: the an object describing the external interface to \
+                  this Symbol or None (if it is local).
+        :rtype: :py:class:`psyclone.psyGen.SymbolInterface`
         '''
-        return self._annotation
+        return self._interface
+
+    @interface.setter
+    def interface(self, value):
+        if not isinstance(value, SymbolInterface):
+            raise TypeError("The interface to a Symbol must be a "
+                            "SymbolInterface but got '{0}'".
+                            format(type(value)))
+        self._interface = value
 
     def gen_c_definition(self):
         '''
@@ -5833,8 +5838,8 @@ class Symbol(object):
             ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
         else:
             ret += "Scalar"
-        if self.annotation:
-            ret += ", " + str(self.annotation)
+        if self.interface:
+            ret += ", " + str(self.interface)
         return ret + ">"
 
 
@@ -5858,8 +5863,7 @@ class SymbolTable(object):
         # Reference to KernelSchedule to which this symbol table belongs.
         self._kernel = kernel
 
-    def declare(self, name, datatype, shape=[], scope='local',
-                is_input=False, is_output=False, annotation=None):
+    def declare(self, name, datatype, shape=[], interface=None):
         '''
         Declare a new symbol in the symbol table.
 
@@ -5893,8 +5897,7 @@ class SymbolTable(object):
             raise KeyError("Symbol table already contains a symbol with"
                            " name '{0}'.".format(name))
 
-        self._symbols[name] = Symbol(name, datatype, shape, scope, is_input,
-                                     is_output, annotation)
+        self._symbols[name] = Symbol(name, datatype, shape, interface)
 
     def specify_argument_list(self, argument_name_list):
         '''
@@ -5911,9 +5914,7 @@ class SymbolTable(object):
             # as 'local', but if they appear in the argument list the scope and
             # input/output attributes need to be updated.
             if symbol.scope == 'local':
-                symbol.scope = 'global_argument'
-                symbol.is_input = True
-                symbol.is_output = True
+                symbol.interface = FortranInterface(access=SymbolAccess.READWRITE)
             self._argument_list.append(symbol)
 
     def lookup(self, name):
