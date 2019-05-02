@@ -57,7 +57,7 @@ class GODescriptor(Descriptor):
     on
     :param dict stencil: type of stencil access for this \
     argument. Defaults to None if the argument is not supplied.
-    :param string mesh: which mesh this argument is on. Defaults to \
+    :param str mesh: which mesh this argument is on. Defaults to \
     None if the argument is not supplied.
 
     '''

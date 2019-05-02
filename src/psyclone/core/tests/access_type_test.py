@@ -76,4 +76,5 @@ def test_from_string():
 
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
-    assert "Unknown access type 'invalid'" in str(err)
+    assert "Unknown access type 'invalid'. Valid values are ['inc', 'read',"\
+        " 'readwrite', 'sum', 'write']" in str(err)

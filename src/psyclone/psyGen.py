@@ -199,7 +199,8 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     :param arg_types: List of argument types (e.g. "GH_FIELD")
     :type arg_types: list of str
     :param arg_accesses: List of access types that arguments must have
-    :type arg_accesses: List of :py:class:`psyclone.core.access_type`.
+    :type arg_accesses: List of \
+        :py:class:`psyclone.core.access_type.AccessType`.
     :param arg_meshes: List of meshes that arguments must be on
     :type arg_meshes: list of str
     :param bool is_literal: Whether or not to include literal arguments in \
@@ -715,12 +716,26 @@ class Invoke(object):
         ''' Returns a list of all required declarations for the
         specified datatype. If access is supplied (e.g. "write") then
         only declarations with that access are returned.
+        :param string datatype: The type of the kernel argument for the \
+                                particular API for which the intent is \
+                                required
+        :param access: Optional AccessType that the declaration should have.
+        :returns: List of all declared names.
+        :rtype: A list of strings.
+        :raises: GenerationError if an invalid datatype is given.
+        :raises: InternalError if an invalid access is specified.
         '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
                 "unique_declarations called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
+
+        if access and not isinstance(access, AccessType):
+            raise InternalError(
+                "unique_declarations called with an invalid access type. "
+                "Type is {0} instead of AccessType".
+                format(type(access)))
 
         declarations = []
         for call in self.schedule.calls():
@@ -2269,10 +2284,10 @@ class OMPDirective(Directive):
     def _get_reductions_list(self, reduction_type):
         '''Return the name of all scalars within this region that require a
         reduction of type reduction_type. Returned names will be unique.
-        :param: reduction_type
-        :type reduction_type: :py:class:`psyclone.core.AccessType`
+        :param: reduction_type The reduction type (e.g. AccessType.SUM) to
+            search for.
+        :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
         '''
-        print("Called")
         result = []
         for call in self.calls():
             for arg in call.arguments.args:
@@ -3128,7 +3143,9 @@ class Loop(Node):
 
     def unique_modified_args(self, arg_type):
         '''Return all unique arguments of type arg_type from Kernels in this
-        loop that are modified'''
+        loop that are modified.
+        :param arg_type:
+        :type arg_type:'''
         arg_names = []
         args = []
         for call in self.calls():
@@ -3614,19 +3631,16 @@ class Kern(Call):
 
         :rtype: str
         :raises FieldNotFoundError: if none is found.
-
+        :returns: a Fortran argument name.
         '''
         for arg in self.arguments.args:
             if arg.access == AccessType.INC:
                 return arg
 
-        api_config = Config.get().api_conf()
-        rev_access_mapping = api_config.get_reverse_access_mapping()
-
         raise FieldNotFoundError("Kernel {0} does not have an argument with "
                                  "{1} access".
                                  format(self.name,
-                                        rev_access_mapping[AccessType.INC]))
+                                        AccessType.INC.api_name()))
 
     def written_arg(self):
         '''
@@ -3644,12 +3658,12 @@ class Kern(Call):
                     return arg
         api_config = Config.get().api_conf()
         rev_access_mapping = api_config.get_reverse_access_mapping()
+        write_string = rev_access_mapping[AccessType.WRITE]
+        readwrite_string = rev_access_mapping[AccessType.READWRITE]
         raise FieldNotFoundError("Kernel {0} does not have an argument with "
                                  "{1} or {2} access".
-                                 format(self.name,
-                                        rev_access_mapping[AccessType.WRITE],
-                                        rev_access_mapping
-                                        [AccessType.READWRITE]))
+                                 format(self.name, write_string,
+                                        readwrite_string))
 
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
@@ -4220,25 +4234,13 @@ class Argument(object):
     def access(self, value):
         '''Set the access type for this argument.
         :param value: New access type.
-        :type value: :py:class:`psyclone.core.access_type`.
+        :type value: :py:class:`psyclone.core.access_type.AccessType`.
         :raises ValueError if value is not an AccessType.
         '''
         if not isinstance(value, AccessType):
             raise ValueError("Invalid access type: '{0}'.".format(value))
 
         self._access = value
-
-    def is_read(self):
-        '''Checks if the argument is read, i.e. has access
-        type read, readwrite, or inc.'''
-        return self._access in [AccessType.READ, AccessType.READWRITE,
-                                AccessType.INC]
-
-    def is_written(self):
-        '''Checks if the argument is written, i.e. has access
-        type write, readwrite, or inc.'''
-        return self._access in [AccessType.WRITE, AccessType.READWRITE,
-                                AccessType.INC]
 
     @property
     def type(self):
@@ -5193,9 +5195,9 @@ class Fparser2ASTProcessor(object):
                     datatype = 'boolean'
             if datatype is None:
                 raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer', "
-                        "'logical' and 'character' intrinsic types are "
-                        "supported.".format(str(decl.items)))
+                    "Could not process {0}. Only 'real', 'integer', "
+                    "'logical' and 'character' intrinsic types are "
+                    "supported.".format(str(decl.items)))
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -5224,8 +5226,8 @@ class Fparser2ASTProcessor(object):
                             "Could not process {0}. Unrecognized attribute "
                             "'{1}'.".format(decl.items, str(attr)))
                 elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                    attribute_shape = self._parse_dimensions(
-                                            attr, parent.symbol_table)
+                    attribute_shape = \
+                        self._parse_dimensions(attr, parent.symbol_table)
                 else:
                     raise NotImplementedError(
                         "Could not process {0}. Unrecognized attribute "
@@ -5238,19 +5240,19 @@ class Fparser2ASTProcessor(object):
 
                 # If the entity has an array-spec shape, it has priority.
                 # Otherwise use the declaration attribute shape.
-                if (array_spec is not None):
-                    entity_shape = self._parse_dimensions(
-                                        array_spec, parent.symbol_table)
+                if array_spec is not None:
+                    entity_shape = \
+                    self._parse_dimensions(array_spec, parent.symbol_table)
                 else:
                     entity_shape = attribute_shape
 
-                if (initialisation is not None):
+                if initialisation is not None:
                     raise NotImplementedError(
                         "Could not process {0}. Initialisations on the"
                         " declaration statements are not supported."
                         "".format(decl.items))
 
-                if (char_len is not None):
+                if char_len is not None:
                     raise NotImplementedError(
                         "Could not process {0}. Character length "
                         "specifications are not supported."

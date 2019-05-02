@@ -82,13 +82,16 @@ class AccessType(Enum):
         for access in AccessType:
             if access.name == access_string.upper():
                 return access
-        raise ValueError("Unknown access type '{0}'.".format(access_string))
+        valid = [str(access).lower() for access in AccessType]
+        valid.sort()
+        raise ValueError("Unknown access type '{0}'. Valid values are {1}."
+                         .format(access_string, str(valid)))
 
     @staticmethod
     def all_write_accesses():
         ''':returns: A list of all access types that involve writing to an
                      argument in some form.
-        :rtype: List of py:class:`psyclone.core.AccessType`.
+        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
         return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC] + \
             AccessType.get_valid_reduction_modes()
@@ -97,7 +100,7 @@ class AccessType(Enum):
     def all_read_accesses():
         ''':returns: A list of all access types that involve reading an
                      argument in some form.
-        :rtype: List of py:class:`psyclone.core.AccessType`.
+        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
         return [AccessType.READ, AccessType.READWRITE, AccessType.INC]
 
@@ -105,7 +108,7 @@ class AccessType(Enum):
     def get_valid_reduction_modes():
         '''
         :returns: A list of valid reduction access modes.
-        :rtype: List of py:class:`psyclone.core.AccessType`.
+        :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
         return [AccessType.SUM]
 

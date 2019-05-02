@@ -1813,7 +1813,7 @@ def test_invoke_uniq_declns_invalid_access():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("gh_field",
                                                        access="invalid_acc")
     assert 'unique_declarations called with an invalid access type' \

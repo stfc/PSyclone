@@ -567,7 +567,6 @@ class DynArgDescriptor03(Descriptor):
         # Now convert from GH_* names to the generic access type:
         api_config = Config.get().api_conf("dynamo0.3")
         access_mapping = api_config.get_access_mapping()
-        rev_access_mapping = api_config.get_reverse_access_mapping()
         try:
             self._access_descriptor.name = \
                 access_mapping[self._access_descriptor.name]
@@ -703,6 +702,7 @@ class DynArgDescriptor03(Descriptor):
             # Test allowed accesses for scalars (read_only or reduction)
             if self._access_descriptor.name not in [AccessType.READ] + \
                AccessType.get_valid_reduction_modes():
+                rev_access_mapping = api_config.get_reverse_access_mapping()
                 api_name = rev_access_mapping[self._access_descriptor.name]
                 valid_reductions = AccessType.get_valid_reduction_names()
                 raise ParseError(
@@ -2540,8 +2540,8 @@ class DynScalarArgs(DynCollection):
                         self._int_scalars[arg.intent].append(arg.name)
                     else:
                         raise InternalError(
-                            "Scalar type '{0}' is in GH_VALID_SCALAR_NAMES but "
-                            "not handled in DynScalarArgs".format(arg.type))
+                            "Scalar type '{0}' is in GH_VALID_SCALAR_NAMES but"
+                            " not handled in DynScalarArgs".format(arg.type))
 
     def _invoke_declarations(self, parent):
         '''
@@ -4205,17 +4205,6 @@ class DynInvoke(Invoke):
                         unique=True):
                     global_sum = DynGlobalSum(scalar, parent=loop.parent)
                     loop.parent.children.insert(loop.position+1, global_sum)
-
-    def unique_declarations(self, datatype, access=None):
-        if access and not isinstance(access, AccessType):
-            api_config = Config.get().api_conf("dynamo0.3")
-            valid_names = api_config.get_valid_accesses_api()
-            raise GenerationError(
-                "unique_declarations called with an invalid access type. "
-                "Expected one of '{0}' but got '{1}'".
-                format(valid_names, access))
-
-        return super(DynInvoke, self).unique_declarations(datatype, access)
 
     def unique_proxy_declarations(self, datatype, access=None):
         ''' Returns a list of all required proxy declarations for the
