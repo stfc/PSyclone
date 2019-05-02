@@ -5558,11 +5558,11 @@ class Symbol(object):
     valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.
     valid_data_types = ('real', 'integer', 'character', 'boolean')
+    # Mapping from valid_data_types to internal Python types
+    mapping = {'real': float, 'integer': int, 'character': str, 'boolean': bool}
 
     def __init__(self, name, datatype, shape=[], scope='local',
-                 is_input=False, is_output=False):
-
-        self._name = name
+                 constant_value=None, is_input=False, is_output=False):
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
@@ -5587,10 +5587,12 @@ class Symbol(object):
         self._shape = shape
 
         # The following attributes have setter methods (with error checking)
+        self._name = name
         self._scope = None
         self._is_input = None
         self._is_output = None
         self.scope = scope
+        self.constant_value = constant_value
         self.is_input = is_input
         self.is_output = is_output
 
@@ -5598,15 +5600,22 @@ class Symbol(object):
     def name(self):
         '''
         :returns: Name of the Symbol.
-        :rtype: string
+        :rtype: str
         '''
         return self._name
+
+    @name.setter
+    def name(self, new_name):
+        '''
+        :param str new_name: A new name for this Symbol instance.
+        '''
+        self._name = new_name
 
     @property
     def datatype(self):
         '''
         :returns: Datatype of the Symbol.
-        :rtype: string
+        :rtype: str
         '''
         return self._datatype
 
@@ -5706,6 +5715,59 @@ class Symbol(object):
                                        str(new_scope)))
 
         self._scope = new_scope
+
+    @property
+    def is_constant(self):
+        '''
+        :returns: Whether the symbol is a constant with a fixed known \
+        value (True) or not (False).
+        :rtype: bool
+
+        '''
+        return self._constant_value is not None
+
+    @property
+    def constant_value(self):
+        '''
+        :returns: Whether the symbol is a constant with a fixed known \
+        value (True) or is not a constant (False).
+        :rtype: bool
+
+        '''
+        return self._constant_value
+
+    @constant_value.setter
+    def constant_value(self, new_value):
+        ''':param constant_value : Set or change the value of the constant \
+        for this Symbol. If the value is None then this symbol is not \
+        a constant. The datatype of new_value must be compatible with \
+        the datatype of the symbol.
+        :type: int, float, str or bool
+
+        :raises ValueError: If a non-None value is provided and 1) \
+        this Symbol instance does not have local scope, or 2) this \
+        Symbol instance is not a scalar (as the shape attribute is not \
+        empty, or 3) the type of the value provided is not compatible \
+        with the datatype of this Symbol instance.
+
+        '''
+        if new_value is not None:
+            if self.scope != "local":
+                raise ValueError(
+                    "Symbol with a constant value is currently limited to "
+                    "having local scope but found '{0}'.".format(self.scope))
+            if self.shape:
+                raise ValueError(
+                    "Symbol with a constant value must be a scalar but the "
+                    "shape attribute is not empty.")
+            if not isinstance(new_value, Symbol.mapping[self.datatype]):
+                raise ValueError(
+                    "This Symbol instance's datatype is '{0}' which means "
+                    "the constant value is expected to be '{1}' but found "
+                    "'{2}'.".format(self.datatype,
+                                    Symbol.mapping[self.datatype],
+                                    type(new_value)))
+        self._constant_value = new_value
 
     def gen_c_definition(self):
         '''

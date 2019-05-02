@@ -3020,18 +3020,22 @@ def test_symbol_initialisation():
 
     # Test with valid arguments
     assert isinstance(Symbol('a', 'real'), Symbol)
+    assert isinstance(Symbol('a', 'real', constant_value=3.14), Symbol)
     assert isinstance(Symbol('a', 'integer'), Symbol)
+    assert isinstance(Symbol('a', 'integer', constant_value=0), Symbol)
     assert isinstance(Symbol('a', 'character'), Symbol)
+    assert isinstance(Symbol('a', 'character', constant_value="hello"), Symbol)
     assert isinstance(Symbol('a', 'boolean'), Symbol)
+    assert isinstance(Symbol('a', 'boolean', constant_value=False), Symbol)
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'local'), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument'), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
-                             True, True), Symbol)
+                             None, True, True), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
-                             True, False), Symbol)
+                             None, True, False), Symbol)
     dim = Symbol('dim', 'integer', [])
     assert isinstance(Symbol('a', 'real', [dim], 'local'), Symbol)
     assert isinstance(Symbol('a', 'real', [3, dim, None], 'local'), Symbol)
@@ -3068,6 +3072,51 @@ def test_symbol_initialisation():
         Symbol('a', 'real', [bad_dim], 'local')
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'real', scope='global_argument', constant_value=9.81)
+    assert ("Symbol with a constant value is currently limited to having "
+            "local scope but found 'global_argument'.") in str(error.value)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'real', shape=[None], constant_value=9.81)
+    assert ("Symbol with a constant value must be a scalar but the shape "
+            "attribute is not empty.") in str(error.value)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'integer', constant_value=9.81)
+    assert ("This Symbol instance's datatype is 'integer' which means the "
+            "constant value is expected to be '<type 'int'>' but found "
+            "'<type 'float'>'.") in str(error.value)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'real', constant_value=False)
+    assert ("This Symbol instance's datatype is 'real' which means the "
+            "constant value is expected to be '<type 'float'>' but found "
+            "'<type 'bool'>'.") in str(error.value)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'character', constant_value=42)
+    assert ("This Symbol instance's datatype is 'character' which means the "
+            "constant value is expected to be '<type 'str'>' but found "
+            "'<type 'int'>'.") in str(error.value)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'boolean', constant_value="hello")
+    assert ("This Symbol instance's datatype is 'boolean' which means the "
+            "constant value is expected to be '<type 'bool'>' but found "
+            "'<type 'str'>'.") in str(error.value)
+
+
+def test_symbol_map():
+    '''Test the mapping variable in the Symbol class does not raise any
+    exceptions when it is used with the valid_data_types variable in
+    the Symbol class.
+
+    '''
+    assert len(Symbol.valid_data_types) == len(Symbol.mapping)
+    for data_type in Symbol.valid_data_types:
+        Symbol.mapping[datatype]
 
 
 def test_symbol_scope_setter():
