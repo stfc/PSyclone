@@ -61,7 +61,7 @@ class AccessType(Enum):
         '''
         return self.name
 
-    def api_name(self):
+    def api_access_name(self):
         '''This convenience function returns the name of the type in the
         current API. E.g. in a dynamo0.3 API, WRITE --> "gh_write"
         :returns: The API specific name.
@@ -118,5 +118,5 @@ class AccessType(Enum):
         :returns: A list of valid reduction access names.
         :rtype: List of strings.
         '''
-        return [access.api_name() for access in
+        return [access.api_access_name() for access in
                 AccessType.get_valid_reduction_modes()]

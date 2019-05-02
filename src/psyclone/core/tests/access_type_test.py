@@ -58,11 +58,11 @@ def test_api_name():
 
     Config.get().api = "dynamo0.3"
 
-    assert AccessType.INC.api_name() == "gh_inc"
-    assert AccessType.WRITE.api_name() == "gh_write"
-    assert AccessType.READ.api_name() == "gh_read"
-    assert AccessType.READWRITE.api_name() == "gh_readwrite"
-    assert AccessType.SUM.api_name() == "gh_sum"
+    assert AccessType.INC.api_access_name() == "gh_inc"
+    assert AccessType.WRITE.api_access_name() == "gh_write"
+    assert AccessType.READ.api_access_name() == "gh_read"
+    assert AccessType.READWRITE.api_access_name() == "gh_readwrite"
+    assert AccessType.SUM.api_access_name() == "gh_sum"
 
 
 def test_from_string():
