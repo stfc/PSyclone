@@ -1290,9 +1290,6 @@ class GOKernelArguments(Arguments):
             remove the need for this property (#279). '''
         return self._dofs
 
-    def iteration_space_arg(self):
-        return Arguments.iteration_space_arg(self)
-
     @property
     def acc_args(self):
         '''
