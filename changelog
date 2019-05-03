@@ -110,6 +110,11 @@
 	code block rather than recognising them as do-loops and make
 	default(present) optional for ACCKernels transformations.
 
+        36) #362 and PR #367. Adds the basics of a transformation for identifying
+	certain LFRic kernel arguments that can be converted to constants.
+	Currently only identifies candidate arguments and prints them to
+	stdout.
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
