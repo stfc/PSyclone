@@ -45,7 +45,7 @@
 from __future__ import print_function, absolute_import
 import abc
 import os
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import fparser
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
@@ -2129,7 +2129,6 @@ class DynOrientations(DynCollection):
     '''
     # We use a named-tuple to manage the storage of the various quantities
     # that we require. This is neater and more robust than a dict.
-    from collections import namedtuple
     Orientation = namedtuple("Orientation", ["name", "field",
                                              "function_space"])
 
@@ -4019,7 +4018,6 @@ class DynBoundaryConditions(DynCollection):
     '''
     # Define a BoundaryDofs namedtuple to help us manage the arrays that
     # are required.
-    from collections import namedtuple
     BoundaryDofs = namedtuple("BoundaryDofs", ["argument", "function_space"])
 
     def __init__(self, node):
@@ -6639,6 +6637,7 @@ class ArgOrdering(object):
     a Kernel call.'''
     def __init__(self, kern):
         self._kern = kern
+        self._generate_called = False
 
     def generate(self):
         '''
@@ -6649,6 +6648,7 @@ class ArgOrdering(object):
         :raises GenerationError: if the kernel arguments break the
                                  rules for the Dynamo 0.3 API.
         '''
+        self._generate_called = True
         if self._kern.arguments.has_operator():
             # All operator types require the cell index to be provided
             self.cell_position()
@@ -6992,18 +6992,25 @@ class ArgOrdering(object):
 
 
 class KernCallArgList(ArgOrdering):
-    '''
-    Creates the argument list required to call kernel "kern" from the
-    PSy-layer. The ordering and type of arguments is captured by the base
-    class.
+    '''Creates the argument list required to call kernel "kern" from the
+    PSy-layer and captures the positions of the following arguments in
+    the argument list: nlayers, number of quadrature points and number
+    of degrees of freedom. The ordering and type of arguments is
+    captured by the base class.
 
     :param kern: The kernel that is being called.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+
     '''
+    NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])
+
     def __init__(self, kern):
         ArgOrdering.__init__(self, kern)
         self._arglist = []
         self._name_space_manager = NameSpaceFactory().create()
+        self._nlayers_positions = []
+        self._nqp_positions = []
+        self._ndf_positions = []
 
     def cell_position(self):
         ''' add a cell argument to the argument list'''
@@ -7039,6 +7046,7 @@ class KernCallArgList(ArgOrdering):
         nlayers_name = self._name_space_manager.create_name(
             root_name="nlayers", context="PSyVars", label="nlayers")
         self._arglist.append(nlayers_name)
+        self._nlayers_positions.append(len(self._arglist))
 
     # TODO uncomment this method when ensuring we only pass ncell3d once
     # to any given kernel.
@@ -7152,6 +7160,9 @@ class KernCallArgList(ArgOrdering):
         # There is currently one argument: "ndf"
         ndf_name = get_fs_ndf_name(function_space)
         self._arglist.append(ndf_name)
+        self._ndf_positions.append(
+            KernCallArgList.NdfInfo(position=len(self._arglist),
+                                    function_space=function_space.orig_name))
 
     def fs_compulsory_field(self, function_space):
         '''add compulsory arguments to the argument list, when there is a
@@ -7283,6 +7294,12 @@ class KernCallArgList(ArgOrdering):
 
     def quad_rule(self):
         ''' add qr information to the argument list'''
+        # At the moment we only support XYoZ quadrature which requires
+        # a number of quadrature points in the horizontal and
+        # vertical.
+
+        self._nqp_positions.append({"horizontal": len(self._arglist) + 1,
+                                    "vertical": len(self._arglist) + 2})
         self._arglist.extend(self._kern.qr_args)
 
     def banded_dofmap(self, function_space):
@@ -7297,18 +7314,80 @@ class KernCallArgList(ArgOrdering):
         self._arglist.append(get_cma_indirection_map_name(function_space))
 
     @property
+    def nlayers_positions(self):
+        '''
+        :return: the position(s) in the argument list of the \
+        variable(s) that passes the number of layers. The generate \
+        method must be called first.
+        :rtype: list of int.
+
+        :raises InternalError: if the generate() method has not been
+        called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the nlayers_positions() method")
+        return self._nlayers_positions
+
+    @property
+    def nqp_positions(self):
+        '''
+        :return: the positions in the argument list of the variables that \
+        pass the number of quadrature points. The number and type of \
+        these will change depending on the type of quadrature. A list \
+        of dictionaries is returned with the quadrature directions \
+        being the keys to the dictionaries and their position in the \
+        argument list being the values. At the moment only XYoZ is \
+        supported (which has horizontal and vertical quadrature \
+        points). The generate method must be called first.
+        :rtype: [{str: int, ...}]
+
+        :raises InternalError: if the generate() method has not been \
+        called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the nqp_positions() method")
+        return self._nqp_positions
+
+    @property
+    def ndf_positions(self):
+        '''
+        :return: the position(s) in the argument list and the function \
+        space(s) associated with the variable(s) that pass(es) the \
+        number of degrees of freedom for the function space. The \
+        generate method must be called first.
+        :rtype: list of namedtuple (position=int, function_space=str).
+
+        :raises InternalError: if the generate() method has not been \
+        called.
+
+        '''
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the ndf_positions() method")
+        return self._ndf_positions
+
+    @property
     def arglist(self):
         '''
-        :return: the kernel argument list. The generate function must be \
-                 called first.
+        :return: the kernel argument list. The generate method must be \
+        called first.
         :rtype: list of str.
 
-        :raises GenerationError: if the argument list is empty.
+        :raises InternalError: if the generate() method has not been \
+        called.
+
         '''
-        if not self._arglist:
-            raise GenerationError(
-                "Internal error. The argument list in KernCallArgList:"
-                "arglist() is empty. Has the generate() method been called?")
+        if not self._generate_called:
+            raise InternalError(
+                "KernCallArgList: the generate() method should be called "
+                "before the arglist() method")
         return self._arglist
 
     @property
