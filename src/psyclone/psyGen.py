@@ -4227,10 +4227,11 @@ class Argument(object):
         '''Set the access type for this argument.
         :param value: New access type.
         :type value: :py:class:`psyclone.core.access_type.AccessType`.
-        :raises ValueError if value is not an AccessType.
+        :raisesInternalError if value is not an AccessType.
         '''
         if not isinstance(value, AccessType):
-            raise ValueError("Invalid access type: '{0}'.".format(value))
+            raise InternalError("Invalid access type '{0}' of type '{1}."
+                                .format(value, type(value)))
 
         self._access = value
 

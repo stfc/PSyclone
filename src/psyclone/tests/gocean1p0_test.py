@@ -1122,6 +1122,12 @@ def test_raw_arg_list_error(monkeypatch):
         _ = kern.arguments.raw_arg_list()
     assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
             "'broken'" in str(err))
+    # Also test that assigning a non-AccessType value to a kernel argument
+    # raises an exception.
+    with pytest.raises(InternalError) as err:
+        kern.arguments.args[0].access = "invalid-type"
+    assert "Invalid access type 'invalid-type' of type '<type 'str'>" \
+           in str(err)
 
 
 # -----------------------------------
