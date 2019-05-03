@@ -3971,7 +3971,8 @@ class Arguments(object):
     def iteration_space_arg(self):
         '''
         Returns an argument that can be iterated over, i.e. modified
-        (has WRITE, READWRITE or INC access).
+        (has WRITE, READWRITE or INC access), but not the result of
+        a reduction operation.
 
         :returns: a Fortran argument name
         :rtype: string
@@ -3979,9 +3980,8 @@ class Arguments(object):
 
         '''
         for arg in self._args:
-            if arg.access == AccessType.WRITE or \
-               arg.access == AccessType.READWRITE or \
-               arg.access == AccessType.INC:
+            if arg.access in AccessType.all_write_accesses() and \
+                    arg.access not in AccessType.get_valid_reduction_modes():
                 return arg
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
