@@ -46,6 +46,7 @@ import six
 from psyclone.psyGen import Transformation, InternalError
 from psyclone.configuration import Config
 from psyclone.undoredo import Memento
+from psyclone.dynamo0p3 import VALID_ANY_SPACE_NAMES
 
 VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
 
@@ -2451,6 +2452,244 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
                 "Error in Dynamo0p3AsyncHaloExchange transformation. Supplied "
                 "node must be a synchronous halo exchange but found '{0}'."
                 .format(type(node)))
+
+
+class Dynamo0p3KernelConstTrans(Transformation):
+    '''Modifies a kernel so that the number of dofs, number of layers and
+    number of quadrature points are fixed in the kernel rather than
+    being passed in by argument.
+
+    >>> from psyclone.parse.algorithm import parse
+    >>> from psyclone.psyGen import PSyFactory
+    >>> api = "dynamo0.3"
+    >>> ast, invokeInfo = parse("file.f90", api=api)
+    >>> psy=PSyFactory(api).create(invokeInfo)
+    >>> schedule = psy.invokes.get('invoke_0').schedule
+    >>> schedule.view()
+    >>>
+    >>> from psyclone.transformations import Dynamo0p3KernelConstTrans
+    >>> trans = Dynamo0p3KernelConstTrans()
+    >>> for kernel in schedule.kern_calls():
+    >>>     new_schedule, _ = trans.apply(kernel)
+    >>>     kernel_schedule = kernel.get_kernel_schedule()
+    >>>     kernel_schedule.symbol_table.view()
+
+    '''
+
+    # ndofs for different function spaces on a quadrilateral element
+    # for different orders. Formulas kindly provided by Tom
+    # Melvin. See the Qr table at http://femtable.org/background.html,
+    # for computed values of w0, w1, w2 and w3 up to order 7.
+    space_to_dofs = {"w3":     (lambda n: (n+1)**3),
+                     "w2":     (lambda n: 3*(n+2)*(n+1)**2),
+                     "w1":     (lambda n: 3*(n+2)**2*(n+1)),
+                     "w0":     (lambda n: (n+2)**3),
+                     "wtheta": (lambda n: (n+2)*(n+1)**2),
+                     "w2h":    (lambda n: 2*(n+2)*(n+1)**2),
+                     "w2v":    (lambda n: (n+2)*(n+1)**2)}
+
+    def __str__(self):
+        return ("Makes the number of degrees of freedom, the number of "
+                "quadrature points and the number of layers constant in "
+                "a Kernel.")
+
+    @property
+    def name(self):
+        '''
+        :returns: the name of this transformation as a string.
+        :rtype: str
+        '''
+        return "Dynamo0p3KernelConstTrans"
+
+    def apply(self, node, cellshape="quadrilateral", element_order=None,
+              number_of_layers=None, quadrature=False):
+        '''Transforms a kernel so that the values for the number of degrees of
+        freedom (if a valid value for the element_order arg is
+        provided), the number of quadrature points (if the quadrature
+        arg is set to True) and the number of layers (if a valid value
+        for the number_of_layers arg is provided) are constant in a
+        kernel rather than being passed in by argument.
+
+        The "cellshape", "element_order" and "number_of_layers"
+        arguments are provided to mirror the namelist values that are
+        input into an LFRic model when it is run.
+
+        Quadrature support is currently limited to XYoZ in ths
+        transformation. In the case of XYoZ the number of quadrature
+        points (for horizontal and vertical) are set to the
+        element_order + 3 in the LFRic infrastructure so their value
+        is derived.
+
+        :param node: A kernel node
+        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type str cellshape: the shape of the cells. This is provided \
+        as it helps determine the number of dofs a field has for a \
+        particular function space. Currently only "quadrilateral" is \
+        supported which is also the default value.
+        :type int element_order: the order of the cell. In \
+        combination with cellshape, this determines the number of \
+        dofs a field has for a particular function space. If it is set \
+        to None (the default) then the dofs values are not set as \
+        constants in the kernel, otherwise they are.
+        :type int number_of_layers: the number of vertical layers in \
+        the LFRic model mesh used for this particular run. If this is \
+        set to None (the default) then the nlayers value is not set as \
+        a constant in the kernel, otherwise it is.
+        :type bool quadrature: whether the number of quadrature \
+        points values are set as constants in the kernel (True) or not \
+        (False). The default is False.
+
+        :returns: Tuple of the modified schedule and a record of the \
+                  transformation.
+        :rtype: (:py:class:`psyclone.psyGen.Schedule`, \
+                :py:class:`psyclone.undoredo.Memento`)
+
+        '''
+
+        self._validate(node, cellshape, element_order, number_of_layers,
+                       quadrature)
+
+        schedule = node.root
+        kernel = node
+
+        # create a memento of the schedule and the proposed transformation
+        keep = Memento(schedule, self, [kernel])
+
+        from psyclone.dynamo0p3 import KernCallArgList
+        arg_list_info = KernCallArgList(kernel)
+        arg_list_info.generate()
+        try:
+            kernel_schedule = kernel.get_kernel_schedule()
+        except NotImplementedError as excinfo:
+            raise TransformationError(
+                "Failed to parse kernel '{0}'. Error reported was '{1}'."
+                "".format(kernel.name, str(excinfo)))
+
+        _ = kernel_schedule.symbol_table
+        if number_of_layers:
+            # Here is where I will modify the symbol table for nlayers
+            print("    Modify mesh height, arg position {0}, value {1}"
+                  "".format(arg_list_info.nlayers_positions[0],
+                            number_of_layers))
+        if quadrature and arg_list_info.nqp_positions:
+            if kernel.eval_shape.lower() == "gh_quadrature_xyoz":
+                # Modify the symbol table for horizontal and vertical
+                # quadrature here.
+                print("    Modify horizontal quadrature, arg position {0}, "
+                      "value {1}".format(
+                          arg_list_info.nqp_positions[0]["horizontal"],
+                          element_order+3))
+                print("    Modify vertical quadrature, arg position {0}, "
+                      "value {1}".format(
+                          arg_list_info.nqp_positions[0]["vertical"],
+                          element_order+3))
+            else:
+                raise TransformationError(
+                    "Error in Dynamo0p3KernelConstTrans transformation. "
+                    "Support is currently limited to xyoz quadrature but "
+                    "found '{0}'.".format(kernel.eval_shape))
+
+        if element_order is not None:
+            # Modify the symbol table for degrees of freedom here.
+            for info in arg_list_info.ndf_positions:
+                if info.function_space.lower() in (VALID_ANY_SPACE_NAMES +
+                                                   ["any_w2"]):
+                    # skip any_space_* and any_w2
+                    print(
+                        "    Skipping dofs, arg position {0}, function space "
+                        "{1}".format(info.position, info.function_space))
+                else:
+                    try:
+                        print(
+                            "    Modify dofs, arg position {0}, function "
+                            "space {1}, value {2}".format(
+                                info.position, info.function_space,
+                                Dynamo0p3KernelConstTrans.
+                                space_to_dofs[info.function_space]
+                                (element_order)))
+                    except KeyError:
+                        raise InternalError(
+                            "Error in Dynamo0p3KernelConstTrans "
+                            "transformation. Unsupported function space "
+                            "'{0}' found. Expecting one of {1}."
+                            "".format(info.function_space,
+                                      Dynamo0p3KernelConstTrans.
+                                      space_to_dofs.keys()))
+        return schedule, keep
+
+    def _validate(self, node, cellshape, element_order, number_of_layers,
+                  quadrature):
+        '''Internal method to check whether the input arguments are valid for
+        this transformation.
+
+        :param node: A dynamo 0.3 kernel node
+        :type node: :py:obj:`psyclone.psygen.DynKern`
+        :type str cellshape: the shape of the elements/cells.
+        :type int element_order: the order of the elements/cells.
+        :type int number_of_layers: the number of layers to use.
+        :type bool quadrature: whether quadrature dimension sizes \
+        should or shouldn't be set as constants in a kernel.
+        :raises TransformationError: if the node argument is not a \
+        dynamo 0.3 kernel, the cellshape argument is not set to \
+        "quadrilateral", the element_order argument is not a 0 or a \
+        positive integer, the number of layers argument is not a \
+        positive integer, the quadrature argument is not a boolean, \
+        neither element order nor number of layers arguments are set \
+        (as the transformation would then do nothing), or the \
+        quadrature argument is True but the element order is not \
+        provided (as the former needs the latter).
+
+        '''
+        from psyclone.dynamo0p3 import DynKern
+        if not isinstance(node, DynKern):
+            raise TransformationError(
+                "Error in Dynamo0p3KernelConstTrans transformation. Supplied "
+                "node must be a dynamo kernel but found '{0}'."
+                .format(type(node)))
+
+        if cellshape.lower() != "quadrilateral":
+            # Only quadrilaterals are currently supported
+            raise TransformationError(
+                "Error in Dynamo0p3KernelConstTrans transformation. Supplied "
+                "cellshape must be set to 'quadrilateral' but found '{0}'."
+                .format(cellshape))
+
+        if element_order is not None and \
+           (not isinstance(element_order, int) or element_order < 0):
+            # element order must be 0 or a positive integer
+            raise TransformationError(
+                "Error in Dynamo0p3KernelConstTrans transformation. The "
+                "element_order argument must be >= 0 but found '{0}'."
+                .format(element_order))
+
+        if number_of_layers is not None and \
+           (not isinstance(number_of_layers, int) or number_of_layers < 1):
+            # number of layers must be a positive integer
+            raise TransformationError(
+                "Error in Dynamo0p3KernelConstTrans transformation. The "
+                "number_of_layers argument must be > 0 but found '{0}'."
+                .format(number_of_layers))
+
+        if quadrature not in [False, True]:
+            # quadrature must be a boolean value
+            raise TransformationError(
+                "Error in Dynamo0p3KernelConstTrans transformation. The "
+                "quadrature argument must be boolean but found '{0}'."
+                .format(quadrature))
+
+        if element_order is None and not number_of_layers:
+            # As a minimum, element order or number of layers must have values.
+            raise TransformationError(
+                "Error in Dynamo0p3KernelConstTrans transformation. At least "
+                "one of element_order or number_of_layers must be set "
+                "otherwise this transformation does nothing.")
+
+        if quadrature and element_order is None:
+            # if quadrature then element order
+            raise TransformationError(
+                "Error in Dynamo0p3KernelConstTrans transformation. If "
+                "quadrature is set then element_order must also be set (as "
+                "the values of the former are derived from the latter.")
 
 
 class ACCEnterDataTrans(Transformation):

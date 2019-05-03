@@ -245,6 +245,25 @@ For example, looking for `matrix_vector_code` call in
             KernCall matrix_vector_code(self_rhs_u,self_mb_rb,self_q) [module_inline=False]
         ...
 
+Example 13: Kernel Constants
+----------------------------
+
+This example shows how LFRic kernels can be modified so that the
+values for the number of degrees of freedom, the number of quadrature
+points and the number of layers can be made constant (as they are
+passed in by argument by default). To run:
+::
+    cd eg13/
+    psyclone -s ./kernel_constants.py \
+    ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+    -oalg alg.f90 -opsy psy.f90
+
+code
+----
+
+Location of LFRic algorithm and kernel code that is used by two or
+more examples.
+
 scripts
 -------
 
