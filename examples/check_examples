@@ -160,6 +160,7 @@ cd -
 echo "Running example nemo/eg3"
 cd nemo/eg3
 ${PSYCLONE} -api "nemo" -s ./kernels_trans.py ../code/tra_adv.F90
+${PSYCLONE} -api "nemo" -s ./kernels_managed_mem_trans.py ../code/tra_adv.F90
 cd -
 
 echo "Running transformation examples"

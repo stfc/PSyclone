@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''A transformation script that seeks to apply OpenACC DATA and KERNELS
-directives to NEMO style code.  In order to use
-it you must first install PSyclone. See README.md in the top-level
-psyclone directory.
+'''A transformation script that applies OpenACC KERNELS
+directives to NEMO style code but makes no attempt to manage data movement.
+The resulting code must therefore be compiled using
+PGI's unified-memory support (-ta=tesla:managed) in order to automate the
+movement of data between the host and the GPU.
+
+In order to use this script you must first install PSyclone. See
+README.md in the top-level psyclone directory.
 
 Once you have psyclone installed, this may be used by doing:
 
- $ psyclone -api nemo -s ./kernels_trans.py some_source_file.f90
+ $ psyclone -api nemo -s ./kernels_managed_mem_trans.py some_source_file.f90
 
 This should produce a lot of output, ending with generated
 Fortran. Note that the Fortran source files provided to PSyclone must
@@ -56,23 +60,10 @@ routine) then the script moves a level down the tree and then repeats
 the process of attempting to create the largest possible Kernel
 region.
 
-Once the Kernels regions have been created, the script then simply
-encloses each of them within an OpenACC Data region (since these have
-already been made as large as possible). In reality, the purpose of a
-data region is to keep data on the remote GPU device for as long as
-possible, ideally between Kernel regions. However, this requires more
-sophisticated dependency analysis than is yet implemented in
-PSyclone. Issue #309 will tackle this limitation.
-
 '''
 
-from __future__ import print_function
-from psyclone.psyGen import TransInfo
+from __future__ import print_function, absolute_import
 from kernel_utils import add_kernels
-
-
-# Get the PSyclone transformations we will use
-ACC_DATA_TRANS = TransInfo().get_trans_name('ACCDataTrans')
 
 
 def trans(psy):
@@ -82,8 +73,6 @@ def trans(psy):
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
     '''
-    from psyclone.psyGen import ACCDirective
-
     print("Invokes found:\n{0}\n".format(
         "\n".join([str(name) for name in psy.invokes.names])))
 
@@ -95,22 +84,8 @@ def trans(psy):
                   format(invoke.name))
             continue
         sched.view()
-
-        add_kernels(sched.children)
+        # Since this script is intended to be used with PGI's managed-memory
+        # option we make no attempt to manage data movement.
+        add_kernels(sched.children, default_present=False)
         sched.view()
-
-        directives = sched.walk(sched.children, ACCDirective)
-        if not directives:
-            # We only need a data region if we've added any directives
-            continue
-
-        # Since we've already taken care to only include recognised code within
-        # 'kernels' directives, we simply put each of those directives inside
-        # a data region. In reality we would want to try and make the data
-        # regions bigger but this is only an example.
-        for directive in directives:
-            sched, _ = ACC_DATA_TRANS.apply([directive])
-
-        sched.view()
-
         invoke.schedule = sched

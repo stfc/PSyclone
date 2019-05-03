@@ -4721,14 +4721,10 @@ class ACCKernelsDirective(ACCDirective):
     :raises NotImplementedError: if default_present is False.
 
     '''
-    def __init__(self, children=None, parent=None, default_present=False):
+    def __init__(self, children=None, parent=None, default_present=True):
         super(ACCKernelsDirective, self).__init__(children=children,
                                                   parent=parent)
         self._default_present = default_present
-        if not self._default_present:
-            raise NotImplementedError(
-                "Currently an OpenACC 'kernels' region must have the "
-                "'default(present)' clause.")
 
     @property
     def dag_name(self):
@@ -4766,8 +4762,11 @@ class ACCKernelsDirective(ACCDirective):
         Updates the fparser2 AST by inserting nodes for this ACC kernels
         directive.
         '''
+        data_movement = None
+        if self._default_present:
+            data_movement = "present"
         self._add_region(start_text="KERNELS", end_text="END KERNELS",
-                         data_movement="present")
+                         data_movement=data_movement)
 
 
 class ACCDataDirective(ACCDirective):

@@ -2726,7 +2726,8 @@ class ACCKernelsTrans(RegionTrans):
         :type node_list: list of :py:class:`psyclone.psyGen.Node`
         :param bool default_present: whether or not the kernels region \
            should have the 'default present' attribute (indicating that data \
-           is already on the accelerator).
+           is already on the accelerator). When using managed memory this \
+           option should be False.
         :returns: (transformed schedule, memento of transformation)
         :rtype: 2-tuple of (:py:class:`psyclone.psyGen.Schedule`,
                             :py:class:`psyclone.undoredo.Memento`).
