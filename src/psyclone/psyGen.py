@@ -976,6 +976,26 @@ class Node(object):
         '''
         return self._ast_end
 
+    @ast.setter
+    def ast(self, ast):
+        '''
+        Set a reference to the fparser2 node associated with this Node.
+
+        :param ast: fparser2 node associated with this Node.
+        :type ast: :py:class:`fparser.two.utils.Base`
+        '''
+        self._ast = ast
+
+    @ast_end.setter
+    def ast_end(self, ast_end):
+        '''
+        Set a reference to the last fparser2 node associated with this Node.
+
+        :param ast: last fparser2 node associated with this Node.
+        :type ast: :py:class:`fparser.two.utils.Base`
+        '''
+        self._ast_end = ast_end
+
     @property
     def annotations(self):
         ''' Return the list of annotations attached to this Node.
@@ -1827,7 +1847,7 @@ class ACCDirective(Directive):
         Node.update(self)
 
         # Check that we haven't already been called
-        if self._ast:
+        if self.ast:
             return
 
         # Sanity check the supplied begin/end text
@@ -1878,7 +1898,7 @@ class ACCDirective(Directive):
             directive._parent = fp_parent
             # Ensure this end directive is included with the set of statements
             # belonging to this PSyIR node.
-            self._ast_end = directive
+            self.ast_end = directive
 
         text = "!$ACC " + start_text
 
@@ -1912,7 +1932,7 @@ class ACCDirective(Directive):
         # to the Comment() constructor).
         directive._parent = fp_parent
 
-        self._ast = directive
+        self.ast = directive
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -2469,7 +2489,7 @@ class OMPParallelDirective(OMPDirective):
         Node.update(self)
 
         # Check that we haven't already been called
-        if self._ast:
+        if self.ast:
             return
 
         # Find the locations in which we must insert the begin/end
@@ -2492,15 +2512,15 @@ class OMPParallelDirective(OMPDirective):
         # the AST representing our last child
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
-        self._ast_end = enddir
+        self.ast_end = enddir
         # If end_idx+1 takes us beyond the range of the list then the
         # element is appended to the list
         self._parent.ast.content.insert(end_idx+1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
-        self._ast = startdir
-        self._parent.ast.content.insert(start_idx, self._ast)
+        self.ast = startdir
+        self._parent.ast.content.insert(start_idx, self.ast)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2684,7 +2704,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         Node.update(self)
 
         # Check that we haven't already been called
-        if self._ast:
+        if self.ast:
             return
 
         # Since this is an OpenMP (parallel) do, it can only be applied
@@ -2730,12 +2750,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             parent.content.append(enddir)
         else:
             parent.content.insert(start_idx+1, enddir)
-        self._ast_end = enddir
+        self.ast_end = enddir
 
         # Insert the start directive (do this second so we don't have
         # to correct the location)
-        self._ast = startdir
-        parent.content.insert(start_idx, self._ast)
+        self.ast = startdir
+        parent.content.insert(start_idx, self.ast)
 
 
 class GlobalSum(Node):
@@ -4743,8 +4763,7 @@ class IfBlock(Node):
         '''
         if len(self._children) == 3:
             return self._children[2]._children
-        else:
-            return []
+        return []
 
     @property
     def coloured_text(self):
@@ -4787,10 +4806,10 @@ class IfBlock(Node):
             node are missing.
         '''
         if len(self.children) < 2:
-            raise GenerationError("IfBlock malformed or "
-                                  "incomplete. It should have at least 2 "
-                                  "children, but found {0}."
-                                  "".format(len(self.children)))
+            raise InternalError("IfBlock malformed or "
+                                "incomplete. It should have at least 2 "
+                                "children, but found {0}."
+                                "".format(len(self.children)))
 
         retval = self.indent(indent) + "if ("
         retval += self.condition.gen_c_code() + ") {\n"
@@ -5497,7 +5516,7 @@ class Fparser2ASTProcessor(object):
                 newifblock = None
                 if isinstance(clause, Fortran2003.If_Then_Stmt):
                     ifblock = IfBlock(parent=currentparent)
-                    ifblock._ast = node  # Keep pointer to fpaser2 AST
+                    ifblock.ast = node  # Keep pointer to fpaser2 AST
                     newifblock = ifblock
                 else:
                     elsebody = Schedule(parent=currentparent)
@@ -5507,8 +5526,8 @@ class Fparser2ASTProcessor(object):
                     elsebody.addchild(newifblock)
 
                     # Keep pointer to fpaser2 AST
-                    elsebody._ast = node.content[start_idx]
-                    newifblock._ast = node.content[start_idx]
+                    elsebody.ast = node.content[start_idx]
+                    newifblock.ast = node.content[start_idx]
 
                 # Create condition as first child
                 self.process_nodes(parent=newifblock,
@@ -5517,8 +5536,8 @@ class Fparser2ASTProcessor(object):
 
                 # Create if-body as second child
                 ifbody = Schedule(parent=ifblock)
-                ifbody._ast = node.content[start_idx + 1]
-                ifbody._ast_end = node.content[end_idx - 1]
+                ifbody.ast = node.content[start_idx + 1]
+                ifbody.ast_end = node.content[end_idx - 1]
                 newifblock.addchild(ifbody)
                 self.process_nodes(parent=ifbody,
                                    nodes=node.content[start_idx + 1:end_idx],
@@ -5533,8 +5552,8 @@ class Fparser2ASTProcessor(object):
                         "clause, but found {0}".format(node.content))
                 elsebody = Schedule(parent=currentparent)
                 currentparent.addchild(elsebody)
-                elsebody._ast = node.content[start_idx]
-                elsebody._ast_end = node.content[end_idx]
+                elsebody.ast = node.content[start_idx]
+                elsebody.ast_end = node.content[end_idx]
                 self.process_nodes(parent=elsebody,
                                    nodes=node.content[start_idx + 1:end_idx],
                                    nodes_parent=node)
@@ -5600,13 +5619,14 @@ class Fparser2ASTProcessor(object):
                 selector = child.items[0]
             if isinstance(child, (Fortran2003.Case_Stmt,
                                   Fortran2003.End_Select_Stmt)):
-                # Case Default and value Ranges not supported yet
-                if 'DEFAULT' in str(child):
+                # Case Default and value Ranges not supported yet, if found
+                # we raise a NotImplementedError that the process_node() will
+                # catch and generate a CodeBlock instead.
+                if 'default' in str(child).lower():
                     raise NotImplementedError("Case Default Statement")
                 elif ':' in str(child):
                     raise NotImplementedError("Case Value Range Statement")
-                else:
-                    clause_indices.append(idx)
+                clause_indices.append(idx)
 
         # Deal with each Case_Stmt
         rootif = None
@@ -5622,8 +5642,8 @@ class Fparser2ASTProcessor(object):
                 if isinstance(case, Fortran2003.Case_Selector):
                     ifblock = IfBlock(parent=currentparent,
                                       annotation='was_case')
-                    ifblock._ast = node.content[start_idx]
-                    ifblock._ast_end = node.content[end_idx - 1]
+                    ifblock.ast = node.content[start_idx]
+                    ifblock.ast_end = node.content[end_idx - 1]
 
                     # Add condition: selector == case
                     bop = BinaryOperation(parent=ifblock, operator='==')
@@ -5642,8 +5662,8 @@ class Fparser2ASTProcessor(object):
                                                           end_idx],
                                        nodes_parent=node)
                     ifblock.addchild(ifbody)
-                    ifbody._ast = node.content[start_idx + 1]
-                    ifbody._ast_end = node.content[end_idx - 1]
+                    ifbody.ast = node.content[start_idx + 1]
+                    ifbody.ast_end = node.content[end_idx - 1]
 
                     if rootif:
                         # If rootif is already initialised we chain the new
@@ -5651,8 +5671,8 @@ class Fparser2ASTProcessor(object):
                         elsebody = Schedule(parent=currentparent)
                         currentparent.addchild(elsebody)
                         elsebody.addchild(ifblock)
-                        elsebody._ast = node.content[start_idx]
-                        elsebody._ast_end = node.content[end_idx]
+                        elsebody.ast = node.content[start_idx]
+                        elsebody.ast_end = node.content[end_idx]
                     else:
                         rootif = ifblock
 
@@ -6299,11 +6319,11 @@ class CodeBlock(Node):
         self._statements = statements[:]
         # Store references back into the fparser2 AST
         if statements:
-            self._ast = self._statements[0]
-            self._ast_end = self._statements[-1]
+            self.ast = self._statements[0]
+            self.ast_end = self._statements[-1]
         else:
-            self._ast = None
-            self._ast_end = None
+            self.ast = None
+            self.ast_end = None
 
     @property
     def coloured_text(self):
@@ -6528,7 +6548,7 @@ class BinaryOperation(Node):
     '''
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
-        self._ast = operator
+        self.ast = operator
         self._operator = operator
 
     @property

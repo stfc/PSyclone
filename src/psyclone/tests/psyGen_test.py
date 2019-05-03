@@ -2801,14 +2801,14 @@ def test_ifblock_gen_c_code():
     '''Test that an IfBlock node can generate its C representation'''
 
     ifblock = IfBlock()
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(InternalError) as err:
         _ = ifblock.gen_c_code()
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 0." in str(err.value))
 
     ref1 = Reference('condition1', parent=ifblock)
     ifblock.addchild(ref1)
-    with pytest.raises(GenerationError) as err:
+    with pytest.raises(InternalError) as err:
         _ = ifblock.gen_c_code()
     assert("IfBlock malformed or incomplete. It should have "
            "at least 2 children, but found 1." in str(err.value))
@@ -4011,18 +4011,18 @@ def test_fparser2astprocessor_handling_if_construct(f2008_parser):
     assert len(fake_parent.children) == 1
     ifnode = fake_parent.children[0]
     assert isinstance(ifnode, IfBlock)
-    assert ifnode._ast is fparser2if_construct
+    assert ifnode.ast is fparser2if_construct
     assert 'was_elseif' not in ifnode.annotations
 
     # First level contains: condition1, branch1 and elsebody
     assert len(ifnode.children) == 3
     assert ifnode.condition.children[0].name == 'condition1'
     assert isinstance(ifnode.children[1], Schedule)
-    assert ifnode.children[1]._ast is fparser2if_construct.content[1]
-    assert ifnode.children[1]._ast_end is fparser2if_construct.content[2]
+    assert ifnode.children[1].ast is fparser2if_construct.content[1]
+    assert ifnode.children[1].ast_end is fparser2if_construct.content[2]
     assert ifnode.if_body[0].children[0].name == 'branch1'
     assert isinstance(ifnode.children[2], Schedule)
-    assert ifnode.children[2]._ast is fparser2if_construct.content[3]
+    assert ifnode.children[2].ast is fparser2if_construct.content[3]
 
     # Second level contains condition2, branch2, elsebody
     ifnode = ifnode.else_body[0]
@@ -4035,7 +4035,7 @@ def test_fparser2astprocessor_handling_if_construct(f2008_parser):
     # Third level is just branch3
     elsebody = ifnode.else_body[0]
     assert elsebody.children[0].name == 'branch3'
-    assert elsebody._ast is fparser2if_construct.content[6]
+    assert elsebody.ast is fparser2if_construct.content[6]
 
 
 def test_fparser2astprocessor_handling_if_construct_errors(f2008_parser):
@@ -4159,8 +4159,8 @@ def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
     assert len(fake_parent.children) == 1
     ifnode = fake_parent.children[0]
     assert isinstance(ifnode, IfBlock)
-    assert ifnode._ast is fparser2case_construct.content[1]
-    assert ifnode._ast_end is fparser2case_construct.content[2]
+    assert ifnode.ast is fparser2case_construct.content[1]
+    assert ifnode.ast_end is fparser2case_construct.content[2]
     assert 'was_case' in ifnode.annotations
     assert ifnode.condition.children[0].name == 'selector'
     assert ifnode.condition.children[1].name == 'label1'
@@ -4168,11 +4168,11 @@ def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
     assert isinstance(ifnode.else_body[0], IfBlock)
     assert ifnode.else_body[0].condition.children[1].name == 'label2'
     assert ifnode.else_body[0].if_body[0].children[0].name == 'branch2'
-    assert ifnode.else_body[0]._ast is \
+    assert ifnode.else_body[0].ast is \
         fparser2case_construct.content[3]
-    assert ifnode.else_body[0].children[1]._ast is \
+    assert ifnode.else_body[0].children[1].ast is \
         fparser2case_construct.content[4]
-    assert ifnode.else_body[0].children[1]._ast_end is \
+    assert ifnode.else_body[0].children[1].ast_end is \
         fparser2case_construct.content[4]
     assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
 

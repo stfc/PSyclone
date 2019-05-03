@@ -112,7 +112,7 @@ class RegionTrans(Transformation):
         # Check that the proposed region contains only supported node types
         for child in node_list:
             flat_list = [item for item in child.walk([child], object)
-                         if type(item) != Schedule]
+                         if not isinstance(item, Schedule)]
             for item in flat_list:
                 if not isinstance(item, self.valid_node_types):
                     raise TransformationError(

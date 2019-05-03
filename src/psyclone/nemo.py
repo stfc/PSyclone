@@ -43,7 +43,7 @@
 from __future__ import print_function, absolute_import
 import copy
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, Kern, InternalError, IfBlock, NameSpaceFactory, \
+    Loop, Kern, InternalError, NameSpaceFactory, \
     Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
@@ -706,4 +706,3 @@ class NemoImplicitLoop(NemoLoop):
                 if colons:
                     return False
         return True
-
