@@ -96,10 +96,6 @@ MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
 
-# List of all valid access types for a kernel argument
-VALID_ACCESS_DESCRIPTOR_NAMES = [AccessType.READ, AccessType.WRITE,
-                                 AccessType.READWRITE, AccessType.INC]
-
 # Mapping of access type to operator.
 REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
