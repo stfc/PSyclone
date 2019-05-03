@@ -4201,13 +4201,6 @@ class Argument(object):
             # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
-        self._write_access_types = [AccessType.WRITE,
-                                    AccessType.READWRITE,
-                                    AccessType.INC,
-                                    AccessType.SUM]
-        self._read_access_types = [AccessType.READ,
-                                   AccessType.READWRITE,
-                                   AccessType.INC]
         self._vector_size = 1
 
     def __str__(self):
@@ -4374,7 +4367,7 @@ class Argument(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
-        if self.access not in self._write_access_types:
+        if self.access not in AccessType.all_write_accesses():
             # I am not a writer so there will be no read dependencies
             return []
 
@@ -4386,10 +4379,10 @@ class Argument(object):
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.access in self._read_access_types and \
+                if argument.access in AccessType.all_read_accesses() and \
                    access.overlaps(argument):
                     arguments.append(argument)
-                if argument.access in self._write_access_types:
+                if argument.access in AccessType.all_write_accesses():
                     access.update_coverage(argument)
                     if access.covered:
                         # We have now found all arguments upon which
@@ -4413,7 +4406,7 @@ class Argument(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
-        if self.access not in self._read_access_types:
+        if self.access not in AccessType.all_read_accesses():
             # I am not a reader so there will be no write dependencies
             return []
 
@@ -4426,7 +4419,7 @@ class Argument(object):
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.access not in self._write_access_types:
+                if argument.access not in AccessType.all_write_accesses():
                     # no dependence if not a writer
                     continue
                 if not access.overlaps(argument):
@@ -4488,14 +4481,14 @@ class Argument(object):
 
         '''
         if argument.name == self._name:
-            if self.access in self._write_access_types and \
-               argument.access in self._read_access_types:
+            if self.access in AccessType.all_write_accesses() and \
+               argument.access in AccessType.all_read_accesses():
                 return True
-            if self.access in self._read_access_types and \
-               argument.access in self._write_access_types:
+            if self.access in AccessType.all_read_accesses() and \
+               argument.access in AccessType.all_write_accesses():
                 return True
-            if self.access in self._write_access_types and \
-               argument.access in self._write_access_types:
+            if self.access in AccessType.all_write_accesses() and \
+               argument.access in AccessType.all_write_accesses():
                 return True
         return False
 
