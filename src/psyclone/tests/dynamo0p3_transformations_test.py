@@ -39,7 +39,6 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
-from dynamo0p3_build import Dynamo0p3Build
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
@@ -53,8 +52,10 @@ from psyclone.transformations import TransformationError, \
     KernelModuleInlineTrans, \
     MoveTrans, \
     Dynamo0p3RedundantComputationTrans, \
-    Dynamo0p3AsyncHaloExchangeTrans
+    Dynamo0p3AsyncHaloExchangeTrans, \
+    Dynamo0p3KernelConstTrans
 from psyclone.configuration import Config
+from dynamo0p3_build import Dynamo0p3Build
 
 
 # The version of the API that the tests in this file
@@ -7266,3 +7267,293 @@ def test_async_halo_exchange_nomatch2():
         _ = hex_start._get_hex_end()
     assert ("Halo exchange start for field 'f1' has no matching halo "
             "exchange end") in str(excinfo.value)
+
+# tests for Dynamo0p3KernelConstTrans transformation
+
+
+def test_kern_const_str():
+    ''' String test for the Dynamo0p3KernelConstTrans class. '''
+    kct = Dynamo0p3KernelConstTrans()
+    assert (str(kct) == "Makes the number of degrees of freedom, the number "
+            "of quadrature points and the number of layers constant in a "
+            "Kernel.")
+
+
+def test_kern_const_name():
+    ''' Name test for the Dynamo0p3KernelConstTrans class. '''
+    kct = Dynamo0p3KernelConstTrans()
+    assert kct.name == "Dynamo0p3KernelConstTrans"
+
+
+def test_kern_const_apply(capsys):
+    '''Check that we generate the expected output from the apply method
+    with different valid combinations of the element_order,
+    number_of_layers and quadrature arguments.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.1.0_single_invoke_xyoz_qr.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+
+    kctrans = Dynamo0p3KernelConstTrans()
+
+    element_order_expected = (
+        "    Modify dofs, arg position 8, function space w1, value 12\n"
+        "    Modify dofs, arg position 12, function space w2, value 6\n"
+        "    Modify dofs, arg position 16, function space w3, value 1\n")
+    number_of_layers_expected = (
+        "    Modify mesh height, arg position 1, value 20\n")
+    quadrature_expected = (
+        "    Modify horizontal quadrature, arg position 21, value 3\n"
+        "    Modify vertical quadrature, arg position 22, value 3\n")
+
+    # element_order only
+    _, _ = kctrans.apply(kernel, element_order=0)
+    result, _ = capsys.readouterr()
+    assert result == element_order_expected
+
+    # nlayers only
+    _, _ = kctrans.apply(kernel, number_of_layers=20)
+    result, _ = capsys.readouterr()
+    assert result == number_of_layers_expected
+
+    # element_order and quadrature
+    _, _ = kctrans.apply(kernel, element_order=0, quadrature=True)
+    result, _ = capsys.readouterr()
+    assert result == quadrature_expected + element_order_expected
+
+    # element_order and nlayers
+    _, _ = kctrans.apply(kernel, element_order=0, number_of_layers=20)
+    result, _ = capsys.readouterr()
+    assert result == number_of_layers_expected + element_order_expected
+
+    # element_order, nlayers and quadrature
+    _, _ = kctrans.apply(kernel, element_order=0, number_of_layers=20,
+                         quadrature=True)
+    result, _ = capsys.readouterr()
+    assert result == number_of_layers_expected + quadrature_expected + \
+        element_order_expected
+
+
+def test_kern_const_anyspace_apply(capsys):
+    '''Check that we generate the expected output from the apply method
+    when a function space is specified as any_space (as these are
+    skipped by the transformation).
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.5.3_single_invoke_write_anyspace_w3.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+
+    kctrans = Dynamo0p3KernelConstTrans()
+
+    _, _ = kctrans.apply(kernel, element_order=0)
+    result, _ = capsys.readouterr()
+    assert result == (
+        "    Skipping dofs, arg position 9, function space any_space_1\n"
+        "    Modify dofs, arg position 12, function space w2, value 6\n"
+        "    Modify dofs, arg position 15, function space w3, value 1\n"
+        "    Modify dofs, arg position 18, function space wtheta, value 2\n"
+        "    Modify dofs, arg position 21, function space w2h, value 4\n"
+        "    Modify dofs, arg position 24, function space w2v, value 2\n")
+
+
+def test_kern_const_anyw2_apply(capsys):
+    '''Check that we generate the expected output from the apply method
+    when a function space is specified as any_w2_space (as these are
+    skipped by the transformation).
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "21.1_single_invoke_multi_anyw2.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+
+    kctrans = Dynamo0p3KernelConstTrans()
+
+    _, _ = kctrans.apply(kernel, element_order=0)
+    result, _ = capsys.readouterr()
+    assert result == (
+        "    Skipping dofs, arg position 5, function space any_w2\n")
+
+
+# space_to_dofs values
+def test_kern_const_ndofs():
+    '''Test the computed number-of-dof values for different orders and
+    different function spaces.
+
+    '''
+    expected = {"w3": [1, 8, 27, 64, 125, 216, 343, 512, 729, 1000],
+                "w2": [6, 36, 108, 240, 450, 756, 1176, 1728, 2430, 3300],
+                "w1": [12, 54, 144, 300, 540, 882, 1344, 1944, 2700, 3630],
+                "w0": [8, 27, 64, 125, 216, 343, 512, 729, 1000, 1331],
+                "wtheta": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100],
+                "w2h": [4, 24, 72, 160, 300, 504, 784, 1152, 1620, 2200],
+                "w2v": [2, 12, 36, 80, 150, 252, 392, 576, 810, 1100]}
+    kct = Dynamo0p3KernelConstTrans()
+    for order in range(10):
+        for function_space in ["w3", "w2", "w1", "w0", "wtheta", "w2h", "w2v"]:
+            assert kct.space_to_dofs[function_space](order) == \
+                expected[function_space][order]
+        # wtheta should equal w2v
+        assert kct.space_to_dofs["wtheta"](order) == \
+            kct.space_to_dofs["w2v"](order)
+        # w2h and w2v should sum up to w2
+        assert kct.space_to_dofs["w2h"](order) + \
+            kct.space_to_dofs["w2v"](order) == kct.space_to_dofs["w2"](order)
+
+
+def test_kern_const_invalid():
+    '''Check that we generate the expected exceptions from the validate
+    method when there are errors in the input arguments. We call the
+    apply method as that calls the _validate method in turn.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+
+    kctrans = Dynamo0p3KernelConstTrans()
+
+    # Node is not a dynamo kernel
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(schedule)
+    assert "Supplied node must be a dynamo kernel" in str(excinfo.value)
+
+    # Cell shape not quadrilateral
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel, cellshape="rotund")
+    assert ("Supplied cellshape must be set to 'quadrilateral' but found "
+            "'rotund'.") in str(excinfo.value)
+
+    # Element order < 0
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel, element_order=-1)
+    assert "The element_order argument must be >= 0 but found '-1'." \
+        in str(excinfo.value)
+
+    # Number of layers < 1
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel, number_of_layers=0)
+    assert "The number_of_layers argument must be > 0 but found '0'." \
+        in str(excinfo.value)
+
+    # Quadrature not a boolean
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel, quadrature="hello")
+    assert "The quadrature argument must be boolean but found 'hello'." \
+        in str(excinfo.value)
+
+    # Not element order and not number of layers
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel)
+    assert ("At least one of element_order or number_of_layers must be set "
+            "otherwise this transformation does nothing.") \
+        in str(excinfo.value)
+
+    # Quadrature but not element order
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel, number_of_layers=20,
+                             quadrature=True)
+    assert "If quadrature is set then element_order must also be set" \
+        in str(excinfo.value)
+
+
+def test_kern_const_invalid_dofs(monkeypatch):
+    '''Check that we generate the expected exception when an unexpected
+    function-space name is found.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+
+    kctrans = Dynamo0p3KernelConstTrans()
+    monkeypatch.setattr(Dynamo0p3KernelConstTrans, "space_to_dofs",
+                        {"wa": [], "wb": []})
+
+    with pytest.raises(InternalError) as excinfo:
+        _, _ = kctrans.apply(kernel, element_order=0)
+    assert "Unsupported function space 'w1' found. Expecting one of " \
+        in str(excinfo.value)
+    assert "'wa'" in str(excinfo.value)
+    assert "'wb'" in str(excinfo.value)
+
+
+def test_kern_const_invalid_kern(monkeypatch):
+    '''Check that we raise the expected exception when the Fortran to
+    PSyIR parser fails to parse a kernel.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1_single_invoke.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+    kctrans = Dynamo0p3KernelConstTrans()
+
+    def dummy():
+        '''A dummy function that always raises an exception.'''
+        raise NotImplementedError("Monkeypatch error")
+    monkeypatch.setattr(kernel, "get_kernel_schedule", dummy)
+    with pytest.raises(TransformationError) as excinfo:
+        kctrans.apply(kernel, element_order=0)
+    assert (
+        "Failed to parse kernel 'testkern_code'. Error reported was "
+        "'Monkeypatch error'.") in str(excinfo.value)
+
+
+def test_kern_const_invalid_quad(monkeypatch):
+    '''Check that we raise the expected exception when the type of
+    quadrature is not supported by the transformation (we are
+    currently limited to XYoZ).
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.1.0_single_invoke_xyoz_qr.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+    kctrans = Dynamo0p3KernelConstTrans()
+    import psyclone
+    # Add an unsupported quadrature to the list of valid ones.
+    monkeypatch.setattr(psyclone.dynamo0p3, "VALID_QUADRATURE_SHAPES",
+                        ["gh_quadrature_xyoz", "monkey"])
+    # Set the kernel to use the unsupported quadrature.
+    monkeypatch.setattr(kernel, "_eval_shape", "monkey")
+    with pytest.raises(TransformationError) as excinfo:
+        kctrans.apply(kernel, element_order=0, quadrature=True)
+    assert (
+        "Support is currently limited to xyoz quadrature but found "
+        "'monkey'.") in str(excinfo.value)
