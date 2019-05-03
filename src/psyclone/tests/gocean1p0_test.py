@@ -1126,7 +1126,7 @@ def test_raw_arg_list_error(monkeypatch):
     # raises an exception.
     with pytest.raises(InternalError) as err:
         kern.arguments.args[0].access = "invalid-type"
-    assert "Invalid access type 'invalid-type' of type '<type 'str'>" \
+    assert "Invalid access type 'invalid-type' of type" \
            in str(err)
 
 
