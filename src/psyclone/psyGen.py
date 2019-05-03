@@ -5899,13 +5899,42 @@ class SymbolTable(object):
             constant_value=constant_value, is_input=is_input,
             is_output=is_output)
 
+    def modify(self, name, new_name):
+        '''Modify the attributes of an existing symbol in the symbol
+        table. This is limited to the name of the symbol as the symbol
+        name affects the internal working of the symbol table. Other
+        attributes can be safely modified directly in the Symbol
+        instance.
+
+        :param str name: The name of the existing symbol.
+        :param str new_name: The new name for the symbol.
+
+        :raises KeyError: if the supplied name does not exist \
+        in the SymbolTable instance.
+        :raises GenerationError: if the the supplied new name already \
+        exists in the SymbolTable instance.
+
+        '''
+        try:
+            symbol = self._symbols.pop(name)
+        except KeyError:
+            raise KeyError(
+                "Could not find '{0}' in the Symbol Table.".format(name))
+        symbol.name = new_name
+        if new_name in self:
+            raise GenerationError(
+                "New name '{0}' is already in the symbol table."
+                "".format(new_name))
+        self._symbols[new_name] = symbol
+
     def specify_argument_list(self, argument_name_list):
         '''
         Keep track of the order of the arguments and provide the scope,
-        is_input and is_ouput information if it was not available on the
+        is_input and is_output information if it was not available on the
         variable declaration.
 
         :param list argument_name_list: Ordered list of the argument names.
+
         '''
         self._argument_list = []
         for name in argument_name_list:
@@ -5925,6 +5954,7 @@ class SymbolTable(object):
 
         :param str name: Name of the symbol
         :raises KeyError: If the given name is not in the Symbol Table.
+
         '''
         try:
             return self._symbols[name]

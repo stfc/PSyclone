@@ -2546,6 +2546,67 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         '''
 
+        def make_constant(symbol_table, arg_position, value,
+                          function_space=None):
+            '''Utility function that modifies the argument at position
+            'arg_position' into a compile-time constant with value
+            'value'. For simplicity the original argument is simply
+            renamed in the 'symbol_table'.
+
+            :param symbol_table: The symbol table for the kernel \
+            holding the argument that we are going to modify.
+            :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+            :param int arg_position: The argument's position in the \
+            argument list
+            :param value: The constant value that this argument is \
+            going to be give. It's type depends on the type of the \
+            argument.
+            :type value: int, float, str or bool.
+            :type str function_space: the name of the function space \
+            if there is a function space associated with this \
+            argument. Defaults to None.
+
+            '''
+            arg_index = arg_position - 1
+            try:
+                symbol = symbol_table.argument_list[arg_index]
+            except IndexError:
+                raise TransformationError(
+                    "The argument index '{0}' is greater than the number of "
+                    "arguments '{1}'.".format(arg_index,
+                                              len(symbol_table.argument_list)))
+            # Perform some basic checks on the argument to make sure
+            # it is the expected type
+            if symbol.datatype != "integer" or \
+               symbol.scope != "global_argument" or symbol.shape or \
+               symbol.is_constant:
+                # Do not check for is_input being False and is_output
+                # being True as some kernel declarations might not set
+                # intent which would mean defaulting to inout.
+                print (symbol.datatype)
+                print (symbol.scope)
+                print (symbol.shape)
+                print (symbol.is_constant)
+                print (symbol.is_output)
+                raise TransformationError(
+                    "Expected entry to be a scalar integer argument with "
+                    "intent in but found '{0}'.".format(symbol))
+            orig_name = symbol.name
+            # TODO: Temporarily use unsafe name change until the name
+            # space manager is introduced into the SymbolTable (Issue
+            # #321).
+            new_name = orig_name + "_dummy"
+            symbol_table.modify(orig_name, new_name)
+            symbol_table.declare(orig_name, "integer", scope="local",
+                                 constant_value=value)
+            if function_space:
+                print("    Modified {0}, arg position {1}, function space "
+                      "{2}, value {3}.".format(orig_name, arg_position,
+                                               function_space, value))
+            else:
+                print("    Modified {0}, arg position {1}, value {2}."
+                      "".format(orig_name, arg_position, value))
+
         self._validate(node, cellshape, element_order, number_of_layers,
                        quadrature)
 
@@ -2565,24 +2626,19 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 "Failed to parse kernel '{0}'. Error reported was '{1}'."
                 "".format(kernel.name, str(excinfo)))
 
-        _ = kernel_schedule.symbol_table
+        symbol_table = kernel_schedule.symbol_table
         if number_of_layers:
-            # Here is where I will modify the symbol table for nlayers
-            print("    Modify mesh height, arg position {0}, value {1}"
-                  "".format(arg_list_info.nlayers_positions[0],
-                            number_of_layers))
+            make_constant(symbol_table, arg_list_info.nlayers_positions[0],
+                          number_of_layers)
+
         if quadrature and arg_list_info.nqp_positions:
             if kernel.eval_shape.lower() == "gh_quadrature_xyoz":
-                # Modify the symbol table for horizontal and vertical
-                # quadrature here.
-                print("    Modify horizontal quadrature, arg position {0}, "
-                      "value {1}".format(
-                          arg_list_info.nqp_positions[0]["horizontal"],
-                          element_order+3))
-                print("    Modify vertical quadrature, arg position {0}, "
-                      "value {1}".format(
-                          arg_list_info.nqp_positions[0]["vertical"],
-                          element_order+3))
+                make_constant(symbol_table,
+                              arg_list_info.nqp_positions[0]["horizontal"],
+                              element_order+3)
+                make_constant(symbol_table,
+                              arg_list_info.nqp_positions[0]["vertical"],
+                              element_order+3)
             else:
                 raise TransformationError(
                     "Error in Dynamo0p3KernelConstTrans transformation. "
@@ -2596,17 +2652,13 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                                    ["any_w2"]):
                     # skip any_space_* and any_w2
                     print(
-                        "    Skipping dofs, arg position {0}, function space "
+                        "    Skipped dofs, arg position {0}, function space "
                         "{1}".format(info.position, info.function_space))
                 else:
                     try:
-                        print(
-                            "    Modify dofs, arg position {0}, function "
-                            "space {1}, value {2}".format(
-                                info.position, info.function_space,
-                                Dynamo0p3KernelConstTrans.
-                                space_to_dofs[info.function_space]
-                                (element_order)))
+                        ndofs = Dynamo0p3KernelConstTrans. \
+                                space_to_dofs[info.function_space] \
+                                (element_order)
                     except KeyError:
                         raise InternalError(
                             "Error in Dynamo0p3KernelConstTrans "
@@ -2615,6 +2667,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
                             "".format(info.function_space,
                                       Dynamo0p3KernelConstTrans.
                                       space_to_dofs.keys()))
+                    make_constant(symbol_table, info.position, ndofs,
+                                  function_space=info.function_space)
+
         return schedule, keep
 
     def _validate(self, node, cellshape, element_order, number_of_layers,

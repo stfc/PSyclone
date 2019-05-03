@@ -7287,26 +7287,31 @@ def test_kern_const_apply(capsys):
     number_of_layers and quadrature arguments.
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1.1.0_single_invoke_xyoz_qr.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    def create_kernel():
+        ''' XXX '''
+        _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     "test_files", "dynamo0p3",
+                                     "1.1.0_single_invoke_xyoz_qr.f90"),
+                        api=TEST_API)
+        psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+        invoke = psy.invokes.invoke_list[0]
+        schedule = invoke.schedule
+        kernel = schedule.children[0].children[0]
+        return kernel
+
+    kernel = create_kernel()
 
     kctrans = Dynamo0p3KernelConstTrans()
 
     element_order_expected = (
-        "    Modify dofs, arg position 8, function space w1, value 12\n"
-        "    Modify dofs, arg position 12, function space w2, value 6\n"
-        "    Modify dofs, arg position 16, function space w3, value 1\n")
+        "    Modified ndf_w1, arg position 8, function space w1, value 12.\n"
+        "    Modified ndf_w2, arg position 12, function space w2, value 6.\n"
+        "    Modified ndf_w3, arg position 16, function space w3, value 1.\n")
     number_of_layers_expected = (
-        "    Modify mesh height, arg position 1, value 20\n")
+        "    Modified nlayers, arg position 1, value 20.\n")
     quadrature_expected = (
-        "    Modify horizontal quadrature, arg position 21, value 3\n"
-        "    Modify vertical quadrature, arg position 22, value 3\n")
+        "    Modified nqp_h, arg position 21, value 3.\n"
+        "    Modified nqp_v, arg position 22, value 3.\n")
 
     # element_order only
     _, _ = kctrans.apply(kernel, element_order=0)
@@ -7314,21 +7319,25 @@ def test_kern_const_apply(capsys):
     assert result == element_order_expected
 
     # nlayers only
+    kernel = create_kernel()
     _, _ = kctrans.apply(kernel, number_of_layers=20)
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected
 
     # element_order and quadrature
+    kernel = create_kernel()
     _, _ = kctrans.apply(kernel, element_order=0, quadrature=True)
     result, _ = capsys.readouterr()
     assert result == quadrature_expected + element_order_expected
 
     # element_order and nlayers
+    kernel = create_kernel()
     _, _ = kctrans.apply(kernel, element_order=0, number_of_layers=20)
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + element_order_expected
 
     # element_order, nlayers and quadrature
+    kernel = create_kernel()
     _, _ = kctrans.apply(kernel, element_order=0, number_of_layers=20,
                          quadrature=True)
     result, _ = capsys.readouterr()
@@ -7356,12 +7365,14 @@ def test_kern_const_anyspace_apply(capsys):
     _, _ = kctrans.apply(kernel, element_order=0)
     result, _ = capsys.readouterr()
     assert result == (
-        "    Skipping dofs, arg position 9, function space any_space_1\n"
-        "    Modify dofs, arg position 12, function space w2, value 6\n"
-        "    Modify dofs, arg position 15, function space w3, value 1\n"
-        "    Modify dofs, arg position 18, function space wtheta, value 2\n"
-        "    Modify dofs, arg position 21, function space w2h, value 4\n"
-        "    Modify dofs, arg position 24, function space w2v, value 2\n")
+        "    Skipped dofs, arg position 9, function space any_space_1\n"
+        "    Modified ndf_w2, arg position 12, function space w2, value 6.\n"
+        "    Modified ndf_w3, arg position 15, function space w3, value 1.\n"
+        "    Modified ndf_wtheta, arg position 18, function space wtheta, "
+        "value 2.\n"
+        "    Modified ndf_w2h, arg position 21, function space w2h, value 4.\n"
+        "    Modified ndf_w2v, arg position 24, function space w2v, "
+        "value 2.\n")
 
 
 def test_kern_const_anyw2_apply(capsys):
@@ -7384,7 +7395,7 @@ def test_kern_const_anyw2_apply(capsys):
     _, _ = kctrans.apply(kernel, element_order=0)
     result, _ = capsys.readouterr()
     assert result == (
-        "    Skipping dofs, arg position 5, function space any_w2\n")
+        "    Skipped dofs, arg position 5, function space any_w2\n")
 
 
 # space_to_dofs values

@@ -3273,8 +3273,39 @@ def test_symboltable_declare():
             "'var1'.") in str(error.value)
 
 
+def test_symboltable_modify():
+    '''Test that the modify method in the SymbolTable class can modify the
+    name of a symbol without breaking the working of the SymbolTable
+    instance and that an exception is raised if the name does not
+    exist.
+
+    '''
+    sym_table = SymbolTable()
+    for arg in ["arg1", "arg2", "arg3"]:
+        sym_table.declare(arg, "integer", scope="global_argument")
+    sym_table.specify_argument_list(["arg1", "arg2", "arg3"])
+
+    sym_table.modify("arg2", "arg4")
+
+    with pytest.raises(KeyError) as excinfo:
+        sym_table.lookup("arg2")
+    assert "Could not find 'arg2' in the Symbol Table." in \
+        (str(excinfo.value))
+    assert isinstance(sym_table.lookup("arg4"), Symbol)
+    assert [symbol.name for symbol in sym_table.argument_list] == \
+        ["arg1", "arg4", "arg3"]
+    with pytest.raises(KeyError) as excinfo:
+        sym_table.modify("non-existant", "new")
+    assert "Could not find 'non-existant' in the Symbol Table." in \
+        str(excinfo.value)
+    with pytest.raises(GenerationError) as excinfo:
+        sym_table.modify("arg4", "arg1")
+    assert "New name 'arg1' is already in the symbol table" in \
+        str(excinfo.value)
+
+
 def test_symboltable_lookup():
-    '''Test that the lookup method retrives symbols from the symbol table
+    '''Test that the lookup method retrieves symbols from the symbol table
     if the name exists, otherwise it raises an error.'''
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", [None, None])
