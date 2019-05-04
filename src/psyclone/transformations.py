@@ -2554,12 +2554,12 @@ class Dynamo0p3KernelConstTrans(Transformation):
             renamed in the 'symbol_table'.
 
             :param symbol_table: The symbol table for the kernel \
-            holding the argument that we are going to modify.
+            holding the argument that is going to be modified.
             :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
             :param int arg_position: The argument's position in the \
             argument list
             :param value: The constant value that this argument is \
-            going to be give. It's type depends on the type of the \
+            going to be give. Its type depends on the type of the \
             argument.
             :type value: int, float, str or bool.
             :type str function_space: the name of the function space \
@@ -2582,8 +2582,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
                symbol.is_constant:
                 # Do not check for 'is_input' being 'False' and
                 # 'is_output' being 'True' as some kernel declarations
-                # might not set intent which results in both being set
-                # to 'True'.
+                # might not set intent which results in both
+                # 'is_input' and 'is_output' being set to 'True'.
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
                     "but found '{0}'.".format(symbol))

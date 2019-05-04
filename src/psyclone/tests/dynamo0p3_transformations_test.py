@@ -7274,6 +7274,9 @@ def create_kernel(file_name):
     test file and that the first kernel is the child of the first
     child in the schedule.
 
+    :param str file_name: The name of the dynamo0p3 example algorithm \
+    file.
+
     '''
     _, info = parse(os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
