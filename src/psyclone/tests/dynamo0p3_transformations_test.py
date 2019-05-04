@@ -7564,3 +7564,57 @@ def test_kern_const_invalid_quad(monkeypatch):
     assert (
         "Support is currently limited to xyoz quadrature but found "
         "'monkey'.") in str(excinfo.value)
+
+
+def test_kern_const_invalid_make_constant1():
+    '''Check that the expected exception is raised when the make_constant
+    utility function (found in the apply method) encounters an invalid
+    index. This is done by removing the argument list entries from a
+    kernel.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.1.0_single_invoke_xyoz_qr.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+    kernel_schedule = kernel.get_kernel_schedule()
+    symbol_table = kernel_schedule.symbol_table
+    # Make the symbol table empty
+    symbol_table.specify_argument_list([])
+    kctrans = Dynamo0p3KernelConstTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel, element_order=0)
+    assert ("The argument index '7' is greater than the number of "
+            "arguments '0'.") in str(excinfo.value)
+
+
+def test_kern_const_invalid_make_constant2():
+    '''Check that the expected exception is raised when the make_constant
+    utility function (found in the apply method) encounters a Symbol
+    at the specified index that is not a scalar integer argument.
+    This is done by modifying one of the Symbol entries to be local
+    rather than an argument.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "1.1.0_single_invoke_xyoz_qr.f90"),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+    kctrans = Dynamo0p3KernelConstTrans()
+    kernel_schedule = kernel.get_kernel_schedule()
+    symbol_table = kernel_schedule.symbol_table
+    symbol = symbol_table.argument_list[7]
+    # Change the symbol to being local i.e. not an argument
+    symbol.scope = "local"
+    with pytest.raises(TransformationError) as excinfo:
+        _, _ = kctrans.apply(kernel, element_order=0)
+    assert ("Expected entry to be a scalar integer argument but found "
+            "'ndf_w1: <integer, local, Scalar>'.") in str(excinfo.value)

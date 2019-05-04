@@ -2580,17 +2580,13 @@ class Dynamo0p3KernelConstTrans(Transformation):
             if symbol.datatype != "integer" or \
                symbol.scope != "global_argument" or symbol.shape or \
                symbol.is_constant:
-                # Do not check for is_input being False and is_output
-                # being True as some kernel declarations might not set
-                # intent which would mean defaulting to inout.
-                print (symbol.datatype)
-                print (symbol.scope)
-                print (symbol.shape)
-                print (symbol.is_constant)
-                print (symbol.is_output)
+                # Do not check for 'is_input' being 'False' and
+                # 'is_output' being 'True' as some kernel declarations
+                # might not set intent which results in both being set
+                # to 'True'.
                 raise TransformationError(
-                    "Expected entry to be a scalar integer argument with "
-                    "intent in but found '{0}'.".format(symbol))
+                    "Expected entry to be a scalar integer argument "
+                    "but found '{0}'.".format(symbol))
             orig_name = symbol.name
             # TODO: Temporarily use unsafe name change until the name
             # space manager is introduced into the SymbolTable (Issue
