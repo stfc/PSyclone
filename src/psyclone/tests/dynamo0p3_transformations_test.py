@@ -7267,6 +7267,25 @@ def test_async_halo_exchange_nomatch2():
 # tests for Dynamo0p3KernelConstTrans transformation
 
 
+def create_kernel(file_name):
+    '''Utility function that returns the first kernel object from the
+    PSyIR schedule generated from processing the test code provided in
+    the 'file_name' argument. Assumes that this file is a dynamo0p3
+    test file and that the first kernel is the child of the first
+    child in the schedule.
+
+    '''
+    _, info = parse(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "test_files", "dynamo0p3", file_name),
+                    api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
+    invoke = psy.invokes.invoke_list[0]
+    schedule = invoke.schedule
+    kernel = schedule.children[0].children[0]
+    return kernel
+
+
 def test_kern_const_str():
     ''' String test for the Dynamo0p3KernelConstTrans class. '''
     kct = Dynamo0p3KernelConstTrans()
@@ -7287,19 +7306,7 @@ def test_kern_const_apply(capsys):
     number_of_layers and quadrature arguments.
 
     '''
-    def create_kernel():
-        ''' XXX '''
-        _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                     "test_files", "dynamo0p3",
-                                     "1.1.0_single_invoke_xyoz_qr.f90"),
-                        api=TEST_API)
-        psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-        invoke = psy.invokes.invoke_list[0]
-        schedule = invoke.schedule
-        kernel = schedule.children[0].children[0]
-        return kernel
-
-    kernel = create_kernel()
+    kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
 
@@ -7319,25 +7326,25 @@ def test_kern_const_apply(capsys):
     assert result == element_order_expected
 
     # nlayers only
-    kernel = create_kernel()
+    kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     _, _ = kctrans.apply(kernel, number_of_layers=20)
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected
 
     # element_order and quadrature
-    kernel = create_kernel()
+    kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     _, _ = kctrans.apply(kernel, element_order=0, quadrature=True)
     result, _ = capsys.readouterr()
     assert result == quadrature_expected + element_order_expected
 
     # element_order and nlayers
-    kernel = create_kernel()
+    kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     _, _ = kctrans.apply(kernel, element_order=0, number_of_layers=20)
     result, _ = capsys.readouterr()
     assert result == number_of_layers_expected + element_order_expected
 
     # element_order, nlayers and quadrature
-    kernel = create_kernel()
+    kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
     _, _ = kctrans.apply(kernel, element_order=0, number_of_layers=20,
                          quadrature=True)
     result, _ = capsys.readouterr()
@@ -7351,14 +7358,7 @@ def test_kern_const_anyspace_apply(capsys):
     skipped by the transformation).
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1.5.3_single_invoke_write_anyspace_w3.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = create_kernel("1.5.3_single_invoke_write_anyspace_w3.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
 
@@ -7381,14 +7381,7 @@ def test_kern_const_anyw2_apply(capsys):
     skipped by the transformation).
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "21.1_single_invoke_multi_anyw2.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = create_kernel("21.1_single_invoke_multi_anyw2.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
 
@@ -7430,21 +7423,13 @@ def test_kern_const_invalid():
     apply method as that calls the _validate method in turn.
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
-
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = create_kernel("1_single_invoke.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
 
     # Node is not a dynamo kernel
     with pytest.raises(TransformationError) as excinfo:
-        _, _ = kctrans.apply(schedule)
+        _, _ = kctrans.apply(None)
     assert "Supplied node must be a dynamo kernel" in str(excinfo.value)
 
     # Cell shape not quadrilateral
@@ -7491,14 +7476,7 @@ def test_kern_const_invalid_dofs(monkeypatch):
     function-space name is found.
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = create_kernel("1_single_invoke.f90")
 
     kctrans = Dynamo0p3KernelConstTrans()
     monkeypatch.setattr(Dynamo0p3KernelConstTrans, "space_to_dofs",
@@ -7517,14 +7495,8 @@ def test_kern_const_invalid_kern(monkeypatch):
     PSyIR parser fails to parse a kernel.
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = create_kernel("1_single_invoke.f90")
+
     kctrans = Dynamo0p3KernelConstTrans()
 
     def dummy():
@@ -7544,14 +7516,8 @@ def test_kern_const_invalid_quad(monkeypatch):
     currently limited to XYoZ).
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1.1.0_single_invoke_xyoz_qr.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+
     kctrans = Dynamo0p3KernelConstTrans()
     import psyclone
     # Add an unsupported quadrature to the list of valid ones.
@@ -7573,14 +7539,8 @@ def test_kern_const_invalid_make_constant1():
     kernel.
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1.1.0_single_invoke_xyoz_qr.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
     # Make the symbol table empty
@@ -7600,14 +7560,8 @@ def test_kern_const_invalid_make_constant2():
     rather than an argument.
 
     '''
-    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "test_files", "dynamo0p3",
-                                 "1.1.0_single_invoke_xyoz_qr.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    kernel = schedule.children[0].children[0]
+    kernel = create_kernel("1.1.0_single_invoke_xyoz_qr.f90")
+
     kctrans = Dynamo0p3KernelConstTrans()
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table

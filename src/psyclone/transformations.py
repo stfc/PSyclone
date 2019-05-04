@@ -2653,8 +2653,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 else:
                     try:
                         ndofs = Dynamo0p3KernelConstTrans. \
-                                space_to_dofs[info.function_space] \
-                                (element_order)
+                                space_to_dofs[
+                                    info.function_space](element_order)
                     except KeyError:
                         raise InternalError(
                             "Error in Dynamo0p3KernelConstTrans "
