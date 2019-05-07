@@ -57,7 +57,7 @@ Algorithm
 Since NEMO source is treated as a pre-existing PSy layer, this API
 does not have the concept of an Algorithm layer.
 
-Constructing the PSyIRe
+Constructing the PSyIR
 -----------------------
 
 Transformations in PSyclone are applied to an Internal Representation,
@@ -160,7 +160,7 @@ Internal Representation of it::
         Loop[type='levels',field_space='None',it_space='None']
             Loop[type='lat',field_space='None',it_space='None']
                 Loop[type='lon',field_space='None',it_space='None']
-                    KernCall[Explicit]
+                    KernCall[]
 
 .. _nemo-transformations:
 
@@ -209,22 +209,18 @@ we list the current, known limitations/issues:
  3. All recognised loops (levels, latitude etc.) are assumed to be
     parallelisable. This will not always be the case (e.g. tridiagonal
     solve has a loop-carried dependence in the vertical);
- 4. Loops/kernels within CASE statements are not found;
- 5. Labelled do-loops are not handled (i.e. they will probably end up
+ 4. Labelled do-loops are not handled (i.e. they will probably end up
     being put inside a code block);
- 6. ``NemoKern._load_from_loop()`` and ``_load_from_implicit_loop()``
-    both need to be implemented. Currently they do nothing but they
-    should e.g. work out which variables are private to the kernel;
- 7. Loops are currently only permitted to contain one kernel.  This
+ 5. Loops are currently only permitted to contain one kernel.  This
     restriction will have to be lifted in order to permit loop fusion;
- 8. Array slices with specified bounds (e.g. umask(1:10)) are not yet
+ 6. Array slices with specified bounds (e.g. umask(1:10)) are not yet
     supported and will raise a TransformationError when attempting to
     transform them into explicit loops;
- 9. When generating new variable names, no attempt is made to avoid
+ 7. When generating new variable names, no attempt is made to avoid
     clashing with variables already present in the NEMO source. This
     will be resolved once a symbol table is available (#255).
- 10. The psyGen.Node base class now has an _ast property to hold a
-     pointer into the associated fparser2 AST. However, the psyGen.Kern
-     class already has an _fp2_ast property that points to the whole
-     fparser2 AST of the kernel code. This will be rationalised in
-     #241.
+ 8. The psyGen.Node base class now has an _ast property to hold a
+    pointer into the associated fparser2 AST. However, the psyGen.Kern
+    class already has an _fp2_ast property that points to the whole
+    fparser2 AST of the kernel code. This will be rationalised in
+    #241.

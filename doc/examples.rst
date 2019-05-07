@@ -190,3 +190,27 @@ to the specified Kernel:
 .. code-block:: bash
 
   > python find_kernel.py
+
+NEMO
+----
+
+These examples may all be found in the ``PSyclone/examples/nemo`` directory.
+
+Example 1: OpenMP parallelisation of tra_adv
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Demonstrates the use of PSyclone to parallelise the loops over vertical levels
+in some NEMO tracer-advection code using OpenMP.
+
+Example 2: OpenMP parallelisation of traldf_iso
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+Demonstrates the use of PSyclone to parallelise the loops over vertical levels
+in some NEMO tracer-diffusion code using OpenMP.
+
+Example 3: OpenACC parallelisation of tra_adv
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Demonstrates the introduction of simple OpenACC parallelisation (using the
+``data`` and ``kernels`` directives) for a tracer advection benchmark.
