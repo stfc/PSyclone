@@ -4210,7 +4210,6 @@ def test_fparser2astprocessor_handling_invalid_Case_construct(f2008_parser):
     processor.process_nodes(fake_parent, [fparser2case_construct], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
 
-
     # but CASE (default) is just a regular symbol named default
     reader = FortranStringReader(
         '''SELECT CASE (selector)
