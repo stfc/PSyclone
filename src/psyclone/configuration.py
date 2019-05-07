@@ -128,8 +128,8 @@ class Config(object):
         in the PSyclone repository. It is used by the testing framework to make
         sure all tests get the same config file (see tests/config_tests for the
         only exception).
-        :return str: Absolute path to the config file included in the PSyclone
-                     repository.
+        :return str: Absolute path to the config file included in the \
+                     PSyclone repository.
         '''
         this_dir = os.path.dirname(os.path.abspath(__file__))
         # The psyclone root dir is "../.." from this directory,
@@ -609,10 +609,12 @@ class Config(object):
 # =============================================================================
 class APISpecificConfig(object):
     '''A base class for functions that each API-specific class must provide.
-    At the moment that is a function access_mapping().
+    At the moment this is just the function 'access_mapping' that maps between
+    API-specific access-descriptor strings and the PSyclone internal 
+    AccessType.
     :param section: :py:class:`configparser.SectionProxy`
-    :Raises ConfigurationError: if an access-mapping is provided that
-        assigns an invalid value (i.e. not one of 'read', 'write',
+    :raises ConfigurationError: if an access-mapping is provided that \
+        assigns an invalid value (i.e. not one of 'read', 'write', \
         'readwrite'), 'inc' or 'sum') to a string.
     '''
 
@@ -654,8 +656,8 @@ class APISpecificConfig(object):
         :param str input_str: The input string.
         :returns: A dictionary with the key,value pairs from the input string.
         :rtype: dict.
-        :Raises ConfigurationError if the input string contains an entry
-                that is does not have a ":".
+        :Raises ConfigurationError if the input string contains an entry \
+                that does not have a ":".
         '''
         # Remove spaces and convert unicode to normal strings.
         input_str = str(input_str.strip())
@@ -694,7 +696,7 @@ class APISpecificConfig(object):
         return self._reverse_access_mapping
 
     def get_valid_accesses_api(self):
-        '''Returns the sorted, API-specific sorted names of all valid access
+        '''Returns the sorted, API-specific names of all valid access
         names.
         :returns: Sorted list of API-specific valid strings.
         :rtype: List of strings
