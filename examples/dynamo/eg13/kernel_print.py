@@ -1,8 +1,14 @@
-''' xxx '''
+'''PSyclone script demonstrating that LFRic kernels that have been
+transformed into the PSyIR can be transformed back into Fortran by
+using the FortranPSyIRVisitor class.
+
+'''
+
 from psyclone.psyir.visitor.fortran import FortranPSyIRVisitor
 
+
 def trans(psy):
-    ''' xxx '''
+    '''Print out Fortran versions of all kernels found in this file.'''
     nkern = 0
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
@@ -12,4 +18,4 @@ def trans(psy):
             fortran_psyir_visitor = FortranPSyIRVisitor()
             fortran_psyir_visitor.visit(kernel_schedule)
             print(fortran_psyir_visitor.code)
-    print ("transformed {0} kernels".format(nkern))
+    print("transformed {0} kernels".format(nkern))

@@ -1,4 +1,4 @@
-''' xxx '''
+''' Code to '''
 
 from psyclone.psyir.visitor.base import PSyIRVisitor
 
@@ -21,9 +21,13 @@ def get_dims(symbol):
     from psyclone.psyGen import Symbol
     for index in symbol.shape:
         if isinstance(index, Symbol):
+            # references another symbol
             dims.append(index.name)
+        elif isinstance(index, int):
+            # literal constant
+            dims.append(str(index))
         else:
-            raise Exception("unsupported")
+            raise NotImplementedError("unsupported get_dims index '{0}'".format(str(index)))
     return dims
 
 
