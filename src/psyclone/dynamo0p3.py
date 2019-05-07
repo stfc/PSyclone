@@ -4204,8 +4204,18 @@ class DynInvoke(Invoke):
 
     def unique_proxy_declarations(self, datatype, access=None):
         ''' Returns a list of all required proxy declarations for the
-        specified datatype.  If access is supplied (e.g. "gh_write")
-        then only declarations with that access are returned. '''
+        specified datatype.  If access is supplied (e.g. "AccessType.WRITE")
+        then only declarations with that access are returned.
+        :param str datatype: Datatype that proxy declarations are \
+                             searched for.
+        :param access: optional AccessType for the specified data type.
+        :type access: :py:class:`psyclone.core.access_type.AccessType`.
+        :return: a list of all required proxy declarations for the \
+                 specified datatype.
+        :raises GenerationError: if datatype is invalid.
+        :raises InternalError: if an invalid access is specified, i.e. \
+                not of type AccessType.
+        '''
         if datatype not in GH_VALID_ARG_TYPE_NAMES:
             raise GenerationError(
                 "unique_proxy_declarations called with an invalid datatype. "
@@ -4214,7 +4224,7 @@ class DynInvoke(Invoke):
         if access and not isinstance(access, AccessType):
             api_config = Config.get().api_conf("dynamo0.3")
             valid_names = api_config.get_valid_accesses_api()
-            raise GenerationError(
+            raise InternalError(
                 "unique_proxy_declarations called with an invalid access "
                 "type. Expected one of '{0}' but got '{1}'".
                 format(valid_names, access))
