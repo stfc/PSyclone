@@ -437,7 +437,6 @@ def test_no_enter_data(parser):
             "contains an 'enter data' directive" in str(err))
 
 
-@pytest.mark.xfail(reason="Needs PSyIR support for If Constructs - #347")
 def test_array_access_in_ifblock(parser):
     ''' Check that we generate the necessary copyin clause when a data region
     contains an IF clause with an array access. '''
@@ -489,11 +488,10 @@ def test_array_access_loop_bounds(parser):
     assert "copyin(trim_width)" in gen_code
 
 
-@pytest.mark.xfail(reason="Needs PSyIR support for If/Case Constructs - #347")
 def test_missed_array_case(parser):
     ''' Check that we raise the expected InternalError if our internal
-    sanity check spots that we've missed an array access. This test
-    should be eliminated as part of #309. '''
+    sanity check spots that we've missed an array access.
+    TODO #309 - remove this test. '''
     code = ("program do_bound\n"
             "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
             "  integer :: ji, jj\n"
