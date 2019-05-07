@@ -39,8 +39,8 @@ from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
-from dynamo0p3_build import Dynamo0p3Build
 from fparser.two.utils import walk_ast
+from dynamo0p3_build import Dynamo0p3Build
 from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError, ACCRoutineTrans
 from psyclone.psyGen import Kern
@@ -180,9 +180,13 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     dtypes = walk_ast(prog.content, [Fortran2003.Derived_Type_Def])
     names = walk_ast(dtypes[0].content, [Fortran2003.Type_Name])
     assert str(names[0]) == "continuity{0}_type".format(tag)
-    # TODO #281 check compilation of code (needs Joerg's extension of
-    # compilation testing to GOcean)
+
+    from gocean1p0_build import GOcean1p0Build
+    # If compilation fails this will raise an exception
+    GOcean1p0Build(tmpdir).compile_file(filename)
+
     old_cwd.chdir()
+
 
 def test_new_kernel_dir(tmpdir, monkeypatch):
     ''' Check that we write out the transformed kernel to a specified
@@ -259,6 +263,7 @@ def test_new_kern_single_error(tmpdir, monkeypatch):
             "as the current, transformed kernel and the kernel-renaming "
             "scheme is set to 'single'".format(str(tmpdir)) in str(err))
     old_cwd.chdir()
+
 
 def test_new_same_kern_single(tmpdir, monkeypatch):
     ''' Check that we do not overwrite an existing, identical kernel if

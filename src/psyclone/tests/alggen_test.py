@@ -414,12 +414,12 @@ def test_multiple_stencil_same_name():
             "f3, f4, extent, f3_direction)") in output
 
 
-def test_single_invoke_dynamo0p1():
+def test_single_invoke_dynamo0p1(monkeypatch):
     ''' Test for correct code transformation for a single function
         specified in an invoke call for the dynamo0.1 API. We use the
         generate function as parse and PSyFactory need to be called before
         AlgGen so it is simpler to use this. '''
-    Config.get().api = "dynamo0.1"
+    monkeypatch.setattr(Config.get(), "api", "gocean1.0")
 
     alg, _ = generate(
         os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -428,21 +428,19 @@ def test_single_invoke_dynamo0p1():
     gen = str(alg)
     assert "USE psy_single_function, ONLY: invoke_0_testkern_type" in gen
     assert "CALL invoke_0_testkern_type(f1, f2, m1)" in gen
-    Config.get().api = "dynamo0.3"
 
 
-def test_zero_invoke_dynamo0p1():
+def test_zero_invoke_dynamo0p1(monkeypatch):
     ''' Test that an exception is raised if the specified file does
         not contain any actual invoke() calls. We use the generate
         function as parse and PSyFactory need to be called before
         AlgGen so it is simpler to use this. '''
-    Config.get().api = "dynamo0.1"
+    monkeypatch.setattr(Config.get(), "api", "gocean1.0")
     with pytest.raises(NoInvokesError):
         _, _ = generate(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p1", "missing_invokes.f90"),
             api="dynamo0.1")
-    Config.get().api = "dynamo0.3"
 
 
 # sample code for use in subsequent adduse tests.
