@@ -4210,6 +4210,20 @@ def test_fparser2astprocessor_handling_invalid_Case_construct(f2008_parser):
     processor.process_nodes(fake_parent, [fparser2case_construct], None)
     assert isinstance(fake_parent.children[0], CodeBlock)
 
+
+    # but CASE (default) is just a regular symbol named default
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (default)
+                branch3 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert isinstance(fake_parent.children[0], IfBlock)
+
     # Test with no opening Select_Case_Stmt
     reader = FortranStringReader(
         '''SELECT CASE (selector)

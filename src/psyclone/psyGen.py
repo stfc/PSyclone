@@ -5617,15 +5617,17 @@ class Fparser2ASTProcessor(object):
             child._parent = node  # Retrofit parent info
             if isinstance(child, Fortran2003.Select_Case_Stmt):
                 selector = child.items[0]
-            if isinstance(child, (Fortran2003.Case_Stmt,
-                                  Fortran2003.End_Select_Stmt)):
+            if isinstance(child, Fortran2003.Case_Stmt):
                 # Case Default and value Ranges not supported yet, if found
                 # we raise a NotImplementedError that the process_node() will
                 # catch and generate a CodeBlock instead.
-                if 'default' in str(child).lower():
-                    raise NotImplementedError("Case Default Statement")
-                elif ':' in str(child):
+                case_expression = child.items[0].items[0]
+                if isinstance(case_expression, Fortran2003.Case_Value_Range):
                     raise NotImplementedError("Case Value Range Statement")
+                elif case_expression is None:
+                    raise NotImplementedError("Case Default Statement")
+                clause_indices.append(idx)
+            if isinstance(child, Fortran2003.End_Select_Stmt):
                 clause_indices.append(idx)
 
         # Deal with each Case_Stmt
