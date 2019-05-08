@@ -6538,6 +6538,29 @@ class UnaryOperation(Node):
             + self._children[0].gen_c_code() + ")"
 
 
+UnaryOperator = Enum('UnaryOperator', [
+    # Arithmetic Operators
+    'MINUS', 'SQRT',
+    # Logical Operators
+    'NOT',
+    # Trigonometric Operators
+    'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
+    # Other Maths Operators
+    'ABS'
+    ])
+
+BinaryOperator = Enum('BinaryOperator', [
+    # Arithmetic Operators
+    'SUM', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
+    # Relational Operators
+    'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
+    # Logical Operators
+    'AND', 'OR',
+    # Other Maths Operators
+    'SIGN'
+    ])
+
+
 class BinaryOperation(Node):
     '''
     Node representing a BinaryOperator expression. As such it has two operands
