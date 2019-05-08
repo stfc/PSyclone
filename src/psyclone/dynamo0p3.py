@@ -700,13 +700,13 @@ class DynArgDescriptor03(Descriptor):
             if self._access_type not in [AccessType.READ] + \
                AccessType.get_valid_reduction_modes():
                 rev_access_mapping = api_config.get_reverse_access_mapping()
-                api_name = rev_access_mapping[self._access_type]
+                api_specific_name = rev_access_mapping[self._access_type]
                 valid_reductions = AccessType.get_valid_reduction_names()
                 raise ParseError(
                     "In the dynamo0.3 API scalar arguments must be "
                     "read-only (gh_read) or a reduction ({0}) but found "
                     "'{1}' in '{2}'".format(valid_reductions,
-                                            api_name,
+                                            api_specific_name,
                                             arg_type))
             # Scalars don't have a function space
             self._function_space1 = None
