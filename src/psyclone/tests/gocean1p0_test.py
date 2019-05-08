@@ -40,6 +40,7 @@ GOcean 1.0 API.'''
 
 from __future__ import absolute_import, print_function
 import os
+import re
 import pytest
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
@@ -1122,12 +1123,24 @@ def test_raw_arg_list_error(monkeypatch):
         _ = kern.arguments.raw_arg_list()
     assert ("Kernel compute_z_code, argument z_fld has unrecognised type: "
             "'broken'" in str(err))
+
+
+def test_invalid_access_type():
+    ''' Test that we raise an internal error iif we try to assign
+    an invalid access type (string instead of AccessType) in
+    a psygen.Argument.'''
+    _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
+                           API, idx=0)
+    schedule = invoke.schedule
+    kern = schedule.children[0].children[0].children[0]
     # Also test that assigning a non-AccessType value to a kernel argument
     # raises an exception.
     with pytest.raises(InternalError) as err:
         kern.arguments.args[0].access = "invalid-type"
-    assert "Invalid access type 'invalid-type' of type" \
-           in str(err)
+    # Note that the error message looks slightly different between
+    # python 2 (type str) and 3 (class str):
+    assert re.search("Invalid access type 'invalid-type' of type.*str",
+                     str(err))
 
 
 # -----------------------------------
@@ -1157,7 +1170,6 @@ def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
     # REAL(KIND=wp), intent(inout) :: 0
     # INTEGER, intent(inout) :: 0
     # Make sure this is not happening anymor
-    import re
     assert re.search(r"\s*real.*:: *0", out, re.I) is None
     assert re.search(r"\s*integer.*:: *0", out, re.I) is None
     assert re.search(r"\s*real.*:: *real_val", out, re.I) is not None
