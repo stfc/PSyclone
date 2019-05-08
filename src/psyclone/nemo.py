@@ -85,12 +85,18 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         :type child:  :py:class:`fparser.two.utils.Base`
         :param parent: Parent node in the PSyclone IR we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: Returns the PSyIRe representation of child.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :return: Returns the PSyIR representation of child or None if \
+                 there isn't one.
+        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
         '''
         if NemoLoop.match(child):
             return NemoLoop(child, parent=parent)
         if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
+            # The fparser2 parse tree representing a Do loop has a
+            # Block_Nonlabel_Do_Construct which then has a Nonlabel_Do_Stmt
+            # as its child. Since we handle the former (by creating a NemoLoop)
+            # in the previous if-clause, we don't need to do anything with
+            # the Nonlabel_Do_Stmt and so return None.
             return None
         if NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
@@ -304,8 +310,9 @@ class NemoKern(Kern):
                        tree that encloses this kernel.
     :type parse_tree: \
               :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-    :param parent: the parent of this Kernel node in the PSyIR.
-    :type parent: :py:class:`psyclone.nemo.NemoLoop`
+    :param parent: the parent of this Kernel node in the PSyIR or None (if \
+                   this kernel is being created in isolation).
+    :type parent: :py:class:`psyclone.nemo.NemoLoop` or NoneType.
 
     '''
     def __init__(self, psyir_nodes, parse_tree, parent=None):
@@ -320,7 +327,7 @@ class NemoKern(Kern):
         self._kern_schedule.children = psyir_nodes[:]
         # Update the parent info for each node we've moved
         for node in self._kern_schedule.children:
-            node.parent = parent
+            node.parent = self._kern_schedule
         # Reset the list of children of the parent node (if supplied) so
         # that it only contains this Kernel object.
         if parent:
@@ -336,7 +343,8 @@ class NemoKern(Kern):
         Whether or not the PSyIR sub-tree pointed to by node represents a
         kernel. A kernel is defined as a section of code that sits
         within a recognised loop structure and does not itself contain
-        loops, subroutine calls or IO operations.
+        loops or 'CodeBlocks' (code not represented in the PSyIR such as
+        subroutine calls or IO operations).
 
         :param node: Node in the PSyIR to check.
         :type node: :py:class:`psyclone.psyGen.Node`
@@ -344,10 +352,10 @@ class NemoKern(Kern):
         :rtype: bool
         '''
         from psyclone.psyGen import CodeBlock
-        if node.walk(node.children, (CodeBlock, NemoLoop, NemoImplicitLoop)):
-            # A kernel cannot contain other loops, reads or writes or calls
+        if node.walk(node.children, (CodeBlock, NemoLoop)):
+            # A kernel cannot contain unrecognised code (including IO
+            # operations and routine calls) or loops.
             return False
-
         return True
 
     def local_vars(self):
@@ -439,7 +447,9 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         # a valid kernel
         if NemoKern.match(self):
             # It is, so we create a new kernel object
-            kernel = NemoKern(self.children, self._ast, parent=self)
+            # TODO alter the NemoKern constructor so that it doesn't
+            # change the state of the `parent`
+            _ = NemoKern(self.children, self._ast, parent=self)
 
     @staticmethod
     def match(node):
