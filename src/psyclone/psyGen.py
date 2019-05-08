@@ -2280,7 +2280,7 @@ class OMPDirective(Directive):
     def _get_reductions_list(self, reduction_type):
         '''Return the name of all scalars within this region that require a
         reduction of type reduction_type. Returned names will be unique.
-        :param: reduction_type The reduction type (e.g. AccessType.SUM) to
+        :param reduction_type: The reduction type (e.g. AccessType.SUM) to \
             search for.
         :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
         '''
@@ -3140,7 +3140,8 @@ class Loop(Node):
     def unique_modified_args(self, arg_type):
         '''Return all unique arguments of type arg_type from Kernels in this
         loop that are modified.
-        :param str arg_type: 'gh_field'
+        :param str arg_type: the type of kernel argument (e.g. field, \
+                             operator) to search for.
         :returns: all unique arguments of type arg_type from Kernels in this
         loop that are modified.
         :rtype: List of :py:class:`psyclone.psyGen.DynKernelArgument`.
