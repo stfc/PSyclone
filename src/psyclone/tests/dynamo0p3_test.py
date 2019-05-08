@@ -1828,10 +1828,12 @@ def test_invoke_uniq_declns_valid_access():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    psy.invokes.invoke_list[0].unique_declarations("gh_field",
-                                                   access=AccessType.READ)
-    psy.invokes.invoke_list[0].unique_declarations("gh_field",
-                                                   access=AccessType.WRITE)
+    fields_read = psy.invokes.invoke_list[0]\
+        .unique_declarations("gh_field", access=AccessType.READ)
+    assert fields_read == ["f2", "m1", "m2"]
+    fields_written = psy.invokes.invoke_list[0]\
+        .unique_declarations("gh_field", access=AccessType.WRITE)
+    assert fields_written == ["f1"]
 
 
 def test_invoke_uniq_proxy_declns():
