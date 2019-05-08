@@ -42,6 +42,7 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
+from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, KernStubArgList
 from psyclone.psyGen import InternalError, GenerationError
 from psyclone.parse.utils import ParseError

@@ -42,6 +42,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
+from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError

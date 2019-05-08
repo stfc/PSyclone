@@ -11,6 +11,7 @@
 from __future__ import absolute_import
 import os
 import pytest
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError,\

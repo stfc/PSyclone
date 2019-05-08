@@ -40,6 +40,7 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser.api import parse as parse1
+from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSyFactory
 from psyclone.gocean0p1 import GODescriptor, GOKernelType
