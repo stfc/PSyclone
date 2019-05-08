@@ -1822,13 +1822,12 @@ def test_invoke_uniq_declns_invalid_access():
 
 
 def test_invoke_uniq_declns_valid_access():
-    ''' tests that valid access modes ('read', 'write') are
-    accepted by  Invoke.unique_declarations() is called.'''
+    ''' Tests that valid access modes (AccessType.READ, AccessType.WRITE)
+    are accepted by Invoke.unique_declarations().'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    print("type is", type(psy.invokes.invoke_list[0]))
     psy.invokes.invoke_list[0].unique_declarations("gh_field",
                                                    access=AccessType.READ)
     psy.invokes.invoke_list[0].unique_declarations("gh_field",

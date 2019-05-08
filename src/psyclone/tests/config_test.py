@@ -122,7 +122,8 @@ def int_entry(request):
 
 
 def test_get_repo_config_file():
-    '''Check that we can find the expected config file in the repository.
+    '''Check the mechanism by which we ensure that the repository config
+    file is picked up by the test suite.
     '''
     config_file = Config.get_repository_config_file()
     assert "config/psyclone.cfg" in config_file
@@ -528,7 +529,7 @@ def test_mappings():
         APISpecificConfig.create_dict_from_string("k1:v1, k2:v2:something")
     assert mapping == {"k1": "v1", "k2": "v2:something"}
 
-    # Tests errors: '=' is not valid, will
+    # Tests errors: check that '=' instead of ":" is detected as invalid:
     with pytest.raises(ConfigurationError) as err:
         mapping = APISpecificConfig.create_dict_from_string("k1:v1, k2=v2")
     assert "Invalid format for mapping: k2=v2" in str(err)
