@@ -872,7 +872,6 @@ def test_acc_dir_view(capsys):
     acclt = ACCLoopTrans()
     accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
-    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
@@ -907,7 +906,6 @@ def test_acc_dir_view(capsys):
     out, _ = capsys.readouterr()
     assert out.startswith(
         colored("Directive", colour)+"[ACC Loop, collapse=2, independent]")
-    Config.get().api = "dynamo0.3"
 
 
 def test_haloexchange_unknown_halo_depth():
@@ -924,7 +922,6 @@ def test_globalsum_view(capsys):
     then call view() on that.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     from psyclone import dynamo0p3
-    Config.get().api = "dynamo0.3"
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -1025,7 +1022,6 @@ def test_reduction_var_error():
 def test_reduction_sum_error():
     '''Check that we raise an exception if the reduction_sum_loop()
     method is provided with an incorrect type of argument'''
-    Config.get().api = "dynamo0.3"
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api="dynamo0.3")
     for dist_mem in [False, True]:
@@ -2013,7 +2009,6 @@ def test_node_is_valid_location():
 def test_node_ancestor():
     ''' Test the Node.ancestor() method '''
     from psyclone.psyGen import Loop
-    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
@@ -2021,7 +2016,6 @@ def test_node_ancestor():
     assert isinstance(node, Loop)
     node = kern.ancestor(Node, excluding=[Loop])
     assert node is sched
-    Config.get().api = "dynamo0.3"
 
 
 def test_dag_names():
@@ -2107,7 +2101,6 @@ def test_acc_dag_names():
     from psyclone.psyGen import ACCEnterDataDirective
     from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
         ACCLoopTrans
-    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     schedule = invoke.schedule
 
@@ -2126,7 +2119,6 @@ def test_acc_dag_names():
     # Base class
     name = super(ACCEnterDataDirective, schedule.children[0]).dag_name
     assert name == "ACC_directive_1"
-    Config.get().api = "dynamo0.3"
 
 
 def test_acc_datadevice_virtual():
@@ -2574,7 +2566,6 @@ def test_find_w_args_multiple_deps(monkeypatch, annexed):
 def test_loop_props():
     ''' Tests for the properties of a Loop object. '''
     from psyclone.psyGen import Loop
-    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].children[0]
@@ -2583,13 +2574,11 @@ def test_loop_props():
         loop.loop_type = "not_a_valid_type"
     assert ("loop_type value (not_a_valid_type) is invalid. Must be one of "
             "['inner', 'outer']" in str(err))
-    Config.get().api = "dynamo0.3"
 
 
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
-    Config.get().api = "gocean1.0"
     from psyclone.psyGen import Node
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
@@ -2603,21 +2592,18 @@ def test_node_abstract_methods():
     with pytest.raises(NotImplementedError) as err:
         Node.view(loop)
     assert "BaseClass of a Node must implement the view method" in str(err)
-    Config.get().api = "dynamo0.3"
 
 
 def test_kern_ast():
     ''' Test that we can obtain the fparser2 AST of a kernel. '''
     from psyclone.gocean1p0 import GOKern
     from fparser.two import Fortran2003
-    Config.get().api = "gocean1.0"
     _, invoke = get_invoke("nemolite2d_alg_mod.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
     assert isinstance(kern, GOKern)
     assert kern.ast
     assert isinstance(kern.ast, Fortran2003.Program)
-    Config.get().api = "dynamo0.3"
 
 
 def test_dataaccess_vector():

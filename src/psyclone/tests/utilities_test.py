@@ -39,7 +39,6 @@ psyclone_test_utils.'''
 
 from __future__ import absolute_import
 import pytest
-from psyclone.configuration import Config
 from psyclone_test_utils import CompileError, get_invoke, Compile
 
 
@@ -148,20 +147,15 @@ def test_get_invoke():
     # First test all 4 valid APIs - we only make sure that no exception
     # is raised, so no assert required
 
-    Config.get().api = "gocean0.1"
     _, _ = get_invoke("openmp_fuse_test.f90", "gocean0.1", idx=0)
 
-    Config.get().api = "gocean1.0"
     _, _ = get_invoke("test14_module_inline_same_kernel.f90",
                       "gocean1.0", idx=0)
 
-    Config.get().api = "dynamo0.1"
     _, _ = get_invoke("algorithm/1_single_function.f90", "dynamo0.1", idx=0)
 
-    Config.get().api = "dynamo0.3"
     _, _ = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
 
-    Config.get().api = "gocean1.0"
     # Test that an invalid name raises an exception
     with pytest.raises(RuntimeError) as excinfo:
         _, _ = get_invoke("test11_different_iterates_over_one_invoke.f90",

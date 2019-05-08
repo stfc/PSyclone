@@ -1428,11 +1428,7 @@ def test_go_loop_swap_errors():
                          "test_files", "dynamo0p3",
                          "1.0.1_single_named_invoke.f90"),
                     api="dynamo0.3")
-    # TODO: that still doesn't work, we have inconsistent values
-    # in some psygen objects (read vs gh_read)
-    Config.get().api = "dynamo0.3"
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(info)
-    Config.get().api = "gocean1.0"
 
     invokes = psy.invokes
     invoke = invokes.get(list(invokes.names)[0])
@@ -1918,7 +1914,7 @@ def test_acc_collapse(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_indep(capsys, tmpdir):
+def test_acc_indep(tmpdir):
     ''' Tests for the independent clause to a loop directive. '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
@@ -1964,8 +1960,8 @@ def test_acc_loop_view(capsys):
     ''' Test for the view() method of ACCLoopDirective. '''
     acclpt = ACCLoopTrans()
 
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
-                             name="invoke_0")
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                           name="invoke_0")
     schedule = invoke.schedule
     new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
     new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
@@ -1982,8 +1978,8 @@ def test_acc_kernels_error():
     ''' Check that we refuse to allow the kernels transformation
     for this API. '''
     from psyclone.transformations import ACCKernelsTrans
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
-                             name="invoke_0")
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                           name="invoke_0")
     schedule = invoke.schedule
     accktrans = ACCKernelsTrans()
     with pytest.raises(NotImplementedError) as err:
