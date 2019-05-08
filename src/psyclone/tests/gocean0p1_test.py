@@ -49,6 +49,12 @@ from psyclone.parse.utils import ParseError
 API = "gocean0.1"
 
 
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean0.1 as API.'''
+    Config.get().api = "gocean0.1"
+
+
 # pylint: disable=invalid-name
 def test_loop_bounds_gen_multiple_loops():
     ''' Test that we only generate one assignment for a loop-bounds

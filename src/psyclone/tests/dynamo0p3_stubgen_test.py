@@ -53,6 +53,12 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 TEST_API = "dynamo0.3"
 
 
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
+
+
 def setup_function():
     '''
     pytest fixture that is called before every test function in this file. It

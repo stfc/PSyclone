@@ -21,6 +21,12 @@ from psyclone.transformations import TransformationError,\
 API = "gocean0.1"
 
 
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean0.1 as API.'''
+    Config.get().api = "gocean0.1"
+
+
 def test_loop_fuse_with_not_a_loop():
     ''' Test that an appropriate error is raised by the LoopFuseTrans
     base class wen we attempt to fuse a loop with something that
