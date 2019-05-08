@@ -582,7 +582,7 @@ class DynArgDescriptor03(Descriptor):
             raise ParseError(
                 "In the dynamo0.3 API a reduction access '{0}' is only valid "
                 "with a real scalar argument, but '{1}' was found".
-                format(self._access_type.api_access_name(),
+                format(self._access_type.api_specific_name(),
                        self._type))
 
         # FIELD, OPERATOR and SCALAR datatypes descriptors and rules
@@ -796,7 +796,7 @@ class DynArgDescriptor03(Descriptor):
             res += "*"+str(self._vector_size)
         res += os.linesep
         res += "  access_descriptor[1]='{0}'"\
-               .format(self._access_type.api_access_name())\
+               .format(self._access_type.api_specific_name())\
                + os.linesep
         if self._type == "gh_field":
             res += "  function_space[2]='{0}'".format(self._function_space1) \
@@ -963,7 +963,7 @@ class DynKernMetadata(KernelType):
                         "{1} with {2} access"
                         .format(self.name,
                                 arg.type,
-                                arg.access.api_access_name()))
+                                arg.access.api_specific_name()))
         if write_count == 0:
             raise ParseError("A Dynamo 0.3 kernel must have at least one "
                              "argument that is updated (written to) but "
@@ -5213,11 +5213,11 @@ def halo_check_arg(field, access_types):
             "'{0}'".format(type(field)))
 
     if field.access not in access_types:
-        api_strings = [access.api_access_name() for access in access_types]
+        api_strings = [access.api_specific_name() for access in access_types]
         raise GenerationError(
             "In HaloInfo class, field '{0}' should be one of {1}, but found "
             "'{2}'".format(field.name, api_strings,
-                           field.access.api_access_name()))
+                           field.access.api_specific_name()))
     from psyclone.dynamo0p3_builtins import DynBuiltIn
     if not (isinstance(call, DynKern) or isinstance(call, DynBuiltIn)):
         raise GenerationError(
@@ -5870,7 +5870,7 @@ class DynLoop(Loop):
                     "possible to get to here. loop upper bound name is '{0}' "
                     "and arg '{1}' access is '{2}'.".format(
                         self._upper_bound_name, arg.name,
-                        arg.access.api_access_name()))
+                        arg.access.api_specific_name()))
         else:
             # access is neither a read nor an inc so does not need halo
             return False
@@ -6768,7 +6768,7 @@ class ArgOrdering(object):
                     "Kernel {0} is recognised as a kernel which applies "
                     "boundary conditions to an operator. However its operator "
                     "argument has access {1} rather than gh_readwrite.".
-                    format(self._kern.name, op_arg.access.api_access_name()))
+                    format(self._kern.name, op_arg.access.api_specific_name()))
             self.operator_bcs_kernel(op_arg.function_space_to)
 
         # Provide qr arguments if required

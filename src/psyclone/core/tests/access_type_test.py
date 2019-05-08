@@ -52,17 +52,17 @@ def test_str():
     assert str(AccessType.SUM) == "SUM"
 
 
-def test_api_name():
-    '''Tests api_name(), i.e. conversion to an
+def test_api_specific_name():
+    '''Tests api_specific_name(), i.e. conversion to an
     API-specific string. '''
 
     Config.get().api = "dynamo0.3"
 
-    assert AccessType.INC.api_access_name() == "gh_inc"
-    assert AccessType.WRITE.api_access_name() == "gh_write"
-    assert AccessType.READ.api_access_name() == "gh_read"
-    assert AccessType.READWRITE.api_access_name() == "gh_readwrite"
-    assert AccessType.SUM.api_access_name() == "gh_sum"
+    assert AccessType.INC.api_specific_name() == "gh_inc"
+    assert AccessType.WRITE.api_specific_name() == "gh_write"
+    assert AccessType.READ.api_specific_name() == "gh_read"
+    assert AccessType.READWRITE.api_specific_name() == "gh_readwrite"
+    assert AccessType.SUM.api_specific_name() == "gh_sum"
 
 
 def test_from_string():

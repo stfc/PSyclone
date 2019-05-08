@@ -3391,12 +3391,12 @@ class Call(Node):
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
         except KeyError:
-            api_strings = [access.api_access_name()
+            api_strings = [access.api_specific_name()
                            for access in REDUCTION_OPERATOR_MAPPING]
             raise GenerationError(
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
-                format(reduction_access.api_access_name(), api_strings))
+                format(reduction_access.api_specific_name(), api_strings))
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
         do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
                               reduction_operator + local_var_ref))
@@ -3640,7 +3640,7 @@ class Kern(Call):
         raise FieldNotFoundError("Kernel {0} does not have an argument with "
                                  "{1} access".
                                  format(self.name,
-                                        AccessType.INC.api_access_name()))
+                                        AccessType.INC.api_specific_name()))
 
     def written_arg(self):
         '''

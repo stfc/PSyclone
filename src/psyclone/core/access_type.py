@@ -52,16 +52,14 @@ class AccessType(Enum):
     SUM = 5
 
     def __str__(self):
-        '''Convert to a string representation. The test
-        test_arg_descriptor_repr needs this function to return
-        the api_name() (and not e.g. just name of the enum,
-        like READ)..
+        '''Convert to a string representation, returning just the
+        enum (e.g. 'WRITE')..
         :return: API name for this string.
         :rtype: str
         '''
         return self.name
 
-    def api_access_name(self):
+    def api_specific_name(self):
         '''This convenience function returns the name of the type in the
         current API. E.g. in a dynamo0.3 API, WRITE --> "gh_write"
         :returns: The API specific name.
@@ -118,5 +116,5 @@ class AccessType(Enum):
         :returns: A list of valid reduction access names.
         :rtype: List of strings.
         '''
-        return [access.api_access_name() for access in
+        return [access.api_specific_name() for access in
                 AccessType.get_valid_reduction_modes()]
