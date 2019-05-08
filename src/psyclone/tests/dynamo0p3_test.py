@@ -3012,7 +3012,7 @@ def test_fsdescriptors_get_descriptor():
     assert "there is no descriptor for function space w0" in str(excinfo.value)
 
 
-def test_arg_descriptor_init_error():
+def test_arg_descriptor_init_error(monkeypatch):
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when an invalid type is provided. However this error never gets
     tripped due to an earlier test so we need to force the error by
@@ -3027,17 +3027,13 @@ def test_arg_descriptor_init_error():
     # Now try to trip the error by making the initial test think
     # that GH_INVALID is actually valid
     from psyclone.dynamo0p3 import GH_VALID_ARG_TYPE_NAMES, DynArgDescriptor03
-    keep = []
-    keep.extend(GH_VALID_ARG_TYPE_NAMES)
-    GH_VALID_ARG_TYPE_NAMES.append("GH_INVALID")
+    monkeypatch.setattr("psyclone.dynamo0p3.GH_VALID_ARG_TYPE_NAMES",
+                        GH_VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(ParseError) as excinfo:
         _ = DynArgDescriptor03(arg_type)
     assert 'Internal error in DynArgDescriptor03.__init__' \
         in str(excinfo.value)
-    # pylint: disable=invalid-name
-    GH_VALID_ARG_TYPE_NAMES = keep
-    # pylint: enable=invalid-name
 
 
 def test_func_descriptor_repr():
