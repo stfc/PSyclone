@@ -6532,18 +6532,6 @@ class DynKern(Kern):
         return psy_module.root
 
     @property
-    def incremented_arg(self):
-        ''' Returns the argument corresponding to a field or operator that has
-        INC access.  '''
-        return Kern.incremented_arg(self)
-
-    @property
-    def written_arg(self):
-        ''' Returns the argument corresponding to a field or operator that has
-        WRITE access '''
-        return Kern.written_arg(self)
-
-    @property
     def updated_arg(self):
         ''' Returns the kernel argument that is updated (incremented or
         written to) '''
