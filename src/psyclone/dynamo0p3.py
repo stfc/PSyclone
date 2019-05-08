@@ -6537,9 +6537,9 @@ class DynKern(Kern):
         written to) '''
         arg = None
         try:
-            arg = self.incremented_arg
+            arg = self.incremented_arg()
         except FieldNotFoundError:
-            arg = self.written_arg
+            arg = self.written_arg()
         return arg
 
     def gen_code(self, parent):
@@ -6593,7 +6593,7 @@ class DynKern(Kern):
                 try:
                     # It is OpenMP parallel - does it have an argument
                     # with INC access?
-                    arg = self.incremented_arg
+                    arg = self.incremented_arg()
                 except FieldNotFoundError:
                     arg = None
                 if arg:
