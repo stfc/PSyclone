@@ -92,8 +92,11 @@ class RegionTrans(Transformation):
                 a node is duplicated or the nodes have different parents.
         :raises TransformationError: if any of the nodes to be enclosed in \
                 the region are of an unsupported type.
+        :raises TransformationError: if the condition part of an IfBlock \
+                                     is erroneously included in the region.
 
         '''
+        from psyclone.psyGen import IfBlock
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -119,6 +122,15 @@ class RegionTrans(Transformation):
                     raise TransformationError(
                         "Nodes of type '{0}' cannot be enclosed by a {1} "
                         "transformation".format(type(item), self.name))
+
+        # Sanity check that we've not been passed the condition part of
+        # an If statement (which is child 0)
+        if isinstance(node_parent, IfBlock):
+            if node_parent.children[0] in node_list:
+                raise TransformationError(
+                    "Cannot apply transformation to the conditional expression"
+                    " (first child) of an If/Case statement. Error in "
+                    "transformation script.")
 
 
 # =============================================================================
