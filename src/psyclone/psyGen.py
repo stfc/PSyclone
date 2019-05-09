@@ -5543,12 +5543,14 @@ class Symbol(object):
                       mechanism, at the moment just 'global_argument' is \
                       available for variables passed in/out of the kernel \
                       by argument.
-    :param constant_value: Sets the value of the constant for this \
+
+    :param constant_value: Sets a fixed known value for this \
                            Symbol. If the value is None (the default) \
                            then this symbol is not a constant. The \
                            datatype of the constant value must be \
                            compatible with the datatype of the symbol.
-    :type: int, float, str or bool
+
+    :type constant_value: int, str or bool
     :param bool is_input: Whether the symbol represents data that exists \
                           before the kernel is entered and that is passed \
                           into the kernel.
@@ -5564,17 +5566,16 @@ class Symbol(object):
     valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.
     valid_data_types = ('real', 'integer', 'character', 'boolean')
-    # Mapping from valid_data_types to internal Python types
-    mapping = {'real': float, 'integer': int, 'character': str,
-               'boolean': bool}
+    # Mapping from supported data types to internal Python types
+    mapping = {'integer': int, 'character': str, 'boolean': bool}
 
     def __init__(self, name, datatype, shape=[], scope='local',
                  constant_value=None, is_input=False, is_output=False):
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
-                "Symbol can only be initialised with {0} datatypes."
-                "".format(str(Symbol.valid_data_types)))
+                "Symbol can only be initialised with {0} datatypes but found "
+                "'{1}'".format(str(Symbol.valid_data_types), datatype))
         self._datatype = datatype
 
         if not isinstance(shape, list):
@@ -5610,13 +5611,6 @@ class Symbol(object):
         :rtype: str
         '''
         return self._name
-
-    @name.setter
-    def name(self, new_name):
-        '''
-        :param str new_name: A new name for this Symbol instance.
-        '''
-        self._name = new_name
 
     @property
     def datatype(self):
@@ -5736,20 +5730,22 @@ class Symbol(object):
     @property
     def constant_value(self):
         '''
-        :returns: Whether the symbol is a constant with a fixed known \
-        value (True) or is not a constant (False).
-        :rtype: bool
+        :returns: The fixed known value for this symbol if one has \
+        been set or None if not.
+        :rtype: int, str, bool or NoneType
 
         '''
         return self._constant_value
 
     @constant_value.setter
     def constant_value(self, new_value):
-        ''':param constant_value : Set or change the value of the constant \
-        for this Symbol. If the value is None then this symbol is not \
-        a constant. The datatype of new_value must be compatible with \
-        the datatype of the symbol.
-        :type: int, float, str or bool
+        '''
+
+        :param constant_value: Set or change the fixed known value of
+        the constant for this Symbol. If the value is None then this
+        symbol is not a constant. The datatype of new_value must be
+        compatible with the datatype of the symbol.
+        :type constant_value: int, str or bool
 
         :raises ValueError: If a non-None value is provided and 1) \
         this Symbol instance does not have local scope, or 2) this \
@@ -5874,13 +5870,13 @@ class SymbolTable(object):
                           information about the sharing mechanism, at the \
                           moment just 'global_argument' is available for \
                           variables passed in/out of the kernel by argument.
-        :param constant_value: Sets the value of the constant for this \
+        :param constant_value: Sets a fixed known value for this \
                                Symbol. If the value is None (the \
                                default) then this symbol is not a \
                                constant. The datatype of the constant \
                                value must be compatible with the \
                                datatype of the symbol.
-        :type: int, float, str or bool
+        :type constant_value: int, str or bool
         :param bool is_input: Whether the symbol represents data that exists \
                               before the kernel is entered and that is passed \
                               into the kernel.
@@ -5899,7 +5895,7 @@ class SymbolTable(object):
             constant_value=constant_value, is_input=is_input,
             is_output=is_output)
 
-    def modify(self, name, new_name):
+    def swap_argument(self, arg_name, local_name):
         '''Modify the attributes of an existing symbol in the symbol
         table. This is limited to the name of the symbol as the symbol
         name affects the internal working of the symbol table. Other
@@ -5915,17 +5911,26 @@ class SymbolTable(object):
         exists in the SymbolTable instance.
 
         '''
-        try:
-            symbol = self._symbols.pop(name)
-        except KeyError:
-            raise KeyError(
-                "Could not find '{0}' in the Symbol Table.".format(name))
-        symbol.name = new_name
-        if new_name in self:
-            raise GenerationError(
-                "New name '{0}' is already in the symbol table."
-                "".format(new_name))
-        self._symbols[new_name] = symbol
+        # TBD try as names may not exist
+        local_symbol = self._symbols[local_name]
+        arg_symbol = self._symbols[arg_name]
+
+        # TBD CHECKS
+        # arg_symbol datatype same as local_symbol
+        # arg_symbol shape same as local_symbol
+        # arg_symbol.scope is "global_argument"
+        # local_symbol.scope is "local"
+        # local_symbol is not constant
+
+        local_symbol.scope = "global_argument"
+        local_symbol.is_input = arg_symbol.is_input
+        local_symbol.is_output = arg_symbol.is_output
+
+        arg_symbol.scope = "local"
+        arg_symbol.is_input = False
+        arg_symbol.is_output = False
+
+        # TBD I think self._argument_list is now inconsistent and we need to update
 
     def specify_argument_list(self, argument_name_list):
         '''

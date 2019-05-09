@@ -2592,9 +2592,8 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # space manager is introduced into the SymbolTable (Issue
             # #321).
             new_name = orig_name + "_dummy"
-            symbol_table.modify(orig_name, new_name)
-            symbol_table.declare(orig_name, "integer", scope="local",
-                                 constant_value=value)
+            symbol_table.declare(new_name, "integer", scope="local")
+            symbol_table.swap_argument(orig_name, new_name)
             if function_space:
                 print("    Modified {0}, arg position {1}, function space "
                       "{2}, value {3}.".format(orig_name, arg_position,
