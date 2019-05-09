@@ -284,7 +284,6 @@ def test_data_ref():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('data_ref').schedule
-    schedule.view()
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     schedule, _ = acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
