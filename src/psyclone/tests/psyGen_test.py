@@ -3020,7 +3020,7 @@ def test_symbol_initialisation():
 
     # Test with valid arguments
     assert isinstance(Symbol('a', 'real'), Symbol)
-    assert isinstance(Symbol('a', 'real', constant_value=3.14), Symbol)
+    # real constants are not currently supported
     assert isinstance(Symbol('a', 'integer'), Symbol)
     assert isinstance(Symbol('a', 'integer', constant_value=0), Symbol)
     assert isinstance(Symbol('a', 'character'), Symbol)
@@ -3043,8 +3043,15 @@ def test_symbol_initialisation():
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
-    assert ("Symbol can only be initialised with {0} datatypes."
-            "".format(str(Symbol.valid_data_types)))in str(error.value)
+    assert (
+        "Symbol can only be initialised with {0} datatypes but found "
+        "'invalidtype'.".format(str(Symbol.valid_data_types))) in str(
+            error.value)
+
+    with pytest.raises(ValueError) as error:
+        assert isinstance(Symbol('a', 'real', constant_value=3.14), Symbol)
+    assert ("A constant value is not currently supported for datatype "
+            "'real'.") in(error.value)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', [], 'invalidscope')
@@ -3091,13 +3098,6 @@ def test_symbol_initialisation():
     assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'real', constant_value=False)
-    assert ("This Symbol instance's datatype is 'real' which means the "
-            "constant value is expected to be") in str(error.value)
-    assert "'float'>' but found " in str(error.value)
-    assert "'bool'>'." in str(error.value)
-
-    with pytest.raises(ValueError) as error:
         Symbol('a', 'character', constant_value=42)
     assert ("This Symbol instance's datatype is 'character' which means the "
             "constant value is expected to be") in str(error.value)
@@ -3118,20 +3118,12 @@ def test_symbol_map():
     the Symbol class.
 
     '''
-    assert len(Symbol.valid_data_types) == len(Symbol.mapping)
+    # "real" is not supported in the mapping so we expect it to have 1
+    # less entry than there are valid data types.
+    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 1
     for data_type in Symbol.valid_data_types:
-        Symbol.mapping[data_type]
-
-
-def test_symbol_name_setter():
-    '''Test that a Symbol name can be set if given a new valid name value.
-
-    '''
-    # Test with a valid name
-    sym = Symbol('a', 'real')
-    assert sym.name == 'a'
-    sym.name = 'b'
-    assert sym.name == 'b'
+        if not data_type in ["real"]:
+            Symbol.mapping[data_type]
 
 
 def test_symbol_scope_setter():
@@ -3159,10 +3151,10 @@ def test_symbol_constant_value_setter():
     '''
 
     # Test with valid constant value
-    sym = Symbol('a', 'real', constant_value=3.14)
-    assert sym.constant_value == 3.14
-    sym.constant_value = 9.81
-    assert sym.constant_value == 9.81
+    sym = Symbol('a', 'integer', constant_value=7)
+    assert sym.constant_value == 7
+    sym.constant_value = 9
+    assert sym.constant_value == 9
 
 
 def test_symbol_is_input_setter():
@@ -3273,36 +3265,18 @@ def test_symboltable_declare():
             "'var1'.") in str(error.value)
 
 
-def test_symboltable_modify():
-    '''Test that the modify method in the SymbolTable class can modify the
-    name of a symbol without breaking the working of the SymbolTable
-    instance and that an exception is raised if the name does not
-    exist.
-
-    '''
+def test_symboltable_swap_argument():
+    ''' xxx '''
     sym_table = SymbolTable()
-    for arg in ["arg1", "arg2", "arg3"]:
-        sym_table.declare(arg, "integer", scope="global_argument")
-    sym_table.specify_argument_list(["arg1", "arg2", "arg3"])
 
-    sym_table.modify("arg2", "arg4")
+    # Declare a symbols
+    sym_table.declare("var1", "integer", scope="global_argument",
+                      is_input=True, is_output=True)
+    sym_table.declare("var2", "real", scope="global_argument",
+                      is_input=True, is_output=True)
+    sym_table.declare("var1_dummy", "integer")
 
-    with pytest.raises(KeyError) as excinfo:
-        sym_table.lookup("arg2")
-    assert "Could not find 'arg2' in the Symbol Table." in \
-        (str(excinfo.value))
-    assert isinstance(sym_table.lookup("arg4"), Symbol)
-    assert [symbol.name for symbol in sym_table.argument_list] == \
-        ["arg1", "arg4", "arg3"]
-    with pytest.raises(KeyError) as excinfo:
-        sym_table.modify("non-existant", "new")
-    assert "Could not find 'non-existant' in the Symbol Table." in \
-        str(excinfo.value)
-    with pytest.raises(GenerationError) as excinfo:
-        sym_table.modify("arg4", "arg1")
-    assert "New name 'arg1' is already in the symbol table" in \
-        str(excinfo.value)
-
+    sym_table.swap_argument("var1", "var1_dummy")
 
 def test_symboltable_lookup():
     '''Test that the lookup method retrieves symbols from the symbol table

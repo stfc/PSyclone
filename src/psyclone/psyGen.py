@@ -5575,7 +5575,7 @@ class Symbol(object):
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
                 "Symbol can only be initialised with {0} datatypes but found "
-                "'{1}'".format(str(Symbol.valid_data_types), datatype))
+                "'{1}'.".format(str(Symbol.valid_data_types), datatype))
         self._datatype = datatype
 
         if not isinstance(shape, list):
@@ -5739,9 +5739,7 @@ class Symbol(object):
 
     @constant_value.setter
     def constant_value(self, new_value):
-        '''
-
-        :param constant_value: Set or change the fixed known value of
+        ''':param constant_value: Set or change the fixed known value of
         the constant for this Symbol. If the value is None then this
         symbol is not a constant. The datatype of new_value must be
         compatible with the datatype of the symbol.
@@ -5750,8 +5748,10 @@ class Symbol(object):
         :raises ValueError: If a non-None value is provided and 1) \
         this Symbol instance does not have local scope, or 2) this \
         Symbol instance is not a scalar (as the shape attribute is not \
-        empty), or 3) the type of the value provided is not compatible \
-        with the datatype of this Symbol instance.
+        empty), or 3) a constant value is provided but the type of the \
+        value does not support this, or 4) the type of the value \
+        provided is not compatible with the datatype of this Symbol \
+        instance.
 
         '''
         if new_value is not None:
@@ -5763,7 +5763,13 @@ class Symbol(object):
                 raise ValueError(
                     "Symbol with a constant value must be a scalar but the "
                     "shape attribute is not empty.")
-            if not isinstance(new_value, Symbol.mapping[self.datatype]):
+            try:
+                lookup = Symbol.mapping[self.datatype]
+            except KeyError:
+                raise ValueError(
+                    "A constant value is not currently supported for "
+                    "datatype '{0}'.".format(self.datatype))
+            if not isinstance(new_value, lookup):
                 raise ValueError(
                     "This Symbol instance's datatype is '{0}' which means "
                     "the constant value is expected to be '{1}' but found "
