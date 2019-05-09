@@ -200,11 +200,10 @@ Example 1: OpenMP parallelisation of tra_adv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the use of PSyclone to parallelise the loops over vertical levels
-in some NEMO tracer-advection code using OpenMP.
+in a NEMO tracer-advection benchmark using OpenMP.
 
 Example 2: OpenMP parallelisation of traldf_iso
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 
 Demonstrates the use of PSyclone to parallelise the loops over vertical levels
 in some NEMO tracer-diffusion code using OpenMP.
@@ -213,4 +212,4 @@ Example 3: OpenACC parallelisation of tra_adv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Demonstrates the introduction of simple OpenACC parallelisation (using the
-``data`` and ``kernels`` directives) for a tracer advection benchmark.
+``data`` and ``kernels`` directives) for a NEMO tracer-advection benchmark.

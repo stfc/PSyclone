@@ -209,8 +209,8 @@ we list the current, known limitations/issues:
  3. All recognised loops (levels, latitude etc.) are assumed to be
     parallelisable. This will not always be the case (e.g. tridiagonal
     solve has a loop-carried dependence in the vertical);
- 4. Labelled do-loops are not handled (i.e. they will probably end up
-    being put inside a code block);
+ 4. Labelled do-loops are not handled (i.e. they will be put inside a
+    'CodeBlock' in the PSyIR);
  5. Loops are currently only permitted to contain one kernel.  This
     restriction will have to be lifted in order to permit loop fusion;
  6. Array slices with specified bounds (e.g. umask(1:10)) are not yet
