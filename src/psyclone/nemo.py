@@ -328,11 +328,6 @@ class NemoKern(Kern):
         # Update the parent info for each node we've moved
         for node in self._kern_schedule.children:
             node.parent = self._kern_schedule
-        # Reset the list of children of the parent node (if supplied) so
-        # that it only contains this Kernel object.
-        if parent:
-            parent.children = []
-            parent.addchild(self)
         # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
         # We therefore don't have any children.
         self._children = []
@@ -446,10 +441,10 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         # Now check the PSyIR of this loop body to see whether it is
         # a valid kernel
         if NemoKern.match(self):
-            # It is, so we create a new kernel object
-            # TODO alter the NemoKern constructor so that it doesn't
-            # change the state of the `parent`
-            _ = NemoKern(self.children, self._ast, parent=self)
+            # It is, so we create a new kernel object and make it the only
+            # child of this Loop node. The PSyIR of the loop body becomes
+            # the schedule of this kernel.
+            self.children = [NemoKern(self.children, self._ast, parent=self)]
 
     @staticmethod
     def match(node):
