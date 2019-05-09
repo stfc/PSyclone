@@ -1861,25 +1861,20 @@ class ACCDirective(Directive):
                 "_add_region: end_text must be a plain label without directive"
                 " or comment characters but got: '{0}'".format(end_text))
 
-        # The parent node in the PSyIR might be a directive so we need to
-        # go back up the tree to find the node corresponding to our parent
-        # node in the fparser2 parse tree. This is the first node that
-        # has the 'content' attribute and does not match with the directive
-        # children ast.
-        # TODO this can probably be simplified/removed altogether once
+        # Find a reference to the fparser2 parse tree that belongs to
+        # the contents of this region. Then go back up one level in the
+        # parse tree to find the node to which we will add directives as
+        # children. (We do this because our parent PSyIR node may be a
+        # directive which has no associated entry in the fparser2 parse tree.)
+        # TODO this should be simplified/improved once
         # the fparser2 parse tree has parent information (fparser/#102).
-        parent = self._parent
-        while parent:
-            if parent.ast and hasattr(parent.ast, "content") and \
-               parent.ast is not self.children[0].ast:
-                break
-            parent = parent._parent
-        fp_parent = parent.ast
+        content_ast = self.children[0].ast
+        fp_parent = content_ast._parent
 
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
-                                       self.children[0].ast)
+                                       content_ast)
         if end_text:
             if self.children[-1].ast_end:
                 ast_end_index = object_index(fp_parent.content,
@@ -5576,6 +5571,7 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
         ifblock = IfBlock(parent=parent, annotation='was_single_stmt')
+        ifblock.ast = node
         self.process_nodes(parent=ifblock, nodes=[node.items[0]],
                            nodes_parent=node)
         ifbody = Schedule(parent=ifblock)
@@ -5622,7 +5618,9 @@ class Fparser2ASTProcessor(object):
                 # we raise a NotImplementedError that the process_node() will
                 # catch and generate a CodeBlock instead.
                 case_expression = child.items[0].items[0]
-                if isinstance(case_expression, Fortran2003.Case_Value_Range):
+                if isinstance(case_expression,
+                              (Fortran2003.Case_Value_Range,
+                               Fortran2003.Case_Value_Range_List)):
                     raise NotImplementedError("Case Value Range Statement")
                 elif case_expression is None:
                     raise NotImplementedError("Case Default Statement")
