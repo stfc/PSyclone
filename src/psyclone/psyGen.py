@@ -42,6 +42,7 @@
 from __future__ import print_function, absolute_import
 import abc
 import six
+from enum import Enum
 from psyclone.configuration import Config
 
 # We use the termcolor module (if available) to enable us to produce
@@ -5648,7 +5649,8 @@ class Fparser2ASTProcessor(object):
                     ifblock.ast_end = node.content[end_idx - 1]
 
                     # Add condition: selector == case
-                    bop = BinaryOperation(parent=ifblock, operator='==')
+                    bop = BinaryOperation(BinaryOperator.EQ, parent=ifblock)
+
                     self.process_nodes(parent=bop,
                                        nodes=[selector],
                                        nodes_parent=node)
@@ -5728,7 +5730,12 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
         '''
         # Get the operator
-        operator = node.items[0]
+        operator_str = node.items[0]
+        if operator_str == '-':
+            operator = UnaryOperator.MINUS
+        else:
+            # Operator not supported, it will produce a CodeBlock instead
+            raise NotImplementedError(operator_str)
 
         unary_op = UnaryOperation(operator, parent=parent)
         self.process_nodes(parent=unary_op, nodes=[node.items[1]],
@@ -5748,7 +5755,42 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
         '''
         # Get the operator
-        operator = node.items[1]
+        operator_str = node.items[1].lower()
+        if operator_str == '+':
+            operator = BinaryOperator.SUM
+        elif operator_str == '-':
+            operator = BinaryOperator.SUB
+        elif operator_str == '*':
+            operator = BinaryOperator.MUL
+        elif operator_str == '/':
+            operator = BinaryOperator.DIV
+        elif operator_str == '==':
+            operator = BinaryOperator.EQ
+        elif operator_str == '.eq.':
+            operator = BinaryOperator.EQ
+        elif operator_str == '<=':
+            operator = BinaryOperator.LE
+        elif operator_str == '.le.':
+            operator = BinaryOperator.LE
+        elif operator_str == '<':
+            operator = BinaryOperator.LT
+        elif operator_str == '.lt.':
+            operator = BinaryOperator.LT
+        elif operator_str == '>':
+            operator = BinaryOperator.GT
+        elif operator_str == '.gt.':
+            operator = BinaryOperator.GT
+        elif operator_str == '>=':
+            operator = BinaryOperator.GE
+        elif operator_str == '.ge.':
+            operator = BinaryOperator.GE
+        elif operator_str == '.and.':
+            operator = BinaryOperator.AND
+        elif operator_str == '.or.':
+            operator = BinaryOperator.OR
+        else:
+            # Operator not supported, it will produce a CodeBlock instead
+            raise NotImplementedError(operator_str)
 
         binary_op = BinaryOperation(operator, parent=parent)
         self.process_nodes(parent=binary_op, nodes=[node.items[0]],
@@ -6475,69 +6517,6 @@ class Reference(Node):
         return self._reference
 
 
-class UnaryOperation(Node):
-    '''
-    Node representing a UnaryOperation expression. As such it has one operand
-    as child 0, and an attribute with the operator type.
-
-    :param str operator: string representing the unary operator.
-    :param parent: the parent node of this UnaryOperation in the PSyIR.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-    '''
-    def __init__(self, operator, parent=None):
-        super(UnaryOperation, self).__init__(parent=parent)
-        # TODO: (Issue #339) Create an Operator entity to have more robust
-        # operators than the current string.
-        self._operator = operator
-
-    @property
-    def coloured_text(self):
-        '''
-        Return the name of this node type with control codes for
-        terminal colouring.
-
-        :return: Name of node + control chars for colour.
-        :rtype: str
-        '''
-        return colored("UnaryOperation",
-                       SCHEDULE_COLOUR_MAP["UnaryOperation"])
-
-    def view(self, indent=0):
-        '''
-        Print a representation of this node in the schedule to stdout.
-
-        :param int indent: level to which to indent output.
-        '''
-        print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator + "']")
-        for entity in self._children:
-            entity.view(indent=indent + 1)
-
-    def __str__(self):
-        result = "UnaryOperation[operator:'" + self._operator + "']\n"
-        for entity in self._children:
-            result += str(entity)
-        return result
-
-    def gen_c_code(self, indent=0):
-        '''
-        Generate a string representation of this node using C language.
-
-        :param int indent: Depth of indent for the output string.
-        :return: C language code representing the node.
-        :rtype: str
-        :raises GenerationError: if the node or its children are invalid.
-        '''
-        if len(self.children) != 1:
-            raise GenerationError("UnaryOperation malformed or "
-                                  "incomplete. It should have exactly 1 "
-                                  "child, but found {0}."
-                                  "".format(len(self.children)))
-
-        return "(" + self._operator + " " \
-            + self._children[0].gen_c_code() + ")"
-
-
 UnaryOperator = Enum('UnaryOperator', [
     # Arithmetic Operators
     'MINUS', 'SQRT',
@@ -6561,6 +6540,72 @@ BinaryOperator = Enum('BinaryOperator', [
     ])
 
 
+class UnaryOperation(Node):
+    '''
+    Node representing a UnaryOperation expression. As such it has one operand
+    as child 0, and an attribute with the operator type.
+
+    :param str operator: string representing the unary operator.
+    :param parent: the parent node of this UnaryOperation in the PSyIR.
+    :type parent: :py:class:`psyclone.psyGen.Node`
+    '''
+    def __init__(self, operator, parent=None):
+        super(UnaryOperation, self).__init__(parent=parent)
+
+        if not isinstance(operator, UnaryOperator):
+            raise TypeError("")
+
+        self._operator = operator
+
+    @property
+    def coloured_text(self):
+        '''
+        Return the name of this node type with control codes for
+        terminal colouring.
+
+        :return: Name of node + control chars for colour.
+        :rtype: str
+        '''
+        return colored("UnaryOperation",
+                       SCHEDULE_COLOUR_MAP["UnaryOperation"])
+
+    def view(self, indent=0):
+        '''
+        Print a representation of this node in the schedule to stdout.
+
+        :param int indent: level to which to indent output.
+        '''
+        print(self.indent(indent) + self.coloured_text + "[operator:'" +
+              self._operator.name + "']")
+        for entity in self._children:
+            entity.view(indent=indent + 1)
+
+    def __str__(self):
+        result = "UnaryOperation[operator:'" + self._operator.name + "']\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
+
+    def gen_c_code(self, indent=0):
+        '''
+        Generate a string representation of this node using C language.
+
+        :param int indent: Depth of indent for the output string.
+        :return: C language code representing the node.
+        :rtype: str
+        :raises GenerationError: if the node or its children are invalid.
+        '''
+        if len(self.children) != 1:
+            raise GenerationError("UnaryOperation malformed or "
+                                  "incomplete. It should have exactly 1 "
+                                  "child, but found {0}."
+                                  "".format(len(self.children)))
+
+        # TODO: Operator needs proper back-end
+        return "(" + self._operator.name + " " \
+            + self._children[0].gen_c_code() + ")"
+
+
 class BinaryOperation(Node):
     '''
     Node representing a BinaryOperator expression. As such it has two operands
@@ -6573,7 +6618,10 @@ class BinaryOperation(Node):
     '''
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
-        self.ast = operator
+
+        if not isinstance(operator, BinaryOperator):
+            raise TypeError("")
+
         self._operator = operator
 
     @property
@@ -6595,12 +6643,12 @@ class BinaryOperation(Node):
         :param int indent: level to which to indent output.
         '''
         print(self.indent(indent) + self.coloured_text + "[operator:'" +
-              self._operator + "']")
+              self._operator.name + "']")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
     def __str__(self):
-        result = "BinaryOperation[operator:'" + self._operator + "']\n"
+        result = "BinaryOperation[operator:'" + self._operator.name + "']\n"
         for entity in self._children:
             result += str(entity)
         return result
@@ -6621,8 +6669,9 @@ class BinaryOperation(Node):
                                   "children, but found {0}."
                                   "".format(len(self.children)))
 
+        # TODO: Operator needs a proper backend
         return "(" + self._children[0].gen_c_code() + " " \
-            + self._operator + " " \
+            + self._operator.name + " " \
             + self._children[1].gen_c_code() + ")"
 
 

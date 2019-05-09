@@ -2980,8 +2980,8 @@ def test_literal_gen_c_code():
 def test_binaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the Binary Operation
     class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    binary_operation = BinaryOperation("+")
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, BinaryOperator
+    binary_operation = BinaryOperation(BinaryOperator.SUM)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("1", parent=binary_operation)
     binary_operation.addchild(op1)
@@ -2990,24 +2990,25 @@ def test_binaryoperation_view(capsys):
                           SCHEDULE_COLOUR_MAP["BinaryOperation"])
     binary_operation.view()
     output, _ = capsys.readouterr()
-    assert coloredtext+"[operator:'+']" in output
+    assert coloredtext+"[operator:'SUM']" in output
 
 
 def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
-    binary_operation = BinaryOperation("+")
+    from psyclone.psyGen import BinaryOperator
+    binary_operation = BinaryOperation(BinaryOperator.SUM)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("1", parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
-    assert "BinaryOperation[operator:'+']\n" in str(binary_operation)
+    assert "BinaryOperation[operator:'SUM']\n" in str(binary_operation)
 
 
 def test_binaryoperation_gen_c_code():
     '''Test that a BinaryOperation node can generate its C representation'''
-
-    binary_operation = BinaryOperation("+")
+    from psyclone.psyGen import BinaryOperator
+    binary_operation = BinaryOperation(BinaryOperator.SUM)
     with pytest.raises(GenerationError) as err:
         _ = binary_operation.gen_c_code()
     assert("BinaryOperation malformed or incomplete. It should have "
@@ -3024,30 +3025,31 @@ def test_binaryoperation_gen_c_code():
 def test_unaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the UnaryOperation
     class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
-    unary_operation = UnaryOperation("-")
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, UnaryOperator
+    unary_operation = UnaryOperation(UnaryOperator.MINUS)
     op1 = Literal("1", parent=unary_operation)
     unary_operation.addchild(op1)
     coloredtext = colored("UnaryOperation",
                           SCHEDULE_COLOUR_MAP["UnaryOperation"])
     unary_operation.view()
     output, _ = capsys.readouterr()
-    assert coloredtext+"[operator:'-']" in output
+    assert coloredtext+"[operator:'MINUS']" in output
 
 
 def test_unaryoperation_can_be_printed():
     '''Test that a UnaryOperation instance can always be printed (i.e. is
     initialised fully)'''
-    unary_operation = UnaryOperation("-")
+    from psyclone.psyGen import UnaryOperator
+    unary_operation = UnaryOperation(UnaryOperator.MINUS)
     op1 = Literal("1", parent=unary_operation)
     unary_operation.addchild(op1)
-    assert "UnaryOperation[operator:'-']\n" in str(unary_operation)
+    assert "UnaryOperation[operator:'MINUS']\n" in str(unary_operation)
 
 
 def test_unaryoperation_gen_c_code():
     '''Test that a UnaryOperation node can generate its C representation'''
-
-    unary_operation = UnaryOperation("-")
+    from psyclone.psyGen import UnaryOperator
+    unary_operation = UnaryOperation(UnaryOperator.MINUS)
     with pytest.raises(GenerationError) as err:
         _ = unary_operation.gen_c_code()
     assert("UnaryOperation malformed or incomplete. It should have "
@@ -4277,6 +4279,7 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyGen import BinaryOperator
     reader = FortranStringReader("x=1+4")
     fparser2binary_operation = Execution_Part.match(reader)[0][0].items[2]
 
@@ -4288,7 +4291,7 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     new_node = fake_parent.children[0]
     assert isinstance(new_node, BinaryOperation)
     assert len(new_node.children) == 2
-    assert new_node._operator == '+'
+    assert new_node._operator == BinaryOperator.SUM
 
 
 def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
@@ -4297,6 +4300,7 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
+    from psyclone.psyGen import UnaryOperator
     reader = FortranStringReader("x=-4")
     fparser2unary_operation = Execution_Part.match(reader)[0][0].items[2]
     assert isinstance(fparser2unary_operation, UnaryOpBase)
@@ -4309,7 +4313,7 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     new_node = fake_parent.children[0]
     assert isinstance(new_node, UnaryOperation)
     assert len(new_node.children) == 1
-    assert new_node._operator == '-'
+    assert new_node._operator == UnaryOperator.MINUS
 
 
 def test_fparser2astprocessor_handling_return_stmt(f2008_parser):
