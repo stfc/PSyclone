@@ -5258,10 +5258,9 @@ class Fparser2ASTProcessor(object):
                         "Could not process {0}. Character length "
                         "specifications are not supported."
                         "".format(decl.items))
-
-                parent.symbol_table.declare(
+                parent.symbol_table.declare(Symbol(
                     str(name), datatype, shape=entity_shape, scope=scope,
-                    is_input=is_input, is_output=is_output)
+                    is_input=is_input, is_output=is_output))
 
         try:
             arg_strings = [x.string for x in arg_list]
@@ -5834,6 +5833,33 @@ class Symbol(object):
             ret += ", constant, value={0}".format(self.constant_value)
         return ret + ">"
 
+    def copy(self):
+        '''Create and return a copy of this object.
+
+        :returns: A symbol object with the same properties as this \
+        symbol object
+        :rtype: :py:class:`psyclone.psyGen.Symbol`
+
+        '''
+        return Symbol(self.name, self.datatype, shape=self.shape[:], scope=self.scope,
+                      constant_value=self.constant_value, is_input=self.is_input,
+                      is_output=self.is_output)
+
+    def set_properties(self, symbol_in):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name which is immutable.
+
+        :param symbol_in: A symbol object
+        :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
+
+        '''
+        self._datatype = symbol_in.datatype
+        self._shape = symbol_in.shape[:]
+        self._scope = symbol_in.scope
+        self._constant_value = symbol_in.constant_value
+        self._is_input = symbol_in.is_input
+        self._is_output = symbol_in.is_output
+
 
 class SymbolTable(object):
     '''
@@ -5855,54 +5881,22 @@ class SymbolTable(object):
         # Reference to KernelSchedule to which this symbol table belongs.
         self._kernel = kernel
 
-    def declare(self, name, datatype, shape=[], scope='local',
-                constant_value=None, is_input=False, is_output=False):
+    def declare(self, new_symbol):
         '''Declare a new symbol in the symbol table.
 
-        :param str name: Name of the symbol.
-        :param str datatype: Datatype of the symbol.
-        :param list shape: Shape of the symbol in column-major order \
-                           (leftmost index is contiguous in memory). Each \
-                           entry represents an array dimension. If it is \
-                           'None' the extent of that dimension is unknown, \
-                           otherwise it holds an integer literal or a \
-                           reference to an integer symbol with the extent. \
-                           If it is an empty list then the symbol represents \
-                           a scalar.
-        :param str scope: It is 'local' if the symbol just exists inside the \
-                          kernel scope or 'global_*' if the data survives \
-                          outside of the kernel scope. Note that \
-                          global-scoped symbols also have postfixed \
-                          information about the sharing mechanism, at the \
-                          moment just 'global_argument' is available for \
-                          variables passed in/out of the kernel by argument.
-        :param constant_value: Sets a fixed known value for this \
-                               Symbol. If the value is None (the \
-                               default) then this symbol is not a \
-                               constant. The datatype of the constant \
-                               value must be compatible with the \
-                               datatype of the symbol.
-        :type constant_value: int, str or bool
-        :param bool is_input: Whether the symbol represents data that exists \
-                              before the kernel is entered and that is passed \
-                              into the kernel.
-        :param bool is_output: Whether the symbol represents data that is \
-                               survives outside the kernel upon exit.
-        :raises KeyError: The provided name can not be used as key in the
-                          table.
+        :param new_symbol: The symbol to add to the symbol table.
+        :type new_symbol: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises KeyError: If the symbol name is already in use.
 
         '''
-        if name in self._symbols:
+        if new_symbol.name in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
-                           " name '{0}'.".format(name))
+                           " name '{0}'.".format(new_symbol.name))
+        self._symbols[new_symbol.name] = new_symbol
 
-        self._symbols[name] = Symbol(
-            name, datatype, shape=shape, scope=scope,
-            constant_value=constant_value, is_input=is_input,
-            is_output=is_output)
-
-    def swap_argument(self, arg_name, local_name):
-        '''Modify the attributes of an existing symbol in the symbol
+    def swap_symbol_properties(self, symbol1, symbol2):
+        ''' ***** TBD *****Modify the attributes of an existing symbol in the symbol
         table. This is limited to the name of the symbol as the symbol
         name affects the internal working of the symbol table. Other
         attributes can be safely modified directly in the Symbol
@@ -5916,27 +5910,18 @@ class SymbolTable(object):
         :raises GenerationError: if the the supplied new name already \
         exists in the SymbolTable instance.
 
-        '''
-        # TBD try as names may not exist
-        local_symbol = self._symbols[local_name]
-        arg_symbol = self._symbols[arg_name]
+        '''        
+        for symbol in [symbol1, symbol2]:
+            if symbol.name not in self._symbols:
+                raise KeyError("Symbol '{0}' is not in the symbol table."
+                               "".format(symbol.name))
 
-        # TBD CHECKS
-        # arg_symbol datatype same as local_symbol
-        # arg_symbol shape same as local_symbol
-        # arg_symbol.scope is "global_argument"
-        # local_symbol.scope is "local"
-        # local_symbol is not constant
-
-        local_symbol.scope = "global_argument"
-        local_symbol.is_input = arg_symbol.is_input
-        local_symbol.is_output = arg_symbol.is_output
-
-        arg_symbol.scope = "local"
-        arg_symbol.is_input = False
-        arg_symbol.is_output = False
+        tmp_symbol = symbol1.copy()
+        symbol1.set_properties(symbol2)
+        symbol2.set_properties(tmp_symbol)
 
         # TBD I think self._argument_list is now inconsistent and we need to update
+        # TBD I also this the symbol references are also now inconsistent and need to be updated
 
     def specify_argument_list(self, argument_name_list):
         '''

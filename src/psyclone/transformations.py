@@ -2587,13 +2587,19 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 raise TransformationError(
                     "Expected entry to be a scalar integer argument "
                     "but found '{0}'.".format(symbol))
-            orig_name = symbol.name
+
+            # Create a new symbol with a known constant value then swap
+            # it with the argument.
             # TODO: Temporarily use unsafe name change until the name
             # space manager is introduced into the SymbolTable (Issue
             # #321).
-            new_name = orig_name + "_dummy"
-            symbol_table.declare(new_name, "integer", scope="local")
-            symbol_table.swap_argument(orig_name, new_name)
+            from psyclone.psyGen import Symbol
+            orig_name = symbol.name
+            local_symbol = Symbol(orig_name+"_dummy", "integer", scope="local",
+                                  constant_value=value)
+            symbol_table.declare(local_symbol)
+            symbol_table.swap_symbol_properties(symbol, local_symbol)
+
             if function_space:
                 print("    Modified {0}, arg position {1}, function space "
                       "{2}, value {3}.".format(orig_name, arg_position,
