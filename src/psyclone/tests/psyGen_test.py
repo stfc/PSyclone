@@ -3267,20 +3267,82 @@ def test_symboltable_declare():
 
 
 def test_symboltable_swap_properties():
-    ''' Test that the symboltable swap_properties method '''
+    ''' Test the symboltable swap_properties method '''
+
+    symbol1 = Symbol("var1", "integer", shape=[], scope="local",
+                     constant_value=7, is_input=False, is_output=False)
+    symbol2 = Symbol("dim1", "integer", scope="global_argument", is_input=True,
+                     is_output=False)
+    symbol3 = Symbol("dim2", "integer", scope="global_argument", is_input=True,
+                     is_output=False)
+    symbol4 = Symbol("var2", "real", shape=[symbol2, symbol3],
+                     scope="global_argument", is_input=True, is_output=True)
+
     sym_table = SymbolTable()
-    symbol1 = Symbol("var1", "integer")
-    symbol2 = Symbol("var2", "integer")
     sym_table.declare(symbol1)
+
+    # Raise exception if the first argument is not a symbol
+    with pytest.raises(TypeError) as excinfo:
+        sym_table.swap_symbol_properties(None, symbol1)
+    assert ("Arguments should be of type 'Symbol' but found 'NoneType'."
+            "") in str(excinfo.value)
+
+    # Raise exception if the second argument is not a symbol
+    with pytest.raises(TypeError) as excinfo:
+        sym_table.swap_symbol_properties(symbol1, "symbol")
+    assert ("Arguments should be of type 'Symbol' but found 'str'."
+            "") in str(excinfo.value)
 
     # Raise exception if the first symbol does not exist in the symbol table
     with pytest.raises(KeyError) as excinfo:
-        sym_table.swap_symbol_properties(symbol2, symbol1)
+        sym_table.swap_symbol_properties(symbol4, symbol1)
     assert ("Symbol 'var2' is not in the symbol table.") in str(excinfo.value)
+
     # Raise exception if the second symbol does not exist in the symbol table
     with pytest.raises(KeyError) as excinfo:
-        sym_table.swap_symbol_properties(symbol1, symbol2)
+        sym_table.swap_symbol_properties(symbol1, symbol4)
     assert ("Symbol 'var2' is not in the symbol table.") in str(excinfo.value)
+
+    # Raise exception if both symbols have the same name
+    with pytest.raises(TypeError) as excinfo:
+        sym_table.swap_symbol_properties(symbol1, symbol1)
+    assert("The symbols should have different names, but found 'var1' for "
+           "both.") in str(excinfo.value)
+
+    sym_table.declare(symbol2)
+    sym_table.declare(symbol3)
+    sym_table.declare(symbol4)
+    sym_table.specify_argument_list([symbol2.name, symbol3.name, symbol4.name])
+
+    # Check that properties are swapped
+    sym_table.swap_symbol_properties(symbol1, symbol4)
+
+    assert symbol1.name == "var1"
+    assert symbol1.datatype == "real"
+    assert symbol1.shape == [symbol2, symbol3]
+    assert symbol1.scope == "global_argument"
+    assert symbol1.constant_value == None
+    assert symbol1.is_input
+    assert symbol1.is_output
+
+    assert symbol4.name == "var2"
+    assert symbol4.datatype == "integer"
+    assert not symbol4.shape
+    assert symbol4.scope == "local"
+    assert symbol4.constant_value == 7
+    assert not symbol4.is_input
+    assert not symbol4.is_output
+
+    # Check symbol references are unaffected
+    sym_table.swap_symbol_properties(symbol2, symbol3)
+    assert symbol1.shape[0].name == "dim1"
+    assert symbol1.shape[1].name == "dim2"
+
+    # Check argument positions are updated. The original positions
+    # were [dim1, dim2, var2]. They should now be [dim2, dim1, var1]
+    assert sym_table._argument_list[0].name == "dim2"
+    assert sym_table._argument_list[1].name == "dim1"
+    assert sym_table._argument_list[2].name == "var1"
 
 
 def test_symboltable_lookup():

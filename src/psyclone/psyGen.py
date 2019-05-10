@@ -5896,32 +5896,45 @@ class SymbolTable(object):
         self._symbols[new_symbol.name] = new_symbol
 
     def swap_symbol_properties(self, symbol1, symbol2):
-        ''' ***** TBD *****Modify the attributes of an existing symbol in the symbol
-        table. This is limited to the name of the symbol as the symbol
-        name affects the internal working of the symbol table. Other
-        attributes can be safely modified directly in the Symbol
-        instance.
+        '''Swaps the properties of symbol1 and symbol2 apart from the symbol
+        name. Argument list positions are also updated appropriately.
 
-        :param str name: The name of the existing symbol.
-        :param str new_name: The new name for the symbol.
+        :param symbol1: The first symbol.
+        :type symbol1: :py:class:`psyclone.psyGen.Symbol`
+        :param symbol2: The second symbol.
 
-        :raises KeyError: if the supplied name does not exist \
+        ******************:raises KeyError: if the supplied name does not exist \
         in the SymbolTable instance.
         :raises GenerationError: if the the supplied new name already \
         exists in the SymbolTable instance.
 
         '''        
         for symbol in [symbol1, symbol2]:
+            if not isinstance(symbol, Symbol):
+                raise TypeError("Arguments should be of type 'Symbol' but found '{0}'."
+                                "".format(type(symbol).__name__))
             if symbol.name not in self._symbols:
                 raise KeyError("Symbol '{0}' is not in the symbol table."
                                "".format(symbol.name))
+        if symbol1.name == symbol2.name:
+            raise TypeError("The symbols should have different names, but "
+                            "found '{0}' for both.".format(symbol1.name))
 
         tmp_symbol = symbol1.copy()
         symbol1.set_properties(symbol2)
         symbol2.set_properties(tmp_symbol)
 
-        # TBD I think self._argument_list is now inconsistent and we need to update
-        # TBD I also this the symbol references are also now inconsistent and need to be updated
+        # Update argument list if necessary
+        index1 = None
+        if symbol1 in self._argument_list:
+            index1 = self._argument_list.index(symbol1)
+        index2 = None
+        if symbol2 in self._argument_list:
+            index2 = self._argument_list.index(symbol2)
+        if index1 is not None:
+            self._argument_list[index1] = symbol2
+        if index2 is not None:
+            self._argument_list[index2] = symbol1
 
     def specify_argument_list(self, argument_name_list):
         '''
