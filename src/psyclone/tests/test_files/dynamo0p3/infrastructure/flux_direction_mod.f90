@@ -1,7 +1,16 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
 ! -----------------------------------------------------------------------------
+!
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council.
+! Modifications copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,14 +38,17 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
 
-SUBROUTINE tra_ldf_iso()
-  INTEGER, DIMENSION(jpi,jpj) :: tmask
-  REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw 
-  zftv(:,:,:) = 0.0d0
-  IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
-  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
-  zftu(:,:,1) = 1.0d0
-  tmask(:,:) = jpi
-end SUBROUTINE tra_ldf_iso
+module flux_direction_mod
+
+  use constants_mod, only : i_native
+
+  implicit none
+
+  private
+
+  integer(i_native), public, parameter :: x_direction = 100
+  integer(i_native), public, parameter :: y_direction = 101
+  integer(i_native), public, parameter :: z_direction = 102
+
+end module flux_direction_mod

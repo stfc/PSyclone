@@ -55,7 +55,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
     Assignment, Reference, BinaryOperation, Array, Literal, Node, IfBlock, \
-    KernelSchedule, Symbol, SymbolTable, UnaryOperation, Return
+    KernelSchedule, Schedule, Symbol, SymbolTable, UnaryOperation, Return
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
@@ -76,7 +76,7 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 @pytest.fixture(scope="module")
 def f2008_parser():
-    '''Initialize fparser2 with Fortran2008 standard'''
+    '''Initialise fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
 
@@ -108,7 +108,6 @@ def test_psyfactory_valid_return_object():
     inputs'''
     psy_factory = PSyFactory()
     assert isinstance(psy_factory, PSyFactory)
-    from psyclone.configuration import Config
     _config = Config.get()
     apis = _config.supported_apis[:]
     apis.insert(0, "")
@@ -605,8 +604,7 @@ def test_invokeschedule_view(capsys):
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     super(dynamo0p3.DynInvokeSchedule,
-          psy.invokes.invoke_list[0].schedule
-          ).view()
+          psy.invokes.invoke_list[0].schedule).view()
     output, _ = capsys.readouterr()
     assert colored("InvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"]) in output
 
@@ -2571,7 +2569,6 @@ def test_loop_props():
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
-    from psyclone.psyGen import Node
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].children[0]
@@ -2716,8 +2713,125 @@ def test_codeblock_gen_c_code():
         cblock.gen_c_code()
     assert "CodeBlock can not be translated to C" in str(err.value)
 
-# Test Assignment class
 
+# Test IfBlock class
+
+def test_ifblock_invalid_annotation():
+    ''' Test that initialising IfBlock with invalid annotations produce the
+    expected error.'''
+
+    with pytest.raises(InternalError) as err:
+        _ = IfBlock(annotation="invalid")
+    assert ("IfBlock with unrecognized annotation 'invalid', valid "
+            "annotations are:") in str(err.value)
+
+
+def test_ifblock_view(capsys):
+    ''' Check the view and colored_text methods of the IfBlock class.'''
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+
+    coloredtext = colored("If", SCHEDULE_COLOUR_MAP["If"])
+
+    ifblock = IfBlock()
+    ifblock.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[]" in output
+
+    ifblock = IfBlock(annotation='was_elseif')
+    ifblock.view()
+    output, _ = capsys.readouterr()
+    assert coloredtext+"[annotations='was_elseif']" in output
+
+
+def test_ifblock_can_be_printed():
+    '''Test that an IfBlock instance can always be printed (i.e. is
+    initialised fully)'''
+    ifblock = IfBlock()
+    ref1 = Reference('condition1', parent=ifblock)
+    ifblock.addchild(ref1)
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    ret = Return(parent=sch)
+    sch.addchild(ret)
+
+    assert "If[]\n" in str(ifblock)
+    assert "condition1" in str(ifblock)  # Test condition is printed
+    assert "Return[]" in str(ifblock)  # Test if_body is printed
+
+
+def test_ifblock_properties():
+    '''Test that an IfBlock node properties can be retrieved'''
+    ifblock = IfBlock()
+
+    # Condition can't be retrieved before is added as a child.
+    with pytest.raises(InternalError) as err:
+        _ = ifblock.condition
+    assert("IfBlock malformed or incomplete. It should have "
+           "at least 2 children, but found 0." in str(err.value))
+
+    ref1 = Reference('condition1', parent=ifblock)
+    ifblock.addchild(ref1)
+
+    # If_body can't be retrieved before is added as a child.
+    with pytest.raises(InternalError) as err:
+        _ = ifblock.if_body
+    assert("IfBlock malformed or incomplete. It should have "
+           "at least 2 children, but found 1." in str(err.value))
+
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    ret = Return(parent=sch)
+    sch.addchild(ret)
+
+    # Now we can retrieve the condition and the if_body, but else is empty
+    assert ifblock.condition is ref1
+    assert ifblock.if_body[0] is ret
+    assert not ifblock.else_body
+
+    sch2 = Schedule(parent=ifblock)
+    ifblock.addchild(sch2)
+    ret2 = Return(parent=sch2)
+    sch2.addchild(ret2)
+
+    # Now we can retrieve else_body
+    assert ifblock.else_body[0] is ret2
+
+
+def test_ifblock_gen_c_code():
+    '''Test that an IfBlock node can generate its C representation'''
+
+    ifblock = IfBlock()
+    with pytest.raises(InternalError) as err:
+        _ = ifblock.gen_c_code()
+    assert("IfBlock malformed or incomplete. It should have "
+           "at least 2 children, but found 0." in str(err.value))
+
+    ref1 = Reference('condition1', parent=ifblock)
+    ifblock.addchild(ref1)
+    with pytest.raises(InternalError) as err:
+        _ = ifblock.gen_c_code()
+    assert("IfBlock malformed or incomplete. It should have "
+           "at least 2 children, but found 1." in str(err.value))
+
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    ret = Return(parent=sch)
+    sch.addchild(ret)
+
+    assert "if (condition1) {\n" in ifblock.gen_c_code()
+    assert "return;\n" in ifblock.gen_c_code()
+    assert "}" in ifblock.gen_c_code()
+    assert "else" not in ifblock.gen_c_code()
+
+    sch = Schedule(parent=ifblock)
+    ifblock.addchild(sch)
+    ret = Return(parent=sch)
+    sch.addchild(ret)
+    assert "if (condition1) {\n    return;\n} else {\n    return;\n}\n" \
+        in ifblock.gen_c_code()
+
+
+# Test Assignment class
 
 def test_assignment_view(capsys):
     ''' Check the view and colored_text methods of the Assignment class.'''
@@ -3017,7 +3131,7 @@ def test_kernelschedule_abstract_methods():
 
 
 # Test Symbol Class
-def test_symbol_initialization():
+def test_symbol_initialisation():
     '''Test that a Symbol instance can be created when valid arguments are
     given, otherwise raise relevant exceptions.'''
 
@@ -3025,6 +3139,7 @@ def test_symbol_initialization():
     assert isinstance(Symbol('a', 'real'), Symbol)
     assert isinstance(Symbol('a', 'integer'), Symbol)
     assert isinstance(Symbol('a', 'character'), Symbol)
+    assert isinstance(Symbol('a', 'boolean'), Symbol)
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
@@ -3034,11 +3149,14 @@ def test_symbol_initialization():
                              True, True), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
                              True, False), Symbol)
+    dim = Symbol('dim', 'integer', [])
+    assert isinstance(Symbol('a', 'real', [dim], 'local'), Symbol)
+    assert isinstance(Symbol('a', 'real', [3, dim, None], 'local'), Symbol)
 
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
-    assert ("Symbol can only be initialized with {0} datatypes."
+    assert ("Symbol can only be initialised with {0} datatypes."
             "".format(str(Symbol.valid_data_types)))in str(error.value)
 
     with pytest.raises(ValueError) as error:
@@ -3053,8 +3171,20 @@ def test_symbol_initialization():
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', ['invalidshape'], 'local')
-    assert ("Symbol shape list elements can only be "
+    assert ("Symbol shape list elements can only be 'Symbol', "
             "'integer' or 'None'.") in str(error.value)
+
+    with pytest.raises(TypeError) as error:
+        bad_dim = Symbol('dim', 'real', [])
+        Symbol('a', 'real', [bad_dim], 'local')
+    assert ("Symbols that are part of another symbol shape can "
+            "only be scalar integers, but found") in str(error.value)
+
+    with pytest.raises(TypeError) as error:
+        bad_dim = Symbol('dim', 'integer', [3])
+        Symbol('a', 'real', [bad_dim], 'local')
+    assert ("Symbols that are part of another symbol shape can "
+            "only be scalar integers, but found") in str(error.value)
 
 
 def test_symbol_scope_setter():
@@ -3117,8 +3247,17 @@ def test_symbol_is_output_setter():
 def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed. (i.e. is
     initialised fully)'''
-    symbol = Symbol("sname", "real")
-    assert "sname<real, [], local>" in str(symbol)
+    sym1 = Symbol("s1", "integer")
+    assert "s1: <integer, local, Scalar>" in str(sym1)
+
+    sym2 = Symbol("s2", "real", [None, 2, sym1])
+    assert "s2: <real, local, Array['Unknown bound', 2, s1]>" in str(sym2)
+
+    sym2._shape.append('invalid')
+    with pytest.raises(InternalError) as error:
+        _ = str(sym2)
+    assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
+            "'None', but found") in str(error.value)
 
 
 def test_symbol_gen_c_definition():
@@ -3133,6 +3272,9 @@ def test_symbol_gen_c_definition():
 
     sym_3 = Symbol("name", "real", [None, None])
     assert sym_3.gen_c_definition() == "double * restrict name"
+
+    sym_4 = Symbol("name", "boolean", [])
+    assert sym_4.gen_c_definition() == "bool name"
 
     sym_1._datatype = "invalid"
     with pytest.raises(NotImplementedError) as err:
@@ -3497,14 +3639,48 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert fake_parent.symbol_table.lookup("l2").name == "l2"
     assert fake_parent.symbol_table.lookup("l2").datatype == 'real'
 
+    reader = FortranStringReader("LOGICAL      ::      b")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("b").name == "b"
+    assert fake_parent.symbol_table.lookup("b").datatype == 'boolean'
+
+    # RHS array specifications
+    reader = FortranStringReader("integer :: l3(l1)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l3").name == 'l3'
+    assert fake_parent.symbol_table.lookup("l3").datatype == 'integer'
+    assert len(fake_parent.symbol_table.lookup("l3").shape) == 1
+
+    reader = FortranStringReader("integer :: l4(l1, 2)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l4").name == 'l4'
+    assert fake_parent.symbol_table.lookup("l4").datatype == 'integer'
+    assert len(fake_parent.symbol_table.lookup("l4").shape) == 2
+
+    reader = FortranStringReader("integer :: l5(2), l6(3)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l5").shape == [2]
+    assert fake_parent.symbol_table.lookup("l6").shape == [3]
+
+    # Test that component-array-spec has priority over dimension attribute
+    reader = FortranStringReader("integer, dimension(2) :: l7(3, 2)")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert fake_parent.symbol_table.lookup("l7").name == 'l7'
+    assert fake_parent.symbol_table.lookup("l7").shape == [3, 2]
+
     # Test with unsupported data type
-    reader = FortranStringReader("logical      ::      c2")
+    reader = FortranStringReader("doubleprecision     ::      c2")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert "Could not process " in str(error.value)
-    assert (". Only 'real', 'integer' and 'character' intrinsic types are"
-            " supported.") in str(error.value)
+    assert (". Only 'real', 'integer', 'logical' and 'character' intrinsic "
+            "types are supported.") in str(error.value)
 
     # Test with unsupported attribute
     reader = FortranStringReader("real, public :: p2")
@@ -3514,20 +3690,12 @@ def test_fparser2astprocessor_process_declarations(f2008_parser):
     assert "Could not process " in str(error.value)
     assert "Unrecognized attribute type " in str(error.value)
 
-    # RHS array specifications are not supported
-    reader = FortranStringReader("integer :: l1(4)")
-    fparser2spec = Specification_Part(reader).content[0]
-    with pytest.raises(NotImplementedError) as error:
-        processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Array specifications after the variable name are not "
-            "supported.") in str(error.value)
-
     # Initialisations are not supported
     reader = FortranStringReader("integer :: l1 = 1")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(NotImplementedError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert ("Initializations on the declaration statements are not "
+    assert ("Initialisations on the declaration statements are not "
             "supported.") in str(error.value)
 
     # Char lengths are not supported
@@ -3614,35 +3782,59 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     from fparser.two.Fortran2003 import Specification_Part
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
 
+    sym_table = SymbolTable()
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [None]
 
     reader = FortranStringReader("dimension(:,:,:)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [None, None, None]
 
     reader = FortranStringReader("dimension(3,5)")
     fparser2spec = Dimension_Attr_Spec(reader)
-    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [3, 5]
 
+    sym_table.declare('var1', 'integer', [])
+    reader = FortranStringReader("dimension(var1)")
+    fparser2spec = Dimension_Attr_Spec(reader)
+    shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
+    assert len(shape) == 1
+    assert shape[0] == sym_table.lookup('var1')
+
+    # Assumed size arrays not supported
     reader = FortranStringReader("dimension(*)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert "Assumed-size arrays are not supported." in str(error.value)
 
-    reader = FortranStringReader("dimension(var1)")
+    # Explicit shape symbols must be integer
+    reader = FortranStringReader("dimension(var2)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+        sym_table.declare("var2", "real", [])
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
-    assert ("Only integer literals are supported for explicit shape array"
-            " declarations.") in str(error.value)
+    assert ("Only scalar integer literals or symbols are supported for "
+            "explicit shape array declarations.") in str(error.value)
+
+    # Explicit shape symbols can only be Literal or Symbol
+    with pytest.raises(NotImplementedError) as error:
+        class UnrecognizedType(object):
+            '''Type guaranteed to not be part of the _parse_dimensions
+            conditional type handler.'''
+            pass
+
+        fparser2spec.items[1].items[1].__class__ = UnrecognizedType
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
+    assert "Could not process " in str(error.value)
+    assert ("Only scalar integer literals or symbols are supported for "
+            "explicit shape array declarations.") in str(error.value)
 
     # Test dimension and intent arguments together
     fake_parent = KernelSchedule("dummy_schedule")
@@ -3666,10 +3858,12 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     from fparser.two.Fortran2003 import Dimension_Attr_Spec
     import fparser
 
-    def walk_ast_return(arg1, arg2):
+    def walk_ast_return(_1, _2):
         '''Function that returns a unique object that will not be part
         of the implemented handling in the walk_ast method caller.'''
         class invalid(object):
+            '''Class that would be invalid to return from an fparser2 parse
+            tree.'''
             pass
         newobject = invalid()
         return [newobject]
@@ -3679,7 +3873,7 @@ def test_fparser2astprocessor_parse_array_dimensions_unhandled(
     reader = FortranStringReader("dimension(:)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(InternalError) as error:
-        shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec)
+        _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, None)
     assert "Reached end of loop body and" in str(error.value)
     assert " has not been handled." in str(error.value)
 
@@ -3792,6 +3986,272 @@ def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
     assert len(new_node.children) == 2
 
 
+def test_fparser2astprocessor_handling_if_construct(f2008_parser):
+    ''' Test that fparser2 If_Construct is converted to the expected PSyIR
+    tree structure.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader(
+        '''if (condition1 == 1) then
+            branch1 = 1
+            branch1 = 2
+        elseif (condition2 == 2) then
+            branch2 = 1
+        else
+            branch3 = 1
+        endif''')
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2if_construct], None)
+
+    # Check a new node was properly generated and connected to parent
+    assert len(fake_parent.children) == 1
+    ifnode = fake_parent.children[0]
+    assert isinstance(ifnode, IfBlock)
+    assert ifnode.ast is fparser2if_construct
+    assert 'was_elseif' not in ifnode.annotations
+
+    # First level contains: condition1, branch1 and elsebody
+    assert len(ifnode.children) == 3
+    assert ifnode.condition.children[0].name == 'condition1'
+    assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.children[1].ast is fparser2if_construct.content[1]
+    assert ifnode.children[1].ast_end is fparser2if_construct.content[2]
+    assert ifnode.if_body[0].children[0].name == 'branch1'
+    assert isinstance(ifnode.children[2], Schedule)
+    assert ifnode.children[2].ast is fparser2if_construct.content[3]
+
+    # Second level contains condition2, branch2, elsebody
+    ifnode = ifnode.else_body[0]
+    assert 'was_elseif' in ifnode.annotations
+    assert ifnode.condition.children[0].name == 'condition2'
+    assert isinstance(ifnode.children[1], Schedule)
+    assert ifnode.if_body[0].children[0].name == 'branch2'
+    assert isinstance(ifnode.children[2], Schedule)
+
+    # Third level is just branch3
+    elsebody = ifnode.else_body[0]
+    assert elsebody.children[0].name == 'branch3'
+    assert elsebody.ast is fparser2if_construct.content[6]
+
+
+def test_fparser2astprocessor_handling_if_construct_errors(f2008_parser):
+    ''' Test that unsupported If_Construct structures raise the proper
+    errors.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+        endif''')
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+
+    # Test with no opening If_Then_Stmt
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    del fparser2if_construct.content[0]
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    assert "Failed to find opening if then statement in:" in str(error.value)
+
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+        endif''')
+
+    # Test with no closing End_If_Stmt
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    del fparser2if_construct.content[-1]
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    assert "Failed to find closing end if statement in:" in str(error.value)
+
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+        else
+        endif''')
+
+    # Test with else clause before and elseif clause
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    children = fparser2if_construct.content
+    children[1], children[2] = children[2], children[1]  # Swap clauses
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    assert ("Else clause should only be found next to last clause, but "
+            "found") in str(error.value)
+
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+        else
+        endif''')
+
+    # Test with unexpected clause
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+    children = fparser2if_construct.content
+    children[1] = children[-1]  # Add extra End_If_Stmt
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2if_construct], None)
+    assert ("Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt are "
+            "expected, but found") in str(error.value)
+
+
+def test_fparser2astprocessor_handling_complex_if_construct(f2008_parser):
+    ''' Test that nested If_Construct structures and empty bodies are
+    handled properly.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader(
+        '''if (condition1) then
+        elseif (condition2) then
+            if (condition3) then
+            elseif (condition4) then
+                if (condition6) found = 1
+            elseif (condition5) then
+            else
+            endif
+        else
+        endif''')
+    fparser2if_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2if_construct], None)
+
+    elseif = fake_parent.children[0].children[2].children[0]
+    assert 'was_elseif' in elseif.annotations
+    nested_if = elseif.children[1].children[0]
+    assert 'was_elseif' not in nested_if.annotations  # Was manually nested
+    elseif2 = nested_if.children[2].children[0]
+    assert 'was_elseif' in elseif2.annotations
+    nested_if2 = elseif2.children[1].children[0]
+    assert nested_if2.children[1].children[0].children[0].name == 'found'
+
+
+def test_fparser2astprocessor_handling_Case_construct(f2008_parser):
+    ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
+    tree structure.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (label1)
+                branch1 = 1
+            CASE (label2)
+                branch2 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+
+    # Check a new node was properly generated and connected to parent
+    assert len(fake_parent.children) == 1
+    ifnode = fake_parent.children[0]
+    assert isinstance(ifnode, IfBlock)
+    assert ifnode.ast is fparser2case_construct.content[1]
+    assert ifnode.ast_end is fparser2case_construct.content[2]
+    assert 'was_case' in ifnode.annotations
+    assert ifnode.condition.children[0].name == 'selector'
+    assert ifnode.condition.children[1].name == 'label1'
+    assert ifnode.if_body[0].children[0].name == 'branch1'
+    assert isinstance(ifnode.else_body[0], IfBlock)
+    assert ifnode.else_body[0].condition.children[1].name == 'label2'
+    assert ifnode.else_body[0].if_body[0].children[0].name == 'branch2'
+    assert ifnode.else_body[0].ast is \
+        fparser2case_construct.content[3]
+    assert ifnode.else_body[0].children[1].ast is \
+        fparser2case_construct.content[4]
+    assert ifnode.else_body[0].children[1].ast_end is \
+        fparser2case_construct.content[4]
+    assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
+
+
+def test_fparser2astprocessor_handling_invalid_Case_construct(f2008_parser):
+    ''' Test that the Case_Construct handler raises the proper errors when
+    it parses invalid or unsupported fparser2 trees.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+
+    # CASE Value Ranges are not supported
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (label1:)
+                branch1 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+    # CASE DEFAULT Statment not supported
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE DEFAULT
+                branch3 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+    # but CASE (default) is just a regular symbol named default
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (default)
+                branch3 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+
+    fake_parent = Node()
+    processor = Fparser2ASTProcessor()
+    processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert isinstance(fake_parent.children[0], IfBlock)
+
+    # Test with no opening Select_Case_Stmt
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (label1)
+                branch1 = 1
+            CASE (label2)
+                branch2 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+    del fparser2case_construct.content[0]
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert "Failed to find opening case statement in:" in str(error.value)
+
+    # Test with no closing End_Select_Stmt
+    reader = FortranStringReader(
+        '''SELECT CASE (selector)
+            CASE (label1)
+                branch1 = 1
+            CASE (label2)
+                branch2 = 1
+            END SELECT''')
+    fparser2case_construct = Execution_Part.match(reader)[0][0]
+    del fparser2case_construct.content[-1]
+    with pytest.raises(InternalError) as error:
+        processor.process_nodes(fake_parent, [fparser2case_construct], None)
+    assert "Failed to find closing case statement in:" in str(error.value)
+
+
 def test_fparser2astprocessor_handling_numberbase(f2008_parser):
     ''' Test that fparser2 NumberBase is converted to the expected PSyIR
     tree structure.
@@ -3886,7 +4346,7 @@ def test_fparser2astprocessor_handling_end_do_stmt(f2008_parser):
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2enddo], None)
-    assert len(fake_parent.children) == 0  # No new children created
+    assert not fake_parent.children  # No new children created
 
 
 def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
@@ -3902,4 +4362,4 @@ def test_fparser2astprocessor_handling_end_subroutine_stmt(f2008_parser):
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2endsub], None)
-    assert len(fake_parent.children) == 0  # No new children created
+    assert not fake_parent.children  # No new children created

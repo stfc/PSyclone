@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council.
+! Copyright (c) 2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,19 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Lab.
 
-SUBROUTINE tra_ldf_iso()
-  INTEGER, DIMENSION(jpi,jpj) :: tmask
-  REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw 
-  zftv(:,:,:) = 0.0d0
-  IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
-  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
-  zftu(:,:,1) = 1.0d0
-  tmask(:,:) = jpi
-end SUBROUTINE tra_ldf_iso
+module another_mod
+  use kind_params_mod, only: go_wp
+
+contains
+
+  subroutine another_kern(i, j, fld)
+    !> A kernel that accesses a variable from another module
+    use data_mod, only: gravity
+    integer, intent(in) :: i, j
+    real(go_wp), dimension(:,:) :: fld
+    fld(i,j) = i*gravity
+  end subroutine another_kern
+  
+end module another_mod

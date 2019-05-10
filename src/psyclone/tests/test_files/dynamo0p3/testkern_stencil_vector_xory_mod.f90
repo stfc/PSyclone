@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2019, Science and Technology Facilities Council
+! Copyright (c) 2019, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
 
-module testkern_stencil_vector_mod
+module testkern_stencil_vector_xory_mod
 
   use argument_mod
   use kernel_mod
@@ -40,23 +40,23 @@ module testkern_stencil_vector_mod
 
   implicit none
 
-  type, extends(kernel_type) :: testkern_stencil_vector_type
+  type, extends(kernel_type) :: testkern_stencil_vector_xory_type
      type(arg_type), dimension(2) :: meta_args =                     &
           (/ arg_type(gh_field*3,gh_inc,w0),                         &
-             arg_type(gh_field*4,gh_read, w3, stencil(cross))        &
+             arg_type(gh_field*4,gh_read, w3, stencil(xory1d))       &
            /)
      integer :: iterates_over = cells
    contains
-     procedure, nopass :: code => testkern_stencil_vector_code
-  end type testkern_stencil_vector_type
+     procedure, nopass :: code => testkern_stencil_vector_xory_code
+  end type testkern_stencil_vector_xory_type
 
 contains
 
-  subroutine testkern_stencil_vector_code(nlayers, field_1_w0_v1, &
-       field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2,&
-       field_2_w3_v3, field_2_w3_v4, field_2_stencil_size,        &
-       field_2_stencil_dofmap, ndf_w0, undf_w0, map_w0, ndf_w3,   &
-       undf_w3, map_w3)
+  subroutine testkern_stencil_vector_xory_code(nlayers, field_1_w0_v1, &
+       field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2,     &
+       field_2_w3_v3, field_2_w3_v4, field_2_stencil_size,             &
+       field_2_direction, field_2_stencil_dofmap, ndf_w0, undf_w0,     &
+       map_w0, ndf_w3, undf_w3, map_w3)
 
       USE constants_mod, ONLY: r_def
 
@@ -76,8 +76,9 @@ contains
       REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v3
       REAL(KIND=r_def), intent(in), dimension(undf_w3) :: field_2_w3_v4
       INTEGER, intent(in) :: field_2_stencil_size
+      INTEGER, intent(in) :: field_2_direction
       INTEGER, intent(in), dimension(ndf_w3,field_2_stencil_size) :: field_2_stencil_dofmap
 
-  end subroutine testkern_stencil_vector_code
+  end subroutine testkern_stencil_vector_xory_code
 
-end module testkern_stencil_vector_mod
+end module testkern_stencil_vector_xory_mod

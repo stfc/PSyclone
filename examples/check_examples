@@ -116,10 +116,18 @@ cd -
 echo "Running example dynamo/eg12"
 cd dynamo/eg12
 ${PSYCLONE} -nodm -s ./extract_nodes.py \
-  gw_mixed_schur_preconditioner_alg_mod.x90
+  ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 ${PSYCLONE} -nodm -s ./extract_kernel_with_transformations.py \
-  gw_mixed_schur_preconditioner_alg_mod.x90
+  ../code/gw_mixed_schur_preconditioner_alg_mod.x90
 python find_kernel.py
+cd -
+
+echo "Running example dynamo/eg13"
+cd dynamo/eg13
+${PSYCLONE} -s ./kernel_constants.py \
+  ../code/gw_mixed_schur_preconditioner_alg_mod.x90 \
+  -oalg alg.f90 -opsy psy.f90
+  rm alg.f90 psy.f90
 cd -
 
 echo "Running gocean/eg1"
@@ -138,6 +146,16 @@ cd gocean/eg2
 ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
 cd -
 
+echo "Running gocean/eg3"
+cd gocean/eg3
+${PSYCLONE} -api "gocean1.0" -s ./ocl_trans.py alg.f90
+cd -
+
+echo "Running gocean/eg4"
+cd gocean/eg4
+${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg.f90
+cd -
+
 echo "Running example nemo/eg1"
 cd nemo/eg1
 ./runme_openmp.py
@@ -150,6 +168,7 @@ cd -
 echo "Running example nemo/eg3"
 cd nemo/eg3
 ${PSYCLONE} -api "nemo" -s ./kernels_trans.py ../code/tra_adv.F90
+${PSYCLONE} -api "nemo" -s ./kernels_managed_mem_trans.py ../code/tra_adv.F90
 cd -
 
 echo "Running transformation examples"

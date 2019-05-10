@@ -50,7 +50,8 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
     VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
-    VALID_ANY_SPACE_NAMES
+    VALID_ANY_SPACE_NAMES, KernCallArgList
+
 from psyclone.transformations import LoopFuseTrans
 from psyclone.gen_kernel_stub import generate
 from psyclone.configuration import Config
@@ -4967,6 +4968,92 @@ def test_stencil_args_unique_3(dist_mem):
         assert "CALL f4_proxy%halo_exchange(depth=1)" in result
 
 
+def test_stencil_vector(dist_mem, tmpdir):
+    '''Test that the expected declarations and lookups are produced when
+    we have a stencil access with a vector field. Any stencil could be
+    chosen here (other than xory1d) as they all produce the same code
+    structure, but STENCIL_CROSS is chosen as it is already used in an
+    existing suitable example (14.4).
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "14.4_halo_vector.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+    assert (
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_CROSS\n"
+        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
+        in str(result)
+    assert(
+        "      INTEGER f2_stencil_size\n"
+        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n") \
+        in str(result)
+    assert(
+        "      f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
+        "(STENCIL_CROSS,f2_extent)\n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size = f2_stencil_map%get_size()\n") \
+        in str(result)
+    assert(
+        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
+        "f2_proxy(4)%data, f2_stencil_size, f2_stencil_dofmap(:,:,cell)") \
+        in str(result)
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+
+
+def test_stencil_xory_vector(dist_mem, tmpdir):
+    '''Test that the expected declarations and lookups are produced when
+    we have a stencil access of type x or y with a vector field.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "14.4.2_halo_vector_xory.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    result = str(psy.gen)
+    assert(
+        "      USE stencil_dofmap_mod, ONLY: STENCIL_1DX, STENCIL_1DY\n"
+        "      USE flux_direction_mod, ONLY: x_direction, y_direction\n"
+        "      USE stencil_dofmap_mod, ONLY: stencil_dofmap_type\n") \
+        in result
+    assert(
+        "      INTEGER, intent(in) :: f2_extent\n"
+        "      INTEGER, intent(in) :: f2_direction\n") \
+        in result
+    assert(
+        "      INTEGER f2_stencil_size\n"
+        "      INTEGER, pointer :: f2_stencil_dofmap(:,:,:) => null()\n"
+        "      TYPE(stencil_dofmap_type), pointer :: f2_stencil_map => "
+        "null()\n") \
+        in result
+    assert(
+        "      IF (f2_direction .eq. x_direction) THEN\n"
+        "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
+        "(STENCIL_1DX,f2_extent)\n"
+        "      END IF \n"
+        "      IF (f2_direction .eq. y_direction) THEN\n"
+        "        f2_stencil_map => f2_proxy(1)%vspace%get_stencil_dofmap"
+        "(STENCIL_1DY,f2_extent)\n"
+        "      END IF \n"
+        "      f2_stencil_dofmap => f2_stencil_map%get_whole_dofmap()\n"
+        "      f2_stencil_size = f2_stencil_map%get_size()\n") \
+        in result
+    assert(
+        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, "
+        "f2_proxy(4)%data, f2_stencil_size, f2_direction, "
+        "f2_stencil_dofmap(:,:,cell)") \
+        in result
+
+    assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+
+
 def test_dynloop_load_unexpected_func_space():
     ''' The load function of an instance of the dynloop class raises an
     error if an unexpexted function space is found. This test makes
@@ -5314,7 +5401,6 @@ def test_unexpected_type_error():
         # sabotage one of the arguments to make it have an invalid type.
         kernel.arguments.args[0]._type = "invalid"
         # Now call KernCallArgList to raise an exception
-        from psyclone.dynamo0p3 import KernCallArgList
         create_arg_list = KernCallArgList(kernel)
         with pytest.raises(GenerationError) as excinfo:
             create_arg_list.generate()
@@ -5385,31 +5471,52 @@ def test_kernel_args_has_op():
     assert "op_type must be a valid operator type" in str(excinfo)
 
 
-def test_kerncallarglist_arglist_error():
-    '''Check that we raise an exception if we call the arglist method in
-    kerncallarglist without first calling the generate method'''
-    for distmem in [False, True]:
-        _, invoke_info = parse(
-            os.path.join(BASE_PATH,
-                         "1.0.1_single_named_invoke.f90"),
-            api=TEST_API)
-        psy = PSyFactory(TEST_API,
-                         distributed_memory=distmem).create(invoke_info)
-        schedule = psy.invokes.invoke_list[0].schedule
-        if distmem:
-            index = 3
-        else:
-            index = 0
-        loop = schedule.children[index]
-        kernel = loop.children[0]
-        from psyclone.dynamo0p3 import KernCallArgList
-        create_arg_list = KernCallArgList(kernel)
-        with pytest.raises(GenerationError) as excinfo:
-            _ = create_arg_list.arglist
-        assert (
-            "Internal error. The argument list in KernCallArgList:arglist() "
-            "is empty. Has the generate() method been "
-            "called?") in str(excinfo.value)
+def test_kerncallarglist_args_error(dist_mem):
+    '''Check that we raise an exception if we call the methods that return
+    information in kerncallarglist without first calling the generate
+    method
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH,
+                     "1.0.1_single_named_invoke.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    if dist_mem:
+        loop = schedule.children[3]
+    else:
+        loop = schedule.children[0]
+    create_arg_list = KernCallArgList(loop.children[0])
+
+    # nlayers_positions method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.nlayers_positions
+    assert (
+        "KernCallArgList: the generate() method should be called before "
+        "the nlayers_positions() method") in str(excinfo.value)
+
+    # nqp_positions method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.nqp_positions
+    assert (
+        "KernCallArgList: the generate() method should be called before "
+        "the nqp_positions() method") in str(excinfo.value)
+
+    # ndf_positions method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.ndf_positions
+    assert (
+        "KernCallArgList: the generate() method should be called before "
+        "the ndf_positions() method") in str(excinfo.value)
+
+    # arglist method
+    with pytest.raises(InternalError) as excinfo:
+        _ = create_arg_list.arglist
+    assert (
+        "KernCallArgList: the generate() method should be called before "
+        "the arglist() method") in str(excinfo.value)
 
 
 def test_multi_anyw2():
@@ -6216,3 +6323,60 @@ def test_dyncelliterators_err(monkeypatch):
         _ = DynCellIterators(invoke)
     assert ("Cannot create an Invoke with no field/operator arguments"
             in str(err))
+
+# tests for class kerncallarglist position methods
+
+
+def test_kerncallarglist_positions_noquad(dist_mem):
+    '''Check that the positions methods (nlayers_positions, nqp_positions,
+    ndf_positions) return the expected values when a kernel has no
+    quadrature.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    index = 0
+    if dist_mem:
+        index = 3
+    loop = schedule.children[index]
+    kernel = loop.children[0]
+    create_arg_list = KernCallArgList(kernel)
+    create_arg_list.generate()
+    assert create_arg_list.nlayers_positions == [1]
+    assert not create_arg_list.nqp_positions
+    assert len(create_arg_list.ndf_positions) == 3
+    assert create_arg_list.ndf_positions[0] == (7, "w1")
+    assert create_arg_list.ndf_positions[1] == (10, "w2")
+    assert create_arg_list.ndf_positions[2] == (13, "w3")
+
+
+def test_kerncallarglist_positions_quad(dist_mem):
+    '''Check that the positions methods (nlayers_positions,
+    nqp_positions, nqp_positions, ndf_positions) return the
+    expected values when a kernel has xyoz quadrature.
+
+    '''
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "1.1.0_single_invoke_xyoz_qr.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API,
+                     distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    index = 0
+    if dist_mem:
+        index = 3
+    loop = schedule.children[index]
+    kernel = loop.children[0]
+    create_arg_list = KernCallArgList(kernel)
+    create_arg_list.generate()
+    assert create_arg_list.nlayers_positions == [1]
+    assert len(create_arg_list.nqp_positions) == 1
+    assert create_arg_list.nqp_positions[0]["horizontal"] == 21
+    assert create_arg_list.nqp_positions[0]["vertical"] == 22
+    assert len(create_arg_list.ndf_positions) == 3
+    assert create_arg_list.ndf_positions[0] == (8, "w1")
+    assert create_arg_list.ndf_positions[1] == (12, "w2")
+    assert create_arg_list.ndf_positions[2] == (16, "w3")

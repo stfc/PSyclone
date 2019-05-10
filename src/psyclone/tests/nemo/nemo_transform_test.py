@@ -224,7 +224,7 @@ def test_omp_do_within_if():
                            api=API, line_length=False)
     psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.get('imperfect_nest').schedule
-    loop = schedule.children[0].children[1].children[2].children[0]
+    loop = schedule.children[0].children[1].else_body[0].else_body[0]
     assert isinstance(loop, nemo.NemoLoop)
     # Apply the transformation to a loop within an else clause
     schedule, _ = otrans.apply(loop)

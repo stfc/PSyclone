@@ -93,7 +93,7 @@ fparser
 The fparser package (https://github.com/stfc/fparser) is a Fortran
 parser originally developed as a part of the f2py project.
 
-The minimum version of fparser required by PSyclone is currently 0.0.7
+The minimum version of fparser required by PSyclone is currently 0.0.8
 but we strongly recommend you install the latest version to reduce the
 chance of encountering problems when parsing existing algorithm or
 kernel code. (Note that for older versions of PSyclone up to and

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council.
+! Copyright (c) 2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,24 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Lab.
 
-SUBROUTINE tra_ldf_iso()
-  INTEGER, DIMENSION(jpi,jpj) :: tmask
-  REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw 
-  zftv(:,:,:) = 0.0d0
-  IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
-  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
-  zftu(:,:,1) = 1.0d0
-  tmask(:,:) = jpi
-end SUBROUTINE tra_ldf_iso
+module alg
+
+contains
+
+  subroutine do_update(fld1, fld2)
+    use field_mod, only: r2d_field
+    use kern_use_var_mod, only: kern_use_var
+    use kern_call_kern_mod, only: kern_call_kern
+    use kern_nested_use_mod, only: kern_nested_use
+    implicit none
+    type(r2d_field), intent(inout) :: fld1, fld2
+
+    call invoke(kern_use_var(fld1),   &
+                kern_call_kern(fld2), &
+                kern_nested_use(fld1))
+    
+  end subroutine do_update
+  
+end module alg
