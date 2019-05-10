@@ -5853,6 +5853,10 @@ class Symbol(object):
         :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
 
         '''
+        if not isinstance(symbol_in, Symbol):
+            raise TypeError("Argument should be of type 'Symbol' but found '{0}'."
+                            "".format(type(symbol_in).__name__))
+
         self._datatype = symbol_in.datatype
         self._shape = symbol_in.shape[:]
         self._scope = symbol_in.scope
@@ -5903,10 +5907,11 @@ class SymbolTable(object):
         :type symbol1: :py:class:`psyclone.psyGen.Symbol`
         :param symbol2: The second symbol.
 
-        ******************:raises KeyError: if the supplied name does not exist \
-        in the SymbolTable instance.
-        :raises GenerationError: if the the supplied new name already \
-        exists in the SymbolTable instance.
+        :raises KeyError: If either of the supplied symbols are not in \
+        the symbol table.
+        :raises TypeError: if the supplied arguments are not symbols, \
+        or the names of the symbols are the same in the SymbolTable \
+        instance.
 
         '''        
         for symbol in [symbol1, symbol2]:

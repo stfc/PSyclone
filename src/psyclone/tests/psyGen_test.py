@@ -3217,6 +3217,78 @@ def test_symbol_can_be_printed():
     assert "s3: <integer, local, Scalar, constant, value=12>" in str(sym3)
 
 
+def test_symbol_copy():
+    '''Test that the Symbol copy method produces a faithful separate copy
+    of the original symbol.
+
+    '''
+    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
+                    constant_value=None, is_input=True, is_output=True)
+    new_symbol = symbol.copy()
+
+    # Check the new symbol has the same properties as the original
+    assert symbol.name == new_symbol.name
+    assert symbol.datatype == new_symbol.datatype
+    assert symbol.shape == new_symbol.shape
+    assert symbol.scope == new_symbol.scope
+    assert symbol.constant_value == new_symbol.constant_value
+    assert symbol.is_input == new_symbol.is_input
+    assert symbol.is_output == new_symbol.is_output
+
+    # Change the properties of the new symbol and check the original
+    # is not affected. Can't check constant_value yet as we have a
+    # shape value
+    new_symbol._name = "new"
+    new_symbol._datatype = "integer"
+    new_symbol.shape[0]=3
+    new_symbol.shape[1]=4
+    new_symbol.scope="local"
+    new_symbol.is_input=False
+    new_symbol.is_output=False
+
+    assert symbol.name == "myname"
+    assert symbol.datatype == "real"
+    assert symbol.shape == [1, 2]
+    assert symbol.scope == "global_argument"
+    assert not symbol.constant_value
+    assert symbol.is_input
+    assert symbol.is_output
+
+    # Now check constant_value
+    new_symbol._shape = []
+    new_symbol.constant_value = True
+
+    assert symbol.shape == [1, 2]
+    assert not symbol.constant_value
+
+
+def test_symbol_set_properties():
+    '''Test that the Symbol set_properties method works as expected.'''
+
+    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
+                    constant_value=None, is_input=True, is_output=True)
+
+    # Check an exception is raised if an incorrect argument is passed
+    # in
+    with pytest.raises(TypeError) as excinfo:
+        symbol.set_properties(None)
+    assert ("Argument should be of type 'Symbol' but found 'NoneType'."
+            "") in str(excinfo.value)
+
+    new_symbol = Symbol("other_name", "integer", shape=[], scope="local",
+                        constant_value=7, is_input=False, is_output=False)
+
+    symbol.set_properties(new_symbol)
+
+    assert symbol.name == "myname"
+    assert symbol.datatype == "integer"
+    assert symbol.shape == []
+    assert symbol.scope == "local"
+    assert symbol.constant_value == 7
+    assert not symbol.is_input
+    assert not symbol.is_output
+
+
 def test_symbol_gen_c_definition():
     '''Test that the Symbol gen_c_definition method generates the expected
     C definitions, or raises an error if the type is not supported.
@@ -3266,7 +3338,7 @@ def test_symboltable_declare():
             "'var1'.") in str(error.value)
 
 
-def test_symboltable_swap_properties():
+def test_symboltable_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
 
     symbol1 = Symbol("var1", "integer", shape=[], scope="local",
