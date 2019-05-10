@@ -132,6 +132,16 @@ class RegionTrans(Transformation):
                     " (first child) of an If/Case statement. Error in "
                     "transformation script.")
 
+            # Check that we've not been supplied with both the if and
+            # else clauses of an IfBlock as we can't put them both in
+            # a region without their parent.
+            if len(node_list) > 1:
+                raise TransformationError(
+                    "Cannot enclose both the if- and else- clauses of an "
+                    "IfBlock by a {0} transformation. Apply the "
+                    "transformation to the IfBlock node instead.".
+                    format(self.name))
+
 
 # =============================================================================
 def check_intergrid(node):
@@ -1425,17 +1435,17 @@ class ParallelRegionTrans(RegionTrans):
         # existing within a parallel region. As we are going to
         # support this in the future, see #526, it does not warrant
         # making a separate dynamo-specific class.
-        from psyclone.psyGen import HaloExchange, Schedule
+        from psyclone.psyGen import HaloExchange, InvokeSchedule
         for node in node_list:
             if isinstance(node, HaloExchange):
                 raise TransformationError(
                     "A halo exchange within a parallel region is not "
                     "supported")
 
-        if isinstance(node_list[0], Schedule):
+        if isinstance(node_list[0], InvokeSchedule):
             raise TransformationError(
-                "A {0} transformation cannot be applied to a Schedule but "
-                "only to one or more nodes from within a Schedule.".
+                "A {0} transformation cannot be applied to an InvokeSchedule "
+                "but only to one or more nodes from within an InvokeSchedule.".
                 format(self.name))
 
         node_parent = node_list[0].parent
