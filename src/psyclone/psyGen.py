@@ -5610,9 +5610,14 @@ class Fparser2ASTProcessor(object):
                 "Failed to find closing case statement in: "
                 "{0}".format(str(node)))
 
-        # Search for all the CASE clauses in the Case_Construct
+        # Search for all the CASE clauses in the Case_Construct. We do this
+        # because the fp2 parse tree has a flat structure at this point with
+        # the clauses being siblings of the contents of the clauses. The
+        # final index in this list will hold the position of the end-select
+        # statement.
         clause_indices = []
         selector = None
+        default_clause_idx = -1
         for idx, child in enumerate(node.content):
             child._parent = node  # Retrofit parent info
             if isinstance(child, Fortran2003.Select_Case_Stmt):
@@ -5624,8 +5629,11 @@ class Fparser2ASTProcessor(object):
                 case_expression = child.items[0].items[0]
                 if isinstance(case_expression, Fortran2003.Case_Value_Range):
                     raise NotImplementedError("Case Value Range Statement")
-                elif case_expression is None:
-                    raise NotImplementedError("Case Default Statement")
+                if case_expression is None:
+                    # This is a 'case default' clause - store its position.
+                    # We do this separately as this clause is special and
+                    # will be added as a final 'else'.
+                    default_clause_idx = idx
                 clause_indices.append(idx)
             if isinstance(child, Fortran2003.End_Select_Stmt):
                 clause_indices.append(idx)
@@ -5635,6 +5643,9 @@ class Fparser2ASTProcessor(object):
         currentparent = parent
         num_clauses = len(clause_indices) - 1
         for idx in range(num_clauses):
+            # Skip the 'default' clause for now because we handle it last
+            if clause_indices[idx] == default_clause_idx:
+                continue
             start_idx = clause_indices[idx]
             end_idx = clause_indices[idx+1]
             clause = node.content[start_idx]
@@ -5680,6 +5691,25 @@ class Fparser2ASTProcessor(object):
 
                     currentparent = ifblock
 
+        if default_clause_idx > -1:
+            # Finally, add the content of the 'default' clause as a last
+            # 'else' clause.
+            elsebody = Schedule(parent=currentparent)
+            start_idx = default_clause_idx
+            # Find the next 'case' clause that occurs after 'case default'
+            # (if any)
+            end_idx = -1
+            for idx in clause_indices:
+                if idx > default_clause_idx:
+                    end_idx = idx
+                    break
+            self.process_nodes(parent=elsebody,
+                               nodes=node.content[start_idx + 1:
+                                                  end_idx],
+                               nodes_parent=node)
+            currentparent.addchild(elsebody)
+            elsebody.ast = node.content[start_idx]
+            elsebody.ast_end = node.content[end_idx]
         return rootif
 
     def _return_handler(self, _, parent):
