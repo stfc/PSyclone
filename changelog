@@ -115,6 +115,13 @@
 	Currently only identifies candidate arguments and prints them to
 	stdout.
 
+        37) PR #347 (working towards #256). Adds support for If and CASE
+	constructs to the PSyIR (superseding and removing the existing, NEMO-
+	specific support for If constructs).
+
+	38) #377 and PR #378. Update fparser submodule to point to latest
+	fparser master (contains bug fix for Python 2 installation).
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save
