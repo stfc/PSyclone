@@ -12,7 +12,6 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -306,4 +305,6 @@ epub_copyright = u'2017-2019, STFC'
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'http://docs.python.org/': None}
+intersphinx_mapping = {
+    'http://docs.python.org/': None,
+    'user_guide': ('https://psyclone.readthedocs.io/en/latest/', None)}

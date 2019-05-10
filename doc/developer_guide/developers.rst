@@ -63,15 +63,15 @@ install PSyclone itself. Again, the simplest way of doing this is to use
 where ``-e`` requests an 'editable' installation so that changes to
 the PSyclone source are immediately reflected in the installed
 package.  (For alternatives to using pip please see the
-:ref:`getting-going` section.)
+:ref:`user_guide:getting-going` section.)
 
 Test Suite
 ==========
 
 The PSyclone test suite is integral to the development process and all
 new code must be covered (i.e. executed) by one or more tests. As
-described in :ref:`getting-going`, the test suite is written for use
-with ``pytest``.
+described in :ref:`user_guide:getting-going`, the test suite is
+written for use with ``pytest``.
 
 Coverage
 --------
