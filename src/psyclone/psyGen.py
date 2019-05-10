@@ -143,7 +143,8 @@ def object_index(alist, item):
     comparison operator for all nodes in the parse tree. See fparser
     issue 174.
 
-    :param list alist: list of objects to search.
+    :param alist: single object or list of objects to search.
+    :type alist: list or :py:class:`fparser.two.utils.Base`
     :param obj item: object to search for in the list.
     :returns: index of the item in the list.
     :rtype: int
@@ -951,6 +952,8 @@ class Node(object):
         # Ref. to last fparser2 parse tree node associated with this Node.
         # This is required when adding directives.
         self._ast_end = None
+        # List of tags that provide additional information about this Node.
+        self._annotations = []
 
     def __str__(self):
         raise NotImplementedError("Please implement me")
@@ -972,6 +975,35 @@ class Node(object):
         :rtype: sub-class of :py:class:`fparser.two.utils.Base`
         '''
         return self._ast_end
+
+    @ast.setter
+    def ast(self, ast):
+        '''
+        Set a reference to the fparser2 node associated with this Node.
+
+        :param ast: fparser2 node associated with this Node.
+        :type ast: :py:class:`fparser.two.utils.Base`
+        '''
+        self._ast = ast
+
+    @ast_end.setter
+    def ast_end(self, ast_end):
+        '''
+        Set a reference to the last fparser2 node associated with this Node.
+
+        :param ast: last fparser2 node associated with this Node.
+        :type ast: :py:class:`fparser.two.utils.Base`
+        '''
+        self._ast_end = ast_end
+
+    @property
+    def annotations(self):
+        ''' Return the list of annotations attached to this Node.
+
+        :return: List of anotations
+        :rtype: list of str
+        '''
+        return self._annotations
 
     def dag(self, file_name='dag', file_format='svg'):
         '''Create a dag of this node and its children.'''
@@ -1504,7 +1536,7 @@ class Schedule(Node):
     :type parent:  :py:class:`psyclone.psyGen.Node`
     '''
 
-    def __init__(self, sequence, parent):
+    def __init__(self, sequence=None, parent=None):
         Node.__init__(self, children=sequence, parent=parent)
 
     @property
@@ -1815,7 +1847,7 @@ class ACCDirective(Directive):
         Node.update(self)
 
         # Check that we haven't already been called
-        if self._ast:
+        if self.ast:
             return
 
         # Sanity check the supplied begin/end text
@@ -1832,12 +1864,14 @@ class ACCDirective(Directive):
         # The parent node in the PSyIR might be a directive so we need to
         # go back up the tree to find the node corresponding to our parent
         # node in the fparser2 parse tree. This is the first node that
-        # has the 'content' attribute.
+        # has the 'content' attribute and does not match with the directive
+        # children ast.
         # TODO this can probably be simplified/removed altogether once
         # the fparser2 parse tree has parent information (fparser/#102).
         parent = self._parent
         while parent:
-            if parent.ast and hasattr(parent.ast, "content"):
+            if parent.ast and hasattr(parent.ast, "content") and \
+               parent.ast is not self.children[0].ast:
                 break
             parent = parent._parent
         fp_parent = parent.ast
@@ -1864,7 +1898,7 @@ class ACCDirective(Directive):
             directive._parent = fp_parent
             # Ensure this end directive is included with the set of statements
             # belonging to this PSyIR node.
-            self._ast_end = directive
+            self.ast_end = directive
 
         text = "!$ACC " + start_text
 
@@ -1898,7 +1932,7 @@ class ACCDirective(Directive):
         # to the Comment() constructor).
         directive._parent = fp_parent
 
-        self._ast = directive
+        self.ast = directive
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -2455,7 +2489,7 @@ class OMPParallelDirective(OMPDirective):
         Node.update(self)
 
         # Check that we haven't already been called
-        if self._ast:
+        if self.ast:
             return
 
         # Find the locations in which we must insert the begin/end
@@ -2478,15 +2512,15 @@ class OMPParallelDirective(OMPDirective):
         # the AST representing our last child
         enddir = Comment(FortranStringReader("!$omp end parallel",
                                              ignore_comments=False))
-        self._ast_end = enddir
+        self.ast_end = enddir
         # If end_idx+1 takes us beyond the range of the list then the
         # element is appended to the list
         self._parent.ast.content.insert(end_idx+1, enddir)
 
         # Insert the start directive (do this second so we don't have
         # to correct end_idx)
-        self._ast = startdir
-        self._parent.ast.content.insert(start_idx, self._ast)
+        self.ast = startdir
+        self._parent.ast.content.insert(start_idx, self.ast)
 
 
 class OMPDoDirective(OMPDirective):
@@ -2670,7 +2704,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         Node.update(self)
 
         # Check that we haven't already been called
-        if self._ast:
+        if self.ast:
             return
 
         # Since this is an OpenMP (parallel) do, it can only be applied
@@ -2691,7 +2725,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # 'content' as siblings of the If-then and else-if nodes.
         parent = self._parent.ast
         while parent:
-            if hasattr(parent, "content"):
+            if hasattr(parent, "content") and \
+               parent is not self.children[0].ast:
                 break
             parent = parent._parent
         if not parent:
@@ -2715,12 +2750,12 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             parent.content.append(enddir)
         else:
             parent.content.insert(start_idx+1, enddir)
-        self._ast_end = enddir
+        self.ast_end = enddir
 
         # Insert the start directive (do this second so we don't have
         # to correct the location)
-        self._ast = startdir
-        parent.content.insert(start_idx, self._ast)
+        self.ast = startdir
+        parent.content.insert(start_idx, self.ast)
 
 
 class GlobalSum(Node):
@@ -4657,17 +4692,78 @@ class DummyTransformation(Transformation):
 
 class IfBlock(Node):
     '''
-    Class representing an if-block within the PSyIR.
+    Class representing an if-block within the PSyIR. It has two mandatory
+    children: the first one represents the if-condition and the second one
+    the if-body; and an optional third child representing the else-body.
 
     :param parent: the parent of this node within the PSyIR tree.
     :type parent: :py:class:`psyclone.psyGen.Node`
+    :param str annotation: Tags that provide additional information about \
+        the node. The node should still be functionally correct when \
+        ignoring these tags. Currently, it includes: 'was_elseif' to tag
+        nested ifs originally written with the 'else if' languague syntactic \
+        constructs, 'was_single_stmt' to tag ifs with a 1-statement body \
+        which were originally written in a single line, and 'was_case' to \
+        tag an conditional structure which was originally written with the \
+        Fortran 'case' or C 'switch' syntactic constructs.
+    :raises InternalError: when initialised with invalid parameters.
     '''
-    def __init__(self, parent=None):
-        super(IfBlock, self).__init__(parent=parent)
-        self._condition = ""
+    valid_annotations = ('was_elseif', 'was_single_stmt', 'was_case')
 
-    def __str__(self):
-        return "If-block: "+self._condition
+    def __init__(self, parent=None, annotation=None):
+        super(IfBlock, self).__init__(parent=parent)
+        if annotation in IfBlock.valid_annotations:
+            self._annotations.append(annotation)
+        elif annotation:
+            raise InternalError(
+                "IfBlock with unrecognized annotation '{0}', valid annotations"
+                " are: {1}.".format(annotation, IfBlock.valid_annotations))
+
+    @property
+    def condition(self):
+        ''' Return the PSyIR Node representing the conditional expression
+        of this IfBlock.
+
+        :return: IfBlock conditional expression.
+        :rtype: :py:class:`psyclone.psyGen.Node`
+        :raises InternalError: If the IfBlock node does not have the correct \
+            number of children.
+        '''
+        if len(self.children) < 2:
+            raise InternalError(
+                "IfBlock malformed or incomplete. It should have at least 2 "
+                "children, but found {0}.".format(len(self.children)))
+        return self._children[0]
+
+    @property
+    def if_body(self):
+        ''' Return children of the Schedule executed when the IfBlock
+        evaluates to True.
+
+        :return: Statements to be executed when IfBlock evaluates to True.
+        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        :raises InternalError: If the IfBlock node does not have the correct \
+            number of children.
+        '''
+
+        if len(self.children) < 2:
+            raise InternalError(
+                "IfBlock malformed or incomplete. It should have at least 2 "
+                "children, but found {0}.".format(len(self.children)))
+
+        return self._children[1]._children
+
+    @property
+    def else_body(self):
+        ''' Return children of the Schedule executed when the IfBlock
+        evaluates to False.
+
+        :return: Statements to be executed when IfBlock evaluates to False.
+        :rtype: list of :py:class:`psyclone.psyGen.Node`
+        '''
+        if len(self._children) == 3:
+            return self._children[2]._children
+        return []
 
     @property
     def coloured_text(self):
@@ -4686,34 +4782,48 @@ class IfBlock(Node):
 
         :param int indent: the level to which to indent the output.
         '''
-        print(self.indent(indent) + self.coloured_text + "[" +
-              self._condition + "]")
+        print(self.indent(indent) + self.coloured_text + "[", end='')
+        if self.annotations:
+            print("annotations='" + ','.join(self.annotations) + "'", end='')
+        print("]")
         for entity in self._children:
             entity.view(indent=indent + 1)
 
+    def __str__(self):
+        result = "If[]\n"
+        for entity in self._children:
+            result += str(entity)
+        return result
 
-class IfClause(IfBlock):
-    '''
-    Represents a sub-clause of an If block - e.g. an "else if()".
-
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyGen.Node`.
-
-    '''
-    def __init__(self, parent=None):
-        super(IfClause, self).__init__(parent=parent)
-        self._clause_type = ""  # Whether this is an else, else-if etc.
-
-    @property
-    def coloured_text(self):
+    def gen_c_code(self, indent=0):
         '''
-        Return text containing the (coloured) name of this node type.
+        Generate a string representation of this node using C language.
 
-        :returns: the name of this node type, possibly with control codes \
-                  for colour.
+        :param int indent: Depth of indent for the output string.
+        :return: C language code representing the node.
         :rtype: str
+        :raises InternalError: If any mandatory children of the IfBlock \
+            node are missing.
         '''
-        return colored(self._clause_type, SCHEDULE_COLOUR_MAP["If"])
+        if len(self.children) < 2:
+            raise InternalError("IfBlock malformed or "
+                                "incomplete. It should have at least 2 "
+                                "children, but found {0}."
+                                "".format(len(self.children)))
+
+        retval = self.indent(indent) + "if ("
+        retval += self.condition.gen_c_code() + ") {\n"
+        for statement in self.if_body:
+            retval += statement.gen_c_code(indent + 1) + "\n"
+
+        if len(self.children) == 3:
+            retval += self.indent(indent) + "} else {\n"
+            for statement in self.else_body:
+                retval += statement.gen_c_code(indent + 1) + "\n"
+
+        retval += self.indent(indent) + "}\n"
+
+        return retval
 
 
 class ACCKernelsDirective(ACCDirective):
@@ -4845,7 +4955,8 @@ class Fparser2ASTProcessor(object):
             utils.BinaryOpBase: self._binary_op_handler,
             Fortran2003.End_Do_Stmt: self._ignore_handler,
             Fortran2003.End_Subroutine_Stmt: self._ignore_handler,
-            # Fortran2003.If_Construct: self._if_construct_handler,
+            Fortran2003.If_Construct: self._if_construct_handler,
+            Fortran2003.Case_Construct: self._case_construct_handler,
             Fortran2003.Return_Stmt: self._return_handler,
             Fortran2003.UnaryOpBase: self._unary_op_handler,
         }
@@ -5352,6 +5463,106 @@ class Fparser2ASTProcessor(object):
         '''
         return None
 
+    def _if_construct_handler(self, node, parent):
+        '''
+        Transforms an fparser2 If_Construct to the PSyIR representation.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.If_Construct`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :raises InternalError: If the fparser2 tree has an unexpected \
+            structure.
+        '''
+        from fparser.two import Fortran2003
+
+        # Check that the fparser2 parsetree has the expected structure
+        if not isinstance(node.content[0], Fortran2003.If_Then_Stmt):
+            raise InternalError(
+                "Failed to find opening if then statement in: "
+                "{0}".format(str(node)))
+        if not isinstance(node.content[-1], Fortran2003.End_If_Stmt):
+            raise InternalError(
+                "Failed to find closing end if statement in: "
+                "{0}".format(str(node)))
+
+        # Search for all the conditional clauses in the If_Construct
+        clause_indices = []
+        for idx, child in enumerate(node.content):
+            child._parent = node  # Retrofit parent info
+            if isinstance(child, (Fortran2003.If_Then_Stmt,
+                                  Fortran2003.Else_Stmt,
+                                  Fortran2003.Else_If_Stmt,
+                                  Fortran2003.End_If_Stmt)):
+                clause_indices.append(idx)
+
+        # Deal with each clause: "if", "else if" or "else".
+        ifblock = None
+        currentparent = parent
+        num_clauses = len(clause_indices) - 1
+        for idx in range(num_clauses):
+            start_idx = clause_indices[idx]
+            end_idx = clause_indices[idx+1]
+            clause = node.content[start_idx]
+
+            if isinstance(clause, (Fortran2003.If_Then_Stmt,
+                                   Fortran2003.Else_If_Stmt)):
+                # If it's an 'IF' clause just create an IfBlock, otherwise
+                # it is an 'ELSE' clause and it needs an IfBlock annotated
+                # with 'was_elseif' inside a Schedule.
+                newifblock = None
+                if isinstance(clause, Fortran2003.If_Then_Stmt):
+                    ifblock = IfBlock(parent=currentparent)
+                    ifblock.ast = node  # Keep pointer to fpaser2 AST
+                    newifblock = ifblock
+                else:
+                    elsebody = Schedule(parent=currentparent)
+                    currentparent.addchild(elsebody)
+                    newifblock = IfBlock(parent=elsebody,
+                                         annotation='was_elseif')
+                    elsebody.addchild(newifblock)
+
+                    # Keep pointer to fpaser2 AST
+                    elsebody.ast = node.content[start_idx]
+                    newifblock.ast = node.content[start_idx]
+
+                # Create condition as first child
+                self.process_nodes(parent=newifblock,
+                                   nodes=[clause.items[0]],
+                                   nodes_parent=node)
+
+                # Create if-body as second child
+                ifbody = Schedule(parent=ifblock)
+                ifbody.ast = node.content[start_idx + 1]
+                ifbody.ast_end = node.content[end_idx - 1]
+                newifblock.addchild(ifbody)
+                self.process_nodes(parent=ifbody,
+                                   nodes=node.content[start_idx + 1:end_idx],
+                                   nodes_parent=node)
+
+                currentparent = newifblock
+
+            elif isinstance(clause, Fortran2003.Else_Stmt):
+                if not idx == num_clauses - 1:
+                    raise InternalError(
+                        "Else clause should only be found next to last "
+                        "clause, but found {0}".format(node.content))
+                elsebody = Schedule(parent=currentparent)
+                currentparent.addchild(elsebody)
+                elsebody.ast = node.content[start_idx]
+                elsebody.ast_end = node.content[end_idx]
+                self.process_nodes(parent=elsebody,
+                                   nodes=node.content[start_idx + 1:end_idx],
+                                   nodes_parent=node)
+            else:
+                raise InternalError(
+                    "Only fparser2 If_Then_Stmt, Else_If_Stmt and Else_Stmt "
+                    "are expected, but found {0}.".format(clause))
+
+        return ifblock
+
     def _if_stmt_handler(self, node, parent):
         '''
         Transforms an fparser2 If_Stmt to the PSyIR representation.
@@ -5363,12 +5574,112 @@ class Fparser2ASTProcessor(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
-        ifblock = IfBlock(parent=parent)
+        ifblock = IfBlock(parent=parent, annotation='was_single_stmt')
         self.process_nodes(parent=ifblock, nodes=[node.items[0]],
                            nodes_parent=node)
-        self.process_nodes(parent=ifblock, nodes=[node.items[1]],
+        ifbody = Schedule(parent=ifblock)
+        ifblock.addchild(ifbody)
+        self.process_nodes(parent=ifbody, nodes=[node.items[1]],
                            nodes_parent=node)
         return ifblock
+
+    def _case_construct_handler(self, node, parent):
+        '''
+        Transforms an fparser2 Case_Construct to the PSyIR representation.
+
+        :param node: node in fparser2 tree.
+        :type node: :py:class:`fparser.two.Fortran2003.Case_Construct`
+        :param parent: Parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyGen.Node`
+        :returns: PSyIR representation of node
+        :rtype: :py:class:`psyclone.psyGen.IfBlock`
+        :raises InternalError: If the fparser2 tree has an unexpected \
+            structure.
+        :raises NotImplementedError: If the fparser2 tree contains an \
+            unsupported structure and should be placed in a CodeBlock.
+        '''
+        from fparser.two import Fortran2003
+        # Check that the fparser2 parsetree has the expected structure
+        if not isinstance(node.content[0], Fortran2003.Select_Case_Stmt):
+            raise InternalError(
+                "Failed to find opening case statement in: "
+                "{0}".format(str(node)))
+        if not isinstance(node.content[-1], Fortran2003.End_Select_Stmt):
+            raise InternalError(
+                "Failed to find closing case statement in: "
+                "{0}".format(str(node)))
+
+        # Search for all the CASE clauses in the Case_Construct
+        clause_indices = []
+        selector = None
+        for idx, child in enumerate(node.content):
+            child._parent = node  # Retrofit parent info
+            if isinstance(child, Fortran2003.Select_Case_Stmt):
+                selector = child.items[0]
+            if isinstance(child, Fortran2003.Case_Stmt):
+                # Case Default and value Ranges not supported yet, if found
+                # we raise a NotImplementedError that the process_node() will
+                # catch and generate a CodeBlock instead.
+                case_expression = child.items[0].items[0]
+                if isinstance(case_expression, Fortran2003.Case_Value_Range):
+                    raise NotImplementedError("Case Value Range Statement")
+                elif case_expression is None:
+                    raise NotImplementedError("Case Default Statement")
+                clause_indices.append(idx)
+            if isinstance(child, Fortran2003.End_Select_Stmt):
+                clause_indices.append(idx)
+
+        # Deal with each Case_Stmt
+        rootif = None
+        currentparent = parent
+        num_clauses = len(clause_indices) - 1
+        for idx in range(num_clauses):
+            start_idx = clause_indices[idx]
+            end_idx = clause_indices[idx+1]
+            clause = node.content[start_idx]
+
+            if isinstance(clause, Fortran2003.Case_Stmt):
+                case = clause.items[0]
+                if isinstance(case, Fortran2003.Case_Selector):
+                    ifblock = IfBlock(parent=currentparent,
+                                      annotation='was_case')
+                    ifblock.ast = node.content[start_idx]
+                    ifblock.ast_end = node.content[end_idx - 1]
+
+                    # Add condition: selector == case
+                    bop = BinaryOperation(parent=ifblock, operator='==')
+                    self.process_nodes(parent=bop,
+                                       nodes=[selector],
+                                       nodes_parent=node)
+                    self.process_nodes(parent=bop,
+                                       nodes=[case.items[0]],
+                                       nodes_parent=node)
+                    ifblock.addchild(bop)
+
+                    # Add If_body
+                    ifbody = Schedule(parent=ifblock)
+                    self.process_nodes(parent=ifbody,
+                                       nodes=node.content[start_idx + 1:
+                                                          end_idx],
+                                       nodes_parent=node)
+                    ifblock.addchild(ifbody)
+                    ifbody.ast = node.content[start_idx + 1]
+                    ifbody.ast_end = node.content[end_idx - 1]
+
+                    if rootif:
+                        # If rootif is already initialised we chain the new
+                        # case in the last else branch.
+                        elsebody = Schedule(parent=currentparent)
+                        currentparent.addchild(elsebody)
+                        elsebody.addchild(ifblock)
+                        elsebody.ast = node.content[start_idx]
+                        elsebody.ast_end = node.content[end_idx]
+                    else:
+                        rootif = ifblock
+
+                    currentparent = ifblock
+
+        return rootif
 
     def _return_handler(self, _, parent):
         '''
@@ -6134,11 +6445,11 @@ class CodeBlock(Node):
         self._statements = statements[:]
         # Store references back into the fparser2 AST
         if statements:
-            self._ast = self._statements[0]
-            self._ast_end = self._statements[-1]
+            self.ast = self._statements[0]
+            self.ast_end = self._statements[-1]
         else:
-            self._ast = None
-            self._ast_end = None
+            self.ast = None
+            self.ast_end = None
 
     @property
     def coloured_text(self):
@@ -6244,6 +6555,15 @@ class Reference(Node):
     def __init__(self, reference_name, parent):
         super(Reference, self).__init__(parent=parent)
         self._reference = reference_name
+
+    @property
+    def name(self):
+        ''' Return the name of the referenced symbol.
+
+        :return: Name of the referenced symbol.
+        :rtype: str
+        '''
+        return self._reference
 
     @property
     def coloured_text(self):
@@ -6354,7 +6674,7 @@ class BinaryOperation(Node):
     '''
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
-        self._ast = operator
+        self.ast = operator
         self._operator = operator
 
     @property
@@ -6566,4 +6886,4 @@ class Return(Node):
         :return: C language code representing the node.
         :rtype: str
         '''
-        return "return;"
+        return self.indent(indent) + "return;"
