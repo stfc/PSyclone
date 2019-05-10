@@ -60,10 +60,10 @@ copyright = u'2017-2019, STFC Daresbury Laboratory'
 # using execfile().
 # 'version' is the short X.Y version and 'release' is the full version,
 # including any alpha/beta/rc tags.
-# We are in the doc directory but need to read version.py from
+# We are in the doc/user_guide directory but need to read version.py from
 # src/psyclone
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-BASE_PATH = os.path.dirname(BASE_PATH)
+BASE_PATH = os.path.dirname(os.path.dirname(BASE_PATH))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
     exec(f.read())
 version = __SHORT_VERSION__

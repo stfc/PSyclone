@@ -42,6 +42,7 @@
    :maxdepth: 3
 
    developers
+   zz_bibliography
 
 ..   tutorial
 ..   FAQS

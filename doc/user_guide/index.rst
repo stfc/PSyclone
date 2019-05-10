@@ -62,7 +62,6 @@
    psyke
    system_specific_setup
    configuration
-   developers
    zz_bibliography
 
 ..   tutorial
