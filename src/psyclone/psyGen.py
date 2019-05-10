@@ -5877,20 +5877,12 @@ class SymbolTable(object):
                            reference to an integer symbol with the extent. \
                            If it is an empty list then the symbol represents \
                            a scalar.
-        :param str scope: It is 'local' if the symbol just exists inside the \
-                          kernel scope or 'global*' if the data survives \
-                          outside of the kernel scope. Note that \
-                          global-scoped symbols may also have 'annotations' \
-                          which provide information about the \
-                          (language-specific) sharing mechanism.
-        :param bool is_input: Whether the symbol represents data that exists \
-                              before the kernel is entered and that is passed \
-                              into the kernel.
-        :param bool is_output: Whether the symbol represents data that is \
-                               survives outside the kernel upon exit.
-        :param dict annotation: Any language-specific annotations provided \
-                                as a dict (or None).
-        :raises KeyError: The provided name can not be used as key in the
+        :param interface: If not None then indicates that the symbol exists \
+                          outside the local scope and provides the details \
+                          of the sharing mechanism (e.g. routine argument).
+        :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or \
+                         NoneType.
+        :raises KeyError: The provided name cannot be used as a key in the \
                           table.
         '''
         if name in self._symbols:
@@ -5901,9 +5893,9 @@ class SymbolTable(object):
 
     def specify_argument_list(self, argument_name_list):
         '''
-        Keep track of the order of the arguments and provide the scope,
-        is_input and is_ouput information if it was not available on the
-        variable declaration.
+        Keep track of the order of the arguments and update the interface
+        of the associated Symbols if we weren't previously able to determine
+        their scope.
 
         :param list argument_name_list: Ordered list of the argument names.
         '''
@@ -5911,10 +5903,17 @@ class SymbolTable(object):
         for name in argument_name_list:
             symbol = self.lookup(name)
             # Declarations without explicit intent are provisionally identified
-            # as 'local', but if they appear in the argument list the scope and
-            # input/output attributes need to be updated.
+            # as 'local', but if they appear in argument_name_list then they
+            # must have an interface added to specify that they are arguments.
             if symbol.scope == 'local':
-                symbol.interface = FortranInterface(access=SymbolAccess.READWRITE)
+                # TODO For discussion with the reviewer. The PSyIR should be
+                # language independent but obviously
+                # the line below assumes we're dealing with Fortran. Should
+                # we have some annotation somewhere that says which language
+                # we're coming from?
+                # A Fortran argument has intent(inout) by default
+                symbol.interface = FortranInterface(
+                    access=SymbolAccess.READWRITE)
             self._argument_list.append(symbol)
 
     def lookup(self, name):
