@@ -3226,6 +3226,30 @@ def test_symbol_interface():
     assert symbol.interface.module_name == "my_mod"
 
 
+def test_symbol_interface_access():
+    ''' Tests for the SymbolInterface.access setter. '''
+    symbol = Symbol("some_var", "real",
+                    interface=FortranInterface(module_use="my_mod"))
+    symbol.interface.access = SymbolAccess.READ
+    assert symbol.interface.access == SymbolAccess.READ
+    # Force the error by supplying a string instead of a SymbolAccess type.
+    with pytest.raises(TypeError) as err:
+        symbol.interface.access = "read"
+    assert "must be a SymbolAccess but got " in str(err)
+
+
+def test_symbol_interface_str():
+    ''' Check the __str__ method of the SymbolInterface base class. '''
+    from psyclone.psyGen import SymbolInterface
+    # A SymbolInterface represents a routine argument by default.
+    interface = SymbolInterface()
+    assert str(interface) == "Argument=True"
+    # If it's not an argument then we have nothing to say about it (since
+    # other options are language specific and are implemented in sub-classes).
+    interface = SymbolInterface(argument=False)
+    assert str(interface) == ""
+
+
 def test_symbol_gen_c_definition():
     '''Test that the Symbol gen_c_definition method generates the expected
     C definitions, or raises an error if the type is not supported.

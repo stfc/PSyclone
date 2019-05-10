@@ -16,6 +16,6 @@ enable=import-star-module-level,old-octal-literal,oct-method,unpacking-in-except
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
-disable=print-statement,suppressed-message,duplicate-code,no-self-use,too-many-locals,too-many-lines,protected-access,locally-disabled,locally-enabled
+disable=print-statement,suppressed-message,duplicate-code,no-self-use,too-many-locals,too-many-lines,protected-access,locally-disabled,locally-enabled,useless-object-inheritance
 
 
