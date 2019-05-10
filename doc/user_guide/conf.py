@@ -305,5 +305,8 @@ epub_copyright = u'2017-2019, STFC'
 # epub_tocdup = True
 
 
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'http://docs.python.org/': None}
+# Configuration for intersphinx: refer to the Python standard library and
+# to the PSyclone Developers' Guide.
+intersphinx_mapping = {
+    'http://docs.python.org/': None,
+    'dev_guide': ('https://psyclone-dev.readthedocs.io/en/latest/', None)}
