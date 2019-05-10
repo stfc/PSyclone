@@ -3081,12 +3081,12 @@ def test_symbol_initialisation():
             "only be scalar integers, but found") in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'real', scope='global_argument', constant_value=9.81)
+        Symbol('a', 'integer', scope='global_argument', constant_value=9)
     assert ("Symbol with a constant value is currently limited to having "
             "local scope but found 'global_argument'.") in str(error)
 
     with pytest.raises(ValueError) as error:
-        Symbol('a', 'real', shape=[None], constant_value=9.81)
+        Symbol('a', 'integer', shape=[None], constant_value=9)
     assert ("Symbol with a constant value must be a scalar but the shape "
             "attribute is not empty.") in str(error)
 
@@ -3122,7 +3122,7 @@ def test_symbol_map():
     # less entry than there are valid data types.
     assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 1
     for data_type in Symbol.valid_data_types:
-        if not data_type in ["real"]:
+        if data_type not in ["real"]:
             Symbol.mapping[data_type]
 
 
@@ -3158,8 +3158,8 @@ def test_symbol_constant_value_setter():
 
 
 def test_symbol_is_input_setter():
-    '''Test that a Symbol is_input can be set if given a new valid
-    value, otherwise it raises a relevant exception'''
+    '''Test that a Symbol's is_input method can be set if given a new
+    valid value, otherwise it raises a relevant exception.'''
 
     sym = Symbol('a', 'real', shape=[], scope='global_argument',
                  is_input=False, is_output=False)
@@ -3179,8 +3179,8 @@ def test_symbol_is_input_setter():
 
 
 def test_symbol_is_output_setter():
-    '''Test that a Symbol is_output can be set if given a new valid
-    value, otherwise it raises a relevant exception'''
+    '''Test that a Symbol's is_output method can be set if given a new
+    valid value, otherwise it raises a relevant exception.'''
     sym = Symbol('a', 'real', shape=[], scope='global_argument',
                  is_input=False, is_output=False)
     sym.is_output = True
@@ -3240,11 +3240,11 @@ def test_symbol_copy():
     # shape value
     new_symbol._name = "new"
     new_symbol._datatype = "integer"
-    new_symbol.shape[0]=3
-    new_symbol.shape[1]=4
-    new_symbol.scope="local"
-    new_symbol.is_input=False
-    new_symbol.is_output=False
+    new_symbol.shape[0] = 3
+    new_symbol.shape[1] = 4
+    new_symbol.scope = "local"
+    new_symbol.is_input = False
+    new_symbol.is_output = False
 
     assert symbol.name == "myname"
     assert symbol.datatype == "real"
@@ -3393,7 +3393,7 @@ def test_symboltable_swap_symbol_properties():
     assert symbol1.datatype == "real"
     assert symbol1.shape == [symbol2, symbol3]
     assert symbol1.scope == "global_argument"
-    assert symbol1.constant_value == None
+    assert symbol1.constant_value is None
     assert symbol1.is_input
     assert symbol1.is_output
 

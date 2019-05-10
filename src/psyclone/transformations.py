@@ -2550,8 +2550,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
                           function_space=None):
             '''Utility function that modifies the argument at position
             'arg_position' into a compile-time constant with value
-            'value'. For simplicity the original argument is simply
-            renamed in the 'symbol_table'.
+            'value'.
 
             :param symbol_table: The symbol table for the kernel \
             holding the argument that is going to be modified.
@@ -2561,7 +2560,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             :param value: The constant value that this argument is \
             going to be give. Its type depends on the type of the \
             argument.
-            :type value: int, float, str or bool.
+            :type value: int, str or bool.
             :type str function_space: the name of the function space \
             if there is a function space associated with this \
             argument. Defaults to None.

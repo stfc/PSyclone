@@ -5571,6 +5571,8 @@ class Symbol(object):
     def __init__(self, name, datatype, shape=[], scope='local',
                  constant_value=None, is_input=False, is_output=False):
 
+        self._name = name
+
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
                 "Symbol can only be initialised with {0} datatypes but found "
@@ -5594,7 +5596,6 @@ class Symbol(object):
         self._shape = shape
 
         # The following attributes have setter methods (with error checking)
-        self._name = name
         self._scope = None
         self._is_input = None
         self._is_output = None
@@ -5738,10 +5739,11 @@ class Symbol(object):
 
     @constant_value.setter
     def constant_value(self, new_value):
-        ''':param constant_value: Set or change the fixed known value of
-        the constant for this Symbol. If the value is None then this
-        symbol is not a constant. The datatype of new_value must be
-        compatible with the datatype of the symbol.
+        '''
+        :param constant_value: Set or change the fixed known value of \
+        the constant for this Symbol. If the value is None then this \
+        symbol does not have a fixed constant. The datatype of \
+        new_value must be compatible with the datatype of the symbol.
         :type constant_value: int, str or bool
 
         :raises ValueError: If a non-None value is provided and 1) \
@@ -5841,9 +5843,9 @@ class Symbol(object):
         :rtype: :py:class:`psyclone.psyGen.Symbol`
 
         '''
-        return Symbol(self.name, self.datatype, shape=self.shape[:], scope=self.scope,
-                      constant_value=self.constant_value, is_input=self.is_input,
-                      is_output=self.is_output)
+        return Symbol(self.name, self.datatype, shape=self.shape[:],
+                      scope=self.scope, constant_value=self.constant_value,
+                      is_input=self.is_input, is_output=self.is_output)
 
     def set_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
@@ -5854,8 +5856,8 @@ class Symbol(object):
 
         '''
         if not isinstance(symbol_in, Symbol):
-            raise TypeError("Argument should be of type 'Symbol' but found '{0}'."
-                            "".format(type(symbol_in).__name__))
+            raise TypeError("Argument should be of type 'Symbol' but found "
+                            "'{0}'.".format(type(symbol_in).__name__))
 
         self._datatype = symbol_in.datatype
         self._shape = symbol_in.shape[:]
@@ -5906,6 +5908,7 @@ class SymbolTable(object):
         :param symbol1: The first symbol.
         :type symbol1: :py:class:`psyclone.psyGen.Symbol`
         :param symbol2: The second symbol.
+        :type symbol2: :py:class:`psyclone.psyGen.Symbol`
 
         :raises KeyError: If either of the supplied symbols are not in \
         the symbol table.
@@ -5913,11 +5916,11 @@ class SymbolTable(object):
         or the names of the symbols are the same in the SymbolTable \
         instance.
 
-        '''        
+        '''
         for symbol in [symbol1, symbol2]:
             if not isinstance(symbol, Symbol):
-                raise TypeError("Arguments should be of type 'Symbol' but found '{0}'."
-                                "".format(type(symbol).__name__))
+                raise TypeError("Arguments should be of type 'Symbol' but "
+                                "found '{0}'.".format(type(symbol).__name__))
             if symbol.name not in self._symbols:
                 raise KeyError("Symbol '{0}' is not in the symbol table."
                                "".format(symbol.name))
