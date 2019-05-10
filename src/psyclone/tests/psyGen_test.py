@@ -3049,15 +3049,15 @@ def test_symbol_initialisation():
             error.value)
 
     with pytest.raises(ValueError) as error:
-        assert isinstance(Symbol('a', 'real', constant_value=3.14), Symbol)
+        Symbol('a', 'real', constant_value=3.14)
     assert ("A constant value is not currently supported for datatype "
-            "'real'.") in(error.value)
+            "'real'.") in str(error)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', [], 'invalidscope')
     assert ("Symbol scope attribute can only be one of " +
             str(Symbol.valid_scope_types) +
-            " but got 'invalidscope'.") in str(error.value)
+            " but got 'invalidscope'.") in str(error)
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', None, 'local')
@@ -3083,33 +3083,33 @@ def test_symbol_initialisation():
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', scope='global_argument', constant_value=9.81)
     assert ("Symbol with a constant value is currently limited to having "
-            "local scope but found 'global_argument'.") in str(error.value)
+            "local scope but found 'global_argument'.") in str(error)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', shape=[None], constant_value=9.81)
     assert ("Symbol with a constant value must be a scalar but the shape "
-            "attribute is not empty.") in str(error.value)
+            "attribute is not empty.") in str(error)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'integer', constant_value=9.81)
     assert ("This Symbol instance's datatype is 'integer' which means the "
-            "constant value is expected to be") in str(error.value)
-    assert "'int'>' but found " in str(error.value)
-    assert "'float'>'." in str(error.value)
+            "constant value is expected to be") in str(error)
+    assert "'int'>' but found " in str(error)
+    assert "'float'>'." in str(error)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'character', constant_value=42)
     assert ("This Symbol instance's datatype is 'character' which means the "
-            "constant value is expected to be") in str(error.value)
-    assert "'str'>' but found " in str(error.value)
-    assert "'int'>'." in str(error.value)
+            "constant value is expected to be") in str(error)
+    assert "'str'>' but found " in str(error)
+    assert "'int'>'." in str(error)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'boolean', constant_value="hello")
     assert ("This Symbol instance's datatype is 'boolean' which means the "
-            "constant value is expected to be") in str(error.value)
-    assert "'bool'>' but found " in str(error.value)
-    assert "'str'>'." in str(error.value)
+            "constant value is expected to be") in str(error)
+    assert "'bool'>' but found " in str(error)
+    assert "'str'>'." in str(error)
 
 
 def test_symbol_map():
@@ -3141,7 +3141,7 @@ def test_symbol_scope_setter():
         sym.scope = 'invalidscope'
     assert ("Symbol scope attribute can only be one of " +
             str(Symbol.valid_scope_types) +
-            " but got 'invalidscope'.") in str(error.value)
+            " but got 'invalidscope'.") in str(error)
 
 
 def test_symbol_constant_value_setter():
@@ -3175,7 +3175,7 @@ def test_symbol_is_input_setter():
     with pytest.raises(ValueError) as error:
         sym.is_input = True
     assert ("Symbol with 'local' scope can not have 'is_input' attribute"
-            " set to True.") in str(error.value)
+            " set to True.") in str(error)
 
 
 def test_symbol_is_output_setter():
@@ -3195,7 +3195,7 @@ def test_symbol_is_output_setter():
     with pytest.raises(ValueError) as error:
         sym.is_output = True
     assert ("Symbol with 'local' scope can not have 'is_output' attribute"
-            " set to True.") in str(error.value)
+            " set to True.") in str(error)
 
 
 def test_symbol_can_be_printed():
