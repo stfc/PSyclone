@@ -5886,8 +5886,7 @@ class Fparser2ASTProcessor(object):
                 return uop
             else:
                 raise GenerationError("Undeclared Reference: " +
-                        str(reference_name))
-
+                                      str(reference_name))
 
         array = Array(reference_name, parent)
 
@@ -6648,9 +6647,23 @@ class UnaryOperation(Node):
                                   "child, but found {0}."
                                   "".format(len(self.children)))
 
-        # TODO: Operator needs proper back-end
-        return "(" + self._operator.name + " " \
-            + self._children[0].gen_c_code() + ")"
+        def operator_format(operator_str, expression_str):
+            return "(" + operator_str + " " + expression_str + ")"
+
+        def function_format(function_str, expression_str):
+            return function_str + "(" + expression_str + ")"
+
+        if self._operator == UnaryOperator.MINUS:
+            return operator_format("-", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.SIN:
+            return function_format("sin", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.REAL:
+            return function_format("double", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.SQRT:
+            return function_format("sqrt", self.children[0].gen_c_code())
+
+        raise GenerationError("Unsupported Unary Operator: " +
+                              str(self._operator))
 
 
 class BinaryOperation(Node):
@@ -6716,10 +6729,45 @@ class BinaryOperation(Node):
                                   "children, but found {0}."
                                   "".format(len(self.children)))
 
-        # TODO: Operator needs a proper backend
-        return "(" + self._children[0].gen_c_code() + " " \
-            + self._operator.name + " " \
-            + self._children[1].gen_c_code() + ")"
+        def operator_format(operator_str,  expr1, expr2):
+            return "(" + expr1.gen_c_code() + " " + operator_str + \
+                   " " + expr2.gen_c_code() + ")"
+
+        def function_format(function_str, expr1, expr2):
+            return function_str + "(" + expr1.gen_c_code() + \
+                   ", " + expr2.gen_c_code() + ")"
+
+        if self._operator == BinaryOperator.SUM:
+            return operator_format("+", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.SUB:
+            return operator_format("-", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.MUL:
+            return operator_format("*", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.DIV:
+            return operator_format("/", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.EQ:
+            return operator_format("==", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.NE:
+            return operator_format("!=", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.LT:
+            return operator_format("<", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.LE:
+            return operator_format("<=", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.GT:
+            return operator_format(">", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.GE:
+            return operator_format(">=", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.AND:
+            return operator_format("&&", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.OR:
+            return operator_format("||", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.POW:
+            return function_format("pow", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.SIGN:
+            return function_format("copysign", self.children[0],
+                                   self.children[1])
+        raise GenerationError("Unsupported Binary Operator: " +
+                              str(self._operator))
 
 
 class Array(Reference):
