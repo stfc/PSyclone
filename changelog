@@ -106,6 +106,22 @@
 	type, a(xx) dimension specifications and array size can be an
 	integer variable).
 
+	35) #346 and PR #357. In the nemo api put do-while loops into a
+	code block rather than recognising them as do-loops and make
+	default(present) optional for ACCKernels transformations.
+
+        36) #362 and PR #367. Adds the basics of a transformation for identifying
+	certain LFRic kernel arguments that can be converted to constants.
+	Currently only identifies candidate arguments and prints them to
+	stdout.
+
+        37) PR #347 (working towards #256). Adds support for If and CASE
+	constructs to the PSyIR (superseding and removing the existing, NEMO-
+	specific support for If constructs).
+
+	38) #377 and PR #378. Update fparser submodule to point to latest
+	fparser master (contains bug fix for Python 2 installation).
+
 release 1.7.0 20th December 2018
 
 	1) #172 and PR #173 Add support for logical declaration, the save

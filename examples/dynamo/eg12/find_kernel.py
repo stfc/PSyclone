@@ -66,7 +66,7 @@ from psyclone.psyGen import PSyFactory, Kern
 # Specify API
 TEST_API = "dynamo0.3"
 # Specify path to the Algorithm file from this script's location
-ALG_PATH = "."
+ALG_PATH = "../code"
 # Specify Algorithm file name
 ALG_NAME = "gw_mixed_schur_preconditioner_alg_mod.x90"
 # Specify the Kernel base name without the "_kernel_mod" and

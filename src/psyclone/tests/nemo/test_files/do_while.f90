@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2019, Science and Technology Facilities Council.
+! Copyright (c) 2019, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,26 @@
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
 
-SUBROUTINE tra_ldf_iso()
-  INTEGER, DIMENSION(jpi,jpj) :: tmask
-  REAL(wp), DIMENSION(jpi,jpj,jpk) ::   zdit, zdjt, zftu, zftv, ztfw 
-  zftv(:,:,:) = 0.0d0
-  IF( l_ptr )  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
-  CALL dia_ptr_hst( jn, 'ldf', -zftv(:,:,:)  )
-  zftu(:,:,1) = 1.0d0
-  tmask(:,:) = jpi
-end SUBROUTINE tra_ldf_iso
+program do_while_test
+  implicit none
+  integer :: jk
+  integer, parameter :: jpi=10, jpj=10, jpk=12
+  real, dimension(jpi,jpj,jpk) :: gdepw_0
+  real, dimension(jpi,jpj) :: rzisf_tbl
+  integer, dimension(jpi,jpj) :: mbkt
+  logical :: my_flag = .true.
+  
+  ! Test code with DO while loops
+
+  do while(my_flag)
+     mbkt(:,:) = 0.0
+     my_flag = .false.
+  end do
+  
+  mbkt(:,:) = 0.0
+
+  jk = 2
+  DO WHILE ( jk .LE. mbkt(ji,jj) .AND. gdepw_0(ji,jj,jk) < rzisf_tbl(ji,jj) )
+     jk = jk + 1
+  END DO
+end program do_while_test
