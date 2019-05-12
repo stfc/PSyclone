@@ -4,7 +4,7 @@ using the FortranPSyIRVisitor class.
 
 '''
 
-from psyclone.psyir.visitor.fortran import FortranPSyIRVisitor
+from psyclone.psyir.backend.fortran import FortranPSyIRVisitor
 
 
 def trans(psy):
