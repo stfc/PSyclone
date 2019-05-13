@@ -8,7 +8,7 @@ all steps necessary to be able to use PSyclone. And while you could
 obviously do some development, none of the required tools for testing
 or documentation creation will be installed.
 
-The :ref:`system_specific_dev_setup` in the Developers' Guide
+The :ref:`dev_guide:system_specific_dev_setup` in the Developers' Guide
 describes the additional installation of all required tools to run
 tests and create documentation.
 
