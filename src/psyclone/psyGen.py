@@ -5270,6 +5270,8 @@ class Fparser2ASTProcessor(object):
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
         :raises NotImplementedError: The provided declarations contain
                                      attributes which are not supported yet.
+        :raises GenerationError: if the parse tree for a USE statement does \
+                                 not have the expected structure.
         '''
         from fparser.two.utils import walk_ast
         from fparser.two import Fortran2003
@@ -5294,6 +5296,18 @@ class Fparser2ASTProcessor(object):
         # Look at any USE statments
         for decl in walk_ast(nodes, [Fortran2003.Use_Stmt]):
 
+            # Check that the parse tree is what we expect
+            if len(decl.items) != 5:
+                # We can't just do str(decl) as that also checks that items
+                # is of length 5
+                text = ""
+                for item in decl.items:
+                    if item:
+                        text += str(item)
+                raise GenerationError(
+                    "Expected the parse tree for a USE statement to contain "
+                    "5 items but found {0} for '{1}'".format(len(decl.items),
+                                                             text))
             if not isinstance(decl.items[4],
                               (Fortran2003.Name, Fortran2003.Only_List)):
                 # This USE doesn't have an ONLY clause so we skip it. We

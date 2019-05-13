@@ -3872,6 +3872,24 @@ def test_fparser2astprocessor_use(f2008_parser):
         "other_mod"
 
 
+def test_fparser2astprocessor_use_error(f2008_parser, monkeypatch):
+    ''' Check that we raise the expected error if the parse tree representing
+    a USE statement doesn't have the expected structure. '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Specification_Part
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2ASTProcessor()
+    reader = FortranStringReader("use my_mod, only: some_var\n"
+                                 "use this_mod\n"
+                                 "use other_mod, only: var1, var2\n")
+    fparser2spec = Specification_Part(reader)
+    monkeypatch.setattr(fparser2spec.content[0], "items", [None, None, None])
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.content, [])
+    assert ("Expected the parse tree for a USE statement to contain 5 items "
+            "but found 3" in str(err))
+
+
 def test_fparser2astprocessor_parse_array_dimensions_unhandled(
         f2008_parser, monkeypatch):
     '''Test that process_declarations method parses multiple specifications
