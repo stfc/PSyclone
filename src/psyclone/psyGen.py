@@ -5811,15 +5811,17 @@ class Fparser2ASTProcessor(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.Reference`
         '''
-        symbol_table = parent.root.symbol_table
-        try:
-            symbol_table.lookup(node.string)
-        except KeyError:
-            # TODO: Fix for nemolite2D, remove before merging to master
-            if node.string in ('visc', 'omega', 'd2r', 'g', 'rdt', 'cbfr',
-                               'wp'):
-                return Reference(node.string, parent)
-            raise GenerationError("Undeclared Reference: " + str(node.string))
+        if hasattr(parent.root, 'symbol_table'):
+            symbol_table = parent.root.symbol_table
+            try:
+                symbol_table.lookup(node.string)
+            except KeyError:
+                # TODO: Fix for nemolite2D, remove before merging to master
+                if node.string in ('visc', 'omega', 'd2r', 'g', 'rdt', 'cbfr',
+                                   'wp'):
+                    return Reference(node.string, parent)
+                raise GenerationError("Undeclared Reference: " +
+                                      str(node.string))
 
         return Reference(node.string, parent)
 
@@ -5854,37 +5856,38 @@ class Fparser2ASTProcessor(object):
         '''
         from fparser.two import Fortran2003
 
-        symbol_table = parent.root.symbol_table
         reference_name = node.items[0].string.lower()
 
-        try:
-            symbol_table.lookup(reference_name)
-        except KeyError:
-            # Intrinsics are wrongly parsed as arrays by fparser2, we can
-            # fix the issue here and convert them to appropiate PSyIR nodes.
-            if reference_name == 'sign':
-                bop = BinaryOperation(BinaryOperator.SIGN, parent)
-                self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
-                                   nodes_parent=node)
-                self.process_nodes(parent=bop, nodes=[node.items[1].items[1]],
-                                   nodes_parent=node)
-                return bop
-            elif reference_name == 'sin':
-                uop = UnaryOperation(UnaryOperator.SIN, parent)
-                self.process_nodes(parent=uop, nodes=[node.items[1].items[0]],
-                                   nodes_parent=node)
-                return uop
-            elif reference_name == 'real':
-                uop = UnaryOperation(UnaryOperator.REAL, parent)
-                self.process_nodes(parent=uop, nodes=[node.items[1].items[0]],
-                                   nodes_parent=node)
-                return uop
-            elif reference_name == 'sqrt':
-                uop = UnaryOperation(UnaryOperator.SQRT, parent)
-                self.process_nodes(parent=uop, nodes=[node.items[1].items[0]],
-                                   nodes_parent=node)
-                return uop
-            else:
+        # Intrinsics are wrongly parsed as arrays by fparser2, we can
+        # fix the issue here and convert them to appropiate PSyIR nodes.
+        if reference_name == 'sign':
+            bop = BinaryOperation(BinaryOperator.SIGN, parent)
+            self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
+                               nodes_parent=node)
+            self.process_nodes(parent=bop, nodes=[node.items[1].items[1]],
+                               nodes_parent=node)
+            return bop
+        elif reference_name == 'sin':
+            uop = UnaryOperation(UnaryOperator.SIN, parent)
+            self.process_nodes(parent=uop, nodes=[node.items[1].items[0]],
+                               nodes_parent=node)
+            return uop
+        elif reference_name == 'real':
+            uop = UnaryOperation(UnaryOperator.REAL, parent)
+            self.process_nodes(parent=uop, nodes=[node.items[1].items[0]],
+                               nodes_parent=node)
+            return uop
+        elif reference_name == 'sqrt':
+            uop = UnaryOperation(UnaryOperator.SQRT, parent)
+            self.process_nodes(parent=uop, nodes=[node.items[1].items[0]],
+                               nodes_parent=node)
+            return uop
+
+        if hasattr(parent.root, 'symbol_table'):
+            symbol_table = parent.root.symbol_table
+            try:
+                symbol_table.lookup(reference_name)
+            except KeyError:
                 raise GenerationError("Undeclared Reference: " +
                                       str(reference_name))
 
