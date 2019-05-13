@@ -1169,7 +1169,7 @@ def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
     # Old versions of PSyclone tried to declare '0' as a variable:
     # REAL(KIND=wp), intent(inout) :: 0
     # INTEGER, intent(inout) :: 0
-    # Make sure this is not happening anymor
+    # Make sure this is not happening anymore
     assert re.search(r"\s*real.*:: *0", out, re.I) is None
     assert re.search(r"\s*integer.*:: *0", out, re.I) is None
     assert re.search(r"\s*real.*:: *real_val", out, re.I) is not None
