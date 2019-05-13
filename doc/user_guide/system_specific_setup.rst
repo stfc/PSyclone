@@ -1,29 +1,21 @@
 .. _system_specific_setup:
 
-System-specific set-up
-======================
-This chapter is split into two sections: :ref:`setup_user`
-describes the setup for a user of PSyclone. It includes all steps necessary
-to be able to use PSyclone. And while you could obviously do
-some development, none of the required tools for testing or
-documentation creation will be installed.
+System-specific Set-up for Users
+================================
 
-:ref:`dev_setup` describes the additional installation of
-all required tools to run tests and create documentation.
+This chapter describes the setup for a user of PSyclone. It includes
+all steps necessary to be able to use PSyclone. And while you could
+obviously do some development, none of the required tools for testing
+or documentation creation will be installed.
 
-Both sections have detailed instructions for Ubuntu 16.04.2 and 
+The :ref:`system_specific_dev_setup` in the Developers' Guide
+describes the additional installation of all required tools to run
+tests and create documentation.
+
+Detailed instructions are provided for Ubuntu 16.04.2 and 
 OpenSUSE 42.2 - if you are working with a different Linux
 distribution some adjustments will be necessary.
-
-.. _setup_user:
-
-User set-up
------------
-
-This section provides system-specific information on how to
-set-up your system to use PSyclone for users.
-It has been tested with a vanilla installation of Ubuntu 16.04.2
-and OpenSUSE 42.2. You need a terminal window for entering the commands into.
+You will need a terminal window open in which to enter the commands.
 
 Installing dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^

@@ -5,7 +5,7 @@ PSyclone has both a
 [User Guide](https://psyclone.readthedocs.io/en/stable/) and a
 [Developers' Guide](https://psyclone-dev.readthedocs.io/en/stable/).
 The sources for these are contained in the "user_guide" and
-"developer_guide" directiories, respectively.
+"developer_guide" directories, respectively.
 
 PSyclone must be installed (see the top-level [README](../README.md)
 file) before attempting to generate any documentation.
