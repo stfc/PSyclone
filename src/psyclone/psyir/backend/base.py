@@ -68,10 +68,27 @@ class PSyIRVisitor(object):
 
     '''
     def __init__(self, skip_nodes=False):
-        self._skip_nodes = skip_nodes
+        self._skip_nodes = False
+        
         self._code = ""
 
     def visit(self, node):
+        ''' xxx '''
+        node_name = type(node).__name__.lower()
+        if node_name == "return":
+            node_name = "return_node"
+        try:
+            return eval("self.{0}(node)".format(node_name))
+        except AttributeError as excinfo:
+            message = "Unsupported node found: {0}".format(str(excinfo))
+            if self._skip_nodes:
+                print(message)
+                for child in node.children:
+                    self.visit(child)
+            else:
+                raise VisitorError(message)
+        
+    def visit_old(self, node):
         '''Implements the PSyIR tree walk and call back. Call backs are
         implemented by using the name of class of the object in the
         PSyIR tree as a key. Two call back methods are used for each

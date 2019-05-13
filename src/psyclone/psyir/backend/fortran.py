@@ -35,7 +35,7 @@
 
 '''Fortran PSyIR backend. Generates Fortran code from PSyIR
 nodes. Currently limited to PSyIR Kernel schedules as PSy-layer PSyIR
-already has a gen() method to generate fortran.
+already has a gen() method to generate Fortran.
 
 '''
 
@@ -46,12 +46,11 @@ def get_intent(symbol):
     '''Given a Symbol instance as input, determine the Fortran intent that
     the Symbol should have and return the value as a string.
 
-    :param symbol: The symbol instance
+    :param symbol: The symbol instance.
     :type symbol: :py:class:`psyclone.psyGen.Symbol`
 
     :returns: the Fortran intent of the symbol instance in lower case, \
     or None if this is a local variable.
-
     :rtype: str or NoneType
 
     '''
@@ -69,14 +68,15 @@ def get_dims(symbol):
     '''Given a Symbol instance as input, return a list of strings
     representing the symbols array dimensions.
 
-    :param symbol: The symbol instance
+    :param symbol: The symbol instance.
     :type symbol: :py:class:`psyclone.psyGen.Symbol`
+
     :returns: the Fortran representation of the symbol's dimensions as \
     a list.
     :rtype: list of str
 
-    :raises NotImplementedError: if an unknown dimension type is \
-    found.
+    :raises NotImplementedError: if the format of the dimension is not \
+    supported.
 
     '''
     from psyclone.psyGen import Symbol
@@ -89,6 +89,8 @@ def get_dims(symbol):
         elif isinstance(index, int):
             # literal constant
             dims.append(str(index))
+        elif index is None:
+            dims.append(":")
         else:
             raise NotImplementedError(
                 "unsupported get_dims index '{0}'".format(str(index)))
@@ -96,7 +98,21 @@ def get_dims(symbol):
 
 
 def get_kind(symbol):
-    ''' From the symbol information, provide the expected Fortran kind value **************'''
+    '''Infer the expected Fortran kind value from the Symbol
+    instance. This is a temporary LFRic-specific hack which simply
+    adds a hardcoded kind value for real variables and a hardcoded
+    kind value for integer variables. To work correctly in general the
+    symbol table needs some additional information added to it, see
+    issue #375.
+
+    :param symbol: The symbol instance.
+    :type symbol: :py:class:`psyclone.psyGen.Symbol`
+
+    :returns: the Fortran kind value for the symbol instance in lower \
+    case, or None if no kind value is required.
+    :rtype: str or NoneType
+
+    '''
     kind = None
     if symbol.datatype == "real":
         kind = "r_def"
@@ -106,10 +122,92 @@ def get_kind(symbol):
 
 
 class FortranPSyIRVisitor(PSyIRVisitor):
-    ''' xxx '''
+    '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
+    currently PSyIR algorithm code which has its own gen method for
+    generating Fortran). Specialises the PSyIRVisitor class so only
+    needs to implement the start and end methods for the PSyIR
+    nodes.
 
-    def kernelschedule_start(self, node):
-        ''' xxx '''
+    '''    
+    def gokernelschedule(self, node):
+        return self.kernelschedule(node)
+
+    def assignment(self, node):
+        lhs = self.visit(node.children[0])
+        rhs = self.visit(node.children[1])
+        result = "{0}={1}\n".format(lhs, rhs)
+        return result
+
+        
+    def binaryoperation(self, node):
+        lhs = self.visit(node.children[0])
+        op = node._operator
+        rhs = self.visit(node.children[1])
+        result = "{0}{1}{2}".format(lhs, op, rhs)
+        return result
+        
+    def reference(self, node):
+        ''' OK '''
+        result = node._reference
+        for child in node.children:
+            result += self.visit(child)
+        return result
+
+    def array(self, node):
+        args = []
+        for child in node.children:
+            args.append(str(self.visit(child)))
+        result = "{0}({1})".format(node.name, ",".join(args))
+        return result
+
+    def literal(self, node):
+        result = node._value
+        return result
+
+    def ifblock(self, node):
+        condition = self.visit(node.children[0])
+        if_body = ""
+        for child in node.if_body:
+            if_body += self.visit(child)
+        else_body = ""
+        for child in node.else_body:
+            else_body += self.visit(child)
+        if else_body:
+            result = ("if ({0}) then\n"
+                      "{1}"
+                      "else\n"
+                      "{2}"
+                      "end if\n").format(condition, if_body, else_body)
+        else:
+            result = ("if ({0}) then\n"
+                      "{1}"
+                      "end if\n").format(condition, if_body)
+        return result
+
+    def unaryoperation(self, node):
+        content = self.visit(node.children[0])
+        result = "{0}{1}".format(node._operator, content)
+        return result
+
+    def return_node(self, node):
+        return "return\n"
+        
+    def kernelschedule(self, node):
+        '''This method is called when a KernelSchedule instance is found in
+        the PSyIR tree. This method is called before any children of
+        this node in the PSyIR tree are visited (and therefore before
+        any other methods (associated with the PSyIR children) in this
+        class are called.
+
+        The constants_mod module is currently hardcoded into the
+        output as it is required for LFRic code. When issue #375 has
+        been addressed this module can be added only when required.
+
+        :param node: a KernelSchedule PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.KernelSchedule`
+
+        '''
+        # Add the start of the kernel module and subroutine
         args = [symbol.name for symbol in node.symbol_table.argument_list]
         self._code += (
             "module {0}\n"
@@ -118,6 +216,8 @@ class FortranPSyIRVisitor(PSyIRVisitor):
             "  contains\n"
             "  subroutine {1}({2})\n"
             "".format(node.name+"_mod", node.name, ",".join(args)))
+
+        # Declare the kernel data.
         for symbol in node.symbol_table._symbols.values():
             intent = get_intent(symbol)
             dims = get_dims(symbol)
@@ -131,18 +231,29 @@ class FortranPSyIRVisitor(PSyIRVisitor):
                 self._code += ", intent({0})".format(intent)
             self._code += " :: {0}\n".format(symbol.name)
 
-    def kernelschedule_end(self, node):
-        ''' xxx '''
+        for child in node.children:
+            result = self.visit(child)
+            self._code += result
+
         self._code += (
-            "\n  end subroutine {0}\n"
+            "  end subroutine {0}\n"
             "end module {1}\n".format(node.name, node.name+"_mod"))
 
-    def codeblock_start(self, node):
-        ''' xxx '''
+        return self._code
+
+
+    def codeblock(self, node):
+        '''This method is called when a CodeBlock instance is found in the
+        PSyIR tree. This method is called before any children of this
+        node in the PSyIR tree are visited. However, note that code
+        blocks do not have children.
+
+        Adds the content of the CodeBlock to the output code.
+
+        :param node: a KernelSchedule PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.CodeBlock`
+
+        '''
         block_str = '    '
         block_str += '    '.join(str(node.ast).splitlines(True))
-        self._code += str(block_str)
-
-    def codeblock_end(self, node):
-        ''' xxx '''
-        pass
+        return block_str
