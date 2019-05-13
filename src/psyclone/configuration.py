@@ -656,7 +656,7 @@ class APISpecificConfig(object):
         :param str input_str: The input string.
         :returns: A dictionary with the key,value pairs from the input string.
         :rtype: dict.
-        :Raises ConfigurationError if the input string contains an entry \
+        :raises ConfigurationError if the input string contains an entry \
                 that does not have a ":".
         '''
         # Remove spaces and convert unicode to normal strings.
