@@ -5403,7 +5403,9 @@ class Fparser2ASTProcessor(object):
 
         try:
             arg_strings = [x.string for x in arg_list]
-            parent.symbol_table.specify_argument_list(arg_strings)
+            # A Fortran argument has intent(inout) by default
+            parent.symbol_table.specify_argument_list(
+                arg_strings, FortranInterface(access=SymbolAccess.READWRITE))
         except KeyError:
             raise InternalError("The kernel argument "
                                 "list '{0}' does not match the variable "
@@ -5923,14 +5925,12 @@ class SymbolInterface(object):
         :raises TypeError: if the supplied value is not of the correct type.
         '''
         if not isinstance(value, SymbolAccess):
-            raise TypeError("SymbolInterface.access must be a SymbolAccess "
-                            "but got {0}".format(type(value)))
+            raise TypeError("SymbolInterface.access must be a 'SymbolAccess' "
+                            "but got '{0}'.".format(type(value)))
         self._access = value
 
     def __str__(self):
-        if self.is_argument:
-            return "Argument={0}".format(self.is_argument)
-        return ""
+        return "Argument={0}".format(self.is_argument)
 
 
 class FortranInterface(SymbolInterface):
@@ -6039,8 +6039,8 @@ class Symbol(object):
         self._interface = None
 
         if interface:
-            # If an interface is specified for this symbol then it must
-            # have 'global' scope (exist outside of this kernel)
+            # If an interface is specified for this symbol then the data with
+            # which it is associated must exist outside of this kernel.
             self.interface = interface
 
     @property
@@ -6227,14 +6227,25 @@ class SymbolTable(object):
 
         self._symbols[name] = Symbol(name, datatype, shape, interface)
 
-    def specify_argument_list(self, argument_name_list):
+    def specify_argument_list(self, argument_name_list, interface=None):
         '''
         Keep track of the order of the arguments and update the interface
         of the associated Symbols if we weren't previously able to determine
         their scope.
 
         :param list argument_name_list: Ordered list of the argument names.
+        :param interface: Interface describing how the supplied arguments \
+                          are accessed in the kernel or None.
+        :type interface: :py:class:`SymbolInterface` or NoneType.
+
+        :raises InternalError: if interface is supplied but is not a \
+                               SymbolInterface.
+
         '''
+        if interface and not isinstance(interface, SymbolInterface):
+            raise InternalError(
+                "Supplied interface must be a (sub-class of) 'SymbolInterface'"
+                " but got '{0}'.".format(type(interface)))
         self._argument_list = []
         for name in argument_name_list:
             symbol = self.lookup(name)
@@ -6242,14 +6253,13 @@ class SymbolTable(object):
             # as 'local', but if they appear in argument_name_list then they
             # must have an interface added to specify that they are arguments.
             if symbol.scope == 'local':
-                # TODO For discussion with the reviewer. The PSyIR should be
-                # language independent but obviously
-                # the line below assumes we're dealing with Fortran. Should
-                # we have some annotation somewhere that says which language
-                # we're coming from?
-                # A Fortran argument has intent(inout) by default
-                symbol.interface = FortranInterface(
-                    access=SymbolAccess.READWRITE)
+                if interface:
+                    symbol.interface = interface
+                else:
+                    # If no interface has been supplied then we know only that
+                    # this symbol is supplied as a routine argument.
+                    symbol.interface = SymbolInterface(
+                        access=SymbolAccess.UNKNOWN)
             self._argument_list.append(symbol)
 
     def lookup(self, name):

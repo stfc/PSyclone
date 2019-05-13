@@ -3235,7 +3235,7 @@ def test_symbol_interface_access():
     # Force the error by supplying a string instead of a SymbolAccess type.
     with pytest.raises(TypeError) as err:
         symbol.interface.access = "read"
-    assert "must be a SymbolAccess but got " in str(err)
+    assert "must be a 'SymbolAccess' but got " in str(err)
 
 
 def test_symbol_interface_str():
@@ -3244,10 +3244,10 @@ def test_symbol_interface_str():
     # A SymbolInterface represents a routine argument by default.
     interface = SymbolInterface()
     assert str(interface) == "Argument=True"
-    # If it's not an argument then we have nothing to say about it (since
+    # If it's not an argument then we have nothing else to say about it (since
     # other options are language specific and are implemented in sub-classes).
     interface = SymbolInterface(argument=False)
-    assert str(interface) == ""
+    assert str(interface) == "Argument=False"
 
 
 def test_symbol_gen_c_definition():
@@ -3355,16 +3355,30 @@ def test_symboltable_specify_argument_list():
     needed.'''
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", [])
+    sym_table.declare("var2", "real", [])
     sym_table.specify_argument_list(['var1'])
 
     assert len(sym_table.argument_list) == 1
     assert sym_table.argument_list[0].scope == 'global'
     assert sym_table.argument_list[0].interface.is_argument
-    assert sym_table.argument_list[0].access == SymbolAccess.READWRITE
+    assert sym_table.argument_list[0].access == SymbolAccess.UNKNOWN
 
     # Test that repeated calls still produce a valid argument list
     sym_table.specify_argument_list(['var1'])
     assert len(sym_table.argument_list) == 1
+
+    # Check that specifying the SymbolInterface allows us to specify how
+    # the argument is accessed
+    sym_table.specify_argument_list(
+        ['var2'], FortranInterface(access=SymbolAccess.READWRITE))
+    assert sym_table.argument_list[0].scope == 'global'
+    assert sym_table.argument_list[0].interface.is_argument
+    assert sym_table.argument_list[0].access == SymbolAccess.READWRITE
+
+    with pytest.raises(InternalError) as err:
+        sym_table.specify_argument_list(['var2'], "readwrite")
+    assert ("interface must be a (sub-class of) 'SymbolInterface' but got"
+            in str(err))
 
 
 def test_symboltable_contains():
@@ -3395,7 +3409,7 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var2") in sym_table.local_symbols
     assert sym_table.lookup("var3") in sym_table.local_symbols
 
-    sym_table.specify_argument_list(['var1'])
+    sym_table.specify_argument_list(['var1'], None)
 
     assert len(sym_table.local_symbols) == 2
     assert sym_table.lookup("var1") not in sym_table.local_symbols
