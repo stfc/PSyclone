@@ -97,8 +97,8 @@ def test_implicit_loop_trans():
 
 
 @pytest.mark.xfail(reason="Code being transformed already declares ji and jj "
-                   "and so we get duplicate declarations. Needs symbol "
-                   "table - #255.")
+                   "and so we get duplicate declarations. Need to query the "
+                   "SymbolTable - #381.")
 def test_implicit_loop_sched2():
     ''' Check that we get the correct schedule when we transform an implicit
     loop over the i-j slab within an explicit loop levels. '''
