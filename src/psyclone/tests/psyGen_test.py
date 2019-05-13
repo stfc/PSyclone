@@ -3165,11 +3165,11 @@ def test_symbol_initialisation():
             "".format(str(Symbol.valid_data_types)))in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', None, 'local')
+        Symbol('a', 'real', shape=dim)
     assert "Symbol shape attribute must be a list." in str(error.value)
 
     with pytest.raises(TypeError) as error:
-        Symbol('a', 'real', ['invalidshape'], 'local')
+        Symbol('a', 'real', ['invalidshape'])
     assert ("Symbol shape list elements can only be 'Symbol', "
             "'integer' or 'None'.") in str(error.value)
 
@@ -3190,17 +3190,17 @@ def test_symbol_can_be_printed():
     '''Test that a Symbol instance can always be printed. (i.e. is
     initialised fully.)'''
     symbol = Symbol("sname", "real")
-    assert "sname: <real, local, Scalar>" in str(symbol)
+    assert "sname: <real, Scalar, local>" in str(symbol)
 
     sym1 = Symbol("s1", "integer")
-    assert "s1: <integer, local, Scalar>" in str(sym1)
+    assert "s1: <integer, Scalar, local>" in str(sym1)
 
     sym2 = Symbol("s2", "real", [None, 2, sym1])
-    assert "s2: <real, local, Array['Unknown bound', 2, s1]>" in str(sym2)
+    assert "s2: <real, Array['Unknown bound', 2, s1], local>" in str(sym2)
 
     sym3 = Symbol("s3", "real",
                   interface=FortranInterface(module_use="my_mod"))
-    assert ("s3: <real, global, Scalar, FortranModule(my_mod)"
+    assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
             in str(sym3))
 
     sym2._shape.append('invalid')

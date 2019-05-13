@@ -5979,9 +5979,9 @@ class FortranInterface(SymbolInterface):
 class Symbol(object):
     '''
     Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in column-major order), the scope and, for
-    global-scoped symbols, the interface to those symbols (i.e. the mechanism
-    by which they are accessed).
+    the datatype, the shape (in column-major order) and, for symbols
+    representing data that exists outside of the local scope, the interface
+    to those symbols (i.e. the mechanism by which they are accessed).
 
     :param str name: Name of the symbol.
     :param str datatype: Data type of the symbol.
@@ -5995,23 +5995,22 @@ class Symbol(object):
     :param interface: Object describing the interface to this symbol (i.e. \
                       whether it is passed as a routine argument or accessed \
                       in some other way) or None if the symbol is local.
-    :type interface: :py:class:`psyclone.psyGen.SymbolInterface`
+    :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or NoneType.
 
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
-    '''
 
+    '''
     # Tuple with the valid datatypes.
     valid_data_types = ('real',  # Floating point
                         'integer',
                         'character',
                         'boolean',
-                        'deferred'  # Type of this symbol has not yet
-                                    # been determined
-    )
+                        'deferred')  # Type of this symbol has not yet
+                                     # been determined
 
-    def __init__(self, name, datatype, shape=[], interface=None):
+    def __init__(self, name, datatype, shape=None, interface=None):
 
         self._name = name
 
@@ -6021,7 +6020,9 @@ class Symbol(object):
                 "".format(str(Symbol.valid_data_types)))
         self._datatype = datatype
 
-        if not isinstance(shape, list):
+        if shape is None:
+            shape = []
+        elif not isinstance(shape, list):
             raise TypeError("Symbol shape attribute must be a list.")
 
         for dimension in shape:
@@ -6104,6 +6105,15 @@ class Symbol(object):
 
     @interface.setter
     def interface(self, value):
+        '''
+        Setter for the Interface associated with this Symbol.
+
+        :param value: an Interface object describing how the Symbol is \
+                      accessed by the code.
+        :type value: :py:class:`psyclone.psyGen.SymbolInterface`
+
+        :raises TypeError: if the supplied `value` is of the wrong type.
+        '''
         if not isinstance(value, SymbolInterface):
             raise TypeError("The interface to a Symbol must be a "
                             "SymbolInterface but got '{0}'".
@@ -6143,7 +6153,7 @@ class Symbol(object):
         return code
 
     def __str__(self):
-        ret = self.name + ": <" + self.datatype + ", " + self.scope + ", "
+        ret = self.name + ": <" + self.datatype + ", "
         if self.shape:
             ret += "Array["
             for dimension in self.shape:
@@ -6163,7 +6173,9 @@ class Symbol(object):
         else:
             ret += "Scalar"
         if self.interface:
-            ret += ", " + str(self.interface)
+            ret += ", global=" + str(self.interface)
+        else:
+            ret += ", local"
         return ret + ">"
 
 
