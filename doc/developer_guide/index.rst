@@ -42,6 +42,7 @@
    :maxdepth: 3
 
    developers
+   system_specific_setup
    zz_bibliography
 
 ..   tutorial

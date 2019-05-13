@@ -7,10 +7,17 @@ Working With PSyclone from GitHub
 #################################
 
 A PSyclone developer will, by definition, be working with the GitHub
-PSyclone repository rather than installing a released version from
-pypi (using e.g. ``pip install psyclone``).  This section describes
-the set-up necessary when using PSyclone in this way. It also
-describes some of the development practises of the PSyclone project.
+PSyclone repository_ rather than
+installing a released version from pypi (using e.g. ``pip install
+psyclone``).  This section describes the general set-up necessary when
+using PSyclone in this way. It also describes some of the development
+practises of the PSyclone project.
+
+.. _repository: https://github.com/stfc/PSyclone
+
+More detailed instructions for the Ubuntu and OpenSUSE Linux
+distributions may be found in the :ref:`system_specific_dev_setup`
+Section.
 
 .. _dev-installation:
 
@@ -35,9 +42,9 @@ repository then doing::
   > git submodule update --init --recursive
 
 will fetch the fparser submodule. Failure to do this will mean that
-for example ``<PSYCLONEHOME>/external/fparser`` directory will be empty. The
-``--recursive`` option is necessary because dl_esm_inf uses submodules
-as well.
+for example the ``<PSYCLONEHOME>/external/fparser`` directory will be
+empty. The ``--recursive`` option is necessary because dl_esm_inf uses
+submodules as well.
 
 Note that after cloning the repository from GitHub, the local copy
 will be on the master branch. If you are working with some other
