@@ -45,7 +45,7 @@ from psyclone.dynamo0p1 import DynDescriptor, DynKernelType
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
+    '''Make sure that all tests here use dynamo0.1 as API.'''
     Config.get().api = "dynamo0.1"
 
 
