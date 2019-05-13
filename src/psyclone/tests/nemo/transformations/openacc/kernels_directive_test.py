@@ -193,14 +193,10 @@ def test_kernels_within_if(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    # Attempt to enclose the children of the if-block without the parent 'if'
-    with pytest.raises(TransformationError) as err:
-        acc_trans.apply(schedule.children[0].children[:], default_present=True)
-    assert ("would split else/else-if clauses from their parent "
-            "if-statement." in str(err))
-    schedule, _ = acc_trans.apply(schedule.children[0].children[0:1],
+
+    schedule, _ = acc_trans.apply(schedule.children[0].if_body,
                                   default_present=True)
-    schedule, _ = acc_trans.apply(schedule.children[0].children[1].children[:],
+    schedule, _ = acc_trans.apply(schedule.children[0].else_body,
                                   default_present=True)
     new_code = str(psy.gen)
     assert ("  IF (do_this) THEN\n"

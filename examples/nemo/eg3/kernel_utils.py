@@ -53,13 +53,12 @@ def valid_kernel(node):
     :rtype: bool
 
     '''
-    from psyclone.nemo import NemoIfBlock, NemoIfClause
-    from psyclone.psyGen import CodeBlock
+    from psyclone.psyGen import CodeBlock, IfBlock
     from fparser.two.utils import walk_ast
     from fparser.two import Fortran2003
     # PGI (18.10) often produces code that fails at run time if a Kernels
     # region includes If constructs.
-    excluded_node_types = (CodeBlock, NemoIfBlock, NemoIfClause)
+    excluded_node_types = (CodeBlock, IfBlock)
     if node.walk([node], excluded_node_types):
         return False
     # Check that there are no derived-type references in the sub-tree (because
