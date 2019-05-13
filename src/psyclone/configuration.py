@@ -610,7 +610,7 @@ class Config(object):
 class APISpecificConfig(object):
     '''A base class for functions that each API-specific class must provide.
     At the moment this is just the function 'access_mapping' that maps between
-    API-specific access-descriptor strings and the PSyclone internal 
+    API-specific access-descriptor strings and the PSyclone internal
     AccessType.
     :param section: :py:class:`configparser.SectionProxy`
     :raises ConfigurationError: if an access-mapping is provided that \
@@ -656,7 +656,7 @@ class APISpecificConfig(object):
         :param str input_str: The input string.
         :returns: A dictionary with the key,value pairs from the input string.
         :rtype: dict.
-        :raises ConfigurationError if the input string contains an entry \
+        :raises ConfigurationError: if the input string contains an entry \
                 that does not have a ":".
         '''
         # Remove spaces and convert unicode to normal strings.
