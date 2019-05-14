@@ -5791,11 +5791,6 @@ class DynLoop(Loop):
                 "Unsupported upper bound name '{0}' found in dynloop.upper_"
                 "bound_fortran()".format(self._upper_bound_name))
 
-    def has_inc_arg(self, mapping=None):
-        ''' Returns True if any of the Kernels called within this loop
-        have an argument with INC access. Returns False otherwise. '''
-        return Loop.has_inc_arg(self)
-
     def unique_fields_with_halo_reads(self):
         ''' Returns all fields in this loop that require at least some
         of their halo to be clean to work correctly. '''
