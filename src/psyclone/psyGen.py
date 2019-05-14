@@ -5849,12 +5849,12 @@ class SymbolInterface(object):
         else:
             self.access = access
 
-    @property
+    @abc.abstractmethod
     def is_argument(self):
         '''
-        :raises NotImplementedError: Abstract method.
+        Getter for whether or not this Interface represents data that is
+        passed by argument. Must be implemented by sub-class.
         '''
-        raise NotImplementedError("Must be implemented in sub-class.")
 
     @property
     def access(self):
