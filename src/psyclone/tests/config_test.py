@@ -42,7 +42,10 @@ import os
 import re
 import six
 import pytest
-from psyclone.configuration import ConfigurationError, Config
+from psyclone.configuration import APISpecificConfig, ConfigurationError, \
+    Config
+from psyclone.core.access_type import AccessType
+
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -63,29 +66,30 @@ COMPUTE_ANNEXED_DOFS = false
 '''
 
 
-def setup_module():
+@pytest.fixture(scope="function", autouse=True)
+def clear_config_instance():
     ''' The tests in this module all assume that there is no pre-existing
-    Config object. This setup routine ensures that this is the case when
-    this module is first entered and the teardown function below guarantees
-    it for subsequent tests.  (Necessary when running tests in parallel.)
+    Config object, so this fixture ensures that the config instance is
+    deleted before and after each test function. The latter makes sure that
+    any other test executed next will automatically reload the default
+    config file.
     '''
+
+    # Enforce loading of the default config file
+    # pylint: disable=protected-access
     Config._instance = None
 
+    # Now execute all tests
+    yield
 
-def teardown_function():
-    '''This teardown function is called at the end of each test and makes
-    sure that we wipe the Config object so we get a fresh/default one
-    for any further test (and not a left-over one from a test here).
-    '''
     # Enforce loading of the default config file
+    # pylint: disable=protected-access
     Config._instance = None
 
 
 # Disable this pylint warning because otherwise it gets upset about the
 # use of these fixtures in the test code.
 # pylint:disable=redefined-outer-name
-
-
 @pytest.fixture(scope="module",
                 params=["DISTRIBUTED_MEMORY",
                         "REPRODUCIBLE_REDUCTIONS",
@@ -115,6 +119,14 @@ def int_entry(request):
     :rtype: str
     '''
     return request.param
+
+
+def test_get_repo_config_file():
+    '''Check the mechanism by which we ensure that the repository config
+    file is picked up by the test suite.
+    '''
+    config_file = Config.get_repository_config_file()
+    assert "config/psyclone.cfg" in config_file
 
 
 def test_singleton_create():
@@ -152,7 +164,9 @@ def test_missing_file(tmpdir):
 
 def test_search_path(monkeypatch, tmpdir):
     ''' Check that the search path for a configuration file is as
-    expected '''
+    expected. It is important to use monkeypatch for manipulating
+    PSYCLONE_CONFIG, since all other tests rely on this variable
+    (see conftest.setup_psyclone_config).'''
     import sys
     # Ensure that PSYCLONE_CONFIG is not set
     monkeypatch.delitem(os.environ, "PSYCLONE_CONFIG", raising=False)
@@ -200,7 +214,9 @@ def test_search_path(monkeypatch, tmpdir):
 
 def test_search_env(monkeypatch, tmpdir):
     ''' Check that we pick up the configuration file specified in an
-    environment variable '''
+    environment variable. It is important to use monkeypatch for manipulating
+    PSYCLONE_CONFIG, since all other tests rely on this variable
+    (see conftest.setup_psyclone_config).'''
     try:
         oldpwd = tmpdir.chdir()
         cwd = str(tmpdir)
@@ -229,7 +245,7 @@ def test_search_env(monkeypatch, tmpdir):
 
 def test_read_values():
     '''
-    Check that we get the expected values from the test config file
+    Check that we get the expected values from the test config file.
     '''
     _config = Config.get()
     _config.load(config_file=TEST_CONFIG)
@@ -273,7 +289,6 @@ def test_dm():
     config.distributed_memory = False
     assert not config.distributed_memory
     with pytest.raises(ConfigurationError) as err:
-        # pylint: disable=redefined-variable-type
         config.distributed_memory = "not-a-bool"
     assert "distributed_memory must be a boolean but got " in str(err)
 
@@ -430,12 +445,18 @@ def test_wrong_api():
     assert "'invalid' is not a valid API" in str(err)
 
 
-def test_api_unimplemented(tmpdir):
+def test_api_unimplemented(tmpdir, monkeypatch):
     ''' Check that we raise the correct error if we supply a config file
         containing a section for an API for which we've not implemented
         API-specific configuration. '''
+    # Since all APIs need a API-specific section, for this error we
+    # need to temporarily add a new supported API, that will not
+    # be in the config file:
+
+    monkeypatch.setattr(Config, "_supported_api_list",
+                        Config._supported_api_list + ["UNIMPLEMENTED"])
     content = re.sub(r"^\[dynamo0.3\]$",
-                     "[gocean0.1]",
+                     "[UNIMPLEMENTED]",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file = tmpdir.join("config")
@@ -445,8 +466,8 @@ def test_api_unimplemented(tmpdir):
         config = Config()
         with pytest.raises(NotImplementedError) as err:
             config.load(str(config_file))
-        assert ("file contains a gocean0.1 section but no Config sub-class "
-                "has been implemented for this API" in str(err))
+        assert ("file contains a UNIMPLEMENTED section but no Config "
+                "sub-class has been implemented for this API" in str(err))
 
 
 def test_default_api(tmpdir):
@@ -491,6 +512,61 @@ def test_incl_path_errors(tmpdir):
     # Create a path that does not exist
     missing_path = tmpdir.join("does_not_exist")
     with pytest.raises(ConfigurationError) as cerr:
-        # pylint: disable=redefined-variable-type
         config.include_paths = [missing_path.strpath]
     assert "does_not_exist' does not exist" in str(cerr)
+
+
+def test_mappings():
+    '''Test the definition of a mapping in the config file.'''
+    mapping = APISpecificConfig.create_dict_from_string("k1:v1, k2:v2")
+    assert mapping == {"k1": "v1", "k2": "v2"}
+
+    mapping = APISpecificConfig.create_dict_from_string("")
+    assert mapping == {}
+
+    # The function only uses the first ":" :
+    mapping = \
+        APISpecificConfig.create_dict_from_string("k1:v1, k2:v2:something")
+    assert mapping == {"k1": "v1", "k2": "v2:something"}
+
+    # Tests errors: check that '=' instead of ":" is detected as invalid:
+    with pytest.raises(ConfigurationError) as err:
+        mapping = APISpecificConfig.create_dict_from_string("k1:v1, k2=v2")
+    assert "Invalid format for mapping: k2=v2" in str(err)
+
+
+def test_invalid_access_mapping(tmpdir):
+    '''Test that providing an invalid an invalid access type (i.e. not
+    'read', 'write', ...) raises an exception.
+    '''
+    # Test for an invalid key
+    content = _CONFIG_CONTENT + "access_mapping = gh_read:invalid"
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(content)
+        new_cfg.close()
+        config = Config()
+        with pytest.raises(ConfigurationError) as cerr:
+            config.load(str(config_file))
+        assert "Unknown access type 'invalid' found for key 'gh_read'" \
+            in str(cerr)
+
+    # Test that all values of the mapping are access types:
+    api_config = Config.get().api_conf("dynamo0.3")
+    for access_mode in api_config.get_access_mapping().values():
+        assert isinstance(access_mode, AccessType)
+
+
+def test_default_access_mapping(tmpdir):
+    '''Test that the default access mapping is correctly converted
+    to AccessTypes.'''
+    config_file = tmpdir.join("config")
+    with config_file.open(mode="w") as new_cfg:
+        new_cfg.write(_CONFIG_CONTENT)
+        new_cfg.close()
+        config = Config()
+        config.load(str(config_file))
+
+        api_config = config.api_conf("dynamo0.3")
+        for access_mode in api_config.get_access_mapping().values():
+            assert isinstance(access_mode, AccessType)

@@ -80,6 +80,13 @@ new code must be covered (i.e. executed) by one or more tests. As
 described in :ref:`user_guide:getting-going`, the test suite is
 written for use with ``pytest``.
 
+Tests should be run from the ``<PSYCLONEHOME>/src/psyclone`` directory,
+from which all tests in subdirectories (e.g. ``tests``, ``core/tests``)
+will be automatically found and started. If only a subset of all tests
+need to be run, ``pytest`` can be invoked from the corresponding
+subdirectory or with that subdirectory as an argument.
+
+
 Coverage
 --------
 
@@ -161,13 +168,6 @@ significantly increases the time taken to run the test suite.
 .. note:: Compilaton testing is currently only supported for the
           "dynamo0.3" and "gocean1.0" APIs.
 
-
-Since configuration of these tests uses a pytest fixture, the tests must be
-run from the ``tests`` directory when requesting that compilation
-checks be performed::
-
-  > cd <PSYCLONEHOME>/src/psyclone/tests
-  > py.test --compile
 
 The Gnu Fortran compiler (gfortran) is used by default. If you wish to
 use a different compiler and/or supply specific flags then these are
@@ -1654,6 +1654,8 @@ equivalent) in the future:
 .. autofunction:: psyclone.algGen.adduse
 
 
+.. _dev_configuration:
+
 Module: configuration
 ======================
 
@@ -1669,14 +1671,17 @@ using  ``Config.get()``. Only one such instance will ever exist:
 
 The ``Config`` class is responsible for finding the configuration file
 (if no filename is passed to the constructor), parsing it and then storing
-the various configuration options. It also stores the list of supported
+the various configuration options.
+If PSyclone is started via ``pytest``, the environment variable
+``PSYCLONE_CONFIG`` is set to ``<PSYCLONEHOME/config>``. This will
+guarantee that all tests use the config file provided in the PSyclone
+repository, and not a (potentially modified) user installed version.
+
+The ``Config`` class also stores the list of supported
 APIs (``Config._supported_api_list``) and the default API to use if none
 is specified in either a config file or the command line
-(``Config._default_api``.)
-
-
-It also performs some basic consistency
-checks on the values it obtains from the configuration file.
+(``Config._default_api``). Additionally, it performs some basic
+consistency checks on the values it obtains from the configuration file.
 
 Since the PSyclone API to use can be read from the configuration
 file, it is not possible to have API-specifc sub-classes of ``Config``

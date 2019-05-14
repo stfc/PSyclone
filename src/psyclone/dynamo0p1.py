@@ -39,6 +39,7 @@
     Arguments and Argument). '''
 
 from __future__ import absolute_import
+from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
         Arguments, Argument, GenerationError
 from psyclone.parse.kernel import KernelType, Descriptor
@@ -117,7 +118,7 @@ class DynKernelType(KernelType):
     :type name: str or NoneType.
 
     '''
-    
+
     def __init__(self, ast, name=None):
         KernelType.__init__(self, ast, name=name)
         self._arg_descriptors = []
@@ -135,7 +136,6 @@ class DynKernelType(KernelType):
             x3 = init.args[5].name
             self._arg_descriptors.append(DynDescriptor(access, funcspace,
                                                        stencil, x1, x2, x3))
-
 
 
 class DynamoPSy(PSy):
@@ -394,15 +394,6 @@ class DynKernelArguments(Arguments):
                                                 parent_call))
         self._dofs = []
 
-    def iteration_space_arg(self, mapping={}):
-        if mapping != {}:
-            my_mapping = mapping
-        else:
-            my_mapping = {"write": "gh_write", "read": "gh_read",
-                          "readwrite": "gh_rw", "inc": "gh_inc"}
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
-
     @property
     def dofs(self):
         ''' Currently required for invoke base class although this makes no
@@ -416,7 +407,9 @@ class DynKernelArgument(Argument):
         as specified by the kernel argument metadata. '''
     def __init__(self, arg, arg_info, call):
         self._arg = arg
-        Argument.__init__(self, call, arg_info, arg.access)
+        api_config = Config.get().api_conf("dynamo0.1")
+        access_mapping = api_config.get_access_mapping()
+        Argument.__init__(self, call, arg_info, access_mapping[arg.access])
 
     @property
     def function_space(self):

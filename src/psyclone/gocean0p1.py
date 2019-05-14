@@ -39,6 +39,7 @@
     Kern, Arguments and KernelArgument). '''
 
 from __future__ import absolute_import
+from psyclone.configuration import Config
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, \
     Arguments, KernelArgument
 from psyclone.parse.kernel import KernelType, Descriptor
@@ -51,8 +52,20 @@ class GODescriptor(Descriptor):
     metadata. Currently this class is just a wrapper around the base
     class.
 
+    :param str access: whether argument is read/write etc.
+    :param str space: which function space/grid-point type argument is \
+    on
+    :param dict stencil: type of stencil access for this \
+    argument. Defaults to None if the argument is not supplied.
+    :param str mesh: which mesh this argument is on. Defaults to \
+    None if the argument is not supplied.
+
     '''
-    pass
+    def __init__(self, access, space, stencil=None, mesh=None):
+        api_config = Config.get().api_conf("gocean0.1")
+        access_mapping = api_config.get_access_mapping()
+        access_type = access_mapping[access]
+        super(GODescriptor, self).__init__(access_type, space, stencil, mesh)
 
 
 class GOKernelType(KernelType):
@@ -357,15 +370,6 @@ class GOKernelArguments(Arguments):
             sense for GOcean. Need to refactor the Invoke base class and
             remove the need for this property (#279). '''
         return self._dofs
-
-    def iteration_space_arg(self, mapping=None):
-        if mapping:
-            my_mapping = mapping
-        else:
-            my_mapping = {"write": "write", "read": "read",
-                          "readwrite": "readwrite", "inc": "inc"}
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
 
 
 class GOKernelArgument(KernelArgument):
