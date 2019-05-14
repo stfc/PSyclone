@@ -42,6 +42,7 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
+from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, KernStubArgList
 from psyclone.psyGen import InternalError, GenerationError
 from psyclone.parse.utils import ParseError
@@ -51,6 +52,12 @@ from psyclone.gen_kernel_stub import generate
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
 
 
 def setup_function():
@@ -98,12 +105,12 @@ def test_dynscalars_err(monkeypatch):
     arg = kernel.arguments.args[1]
     arg._type = "invalid-scalar-type"
     # Monkeypatch the list of supported scalar types to include this one
-    monkeypatch.setattr(dynamo0p3, "VALID_SCALAR_NAMES",
+    monkeypatch.setattr(dynamo0p3, "GH_VALID_SCALAR_NAMES",
                         ["gh_real", "gh_integer", "invalid-scalar-type"])
     with pytest.raises(InternalError) as err:
         _ = DynScalarArgs(kernel)
-    assert ("Scalar type 'invalid-scalar-type' is in VALID_SCALAR_NAMES but "
-            "not handled" in str(err))
+    assert ("Scalar type 'invalid-scalar-type' is in GH_VALID_SCALAR_NAMES "
+            "but not handled" in str(err))
 
 
 def test_kernel_stub_ind_dofmap_errors():
