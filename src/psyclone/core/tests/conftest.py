@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,45 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author A. R. Porter, STFC Daresbury Lab
 
-# This is the PSyclone configuration file.
 
-# Settings common to all APIs
-[DEFAULT]
-DEFAULTAPI = dynamo0.3
-DEFAULTSTUBAPI = dynamo0.3
-DISTRIBUTED_MEMORY = true
-REPRODUCIBLE_REDUCTIONS = false
-# Ammount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is true
-REPROD_PAD_SIZE = 8
+''' Module which performs pytest set-up so that we can specify
+    command-line options '''
 
-# Settings specific to the Dynamo 0.1 API
-# =======================================
-[dynamo0.1]
-access_mapping = gh_read:read, gh_write: write, gh_rw: readwrite,
-                 gh_inc: inc, gh_sum: sum
+from __future__ import absolute_import
+import pytest
 
-# Settings specific to the Dynamo 0.3 API
-# =======================================
-[dynamo0.3]
-# Specify whether we compute annexed dofs when a kernel is written so
-# that it iterates over dofs. This is currently only the case for
-# builtins. If annexed dofs are computed then in certain cases we
-# remove the need for a halo exchange call.
-COMPUTE_ANNEXED_DOFS = false
 
-access_mapping = gh_read:read, gh_write: write, gh_readwrite: readwrite,
-                 gh_inc: inc, gh_sum: sum
+@pytest.fixture(scope="session", autouse=True)
+def setup_psyclone_config():
+    '''This per session fixture defines the environment variable
+    PSYCLONE_CONFIG to point to the config file included in the
+    PSyclone repo. This way all tests will get the same config,
+    independent of a potential psyclone config file installed by
+    the user.
+    '''
+    from psyclone.configuration import Config
+    import os
+    config_file = Config.get_repository_config_file()
 
-# Settings specific to the Gocean 0.1 API
-# =======================================
-[gocean0.1]
-access_mapping = read: read, write: write, readwrite: readwrite,
-                 inc: inc, sum: sum
-
-# Settings specific to the Gocean 1.0 API
-# =======================================
-[gocean1.0]
-access_mapping = go_read: read, go_write: write, go_readwrite: readwrite
-
+    # In case that PSyclone is installed and tested (e.g. travis),
+    # the 'repository' config file does not exist (since it is
+    # installed in a different directory). In that case the standard
+    # search path of the Configuration object will find the right
+    # config file. So only overwrite the default search path behaviour
+    # if the repository config file is actually found:
+    if os.path.isfile(config_file):
+        os.environ["PSYCLONE_CONFIG"] = config_file

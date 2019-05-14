@@ -42,6 +42,8 @@ from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
+from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError
@@ -80,6 +82,12 @@ contains
   end subroutine testkern_qr_code
 end module testkern_qr
 '''
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
 
 
 def test_get_op_wrong_name():
@@ -707,7 +715,7 @@ def test_operator_bc_kernel_wrong_access_err(dist_mem):
     loop = schedule.children[0]
     call = loop.children[0]
     arg = call.arguments.args[0]
-    arg._access = "gh_read"
+    arg._access = AccessType.READ
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("applies boundary conditions to an operator. However its "

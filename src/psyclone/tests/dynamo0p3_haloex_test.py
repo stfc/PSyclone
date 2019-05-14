@@ -38,6 +38,7 @@ implementation for gh_inc dependencies using pytest. '''
 
 from __future__ import absolute_import
 import os
+import pytest
 from dynamo0p3_build import Dynamo0p3Build
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -49,6 +50,12 @@ from psyclone.configuration import Config
 API = "dynamo0.3"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
 
 
 def test_gh_inc_nohex_1(tmpdir, monkeypatch):

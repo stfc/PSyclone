@@ -46,6 +46,12 @@ from psyclone.gocean1p0 import GOLoop
 from psyclone.psyGen import InternalError
 
 
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
+
+
 def teardown_function():
     '''This teardown function is called at the end of all tests and makes
     sure that we wipe the Config object so we get a fresh/default one

@@ -80,6 +80,28 @@ def have_graphviz():
 
 
 @pytest.fixture(scope="session", autouse=True)
+def setup_psyclone_config():
+    '''This per session fixture defines the environment variable
+    PSYCLONE_CONFIG to point to the config file included in the
+    PSyclone repo. This way all tests will get the same config,
+    independent of a potential psyclone config file installed by
+    the user.
+    '''
+    from psyclone.configuration import Config
+    import os
+    config_file = Config.get_repository_config_file()
+
+    # In case that PSyclone is installed and tested (e.g. travis),
+    # the 'repository' config file does not exist (since it is
+    # installed in a different directory). In that case the standard
+    # search path of the Configuration object will find the right
+    # config file. So only overwrite the default search path behaviour
+    # if the repository config file is actually found:
+    if os.path.isfile(config_file):
+        os.environ["PSYCLONE_CONFIG"] = config_file
+
+
+@pytest.fixture(scope="session", autouse=True)
 def infra_compile(tmpdir_factory, request):
     '''A per-session initialisation function that sets the compilation flags
     in the Compile class based on command line options for --compile,

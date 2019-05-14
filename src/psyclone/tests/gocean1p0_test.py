@@ -40,16 +40,23 @@ GOcean 1.0 API.'''
 
 from __future__ import absolute_import, print_function
 import os
+import re
 import pytest
-from gocean1p0_build import GOcean1p0Build
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, InternalError
 from psyclone.generator import GenerationError, ParseError
 from psyclone.gocean1p0 import GOKern, GOLoop, GOInvokeSchedule
 from psyclone_test_utils import get_invoke
-
+from gocean1p0_build import GOcean1p0Build
 
 API = "gocean1.0"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
 
 
 def test_field(tmpdir):
@@ -1020,7 +1027,7 @@ def test_writetoread_dag(tmpdir, have_graphviz):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     invoke.schedule.dag()
     if have_graphviz:
         dot_file = os.path.join(str(tmpdir), "dag")
@@ -1039,6 +1046,7 @@ def test_writetoread_dag(tmpdir, have_graphviz):
                 in dot or
                 '"loop_[outer]_1_end" -> "loop_[outer]_4_start" '
                 '[color=#00ff00]' in dot)
+    old_cwd.chdir()
 
 
 def test_dag(tmpdir, have_graphviz):
@@ -1051,7 +1059,7 @@ def test_dag(tmpdir, have_graphviz):
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     invoke.schedule.dag()
     if have_graphviz:
         assert os.path.isfile(os.path.join(str(tmpdir), "dag.svg"))
@@ -1063,6 +1071,7 @@ def test_dag(tmpdir, have_graphviz):
         # have no forwards/backwards dependencies
         for col in ["red", "#ff0000", "green", "#00ff00"]:
             assert '[color={0}]'.format(col) not in dot
+    old_cwd.chdir()
 
 
 def test_find_grid_access(monkeypatch):
@@ -1116,6 +1125,24 @@ def test_raw_arg_list_error(monkeypatch):
             "'broken'" in str(err))
 
 
+def test_invalid_access_type():
+    ''' Test that we raise an internal error if we try to assign
+    an invalid access type (string instead of AccessType) in
+    a psygen.Argument.'''
+    _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
+                           API, idx=0)
+    schedule = invoke.schedule
+    kern = schedule.children[0].children[0].children[0]
+    # Test that assigning a non-AccessType value to a kernel argument
+    # raises an exception.
+    with pytest.raises(InternalError) as err:
+        kern.arguments.args[0].access = "invalid-type"
+    # Note that the error message looks slightly different between
+    # python 2 (type str) and 3 (class str):
+    assert re.search("Invalid access type 'invalid-type' of type.*str",
+                     str(err))
+
+
 # -----------------------------------
 # Parser Tests for the GOcean 1.0 API
 # -----------------------------------
@@ -1142,8 +1169,7 @@ def test00p1_invoke_kernel_using_const_scalar():  # pylint:disable=invalid-name
     # Old versions of PSyclone tried to declare '0' as a variable:
     # REAL(KIND=wp), intent(inout) :: 0
     # INTEGER, intent(inout) :: 0
-    # Make sure this is not happening anymor
-    import re
+    # Make sure this is not happening anymore
     assert re.search(r"\s*real.*:: *0", out, re.I) is None
     assert re.search(r"\s*integer.*:: *0", out, re.I) is None
     assert re.search(r"\s*real.*:: *real_val", out, re.I) is not None
@@ -1280,11 +1306,13 @@ def test06_kernel_invalid_access():
     ''' Check that we raise an error if a kernel's meta-data specifies
     an unrecognised access type for a kernel argument (i.e. something
     other than READ,WRITE,READWRITE) '''
-    with pytest.raises(ParseError):
+    with pytest.raises(ParseError) as err:
         parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "test_files", "gocean1p0",
                            "test06_invoke_kernel_wrong_access.f90"),
               api="gocean1.0")
+    assert "compute_cu: argument access  is given as 'wrong' but must be one "\
+           "of ['go_read', 'go_readwrite', 'go_write']" in str(err.value)
 
 
 def test07_kernel_wrong_gridpt_type():

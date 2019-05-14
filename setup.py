@@ -99,7 +99,7 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         install_requires=['pyparsing', 'fparser==0.0.8', 'configparser',
-                          'six'],
+                          'six', 'enum34 ; python_version < "3.0"'],
         extras_require={
             'doc': ["sphinx", "sphinxcontrib.bibtex"],
             'test': ["pytest"],

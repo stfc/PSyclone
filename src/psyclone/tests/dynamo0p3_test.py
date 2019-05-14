@@ -43,12 +43,13 @@ import sys
 import pytest
 import fparser
 from fparser import api as fpapi
+from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, \
     DynLoop, DynGlobalSum, HaloReadAccess, FunctionSpace, \
-    VALID_STENCIL_TYPES, VALID_SCALAR_NAMES, \
+    VALID_STENCIL_TYPES, GH_VALID_SCALAR_NAMES, \
     DISCONTINUOUS_FUNCTION_SPACES, CONTINUOUS_FUNCTION_SPACES, \
     VALID_ANY_SPACE_NAMES, KernCallArgList
 
@@ -67,6 +68,12 @@ ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
 DEFAULT_CFG_FILE = os.path.join(ROOT_PATH, "config", "psyclone.cfg")
 
 TEST_API = "dynamo0.3"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
 
 
 # tests
@@ -143,7 +150,7 @@ def test_ad_scalar_type_too_few_args():
     metadata for a real or an integer scalar has fewer than 2 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in VALID_SCALAR_NAMES:
+    for argname in GH_VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ")", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -158,7 +165,7 @@ def test_ad_scalar_type_too_many_args():
     metadata for a real or an integer scalar has more than 2 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in VALID_SCALAR_NAMES:
+    for argname in GH_VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_read, w1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -173,7 +180,7 @@ def test_ad_scalar_type_no_write():
     metadata for a real or an integer scalar specifies GH_WRITE '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in VALID_SCALAR_NAMES:
+    for argname in GH_VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_write)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -188,7 +195,7 @@ def test_ad_scalar_type_no_inc():
     metadata for a real or an integer scalar specifies GH_INC '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in VALID_SCALAR_NAMES:
+    for argname in GH_VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + ", gh_inc)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -1231,7 +1238,7 @@ def test_no_vector_scalar():
     specifies a vector real or integer scalar '''
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_qr_type"
-    for argname in VALID_SCALAR_NAMES:
+    for argname in GH_VALID_SCALAR_NAMES:
         code = CODE.replace("arg_type(" + argname + ", gh_read)",
                             "arg_type(" + argname + "*3, gh_read)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
@@ -1807,11 +1814,26 @@ def test_invoke_uniq_declns_invalid_access():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_declarations("gh_field",
                                                        access="invalid_acc")
     assert 'unique_declarations called with an invalid access type' \
         in str(excinfo.value)
+
+
+def test_invoke_uniq_declns_valid_access():
+    ''' Tests that valid access modes (AccessType.READ, AccessType.WRITE)
+    are accepted by Invoke.unique_declarations().'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1.7_single_invoke_2scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    fields_read = psy.invokes.invoke_list[0]\
+        .unique_declarations("gh_field", access=AccessType.READ)
+    assert fields_read == ["f2", "m1", "m2"]
+    fields_written = psy.invokes.invoke_list[0]\
+        .unique_declarations("gh_field", access=AccessType.WRITE)
+    assert fields_written == ["f1"]
 
 
 def test_invoke_uniq_proxy_declns():
@@ -1834,7 +1856,7 @@ def test_uniq_proxy_declns_invalid_access():
                                         "1.7_single_invoke_2scalar.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    with pytest.raises(GenerationError) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         psy.invokes.invoke_list[0].unique_proxy_declarations(
             "gh_field",
             access="invalid_acc")
@@ -2913,18 +2935,6 @@ def test_arg_descriptor_str_error():
         in str(excinfo.value)
 
 
-def test_arg_descriptor_repr():
-    ''' Tests that the repr method for DynArgDescriptor03 works as
-    expected '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    ast = fpapi.parse(CODE, ignore_comments=False)
-    metadata = DynKernMetadata(ast, name="testkern_qr_type")
-    field_descriptor = metadata.arg_descriptors[0]
-    result = repr(field_descriptor)
-    assert 'DynArgDescriptor03(arg_type(gh_real, gh_read))' \
-        in result
-
-
 def test_arg_desc_func_space_tofrom_err():
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when function_space_to or function_space_from is called and the
@@ -3004,7 +3014,7 @@ def test_fsdescriptors_get_descriptor():
     assert "there is no descriptor for function space w0" in str(excinfo.value)
 
 
-def test_arg_descriptor_init_error():
+def test_arg_descriptor_init_error(monkeypatch):
     ''' Tests that an internal error is raised in DynArgDescriptor03
     when an invalid type is provided. However this error never gets
     tripped due to an earlier test so we need to force the error by
@@ -3018,18 +3028,14 @@ def test_arg_descriptor_init_error():
     arg_type = field_descriptor._arg_type
     # Now try to trip the error by making the initial test think
     # that GH_INVALID is actually valid
-    from psyclone.dynamo0p3 import VALID_ARG_TYPE_NAMES, DynArgDescriptor03
-    keep = []
-    keep.extend(VALID_ARG_TYPE_NAMES)
-    VALID_ARG_TYPE_NAMES.append("GH_INVALID")
+    from psyclone.dynamo0p3 import GH_VALID_ARG_TYPE_NAMES, DynArgDescriptor03
+    monkeypatch.setattr("psyclone.dynamo0p3.GH_VALID_ARG_TYPE_NAMES",
+                        GH_VALID_ARG_TYPE_NAMES + ["GH_INVALID"])
     arg_type.args[0].name = "GH_INVALID"
     with pytest.raises(ParseError) as excinfo:
         _ = DynArgDescriptor03(arg_type)
     assert 'Internal error in DynArgDescriptor03.__init__' \
         in str(excinfo.value)
-    # pylint: disable=invalid-name
-    VALID_ARG_TYPE_NAMES = keep
-    # pylint: enable=invalid-name
 
 
 def test_func_descriptor_repr():
@@ -5235,7 +5241,8 @@ def test_multiple_updated_field_args():
     metadata = DynKernMetadata(ast, name=name)
     count = 0
     for descriptor in metadata.arg_descriptors:
-        if descriptor.type == "gh_field" and descriptor.access != "gh_read":
+        if descriptor.type == "gh_field" and \
+                descriptor.access != AccessType.READ:
             count += 1
     assert count == 2
 
@@ -5253,7 +5260,7 @@ def test_multiple_updated_op_args():
     for descriptor in metadata.arg_descriptors:
         if ((descriptor.type == "gh_field" or
              descriptor.type == "gh_operator") and
-                descriptor.access != "gh_read"):
+                descriptor.access != AccessType.READ):
             count += 1
     assert count == 2
 
