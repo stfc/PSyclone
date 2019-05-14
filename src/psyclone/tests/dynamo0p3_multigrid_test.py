@@ -78,6 +78,12 @@ end module restrict_mod
 '''
 
 
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
+
+
 def test_invalid_mesh_type():
     ''' Check that we raise an error if an unrecognised name is supplied
     for the mesh associated with a field argument '''

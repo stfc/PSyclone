@@ -1,7 +1,8 @@
+
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2019, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,45 +32,49 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: Joerg Henrichs, Bureau of Meteorology
 
-# This is the PSyclone configuration file.
+'''This module tests AccessType.'''
 
-# Settings common to all APIs
-[DEFAULT]
-DEFAULTAPI = dynamo0.3
-DEFAULTSTUBAPI = dynamo0.3
-DISTRIBUTED_MEMORY = true
-REPRODUCIBLE_REDUCTIONS = false
-# Ammount to pad the local summation array when REPRODUCIBLE_REDUCTIONS is true
-REPROD_PAD_SIZE = 8
+from __future__ import absolute_import
+import pytest
+from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 
-# Settings specific to the Dynamo 0.1 API
-# =======================================
-[dynamo0.1]
-access_mapping = gh_read:read, gh_write: write, gh_rw: readwrite,
-                 gh_inc: inc, gh_sum: sum
 
-# Settings specific to the Dynamo 0.3 API
-# =======================================
-[dynamo0.3]
-# Specify whether we compute annexed dofs when a kernel is written so
-# that it iterates over dofs. This is currently only the case for
-# builtins. If annexed dofs are computed then in certain cases we
-# remove the need for a halo exchange call.
-COMPUTE_ANNEXED_DOFS = false
+def test_str():
+    '''Tests conversion to a string.'''
 
-access_mapping = gh_read:read, gh_write: write, gh_readwrite: readwrite,
-                 gh_inc: inc, gh_sum: sum
+    assert str(AccessType.INC) == "INC"
+    assert str(AccessType.WRITE) == "WRITE"
+    assert str(AccessType.READ) == "READ"
+    assert str(AccessType.READWRITE) == "READWRITE"
+    assert str(AccessType.SUM) == "SUM"
 
-# Settings specific to the Gocean 0.1 API
-# =======================================
-[gocean0.1]
-access_mapping = read: read, write: write, readwrite: readwrite,
-                 inc: inc, sum: sum
 
-# Settings specific to the Gocean 1.0 API
-# =======================================
-[gocean1.0]
-access_mapping = go_read: read, go_write: write, go_readwrite: readwrite
+def test_api_specific_name():
+    '''Tests api_specific_name(), i.e. conversion to an
+    API-specific string. '''
 
+    Config.get().api = "dynamo0.3"
+
+    assert AccessType.INC.api_specific_name() == "gh_inc"
+    assert AccessType.WRITE.api_specific_name() == "gh_write"
+    assert AccessType.READ.api_specific_name() == "gh_read"
+    assert AccessType.READWRITE.api_specific_name() == "gh_readwrite"
+    assert AccessType.SUM.api_specific_name() == "gh_sum"
+
+
+def test_from_string():
+    '''Test the from_string method.'''
+
+    assert AccessType.from_string("inc") == AccessType.INC
+    assert AccessType.from_string("write") == AccessType.WRITE
+    assert AccessType.from_string("read") == AccessType.READ
+    assert AccessType.from_string("readwrite") == AccessType.READWRITE
+    assert AccessType.from_string("sum") == AccessType.SUM
+
+    with pytest.raises(ValueError) as err:
+        AccessType.from_string("invalid")
+    assert "Unknown access type 'invalid'. Valid values are ['inc', 'read',"\
+        " 'readwrite', 'sum', 'write']" in str(err)
