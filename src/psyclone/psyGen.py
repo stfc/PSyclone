@@ -5369,7 +5369,7 @@ class Fparser2ASTProcessor(object):
                         "Could not process {0}. Character length "
                         "specifications are not supported."
                         "".format(decl.items))
-                parent.symbol_table.declare(Symbol(
+                parent.symbol_table.add(Symbol(
                     str(name), datatype, shape=entity_shape, scope=scope,
                     is_input=is_input, is_output=is_output))
 
@@ -5876,7 +5876,8 @@ class Symbol(object):
     valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.
     valid_data_types = ('real', 'integer', 'character', 'boolean')
-    # Mapping from supported data types to internal Python types
+    # Mapping from supported data types for constant values to
+    # internal Python types
     mapping = {'integer': int, 'character': str, 'boolean': bool}
 
     def __init__(self, name, datatype, shape=[], scope='local',
@@ -6039,6 +6040,29 @@ class Symbol(object):
         return self._constant_value is not None
 
     @property
+    def is_scalar(self):
+        '''If the shape variable is an empty list then this symbol is a
+        scalar.
+
+        :returns: True if this symbol is a scalar and False otherwise.
+        :rtype: bool
+
+        '''
+        return self.shape == []
+
+    @property
+    def is_array(self):
+        '''The assumption in this method is that if this symbol is not a
+        scalar then it is an array. If this assumption becomes invalid
+        then this logic will need to be changed appropriately.
+
+        :returns: True if this symbol is an array and False otherwise.
+        :rtype: bool
+
+        '''
+        return not self.is_scalar
+
+    @property
     def constant_value(self):
         '''
         :returns: The fixed known value for this symbol if one has \
@@ -6071,7 +6095,7 @@ class Symbol(object):
                 raise ValueError(
                     "Symbol with a constant value is currently limited to "
                     "having local scope but found '{0}'.".format(self.scope))
-            if self.shape:
+            if self.is_array:
                 raise ValueError(
                     "Symbol with a constant value must be a scalar but the "
                     "shape attribute is not empty.")
@@ -6116,7 +6140,7 @@ class Symbol(object):
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
-        if self.shape:
+        if self.is_array:
             code += "* restrict "
 
         code += self.name
@@ -6124,7 +6148,7 @@ class Symbol(object):
 
     def __str__(self):
         ret = self.name + ": <" + self.datatype + ", " + self.scope + ", "
-        if self.shape:
+        if self.is_array:
             ret += "Array["
             for dimension in self.shape:
                 if isinstance(dimension, Symbol):
@@ -6143,14 +6167,16 @@ class Symbol(object):
         else:
             ret += "Scalar"
         if self.is_constant:
-            ret += ", constant, value={0}".format(self.constant_value)
+            ret += ", constant_value={0}".format(self.constant_value)
         return ret + ">"
 
     def copy(self):
-        '''Create and return a copy of this object.
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
 
         :returns: A symbol object with the same properties as this \
-        symbol object
+        symbol object.
         :rtype: :py:class:`psyclone.psyGen.Symbol`
 
         '''
@@ -6158,12 +6184,15 @@ class Symbol(object):
                       scope=self.scope, constant_value=self.constant_value,
                       is_input=self.is_input, is_output=self.is_output)
 
-    def set_properties(self, symbol_in):
+    def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from
         symbol_in, apart from the name which is immutable.
 
-        :param symbol_in: A symbol object
+        :param symbol_in: The symbol from which the properties are \
+        copied from.
         :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises TypeError: If the argument is not the expected type.
 
         '''
         if not isinstance(symbol_in, Symbol):
@@ -6180,7 +6209,7 @@ class Symbol(object):
 
 class SymbolTable(object):
     '''
-    Encapsulates the symbol table and provides methods to declare new symbols
+    Encapsulates the symbol table and provides methods to add new symbols
     and look up existing symbols. It is implemented as a single scope
     symbol table (nested scopes not supported).
 
@@ -6198,8 +6227,8 @@ class SymbolTable(object):
         # Reference to KernelSchedule to which this symbol table belongs.
         self._kernel = kernel
 
-    def declare(self, new_symbol):
-        '''Declare a new symbol in the symbol table.
+    def add(self, new_symbol):
+        '''Add a new symbol to the symbol table.
 
         :param new_symbol: The symbol to add to the symbol table.
         :type new_symbol: :py:class:`psyclone.psyGen.Symbol`
@@ -6223,7 +6252,7 @@ class SymbolTable(object):
 
         :raises KeyError: If either of the supplied symbols are not in \
         the symbol table.
-        :raises TypeError: if the supplied arguments are not symbols, \
+        :raises TypeError: If the supplied arguments are not symbols, \
         or the names of the symbols are the same in the SymbolTable \
         instance.
 
@@ -6236,12 +6265,12 @@ class SymbolTable(object):
                 raise KeyError("Symbol '{0}' is not in the symbol table."
                                "".format(symbol.name))
         if symbol1.name == symbol2.name:
-            raise TypeError("The symbols should have different names, but "
-                            "found '{0}' for both.".format(symbol1.name))
+            raise ValueError("The symbols should have different names, but "
+                             "found '{0}' for both.".format(symbol1.name))
 
         tmp_symbol = symbol1.copy()
-        symbol1.set_properties(symbol2)
-        symbol2.set_properties(tmp_symbol)
+        symbol1.copy_properties(symbol2)
+        symbol2.copy_properties(tmp_symbol)
 
         # Update argument list if necessary
         index1 = None

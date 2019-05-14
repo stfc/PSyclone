@@ -259,16 +259,16 @@ def test_opencl_kernel_variables_definitions():
     the expected OpenCL argument/variable declarations.
     '''
     kschedule = GOKernelSchedule('test')
-    kschedule.symbol_table.declare(Symbol("i", "integer", []))
-    kschedule.symbol_table.declare(Symbol("j", "integer", []))
-    kschedule.symbol_table.declare(Symbol("intarg", "integer", []))
-    kschedule.symbol_table.declare(Symbol("realarg", "real", []))
-    kschedule.symbol_table.declare(Symbol("chararg", "character", []))
-    kschedule.symbol_table.declare(Symbol("arrayarg", "real", [3, 4, 5, 3]))
-    kschedule.symbol_table.declare(Symbol("intvar", "integer", []))
-    kschedule.symbol_table.declare(Symbol("realvar", "real", []))
-    kschedule.symbol_table.declare(Symbol("charvar", "character", []))
-    kschedule.symbol_table.declare(Symbol("arrayvar", "real", [3, 4, 5, 3]))
+    kschedule.symbol_table.add(Symbol("i", "integer", []))
+    kschedule.symbol_table.add(Symbol("j", "integer", []))
+    kschedule.symbol_table.add(Symbol("intarg", "integer", []))
+    kschedule.symbol_table.add(Symbol("realarg", "real", []))
+    kschedule.symbol_table.add(Symbol("chararg", "character", []))
+    kschedule.symbol_table.add(Symbol("arrayarg", "real", [3, 4, 5, 3]))
+    kschedule.symbol_table.add(Symbol("intvar", "integer", []))
+    kschedule.symbol_table.add(Symbol("realvar", "real", []))
+    kschedule.symbol_table.add(Symbol("charvar", "character", []))
+    kschedule.symbol_table.add(Symbol("arrayvar", "real", [3, 4, 5, 3]))
     kschedule.symbol_table.specify_argument_list(["i", "j", "intarg",
                                                   "realarg", "chararg",
                                                   "arrayarg"])
@@ -311,9 +311,9 @@ def test_opencl_kernel_gen_wrong_kernel():
             "Table for kernel 'test' has only 0 argument(s).") in str(err)
 
     # Test gen_ocl with 1 kernel argument
-    kschedule.symbol_table.declare(Symbol("arg1", "integer", shape=[],
-                                          scope="global_argument",
-                                          is_input=True, is_output=False))
+    kschedule.symbol_table.add(Symbol("arg1", "integer", shape=[],
+                                      scope="global_argument",
+                                      is_input=True, is_output=False))
     kschedule.symbol_table.specify_argument_list(["arg1"])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
@@ -322,9 +322,9 @@ def test_opencl_kernel_gen_wrong_kernel():
             "Table for kernel 'test' has only 1 argument(s).") in str(err)
 
     # Test gen_ocl with 2 kernel argument
-    kschedule.symbol_table.declare(Symbol("arg2", "integer", shape=[],
-                                          scope="global_argument",
-                                          is_input=True, is_output=False))
+    kschedule.symbol_table.add(Symbol("arg2", "integer", shape=[],
+                                      scope="global_argument",
+                                      is_input=True, is_output=False))
     kschedule.symbol_table.specify_argument_list(["arg1", "arg2"])
     kschedule.gen_ocl()
 
@@ -346,10 +346,10 @@ def test_opencl_kernel_gen_wrong_kernel():
     kschedule.symbol_table.lookup("arg2")._shape = []  # restore
 
     # Test gen_ocl with clashing variable names for array lengths.
-    kschedule.symbol_table.declare(Symbol("array", "integer", shape=[None],
-                                          scope="global_argument",
-                                          is_input=True, is_output=True))
-    kschedule.symbol_table.declare(Symbol("arrayLEN1", "integer", []))
+    kschedule.symbol_table.add(Symbol("array", "integer", shape=[None],
+                                      scope="global_argument",
+                                      is_input=True, is_output=True))
+    kschedule.symbol_table.add(Symbol("arrayLEN1", "integer", []))
     kschedule.symbol_table.specify_argument_list(["arg1", "arg2", "array"])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()

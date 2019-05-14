@@ -2548,7 +2548,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             holding the argument that is going to be modified.
             :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
             :param int arg_position: The argument's position in the \
-            argument list
+            argument list.
             :param value: The constant value that this argument is \
             going to be give. Its type depends on the type of the \
             argument.
@@ -2588,7 +2588,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             orig_name = symbol.name
             local_symbol = Symbol(orig_name+"_dummy", "integer", scope="local",
                                   constant_value=value)
-            symbol_table.declare(local_symbol)
+            symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
 
             if function_space:
