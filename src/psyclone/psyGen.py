@@ -5148,7 +5148,7 @@ class Fparser2ASTProcessor(object):
             '''
             for node in nodelist:
                 if (isinstance(node, Fortran2003.Subroutine_Subprogram) and
-                   str(node.content[0].get_name()) == searchname):
+                        str(node.content[0].get_name()) == searchname):
                     return node
             raise ValueError  # Subroutine not found
 
@@ -5321,7 +5321,7 @@ class Fparser2ASTProcessor(object):
                 # in the ONLY clause.
                 parent.symbol_table.declare(
                     str(name), datatype='deferred',
-                    interface=FortranInterface(module_use=mod_name))
+                    interface=Symbol.FortranGlobal(mod_name))
 
         for decl in walk_ast(nodes, [Fortran2003.Type_Declaration_Stmt]):
             (type_spec, attr_specs, entities) = decl.items
@@ -5340,9 +5340,9 @@ class Fparser2ASTProcessor(object):
                     datatype = 'boolean'
             if datatype is None:
                 raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer', "
-                        "'logical' and 'character' intrinsic types are "
-                        "supported.".format(str(decl.items)))
+                    "Could not process {0}. Only 'real', 'integer', "
+                    "'logical' and 'character' intrinsic types are "
+                    "supported.".format(str(decl.items)))
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -5355,23 +5355,23 @@ class Fparser2ASTProcessor(object):
                 if isinstance(attr, Fortran2003.Attr_Spec):
                     normalized_string = str(attr).lower().replace(' ', '')
                     if "intent(in)" in normalized_string:
-                        interface = FortranInterface(access=SymbolAccess.READ)
+                        interface = Symbol.Argument(access=Symbol.Access.READ)
                     elif "intent(out)" in normalized_string:
-                        interface = FortranInterface(access=SymbolAccess.WRITE)
+                        interface = Symbol.Argument(access=Symbol.Access.WRITE)
                     elif "intent(inout)" in normalized_string:
-                        interface = FortranInterface(
-                            access=SymbolAccess.READWRITE)
+                        interface = Symbol.Argument(
+                            access=Symbol.Access.READWRITE)
                     else:
                         raise NotImplementedError(
                             "Could not process {0}. Unrecognized attribute "
                             "'{1}'.".format(decl.items, str(attr)))
                 elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
                     attribute_shape = self._parse_dimensions(
-                                            attr, parent.symbol_table)
+                        attr, parent.symbol_table)
                 else:
                     raise NotImplementedError(
-                            "Could not process {0}. Unrecognized attribute "
-                            "type {1}.".format(decl.items, str(type(attr))))
+                        "Could not process {0}. Unrecognized attribute "
+                        "type {1}.".format(decl.items, str(type(attr))))
 
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
@@ -5382,7 +5382,7 @@ class Fparser2ASTProcessor(object):
                 # Otherwise use the declaration attribute shape.
                 if (array_spec is not None):
                     entity_shape = self._parse_dimensions(
-                                        array_spec, parent.symbol_table)
+                        array_spec, parent.symbol_table)
                 else:
                     entity_shape = attribute_shape
 
@@ -5405,7 +5405,7 @@ class Fparser2ASTProcessor(object):
             arg_strings = [x.string for x in arg_list]
             # A Fortran argument has intent(inout) by default
             parent.symbol_table.specify_argument_list(
-                arg_strings, FortranInterface(access=SymbolAccess.READWRITE))
+                arg_strings, Symbol.Argument(access=Symbol.Access.READWRITE))
         except KeyError:
             raise InternalError("The kernel argument "
                                 "list '{0}' does not match the variable "
@@ -5861,30 +5861,12 @@ class Fparser2ASTProcessor(object):
         return Literal(str(node.items[0]), parent=parent)
 
 
-class SymbolAccess(Enum):
-    '''
-    Enumeration for the different types of access that a Symbol is
-    permitted to have.
-
-    '''
-    # The symbol is only ever read within the current scoping block.
-    READ = 1
-    # The first access of the symbol in the scoping block is a write and
-    # therefore any value that it may have had upon entry is discarded.
-    WRITE = 2
-    # The first access of the symbol in the scoping block is a read but
-    # it is subsequently written to.
-    READWRITE = 3
-    # The way in which the symbol is accessed in the scoping block is
-    # unknown
-    UNKNOWN = 4
-
-
+@six.add_metaclass(abc.ABCMeta)
 class SymbolInterface(object):
     '''
-    Base class for capturing the way that symbols with global scope (i.e.
-    that exist outside the section of code being represented in the PSyIR)
-    are accessed.
+    Abstract base class for capturing the access mechanism for symbols that
+    represent data that exists outside the section of code being represented
+    in the PSyIR.
 
     :param bool argument: True if the symbol is passed as a routine argument \
                           (the default).
@@ -5892,25 +5874,25 @@ class SymbolInterface(object):
                    None (if unknown).
     :type access: :py:class:`psyclone.psyGen.SymbolAccess`
     '''
-    def __init__(self, argument=True, access=None):
-        self._is_arg = argument
-        self._access = SymbolAccess.UNKNOWN
-        if access:
+    def __init__(self, access=None):
+        self._access = None
+        if not access:
+            self.access = Symbol.Access.UNKNOWN
+        else:
             self.access = access
 
     @property
     def is_argument(self):
         '''
-        :returns: Whether or not this symbol is passed as a routine argument.
-        :rtype: bool
+        :raises NotImplementedError: Abstract method.
         '''
-        return self._is_arg
+        raise NotImplementedError("Must be implemented in sub-class.")
 
     @property
     def access(self):
         '''
         :returns: the access-type for this symbol.
-        :rtype: :py:class:`psyclone.psyGen.SymbolAccess`
+        :rtype: :py:class:`psyclone.psyGen.Symbol.Access`
         '''
         return self._access
 
@@ -5924,56 +5906,10 @@ class SymbolInterface(object):
 
         :raises TypeError: if the supplied value is not of the correct type.
         '''
-        if not isinstance(value, SymbolAccess):
-            raise TypeError("SymbolInterface.access must be a 'SymbolAccess' "
+        if not isinstance(value, Symbol.Access):
+            raise TypeError("SymbolInterface.access must be a 'Symbol.Access' "
                             "but got '{0}'.".format(type(value)))
         self._access = value
-
-    def __str__(self):
-        return "Argument={0}".format(self.is_argument)
-
-
-class FortranInterface(SymbolInterface):
-    '''
-    Describes the interface to a Fortran Symbol. If no arguments are passed
-    to the constructor then the interface represents a routine argument
-    with the default INTENT of INOUT.
-
-    :param access: the manner in which the Symbol is accessed in the \
-                   associated code section. If None is supplied then the \
-                   access is SymbolAccess.UNKNOWN.
-    :type access: :py:class:`psyclone.psyGen.SymbolAccess` or None.
-    :param str module_use: the name of the Fortran module from which the \
-                           symbol is imported (or None if this symbol is a \
-                           routine argument).
-    '''
-    def __init__(self, access=None, module_use=None):
-        # By default a FortranInterface represents a routine argument
-        argument = False
-        if not module_use:
-            argument = True
-        super(FortranInterface, self).__init__(argument=argument,
-                                               access=access)
-        if self.is_argument and not access:
-            # In Fortran a routine argument without an explicit INTENT
-            # attribute has intent INOUT
-            self._access = SymbolAccess.READWRITE
-        self._module_name = module_use
-
-    def __str__(self):
-        if self.module_name:
-            return "FortranModule({0})".format(self.module_name)
-        else:
-            return super(FortranInterface, self).__str__()
-
-    @property
-    def module_name(self):
-        '''
-        :returns: the name of the Fortran module from which the symbol is \
-                  imported or None if it is not a module variable.
-        :rtype: str or None
-        '''
-        return self._module_name
 
 
 class Symbol(object):
@@ -6007,8 +5943,103 @@ class Symbol(object):
                         'integer',
                         'character',
                         'boolean',
-                        'deferred')  # Type of this symbol has not yet
-                                     # been determined
+                        'deferred')  # Type of this symbol not yet determined
+
+    class Access(Enum):
+        '''
+        Enumeration for the different types of access that a Symbol is
+        permitted to have.
+
+        '''
+        # The symbol is only ever read within the current scoping block.
+        READ = 1
+        # The first access of the symbol in the scoping block is a write and
+        # therefore any value that it may have had upon entry is discarded.
+        WRITE = 2
+        # The first access of the symbol in the scoping block is a read but
+        # it is subsequently written to.
+        READWRITE = 3
+        # The way in which the symbol is accessed in the scoping block is
+        # unknown
+        UNKNOWN = 4
+
+    class Argument(SymbolInterface):
+        '''
+        Captures the interface to a symbol that is accessed as a routine
+        argument.
+        '''
+        def __init__(self, access=None):
+            super(Symbol.Argument, self).__init__(access=access)
+            self._pass_by_value = False
+
+        @property
+        def is_argument(self):
+            '''
+            :returns: Whether or not this symbol is a routine argument.
+            :rtype: bool
+            '''
+            return True
+
+        def __str__(self):
+            return "Argument(pass-by-value={0})".format(self._pass_by_value)
+
+    class FortranGlobal(SymbolInterface):
+        '''
+        Describes the interface to a Fortran Symbol representing data that
+        exists outside of the local scope but is not supplied as a routine
+        argument.
+
+        :param str module_use: the name of the Fortran module from which the \
+                               symbol is imported.
+        :param access: the manner in which the Symbol is accessed in the \
+                       associated code section. If None is supplied then the \
+                       access is Symbol.Access.UNKNOWN.
+        :type access: :py:class:`psyclone.psyGen.Symbol.Access` or None.
+        '''
+        def __init__(self, module_use, access=None):
+            self._module_name = ""
+            super(Symbol.FortranGlobal, self).__init__(access=access)
+            self.module_name = module_use
+
+        def __str__(self):
+            return "FortranModule({0})".format(self.module_name)
+
+        @property
+        def module_name(self):
+            '''
+            :returns: the name of the Fortran module from which the symbol is \
+                      imported or None if it is not a module variable.
+            :rtype: str or None
+            '''
+            return self._module_name
+
+        @module_name.setter
+        def module_name(self, value):
+            '''
+            Setter for the name of the Fortran module from which this symbol
+            is imported.
+
+            :param str value: the name of the Fortran module.
+
+            :raises TypeError: if the supplied value is not a str.
+            :raises ValueError: if the supplied string is not at least one \
+                                character long.
+            '''
+            if not isinstance(value, str):
+                raise TypeError("module_name must be a str but got '{0}'".
+                                format(type(value)))
+            if len(value) < 1:
+                raise ValueError("module_name must be one or more characters "
+                                 "long")
+            self._module_name = value
+
+        @property
+        def is_argument(self):
+            '''
+            :returns: Whether or not this symbol is a routine argument.
+            :rtype: bool
+            '''
+            return False
 
     def __init__(self, name, datatype, shape=None, interface=None):
 
@@ -6087,7 +6118,7 @@ class Symbol(object):
                   kernel scope) or 'global' (data also lives outside the \
                   kernel). Global-scoped symbols must have an associated \
                   'interface' that specifies the mechanism by which the \
-                  kernel accesses it.
+                  kernel accesses the associated data.
         :rtype: str
         '''
         if self._interface:
@@ -6099,7 +6130,7 @@ class Symbol(object):
         '''
         :returns: the an object describing the external interface to \
                   this Symbol or None (if it is local).
-        :rtype: :py:class:`psyclone.psyGen.SymbolInterface`
+        :rtype: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface`
         '''
         return self._interface
 
@@ -6110,7 +6141,7 @@ class Symbol(object):
 
         :param value: an Interface object describing how the Symbol is \
                       accessed by the code.
-        :type value: :py:class:`psyclone.psyGen.SymbolInterface`
+        :type value: Sub-class of :py:class:`psyclone.psyGen.SymbolInterface`
 
         :raises TypeError: if the supplied `value` is of the wrong type.
         '''
@@ -6258,8 +6289,8 @@ class SymbolTable(object):
                 else:
                     # If no interface has been supplied then we know only that
                     # this symbol is supplied as a routine argument.
-                    symbol.interface = SymbolInterface(
-                        access=SymbolAccess.UNKNOWN)
+                    symbol.interface = Symbol.Argument(
+                        access=Symbol.Access.UNKNOWN)
             self._argument_list.append(symbol)
 
     def lookup(self, name):

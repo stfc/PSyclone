@@ -59,7 +59,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
 from psyclone.psyGen import Fparser2ASTProcessor
 from psyclone.psyGen import GenerationError, FieldNotFoundError, \
      InternalError, HaloExchange, Invoke, DataAccess
-from psyclone.psyGen import Symbol, SymbolTable, FortranInterface, SymbolAccess
+from psyclone.psyGen import Symbol, SymbolTable
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.transformations import OMPParallelLoopTrans, \
@@ -3142,17 +3142,17 @@ def test_symbol_initialisation():
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
     assert isinstance(Symbol('a', 'real', []), Symbol)
-    assert isinstance(Symbol('a', 'real', [], FortranInterface()), Symbol)
+    assert isinstance(Symbol('a', 'real', [], Symbol.Argument()), Symbol)
     assert isinstance(Symbol('a', 'real', [],
-                             FortranInterface(access=SymbolAccess.READWRITE)),
+                             Symbol.Argument(access=Symbol.Access.READWRITE)),
                       Symbol)
     assert isinstance(Symbol('a', 'real', [],
-                             FortranInterface(access=SymbolAccess.READ)),
+                             Symbol.Argument(access=Symbol.Access.READ)),
                       Symbol)
     assert isinstance(
         Symbol('a', 'deferred',
-               interface=FortranInterface(access=SymbolAccess.READ,
-                                          module_use='some_mod')),
+               interface=Symbol.FortranGlobal(access=Symbol.Access.READ,
+                                              module_use='some_mod')),
         Symbol)
     dim = Symbol('dim', 'integer', [])
     assert isinstance(Symbol('a', 'real', [dim]), Symbol)
@@ -3199,7 +3199,7 @@ def test_symbol_can_be_printed():
     assert "s2: <real, Array['Unknown bound', 2, s1], local>" in str(sym2)
 
     sym3 = Symbol("s3", "real",
-                  interface=FortranInterface(module_use="my_mod"))
+                  interface=Symbol.FortranGlobal(module_use="my_mod"))
     assert ("s3: <real, Scalar, global=FortranModule(my_mod)"
             in str(sym3))
 
@@ -3222,32 +3222,45 @@ def test_symbol_invalid_interface():
 def test_symbol_interface():
     ''' Check the interface getter on a Symbol. '''
     symbol = Symbol("some_var", "real",
-                    interface=FortranInterface(module_use="my_mod"))
+                    interface=Symbol.FortranGlobal(module_use="my_mod"))
     assert symbol.interface.module_name == "my_mod"
 
 
 def test_symbol_interface_access():
     ''' Tests for the SymbolInterface.access setter. '''
     symbol = Symbol("some_var", "real",
-                    interface=FortranInterface(module_use="my_mod"))
-    symbol.interface.access = SymbolAccess.READ
-    assert symbol.interface.access == SymbolAccess.READ
+                    interface=Symbol.FortranGlobal(module_use="my_mod"))
+    symbol.interface.access = Symbol.Access.READ
+    assert symbol.interface.access == Symbol.Access.READ
     # Force the error by supplying a string instead of a SymbolAccess type.
     with pytest.raises(TypeError) as err:
         symbol.interface.access = "read"
-    assert "must be a 'SymbolAccess' but got " in str(err)
+    assert "must be a 'Symbol.Access' but got " in str(err)
 
 
-def test_symbol_interface_str():
-    ''' Check the __str__ method of the SymbolInterface base class. '''
-    from psyclone.psyGen import SymbolInterface
-    # A SymbolInterface represents a routine argument by default.
-    interface = SymbolInterface()
-    assert str(interface) == "Argument=True"
+def test_symbol_argument_str():
+    ''' Check the __str__ method of the Symbol.Argument class. '''
+    # A Symbol.Argument represents a routine argument by default.
+    interface = Symbol.Argument()
+    assert str(interface) == "Argument(pass-by-value=False)"
+
+
+def test_fortranglobal_str():
+    ''' Test the __str__ method of Symbol.FortranGlobal. '''
     # If it's not an argument then we have nothing else to say about it (since
     # other options are language specific and are implemented in sub-classes).
-    interface = SymbolInterface(argument=False)
-    assert str(interface) == "Argument=False"
+    interface = Symbol.FortranGlobal("my_mod")
+    assert str(interface) == "FortranModule(my_mod)"
+
+
+def test_fortranglobal_modname():
+    ''' Test the FortranGlobal.module_name setter error conditions. '''
+    with pytest.raises(ValueError) as err:
+        _ = Symbol.FortranGlobal("")
+    assert "module_name must be one or more characters long" in str(err)
+    with pytest.raises(TypeError) as err:
+        _ = Symbol.FortranGlobal(1)
+    assert "module_name must be a str but got" in str(err)
 
 
 def test_symbol_gen_c_definition():
@@ -3283,13 +3296,13 @@ def test_symboltable_declare():
 
     # Declare a symbol
     sym_table.declare("var1", "real", [5, 1],
-                      FortranInterface(access=SymbolAccess.READWRITE,
-                                       module_use="some_mod"))
+                      Symbol.FortranGlobal(access=Symbol.Access.READWRITE,
+                                           module_use="some_mod"))
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
     assert sym_table._symbols["var1"].scope == "global"
-    assert sym_table._symbols["var1"].access is SymbolAccess.READWRITE
+    assert sym_table._symbols["var1"].access is Symbol.Access.READWRITE
     assert not sym_table._symbols["var1"].interface.is_argument
     assert sym_table._symbols["var1"].interface.module_name == "some_mod"
 
@@ -3341,7 +3354,7 @@ def test_symboltable_can_be_printed():
     sym_table.declare("var1", "real")
     sym_table.declare("var2", "integer")
     sym_table.declare("var3", "deferred",
-                      interface=FortranInterface(module_use="my_mod"))
+                      interface=Symbol.FortranGlobal(module_use="my_mod"))
     sym_table_text = str(sym_table)
     assert "Symbol Table:\n" in sym_table_text
     assert "var1" in sym_table_text
@@ -3361,19 +3374,19 @@ def test_symboltable_specify_argument_list():
     assert len(sym_table.argument_list) == 1
     assert sym_table.argument_list[0].scope == 'global'
     assert sym_table.argument_list[0].interface.is_argument
-    assert sym_table.argument_list[0].access == SymbolAccess.UNKNOWN
+    assert sym_table.argument_list[0].access == Symbol.Access.UNKNOWN
 
     # Test that repeated calls still produce a valid argument list
     sym_table.specify_argument_list(['var1'])
     assert len(sym_table.argument_list) == 1
 
-    # Check that specifying the SymbolInterface allows us to specify how
+    # Check that specifying the Interface allows us to specify how
     # the argument is accessed
     sym_table.specify_argument_list(
-        ['var2'], FortranInterface(access=SymbolAccess.READWRITE))
+        ['var2'], Symbol.Argument(access=Symbol.Access.READWRITE))
     assert sym_table.argument_list[0].scope == 'global'
     assert sym_table.argument_list[0].interface.is_argument
-    assert sym_table.argument_list[0].access == SymbolAccess.READWRITE
+    assert sym_table.argument_list[0].access == Symbol.Access.READWRITE
 
     with pytest.raises(InternalError) as err:
         sym_table.specify_argument_list(['var2'], "readwrite")
@@ -3417,7 +3430,7 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var3") in sym_table.local_symbols
 
     sym_table.declare("var4", "real", [],
-                      interface=FortranInterface(module_use="my_mod"))
+                      interface=Symbol.FortranGlobal(module_use="my_mod"))
     assert len(sym_table.local_symbols) == 2
     assert sym_table.lookup("var4") not in sym_table.local_symbols
 
@@ -3540,7 +3553,7 @@ def test_fparser2astprocessor_generate_schedule_dummy_subroutine():
 
     # Test argument intent is inferred when not available in the declaration
     assert schedule.symbol_table.lookup('f3').scope == 'global'
-    assert schedule.symbol_table.lookup('f3').access is SymbolAccess.READWRITE
+    assert schedule.symbol_table.lookup('f3').access is Symbol.Access.READWRITE
 
     # Test that a kernel subroutine without Execution_Part still creates a
     # valid KernelSchedule
@@ -3763,21 +3776,22 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("arg1").scope == 'global'
-    assert fake_parent.symbol_table.lookup("arg1").access == SymbolAccess.READ
+    assert fake_parent.symbol_table.lookup("arg1").access == Symbol.Access.READ
     assert fake_parent.symbol_table.lookup("arg1").interface.is_argument
 
     reader = FortranStringReader("integer, intent( IN ) :: arg2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("arg2").scope == 'global'
-    assert fake_parent.symbol_table.lookup("arg2").access == SymbolAccess.READ
+    assert fake_parent.symbol_table.lookup("arg2").access == Symbol.Access.READ
     assert fake_parent.symbol_table.lookup("arg2").interface.is_argument
 
     reader = FortranStringReader("integer, intent( Out ) :: arg3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("arg3").scope == 'global'
-    assert fake_parent.symbol_table.lookup("arg3").access == SymbolAccess.WRITE
+    assert fake_parent.symbol_table.lookup("arg3").access == \
+        Symbol.Access.WRITE
     assert fake_parent.symbol_table.lookup("arg3").interface.is_argument
 
     reader = FortranStringReader("integer, intent ( InOut ) :: arg4")
@@ -3785,7 +3799,7 @@ def test_fparser2astprocessor_process_declarations_intent(f2008_parser):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert fake_parent.symbol_table.lookup("arg4").scope == 'global'
     assert fake_parent.symbol_table.lookup("arg4").access is \
-        SymbolAccess.READWRITE
+        Symbol.Access.READWRITE
     assert fake_parent.symbol_table.lookup("arg4").interface.is_argument
 
 
@@ -3862,7 +3876,7 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     assert fake_parent.symbol_table.lookup("array3").shape == [None]
     assert fake_parent.symbol_table.lookup("array3").scope == "global"
     assert fake_parent.symbol_table.lookup("array3").access is \
-        SymbolAccess.READ
+        Symbol.Access.READ
 
 
 def test_fparser2astprocessor_use(f2008_parser):

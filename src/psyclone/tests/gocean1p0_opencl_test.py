@@ -300,7 +300,7 @@ def test_opencl_kernel_gen_wrong_kernel():
     ''' Tests that gen_ocl method raises the proper error when the
     GOKernelSchedule does not represent a proper GOcean kernel.
     '''
-    from psyclone.psyGen import FortranInterface, SymbolAccess
+    from psyclone.psyGen import Symbol
 
     kschedule = GOKernelSchedule('test')
 
@@ -313,7 +313,7 @@ def test_opencl_kernel_gen_wrong_kernel():
 
     # Test gen_ocl with 1 kernel argument
     kschedule.symbol_table.declare("arg1", "integer", [],
-                                   FortranInterface(access=SymbolAccess.READ))
+                                   Symbol.Argument(access=Symbol.Access.READ))
     kschedule.symbol_table.specify_argument_list(["arg1"])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
@@ -323,7 +323,7 @@ def test_opencl_kernel_gen_wrong_kernel():
 
     # Test gen_ocl with 2 kernel argument
     kschedule.symbol_table.declare("arg2", "integer", [],
-                                   FortranInterface(access=SymbolAccess.READ))
+                                   Symbol.Argument(access=Symbol.Access.READ))
     kschedule.symbol_table.specify_argument_list(["arg1", "arg2"])
     kschedule.gen_ocl()
 
@@ -347,7 +347,7 @@ def test_opencl_kernel_gen_wrong_kernel():
     # Test gen_ocl with clashing variable names for array lengths.
     kschedule.symbol_table.declare(
             "array", "integer", [None],
-            FortranInterface(access=SymbolAccess.READWRITE))
+            Symbol.Argument(access=Symbol.Access.READWRITE))
     kschedule.symbol_table.declare("arrayLEN1", "integer", [])
     kschedule.symbol_table.specify_argument_list(["arg1", "arg2", "array"])
     with pytest.raises(GenerationError) as err:
