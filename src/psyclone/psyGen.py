@@ -5730,9 +5730,13 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
         '''
         # Get the operator
-        operator_str = node.items[0]
-        if operator_str == '-':
+        operator_str = node.items[0].lower()
+        if operator_str == '+':
+            operator = UnaryOperator.PLUS
+        elif operator_str == '-':
             operator = UnaryOperator.MINUS
+        elif operator_str == '.not.':
+            operator = UnaryOperator.NOT
         else:
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
@@ -5757,17 +5761,27 @@ class Fparser2ASTProcessor(object):
         # Get the operator
         operator_str = node.items[1].lower()
         if operator_str == '+':
-            operator = BinaryOperator.SUM
+            operator = BinaryOperator.ADD
         elif operator_str == '-':
             operator = BinaryOperator.SUB
         elif operator_str == '*':
             operator = BinaryOperator.MUL
         elif operator_str == '/':
             operator = BinaryOperator.DIV
+        elif operator_str == '**':
+            operator = BinaryOperator.POW
         elif operator_str == '==':
             operator = BinaryOperator.EQ
         elif operator_str == '.eq.':
             operator = BinaryOperator.EQ
+        elif operator_str == '.eqv.':
+            operator = BinaryOperator.EQ
+        elif operator_str == '/=':
+            operator = BinaryOperator.NE
+        elif operator_str == '.ne.':
+            operator = BinaryOperator.NE
+        elif operator_str == '.neqv.':
+            operator = BinaryOperator.NE
         elif operator_str == '<=':
             operator = BinaryOperator.LE
         elif operator_str == '.le.':
@@ -5816,12 +5830,11 @@ class Fparser2ASTProcessor(object):
             try:
                 symbol_table.lookup(node.string)
             except KeyError:
-                # TODO: Fix for nemolite2D, remove before merging to master
-                if node.string in ('visc', 'omega', 'd2r', 'g', 'rdt', 'cbfr',
-                                   'wp'):
-                    return Reference(node.string, parent)
-                raise GenerationError("Undeclared Reference: " +
-                                      str(node.string))
+                raise GenerationError(
+                    "Undeclared reference '{0}' found when parsing fparser2 "
+                    "node '{1}' inside '{2}'.".format(str(node.string),
+                                                      repr(node),
+                                                      parent.root.name))
 
         return Reference(node.string, parent)
 
@@ -6565,7 +6578,7 @@ class Reference(Node):
 
 UnaryOperator = Enum('UnaryOperator', [
     # Arithmetic Operators
-    'MINUS', 'SQRT',
+    'MINUS', 'PLUS', 'SQRT',
     # Logical Operators
     'NOT',
     # Trigonometric Operators
@@ -6579,7 +6592,7 @@ UnaryOperator = Enum('UnaryOperator', [
 
 BinaryOperator = Enum('BinaryOperator', [
     # Arithmetic Operators
-    'SUM', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
+    'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
     # Relational Operators
     'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
     # Logical Operators
@@ -6651,22 +6664,39 @@ class UnaryOperation(Node):
                                   "".format(len(self.children)))
 
         def operator_format(operator_str, expression_str):
-            return "(" + operator_str + " " + expression_str + ")"
+            return "(" + operator_str + expression_str + ")"
 
         def function_format(function_str, expression_str):
             return function_str + "(" + expression_str + ")"
 
         if self._operator == UnaryOperator.MINUS:
             return operator_format("-", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.PLUS:
+            return operator_format("+", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.NOT:
+            return operator_format(".not.", self.children[0].gen_c_code())
         elif self._operator == UnaryOperator.SIN:
             return function_format("sin", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.COS:
+            return function_format("cos", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.TAN:
+            return function_format("tan", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.ASIN:
+            return function_format("asin", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.ACOS:
+            return function_format("acos", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.ATAN:
+            return function_format("atan", self.children[0].gen_c_code())
+        elif self._operator == UnaryOperator.ABS:
+            return function_format("abs", self.children[0].gen_c_code())
         elif self._operator == UnaryOperator.REAL:
-            return function_format("double", self.children[0].gen_c_code())
+            return function_format("float", self.children[0].gen_c_code())
         elif self._operator == UnaryOperator.SQRT:
             return function_format("sqrt", self.children[0].gen_c_code())
 
-        raise GenerationError("Unsupported Unary Operator: " +
-                              str(self._operator))
+        raise NotImplementedError(
+            "The gen_c_code backend does not support the '{0}' operator."
+            "".format(self._operator))
 
 
 class BinaryOperation(Node):
@@ -6683,7 +6713,10 @@ class BinaryOperation(Node):
         super(BinaryOperation, self).__init__(parent=parent)
 
         if not isinstance(operator, BinaryOperator):
-            raise TypeError("")
+            raise TypeError(
+                "BinaryOperation operator argument must be of type {0}"
+                " but found {1}.".format(type(BinaryOperator).__name,
+                                         type(operator).__name__))
 
         self._operator = operator
 
@@ -6740,12 +6773,14 @@ class BinaryOperation(Node):
             return function_str + "(" + expr1.gen_c_code() + \
                    ", " + expr2.gen_c_code() + ")"
 
-        if self._operator == BinaryOperator.SUM:
+        if self._operator == BinaryOperator.ADD:
             return operator_format("+", self.children[0], self.children[1])
         elif self._operator == BinaryOperator.SUB:
             return operator_format("-", self.children[0], self.children[1])
         elif self._operator == BinaryOperator.MUL:
             return operator_format("*", self.children[0], self.children[1])
+        elif self._operator == BinaryOperator.REM:
+            return operator_format("%", self.children[0], self.children[1])
         elif self._operator == BinaryOperator.DIV:
             return operator_format("/", self.children[0], self.children[1])
         elif self._operator == BinaryOperator.EQ:
@@ -6769,8 +6804,9 @@ class BinaryOperation(Node):
         elif self._operator == BinaryOperator.SIGN:
             return function_format("copysign", self.children[0],
                                    self.children[1])
-        raise GenerationError("Unsupported Binary Operator: " +
-                              str(self._operator))
+        raise NotImplementedError(
+            "The gen_c_code backend does not support the '{0}' operator."
+            "".format(self._operator))
 
 
 class Array(Reference):

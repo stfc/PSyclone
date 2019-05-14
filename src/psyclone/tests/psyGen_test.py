@@ -2981,7 +2981,7 @@ def test_binaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the Binary Operation
     class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, BinaryOperator
-    binary_operation = BinaryOperation(BinaryOperator.SUM)
+    binary_operation = BinaryOperation(BinaryOperator.ADD)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("1", parent=binary_operation)
     binary_operation.addchild(op1)
@@ -2990,34 +2990,65 @@ def test_binaryoperation_view(capsys):
                           SCHEDULE_COLOUR_MAP["BinaryOperation"])
     binary_operation.view()
     output, _ = capsys.readouterr()
-    assert coloredtext+"[operator:'SUM']" in output
+    assert coloredtext+"[operator:'ADD']" in output
 
 
 def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
     from psyclone.psyGen import BinaryOperator
-    binary_operation = BinaryOperation(BinaryOperator.SUM)
+    binary_operation = BinaryOperation(BinaryOperator.ADD)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("1", parent=binary_operation)
     binary_operation.addchild(op1)
     binary_operation.addchild(op2)
-    assert "BinaryOperation[operator:'SUM']\n" in str(binary_operation)
+    assert "BinaryOperation[operator:'ADD']\n" in str(binary_operation)
 
 
 def test_binaryoperation_gen_c_code():
     '''Test that a BinaryOperation node can generate its C representation'''
     from psyclone.psyGen import BinaryOperator
-    binary_operation = BinaryOperation(BinaryOperator.SUM)
+    binary_operation = BinaryOperation(BinaryOperator.ADD)
     with pytest.raises(GenerationError) as err:
         _ = binary_operation.gen_c_code()
     assert("BinaryOperation malformed or incomplete. It should have "
            "exactly 2 children, but found 0." in str(err.value))
-    lit1 = Literal("1", binary_operation)
-    lit2 = Literal("2", binary_operation)
-    binary_operation.addchild(lit1)
-    binary_operation.addchild(lit2)
-    assert binary_operation.gen_c_code() == '(1 + 2)'
+    ref1 = Reference("a", binary_operation)
+    ref2 = Reference("b", binary_operation)
+    binary_operation.addchild(ref1)
+    binary_operation.addchild(ref2)
+    assert binary_operation.gen_c_code() == '(a + b)'
+
+    # Test all supported Operators
+    test_list = ((BinaryOperator.ADD, '(a + b)'),
+                 (BinaryOperator.SUB, '(a - b)'),
+                 (BinaryOperator.MUL, '(a * b)'),
+                 (BinaryOperator.DIV, '(a / b)'),
+                 (BinaryOperator.REM, '(a % b)'),
+                 (BinaryOperator.POW, 'pow(a, b)'),
+                 (BinaryOperator.EQ, '(a == b)'),
+                 (BinaryOperator.NE, '(a != b)'),
+                 (BinaryOperator.GT, '(a > b)'),
+                 (BinaryOperator.GE, '(a >= b)'),
+                 (BinaryOperator.LT, '(a < b)'),
+                 (BinaryOperator.LE, '(a <= b)'),
+                 (BinaryOperator.AND, '(a && b)'),
+                 (BinaryOperator.OR, '(a || b)'),
+                 (BinaryOperator.SIGN, 'copysign(a, b)'),
+                 )
+
+    for operator, expected in test_list:
+        binary_operation._operator = operator
+        assert binary_operation.gen_c_code() == expected
+
+    # Test that an unsupported operator raises a GenerationError
+    class Unsupported():
+        pass
+    binary_operation._operator = Unsupported
+    with pytest.raises(NotImplementedError) as err:
+        _ = binary_operation.gen_c_code()
+    assert "The gen_c_code backend does not support the '" in str(err)
+    assert "' operator." in str(err)
 
 
 # Test UnaryOperation class
@@ -3027,8 +3058,8 @@ def test_unaryoperation_view(capsys):
     class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, UnaryOperator
     unary_operation = UnaryOperation(UnaryOperator.MINUS)
-    op1 = Literal("1", parent=unary_operation)
-    unary_operation.addchild(op1)
+    ref1 = Reference("a", parent=unary_operation)
+    unary_operation.addchild(ref1)
     coloredtext = colored("UnaryOperation",
                           SCHEDULE_COLOUR_MAP["UnaryOperation"])
     unary_operation.view()
@@ -3054,9 +3085,37 @@ def test_unaryoperation_gen_c_code():
         _ = unary_operation.gen_c_code()
     assert("UnaryOperation malformed or incomplete. It should have "
            "exactly 1 child, but found 0." in str(err.value))
-    lit1 = Literal("1", unary_operation)
-    unary_operation.addchild(lit1)
-    assert unary_operation.gen_c_code() == '(- 1)'
+    ref1 = Literal("a", unary_operation)
+    unary_operation.addchild(ref1)
+    assert unary_operation.gen_c_code() == '(-a)'
+
+    # Test all supported Operators
+    test_list = ((UnaryOperator.PLUS, '(+a)'),
+                 (UnaryOperator.MINUS, '(-a)'),
+                 (UnaryOperator.SQRT, 'sqrt(a)'),
+                 (UnaryOperator.NOT, '(.not.a)'),
+                 (UnaryOperator.COS, 'cos(a)'),
+                 (UnaryOperator.SIN, 'sin(a)'),
+                 (UnaryOperator.TAN, 'tan(a)'),
+                 (UnaryOperator.ACOS, 'acos(a)'),
+                 (UnaryOperator.ASIN, 'asin(a)'),
+                 (UnaryOperator.ATAN, 'atan(a)'),
+                 (UnaryOperator.ABS, 'abs(a)'),
+                 (UnaryOperator.REAL, 'float(a)'),
+                 )
+
+    for operator, expected in test_list:
+        unary_operation._operator = operator
+        assert unary_operation.gen_c_code() == expected
+
+    # Test that an unsupported operator raises a GenerationError
+    class Unsupported():
+        pass
+    unary_operation._operator = Unsupported
+    with pytest.raises(NotImplementedError) as err:
+        _ = unary_operation.gen_c_code()
+    assert "The gen_c_code backend does not support the '" in str(err)
+    assert "' operator." in str(err)
 
 
 # Test Return class
@@ -3908,10 +3967,27 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
     reader = FortranStringReader("x=1")
     fparser2name = Execution_Part.match(reader)[0][0].items[0]
 
+    # Check a new node is generated and connected to parent
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
     processor.process_nodes(fake_parent, [fparser2name], None)
-    # Check a new node was generated and connected to parent
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Reference)
+    assert new_node._reference == "x"
+
+    # If the parent root has a symbol table it checks if the symbol
+    # is declared.
+    fake_parent = KernelSchedule('kernel')
+    processor = Fparser2ASTProcessor()
+
+    with pytest.raises(GenerationError) as error:
+        processor.process_nodes(fake_parent, [fparser2name], None)
+    assert "Undeclared reference 'x' found when parsing fparser2 node " \
+           "'Name('x')' inside 'kernel'." in str(error)
+
+    fake_parent.symbol_table.declare('x', 'integer')
+    processor.process_nodes(fake_parent, [fparser2name], None)
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, Reference)
@@ -4281,17 +4357,66 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     from fparser.two.Fortran2003 import Execution_Part
     from psyclone.psyGen import BinaryOperator
     reader = FortranStringReader("x=1+4")
-    fparser2binary_operation = Execution_Part.match(reader)[0][0].items[2]
+    fp2binaryop = Execution_Part.match(reader)[0][0].items[2]
 
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2binary_operation], None)
+    processor.process_nodes(fake_parent, [fp2binaryop], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, BinaryOperation)
     assert len(new_node.children) == 2
-    assert new_node._operator == BinaryOperator.SUM
+    assert new_node._operator == BinaryOperator.ADD
+
+    def parse_with_replaced_operator(fnode, operator):
+        fnode.items = (fnode.items[0], operator, fnode.items[2])
+        processor.process_nodes(fake_parent, [fnode], None)
+        return fake_parent
+
+    # Test parsing all supported binary operators.
+    testlist = (('+', BinaryOperator.ADD),
+                ('-', BinaryOperator.SUB),
+                ('*', BinaryOperator.MUL),
+                ('/', BinaryOperator.DIV),
+                ('**', BinaryOperator.POW),
+                ('==', BinaryOperator.EQ),
+                ('.eq.', BinaryOperator.EQ),
+                ('.EQ.', BinaryOperator.EQ),
+                ('.eqv.', BinaryOperator.EQ),
+                ('/=', BinaryOperator.NE),
+                ('.ne.', BinaryOperator.NE),
+                ('.NEQV.', BinaryOperator.NE),
+                ('>', BinaryOperator.GT),
+                ('.GT.', BinaryOperator.GT),
+                ('<', BinaryOperator.LT),
+                ('.lt.', BinaryOperator.LT),
+                ('>=', BinaryOperator.GE),
+                ('.ge.', BinaryOperator.GE),
+                ('<=', BinaryOperator.LE),
+                ('.LE.', BinaryOperator.LE),
+                ('.and.', BinaryOperator.AND),
+                ('.or.', BinaryOperator.OR),
+                )
+
+    for opstring, expected in testlist:
+        fake_parent = Node()
+        fp2binaryop.items = (fp2binaryop.items[0], opstring,
+                             fp2binaryop.items[2])
+        processor.process_nodes(fake_parent, [fp2binaryop], None)
+        assert len(fake_parent.children) == 1
+        assert isinstance(fake_parent.children[0], BinaryOperation), \
+            "Fails when parsing '" + opstring + "'"
+        assert fake_parent.children[0]._operator == expected, \
+            "Fails when parsing '" + opstring + "'"
+
+    # Test that an unsupported binary operator creates a CodeBlock
+    fake_parent = Node()
+    fp2binaryop.items = (fp2binaryop.items[0], 'unsupported',
+                         fp2binaryop.items[2])
+    processor.process_nodes(fake_parent, [fp2binaryop], None)
+    assert len(fake_parent.children) == 1
+    assert isinstance(fake_parent.children[0], CodeBlock)
 
 
 def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
@@ -4302,18 +4427,44 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
     from psyclone.psyGen import UnaryOperator
     reader = FortranStringReader("x=-4")
-    fparser2unary_operation = Execution_Part.match(reader)[0][0].items[2]
-    assert isinstance(fparser2unary_operation, UnaryOpBase)
+    fp2unaryop = Execution_Part.match(reader)[0][0].items[2]
+    assert isinstance(fp2unaryop, UnaryOpBase)
 
     fake_parent = Node()
     processor = Fparser2ASTProcessor()
-    processor.process_nodes(fake_parent, [fparser2unary_operation], None)
+    processor.process_nodes(fake_parent, [fp2unaryop], None)
     # Check a new node was generated and connected to parent
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
     assert isinstance(new_node, UnaryOperation)
     assert len(new_node.children) == 1
     assert new_node._operator == UnaryOperator.MINUS
+
+    # Test parsing all supported unary operators.
+    testlist = (('+', UnaryOperator.PLUS),
+                ('-', UnaryOperator.MINUS),
+                ('.not.', UnaryOperator.NOT),
+                ('.NOT.', UnaryOperator.NOT),
+                )
+
+    for opstring, expected in testlist:
+        fake_parent = Node()
+        fp2unaryop.items = (opstring, fp2unaryop.items[1])
+        processor.process_nodes(fake_parent, [fp2unaryop], None)
+        assert len(fake_parent.children) == 1
+        assert isinstance(fake_parent.children[0], UnaryOperation), \
+            "Fails when parsing '" + opstring + "'"
+        assert fake_parent.children[0]._operator == expected, \
+            "Fails when parsing '" + opstring + "'"
+
+    # Test that an unsupported unary operator creates a CodeBlock
+    fp2unaryop.items = ('unsupported', fp2unaryop.items[1])
+    fake_parent = Node()
+    processor.process_nodes(fake_parent, [fp2unaryop], None)
+
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, CodeBlock)
 
 
 def test_fparser2astprocessor_handling_return_stmt(f2008_parser):
