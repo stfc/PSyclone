@@ -3677,29 +3677,6 @@ class Kern(Call):
                                  format(self.name,
                                         AccessType.INC.api_specific_name()))
 
-    def written_arg(self):
-        '''
-        Returns an argument that has WRITE or READWRITE access. Raises a
-        FieldNotFoundError if none is found.
-
-        :returns: a Fortran argument name
-        :rtype: string
-        :raises FieldNotFoundError: if none is found.
-
-        '''
-        for access in [AccessType.WRITE, AccessType.READWRITE]:
-            for arg in self.arguments.args:
-                if arg.access == access:
-                    return arg
-        api_config = Config.get().api_conf()
-        rev_access_mapping = api_config.get_reverse_access_mapping()
-        write_string = rev_access_mapping[AccessType.WRITE]
-        readwrite_string = rev_access_mapping[AccessType.READWRITE]
-        raise FieldNotFoundError("Kernel {0} does not have an argument with "
-                                 "{1} or {2} access".
-                                 format(self.name, write_string,
-                                        readwrite_string))
-
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
         coloured loop '''

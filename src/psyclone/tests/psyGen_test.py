@@ -773,32 +773,6 @@ def test_incremented_arg():
             in str(excinfo.value))
 
 
-def test_written_arg():
-    ''' Check that we raise the expected exception when
-    Kern.written_arg() is called for a kernel that does not have
-    an argument that is written or readwritten to '''
-    from psyclone.psyGen import Kern
-    # Change the kernel metadata so that the only kernel argument has
-    # read access
-    import fparser
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    # If we change the meta-data then we trip the check in the parser.
-    # Therefore, we change the object produced by parsing the meta-data
-    # instead
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    for descriptor in metadata.arg_descriptors:
-        if descriptor.access in [AccessType.WRITE, AccessType.READWRITE]:
-            # pylint: disable=protected-access
-            descriptor._access = AccessType.READ
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    with pytest.raises(FieldNotFoundError) as excinfo:
-        Kern.written_arg(my_kern)
-    assert ("does not have an argument with gh_write or "
-            "gh_readwrite access" in str(excinfo.value))
-
-
 def test_ompdo_constructor():
     ''' Check that we can make an OMPDoDirective with and without
     children '''

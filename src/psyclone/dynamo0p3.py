@@ -6519,17 +6519,6 @@ class DynKern(Kern):
         psy_module.add(sub_stub)
         return psy_module.root
 
-    @property
-    def updated_arg(self):
-        ''' Returns the kernel argument that is updated (incremented or
-        written to) '''
-        arg = None
-        try:
-            arg = self.incremented_arg()
-        except FieldNotFoundError:
-            arg = self.written_arg()
-        return arg
-
     def gen_code(self, parent):
         '''Generates dynamo version 0.3 specific psy code for a call to
            the dynamo kernel instance.
