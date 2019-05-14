@@ -118,7 +118,7 @@ class DynKernelType(KernelType):
     :type name: str or NoneType.
 
     '''
-    
+
     def __init__(self, ast, name=None):
         KernelType.__init__(self, ast, name=name)
         self._arg_descriptors = []
@@ -136,7 +136,6 @@ class DynKernelType(KernelType):
             x3 = init.args[5].name
             self._arg_descriptors.append(DynDescriptor(access, funcspace,
                                                        stencil, x1, x2, x3))
-
 
 
 class DynamoPSy(PSy):
@@ -378,7 +377,6 @@ class DynKern(Kern):
         new_parent.add(AssignGen(new_parent, lhs="ndf",
                                  rhs=field_name+"%vspace%get_ndf()"),
                        position=["before", position])
-
 
 
 class DynKernelArguments(Arguments):

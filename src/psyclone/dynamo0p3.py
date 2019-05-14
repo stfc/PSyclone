@@ -408,13 +408,12 @@ class FunctionSpace(object):
         called. '''
         if self._mangled_name:
             return self._mangled_name
-        else:
-            # Cannot use kernel_args.field_on_space(x) here because that
-            # routine itself requires the mangled name in order to identify
-            # whether the space is present in the kernel call.
-            self._mangled_name = mangle_fs_name(self._kernel_args.args,
-                                                self._orig_name)
-            return self._mangled_name
+        # Cannot use kernel_args.field_on_space(x) here because that
+        # routine itself requires the mangled name in order to identify
+        # whether the space is present in the kernel call.
+        self._mangled_name = mangle_fs_name(self._kernel_args.args,
+                                            self._orig_name)
+        return self._mangled_name
 
 
 class DynFuncDescriptor03(object):
@@ -728,10 +727,9 @@ class DynArgDescriptor03(Descriptor):
         error if this is not an operator. '''
         if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space1
-        else:
-            raise RuntimeError(
-                "function_space_to only makes sense for one of {0}, but "
-                "this is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
+        raise RuntimeError(
+            "function_space_to only makes sense for one of {0}, but "
+            "this is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
 
     @property
     def function_space_from(self):
@@ -740,10 +738,9 @@ class DynArgDescriptor03(Descriptor):
         error if this is not an operator. '''
         if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space2
-        else:
-            raise RuntimeError(
-                "function_space_from only makes sense for one of {0}, but this"
-                " is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
+        raise RuntimeError(
+            "function_space_from only makes sense for one of {0}, but this"
+            " is a '{1}'".format(GH_VALID_OPERATOR_NAMES, self._type))
 
     @property
     def function_space(self):
@@ -752,14 +749,13 @@ class DynArgDescriptor03(Descriptor):
         are 2 function spaces, return function_space_from. '''
         if self._type == "gh_field":
             return self._function_space1
-        elif self._type in GH_VALID_OPERATOR_NAMES:
+        if self._type in GH_VALID_OPERATOR_NAMES:
             return self._function_space2
-        elif self._type in GH_VALID_SCALAR_NAMES:
+        if self._type in GH_VALID_SCALAR_NAMES:
             return None
-        else:
-            raise RuntimeError(
-                "Internal error, DynArgDescriptor03:function_space(), should "
-                "not get to here.")
+        raise RuntimeError(
+            "Internal error, DynArgDescriptor03:function_space(), should "
+            "not get to here.")
 
     @property
     def function_spaces(self):
@@ -768,15 +764,14 @@ class DynArgDescriptor03(Descriptor):
         spaces, we return both. '''
         if self._type == "gh_field":
             return [self.function_space]
-        elif self._type in GH_VALID_OPERATOR_NAMES:
+        if self._type in GH_VALID_OPERATOR_NAMES:
             # return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
-        elif self._type in GH_VALID_SCALAR_NAMES:
+        if self._type in GH_VALID_SCALAR_NAMES:
             return []
-        else:
-            raise RuntimeError(
-                "Internal error, DynArgDescriptor03:function_spaces(), should "
-                "not get to here.")
+        raise RuntimeError(
+            "Internal error, DynArgDescriptor03:function_spaces(), should "
+            "not get to here.")
 
     @property
     def vector_size(self):
@@ -1271,8 +1266,7 @@ class DynKernMetadata(KernelType):
         '''
         if self._eval_shape:
             return self._eval_shape
-        else:
-            return ""
+        return ""
 
     @property
     def eval_targets(self):
@@ -5839,41 +5833,40 @@ class DynLoop(Loop):
         if arg.type in GH_VALID_SCALAR_NAMES:
             # scalars do not have halos
             return False
-        elif arg.is_operator:
+        if arg.is_operator:
             # operators do not have halos
             return False
-        elif arg.discontinuous and arg.access in \
+        if arg.discontinuous and arg.access in \
                 [AccessType.READ, AccessType.READWRITE]:
             # there are no shared dofs so access to inner and ncells are
             # local so we only care about reads in the halo
             return self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS
-        elif arg.access in [AccessType.READ, AccessType.INC]:
+        if arg.access in [AccessType.READ, AccessType.INC]:
             # arg is either continuous or we don't know (any_space_x)
             # and we need to assume it may be continuous for
             # correctness
             if self._upper_bound_name in HALO_ACCESS_LOOP_BOUNDS:
                 # we read in the halo
                 return True
-            elif self._upper_bound_name in ["ncells", "nannexed"]:
+            if self._upper_bound_name in ["ncells", "nannexed"]:
                 # we read annexed dofs. Return False if we always
                 # compute annexed dofs and True if we don't (as
                 # annexed dofs are part of the level 1 halo).
                 return not Config.get()\
                                  .api_conf("dynamo0.3").compute_annexed_dofs
-            elif self._upper_bound_name in ["ndofs"]:
+            if self._upper_bound_name in ["ndofs"]:
                 # argument does not read from the halo
                 return False
-            else:
-                # nothing should get to here so raise an exception
-                raise GenerationError(
-                    "Internal error in _halo_read_access. It should not be "
-                    "possible to get to here. loop upper bound name is '{0}' "
-                    "and arg '{1}' access is '{2}'.".format(
-                        self._upper_bound_name, arg.name,
-                        arg.access.api_specific_name()))
-        else:
-            # access is neither a read nor an inc so does not need halo
-            return False
+            # nothing should get to here so raise an exception
+            raise GenerationError(
+                "Internal error in _halo_read_access. It should not be "
+                "possible to get to here. loop upper bound name is '{0}' "
+                "and arg '{1}' access is '{2}'.".format(
+                    self._upper_bound_name, arg.name,
+                    arg.access.api_specific_name()))
+
+        # access is neither a read nor an inc so does not need halo
+        return False
 
     def _add_halo_exchange_code(self, halo_field, idx=None):
         '''An internal helper method to add the halo exchange call immediately
@@ -8513,12 +8506,11 @@ class DynKernelArgument(KernelArgument):
         function space, otherwise returns False.'''
         if self.function_space.orig_name in DISCONTINUOUS_FUNCTION_SPACES:
             return True
-        elif self.function_space.orig_name in VALID_ANY_SPACE_NAMES:
+        if self.function_space.orig_name in VALID_ANY_SPACE_NAMES:
             # we will eventually look this up based on our dependence
             # analysis but for the moment we assume the worst
             return False
-        else:  # must be a continuous function space
-            return False
+        return False
 
     @property
     def stencil(self):

@@ -571,7 +571,7 @@ end module dummy_mod
 
 def test_sched_view(capsys):
     ''' Check the view method of the Schedule class'''
-    from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -587,7 +587,6 @@ def test_sched_view(capsys):
 
 def test_sched_can_be_printed():
     ''' Check the schedule class can always be printed'''
-    from psyclone.psyGen import Schedule
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -1530,7 +1529,6 @@ def test_node_root():
     ru_loop = ru_schedule.children[1]
     ru_kern = ru_loop.children[0]
     # Assert that the absolute root is a Schedule
-    from psyclone.psyGen import Schedule
     assert isinstance(ru_kern.root, Schedule)
 
 
@@ -2027,7 +2025,6 @@ def test_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    from psyclone.psyGen import Schedule
     assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "schedule"
     assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"
@@ -2579,7 +2576,6 @@ def test_loop_props():
 def test_node_abstract_methods():
     ''' Tests that the abstract methods of the Node class raise appropriate
     errors. '''
-    from psyclone.psyGen import Node
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     sched = invoke.schedule
     loop = sched.children[0].children[0]

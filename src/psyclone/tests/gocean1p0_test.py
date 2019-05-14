@@ -1126,14 +1126,14 @@ def test_raw_arg_list_error(monkeypatch):
 
 
 def test_invalid_access_type():
-    ''' Test that we raise an internal error iif we try to assign
+    ''' Test that we raise an internal error if we try to assign
     an invalid access type (string instead of AccessType) in
     a psygen.Argument.'''
     _, invoke = get_invoke("test19.1_sw_offset_cf_updated_one_invoke.f90",
                            API, idx=0)
     schedule = invoke.schedule
     kern = schedule.children[0].children[0].children[0]
-    # Also test that assigning a non-AccessType value to a kernel argument
+    # Test that assigning a non-AccessType value to a kernel argument
     # raises an exception.
     with pytest.raises(InternalError) as err:
         kern.arguments.args[0].access = "invalid-type"
