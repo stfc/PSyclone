@@ -11,6 +11,7 @@
 from __future__ import absolute_import
 import os
 import pytest
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.transformations import TransformationError,\
@@ -19,6 +20,12 @@ from psyclone.transformations import TransformationError,\
     GOceanOMPParallelLoopTrans
 
 API = "gocean0.1"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean0.1 as API.'''
+    Config.get().api = "gocean0.1"
 
 
 def test_loop_fuse_with_not_a_loop():

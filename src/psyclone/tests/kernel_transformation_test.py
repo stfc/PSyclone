@@ -39,8 +39,8 @@ from __future__ import absolute_import, print_function
 import os
 import re
 import pytest
-from dynamo0p3_build import Dynamo0p3Build
 from fparser.two.utils import walk_ast
+from dynamo0p3_build import Dynamo0p3Build
 from psyclone_test_utils import get_invoke
 from psyclone.transformations import TransformationError, ACCRoutineTrans
 from psyclone.psyGen import Kern
@@ -144,7 +144,7 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     monkeypatch.setattr(config, "_kernel_naming", "multiple")
     # Change to temp dir (so kernel written there)
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     psy, invoke = get_invoke("nemolite2d_alg_mod.f90", api="gocean1.0", idx=0)
     sched = invoke.schedule
     kern = sched.children[0].children[0].children[0]
@@ -180,8 +180,12 @@ def test_new_kernel_file(tmpdir, monkeypatch):
     dtypes = walk_ast(prog.content, [Fortran2003.Derived_Type_Def])
     names = walk_ast(dtypes[0].content, [Fortran2003.Type_Name])
     assert str(names[0]) == "continuity{0}_type".format(tag)
-    # TODO #281 check compilation of code (needs Joerg's extension of
-    # compilation testing to GOcean)
+
+    from gocean1p0_build import GOcean1p0Build
+    # If compilation fails this will raise an exception
+    GOcean1p0Build(tmpdir).compile_file(filename)
+
+    old_cwd.chdir()
 
 
 def test_new_kernel_dir(tmpdir, monkeypatch):
@@ -210,7 +214,7 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     monkeypatch.setattr(config, "_kernel_naming", "multiple")
     # Change to temp dir (so kernel written there)
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     psy, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.walk(sched.children, Kern)
@@ -226,6 +230,7 @@ def test_new_kern_no_clobber(tmpdir, monkeypatch):
     _ = str(psy.gen).lower()
     filename = os.path.join(str(tmpdir), old_mod_name+"_1_mod.f90")
     assert os.path.isfile(filename)
+    old_cwd.chdir()
 
 
 def test_new_kern_single_error(tmpdir, monkeypatch):
@@ -236,7 +241,7 @@ def test_new_kern_single_error(tmpdir, monkeypatch):
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     monkeypatch.setattr(config, "_kernel_naming", "single")
     # Change to temp dir (so kernel written there)
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
     sched = invoke.schedule
     kernels = sched.kern_calls()
@@ -257,6 +262,7 @@ def test_new_kern_single_error(tmpdir, monkeypatch):
             "exists in the kernel-output directory ({0}) but is not the same "
             "as the current, transformed kernel and the kernel-renaming "
             "scheme is set to 'single'".format(str(tmpdir)) in str(err))
+    old_cwd.chdir()
 
 
 def test_new_same_kern_single(tmpdir, monkeypatch):
@@ -268,7 +274,7 @@ def test_new_same_kern_single(tmpdir, monkeypatch):
     monkeypatch.setattr(config, "_kernel_naming", "single")
     rtrans = ACCRoutineTrans()
     # Change to temp dir (so kernel written there)
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     _, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
                            idx=0)
     sched = invoke.schedule
@@ -286,6 +292,7 @@ def test_new_same_kern_single(tmpdir, monkeypatch):
     assert new_kernels[1].module_name == "testkern_0_mod"
     out_files = os.listdir(str(tmpdir))
     assert out_files == [new_kernels[1].module_name+".f90"]
+    old_cwd.chdir()
 
 
 def test_1kern_trans(tmpdir, monkeypatch):
@@ -295,7 +302,7 @@ def test_1kern_trans(tmpdir, monkeypatch):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     # Change to temp dir (so kernel written there)
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     psy, invoke = get_invoke("4_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
     sched = invoke.schedule
@@ -317,6 +324,7 @@ def test_1kern_trans(tmpdir, monkeypatch):
     second = code.find("call testkern{0}_code(".format(tag))
     assert first < second
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    old_cwd.chdir()
 
 
 def test_2kern_trans(tmpdir, monkeypatch):
@@ -326,7 +334,7 @@ def test_2kern_trans(tmpdir, monkeypatch):
     config = Config.get()
     monkeypatch.setattr(config, "_kernel_output_dir", "")
     # Change to temp dir (so kernel written there)
-    _ = tmpdir.chdir()
+    old_cwd = tmpdir.chdir()
     psy, invoke = get_invoke("4.5.2_multikernel_invokes.f90", api="dynamo0.3",
                              idx=0)
     sched = invoke.schedule
@@ -349,6 +357,7 @@ def test_2kern_trans(tmpdir, monkeypatch):
     assert "use testkern_any_space_2_mod, only" not in code
     assert "call testkern_any_space_2_code(" not in code
     assert Dynamo0p3Build(tmpdir).code_compiles(psy)
+    old_cwd.chdir()
 
 
 def test_builtin_no_trans():

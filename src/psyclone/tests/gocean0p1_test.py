@@ -39,13 +39,21 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from fparser.api import parse as parse1
+from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 from psyclone.psyGen import PSyFactory
 from psyclone.gocean0p1 import GODescriptor, GOKernelType
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
-from fparser.api import parse as parse1
 
 API = "gocean0.1"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean0.1 as API.'''
+    Config.get().api = "gocean0.1"
 
 
 # pylint: disable=invalid-name
@@ -96,7 +104,7 @@ def test_godescriptor():
 
     '''
     tmp = GODescriptor("read", "every", "pointwise")
-    assert tmp.access == "read"
+    assert tmp.access == AccessType.READ
     assert tmp.function_space == "every"
     assert tmp.stencil == "pointwise"
 
@@ -130,7 +138,7 @@ def test_gokerneltype():
     assert tmp.nargs == 1
     assert tmp.name == "test_type"
     descriptor = tmp.arg_descriptors[0]
-    assert descriptor.access == "read"
+    assert descriptor.access == AccessType.READ
     assert descriptor.function_space == "every"
     assert descriptor.stencil == "pointwise"
 

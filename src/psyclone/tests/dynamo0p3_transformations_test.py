@@ -39,6 +39,7 @@
 from __future__ import absolute_import, print_function
 import os
 import pytest
+from psyclone.core.access_type import AccessType
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
 from psyclone.psyGen import PSyFactory, GenerationError, InternalError
@@ -62,6 +63,12 @@ from dynamo0p3_build import Dynamo0p3Build
 TEST_API = "dynamo0.3"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "dynamo0p3")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
 
 
 def test_colour_trans_declarations(tmpdir, dist_mem):
@@ -1114,7 +1121,6 @@ def test_loop_fuse_set_dirty():
 def test_loop_fuse_omp(dist_mem):
     '''Test that we can loop-fuse two loop nests and enclose them in an
        OpenMP parallel region. '''
-    # pylint: disable=too-many-branches
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "4_multikernel_invokes.f90"),
@@ -1181,7 +1187,6 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
     this affects the generated code.
 
     '''
-    # pylint: disable=too-many-branches
     api_config = Config.get().api_conf(TEST_API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1246,7 +1251,6 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
-    # pylint: disable=too-many-arguments
     '''Test that we can fuse colour loops , enclose them in an OpenMP
     parallel region and preceed each by an OpenMP DO for both
     sequential and distributed-memory code. We also test when annexed
@@ -3863,7 +3867,7 @@ def test_list_multiple_reductions():
         call = omp_loop_directive.children[0].children[0]
         arg = call.arguments.args[2]
         arg._type = "gh_real"
-        arg.descriptor._access = "gh_sum"
+        arg.descriptor._access = AccessType.SUM
         result = omp_loop_directive._reduction_string()
         assert ", reduction(+:asum), reduction(+:f2)" in result
 
@@ -5075,7 +5079,7 @@ def test_rc_discontinuous_halo_remove(monkeypatch):
     # when a discontinuous field has readwrite access
     call = f4_write_loop.children[0]
     f4_arg = call.arguments.args[0]
-    monkeypatch.setattr(f4_arg, "_access", value="gh_readwrite")
+    monkeypatch.setattr(f4_arg, "_access", value=AccessType.READWRITE)
     monkeypatch.setattr(f4_write_loop, "_upper_bound_halo_depth", value=2)
     rc_trans.apply(f4_write_loop, depth=3)
     result = str(psy.gen)
@@ -5335,7 +5339,7 @@ def test_loop_fusion_different_loop_name(monkeypatch):
     schedule = psy.invokes.invoke_list[0].schedule
     call = schedule.children[0].children[0]
     f1_arg = call.arguments.args[0]
-    monkeypatch.setattr(f1_arg, "_access", value="gh_write")
+    monkeypatch.setattr(f1_arg, "_access", value=AccessType.WRITE)
     rc_trans.apply(schedule.children[0], depth=3)
     with pytest.raises(TransformationError) as excinfo:
         f_trans.apply(schedule.children[1], schedule.children[2])
