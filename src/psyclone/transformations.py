@@ -384,13 +384,14 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                     "indices are not the same. Found '{0}' and '{1}'".
                     format(node1.upper_bound_halo_depth,
                            node2.upper_bound_halo_depth))
-            from psyclone.psyGen import MAPPING_SCALARS, MAPPING_REDUCTIONS
+            from psyclone.psyGen import MAPPING_SCALARS
+            from psyclone.core.access_type import AccessType
             arg_types = MAPPING_SCALARS.values()
-            arg_accesses = MAPPING_REDUCTIONS.values()
+            all_reductions = AccessType.get_valid_reduction_modes()
             node1_red_args = node1.args_filter(arg_types=arg_types,
-                                               arg_accesses=arg_accesses)
+                                               arg_accesses=all_reductions)
             node2_red_args = node2.args_filter(arg_types=arg_types,
-                                               arg_accesses=arg_accesses)
+                                               arg_accesses=all_reductions)
 
             if node1_red_args and node2_red_args:
                 raise TransformationError(

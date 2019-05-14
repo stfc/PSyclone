@@ -47,12 +47,13 @@
 '''
 
 from __future__ import print_function
+from psyclone.configuration import Config
 from psyclone.parse.kernel import Descriptor, KernelType
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
     Loop, Kern, Arguments, Argument, KernelArgument, ACCEnterDataDirective, \
     GenerationError, InternalError, args_filter, NameSpaceFactory, \
-    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor
+    KernelSchedule, SymbolTable, Node, Fparser2ASTProcessor, AccessType
 import psyclone.expression as expr
 
 # The different grid-point types that a field can live on
@@ -71,9 +72,6 @@ SUPPORTED_OFFSETS = ["go_offset_ne", "go_offset_sw", "go_offset_any"]
 
 # The sets of grid points that a kernel may operate on
 VALID_ITERATES_OVER = ["go_all_pts", "go_internal_pts", "go_external_pts"]
-
-# Valid values for the type of access a kernel argument may have
-VALID_ARG_ACCESSES = ["go_read", "go_write", "go_readwrite"]
 
 # The list of valid stencil properties. We currently only support
 # pointwise. This property could probably be removed from the
@@ -1275,9 +1273,10 @@ class GOKernelArguments(Arguments):
         :returns: the argument object from which to get grid properties.
         :rtype: :py:class:`psyclone.gocean1p0.GOKernelArgument` or None
         '''
-        for access in ["go_read", "go_readwrite", "go_write"]:
+        for access in [AccessType.READ, AccessType.READWRITE,
+                       AccessType.WRITE]:
             for arg in self._args:
-                if arg.type == "field" and arg.access.lower() == access:
+                if arg.type == "field" and arg.access == access:
                     return arg
         # We failed to find any kernel argument which could be used
         # to access the grid properties. This will only be a problem
@@ -1290,20 +1289,6 @@ class GOKernelArguments(Arguments):
             sense for GOcean. Need to refactor the Invoke base class and
             remove the need for this property (#279). '''
         return self._dofs
-
-    def iteration_space_arg(self, mapping=None):
-        if mapping:
-            my_mapping = mapping
-        else:
-            # We provide an empty mapping for inc as it is not supported
-            # in the GOcean 1.0 API. However, the entry has to be there
-            # in the dictionary as a field that has read access causes
-            # the code (that checks that a kernel has at least one argument
-            # that is written to) to attempt to lookup "inc".
-            my_mapping = {"write": "go_write", "read": "go_read",
-                          "readwrite": "go_readwrite", "inc": ""}
-        arg = Arguments.iteration_space_arg(self, my_mapping)
-        return arg
 
     @property
     def acc_args(self):
@@ -1751,14 +1736,19 @@ class GO1p0Descriptor(Descriptor):
                        str(len(kernel_arg.args)),
                        kernel_arg.args))
 
-        if access.lower() not in VALID_ARG_ACCESSES:
+        api_config = Config.get().api_conf("gocean1.0")
+        access_mapping = api_config.get_access_mapping()
+        try:
+            access_type = access_mapping[access]
+        except KeyError:
+            valid_names = api_config.get_valid_accesses_api()
             raise ParseError("Meta-data error in kernel {0}: argument "
                              "access  is given as '{1}' but must be "
                              "one of {2}".
-                             format(kernel_name, access, VALID_ARG_ACCESSES))
+                             format(kernel_name, access, valid_names))
 
         # Finally we can call the __init__ method of our base class
-        Descriptor.__init__(self, access, funcspace, stencil_info)
+        Descriptor.__init__(self, access_type, funcspace, stencil_info)
 
     def __str__(self):
         return repr(self)
