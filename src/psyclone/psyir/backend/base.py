@@ -37,7 +37,9 @@
 back ends.
 
 '''
-# pylint: disable=exec-used
+# pylint: disable=eval-used
+
+from __future__ import print_function
 
 
 class VisitorError(Exception):
@@ -56,24 +58,69 @@ class VisitorError(Exception):
 
 
 class PSyIRVisitor(object):
-    '''An abstract generic PSyIR visitor. This is designed to be
-    specialised by particular back ends. Assumes that a back end only
-    need receive a method call back for each node before and after any
-    children nodes are processed.
+    '''A generic PSyIR visitor. This is designed to be specialised by
+    a particular back end.
 
     :param bool skip_nodes: If skip_nodes is False then an exception \
     is raised if a visitor method for a PSyIR node has not been \
     implemented, otherwise the visitor silently continues. This is an \
     optional argument which defaults to False.
+    :param indent: Specifies how what to use for indentation. This is \
+    an optional argument that defaults to None, which indicates that \
+    two spaces should be used.
+    :type indent: str or NoneType
+    :param int start_depth: Specifies how much indentation to start \
+    with. This is an optional argument that defaults to 0.
+
+    :raises TypeError: if skip_nodes is not a boolean, indent is not a \
+    string or start_depth is not an integer.
 
     '''
-    def __init__(self, skip_nodes=False):
-        self._skip_nodes = False
-        
-        self._code = ""
+    def __init__(self, skip_nodes=False, indent=None, start_depth=0):
+
+        if not isinstance(skip_nodes, bool):
+            raise TypeError(
+                "skip_nodes should be a boolean but found '{0}'"
+                "".format(type(skip_nodes).__name__))
+        if indent is not None and not isinstance(indent, str):
+            raise TypeError(
+                "indent should be a str but found '{0}'"
+                "".format(type(indent).__name__))
+        if not isinstance(start_depth, int):
+            raise TypeError(
+                "start_depth should be an integer but found '{0}'"
+                "".format(type(start_depth).__name__))
+
+        self._skip_nodes = skip_nodes
+        if indent is None:
+            self._indent = "  "
+        else:
+            self._indent = indent
+        self._depth = start_depth
+
+    @property
+    def _nindent(self):
+        '''
+        :returns: the current indentation string.
+        :rtype: str
+
+        '''
+        return self._depth * self._indent
 
     def visit(self, node):
-        ''' xxx '''
+        '''Implements the PSyIR callbacks. Callbacks are implemented by
+        using the name of class of the object in the PSyIR tree as the
+        method name. Names are not modified, other than making them
+        lower case, apart from the `Return` class which is changed to
+        `return_node` because `return` is a Python keyword.
+
+        :param node: A PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Node`
+
+        :raises VisitorError: if a node is found that does not have \
+        associated call back method (and skip_nodes is not set).
+
+        '''
         node_name = type(node).__name__.lower()
         if node_name == "return":
             node_name = "return_node"
@@ -87,41 +134,3 @@ class PSyIRVisitor(object):
                     self.visit(child)
             else:
                 raise VisitorError(message)
-        
-    def visit_old(self, node):
-        '''Implements the PSyIR tree walk and call back. Call backs are
-        implemented by using the name of class of the object in the
-        PSyIR tree as a key. Two call back methods are used for each
-        node in the tree, one before any children are visited (start)
-        and one after (end).
-
-        :param node: A PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.Node`
-
-        :raises VisitorError: if a node is found that does not have
-        associated (start or end) call back methods.
-
-        '''
-        try:
-            exec("self.{0}_start(node)".format(type(node).__name__.lower()))
-        except AttributeError as excinfo:
-            if not self._skip_nodes:
-                raise VisitorError("Unsupported node found: {0}"
-                                   "".format(str(excinfo)))
-        for child in node.children:
-            self.visit(child)
-        try:
-            if not self._skip_nodes:
-                exec("self.{0}_end(node)".format(type(node).__name__.lower()))
-        except AttributeError as excinfo:
-            raise VisitorError("Unsupported node found: {0}"
-                               "".format(str(excinfo)))
-
-    @property
-    def code(self):
-        '''
-        :returns: the transformed Fortran code.
-        :rtype: str
-
-        '''
-        return self._code

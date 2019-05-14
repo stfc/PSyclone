@@ -128,76 +128,32 @@ class FortranPSyIRVisitor(PSyIRVisitor):
     needs to implement the start and end methods for the PSyIR
     nodes.
 
-    '''    
-    def gokernelschedule(self, node):
-        return self.kernelschedule(node)
+    '''
+    def get_declaration(self, symbol):
+        '''Create and return the Fortran declaration for this Symbol.
 
-    def assignment(self, node):
-        lhs = self.visit(node.children[0])
-        rhs = self.visit(node.children[1])
-        result = "{0}={1}\n".format(lhs, rhs)
+        :param symbol: The symbol instance.
+        :type symbol: :py:class:`psyclone.psyGen.Symbol`
+        :returns: the Fortran declaration as a string.
+        :rtype: str
+
+        '''
+        intent = get_intent(symbol)
+        dims = get_dims(symbol)
+        kind = get_kind(symbol)
+        result = "{0}{1}".format(self._nindent, symbol.datatype)
+        if kind:
+            result += "({0})".format(kind)
+        if dims:
+            result += ", dimension({0})".format(",".join(dims))
+        if intent:
+            result += ", intent({0})".format(intent)
+        result += " :: {0}\n".format(symbol.name)
         return result
 
-        
-    def binaryoperation(self, node):
-        lhs = self.visit(node.children[0])
-        op = node._operator
-        rhs = self.visit(node.children[1])
-        result = "{0}{1}{2}".format(lhs, op, rhs)
-        return result
-        
-    def reference(self, node):
-        ''' OK '''
-        result = node._reference
-        for child in node.children:
-            result += self.visit(child)
-        return result
-
-    def array(self, node):
-        args = []
-        for child in node.children:
-            args.append(str(self.visit(child)))
-        result = "{0}({1})".format(node.name, ",".join(args))
-        return result
-
-    def literal(self, node):
-        result = node._value
-        return result
-
-    def ifblock(self, node):
-        condition = self.visit(node.children[0])
-        if_body = ""
-        for child in node.if_body:
-            if_body += self.visit(child)
-        else_body = ""
-        for child in node.else_body:
-            else_body += self.visit(child)
-        if else_body:
-            result = ("if ({0}) then\n"
-                      "{1}"
-                      "else\n"
-                      "{2}"
-                      "end if\n").format(condition, if_body, else_body)
-        else:
-            result = ("if ({0}) then\n"
-                      "{1}"
-                      "end if\n").format(condition, if_body)
-        return result
-
-    def unaryoperation(self, node):
-        content = self.visit(node.children[0])
-        result = "{0}{1}".format(node._operator, content)
-        return result
-
-    def return_node(self, node):
-        return "return\n"
-        
     def kernelschedule(self, node):
         '''This method is called when a KernelSchedule instance is found in
-        the PSyIR tree. This method is called before any children of
-        this node in the PSyIR tree are visited (and therefore before
-        any other methods (associated with the PSyIR children) in this
-        class are called.
+        the PSyIR tree.
 
         The constants_mod module is currently hardcoded into the
         output as it is required for LFRic code. When issue #375 has
@@ -206,54 +162,223 @@ class FortranPSyIRVisitor(PSyIRVisitor):
         :param node: a KernelSchedule PSyIR node.
         :type node: :py:class:`psyclone.psyGen.KernelSchedule`
 
+        :returns: the Fortran code as a string.
+        :rtype: str
+
         '''
-        # Add the start of the kernel module and subroutine
+        result = (
+            "{0}module {1}\n"
+            "".format(self._nindent, node.name+"_mod"))
+
+        self._depth += 1
         args = [symbol.name for symbol in node.symbol_table.argument_list]
-        self._code += (
-            "module {0}\n"
-            "  use constants_mod, only : r_def, i_def\n"
-            "  implicit none\n"
-            "  contains\n"
-            "  subroutine {1}({2})\n"
-            "".format(node.name+"_mod", node.name, ",".join(args)))
+        result += (
+            "{0}use constants_mod, only : r_def, i_def\n"
+            "{0}implicit none\n"
+            "{0}contains\n"
+            "{0}subroutine {1}({2})\n\n"
+            "".format(self._nindent, node.name, ",".join(args)))
 
+        self._depth += 1
         # Declare the kernel data.
+        declarations = ""
         for symbol in node.symbol_table._symbols.values():
-            intent = get_intent(symbol)
-            dims = get_dims(symbol)
-            kind = get_kind(symbol)
-            self._code += "    {0}".format(symbol.datatype)
-            if kind:
-                self._code += "({0})".format(kind)
-            if dims:
-                self._code += ", dimension({0})".format(",".join(dims))
-            if intent:
-                self._code += ", intent({0})".format(intent)
-            self._code += " :: {0}\n".format(symbol.name)
-
+            declarations += self.get_declaration(symbol)
+        # Get the executable statements.
+        exec_statements = ""
         for child in node.children:
-            result = self.visit(child)
-            self._code += result
+            exec_statements += self.visit(child)
+        result += (
+            "{0}\n"
+            "{1}\n"
+            "".format(declarations, exec_statements))
 
-        self._code += (
-            "  end subroutine {0}\n"
-            "end module {1}\n".format(node.name, node.name+"_mod"))
+        self._depth -= 1
+        result += (
+            "{0}end subroutine {1}\n"
+            "".format(self._nindent, node.name))
 
-        return self._code
+        self._depth -= 1
+        result += (
+            "{0}end module {1}\n"
+            "".format(self._nindent, node.name+"_mod"))
+        return result
 
+    def gokernelschedule(self, node):
+        '''The gocean api subclasses the KernelSchedule class, so just call
+        the kernelschedule method.
+
+        :param node: a GOKernelSchedule PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.GOKernelSchedule`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        return self.kernelschedule(node)
+
+    def assignment(self, node):
+        '''This method is called when an Assignment instance is found in the
+        PSyIR tree.
+
+        :param node: an Assignment PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Assigment`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        lhs = self.visit(node.children[0])
+        rhs = self.visit(node.children[1])
+        result = "{0}{1}={2}\n".format(self._nindent, lhs, rhs)
+        return result
+
+    def binaryoperation(self, node):
+        '''This method is called when a BinaryOperation instance is found in
+        the PSyIR tree.
+
+        :param node: a BinaryOperation PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        lhs = self.visit(node.children[0])
+        oper = node._operator
+        rhs = self.visit(node.children[1])
+        result = "{0}{1}{2}".format(lhs, oper, rhs)
+        return result
+
+    def reference(self, node):
+        '''This method is called when a Reference instance is found in the
+        PSyIR tree.
+
+        :param node: a Reference PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Reference`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        result = node._reference
+        for child in node.children:
+            result += self.visit(child)
+        return result
+
+    def array(self, node):
+        '''This method is called when an Array instance is found in the PSyIR
+        tree.
+
+        :param node: an Array PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Array`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        args = []
+        for child in node.children:
+            args.append(str(self.visit(child)))
+        result = "{0}({1})".format(node.name, ",".join(args))
+        return result
+
+    def literal(self, node):
+        '''This method is called when a Literal instance is found in the PSyIR
+        tree.
+
+        :param node: a Literal PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Literal`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        result = node._value
+        return result
+
+    def ifblock(self, node):
+        '''This method is called when an IfBlock instance is found in the
+        PSyIR tree.
+
+        :param node: an IfBlock PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.IfBlock`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        condition = self.visit(node.children[0])
+
+        self._depth += 1
+        if_body = ""
+        for child in node.if_body:
+            if_body += self.visit(child)
+        else_body = ""
+        for child in node.else_body:
+            else_body += self.visit(child)
+        self._depth -= 1
+
+        if else_body:
+            result = (
+                "{0}if ({1}) then\n"
+                "{2}"
+                "{0}else\n"
+                "{3}"
+                "{0}end if\n"
+                "".format(self._nindent, condition, if_body, else_body))
+        else:
+            result = (
+                "{0}if ({1}) then\n"
+                "{2}"
+                "{0}end if\n"
+                "".format(self._nindent, condition, if_body))
+        return result
+
+    def unaryoperation(self, node):
+        '''This method is called when a UnaryOperation instance is found in
+        the PSyIR tree.
+
+        :param node: a UnaryOperation PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.UnaryOperation`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        content = self.visit(node.children[0])
+        result = "{0}{1}".format(node._operator, content)
+        return result
+
+    def return_node(self, _):
+        '''This method is called when a Return instance is found in
+        the PSyIR tree.
+
+        Notice the name of the method is `return_node`, not `return`. This
+        is done by the base class to avoid a name clash with the
+        Python `return` keyword.
+
+        :param node: a Return PSyIR node.
+        :type node: :py:class:`psyclone.psyGen.Return`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        return "{0}return\n".format(self._nindent)
 
     def codeblock(self, node):
         '''This method is called when a CodeBlock instance is found in the
-        PSyIR tree. This method is called before any children of this
-        node in the PSyIR tree are visited. However, note that code
-        blocks do not have children.
+        PSyIR tree. It returns the content of the CodeBlock as a
+        Fortran string.
 
-        Adds the content of the CodeBlock to the output code.
-
-        :param node: a KernelSchedule PSyIR node.
+        :param node: a CodeBlock PSyIR node.
         :type node: :py:class:`psyclone.psyGen.CodeBlock`
 
+        :returns: the Fortran code as a string.
+        :rtype: str
+
         '''
-        block_str = '    '
-        block_str += '    '.join(str(node.ast).splitlines(True))
-        return block_str
+        result = self._nindent
+        result += self._nindent.join(str(node.ast).splitlines(True))
+        return result

@@ -3,8 +3,8 @@ transformed into the PSyIR can be transformed back into Fortran by
 using the FortranPSyIRVisitor class.
 
 '''
-
 from psyclone.psyir.backend.fortran import FortranPSyIRVisitor
+from __future__ import print_function
 
 
 def trans(psy):
@@ -16,6 +16,6 @@ def trans(psy):
             nkern += 1
             kernel_schedule = kernel.get_kernel_schedule()
             fortran_psyir_visitor = FortranPSyIRVisitor()
-            fortran_psyir_visitor.visit(kernel_schedule)
-            print(fortran_psyir_visitor.code)
+            kern = fortran_psyir_visitor.visit(kernel_schedule)
+            print(kern)
     print("transformed {0} kernels".format(nkern))
