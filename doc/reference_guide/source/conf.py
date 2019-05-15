@@ -177,6 +177,7 @@ epub_exclude_files = ['search.html']
 
 # -- Extension configuration -------------------------------------------------
 
+# Use Doxygen to generate the documentation
 import subprocess
-subprocess.call('cd ..; doxygen', shell=True)
+subprocess.call('cd ..; doxygen doxygen.config', shell=True)
 html_extra_path = ['../build/html/']
