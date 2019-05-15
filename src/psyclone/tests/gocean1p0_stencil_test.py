@@ -40,6 +40,7 @@ from __future__ import absolute_import
 import os
 import pytest
 from gocean1p0_build import GOcean1p0Build
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.generator import GenerationError
@@ -51,6 +52,13 @@ from psyclone import expression as expr
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "test_files", "gocean1p0")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
+
 
 # Section 1
 # Tests for the case where an object of type GOStencil has not been

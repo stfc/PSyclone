@@ -74,7 +74,8 @@ class Dynamo0p3Build(Compile):
                               "quadrature_xyoz_mod",
                               "quadrature_xoyoz_mod",
                               "quadrature_mod",
-                              "operator_mod"]
+                              "operator_mod",
+                              "flux_direction_mod"]
 
     def __init__(self, tmpdir):
         '''Constructor for the Dynamo0p3-specific compilation class.
@@ -84,7 +85,7 @@ class Dynamo0p3Build(Compile):
         :param tmpdir: Temporary directory to be used for output files.
         :type tmpdir: :py:class:`LocalPath`
         '''
-        super(Dynamo0p3Build, self).__init__(tmpdir,)
+        super(Dynamo0p3Build, self).__init__(tmpdir)
 
         import os
         base_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),

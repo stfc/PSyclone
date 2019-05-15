@@ -1,0 +1,26 @@
+digraph "classes_dynamo0p3" {
+charset="utf-8"
+rankdir=BT
+
+"20" [label="{DynInvoke|\l|arg_for_funcspace()\lfield_on_space()\lgen_code()\lis_coloured()\lunique_fss()\lunique_proxy_declarations()\l}", shape="record"];
+"21" [label="{DynInvokeSchedule|\l|view()\l}", shape="record"];
+"35" [label="{DynamoInvokes|\l|}", shape="record"];
+"36" [label="{DynamoPSy|\l|}", shape="record"];
+"45" [label="{Invoke|\l|first_access()\lgen()\lgen_code()\lunique_declarations()\lunique_declns_by_intent()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"46" [label="{InvokeSchedule|\l|gen_code()\lview()\l}", shape="record"];
+"47" [label="{Invokes|\l|gen_code()\lgen_ocl_init()\lget()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"54" [label="{Node|\l|addchild()\lancestor()\lbackward_dependence()\lcalls()\ldag()\ldag_gen()\lfollowing()\lforward_dependence()\lgen_c_code()\lgen_code()\lindent()\lis_openmp_parallel()\lis_valid_location()\lkern_calls()\llist()\llist_to_string()\lloops()\lpreceding()\lreductions()\lsameParent()\lsameRoot()\lupdate()\lview()\lwalk()\l}", shape="record"];
+"55" [label="{PSy|\l|inline()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+"56" [label="{Schedule|\l|view()\l}", shape="record", style=filled, fillcolor="antiquewhite"];
+
+"20" -> "45" [arrowhead="empty", arrowtail="none"];
+"20" -> "35" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_0_to_n", style="solid"];
+"21" -> "46" [arrowhead="empty", arrowtail="none"];
+"21" -> "20" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_schedule", style="solid"];
+"35" -> "47" [arrowhead="empty", arrowtail="none"];
+"35" -> "36" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_invokes", style="solid"];
+"36" -> "55" [arrowhead="empty", arrowtail="none"];
+"46" -> "56" [arrowhead="empty", arrowtail="none"];
+"56" -> "54" [arrowhead="empty", arrowtail="none"];
+
+}

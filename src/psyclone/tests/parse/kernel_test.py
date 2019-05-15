@@ -39,10 +39,10 @@ tests for code that is not covered there.'''
 
 import os
 import pytest
+from fparser.api import parse
 from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
     KernelProcedure, Descriptor, BuiltInKernelTypeFactory, get_kernel_filepath
 from psyclone.parse.utils import ParseError
-from fparser.api import parse
 
 # pylint: disable=invalid-name
 
@@ -96,6 +96,78 @@ def test_getkernelfilepath_multifile(tmpdir):
         _ = get_kernel_filepath("test_mod", str(tmpdir), None)
     assert ("More than one match for kernel file 'test_mod.[fF]90' "
             "found!") in str(excinfo.value)
+
+
+def test_getkernelfilepath_caseinsensitive1(tmpdir):
+    '''Test that a case insensitive match is performed when searching for
+    kernels with a supplied kernel search path.
+
+    '''
+    os.mkdir(str(tmpdir.join("tmp")))
+    filename = str(tmpdir.join("tmp", "test_mod.f90"))
+    ffile = open(filename, "w")
+    ffile.write("")
+    ffile.close()
+    result = get_kernel_filepath("TEST_MOD", str(tmpdir), None)
+    assert "tmp" in result
+    assert "test_mod.f90" in result
+
+
+def test_getkernelfilepath_caseinsensitive2(tmpdir):
+    '''Test that a case insensitive match is performed when searching for
+    kernels without a supplied kernel search path.
+
+    '''
+    os.mkdir(str(tmpdir.join("tmp")))
+    filename = str(tmpdir.join("tmp", "test_mod.f90"))
+    ffile = open(filename, "w")
+    ffile.write("")
+    ffile.close()
+    filename = str(tmpdir.join("tmp", "alg.f90"))
+    ffile = open(filename, "w")
+    ffile.write("")
+    ffile.close()
+    result = get_kernel_filepath("TEST_MOD", None, filename)
+    assert "tmp" in result
+    assert "test_mod.f90" in result
+
+# function get_kernel_metadata
+
+def test_get_kernel_metadata_no_match():
+    '''Test that we get a ParseError when searching for a kernel that does
+    not exist in the parse tree.
+
+    '''
+    module_parse_tree = parse(CODE)
+    kernel_type_name = "no_matching_kernel"
+    with pytest.raises(ParseError) as excinfo:
+        get_kernel_metadata(
+            kernel_type_name, module_parse_tree)
+    assert 'Kernel type no_matching_kernel does not exist' in str(excinfo)
+
+
+def test_get_kernel_metadata_match():
+    '''Test that something (anything at this point) is returned when
+    searching for a kernel that exists in the parse tree.
+
+    '''
+    module_parse_tree = parse(CODE)
+    kernel_type_name = "test_type"
+    meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
+    assert meta is not None
+
+
+def test_get_kernel_metadata_match_case_insensitive():
+    '''Test that searching for a kernel is not dependent upon the
+    case of the name.
+
+    '''
+    module_parse_tree = parse(CODE)
+    kernel_type_name = "TeSt_TyPe"
+    meta = get_kernel_metadata(kernel_type_name, module_parse_tree)
+    # Make sure we found it.
+    assert meta is not None
+
 
 # class BuiltInKernelTypeFactory():create test
 

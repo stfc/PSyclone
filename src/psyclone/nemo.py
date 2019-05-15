@@ -34,16 +34,16 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''This module implements the PSyclone NEMO API by specialising
-    the required base classes for both code generation (PSy, Invokes,
-    Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
-    and parsing (Descriptor and KernelType).
+   the required base classes for both code generation (PSy, Invokes,
+   Invoke, InvokeSchedule, Loop, Kern, Arguments and KernelArgument)
+   and parsing (Descriptor and KernelType).
 
 '''
 
 from __future__ import print_function, absolute_import
 import copy
 from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, Node, \
-    Loop, Kern, InternalError, IfBlock, IfClause, NameSpaceFactory, \
+    Loop, Kern, InternalError, NameSpaceFactory, \
     Fparser2ASTProcessor, SCHEDULE_COLOUR_MAP as _BASE_CMAP
 from fparser.two.utils import walk_ast, get_child
 from fparser.two import Fortran2003
@@ -76,9 +76,6 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
     Specialisation of Fparser2ASTProcessor for the Nemo API. It is used
     as a Mixin in the Nemo API.
     '''
-    def __init__(self):
-        super(NemoFparser2ASTProcessor, self).__init__()
-
     def _create_child(self, child, parent=None):
         '''
         Adds Nemo API specific processors for certain fparser2 types
@@ -88,19 +85,23 @@ class NemoFparser2ASTProcessor(Fparser2ASTProcessor):
         :type child:  :py:class:`fparser.two.utils.Base`
         :param parent: Parent node in the PSyclone IR we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
-        :return: Returns the PSyIRe representation of child.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :return: Returns the PSyIR representation of child or None if \
+                 there isn't one.
+        :rtype: :py:class:`psyclone.psyGen.Node` or NoneType
         '''
-        if isinstance(child, Fortran2003.Block_Nonlabel_Do_Construct):
+        if NemoLoop.match(child):
             return NemoLoop(child, parent=parent)
-        elif isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
-            pass
-        elif NemoImplicitLoop.match(child):
+        if isinstance(child, Fortran2003.Nonlabel_Do_Stmt):
+            # The fparser2 parse tree representing a Do loop has a
+            # Block_Nonlabel_Do_Construct which then has a Nonlabel_Do_Stmt
+            # as its child. Since we handle the former (by creating a NemoLoop)
+            # in the previous if-clause, we don't need to do anything with
+            # the Nonlabel_Do_Stmt and so return None.
+            return None
+        if NemoImplicitLoop.match(child):
             return NemoImplicitLoop(child, parent=parent)
-        elif NemoIfBlock.match(child):
-            return NemoIfBlock(child, parent=parent)
-        else:
-            return super(NemoFparser2ASTProcessor, self)._create_child(child)
+        return super(NemoFparser2ASTProcessor,
+                     self)._create_child(child, parent=parent)
 
 
 class NemoInvoke(Invoke):
@@ -299,181 +300,58 @@ class NemoInvokeSchedule(InvokeSchedule, NemoFparser2ASTProcessor):
 
 class NemoKern(Kern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. Kernels are leaves in the PSyIR (i.e. they have
-    no children).
+    NEMO code. Kernels are leaves in the PSyIR. I.e. they have
+    no self._children but they do have a KernelSchedule.
 
-    :param loop: Reference to the loop (in the fparser2 AST) containing \
-                 this kernel
-    :type loop: :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-    :param parent: the parent of this Kernel node in the PSyclone AST
-    type parent: :py:class:`psyclone.nemo.NemoLoop`
+    :param psyir_nodes: the list of PSyIR nodes that represent the body \
+                        of this kernel.
+    :type psyir_nodes: list of :py:class:`psyclone.psyGen.Node`
+    :param parse_tree: Reference to the innermost loop in the fparser2 parse \
+                       tree that encloses this kernel.
+    :type parse_tree: \
+              :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
+    :param parent: the parent of this Kernel node in the PSyIR or None (if \
+                   this kernel is being created in isolation).
+    :type parent: :py:class:`psyclone.nemo.NemoLoop` or NoneType.
+
     '''
-    def __init__(self, loop=None, parent=None):
-        ''' Create an empty NemoKern object. The object is given state via
-        a subsequent call to the load method if loop is None. '''
-        # Create those member variables required for testing and to keep
-        # pylint happy
-        self._children = []
+    def __init__(self, psyir_nodes, parse_tree, parent=None):
+        from psyclone.psyGen import KernelSchedule
         self._name = ""
-        # The Loop object created by fparser2 which holds the AST for the
-        # section of code associated with this kernel
-        self._loop = None
-        # List of the loop variables, one for each loop
-        self._loop_vars = []
-        # A list of 2-tuples, one for each loop
-        self._loop_ranges = []
-        # List of variable names that must be thread-private
-        self._private_vars = None
-        # List of variable names that must be first-private because they
-        # are scalars with a first access of read
-        self._first_private_vars = None
-        # Whether or not this kernel performs a reduction
-        self._reduction = False
-        # List of variables that are shared between threads
-        self._shared_vars = None
-        # Type of kernel (2D, 3D..)
-        self._kernel_type = ""
-        self._body = []
-        # Will point to the corresponding set of nodes in the fparser2 AST
-        self._ast = []
-        if loop:
-            self.load(loop)
+        self._parent = parent
+        # The corresponding set of nodes in the fparser2 parse tree
+        self._ast = parse_tree
+        # Create a kernel schedule
+        self._kern_schedule = KernelSchedule(self._name)
+        # Attach the PSyIR sub-tree to it
+        self._kern_schedule.children = psyir_nodes[:]
+        # Update the parent info for each node we've moved
+        for node in self._kern_schedule.children:
+            node.parent = self._kern_schedule
+        # A Kernel is a leaf in the PSyIR that then has its own KernelSchedule.
+        # We therefore don't have any children.
+        self._children = []
 
     @staticmethod
     def match(node):
         '''
-        Whether or not the AST fragment pointed to by node represents a
+        Whether or not the PSyIR sub-tree pointed to by node represents a
         kernel. A kernel is defined as a section of code that sits
         within a recognised loop structure and does not itself contain
-        loops or IO operations.
+        loops or 'CodeBlocks' (code not represented in the PSyIR such as
+        subroutine calls or IO operations).
 
-        :param node: Node in fparser2 AST to check.
-        :type node: :py:class:`fparser.two.Fortran2003.Base`
+        :param node: Node in the PSyIR to check.
+        :type node: :py:class:`psyclone.psyGen.Node`
         :returns: True if this node conforms to the rules for a kernel.
         :rtype: bool
         '''
-        from fparser.two.Fortran2003 import Subscript_Triplet,  \
-            Block_Nonlabel_Do_Construct, Write_Stmt, Read_Stmt
-        child_loops = walk_ast(node.content,
-                               [Block_Nonlabel_Do_Construct, Write_Stmt,
-                                Read_Stmt])
-        if child_loops:
-            # A kernel cannot contain other loops or reads or writes
+        from psyclone.psyGen import CodeBlock
+        if node.walk(node.children, (CodeBlock, NemoLoop)):
+            # A kernel cannot contain unrecognised code (including IO
+            # operations and routine calls) or loops.
             return False
-
-        # Currently a kernel cannot contain implicit loops.
-        # TODO we may have to differentiate between implicit loops over
-        # grid points and any other implicit loop. Possibly using the
-        # scope of the array being accessed?
-        impl_loops = walk_ast(node.content, [Subscript_Triplet])
-        if impl_loops:
-            return False
-
         return True
-
-    @property
-    def ktype(self):
-        '''
-        :returns: what type of kernel this is.
-        :rtype: str
-        '''
-        return self._kernel_type
-
-    def load(self, loop):
-        ''' Populate the state of this NemoKern object.
-
-        :param loop: node in the fparser2 AST representing a loop (explicit \
-                     or implicit).
-        :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt` or \
-                :py:class:`fparser.two.Fortran2003.Block_Nonlabel_Do_Construct`
-
-        :raises InternalError: if the supplied loop node is not recognised.
-        '''
-        from fparser.two.Fortran2003 import Block_Nonlabel_Do_Construct, \
-            Assignment_Stmt
-
-        if isinstance(loop, Block_Nonlabel_Do_Construct):
-            self._load_from_loop(loop)
-        elif isinstance(loop, Assignment_Stmt):
-            self._load_from_implicit_loop(loop)
-        else:
-            raise InternalError(
-                "Expecting either Block_Nonlabel_Do_Construct or "
-                "Assignment_Stmt but got {0}".format(str(type(loop))))
-
-    def _load_from_loop(self, loop):
-        '''
-        Populate the state of this NemoKern object from an fparser2
-        AST for an explicit loop.
-
-        :param loop: Node in the fparser2 AST representing an implicit loop.
-        :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-
-        :raises InternalError: if first child of supplied loop node is not a \
-                           :py:class:`fparser.two.Fortran2003.Nonlabel_Do_Stmt`
-        '''
-        from fparser.two.Fortran2003 import Nonlabel_Do_Stmt, End_Do_Stmt
-
-        # Keep a pointer to the original loop in the AST
-        self._loop = loop
-
-        if not isinstance(loop.content[0], Nonlabel_Do_Stmt):
-            raise InternalError("Expecting Nonlabel_Do_Stmt as first child "
-                                "of Block_Nonlabel_Do_Construct but "
-                                "got {0}".format(type(loop.content[0])))
-        self._body = []
-        for content in loop.content[1:]:
-            if isinstance(content, End_Do_Stmt):
-                break
-            self._body.append(content)
-
-        # Kernel is "explicit" since we have a coded loop nest rather than
-        # array notation
-        self._kernel_type = "Explicit"
-
-        # TODO decide how to provide this functionality. Do we use
-        # Habakkuk or something else?
-        #  Analyse the loop body to identify private and shared variables
-        #  for use when parallelising with OpenMP.
-        # from habakkuk.make_dag import dag_of_code_block
-        #  Create a DAG of the kernel code block using Habakkuk
-        # kernel_dag = dag_of_code_block(loop, "nemo_kernel")
-        # inputs = kernel_dag.input_nodes()
-        # outputs = kernel_dag.output_nodes()
-        # print "Kernel has {0} outputs: ".format(len(outputs)) + \
-        #     ",".join([node.variable.orig_name for node in outputs])
-        self._shared_vars = set()
-        self._first_private_vars = set()
-        self._private_vars = set()
-        #  If there are scalar variables that are inputs to the DAG (other than
-        #  the loop counters) then they must be declared first-private in an
-        #  OpenMP loop directive.
-        # for node in inputs:
-        #     if not node.node_type:
-        #         if node.name not in NEMO_LOOP_TYPE_MAPPING:
-        #             self._first_private_vars.add(node.name)
-        # for key, node in kernel_dag._nodes.iteritems():
-        #     if node.node_type == "array_ref":
-        #         self._shared_vars.add(node.variable.orig_name)
-        #     elif not node.node_type:
-        #         self._private_vars.add(node.variable.orig_name)
-        # self._private_vars -= self._first_private_vars
-        # print "OpenMP shared vars: " + ",".join(self._shared_vars)
-        # print "OpenMP private vars: " + ",".join(self._private_vars)
-        # print "OpenMP first-private vars: " + \
-        #     ",".join(self._first_private_vars)
-
-    def _load_from_implicit_loop(self, loop):
-        '''
-        Populate the state of this NemoKern object from an fparser2
-        AST for an implicit loop (Fortran array syntax).
-
-        :param loop: Node in the fparser2 AST representing an implicit loop.
-        :type loop: :py:class:`fparser.two.Fortran2003.Assignment_Stmt`
-        '''
-        # TODO implement this method!
-        self._kernel_type = "Implicit"
-        self._loop = loop
 
     def local_vars(self):
         '''
@@ -488,8 +366,20 @@ class NemoKern(Kern):
         Print representation of this node to stdout.
         :param int indent: level to which to indent output.
         '''
-        print(self.indent(indent) + self.coloured_text + "[" +
-              self.ktype + "]")
+        print(self.indent(indent) + self.coloured_text + "[]")
+
+    @property
+    def ast(self):
+        '''
+        Override the default ast method as, for the NEMO API, we don't need
+        to take any special action to get hold of the parse tree for the
+        kernel.
+
+        :returns: a reference to that part of the fparser2 parse tree that \
+                  describes this kernel.
+        :rtype: sub-class of :py:class:`fparser.two.utils.Base`
+        '''
+        return self._ast
 
 
 class NemoLoop(Loop, NemoFparser2ASTProcessor):
@@ -506,11 +396,18 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
         Loop.__init__(self, parent=parent,
                       valid_loop_types=VALID_LOOP_TYPES)
         NemoFparser2ASTProcessor.__init__(self)
-        # Keep a ptr to the corresponding node in the AST
+        # Keep a ptr to the corresponding node in the parse tree
         self._ast = ast
 
         # Get the loop variable
         ctrl = walk_ast(ast.content, [Loop_Control])
+        # If this is a DO WHILE then the first element of items will
+        # not be None. The `match` method should have already rejected
+        # such loops so we should never get to here.
+        if ctrl[0].items[0]:
+            raise InternalError("NemoLoop constructor should not have been "
+                                "called for a DO WHILE")
+
         # Second element of items member of Loop Control is itself a tuple
         # containing:
         #   Loop variable, [start value expression, end value expression, step
@@ -539,12 +436,46 @@ class NemoLoop(Loop, NemoFparser2ASTProcessor):
             # Default loop increment is 1
             self._step = "1"
 
-        # Is this loop body a kernel?
-        if NemoKern.match(self._ast):
-            self.addchild(NemoKern(self._ast, parent=self))
-            return
-        # It's not - walk on down the AST...
+        # First process the rest of the parse tree below this point
         self.process_nodes(self, self._ast.content, self._ast)
+        # Now check the PSyIR of this loop body to see whether it is
+        # a valid kernel
+        if NemoKern.match(self):
+            # It is, so we create a new kernel object and make it the only
+            # child of this Loop node. The PSyIR of the loop body becomes
+            # the schedule of this kernel.
+            self.children = [NemoKern(self.children, self._ast, parent=self)]
+
+    @staticmethod
+    def match(node):
+        '''
+        Tests the supplied node to see whether it is a recognised form of
+        NEMO loop.
+
+        :param node: the node in the fparser2 parse tree to test for a match.
+        :type node: :py:class:`fparser.two.utils.Base`
+
+        :returns: True if the node represents a recognised form of loop, \
+                  False otherwise.
+        :rtype: bool
+
+        :raises InternalError: if the parse tree represents a loop but no \
+                               Loop_Control element is present.
+
+        '''
+        if not isinstance(node, Fortran2003.Block_Nonlabel_Do_Construct):
+            return False
+        ctrl = walk_ast(node.content, my_types=[Fortran2003.Loop_Control])
+        if not ctrl:
+            raise InternalError("Unrecognised form of DO loop - failed to "
+                                "find Loop_Control element in parse tree.")
+        if ctrl[0].items[0]:
+            # If this is a DO WHILE then the first element of items will not
+            # be None. (See `fparser.two.Fortran2003.Loop_Control`.)
+            # TODO #359 DO WHILE's are currently just put into CodeBlocks
+            # rather than being properly described in the PSyIR.
+            return False
+        return True
 
     def __str__(self):
         result = ("NemoLoop[" + self._loop_type + "]: " + self._variable_name +
@@ -593,6 +524,10 @@ class NemoImplicitLoop(NemoLoop):
         # Keep a ptr to the corresponding node in the AST
         self._ast = ast
 
+    def __str__(self):
+        # Display the LHS of the assignment in the str representation
+        return "NemoImplicitLoop[{0}]\n".format(self._ast.items[0])
+
     @staticmethod
     def match(node):
         '''
@@ -624,9 +559,13 @@ class NemoImplicitLoop(NemoLoop):
             return False
         # Now check the right-hand side...
         rhs = node.items[2]
-        colons = walk_ast(rhs.items, [Fortran2003.Subscript_Triplet])
-        if not colons:
-            # We don't have any array syntax on the RHS
+        try:
+            if not walk_ast(rhs.items, [Fortran2003.Subscript_Triplet]):
+                # We don't have any array syntax on the RHS
+                return True
+        except AttributeError:
+            # The RHS doesn't have the `items` attribute (it may be just
+            # a Name for instance).
             return True
         # Check that we haven't got array syntax used within the index
         # expression to another array. Array references are represented by
@@ -650,138 +589,3 @@ class NemoImplicitLoop(NemoLoop):
                 if colons:
                     return False
         return True
-
-
-class NemoIfBlock(IfBlock, NemoFparser2ASTProcessor):
-    '''
-    Represents an if-block within a NEMO schedule.
-    Within the fparser2 AST, an if-block is represented as:
-      If_Then_Stmt
-      statement(s)
-      Else_Stmt
-      further statement(s)
-      End_If_Stmt
-    i.e. the statements contained inside the if-block are siblings
-    of the control statements, not children of them.
-
-    :param ast: reference to fparser2 AST representing if block.
-    :type ast: :py:class:`fparser.two.Fortran2003.If_Construct`
-    :param parent: parent node of this if block in the PSyIRe.
-    :type parent: :py:class:`psyclone.psyGen.Node`
-
-    :raises InternalError: if the fparser2 AST does not have the expected \
-                           structure.
-    '''
-    def __init__(self, ast, parent=None):
-        super(NemoIfBlock, self).__init__(parent=parent)
-        NemoFparser2ASTProcessor.__init__(self)
-        # Keep a ptr to the corresponding node in the AST
-        self._ast = ast
-        # Check that the fparser2 AST has the expected structure
-        if not isinstance(ast.content[0], Fortran2003.If_Then_Stmt):
-            raise InternalError("Failed to find opening if then statement: "
-                                "{0}".format(str(ast)))
-        if not isinstance(ast.content[-1], Fortran2003.End_If_Stmt):
-            raise InternalError("Failed to find closing end if statement: "
-                                "{0}".format(str(ast)))
-        clause_indices = []
-        for idx, child in enumerate(ast.content):
-            child._parent = self._ast  # Retrofit parent info
-            if isinstance(child, (Fortran2003.If_Then_Stmt,
-                                  Fortran2003.Else_Stmt,
-                                  Fortran2003.Else_If_Stmt,
-                                  Fortran2003.End_If_Stmt)):
-                clause_indices.append(idx)
-        # Create the body of the main If
-        end_idx = clause_indices[1]
-        self._condition = str(ast.content[0].items[0])
-        self.process_nodes(parent=self,
-                           nodes=ast.content[1:end_idx],
-                           nodes_parent=ast)
-        # Now deal with any other clauses (i.e. "else if" or "else")
-        # An If block has one fewer clauses than it has control statements
-        # (c.f. panels and posts):
-        num_clauses = len(clause_indices) - 1
-        for idx in range(1, num_clauses):
-            start_idx = clause_indices[idx]
-            # No need to subtract 1 here as Python's slice notation means
-            # that the end_idx'th element is excluded
-            end_idx = clause_indices[idx+1]
-            ast.content[start_idx]._parent = ast  # Retrofit parent info
-            self.addchild(NemoIfClause(ast.content[start_idx:end_idx],
-                                       parent=self))
-
-    def gen_code(self):
-        '''
-        Override abstract method of base class.
-        :raises InternalError: because is not relevant to this API.
-        '''
-        # If we get here it's an error as the NEMO API does not generate
-        # code (we manipulate existing code instead).
-        raise InternalError("this method should not have been called!")
-
-    @staticmethod
-    def match(node):
-        '''
-        Checks whether the supplied fparser2 AST represents an if-block
-        that must be represented in the PSyIR. If-blocks that do
-        not contain kernels are just treated as code blocks.
-
-        :param node: the node in the fparser2 AST representing an if-block
-        :type node: :py:class:`fparser.two.Fortran2003.If_Construct`
-        :returns: True if this if-block must be represented in the PSyIRe
-        :rtype: bool
-
-        '''
-        if not isinstance(node, Fortran2003.If_Construct):
-            return False
-
-        # We only care about if-blocks if they contain something significant
-        # i.e. a recognised type of loop (whether implicit or explicit).
-        loops = walk_ast(node.content,
-                         [Fortran2003.Subscript_Triplet,
-                          Fortran2003.Block_Nonlabel_Do_Construct])
-        if loops:
-            return True
-        return False
-
-
-class NemoIfClause(IfClause, NemoFparser2ASTProcessor):
-    '''
-    Represents a sub-clause of an if-block (else-if or else).
-
-    :param list ast_nodes: List of nodes making up the clause in the fparser2 \
-                           AST. First node is the else/else-if statement \
-                           itself.
-    :param parent: Parent of this clause in the PSyIRe (must be an IfBlock).
-    :type parent: :py:class:`psyclone.nemo.NemoIfBlock`
-
-    :raises InternalError: if fparser2 AST doesn't have the expected structure.
-    '''
-    def __init__(self, ast_nodes, parent=None):
-        super(NemoIfClause, self).__init__(parent=parent)
-        NemoFparser2ASTProcessor.__init__(self)
-        # Keep a ptr to the corresponding node in the AST
-        self._ast = ast_nodes[0]
-        # Store what type of clause we are
-        if isinstance(ast_nodes[0], Fortran2003.Else_Stmt):
-            self._clause_type = "Else"
-        elif isinstance(ast_nodes[0], Fortran2003.Else_If_Stmt):
-            self._clause_type = "Else If"
-        else:
-            raise InternalError(
-                "Unrecognised member of if block: '{0}'. Expected one of "
-                "Else_Stmt or Else_If_Stmt.".format(type(ast_nodes[0])))
-        # Continue on down the AST
-        self.process_nodes(parent=self,
-                           nodes=ast_nodes[1:],
-                           nodes_parent=self._ast._parent)
-
-    def gen_code(self):
-        '''
-        Override abstract method of base class.
-        :raises InternalError: because is not relevant to this API.
-        '''
-        # If we get here it's an error as the NEMO API does not generate
-        # code (we manipulate existing code instead).
-        raise InternalError("This method should not have been called!")
