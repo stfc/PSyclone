@@ -51,6 +51,7 @@ import re
 import pytest
 from fparser import api as fpapi
 from psyclone_test_utils import get_invoke
+from psyclone.core.access_type import AccessType
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, NameSpace, \
     NameSpaceFactory, OMPParallelDoDirective, PSy, \
     OMPParallelDirective, OMPDoDirective, OMPDirective, Directive, CodeBlock, \
@@ -79,6 +80,12 @@ def f2008_parser():
     '''Initialise fparser2 with Fortran2008 standard'''
     from fparser.two.parser import ParserFactory
     return ParserFactory().create(std="f2008")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use dynamo0.3 as API.'''
+    Config.get().api = "dynamo0.3"
 
 # Tests for utilities
 
@@ -477,6 +484,7 @@ def test_invokes_can_always_be_printed():
     # Name is converted to lower case if set in constructor of InvokeCall:
     assert inv.__str__() == "invoke_testname()"
 
+    # pylint: disable=protected-access
     invoke_call._name = None
     inv = Invoke(invoke_call, 12, DynInvokeSchedule)
     assert inv.__str__() == "invoke_12()"
@@ -563,7 +571,7 @@ end module dummy_mod
 
 def test_sched_view(capsys):
     ''' Check the view method of the Schedule class'''
-    from psyclone.psyGen import Schedule, colored, SCHEDULE_COLOUR_MAP
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -579,7 +587,6 @@ def test_sched_view(capsys):
 
 def test_sched_can_be_printed():
     ''' Check the schedule class can always be printed'''
-    from psyclone.psyGen import Schedule
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.9.1_X_innerproduct_Y_builtin.f90"),
                            api="dynamo0.3")
@@ -755,41 +762,15 @@ def test_incremented_arg():
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     for descriptor in metadata.arg_descriptors:
-        if descriptor.access == "gh_inc":
-            descriptor._access = "gh_read"
+        if descriptor.access == AccessType.INC:
+            # pylint: disable=protected-access
+            descriptor._access = AccessType.READ
     my_kern = DynKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
-        Kern.incremented_arg(my_kern, mapping={"inc": "gh_inc"})
+        Kern.incremented_arg(my_kern)
     assert ("does not have an argument with gh_inc access"
             in str(excinfo.value))
-
-
-def test_written_arg():
-    ''' Check that we raise the expected exception when
-    Kern.written_arg() is called for a kernel that does not have
-    an argument that is written or readwritten to '''
-    from psyclone.psyGen import Kern
-    # Change the kernel metadata so that the only kernel argument has
-    # read access
-    import fparser
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    # If we change the meta-data then we trip the check in the parser.
-    # Therefore, we change the object produced by parsing the meta-data
-    # instead
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    for descriptor in metadata.arg_descriptors:
-        if descriptor.access in ["gh_write", "gh_readwrite"]:
-            descriptor._access = "gh_read"
-    my_kern = DynKern()
-    my_kern.load_meta(metadata)
-    with pytest.raises(FieldNotFoundError) as excinfo:
-        Kern.written_arg(my_kern,
-                         mapping={"write": "gh_write",
-                                  "readwrite": "gh_readwrite"})
-    assert ("does not have an argument with gh_write or "
-            "gh_readwrite access" in str(excinfo.value))
 
 
 def test_ompdo_constructor():
@@ -864,7 +845,6 @@ def test_acc_dir_view(capsys):
     acclt = ACCLoopTrans()
     accdt = ACCEnterDataTrans()
     accpt = ACCParallelTrans()
-
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0", idx=0)
     colour = SCHEDULE_COLOUR_MAP["Directive"]
     schedule = invoke.schedule
@@ -905,6 +885,7 @@ def test_haloexchange_unknown_halo_depth():
     '''test the case when the halo exchange base class is called without
     a halo depth'''
     halo_exchange = HaloExchange(None)
+    # pylint: disable=protected-access
     assert halo_exchange._halo_depth is None
 
 
@@ -971,7 +952,7 @@ def test_args_filter2():
     loop = schedule.children[3]
 
     # arg_accesses
-    args = loop.args_filter(arg_accesses=["gh_read"])
+    args = loop.args_filter(arg_accesses=[AccessType.READ])
     expected_output = ["chi", "a"]
     for arg in args:
         assert arg.name in expected_output
@@ -1003,6 +984,7 @@ def test_reduction_var_error():
         schedule = psy.invokes.invoke_list[0].schedule
         call = schedule.calls()[0]
         # args[1] is of type gh_field
+        # pylint: disable=protected-access
         call._reduction_arg = call.arguments.args[1]
         with pytest.raises(GenerationError) as err:
             call.zero_reduction_variable(None)
@@ -1021,6 +1003,7 @@ def test_reduction_sum_error():
         schedule = psy.invokes.invoke_list[0].schedule
         call = schedule.calls()[0]
         # args[1] is of type gh_field
+        # pylint: disable=protected-access
         call._reduction_arg = call.arguments.args[1]
         with pytest.raises(GenerationError) as err:
             call.reduction_sum_loop(None)
@@ -1268,7 +1251,7 @@ def test_globalsum_arg():
     schedule = invoke.schedule
     glob_sum = schedule.children[2]
     glob_sum_arg = glob_sum.scalar
-    assert glob_sum_arg.access == "gh_readwrite"
+    assert glob_sum_arg.access == AccessType.READWRITE
     assert glob_sum_arg.call == glob_sum
 
 
@@ -1284,7 +1267,7 @@ def test_haloexchange_arg():
     schedule = invoke.schedule
     halo_exchange = schedule.children[2]
     halo_exchange_arg = halo_exchange.field
-    assert halo_exchange_arg.access == "gh_readwrite"
+    assert halo_exchange_arg.access == AccessType.READWRITE
     assert halo_exchange_arg.call == halo_exchange
 
 
@@ -1520,7 +1503,6 @@ def test_node_root():
     ru_loop = ru_schedule.children[1]
     ru_kern = ru_loop.children[0]
     # Assert that the absolute root is a Schedule
-    from psyclone.psyGen import Schedule
     assert isinstance(ru_kern.root, Schedule)
 
 
@@ -2017,7 +1999,6 @@ def test_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    from psyclone.psyGen import Schedule
     assert super(Schedule, schedule).dag_name == "node_0"
     assert schedule.dag_name == "schedule"
     assert schedule.children[0].dag_name == "checkhaloexchange(f2)_0"

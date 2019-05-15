@@ -42,6 +42,7 @@ import os
 import re
 import pytest
 from gocean1p0_build import GOcean1p0Build
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Loop
 from psyclone.transformations import TransformationError, \
@@ -55,6 +56,12 @@ from psyclone_test_utils import count_lines, get_invoke, Compile
 # The version of the PSyclone API that the tests in this file
 # exercise
 API = "gocean1.0"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup():
+    '''Make sure that all tests here use gocean1.0 as API.'''
+    Config.get().api = "gocean1.0"
 
 
 def test_const_loop_bounds_not_schedule():
@@ -1422,6 +1429,7 @@ def test_go_loop_swap_errors():
                          "1.0.1_single_named_invoke.f90"),
                     api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(info)
+
     invokes = psy.invokes
     invoke = invokes.get(list(invokes.names)[0])
     with pytest.raises(TransformationError) as error:
@@ -1906,7 +1914,7 @@ def test_acc_collapse(tmpdir):
     assert GOcean1p0Build(tmpdir).code_compiles(psy)
 
 
-def test_acc_indep(capsys, tmpdir):
+def test_acc_indep(tmpdir):
     ''' Tests for the independent clause to a loop directive. '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
@@ -1952,8 +1960,8 @@ def test_acc_loop_view(capsys):
     ''' Test for the view() method of ACCLoopDirective. '''
     acclpt = ACCLoopTrans()
 
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
-                             name="invoke_0")
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                           name="invoke_0")
     schedule = invoke.schedule
     new_sched, _ = acclpt.apply(schedule.children[0], independent=False)
     new_sched, _ = acclpt.apply(schedule.children[1], independent=True)
@@ -1970,8 +1978,8 @@ def test_acc_kernels_error():
     ''' Check that we refuse to allow the kernels transformation
     for this API. '''
     from psyclone.transformations import ACCKernelsTrans
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API,
-                             name="invoke_0")
+    _, invoke = get_invoke("single_invoke_three_kernels.f90", API,
+                           name="invoke_0")
     schedule = invoke.schedule
     accktrans = ACCKernelsTrans()
     with pytest.raises(NotImplementedError) as err:

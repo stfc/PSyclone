@@ -122,6 +122,22 @@ class Config(object):
         return Config._instance
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def get_repository_config_file():
+        '''This function returns the absolute path to the config file included
+        in the PSyclone repository. It is used by the testing framework to make
+        sure all tests get the same config file (see tests/config_tests for the
+        only exception).
+        :return str: Absolute path to the config file included in the \
+                     PSyclone repository.
+        '''
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+        # The psyclone root dir is "../.." from this directory,
+        # so to remain portable use dirname twice:
+        psyclone_root_dir = os.path.dirname(os.path.dirname(this_dir))
+        return os.path.join(psyclone_root_dir, "config", "psyclone.cfg")
+
+    # -------------------------------------------------------------------------
     def __init__(self):
         '''This is the basic constructor that only sets the supported APIs
         and stub APIs, it does not load a config file. The Config instance
@@ -191,7 +207,6 @@ class Config(object):
         else:
             # Search for the config file in various default locations
             self._config_file = Config.find_file()
-
         from configparser import ConfigParser, MissingSectionHeaderError
         self._config = ConfigParser()
         try:
@@ -285,6 +300,17 @@ class Config(object):
             if api in self._config:
                 if api == "dynamo0.3":
                     self._api_conf[api] = DynConfig(self, self._config[api])
+                elif api == "dynamo0.1":
+                    # For now we use the same class as dynamo0.3.
+                    # However, we use it to read a different section of the
+                    # config file, so the dynamo0.1 mapping will be correctly
+                    # used.
+                    self._api_conf[api] = DynConfig(self, self._config[api])
+                elif api == "gocean0.1":
+                    # For now we use the same class as gocean1.0.
+                    # However, we use it to read a different section of the
+                    # config file
+                    self._api_conf[api] = GOceanConfig(self, self._config[api])
                 elif api == "gocean1.0":
                     self._api_conf[api] = GOceanConfig(self, self._config[api])
                 else:
@@ -298,11 +324,13 @@ class Config(object):
         # unique name (within the specified kernel-output directory).
         self._kernel_naming = Config._default_kernel_naming
 
-    def api_conf(self, api):
+    def api_conf(self, api=None):
         '''
         Getter for the object holding API-specific configuration options.
 
-        :param str api: the API for which configuration details are required.
+        :param str api: Optional, the API for which configuration details are
+                required. If none is specified, returns the config for the
+                default API.
         :returns: object containing API-specific configuration
         :rtype: One of :py:class:`psyclone.configuration.DynConfig`,
                 :py:class:`psyclone.configuration.GOceanConfig` or None.
@@ -312,6 +340,10 @@ class Config(object):
         :raises ConfigurationError: if the config file did not contain a \
                                     section for the requested API.
         '''
+
+        if not api:
+            return self._api_conf[self._api]
+
         if api not in self.supported_apis:
             raise ConfigurationError(
                 "API '{0}' is not in the list '{1}'' of supported APIs."
@@ -574,7 +606,108 @@ class Config(object):
         return self._config.defaults()
 
 
-class DynConfig(object):
+# =============================================================================
+class APISpecificConfig(object):
+    '''A base class for functions that each API-specific class must provide.
+    At the moment this is just the function 'access_mapping' that maps between
+    API-specific access-descriptor strings and the PSyclone internal
+    AccessType.
+    :param section: :py:class:`configparser.SectionProxy`
+    :raises ConfigurationError: if an access-mapping is provided that \
+        assigns an invalid value (i.e. not one of 'read', 'write', \
+        'readwrite'), 'inc' or 'sum') to a string.
+    '''
+
+    def __init__(self, section):
+        # Set a default mapping, this way the test cases all work without
+        # having to specify those mappings.
+        self._access_mapping = {"read": "read", "write": "write",
+                                "readwrite": "readwrite", "inc": "inc",
+                                "sum": "sum"}
+        # Get the mapping and convert it into a directory. The input is in
+        # the format: key1:value1, key2=value2, ...
+        mapping = section.get("ACCESS_MAPPING")
+        if mapping:
+            self._access_mapping = \
+                APISpecificConfig.create_dict_from_string(mapping)
+        # Now convert the string type ("read" etc) to AccessType
+        from psyclone.core.access_type import AccessType
+        for api_access_name, access_type in self._access_mapping.items():
+            try:
+                self._access_mapping[api_access_name] = \
+                    AccessType.from_string(access_type)
+            except ValueError:
+                # Raised by from_string()
+                raise ConfigurationError("Unknown access type '{0}' found "
+                                         "for key '{1}'"
+                                         .format(access_type,
+                                                 api_access_name))
+
+        # Now create the reverse lookup (for better error messages):
+        self._reverse_access_mapping = {v: k for k, v in
+                                        self._access_mapping.items()}
+
+    @staticmethod
+    def create_dict_from_string(input_str):
+        '''Takes an input string in the format:
+        key1:value1, key2:value2, ...
+        and creates a dictionary with the key,value pairs.
+        Spaces are removed.
+        :param str input_str: The input string.
+        :returns: A dictionary with the key,value pairs from the input string.
+        :rtype: dict.
+        :raises ConfigurationError: if the input string contains an entry \
+                that does not have a ":".
+        '''
+        # Remove spaces and convert unicode to normal strings.
+        input_str = str(input_str.strip())
+        if not input_str:
+            # Split will otherwise return a list with '' as only element,
+            # which then raises an exception
+            return {}
+
+        entries = input_str.split(",")
+        return_dict = {}
+        for entry in entries:
+            try:
+                key, value = entry.split(":", 1)
+            except ValueError:
+                # Raised when split does not return two elements:
+                raise ConfigurationError("Invalid format for mapping: {0}".
+                                         format(entry.strip()))
+            return_dict[key.strip()] = value.strip()
+        return return_dict
+
+    def get_access_mapping(self):
+        '''Returns the mapping of API-specific access strings (e.g.
+        gh_write) to the AccessType (e.g. AccessType.WRITE).
+        :returns: The access mapping to be used by this API.
+        :rtype: Dictionary of strings
+        '''
+        return self._access_mapping
+
+    def get_reverse_access_mapping(self):
+        '''Returns the reverse mapping of a PSyclone internal access type
+        to the API specific string, e.g.: AccessType.READ to 'gh_read'.
+        This is used to provide the user with API specific error messages.
+        :returns: The mapping of access types to API-specific strings.
+        :rtype: Dictionary of strings
+        '''
+        return self._reverse_access_mapping
+
+    def get_valid_accesses_api(self):
+        '''Returns the sorted, API-specific names of all valid access
+        names.
+        :returns: Sorted list of API-specific valid strings.
+        :rtype: List of strings
+        '''
+        valid_names = list(self._access_mapping.keys())
+        valid_names.sort()
+        return valid_names
+
+
+# =============================================================================
+class DynConfig(APISpecificConfig):
     '''
     Dynamo0.3-specific Config sub-class. Holds configuration options specific
     to the Dynamo 0.3 API.
@@ -587,7 +720,7 @@ class DynConfig(object):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
-
+        super(DynConfig, self).__init__(section)
         self._config = config  # Ref. to parent Config object
         try:
             self._compute_annexed_dofs = section.getboolean(
@@ -611,7 +744,7 @@ class DynConfig(object):
 
 
 # =============================================================================
-class GOceanConfig(object):
+class GOceanConfig(APISpecificConfig):
     '''Gocean1.0-specific Config sub-class. Holds configuration options
     specific to the GOcean 1.0 API.
 
@@ -624,6 +757,7 @@ class GOceanConfig(object):
     '''
     # pylint: disable=too-few-public-methods
     def __init__(self, config, section):
+        super(GOceanConfig, self).__init__(section)
         for key in section.keys():
             # Do not handle any keys from the DEFAULT section
             # since they are handled by Config(), not this class.
@@ -639,6 +773,9 @@ class GOceanConfig(object):
                 from psyclone.gocean1p0 import GOLoop
                 for it_space in new_iteration_spaces:
                     GOLoop.add_bounds(it_space)
+            elif key == "access_mapping":
+                # Handled in the base class APISpecificConfig
+                pass
             else:
                 raise ConfigurationError("Invalid key \"{0}\" found in "
                                          "\"{1}\".".format(key,

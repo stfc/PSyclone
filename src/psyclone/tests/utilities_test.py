@@ -75,6 +75,7 @@ def test_compiler_with_flags(tmpdir):
         with open("hello_world.f90", "w") as ffile:
             ffile.write(HELLO_CODE)
         _compile = Compile(tmpdir)
+        # pylint: disable=protected-access
         _compile._f90flags = "not-a-flag"
         with pytest.raises(CompileError) as excinfo:
             _compile.compile_file("hello_world.f90")
@@ -145,10 +146,14 @@ def test_get_invoke():
 
     # First test all 4 valid APIs - we only make sure that no exception
     # is raised, so no assert required
+
     _, _ = get_invoke("openmp_fuse_test.f90", "gocean0.1", idx=0)
+
     _, _ = get_invoke("test14_module_inline_same_kernel.f90",
                       "gocean1.0", idx=0)
+
     _, _ = get_invoke("algorithm/1_single_function.f90", "dynamo0.1", idx=0)
+
     _, _ = get_invoke("1_single_invoke.f90", "dynamo0.3", idx=0)
 
     # Test that an invalid name raises an exception
