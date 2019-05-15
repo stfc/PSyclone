@@ -1,12 +1,14 @@
-## @mainpage The PSyclone Domain-Specific Compiler
+## @mainpage PSyclone Domain-Specific Compiler: Reference Guide
 #
 # @section intro_sec Introduction
 #
-# This is the internal API documentation for the PSyclone
-# Domain-Specific Compiler. For the user guide please see
-# [ReadTheDocs](https://psyclone.readthedocs.io/en/stable/).
+# This is the reference documentation for the PSyclone
+# Domain-Specific Compiler. The
+# [User Guide](https://psyclone.readthedocs.io/en/stable/) and
+# [Developers' Guide](https://psyclone-dev.readthedocs.io/en/stable/) are
+# both available on ReadTheDocs.
 #
-# PSyclone itself is hosted on [GitHub](https://github.com/stfc/PSyclone)
+# The PSyclone project itself is hosted on
+# [GitHub](https://github.com/stfc/PSyclone)
 # and uses the [fparser](https://github.com/stfc/fparser) Fortran parser.
-
 
