@@ -78,14 +78,14 @@ def teardown_function():
 
 
 def test_non_existant_filename():
-    ''' checks that algGen raises appropriate error when a
+    ''' checks that alg_gen raises appropriate error when a
     non-existant filename is supplied '''
     with pytest.raises(IOError):
         generate("non_existant_file.f90")
 
 
 def test_invalid_api():
-    ''' checks that algGen raises appropriate error when an invalid
+    ''' checks that alg_gen raises appropriate error when an invalid
         api is supplied '''
     with pytest.raises(GenerationError):
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
@@ -93,7 +93,7 @@ def test_invalid_api():
 
 
 def test_invalid_kernel_path():
-    ''' checks that algGen raises appropriate error when an invalid
+    ''' checks that alg_gen raises appropriate error when an invalid
         search path for kernel source files is supplied '''
     with pytest.raises(IOError):
         generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
@@ -103,7 +103,7 @@ def test_invalid_kernel_path():
 
 
 def test_wrong_kernel_path():
-    ''' checks that algGen raises appropriate error when the kernel
+    ''' checks that alg_gen raises appropriate error when the kernel
         code cannot be found in the specified search path '''
     with pytest.raises(ParseError):
         generate(os.path.join(BASE_PATH, "dynamo0p3",
@@ -113,7 +113,7 @@ def test_wrong_kernel_path():
 
 
 def test_correct_kernel_path():
-    ''' checks that algGen succeeds when the location of the kernel
+    ''' checks that alg_gen succeeds when the location of the kernel
         source code is *not* the same as that of the algorithm code '''
     _, _ = generate(os.path.join(BASE_PATH, "dynamo0p1", "algorithm",
                                  "1_single_function.f90"),
