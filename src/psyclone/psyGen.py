@@ -5616,7 +5616,7 @@ class Fparser2ASTProcessor(object):
                     ifblock.ast_end = node.content[end_idx - 1]
 
                     # Add condition: selector == case
-                    bop = BinaryOperation(BinaryOperator.EQ, parent=ifblock)
+                    bop = BinaryOperation(BinaryOperation.Operator.EQ, parent=ifblock)
 
                     self.process_nodes(parent=bop,
                                        nodes=[selector],
@@ -5699,11 +5699,11 @@ class Fparser2ASTProcessor(object):
         # Get the operator
         operator_str = node.items[0].lower()
         if operator_str == '+':
-            operator = UnaryOperator.PLUS
+            operator = UnaryOperation.Operator.PLUS
         elif operator_str == '-':
-            operator = UnaryOperator.MINUS
+            operator = UnaryOperation.Operator.MINUS
         elif operator_str == '.not.':
-            operator = UnaryOperator.NOT
+            operator = UnaryOperation.Operator.NOT
         else:
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
@@ -5728,47 +5728,47 @@ class Fparser2ASTProcessor(object):
         # Get the operator
         operator_str = node.items[1].lower()
         if operator_str == '+':
-            operator = BinaryOperator.ADD
+            operator = BinaryOperation.Operator.ADD
         elif operator_str == '-':
-            operator = BinaryOperator.SUB
+            operator = BinaryOperation.Operator.SUB
         elif operator_str == '*':
-            operator = BinaryOperator.MUL
+            operator = BinaryOperation.Operator.MUL
         elif operator_str == '/':
-            operator = BinaryOperator.DIV
+            operator = BinaryOperation.Operator.DIV
         elif operator_str == '**':
-            operator = BinaryOperator.POW
+            operator = BinaryOperation.Operator.POW
         elif operator_str == '==':
-            operator = BinaryOperator.EQ
+            operator = BinaryOperation.Operator.EQ
         elif operator_str == '.eq.':
-            operator = BinaryOperator.EQ
+            operator = BinaryOperation.Operator.EQ
         elif operator_str == '.eqv.':
-            operator = BinaryOperator.EQ
+            operator = BinaryOperation.Operator.EQ
         elif operator_str == '/=':
-            operator = BinaryOperator.NE
+            operator = BinaryOperation.Operator.NE
         elif operator_str == '.ne.':
-            operator = BinaryOperator.NE
+            operator = BinaryOperation.Operator.NE
         elif operator_str == '.neqv.':
-            operator = BinaryOperator.NE
+            operator = BinaryOperation.Operator.NE
         elif operator_str == '<=':
-            operator = BinaryOperator.LE
+            operator = BinaryOperation.Operator.LE
         elif operator_str == '.le.':
-            operator = BinaryOperator.LE
+            operator = BinaryOperation.Operator.LE
         elif operator_str == '<':
-            operator = BinaryOperator.LT
+            operator = BinaryOperation.Operator.LT
         elif operator_str == '.lt.':
-            operator = BinaryOperator.LT
+            operator = BinaryOperation.Operator.LT
         elif operator_str == '>':
-            operator = BinaryOperator.GT
+            operator = BinaryOperation.Operator.GT
         elif operator_str == '.gt.':
-            operator = BinaryOperator.GT
+            operator = BinaryOperation.Operator.GT
         elif operator_str == '>=':
-            operator = BinaryOperator.GE
+            operator = BinaryOperation.Operator.GE
         elif operator_str == '.ge.':
-            operator = BinaryOperator.GE
+            operator = BinaryOperation.Operator.GE
         elif operator_str == '.and.':
-            operator = BinaryOperator.AND
+            operator = BinaryOperation.Operator.AND
         elif operator_str == '.or.':
-            operator = BinaryOperator.OR
+            operator = BinaryOperation.Operator.OR
         else:
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
@@ -5799,9 +5799,8 @@ class Fparser2ASTProcessor(object):
             except KeyError:
                 raise GenerationError(
                     "Undeclared reference '{0}' found when parsing fparser2 "
-                    "node '{1}' inside '{2}'.".format(str(node.string),
-                                                      repr(node),
-                                                      parent.root.name))
+                    "node '{1}' inside '{2}'."
+                    "".format(str(node.string), repr(node), parent.root.name))
 
         return Reference(node.string, parent)
 
@@ -5841,14 +5840,14 @@ class Fparser2ASTProcessor(object):
         # Intrinsics are wrongly parsed as arrays by fparser2, we can
         # fix the issue here and convert them to appropiate PSyIR nodes.
         if reference_name == 'sign':
-            bop = BinaryOperation(BinaryOperator.SIGN, parent)
+            bop = BinaryOperation(BinaryOperation.Operator.SIGN, parent)
             self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
                                nodes_parent=node)
             self.process_nodes(parent=bop, nodes=[node.items[1].items[1]],
                                nodes_parent=node)
             return bop
         elif reference_name == 'sin':
-            uop = UnaryOperation(UnaryOperator.SIN, parent)
+            uop = UnaryOperation(UnaryOperation.Operator.SIN, parent)
             self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
             return uop
@@ -5856,12 +5855,12 @@ class Fparser2ASTProcessor(object):
             if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
                 # If it has more than a single argument create a CodeBlock
                 raise NotImplementedError()
-            uop = UnaryOperation(UnaryOperator.REAL, parent)
+            uop = UnaryOperation(UnaryOperation.Operator.REAL, parent)
             self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
             return uop
         elif reference_name == 'sqrt':
-            uop = UnaryOperation(UnaryOperator.SQRT, parent)
+            uop = UnaryOperation(UnaryOperation.Operator.SQRT, parent)
             self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
             return uop
@@ -5871,8 +5870,11 @@ class Fparser2ASTProcessor(object):
             try:
                 symbol_table.lookup(reference_name)
             except KeyError:
-                raise GenerationError("Undeclared Reference: " +
-                                      str(reference_name))
+                raise GenerationError(
+                    "Undeclared reference '{0}' found when parsing fparser2 "
+                    "node '{1}' inside '{2}'."
+                    "".format(str(reference_name), repr(node),
+                              parent.root.name))
 
         array = Array(reference_name, parent)
 
@@ -6546,32 +6548,6 @@ class Reference(Node):
         return self._reference
 
 
-UnaryOperator = Enum('UnaryOperator', [
-    # Arithmetic Operators
-    'MINUS', 'PLUS', 'SQRT',
-    # Logical Operators
-    'NOT',
-    # Trigonometric Operators
-    'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
-    # Other Maths Operators
-    'ABS',
-    # Casting Opertors
-    'REAL'
-    ])
-
-
-BinaryOperator = Enum('BinaryOperator', [
-    # Arithmetic Operators
-    'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
-    # Relational Operators
-    'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
-    # Logical Operators
-    'AND', 'OR',
-    # Other Maths Operators
-    'SIGN'
-    ])
-
-
 class UnaryOperation(Node):
     '''
     Node representing a UnaryOperation expression. As such it has one operand
@@ -6581,11 +6557,27 @@ class UnaryOperation(Node):
     :param parent: the parent node of this UnaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
+    Operator = Enum('Operator', [
+        # Arithmetic Operators
+        'MINUS', 'PLUS', 'SQRT',
+        # Logical Operators
+        'NOT',
+        # Trigonometric Operators
+        'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
+        # Other Maths Operators
+        'ABS',
+        # Casting Opertors
+        'REAL'
+        ])
+
     def __init__(self, operator, parent=None):
         super(UnaryOperation, self).__init__(parent=parent)
 
-        if not isinstance(operator, UnaryOperator):
-            raise TypeError("")
+        if not isinstance(operator, self.Operator):
+            raise TypeError(
+                "UnaryOperation operator argument must be of type "
+                "UnaryOpertion.Operator but found {0}."
+                "".format(type(operator).__name__))
 
         self._operator = operator
 
@@ -6640,18 +6632,18 @@ class UnaryOperation(Node):
             return function_str + "(" + expression_str + ")"
 
         opmap = {
-            UnaryOperator.MINUS: ("-", operator_format),
-            UnaryOperator.PLUS: ("+", operator_format),
-            UnaryOperator.NOT: (".not.", operator_format),
-            UnaryOperator.SIN: ("sin", function_format),
-            UnaryOperator.COS: ("cos", function_format),
-            UnaryOperator.TAN: ("tan", function_format),
-            UnaryOperator.ASIN: ("asin", function_format),
-            UnaryOperator.ACOS: ("acos", function_format),
-            UnaryOperator.ATAN: ("atan", function_format),
-            UnaryOperator.ABS: ("abs", function_format),
-            UnaryOperator.REAL: ("float", function_format),
-            UnaryOperator.SQRT: ("sqrt", function_format),
+            UnaryOperation.Operator.MINUS: ("-", operator_format),
+            UnaryOperation.Operator.PLUS: ("+", operator_format),
+            UnaryOperation.Operator.NOT: (".not.", operator_format),
+            UnaryOperation.Operator.SIN: ("sin", function_format),
+            UnaryOperation.Operator.COS: ("cos", function_format),
+            UnaryOperation.Operator.TAN: ("tan", function_format),
+            UnaryOperation.Operator.ASIN: ("asin", function_format),
+            UnaryOperation.Operator.ACOS: ("acos", function_format),
+            UnaryOperation.Operator.ATAN: ("atan", function_format),
+            UnaryOperation.Operator.ABS: ("abs", function_format),
+            UnaryOperation.Operator.REAL: ("float", function_format),
+            UnaryOperation.Operator.SQRT: ("sqrt", function_format),
             }
         try:
             opstring, formatter = opmap[self._operator]
@@ -6665,22 +6657,33 @@ class UnaryOperation(Node):
 
 class BinaryOperation(Node):
     '''
-    Node representing a BinaryOperator expression. As such it has two operands
+    Node representing a BinaryOperation expression. As such it has two operands
     as children 0 and 1, and a attribute with the operator type.
 
     :param operator: node in the fparser2 AST representing the binary operator.
     :type operator: :py:class:`fparser.two.Fortran2003.BinaryOpBase.
-    :param parent: the parent node of this BinaryOperator in the PSyIR.
+    :param parent: the parent node of this BinaryOperation in the PSyIR.
     :type parent: :py:class:`psyclone.psyGen.Node`
     '''
+    Operator = Enum('Operator', [
+        # Arithmetic Operators
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
+        # Relational Operators
+        'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
+        # Logical Operators
+        'AND', 'OR',
+        # Other Maths Operators
+        'SIGN'
+        ])
+
     def __init__(self, operator, parent=None):
         super(BinaryOperation, self).__init__(parent=parent)
 
-        if not isinstance(operator, BinaryOperator):
+        if not isinstance(operator, self.Operator):
             raise TypeError(
-                "BinaryOperation operator argument must be of type {0}"
-                " but found {1}.".format(type(BinaryOperator).__name,
-                                         type(operator).__name__))
+                "BinaryOperation operator argument must be of type "
+                "BinaryOperation.Operator but found {0}."
+                "".format(type(operator).__name__))
 
         self._operator = operator
 
@@ -6736,21 +6739,21 @@ class BinaryOperation(Node):
             return function_str + "(" + expr1 + ", " + expr2 + ")"
 
         opmap = {
-                BinaryOperator.ADD: ("+", operator_format),
-                BinaryOperator.SUB: ("-", operator_format),
-                BinaryOperator.MUL: ("*", operator_format),
-                BinaryOperator.DIV: ("/", operator_format),
-                BinaryOperator.REM: ("%", operator_format),
-                BinaryOperator.POW: ("pow", function_format),
-                BinaryOperator.EQ: ("==", operator_format),
-                BinaryOperator.NE: ("!=", operator_format),
-                BinaryOperator.LT: ("<", operator_format),
-                BinaryOperator.LE: ("<=", operator_format),
-                BinaryOperator.GT: (">", operator_format),
-                BinaryOperator.GE: (">=", operator_format),
-                BinaryOperator.AND: ("&&", operator_format),
-                BinaryOperator.OR: ("||", operator_format),
-                BinaryOperator.SIGN: ("copysign", function_format),
+                BinaryOperation.Operator.ADD: ("+", operator_format),
+                BinaryOperation.Operator.SUB: ("-", operator_format),
+                BinaryOperation.Operator.MUL: ("*", operator_format),
+                BinaryOperation.Operator.DIV: ("/", operator_format),
+                BinaryOperation.Operator.REM: ("%", operator_format),
+                BinaryOperation.Operator.POW: ("pow", function_format),
+                BinaryOperation.Operator.EQ: ("==", operator_format),
+                BinaryOperation.Operator.NE: ("!=", operator_format),
+                BinaryOperation.Operator.LT: ("<", operator_format),
+                BinaryOperation.Operator.LE: ("<=", operator_format),
+                BinaryOperation.Operator.GT: (">", operator_format),
+                BinaryOperation.Operator.GE: (">=", operator_format),
+                BinaryOperation.Operator.AND: ("&&", operator_format),
+                BinaryOperation.Operator.OR: ("||", operator_format),
+                BinaryOperation.Operator.SIGN: ("copysign", function_format),
             }
 
         try:

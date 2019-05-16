@@ -2957,12 +2957,23 @@ def test_literal_gen_c_code():
 
 
 # Test BinaryOperation class
+def test_binaryoperation_initialization(capsys):
+    ''' Check the initialization method of the BiaryOperation class works
+    as expected.'''
+
+    with pytest.raises(TypeError) as err:
+        _ = BinaryOperation("not an operator")
+    assert "BinaryOperation operator argument must be of type " \
+           "BinaryOperation.Operator but found" in str(err)
+    bop = BinaryOperation(BinaryOperation.Operator.ADD)
+    assert bop._operator is BinaryOperation.Operator.ADD
+
 
 def test_binaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the Binary Operation
     class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, BinaryOperator
-    binary_operation = BinaryOperation(BinaryOperator.ADD)
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("1", parent=binary_operation)
     binary_operation.addchild(op1)
@@ -2977,8 +2988,7 @@ def test_binaryoperation_view(capsys):
 def test_binaryoperation_can_be_printed():
     '''Test that a Binary Operation instance can always be printed (i.e. is
     initialised fully)'''
-    from psyclone.psyGen import BinaryOperator
-    binary_operation = BinaryOperation(BinaryOperator.ADD)
+    binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     op1 = Literal("1", parent=binary_operation)
     op2 = Literal("1", parent=binary_operation)
     binary_operation.addchild(op1)
@@ -2988,8 +2998,7 @@ def test_binaryoperation_can_be_printed():
 
 def test_binaryoperation_gen_c_code():
     '''Test that a BinaryOperation node can generate its C representation'''
-    from psyclone.psyGen import BinaryOperator
-    binary_operation = BinaryOperation(BinaryOperator.ADD)
+    binary_operation = BinaryOperation(BinaryOperation.Operator.ADD)
     with pytest.raises(GenerationError) as err:
         _ = binary_operation.gen_c_code()
     assert("BinaryOperation malformed or incomplete. It should have "
@@ -3001,21 +3010,21 @@ def test_binaryoperation_gen_c_code():
     assert binary_operation.gen_c_code() == '(a + b)'
 
     # Test all supported Operators
-    test_list = ((BinaryOperator.ADD, '(a + b)'),
-                 (BinaryOperator.SUB, '(a - b)'),
-                 (BinaryOperator.MUL, '(a * b)'),
-                 (BinaryOperator.DIV, '(a / b)'),
-                 (BinaryOperator.REM, '(a % b)'),
-                 (BinaryOperator.POW, 'pow(a, b)'),
-                 (BinaryOperator.EQ, '(a == b)'),
-                 (BinaryOperator.NE, '(a != b)'),
-                 (BinaryOperator.GT, '(a > b)'),
-                 (BinaryOperator.GE, '(a >= b)'),
-                 (BinaryOperator.LT, '(a < b)'),
-                 (BinaryOperator.LE, '(a <= b)'),
-                 (BinaryOperator.AND, '(a && b)'),
-                 (BinaryOperator.OR, '(a || b)'),
-                 (BinaryOperator.SIGN, 'copysign(a, b)'),
+    test_list = ((BinaryOperation.Operator.ADD, '(a + b)'),
+                 (BinaryOperation.Operator.SUB, '(a - b)'),
+                 (BinaryOperation.Operator.MUL, '(a * b)'),
+                 (BinaryOperation.Operator.DIV, '(a / b)'),
+                 (BinaryOperation.Operator.REM, '(a % b)'),
+                 (BinaryOperation.Operator.POW, 'pow(a, b)'),
+                 (BinaryOperation.Operator.EQ, '(a == b)'),
+                 (BinaryOperation.Operator.NE, '(a != b)'),
+                 (BinaryOperation.Operator.GT, '(a > b)'),
+                 (BinaryOperation.Operator.GE, '(a >= b)'),
+                 (BinaryOperation.Operator.LT, '(a < b)'),
+                 (BinaryOperation.Operator.LE, '(a <= b)'),
+                 (BinaryOperation.Operator.AND, '(a && b)'),
+                 (BinaryOperation.Operator.OR, '(a || b)'),
+                 (BinaryOperation.Operator.SIGN, 'copysign(a, b)'),
                  )
 
     for operator, expected in test_list:
@@ -3033,12 +3042,23 @@ def test_binaryoperation_gen_c_code():
 
 
 # Test UnaryOperation class
+def test_unaryoperation_initialization(capsys):
+    ''' Check the initialization method of the UnaryOperation class works
+    as expected.'''
+
+    with pytest.raises(TypeError) as err:
+        _ = UnaryOperation("not an operator")
+    assert "UnaryOperation operator argument must be of type " \
+           "UnaryOpertion.Operator but found" in str(err)
+    uop = UnaryOperation(UnaryOperation.Operator.MINUS)
+    assert uop._operator is UnaryOperation.Operator.MINUS
+
 
 def test_unaryoperation_view(capsys):
     ''' Check the view and colored_text methods of the UnaryOperation
     class.'''
-    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP, UnaryOperator
-    unary_operation = UnaryOperation(UnaryOperator.MINUS)
+    from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
+    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     ref1 = Reference("a", parent=unary_operation)
     unary_operation.addchild(ref1)
     coloredtext = colored("UnaryOperation",
@@ -3051,8 +3071,7 @@ def test_unaryoperation_view(capsys):
 def test_unaryoperation_can_be_printed():
     '''Test that a UnaryOperation instance can always be printed (i.e. is
     initialised fully)'''
-    from psyclone.psyGen import UnaryOperator
-    unary_operation = UnaryOperation(UnaryOperator.MINUS)
+    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     op1 = Literal("1", parent=unary_operation)
     unary_operation.addchild(op1)
     assert "UnaryOperation[operator:'MINUS']\n" in str(unary_operation)
@@ -3060,8 +3079,7 @@ def test_unaryoperation_can_be_printed():
 
 def test_unaryoperation_gen_c_code():
     '''Test that a UnaryOperation node can generate its C representation'''
-    from psyclone.psyGen import UnaryOperator
-    unary_operation = UnaryOperation(UnaryOperator.MINUS)
+    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
     with pytest.raises(GenerationError) as err:
         _ = unary_operation.gen_c_code()
     assert("UnaryOperation malformed or incomplete. It should have "
@@ -3071,18 +3089,18 @@ def test_unaryoperation_gen_c_code():
     assert unary_operation.gen_c_code() == '(-a)'
 
     # Test all supported Operators
-    test_list = ((UnaryOperator.PLUS, '(+a)'),
-                 (UnaryOperator.MINUS, '(-a)'),
-                 (UnaryOperator.SQRT, 'sqrt(a)'),
-                 (UnaryOperator.NOT, '(.not.a)'),
-                 (UnaryOperator.COS, 'cos(a)'),
-                 (UnaryOperator.SIN, 'sin(a)'),
-                 (UnaryOperator.TAN, 'tan(a)'),
-                 (UnaryOperator.ACOS, 'acos(a)'),
-                 (UnaryOperator.ASIN, 'asin(a)'),
-                 (UnaryOperator.ATAN, 'atan(a)'),
-                 (UnaryOperator.ABS, 'abs(a)'),
-                 (UnaryOperator.REAL, 'float(a)'),
+    test_list = ((UnaryOperation.Operator.PLUS, '(+a)'),
+                 (UnaryOperation.Operator.MINUS, '(-a)'),
+                 (UnaryOperation.Operator.SQRT, 'sqrt(a)'),
+                 (UnaryOperation.Operator.NOT, '(.not.a)'),
+                 (UnaryOperation.Operator.COS, 'cos(a)'),
+                 (UnaryOperation.Operator.SIN, 'sin(a)'),
+                 (UnaryOperation.Operator.TAN, 'tan(a)'),
+                 (UnaryOperation.Operator.ACOS, 'acos(a)'),
+                 (UnaryOperation.Operator.ASIN, 'asin(a)'),
+                 (UnaryOperation.Operator.ATAN, 'atan(a)'),
+                 (UnaryOperation.Operator.ABS, 'abs(a)'),
+                 (UnaryOperation.Operator.REAL, 'float(a)'),
                  )
 
     for operator, expected in test_list:
@@ -4000,7 +4018,7 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    reader = FortranStringReader("x(i)=1")
+    reader = FortranStringReader("x(2)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
     fake_parent = Node()
@@ -4013,6 +4031,27 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
     assert new_node._reference == "x"
     assert len(new_node.children) == 1  # Array dimensions
 
+    # If the parent root has a symbol table it checks if the symbol
+    # is declared.
+    fake_parent = KernelSchedule('kernel')
+    processor = Fparser2ASTProcessor()
+
+    with pytest.raises(GenerationError) as error:
+        processor.process_nodes(fake_parent, [fparser2part_ref], None)
+    assert "Undeclared reference 'x' found when parsing fparser2 " \
+           "node " in str(error)
+    assert " inside 'kernel'." in str(error)
+
+    fake_parent.symbol_table.declare('x', 'integer')
+    processor.process_nodes(fake_parent, [fparser2part_ref], None)
+    assert len(fake_parent.children) == 1
+    new_node = fake_parent.children[0]
+    assert isinstance(new_node, Array)
+    assert new_node._reference == "x"
+    assert len(new_node.children) == 1  # Array dimensions
+
+    # Parse a complex array expression
+    fake_parent = Node()
     reader = FortranStringReader("x(i+3,j-4,(z*5)+1)=1")
     fparser2part_ref = Execution_Part.match(reader)[0][0].items[0]
 
@@ -4032,14 +4071,15 @@ def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import BinaryOperator, UnaryOperator
     processor = Fparser2ASTProcessor()
 
     # Test parsing all supported binary operators.
-    testlist = (('x = sign(a, b)', BinaryOperation, BinaryOperator.SIGN),
-                ('x = sin(a)', UnaryOperation, UnaryOperator.SIN),
-                ('x = real(a)', UnaryOperation, UnaryOperator.REAL),
+    testlist = (('x = sign(a, b)', BinaryOperation,
+                 BinaryOperation.Operator.SIGN),
+                ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
+                ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
                 ('x = real(a, 8)', CodeBlock, None),
+                ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
                 )
 
     for code, expected_type, expected_op in testlist:
@@ -4362,7 +4402,6 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyGen import BinaryOperator
     reader = FortranStringReader("x=1+4")
     fp2binaryop = Execution_Part.match(reader)[0][0].items[2]
 
@@ -4374,31 +4413,31 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     new_node = fake_parent.children[0]
     assert isinstance(new_node, BinaryOperation)
     assert len(new_node.children) == 2
-    assert new_node._operator == BinaryOperator.ADD
+    assert new_node._operator == BinaryOperation.Operator.ADD
 
     # Test parsing all supported binary operators.
-    testlist = (('+', BinaryOperator.ADD),
-                ('-', BinaryOperator.SUB),
-                ('*', BinaryOperator.MUL),
-                ('/', BinaryOperator.DIV),
-                ('**', BinaryOperator.POW),
-                ('==', BinaryOperator.EQ),
-                ('.eq.', BinaryOperator.EQ),
-                ('.EQ.', BinaryOperator.EQ),
-                ('.eqv.', BinaryOperator.EQ),
-                ('/=', BinaryOperator.NE),
-                ('.ne.', BinaryOperator.NE),
-                ('.NEQV.', BinaryOperator.NE),
-                ('>', BinaryOperator.GT),
-                ('.GT.', BinaryOperator.GT),
-                ('<', BinaryOperator.LT),
-                ('.lt.', BinaryOperator.LT),
-                ('>=', BinaryOperator.GE),
-                ('.ge.', BinaryOperator.GE),
-                ('<=', BinaryOperator.LE),
-                ('.LE.', BinaryOperator.LE),
-                ('.and.', BinaryOperator.AND),
-                ('.or.', BinaryOperator.OR),
+    testlist = (('+', BinaryOperation.Operator.ADD),
+                ('-', BinaryOperation.Operator.SUB),
+                ('*', BinaryOperation.Operator.MUL),
+                ('/', BinaryOperation.Operator.DIV),
+                ('**', BinaryOperation.Operator.POW),
+                ('==', BinaryOperation.Operator.EQ),
+                ('.eq.', BinaryOperation.Operator.EQ),
+                ('.EQ.', BinaryOperation.Operator.EQ),
+                ('.eqv.', BinaryOperation.Operator.EQ),
+                ('/=', BinaryOperation.Operator.NE),
+                ('.ne.', BinaryOperation.Operator.NE),
+                ('.NEQV.', BinaryOperation.Operator.NE),
+                ('>', BinaryOperation.Operator.GT),
+                ('.GT.', BinaryOperation.Operator.GT),
+                ('<', BinaryOperation.Operator.LT),
+                ('.lt.', BinaryOperation.Operator.LT),
+                ('>=', BinaryOperation.Operator.GE),
+                ('.ge.', BinaryOperation.Operator.GE),
+                ('<=', BinaryOperation.Operator.LE),
+                ('.LE.', BinaryOperation.Operator.LE),
+                ('.and.', BinaryOperation.Operator.AND),
+                ('.or.', BinaryOperation.Operator.OR),
                 )
 
     for opstring, expected in testlist:
@@ -4427,7 +4466,6 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part, UnaryOpBase
-    from psyclone.psyGen import UnaryOperator
     reader = FortranStringReader("x=-4")
     fp2unaryop = Execution_Part.match(reader)[0][0].items[2]
     assert isinstance(fp2unaryop, UnaryOpBase)
@@ -4440,13 +4478,13 @@ def test_fparser2astprocessor_handling_unaryopbase(f2008_parser):
     new_node = fake_parent.children[0]
     assert isinstance(new_node, UnaryOperation)
     assert len(new_node.children) == 1
-    assert new_node._operator == UnaryOperator.MINUS
+    assert new_node._operator == UnaryOperation.Operator.MINUS
 
     # Test parsing all supported unary operators.
-    testlist = (('+', UnaryOperator.PLUS),
-                ('-', UnaryOperator.MINUS),
-                ('.not.', UnaryOperator.NOT),
-                ('.NOT.', UnaryOperator.NOT),
+    testlist = (('+', UnaryOperation.Operator.PLUS),
+                ('-', UnaryOperation.Operator.MINUS),
+                ('.not.', UnaryOperation.Operator.NOT),
+                ('.NOT.', UnaryOperation.Operator.NOT),
                 )
 
     for opstring, expected in testlist:
