@@ -5820,19 +5820,18 @@ class Symbol(object):
                       mechanism, at the moment just 'global_argument' is \
                       available for variables passed in/out of the kernel \
                       by argument.
-
     :param constant_value: Sets a fixed known value for this \
                            Symbol. If the value is None (the default) \
                            then this symbol is not a constant. The \
                            datatype of the constant value must be \
                            compatible with the datatype of the symbol.
-
     :type constant_value: int, str or bool
     :param bool is_input: Whether the symbol represents data that exists \
                           before the kernel is entered and that is passed \
                           into the kernel.
     :param bool is_output: Whether the symbol represents data that is passed \
                            outside the kernel upon exit.
+
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
@@ -5876,6 +5875,7 @@ class Symbol(object):
 
         # The following attributes have setter methods (with error checking)
         self._scope = None
+        self._constant_value = None
         self._is_input = None
         self._is_output = None
         self.scope = scope
@@ -6008,25 +6008,26 @@ class Symbol(object):
 
     @property
     def is_scalar(self):
-        '''If the shape variable is an empty list then this symbol is a
-        scalar.
-
+        '''
         :returns: True if this symbol is a scalar and False otherwise.
         :rtype: bool
 
         '''
+        # If the shape variable is an empty list then this symbol is a
+        # scalar.
         return self.shape == []
 
     @property
     def is_array(self):
-        '''The assumption in this method is that if this symbol is not a
-        scalar then it is an array. If this assumption becomes invalid
-        then this logic will need to be changed appropriately.
-
+        '''
         :returns: True if this symbol is an array and False otherwise.
         :rtype: bool
 
         '''
+        # The assumption in this method is that if this symbol is not
+        # a scalar then it is an array. If this assumption becomes
+        # invalid then this logic will need to be changed
+        # appropriately.
         return not self.is_scalar
 
     @property

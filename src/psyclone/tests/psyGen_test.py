@@ -3221,7 +3221,7 @@ def test_symbol_map():
     assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 1
     for data_type in Symbol.valid_data_types:
         if data_type not in ["real"]:
-            Symbol.mapping[data_type]
+            assert data_type in Symbol.mapping
 
 
 def test_symbol_scope_setter():
@@ -3491,12 +3491,12 @@ def test_symboltable_swap_symbol_properties():
     # Raise exception if the first symbol does not exist in the symbol table
     with pytest.raises(KeyError) as excinfo:
         sym_table.swap_symbol_properties(symbol4, symbol1)
-    assert ("Symbol 'var2' is not in the symbol table.") in str(excinfo.value)
+    assert "Symbol 'var2' is not in the symbol table." in str(excinfo.value)
 
     # Raise exception if the second symbol does not exist in the symbol table
     with pytest.raises(KeyError) as excinfo:
         sym_table.swap_symbol_properties(symbol1, symbol4)
-    assert ("Symbol 'var2' is not in the symbol table.") in str(excinfo.value)
+    assert "Symbol 'var2' is not in the symbol table." in str(excinfo.value)
 
     # Raise exception if both symbols have the same name
     with pytest.raises(ValueError) as excinfo:
@@ -3535,9 +3535,9 @@ def test_symboltable_swap_symbol_properties():
 
     # Check argument positions are updated. The original positions
     # were [dim1, dim2, var2]. They should now be [dim2, dim1, var1]
-    assert sym_table._argument_list[0].name == "dim2"
-    assert sym_table._argument_list[1].name == "dim1"
-    assert sym_table._argument_list[2].name == "var1"
+    assert sym_table.argument_list[0].name == "dim2"
+    assert sym_table.argument_list[1].name == "dim1"
+    assert sym_table.argument_list[2].name == "var1"
 
 
 def test_symboltable_lookup():
