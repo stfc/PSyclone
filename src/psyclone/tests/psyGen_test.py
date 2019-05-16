@@ -885,7 +885,6 @@ def test_haloexchange_unknown_halo_depth():
     '''test the case when the halo exchange base class is called without
     a halo depth'''
     halo_exchange = HaloExchange(None)
-    # pylint: disable=protected-access
     assert halo_exchange._halo_depth is None
 
 
