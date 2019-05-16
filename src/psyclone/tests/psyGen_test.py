@@ -4026,6 +4026,32 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
     assert len(new_node.children) == 3  # Array dimensions
 
 
+def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
+    ''' Test that fparser2 Part_Ref what should instead be intrinsics and
+    are supported by PSyIR are handled appropietly.
+    '''
+    from fparser.common.readfortran import FortranStringReader
+    from fparser.two.Fortran2003 import Execution_Part
+    from psyclone.psyGen import BinaryOperator, UnaryOperator
+    processor = Fparser2ASTProcessor()
+
+    # Test parsing all supported binary operators.
+    testlist = (('x = sign(a, b)', BinaryOperation, BinaryOperator.SIGN),
+                ('x = sin(a)', UnaryOperation, UnaryOperator.SIN),
+                ('x = real(a)', UnaryOperation, UnaryOperator.REAL),
+                ('x = real(a, 8)', CodeBlock, None),
+                )
+
+    for code, expected_type, expected_op in testlist:
+        fake_parent = Node()
+        reader = FortranStringReader(code)
+        fp2node = Execution_Part.match(reader)[0][0].items[2]
+        processor.process_nodes(fake_parent, [fp2node], None)
+        assert len(fake_parent.children) == 1
+        assert isinstance(fake_parent.children[0], expected_type), \
+            "Fails when parsing '" + code + "'"
+
+
 def test_fparser2astprocessor_handling_if_stmt(f2008_parser):
     ''' Test that fparser2 If_Stmt is converted to the expected PSyIR
     tree structure.
@@ -4349,11 +4375,6 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
     assert isinstance(new_node, BinaryOperation)
     assert len(new_node.children) == 2
     assert new_node._operator == BinaryOperator.ADD
-
-    def parse_with_replaced_operator(fnode, operator):
-        fnode.items = (fnode.items[0], operator, fnode.items[2])
-        processor.process_nodes(fake_parent, [fnode], None)
-        return fake_parent
 
     # Test parsing all supported binary operators.
     testlist = (('+', BinaryOperator.ADD),

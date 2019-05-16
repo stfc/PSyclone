@@ -5849,17 +5849,20 @@ class Fparser2ASTProcessor(object):
             return bop
         elif reference_name == 'sin':
             uop = UnaryOperation(UnaryOperator.SIN, parent)
-            self.process_nodes(parent=uop, nodes=[node.items[1].items[0]],
+            self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
             return uop
         elif reference_name == 'real':
+            if isinstance(node.items[1], Fortran2003.Section_Subscript_List):
+                # If it has more than a single argument create a CodeBlock
+                raise NotImplementedError()
             uop = UnaryOperation(UnaryOperator.REAL, parent)
-            self.process_nodes(parent=uop, nodes=[node.items[1].items[0]],
+            self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
             return uop
         elif reference_name == 'sqrt':
             uop = UnaryOperation(UnaryOperator.SQRT, parent)
-            self.process_nodes(parent=uop, nodes=[node.items[1].items[0]],
+            self.process_nodes(parent=uop, nodes=[node.items[1]],
                                nodes_parent=node)
             return uop
 
