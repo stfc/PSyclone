@@ -4162,8 +4162,8 @@ def test_fp2astproc_case_default(f2008_parser):
     ''' Check that the fparser2ASTProcessor handles SELECT blocks with
     a default clause. '''
     from fparser.common.readfortran import FortranStringReader
-    from fparser.two.Fortran2003 import Execution_Part
-    case_clauses = ["CASE default\nbranch3 = 1\n",
+    from fparser.two.Fortran2003 import Execution_Part, Assignment_Stmt
+    case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
                     "CASE (label1)\nbranch1 = 1\n",
                     "CASE (label2)\nbranch2 = 1\n"]
     # Loop over the 3 possible locations for the 'default' clause
@@ -4183,7 +4183,10 @@ def test_fp2astproc_case_default(f2008_parser):
         # Check that the assignment to 'branch 3' (in the default clause) is
         # the deepest in the tree
         assert "branch3" in str(assigns[2])
+        assert isinstance(assigns[2].ast, Assignment_Stmt)
         assert isinstance(assigns[2].parent, Schedule)
+        assert isinstance(assigns[2].parent.ast, Assignment_Stmt)
+        assert "branch3 * 2" in str(assigns[2].parent.ast_end)
         assert isinstance(assigns[2].parent.parent, IfBlock)
         # Check that the if-body of the parent IfBlock also contains
         # an Assignment

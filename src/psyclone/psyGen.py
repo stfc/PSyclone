@@ -5557,12 +5557,15 @@ class Fparser2ASTProcessor(object):
         :type node: :py:class:`fparser.two.Fortran2003.Case_Construct`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
+
         :raises InternalError: If the fparser2 tree has an unexpected \
             structure.
         :raises NotImplementedError: If the fparser2 tree contains an \
             unsupported structure and should be placed in a CodeBlock.
+
         '''
         from fparser.two import Fortran2003
         # Check that the fparser2 parsetree has the expected structure
@@ -5651,8 +5654,8 @@ class Fparser2ASTProcessor(object):
                         elsebody = Schedule(parent=currentparent)
                         currentparent.addchild(elsebody)
                         elsebody.addchild(ifblock)
-                        elsebody.ast = node.content[start_idx]
-                        elsebody.ast_end = node.content[end_idx]
+                        elsebody.ast = node.content[start_idx + 1]
+                        elsebody.ast_end = node.content[end_idx - 1]
                     else:
                         rootif = ifblock
 
@@ -5675,8 +5678,8 @@ class Fparser2ASTProcessor(object):
                                                   end_idx],
                                nodes_parent=node)
             currentparent.addchild(elsebody)
-            elsebody.ast = node.content[start_idx]
-            elsebody.ast_end = node.content[end_idx]
+            elsebody.ast = node.content[start_idx + 1]
+            elsebody.ast_end = node.content[end_idx - 1]
         return rootif
 
     def _return_handler(self, _, parent):
@@ -5857,11 +5860,12 @@ class Symbol(object):
                           into the kernel.
     :param bool is_output: Whether the symbol represents data that is passed \
                            outside the kernel upon exit.
+
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
-    '''
 
+    '''
     # Tuple with the valid values for the access attribute.
     valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.
