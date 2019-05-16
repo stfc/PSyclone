@@ -2553,7 +2553,7 @@ def test_node_abstract_methods():
     sched = invoke.schedule
     loop = sched.children[0].children[0]
     with pytest.raises(NotImplementedError) as err:
-        Node.gen_code(loop)
+        Node.gen_code(loop, parent=None)
     assert "Please implement me" in str(err)
     with pytest.raises(NotImplementedError) as err:
         Node.gen_c_code(loop)
