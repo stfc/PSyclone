@@ -6639,34 +6639,28 @@ class UnaryOperation(Node):
         def function_format(function_str, expression_str):
             return function_str + "(" + expression_str + ")"
 
-        if self._operator == UnaryOperator.MINUS:
-            return operator_format("-", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.PLUS:
-            return operator_format("+", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.NOT:
-            return operator_format(".not.", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.SIN:
-            return function_format("sin", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.COS:
-            return function_format("cos", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.TAN:
-            return function_format("tan", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.ASIN:
-            return function_format("asin", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.ACOS:
-            return function_format("acos", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.ATAN:
-            return function_format("atan", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.ABS:
-            return function_format("abs", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.REAL:
-            return function_format("float", self.children[0].gen_c_code())
-        elif self._operator == UnaryOperator.SQRT:
-            return function_format("sqrt", self.children[0].gen_c_code())
+        opmap = {
+            UnaryOperator.MINUS: ("-", operator_format),
+            UnaryOperator.PLUS: ("+", operator_format),
+            UnaryOperator.NOT: (".not.", operator_format),
+            UnaryOperator.SIN: ("sin", function_format),
+            UnaryOperator.COS: ("cos", function_format),
+            UnaryOperator.TAN: ("tan", function_format),
+            UnaryOperator.ASIN: ("asin", function_format),
+            UnaryOperator.ACOS: ("acos", function_format),
+            UnaryOperator.ATAN: ("atan", function_format),
+            UnaryOperator.ABS: ("abs", function_format),
+            UnaryOperator.REAL: ("float", function_format),
+            UnaryOperator.SQRT: ("sqrt", function_format),
+            }
+        try:
+            opstring, formatter = opmap[self._operator]
+        except KeyError:
+            raise NotImplementedError(
+                "The gen_c_code backend does not support the '{0}' operator."
+                "".format(self._operator))
 
-        raise NotImplementedError(
-            "The gen_c_code backend does not support the '{0}' operator."
-            "".format(self._operator))
+        return formatter(opstring, self.children[0].gen_c_code())
 
 
 class BinaryOperation(Node):
@@ -6736,47 +6730,38 @@ class BinaryOperation(Node):
                                   "".format(len(self.children)))
 
         def operator_format(operator_str,  expr1, expr2):
-            return "(" + expr1.gen_c_code() + " " + operator_str + \
-                   " " + expr2.gen_c_code() + ")"
+            return "(" + expr1 + " " + operator_str + " " + expr2 + ")"
 
         def function_format(function_str, expr1, expr2):
-            return function_str + "(" + expr1.gen_c_code() + \
-                   ", " + expr2.gen_c_code() + ")"
+            return function_str + "(" + expr1 + ", " + expr2 + ")"
 
-        if self._operator == BinaryOperator.ADD:
-            return operator_format("+", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.SUB:
-            return operator_format("-", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.MUL:
-            return operator_format("*", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.REM:
-            return operator_format("%", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.DIV:
-            return operator_format("/", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.EQ:
-            return operator_format("==", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.NE:
-            return operator_format("!=", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.LT:
-            return operator_format("<", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.LE:
-            return operator_format("<=", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.GT:
-            return operator_format(">", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.GE:
-            return operator_format(">=", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.AND:
-            return operator_format("&&", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.OR:
-            return operator_format("||", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.POW:
-            return function_format("pow", self.children[0], self.children[1])
-        elif self._operator == BinaryOperator.SIGN:
-            return function_format("copysign", self.children[0],
-                                   self.children[1])
-        raise NotImplementedError(
-            "The gen_c_code backend does not support the '{0}' operator."
-            "".format(self._operator))
+        opmap = {
+                BinaryOperator.ADD: ("+", operator_format),
+                BinaryOperator.SUB: ("-", operator_format),
+                BinaryOperator.MUL: ("*", operator_format),
+                BinaryOperator.DIV: ("/", operator_format),
+                BinaryOperator.REM: ("%", operator_format),
+                BinaryOperator.POW: ("pow", function_format),
+                BinaryOperator.EQ: ("==", operator_format),
+                BinaryOperator.NE: ("!=", operator_format),
+                BinaryOperator.LT: ("<", operator_format),
+                BinaryOperator.LE: ("<=", operator_format),
+                BinaryOperator.GT: (">", operator_format),
+                BinaryOperator.GE: (">=", operator_format),
+                BinaryOperator.AND: ("&&", operator_format),
+                BinaryOperator.OR: ("||", operator_format),
+                BinaryOperator.SIGN: ("copysign", function_format),
+            }
+
+        try:
+            opstring, formatter = opmap[self._operator]
+        except KeyError:
+            raise NotImplementedError(
+                "The gen_c_code backend does not support the '{0}' operator."
+                "".format(self._operator))
+
+        return formatter(opstring, self.children[0].gen_c_code(),
+                         self.children[1].gen_c_code())
 
 
 class Array(Reference):
