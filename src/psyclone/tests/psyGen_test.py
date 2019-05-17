@@ -3353,7 +3353,9 @@ def test_symboltable_specify_argument_list():
     sym_table = SymbolTable()
     sym_table.declare("var1", "real", [])
     sym_table.declare("var2", "real", [])
-    sym_table.specify_argument_list(['var1'])
+    sym_v1 = sym_table.lookup("var1")
+    sym_v1.interface = Symbol.Argument(access=Symbol.Access.UNKNOWN)
+    sym_table.specify_argument_list([sym_v1])
 
     assert len(sym_table.argument_list) == 1
     assert sym_table.argument_list[0].scope == 'global'
@@ -3361,21 +3363,63 @@ def test_symboltable_specify_argument_list():
     assert sym_table.argument_list[0].access == Symbol.Access.UNKNOWN
 
     # Test that repeated calls still produce a valid argument list
-    sym_table.specify_argument_list(['var1'])
+    sym_table.specify_argument_list([sym_v1])
     assert len(sym_table.argument_list) == 1
 
     # Check that specifying the Interface allows us to specify how
     # the argument is accessed
-    sym_table.specify_argument_list(
-        ['var2'], Symbol.Argument(access=Symbol.Access.READWRITE))
+    sym_v2 = sym_table.lookup("var2")
+    sym_v2.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_table.specify_argument_list([sym_v2])
     assert sym_table.argument_list[0].scope == 'global'
     assert sym_table.argument_list[0].interface.is_argument
     assert sym_table.argument_list[0].access == Symbol.Access.READWRITE
 
+
+def test_symboltable_specify_argument_list_errors():
+    ''' Check that supplying specify_argument_list() with Symbols that
+    don't have the correct Interface information raises the expected
+    errors. '''
+    sym_table = SymbolTable()
+    sym_table.declare("var1", "real", [])
+    sym_table.declare("var2", "real", [])
+    sym_v1 = sym_table.lookup("var1")
+    # Attempt to say the argument list consists of "var1" which at this
+    # point is just a local variable.
+    with pytest.raises(ValueError) as err:
+        sym_table.specify_argument_list([sym_v1])
+    assert "Symbol 'var1:" in str(err)
+    assert "has no associated Interface but in order to be a" in str(err)
+    # Now add an Interface for "var1" but of the wrong type
+    sym_v1.interface = Symbol.FortranGlobal("some_mod")
+    with pytest.raises(ValueError) as err:
+        sym_table.specify_argument_list([sym_v1])
+    assert "Symbol 'var1:" in str(err)
+    assert "has an interface of type '" in str(err)
+
+
+def test_symboltable_argument_list_errors():
+    ''' Tests the internal sanity checks of the SymbolTable.argument_list
+    property. '''
+    sym_table = SymbolTable()
+    sym_table.declare("var1", "real", [])
+    sym_table.declare("var2", "real", [])
+    sym_table.declare("var3", "real",
+                      interface=Symbol.FortranGlobal("some_mod"))
+    # Manually put a local symbol into the internal list of arguments
+    sym_table._argument_list = [sym_table.lookup("var1")]
     with pytest.raises(InternalError) as err:
-        sym_table.specify_argument_list(['var2'], "readwrite")
-    assert ("interface must be a (sub-class of) 'SymbolInterface' but got"
-            in str(err))
+        _ = sym_table.argument_list
+    pattern = ("Symbol \'var1.*\' is listed as a kernel argument but has "
+               "no associated Interface")
+    assert re.search(pattern, str(err)) is not None
+    # Manually put a symbol imported from a module into the argument list
+    sym_table._argument_list = [sym_table.lookup("var3")]
+    with pytest.raises(InternalError) as err:
+        _ = sym_table.argument_list
+    pattern = (r"Symbol \'var3.*\' is listed as a kernel argument but has an "
+               r"interface of type \'.*\.Symbol\.FortranGlobal")
+    assert re.search(pattern, str(err)) is not None
 
 
 def test_symboltable_contains():
@@ -3405,8 +3449,9 @@ def test_symboltable_local_symbols():
     assert sym_table.lookup("var1") in sym_table.local_symbols
     assert sym_table.lookup("var2") in sym_table.local_symbols
     assert sym_table.lookup("var3") in sym_table.local_symbols
-
-    sym_table.specify_argument_list(['var1'], None)
+    sym_v1 = sym_table.lookup("var1")
+    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_table.specify_argument_list([sym_v1])
 
     assert len(sym_table.local_symbols) == 2
     assert sym_table.lookup("var1") not in sym_table.local_symbols
@@ -3427,7 +3472,9 @@ def test_symboltable_gen_c_local_variables():
     sym_table.declare("var1", "real", [])
     sym_table.declare("var2", "real", [])
     sym_table.declare("var3", "real", [None])
-    sym_table.specify_argument_list(['var1'])
+    sym_v1 = sym_table.lookup('var1')
+    sym_v1.interface = Symbol.Argument(access=Symbol.Access.READWRITE)
+    sym_table.specify_argument_list([sym_v1])
 
     c_local_vars = sym_table.gen_c_local_variables()
     assert sym_table.lookup("var1").gen_c_definition() not in c_local_vars

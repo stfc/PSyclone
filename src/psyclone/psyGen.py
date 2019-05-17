@@ -5365,10 +5365,21 @@ class Fparser2ASTProcessor(object):
                                             interface=interface)
 
         try:
-            arg_strings = [x.string for x in arg_list]
-            # A Fortran argument has intent(inout) by default
-            parent.symbol_table.specify_argument_list(
-                arg_strings, Symbol.Argument(access=Symbol.Access.READWRITE))
+            arg_symbols = []
+            # Ensure each associated symbol has the correct interface info.
+            for arg_name in [x.string for x in arg_list]:
+                symbol = parent.symbol_table.lookup(arg_name)
+                if symbol.scope == 'local':
+                    # We didn't previously know that this Symbol was an
+                    # argument (as it had no 'intent' qualifier). Mark
+                    # that it is an argument by specifying its interface.
+                    # A Fortran argument has intent(inout) by default
+                    symbol.interface = Symbol.Argument(
+                        access=Symbol.Access.READWRITE)
+                arg_symbols.append(symbol)
+            # Now that we've updated the Symbols themselves, set the
+            # argument list
+            parent.symbol_table.specify_argument_list(arg_symbols)
         except KeyError:
             raise InternalError("The kernel argument "
                                 "list '{0}' does not match the variable "
@@ -5933,6 +5944,9 @@ class Symbol(object):
         '''
         Captures the interface to a symbol that is accessed as a routine
         argument.
+
+        :param access: how the symbol is accessed within the local scope.
+        :type access: :py:class:`psyclone.psyGen.Symbol.Access`
         '''
         def __init__(self, access=None):
             super(Symbol.Argument, self).__init__(access=access)
@@ -5994,7 +6008,7 @@ class Symbol(object):
             if not isinstance(value, str):
                 raise TypeError("module_name must be a str but got '{0}'".
                                 format(type(value)))
-            if len(value) < 1:
+            if not value:
                 raise ValueError("module_name must be one or more characters "
                                  "long")
             self._module_name = value
@@ -6058,6 +6072,11 @@ class Symbol(object):
 
     @property
     def access(self):
+        '''
+        :returns: How this symbol is accessed (read, readwrite etc.) within \
+                  the local scope.
+        :rtype: :py:class:`psyclone.psyGen.Symbol.Access` or NoneType.
+        '''
         if self._interface:
             return self._interface.access
         # This symbol has no interface info and therefore is local
@@ -6196,7 +6215,7 @@ class SymbolTable(object):
         # Reference to KernelSchedule to which this symbol table belongs.
         self._kernel = kernel
 
-    def declare(self, name, datatype, shape=[], interface=None):
+    def declare(self, name, datatype, shape=None, interface=None):
         '''
         Declare a new symbol in the symbol table.
 
@@ -6208,15 +6227,17 @@ class SymbolTable(object):
                            'None' the extent of that dimension is unknown, \
                            otherwise it holds an integer literal or a \
                            reference to an integer symbol with the extent. \
-                           If it is an empty list then the symbol represents \
-                           a scalar.
-        :param interface: If not None then indicates that the symbol exists \
-                          outside the local scope and provides the details \
-                          of the sharing mechanism (e.g. routine argument).
+                           If it is None then the symbol represents a scalar.
+        :param interface: If not None then indicates that the data represented\
+                          by the symbol exists outside of the local scope and \
+                          provides the details of the sharing mechanism (e.g. \
+                          routine argument).
         :type interface: :py:class:`psyclone.psyGen.SymbolInterface` or \
                          NoneType.
+
         :raises KeyError: The provided name cannot be used as a key in the \
                           table.
+
         '''
         if name in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
@@ -6224,39 +6245,31 @@ class SymbolTable(object):
 
         self._symbols[name] = Symbol(name, datatype, shape, interface)
 
-    def specify_argument_list(self, argument_name_list, interface=None):
+    def specify_argument_list(self, argument_symbols):
         '''
-        Keep track of the order of the arguments and update the interface
-        of the associated Symbols if we weren't previously able to determine
-        their scope.
+        Keep track of the order of the arguments to this kernel.
 
-        :param list argument_name_list: Ordered list of the argument names.
-        :param interface: Interface describing how the supplied arguments \
-                          are accessed in the kernel or None.
-        :type interface: :py:class:`SymbolInterface` or NoneType.
+        :param list argumentssymbols: Ordered list of the Symbols representing\
+                                      the arguments.
 
-        :raises InternalError: if interface is supplied but is not a \
-                               SymbolInterface.
+        :raises InternalError: if any of the supplied Symbols do not have a \
+                               Symbol.Argument interface.
 
         '''
-        if interface and not isinstance(interface, SymbolInterface):
-            raise InternalError(
-                "Supplied interface must be a (sub-class of) 'SymbolInterface'"
-                " but got '{0}'.".format(type(interface)))
         self._argument_list = []
-        for name in argument_name_list:
-            symbol = self.lookup(name)
-            # Declarations without explicit intent are provisionally identified
-            # as 'local', but if they appear in argument_name_list then they
-            # must have an interface added to specify that they are arguments.
+        for symbol in argument_symbols:
+            # All symbols appearing in the argument list must have an
+            # 'Argument' interface
             if symbol.scope == 'local':
-                if interface:
-                    symbol.interface = interface
-                else:
-                    # If no interface has been supplied then we know only that
-                    # this symbol is supplied as a routine argument.
-                    symbol.interface = Symbol.Argument(
-                        access=Symbol.Access.UNKNOWN)
+                raise ValueError(
+                    "Symbol '{0}' has no associated Interface but in order to "
+                    "be a Kernel argument it must have a Symbol.Argument "
+                    "interface.".format(str(symbol)))
+            if not isinstance(symbol.interface, Symbol.Argument):
+                raise ValueError(
+                    "Symbol '{0}' has an interface of type '{1}' but in order "
+                    "to be a Kernel argument it must have a Symbol.Argument "
+                    "interface.".format(str(symbol), type(symbol.interface)))
             self._argument_list.append(symbol)
 
     def lookup(self, name):
@@ -6287,6 +6300,19 @@ class SymbolTable(object):
         :returns: Ordered list of arguments.
         :rtype: list of :py:class:`psyclone.psyGen.Symbol`
         '''
+        for symbol in self._argument_list:
+            # Consistency check - all symbols appearing in the argument list
+            # must have an 'Argument' interface
+            if symbol.scope == 'local':
+                raise InternalError(
+                    "Symbol '{0}' is listed as a kernel argument but has no "
+                    "associated Interface.".format(str(symbol)))
+            if not isinstance(symbol.interface, Symbol.Argument):
+                raise InternalError(
+                    "Symbol '{0}' is listed as a kernel argument but has an "
+                    "interface of type '{1}' rather than "
+                    "Symbol.Argument".format(str(symbol),
+                                             type(symbol.interface)))
         return self._argument_list
 
     @property
