@@ -43,7 +43,7 @@ from gocean1p0_build import GOcean1p0OpenCLBuild
 from psyclone.configuration import Config
 from psyclone.transformations import OCLTrans
 from psyclone.gocean1p0 import GOKernelSchedule
-from psyclone.psyGen import GenerationError
+from psyclone.psyGen import GenerationError, Symbol
 from psyclone_test_utils import Compile, get_invoke
 
 API = "gocean1.0"
@@ -268,31 +268,28 @@ def test_opencl_kernel_variables_definitions():
     from psyclone.psyGen import Symbol
     kschedule = GOKernelSchedule('test')
     symtable = kschedule.symbol_table
-    arg_symbols = []
-    #TODO it would be nicer if declare() returned the new Symbol object?
-    symtable.declare("i", "integer", [],
-                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-    arg_symbols.append(symtable.lookup("i"))
-    symtable.declare("j", "integer", [],
-                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-    arg_symbols.append(symtable.lookup("j"))
-    symtable.declare("intarg", "integer", [],
-                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-    arg_symbols.append(symtable.lookup("intarg"))
-    symtable.declare("realarg", "real", [],
-                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-    arg_symbols.append(symtable.lookup("realarg"))
-    symtable.declare("chararg", "character", [],
-                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-    arg_symbols.append(symtable.lookup("chararg"))
-    symtable.declare("arrayarg", "real", [3, 4, 5, 3],
-                     interface=Symbol.Argument(access=Symbol.Access.READWRITE))
-    arg_symbols.append(symtable.lookup("arrayarg"))
-    symtable.declare("intvar", "integer", [])
-    symtable.declare("realvar", "real", [])
-    symtable.declare("charvar", "character", [])
-    symtable.declare("arrayvar", "real", [3, 4, 5, 3])
+    # Create Symbols for all of the routine arguments
+    arg_symbols = [
+        Symbol("i", "integer", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("j", "integer", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("intarg", "integer", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("realarg", "real", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("chararg", "character", [],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE)),
+        Symbol("arrayarg", "real", [3, 4, 5, 3],
+               interface=Symbol.Argument(access=Symbol.Access.READWRITE))]
+    for symbol in arg_symbols:
+        symtable.add(symbol)
+    symtable.add(Symbol("intvar", "integer", []))
+    symtable.add(Symbol("realvar", "real", []))
+    symtable.add(Symbol("charvar", "character", []))
+    symtable.add(Symbol("arrayvar", "real", [3, 4, 5, 3]))
     symtable.specify_argument_list(arg_symbols)
+
     opencl = kschedule.gen_ocl()
 
     # Check Arguments are part (or not) of the generated opencl
@@ -333,9 +330,9 @@ def test_opencl_kernel_gen_wrong_kernel():
             "Table for kernel 'test' has only 0 argument(s).") in str(err)
 
     # Test gen_ocl with 1 kernel argument
-    kschedule.symbol_table.declare("arg1", "integer", [],
-                                   Symbol.Argument(access=Symbol.Access.READ))
-    arg1 = kschedule.symbol_table.lookup("arg1")
+    arg1 = Symbol("arg1", "integer", [],
+                  Symbol.Argument(access=Symbol.Access.READ))
+    kschedule.symbol_table.add(arg1)
     kschedule.symbol_table.specify_argument_list([arg1])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
@@ -344,10 +341,10 @@ def test_opencl_kernel_gen_wrong_kernel():
             "Table for kernel 'test' has only 1 argument(s).") in str(err)
 
     # Test gen_ocl with 2 kernel argument
-    kschedule.symbol_table.declare("arg2", "integer", [],
-                                   Symbol.Argument(access=Symbol.Access.READ))
-    arg2 = kschedule.symbol_table.lookup("arg2")
-    kschedule.symbol_table.specify_argument_list([arg1, arg2])
+    arg2 = Symbol("arg2", "integer", shape=[],
+                  interface=Symbol.Argument(access=Symbol.Access.READ))
+    kschedule.symbol_table.add(arg2)
+    kschedule.symbol_table.specify_argument_list(["arg1", "arg2"])
     kschedule.gen_ocl()
 
     # Test gen_ocl with wrong iteration indices types and shapes.
@@ -368,11 +365,10 @@ def test_opencl_kernel_gen_wrong_kernel():
     arg2._shape = []  # restore
 
     # Test gen_ocl with clashing variable names for array lengths.
-    kschedule.symbol_table.declare(
-            "array", "integer", [None],
-            Symbol.Argument(access=Symbol.Access.READWRITE))
-    array = kschedule.symbol_table.lookup("array")
-    kschedule.symbol_table.declare("arrayLEN1", "integer", [])
+    array = Symbol("array", "integer", shape=[None],
+                   interface=Symbol.Argument(access=Symbol.Access.READWRITE))
+    kschedule.symbol_table.add(array)
+    kschedule.symbol_table.add(Symbol("arrayLEN1", "integer", []))
     kschedule.symbol_table.specify_argument_list([arg1, arg2, array])
     with pytest.raises(GenerationError) as err:
         kschedule.gen_ocl()
