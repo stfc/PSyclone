@@ -148,7 +148,12 @@ class FortranPSyIRVisitor(PSyIRVisitor):
             result += ", dimension({0})".format(",".join(dims))
         if intent:
             result += ", intent({0})".format(intent)
-        result += " :: {0}\n".format(symbol.name)
+        if symbol.is_constant:
+            result += ", parameter"
+        result += " :: {0}".format(symbol.name)
+        if symbol.is_constant:
+            result += " = {0}".format(symbol.constant_value)
+        result += "\n"
         return result
 
     def kernelschedule(self, node):
