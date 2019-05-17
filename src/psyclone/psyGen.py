@@ -6793,7 +6793,7 @@ class UnaryOperation(Node):
             :returns: C language unary function expression.
             :rtype: str
             '''
-            return function_str + "(" + expression_str + ")"
+            return function_str + "(" + expr_str + ")"
 
         opmap = {
             UnaryOperation.Operator.MINUS: ("-", operator_format),

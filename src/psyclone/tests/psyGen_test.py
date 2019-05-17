@@ -4239,7 +4239,7 @@ def test_fparser2astprocessor_handling_name(f2008_parser):
     assert "Undeclared reference 'x' found when parsing fparser2 node " \
            "'Name('x')' inside 'kernel'." in str(error)
 
-    fake_parent.symbol_table.declare('x', 'integer')
+    fake_parent.symbol_table.add(Symbol('x', 'integer'))
     processor.process_nodes(fake_parent, [fparser2name], None)
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
@@ -4296,7 +4296,7 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
            "node " in str(error)
     assert " inside 'kernel'." in str(error)
 
-    fake_parent.symbol_table.declare('x', 'integer')
+    fake_parent.symbol_table.add(Symbol('x', 'integer'))
     processor.process_nodes(fake_parent, [fparser2part_ref], None)
     assert len(fake_parent.children) == 1
     new_node = fake_parent.children[0]
