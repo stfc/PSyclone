@@ -274,6 +274,8 @@ def test_replicated_loop(parser):
             "  !$ACC END DATA" in gen_code)
 
 
+@pytest.mark.xfail(reason="PSyIR does not support derived types (#363) and "
+                   "so we have a CodeBlock instead of a NemoKern")
 def test_data_ref():
     '''Check code generation with an array accessed via a derived type.
 
@@ -288,6 +290,8 @@ def test_data_ref():
     assert "!$ACC DATA COPYIN(a) COPYOUT(prof,prof%npind)" in gen_code
 
 
+@pytest.mark.xfail(reason="PSyIR does not support derived types (#363) and "
+                   "so we have a CodeBlock instead of a NemoKern")
 def test_no_data_ref_read(parser):
     ''' Check that we reject code that reads from a derived type. This
     limitation will be addressed in #309. '''
@@ -339,24 +343,6 @@ def test_kind_parameter(parser):
     gen_code = str(psy.gen)
 
     assert "copyin(wp)" not in gen_code.lower()
-
-
-def test_fn_call(parser):
-    ''' Check that we don't attempt to put function names into the list
-    of variables we copyin/out. '''
-    reader = FortranStringReader("program fn_call\n"
-                                 "real(kind=wp) :: sto_tmp(5)\n"
-                                 "do ji = 1,jpj\n"
-                                 "sto_tmp(ji) = my_func()\n"
-                                 "end do\n"
-                                 "end program fn_call\n")
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1])
-    gen_code = str(psy.gen)
-    assert "copyin(my_func)" not in gen_code.lower()
 
 
 def test_no_copyin_intrinsics(parser):
@@ -503,8 +489,8 @@ def test_array_access_loop_bounds(parser):
 
 def test_missed_array_case(parser):
     ''' Check that we raise the expected InternalError if our internal
-    sanity check spots that we've missed an array access. This test
-    should be eliminated as part of #309. '''
+    sanity check spots that we've missed an array access.
+    TODO #309 - remove this test. '''
     code = ("program do_bound\n"
             "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"
             "  integer :: ji, jj\n"

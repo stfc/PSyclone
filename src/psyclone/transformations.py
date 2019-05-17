@@ -92,8 +92,11 @@ class RegionTrans(Transformation):
                 a node is duplicated or the nodes have different parents.
         :raises TransformationError: if any of the nodes to be enclosed in \
                 the region are of an unsupported type.
+        :raises TransformationError: if the condition part of an IfBlock \
+                                     is erroneously included in the region.
 
         '''
+        from psyclone.psyGen import IfBlock
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
@@ -119,6 +122,25 @@ class RegionTrans(Transformation):
                     raise TransformationError(
                         "Nodes of type '{0}' cannot be enclosed by a {1} "
                         "transformation".format(type(item), self.name))
+
+        # Sanity check that we've not been passed the condition part of
+        # an If statement (which is child 0)
+        if isinstance(node_parent, IfBlock):
+            if node_parent.children[0] in node_list:
+                raise TransformationError(
+                    "Cannot apply transformation to the conditional expression"
+                    " (first child) of an If/Case statement. Error in "
+                    "transformation script.")
+
+            # Check that we've not been supplied with both the if and
+            # else clauses of an IfBlock as we can't put them both in
+            # a region without their parent.
+            if len(node_list) > 1:
+                raise TransformationError(
+                    "Cannot enclose both the if- and else- clauses of an "
+                    "IfBlock by a {0} transformation. Apply the "
+                    "transformation to the IfBlock node instead.".
+                    format(self.name))
 
 
 # =============================================================================
@@ -362,13 +384,14 @@ class DynamoLoopFuseTrans(LoopFuseTrans):
                     "indices are not the same. Found '{0}' and '{1}'".
                     format(node1.upper_bound_halo_depth,
                            node2.upper_bound_halo_depth))
-            from psyclone.psyGen import MAPPING_SCALARS, MAPPING_REDUCTIONS
+            from psyclone.psyGen import MAPPING_SCALARS
+            from psyclone.core.access_type import AccessType
             arg_types = MAPPING_SCALARS.values()
-            arg_accesses = MAPPING_REDUCTIONS.values()
+            all_reductions = AccessType.get_valid_reduction_modes()
             node1_red_args = node1.args_filter(arg_types=arg_types,
-                                               arg_accesses=arg_accesses)
+                                               arg_accesses=all_reductions)
             node2_red_args = node2.args_filter(arg_types=arg_types,
-                                               arg_accesses=arg_accesses)
+                                               arg_accesses=all_reductions)
 
             if node1_red_args and node2_red_args:
                 raise TransformationError(
@@ -1413,17 +1436,17 @@ class ParallelRegionTrans(RegionTrans):
         # existing within a parallel region. As we are going to
         # support this in the future, see #526, it does not warrant
         # making a separate dynamo-specific class.
-        from psyclone.psyGen import HaloExchange, Schedule
+        from psyclone.psyGen import HaloExchange, InvokeSchedule
         for node in node_list:
             if isinstance(node, HaloExchange):
                 raise TransformationError(
                     "A halo exchange within a parallel region is not "
                     "supported")
 
-        if isinstance(node_list[0], Schedule):
+        if isinstance(node_list[0], InvokeSchedule):
             raise TransformationError(
-                "A {0} transformation cannot be applied to a Schedule but "
-                "only to one or more nodes from within a Schedule.".
+                "A {0} transformation cannot be applied to an InvokeSchedule "
+                "but only to one or more nodes from within an InvokeSchedule.".
                 format(self.name))
 
         node_parent = node_list[0].parent
@@ -2538,6 +2561,67 @@ class Dynamo0p3KernelConstTrans(Transformation):
 
         '''
 
+        def make_constant(symbol_table, arg_position, value,
+                          function_space=None):
+            '''Utility function that modifies the argument at position
+            'arg_position' into a compile-time constant with value
+            'value'.
+
+            :param symbol_table: The symbol table for the kernel \
+            holding the argument that is going to be modified.
+            :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
+            :param int arg_position: The argument's position in the \
+            argument list.
+            :param value: The constant value that this argument is \
+            going to be give. Its type depends on the type of the \
+            argument.
+            :type value: int, str or bool.
+            :type str function_space: the name of the function space \
+            if there is a function space associated with this \
+            argument. Defaults to None.
+
+            '''
+            arg_index = arg_position - 1
+            try:
+                symbol = symbol_table.argument_list[arg_index]
+            except IndexError:
+                raise TransformationError(
+                    "The argument index '{0}' is greater than the number of "
+                    "arguments '{1}'.".format(arg_index,
+                                              len(symbol_table.argument_list)))
+            # Perform some basic checks on the argument to make sure
+            # it is the expected type
+            if symbol.datatype != "integer" or \
+               symbol.scope != "global_argument" or symbol.shape or \
+               symbol.is_constant:
+                # Do not check for 'is_input' being 'False' and
+                # 'is_output' being 'True' as some kernel declarations
+                # might not set intent which results in both
+                # 'is_input' and 'is_output' being set to 'True'.
+                raise TransformationError(
+                    "Expected entry to be a scalar integer argument "
+                    "but found '{0}'.".format(symbol))
+
+            # Create a new symbol with a known constant value then swap
+            # it with the argument.
+            # TODO: Temporarily use unsafe name change until the name
+            # space manager is introduced into the SymbolTable (Issue
+            # #321).
+            from psyclone.psyGen import Symbol
+            orig_name = symbol.name
+            local_symbol = Symbol(orig_name+"_dummy", "integer", scope="local",
+                                  constant_value=value)
+            symbol_table.add(local_symbol)
+            symbol_table.swap_symbol_properties(symbol, local_symbol)
+
+            if function_space:
+                print("    Modified {0}, arg position {1}, function space "
+                      "{2}, value {3}.".format(orig_name, arg_position,
+                                               function_space, value))
+            else:
+                print("    Modified {0}, arg position {1}, value {2}."
+                      "".format(orig_name, arg_position, value))
+
         self._validate(node, cellshape, element_order, number_of_layers,
                        quadrature)
 
@@ -2557,24 +2641,19 @@ class Dynamo0p3KernelConstTrans(Transformation):
                 "Failed to parse kernel '{0}'. Error reported was '{1}'."
                 "".format(kernel.name, str(excinfo)))
 
-        _ = kernel_schedule.symbol_table
+        symbol_table = kernel_schedule.symbol_table
         if number_of_layers:
-            # Here is where I will modify the symbol table for nlayers
-            print("    Modify mesh height, arg position {0}, value {1}"
-                  "".format(arg_list_info.nlayers_positions[0],
-                            number_of_layers))
+            make_constant(symbol_table, arg_list_info.nlayers_positions[0],
+                          number_of_layers)
+
         if quadrature and arg_list_info.nqp_positions:
             if kernel.eval_shape.lower() == "gh_quadrature_xyoz":
-                # Modify the symbol table for horizontal and vertical
-                # quadrature here.
-                print("    Modify horizontal quadrature, arg position {0}, "
-                      "value {1}".format(
-                          arg_list_info.nqp_positions[0]["horizontal"],
-                          element_order+3))
-                print("    Modify vertical quadrature, arg position {0}, "
-                      "value {1}".format(
-                          arg_list_info.nqp_positions[0]["vertical"],
-                          element_order+3))
+                make_constant(symbol_table,
+                              arg_list_info.nqp_positions[0]["horizontal"],
+                              element_order+3)
+                make_constant(symbol_table,
+                              arg_list_info.nqp_positions[0]["vertical"],
+                              element_order+3)
             else:
                 raise TransformationError(
                     "Error in Dynamo0p3KernelConstTrans transformation. "
@@ -2588,17 +2667,13 @@ class Dynamo0p3KernelConstTrans(Transformation):
                                                    ["any_w2"]):
                     # skip any_space_* and any_w2
                     print(
-                        "    Skipping dofs, arg position {0}, function space "
+                        "    Skipped dofs, arg position {0}, function space "
                         "{1}".format(info.position, info.function_space))
                 else:
                     try:
-                        print(
-                            "    Modify dofs, arg position {0}, function "
-                            "space {1}, value {2}".format(
-                                info.position, info.function_space,
-                                Dynamo0p3KernelConstTrans.
-                                space_to_dofs[info.function_space]
-                                (element_order)))
+                        ndofs = Dynamo0p3KernelConstTrans. \
+                                space_to_dofs[
+                                    info.function_space](element_order)
                     except KeyError:
                         raise InternalError(
                             "Error in Dynamo0p3KernelConstTrans "
@@ -2607,6 +2682,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
                             "".format(info.function_space,
                                       Dynamo0p3KernelConstTrans.
                                       space_to_dofs.keys()))
+                    make_constant(symbol_table, info.position, ndofs,
+                                  function_space=info.function_space)
+
         return schedule, keep
 
     def _validate(self, node, cellshape, element_order, number_of_layers,
@@ -3292,7 +3370,7 @@ class NemoExplicitLoopTrans(Transformation):
                     "all array range specifications occur in the same "
                     "dimension(s) of each array in an assignment.")
             # Replace the colon with our new variable name
-            indices[outermost_dim] = loop_var
+            indices[outermost_dim] = name
             # Replace the original tuple with a new one
             subsec.items = tuple(indices)
 

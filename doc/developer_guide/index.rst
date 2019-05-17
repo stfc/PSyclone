@@ -41,28 +41,8 @@
 .. toctree::
    :maxdepth: 3
 
-   introduction
-   getting_going
-   examples
-   psyclone_script
-   kernel_layer
-   algorithm_layer
-   psy_layer
-   transformations
-   distributed_memory
-   built_ins
-   dynamo0p3
-   gocean1p0
-   nemo
-   stub_gen
-   line_length
-   fortran_naming_conventions
-   api
-   profiling
-   psyke
-   system_specific_setup
-   configuration
    developers
+   system_specific_setup
    zz_bibliography
 
 ..   tutorial

@@ -41,8 +41,10 @@
 
 from __future__ import print_function, absolute_import
 import abc
+from enum import Enum
 import six
 from psyclone.configuration import Config
+from psyclone.core.access_type import AccessType
 
 # We use the termcolor module (if available) to enable us to produce
 # coloured, textual representations of Invoke schedules. If it's not
@@ -81,31 +83,21 @@ FORTRAN_INTRINSICS = ["MIN", "MAX", "ABS", "SIGN", "MOD", "SUM",
                       "MINVAL", "MAXVAL", "MINLOC", "MAXLOC", "TRIM",
                       "RESHAPE"]
 
-# The following mappings will be set by a particular API if supported
-# and required. We provide a default here for API's which do not have
-# their own mapping (or support this mapping). This allows codes with
-# no support to run.
-# MAPPING_REDUCTIONS gives the names of reduction operations
-MAPPING_REDUCTIONS = {"sum": "sum"}
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive. All code for OpenMP
 # directives exists in psyGen.py so this mapping should not be
 # overidden.
-OMP_OPERATOR_MAPPING = {"sum": "+"}
-# REDUCTION_OPERATOR_MAPPING is used to determine the operator to use
-# when creating a loop to sum partial sums sequentially, in order to
-# get reproducible results. The LHS is the datatype of the field in
-# question so needs to be overidden by the particular API.
-REDUCTION_OPERATOR_MAPPING = {"sum": "+"}
+OMP_OPERATOR_MAPPING = {AccessType.SUM: "+"}
+
 # Names of types of scalar variable
 MAPPING_SCALARS = {"iscalar": "iscalar", "rscalar": "rscalar"}
-# Types of access for a kernel argument
-MAPPING_ACCESSES = {"inc": "inc", "write": "write",
-                    "read": "read", "readwrite": "readwrite"}
+
+
 # Valid types of argument to a kernel call
 VALID_ARG_TYPE_NAMES = []
-# List of all valid access types for a kernel argument
-VALID_ACCESS_DESCRIPTOR_NAMES = []
+
+# Mapping of access type to operator.
+REDUCTION_OPERATOR_MAPPING = {AccessType.SUM: "+"}
 
 # Colour map to use when writing Invoke schedule to terminal. (Requires
 # that the termcolor package be installed. If it isn't then output is not
@@ -204,7 +196,8 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
     :param arg_types: List of argument types (e.g. "GH_FIELD")
     :type arg_types: list of str
     :param arg_accesses: List of access types that arguments must have
-    :type arg_accesses: list of str
+    :type arg_accesses: List of \
+        :py:class:`psyclone.core.access_type.AccessType`.
     :param arg_meshes: List of meshes that arguments must be on
     :type arg_meshes: list of str
     :param bool is_literal: Whether or not to include literal arguments in \
@@ -218,7 +211,7 @@ def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
             if argument.type.lower() not in arg_types:
                 continue
         if arg_accesses:
-            if argument.access.lower() not in arg_accesses:
+            if argument.access not in arg_accesses:
                 continue
         if arg_meshes:
             if argument.mesh not in arg_meshes:
@@ -718,18 +711,29 @@ class Invoke(object):
 
     def unique_declarations(self, datatype, access=None):
         ''' Returns a list of all required declarations for the
-        specified datatype. If access is supplied (e.g. "gh_write") then
-        only declarations with that access are returned. '''
+        specified datatype. If access is supplied (e.g. "write") then
+        only declarations with that access are returned.
+        :param string datatype: The type of the kernel argument for the \
+                                particular API for which the intent is \
+                                required
+        :param access: Optional AccessType that the declaration should have.
+        :returns: List of all declared names.
+        :rtype: A list of strings.
+        :raises: GenerationError if an invalid datatype is given.
+        :raises: InternalError if an invalid access is specified.
+        '''
         if datatype not in VALID_ARG_TYPE_NAMES:
             raise GenerationError(
                 "unique_declarations called with an invalid datatype. "
                 "Expected one of '{0}' but found '{1}'".
                 format(str(VALID_ARG_TYPE_NAMES), datatype))
-        if access and access not in VALID_ACCESS_DESCRIPTOR_NAMES:
-            raise GenerationError(
+
+        if access and not isinstance(access, AccessType):
+            raise InternalError(
                 "unique_declarations called with an invalid access type. "
-                "Expected one of '{0}' but got '{1}'".
-                format(VALID_ACCESS_DESCRIPTOR_NAMES, access))
+                "Type is {0} instead of AccessType".
+                format(type(access)))
+
         declarations = []
         for call in self.schedule.calls():
             for arg in call.arguments.args:
@@ -778,16 +782,13 @@ class Invoke(object):
         # inc (shared update), write, read and readwrite (independent
         # update). A single argument may be accessed in different ways
         # by different kernels.
-        inc_args = self.unique_declarations(datatype,
-                                            access=MAPPING_ACCESSES["inc"])
+        inc_args = self.unique_declarations(datatype, access=AccessType.INC)
         write_args = self.unique_declarations(datatype,
-                                              access=MAPPING_ACCESSES["write"])
-        read_args = self.unique_declarations(datatype,
-                                             access=MAPPING_ACCESSES["read"])
-        readwrite_args = self.unique_declarations(
-            datatype, access=MAPPING_ACCESSES["readwrite"])
-        sum_args = self.unique_declarations(datatype,
-                                            access=MAPPING_REDUCTIONS["sum"])
+                                              access=AccessType.WRITE)
+        read_args = self.unique_declarations(datatype, access=AccessType.READ)
+        readwrite_args = self.unique_declarations(datatype,
+                                                  AccessType.READWRITE)
+        sum_args = self.unique_declarations(datatype, access=AccessType.SUM)
         # sum_args behave as if they are write_args from
         # the PSy-layer's perspective.
         write_args += sum_args
@@ -818,7 +819,7 @@ class Invoke(object):
             # access. If it is 'write' then the arg is only
             # intent(out), otherwise it is intent(inout)
             first_arg = self.first_access(name)
-            if first_arg.access != MAPPING_ACCESSES["write"]:
+            if first_arg.access != AccessType.WRITE:
                 if name not in declns["inout"]:
                     declns["inout"].append(name)
             else:
@@ -832,7 +833,7 @@ class Invoke(object):
             # However, we deal with inc and readwrite args separately so we
             # do not consider those here.
             first_arg = self.first_access(name)
-            if first_arg.access == MAPPING_ACCESSES["read"]:
+            if first_arg.access == AccessType.READ:
                 if name not in declns["inout"]:
                     declns["inout"].append(name)
             else:
@@ -1861,25 +1862,20 @@ class ACCDirective(Directive):
                 "_add_region: end_text must be a plain label without directive"
                 " or comment characters but got: '{0}'".format(end_text))
 
-        # The parent node in the PSyIR might be a directive so we need to
-        # go back up the tree to find the node corresponding to our parent
-        # node in the fparser2 parse tree. This is the first node that
-        # has the 'content' attribute and does not match with the directive
-        # children ast.
-        # TODO this can probably be simplified/removed altogether once
+        # Find a reference to the fparser2 parse tree that belongs to
+        # the contents of this region. Then go back up one level in the
+        # parse tree to find the node to which we will add directives as
+        # children. (We do this because our parent PSyIR node may be a
+        # directive which has no associated entry in the fparser2 parse tree.)
+        # TODO this should be simplified/improved once
         # the fparser2 parse tree has parent information (fparser/#102).
-        parent = self._parent
-        while parent:
-            if parent.ast and hasattr(parent.ast, "content") and \
-               parent.ast is not self.children[0].ast:
-                break
-            parent = parent._parent
-        fp_parent = parent.ast
+        content_ast = self.children[0].ast
+        fp_parent = content_ast._parent
 
         # Find the location of the AST of our first child node in the
         # list of child nodes of our parent in the fparser parse tree.
         ast_start_index = object_index(fp_parent.content,
-                                       self.children[0].ast)
+                                       content_ast)
         if end_text:
             if self.children[-1].ast_end:
                 ast_end_index = object_index(fp_parent.content,
@@ -2312,13 +2308,16 @@ class OMPDirective(Directive):
 
     def _get_reductions_list(self, reduction_type):
         '''Return the name of all scalars within this region that require a
-        reduction of type reduction_type. Returned names will be unique. '''
+        reduction of type reduction_type. Returned names will be unique.
+        :param reduction_type: The reduction type (e.g. AccessType.SUM) to \
+            search for.
+        :type reduction_type: :py:class:`psyclone.core.access_type.AccessType`
+        '''
         result = []
         for call in self.calls():
             for arg in call.arguments.args:
                 if arg.type in MAPPING_SCALARS.values():
-                    if arg.descriptor.access == \
-                       MAPPING_REDUCTIONS[reduction_type]:
+                    if arg.descriptor.access == reduction_type:
                         if arg.name not in result:
                             result.append(arg.name)
         return result
@@ -2579,7 +2578,7 @@ class OMPDoDirective(OMPDirective):
     def _reduction_string(self):
         ''' Return the OMP reduction information as a string '''
         reduction_str = ""
-        for reduction_type in MAPPING_REDUCTIONS.keys():
+        for reduction_type in AccessType.get_valid_reduction_modes():
             reductions = self._get_reductions_list(reduction_type)
             for reduction in reductions:
                 reduction_str += ", reduction({0}:{1})".format(
@@ -2777,7 +2776,7 @@ class GlobalSum(Node):
             # Update scalar values appropriately
             # Here "readwrite" denotes how the class GlobalSum
             # accesses/updates a scalar
-            self._scalar.access = MAPPING_ACCESSES["readwrite"]
+            self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
 
     @property
@@ -2851,7 +2850,7 @@ class HaloExchange(Node):
             # Update fields values appropriately
             # Here "readwrite" denotes how the class HaloExchange
             # accesses a field rather than the field's continuity
-            self._field.access = MAPPING_ACCESSES["readwrite"]
+            self._field.access = AccessType.READWRITE
             self._field.call = self
         self._halo_type = None
         self._halo_depth = None
@@ -3159,26 +3158,30 @@ class Loop(Node):
         result += "EndLoop"
         return result
 
-    def has_inc_arg(self, mapping={}):
+    def has_inc_arg(self):
         ''' Returns True if any of the Kernels called within this
         loop have an argument with INC access. Returns False otherwise '''
-        assert mapping != {}, "psyGen:Loop:has_inc_arg: Error - a mapping "\
-            "must be provided"
         for kern_call in self.kern_calls():
             for arg in kern_call.arguments.args:
-                if arg.access.lower() == mapping["inc"]:
+                if arg.access == AccessType.INC:
                     return True
         return False
 
-    def unique_modified_args(self, mapping, arg_type):
+    def unique_modified_args(self, arg_type):
         '''Return all unique arguments of type arg_type from Kernels in this
-        loop that are modified'''
+        loop that are modified.
+        :param str arg_type: the type of kernel argument (e.g. field, \
+                             operator) to search for.
+        :returns: all unique arguments of type arg_type from Kernels in this
+        loop that are modified.
+        :rtype: List of :py:class:`psyclone.psyGen.DynKernelArgument`.
+        '''
         arg_names = []
         args = []
         for call in self.calls():
             for arg in call.arguments.args:
                 if arg.type.lower() == arg_type:
-                    if arg.access.lower() != mapping["read"]:
+                    if arg.access != AccessType.READ:
                         if arg.name not in arg_names:
                             arg_names.append(arg.name)
                             args.append(arg)
@@ -3271,9 +3274,10 @@ class Call(Node):
         self._arg_descriptors = None
 
         # initialise any reduction information
+        reduction_modes = AccessType.get_valid_reduction_modes()
         args = args_filter(arguments.args,
                            arg_types=MAPPING_SCALARS.values(),
-                           arg_accesses=MAPPING_REDUCTIONS.values())
+                           arg_accesses=reduction_modes)
         if args:
             self._reduction = True
             if len(args) != 1:
@@ -3417,11 +3421,12 @@ class Call(Node):
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
         except KeyError:
+            api_strings = [access.api_specific_name()
+                           for access in REDUCTION_OPERATOR_MAPPING]
             raise GenerationError(
                 "unsupported reduction access '{0}' found in DynBuiltin:"
                 "reduction_sum_loop(). Expected one of '{1}'".
-                format(reduction_access,
-                       list(REDUCTION_OPERATOR_MAPPING.keys())))
+                format(reduction_access.api_specific_name(), api_strings))
         do_loop = DoGen(parent, thread_idx, "1", nthreads)
         do_loop.add(AssignGen(do_loop, lhs=var_name, rhs=var_name +
                               reduction_operator + local_var_ref))
@@ -3650,51 +3655,22 @@ class Kern(Call):
         raise NotImplementedError("gen_arg_setter_code must be implemented "
                                   "by sub-class.")
 
-    def incremented_arg(self, mapping={}):
+    def incremented_arg(self):
         ''' Returns the argument that has INC access. Raises a
         FieldNotFoundError if none is found.
 
-        :param mapping: dictionary of access types (here INC) associated \
-                        with arguments with their metadata strings as keys
-        :type mapping: dict
-        :returns: a Fortran argument name.
         :rtype: str
         :raises FieldNotFoundError: if none is found.
-
+        :returns: a Fortran argument name.
         '''
-        assert mapping != {}, "psyGen:Kern:incremented_arg: Error - a "\
-            "mapping must be provided"
         for arg in self.arguments.args:
-            if arg.access.lower() == mapping["inc"]:
+            if arg.access == AccessType.INC:
                 return arg
+
         raise FieldNotFoundError("Kernel {0} does not have an argument with "
                                  "{1} access".
-                                 format(self.name, mapping["inc"]))
-
-    def written_arg(self, mapping={}):
-        '''
-        Returns an argument that has WRITE or READWRITE access. Raises a
-        FieldNotFoundError if none is found.
-
-        :param mapping: dictionary of access types (here WRITE or
-                        READWRITE) associated with arguments with their
-                        metadata strings as keys
-        :type mapping: dict
-        :returns: a Fortran argument name
-        :rtype: string
-        :raises FieldNotFoundError: if none is found.
-
-        '''
-        assert mapping != {}, "psyGen:Kern:written_arg: Error - a "\
-            "mapping must be provided"
-        for access in ["write", "readwrite"]:
-            for arg in self.arguments.args:
-                if arg.access.lower() == mapping[access]:
-                    return arg
-        raise FieldNotFoundError("Kernel {0} does not have an argument with "
-                                 "{1} or {2} access".
-                                 format(self.name, mapping["write"],
-                                        mapping["readwrite"]))
+                                 format(self.name,
+                                        AccessType.INC.api_specific_name()))
 
     def is_coloured(self):
         ''' Returns true if this kernel is being called from within a
@@ -4000,25 +3976,20 @@ class Arguments(object):
     def args(self):
         return self._args
 
-    def iteration_space_arg(self, mapping={}):
+    def iteration_space_arg(self):
         '''
         Returns an argument that can be iterated over, i.e. modified
-        (has WRITE, READWRITE or INC access).
+        (has WRITE, READWRITE or INC access), but not the result of
+        a reduction operation.
 
-        :param mapping: dictionary of access types associated with arguments
-                        with their metadata strings as keys
-        :type mapping: dict
         :returns: a Fortran argument name
         :rtype: string
         :raises GenerationError: if none such argument is found.
 
         '''
-        assert mapping != {}, "psyGen:Arguments:iteration_space_arg: Error "
-        "a mapping needs to be provided"
         for arg in self._args:
-            if arg.access.lower() == mapping["write"] or \
-               arg.access.lower() == mapping["readwrite"] or \
-               arg.access.lower() == mapping["inc"]:
+            if arg.access in AccessType.all_write_accesses() and \
+                    arg.access not in AccessType.get_valid_reduction_modes():
                 return arg
         raise GenerationError("psyGen:Arguments:iteration_space_arg Error, "
                               "we assume there is at least one writer, "
@@ -4209,8 +4180,8 @@ class Argument(object):
         the parser
         :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
         :param access: the way in which this argument is accessed in
-        the 'Call'. Valid values are specified in 'MAPPING_ACCESSES'
-        (and may be modified by the particular API).
+        the 'Call'. Valid values are specified in the config object
+        of the current API.
         :type access: str
 
         '''
@@ -4234,21 +4205,6 @@ class Argument(object):
             # previous name.
             self._name = self._name_space_manager.create_name(
                 root_name=self._orig_name, context="AlgArgs", label=self._text)
-        # _writers and _readers need to be instances of this class,
-        # rather than static variables, as the mapping that is used
-        # depends on the API and this is only known when a subclass of
-        # Argument is created (as the local MAPPING_ACCESSES will be
-        # used). For example, a dynamo0p3 api instantiation of a
-        # DynArgument (subclass of Argument) will use the
-        # MAPPING_ACCESSES specified in the dynamo0p3 file which
-        # overide the default ones in this file.
-        self._write_access_types = [MAPPING_ACCESSES["write"],
-                                    MAPPING_ACCESSES["readwrite"],
-                                    MAPPING_ACCESSES["inc"],
-                                    MAPPING_REDUCTIONS["sum"]]
-        self._read_access_types = [MAPPING_ACCESSES["read"],
-                                   MAPPING_ACCESSES["readwrite"],
-                                   MAPPING_ACCESSES["inc"]]
         self._vector_size = 1
 
     def __str__(self):
@@ -4276,7 +4232,15 @@ class Argument(object):
 
     @access.setter
     def access(self, value):
-        ''' set the access type for this argument '''
+        '''Set the access type for this argument.
+        :param value: New access type.
+        :type value: :py:class:`psyclone.core.access_type.AccessType`.
+        :raisesInternalError if value is not an AccessType.
+        '''
+        if not isinstance(value, AccessType):
+            raise InternalError("Invalid access type '{0}' of type '{1}."
+                                .format(value, type(value)))
+
         self._access = value
 
     @property
@@ -4408,7 +4372,7 @@ class Argument(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
-        if self.access not in self._write_access_types:
+        if self.access not in AccessType.all_write_accesses():
             # I am not a writer so there will be no read dependencies
             return []
 
@@ -4420,10 +4384,10 @@ class Argument(object):
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.access in self._read_access_types and \
+                if argument.access in AccessType.all_read_accesses() and \
                    access.overlaps(argument):
                     arguments.append(argument)
-                if argument.access in self._write_access_types:
+                if argument.access in AccessType.all_write_accesses():
                     access.update_coverage(argument)
                     if access.covered:
                         # We have now found all arguments upon which
@@ -4447,7 +4411,7 @@ class Argument(object):
         :rtype: :func:`list` of :py:class:`psyclone.psyGen.Argument`
 
         '''
-        if self.access not in self._read_access_types:
+        if self.access not in AccessType.all_read_accesses():
             # I am not a reader so there will be no write dependencies
             return []
 
@@ -4460,7 +4424,7 @@ class Argument(object):
         for node in nodes_with_args:
             for argument in node.args:
                 # look at all arguments in our nodes
-                if argument.access not in self._write_access_types:
+                if argument.access not in AccessType.all_write_accesses():
                     # no dependence if not a writer
                     continue
                 if not access.overlaps(argument):
@@ -4522,14 +4486,14 @@ class Argument(object):
 
         '''
         if argument.name == self._name:
-            if self.access in self._write_access_types and \
-               argument.access in self._read_access_types:
+            if self.access in AccessType.all_write_accesses() and \
+               argument.access in AccessType.all_read_accesses():
                 return True
-            if self.access in self._read_access_types and \
-               argument.access in self._write_access_types:
+            if self.access in AccessType.all_read_accesses() and \
+               argument.access in AccessType.all_write_accesses():
                 return True
-            if self.access in self._write_access_types and \
-               argument.access in self._write_access_types:
+            if self.access in AccessType.all_write_accesses() and \
+               argument.access in AccessType.all_write_accesses():
                 return True
         return False
 
@@ -5147,7 +5111,7 @@ class Fparser2ASTProcessor(object):
             '''
             for node in nodelist:
                 if (isinstance(node, Fortran2003.Subroutine_Subprogram) and
-                   str(node.content[0].get_name()) == searchname):
+                        str(node.content[0].get_name()) == searchname):
                     return node
             raise ValueError  # Subroutine not found
 
@@ -5307,9 +5271,9 @@ class Fparser2ASTProcessor(object):
                     datatype = 'boolean'
             if datatype is None:
                 raise NotImplementedError(
-                        "Could not process {0}. Only 'real', 'integer', "
-                        "'logical' and 'character' intrinsic types are "
-                        "supported.".format(str(decl.items)))
+                    "Could not process {0}. Only 'real', 'integer', "
+                    "'logical' and 'character' intrinsic types are "
+                    "supported.".format(str(decl.items)))
 
             # Parse declaration attributes:
             # 1) If no dimension attribute is provided, it defaults to scalar.
@@ -5338,12 +5302,12 @@ class Fparser2ASTProcessor(object):
                             "Could not process {0}. Unrecognized attribute "
                             "'{1}'.".format(decl.items, str(attr)))
                 elif isinstance(attr, Fortran2003.Dimension_Attr_Spec):
-                    attribute_shape = self._parse_dimensions(
-                                            attr, parent.symbol_table)
+                    attribute_shape = \
+                        self._parse_dimensions(attr, parent.symbol_table)
                 else:
                     raise NotImplementedError(
-                            "Could not process {0}. Unrecognized attribute "
-                            "type {1}.".format(decl.items, str(type(attr))))
+                        "Could not process {0}. Unrecognized attribute "
+                        "type {1}.".format(decl.items, str(type(attr))))
 
             # Parse declarations RHS and declare new symbol into the
             # parent symbol table for each entity found.
@@ -5352,27 +5316,26 @@ class Fparser2ASTProcessor(object):
 
                 # If the entity has an array-spec shape, it has priority.
                 # Otherwise use the declaration attribute shape.
-                if (array_spec is not None):
-                    entity_shape = self._parse_dimensions(
-                                        array_spec, parent.symbol_table)
+                if array_spec is not None:
+                    entity_shape = \
+                        self._parse_dimensions(array_spec, parent.symbol_table)
                 else:
                     entity_shape = attribute_shape
 
-                if (initialisation is not None):
+                if initialisation is not None:
                     raise NotImplementedError(
                         "Could not process {0}. Initialisations on the"
                         " declaration statements are not supported."
                         "".format(decl.items))
 
-                if (char_len is not None):
+                if char_len is not None:
                     raise NotImplementedError(
                         "Could not process {0}. Character length "
                         "specifications are not supported."
                         "".format(decl.items))
-
-                parent.symbol_table.declare(
-                    str(name), datatype, entity_shape, scope, is_input,
-                    is_output)
+                parent.symbol_table.add(Symbol(
+                    str(name), datatype, shape=entity_shape, scope=scope,
+                    is_input=is_input, is_output=is_output))
 
         try:
             arg_strings = [x.string for x in arg_list]
@@ -5576,6 +5539,7 @@ class Fparser2ASTProcessor(object):
         :rtype: :py:class:`psyclone.psyGen.IfBlock`
         '''
         ifblock = IfBlock(parent=parent, annotation='was_single_stmt')
+        ifblock.ast = node
         self.process_nodes(parent=ifblock, nodes=[node.items[0]],
                            nodes_parent=node)
         ifbody = Schedule(parent=ifblock)
@@ -5622,7 +5586,9 @@ class Fparser2ASTProcessor(object):
                 # we raise a NotImplementedError that the process_node() will
                 # catch and generate a CodeBlock instead.
                 case_expression = child.items[0].items[0]
-                if isinstance(case_expression, Fortran2003.Case_Value_Range):
+                if isinstance(case_expression,
+                              (Fortran2003.Case_Value_Range,
+                               Fortran2003.Case_Value_Range_List)):
                     raise NotImplementedError("Case Value Range Statement")
                 elif case_expression is None:
                     raise NotImplementedError("Case Default Statement")
@@ -5833,9 +5799,8 @@ class Fparser2ASTProcessor(object):
 
 
 class Symbol(object):
-    '''
-    Symbol item for the Symbol Table. It contains information about: the name,
-    the datatype, the shape (in column-major order), the scope and for
+    '''Symbol item for the Symbol Table. It contains information about: the
+    name, the datatype, the shape (in column-major order), the scope and for
     global-scoped symbols whether the data is already defined and/or survives
     after the kernel.
 
@@ -5855,30 +5820,41 @@ class Symbol(object):
                       mechanism, at the moment just 'global_argument' is \
                       available for variables passed in/out of the kernel \
                       by argument.
+    :param constant_value: Sets a fixed known value for this \
+                           Symbol. If the value is None (the default) \
+                           then this symbol is not a constant. The \
+                           datatype of the constant value must be \
+                           compatible with the datatype of the symbol.
+    :type constant_value: int, str or bool
     :param bool is_input: Whether the symbol represents data that exists \
                           before the kernel is entered and that is passed \
                           into the kernel.
     :param bool is_output: Whether the symbol represents data that is passed \
                            outside the kernel upon exit.
+
     :raises NotImplementedError: Provided parameters are not supported yet.
     :raises TypeError: Provided parameters have invalid error type.
     :raises ValueError: Provided parameters contain invalid values.
+
     '''
 
     # Tuple with the valid values for the access attribute.
     valid_scope_types = ('local', 'global_argument')
     # Tuple with the valid datatypes.
     valid_data_types = ('real', 'integer', 'character', 'boolean')
+    # Mapping from supported data types for constant values to
+    # internal Python types
+    mapping = {'integer': int, 'character': str, 'boolean': bool}
 
     def __init__(self, name, datatype, shape=[], scope='local',
-                 is_input=False, is_output=False):
+                 constant_value=None, is_input=False, is_output=False):
 
         self._name = name
 
         if datatype not in Symbol.valid_data_types:
             raise NotImplementedError(
-                "Symbol can only be initialised with {0} datatypes."
-                "".format(str(Symbol.valid_data_types)))
+                "Symbol can only be initialised with {0} datatypes but found "
+                "'{1}'.".format(str(Symbol.valid_data_types), datatype))
         self._datatype = datatype
 
         if not isinstance(shape, list):
@@ -5899,9 +5875,11 @@ class Symbol(object):
 
         # The following attributes have setter methods (with error checking)
         self._scope = None
+        self._constant_value = None
         self._is_input = None
         self._is_output = None
         self.scope = scope
+        self.constant_value = constant_value
         self.is_input = is_input
         self.is_output = is_output
 
@@ -5909,7 +5887,7 @@ class Symbol(object):
     def name(self):
         '''
         :returns: Name of the Symbol.
-        :rtype: string
+        :rtype: str
         '''
         return self._name
 
@@ -5917,7 +5895,7 @@ class Symbol(object):
     def datatype(self):
         '''
         :returns: Datatype of the Symbol.
-        :rtype: string
+        :rtype: str
         '''
         return self._datatype
 
@@ -6018,6 +5996,92 @@ class Symbol(object):
 
         self._scope = new_scope
 
+    @property
+    def is_constant(self):
+        '''
+        :returns: Whether the symbol is a constant with a fixed known \
+        value (True) or not (False).
+        :rtype: bool
+
+        '''
+        return self._constant_value is not None
+
+    @property
+    def is_scalar(self):
+        '''
+        :returns: True if this symbol is a scalar and False otherwise.
+        :rtype: bool
+
+        '''
+        # If the shape variable is an empty list then this symbol is a
+        # scalar.
+        return self.shape == []
+
+    @property
+    def is_array(self):
+        '''
+        :returns: True if this symbol is an array and False otherwise.
+        :rtype: bool
+
+        '''
+        # The assumption in this method is that if this symbol is not
+        # a scalar then it is an array. If this assumption becomes
+        # invalid then this logic will need to be changed
+        # appropriately.
+        return not self.is_scalar
+
+    @property
+    def constant_value(self):
+        '''
+        :returns: The fixed known value for this symbol if one has \
+        been set or None if not.
+        :rtype: int, str, bool or NoneType
+
+        '''
+        return self._constant_value
+
+    @constant_value.setter
+    def constant_value(self, new_value):
+        '''
+        :param constant_value: Set or change the fixed known value of \
+        the constant for this Symbol. If the value is None then this \
+        symbol does not have a fixed constant. The datatype of \
+        new_value must be compatible with the datatype of the symbol.
+        :type constant_value: int, str or bool
+
+        :raises ValueError: If a non-None value is provided and 1) \
+        this Symbol instance does not have local scope, or 2) this \
+        Symbol instance is not a scalar (as the shape attribute is not \
+        empty), or 3) a constant value is provided but the type of the \
+        value does not support this, or 4) the type of the value \
+        provided is not compatible with the datatype of this Symbol \
+        instance.
+
+        '''
+        if new_value is not None:
+            if self.scope != "local":
+                raise ValueError(
+                    "Symbol with a constant value is currently limited to "
+                    "having local scope but found '{0}'.".format(self.scope))
+            if self.is_array:
+                raise ValueError(
+                    "Symbol with a constant value must be a scalar but the "
+                    "shape attribute is not empty.")
+            try:
+                lookup = Symbol.mapping[self.datatype]
+            except KeyError:
+                raise ValueError(
+                    "A constant value is not currently supported for "
+                    "datatype '{0}'.".format(self.datatype))
+            if not isinstance(new_value, lookup):
+                raise ValueError(
+                    "This Symbol instance's datatype is '{0}' which means "
+                    "the constant value is expected to be '{1}' but found "
+                    "'{2}'.".format(self.datatype,
+                                    Symbol.mapping[self.datatype],
+                                    type(new_value)))
+        self._constant_value = new_value
+
     def gen_c_definition(self):
         '''
         Generates string representing the C language definition of the symbol.
@@ -6044,7 +6108,7 @@ class Symbol(object):
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
-        if self.shape:
+        if self.is_array:
             code += "* restrict "
 
         code += self.name
@@ -6052,7 +6116,7 @@ class Symbol(object):
 
     def __str__(self):
         ret = self.name + ": <" + self.datatype + ", " + self.scope + ", "
-        if self.shape:
+        if self.is_array:
             ret += "Array["
             for dimension in self.shape:
                 if isinstance(dimension, Symbol):
@@ -6070,12 +6134,50 @@ class Symbol(object):
             ret = ret[:-2] + "]"  # Deletes last ", " and adds "]"
         else:
             ret += "Scalar"
+        if self.is_constant:
+            ret += ", constant_value={0}".format(self.constant_value)
         return ret + ">"
+
+    def copy(self):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this \
+        symbol object.
+        :rtype: :py:class:`psyclone.psyGen.Symbol`
+
+        '''
+        return Symbol(self.name, self.datatype, shape=self.shape[:],
+                      scope=self.scope, constant_value=self.constant_value,
+                      is_input=self.is_input, is_output=self.is_output)
+
+    def copy_properties(self, symbol_in):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name which is immutable.
+
+        :param symbol_in: The symbol from which the properties are \
+        copied from.
+        :type symbol_in: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises TypeError: If the argument is not the expected type.
+
+        '''
+        if not isinstance(symbol_in, Symbol):
+            raise TypeError("Argument should be of type 'Symbol' but found "
+                            "'{0}'.".format(type(symbol_in).__name__))
+
+        self._datatype = symbol_in.datatype
+        self._shape = symbol_in.shape[:]
+        self._scope = symbol_in.scope
+        self._constant_value = symbol_in.constant_value
+        self._is_input = symbol_in.is_input
+        self._is_output = symbol_in.is_output
 
 
 class SymbolTable(object):
     '''
-    Encapsulates the symbol table and provides methods to declare new symbols
+    Encapsulates the symbol table and provides methods to add new symbols
     and look up existing symbols. It is implemented as a single scope
     symbol table (nested scopes not supported).
 
@@ -6093,50 +6195,71 @@ class SymbolTable(object):
         # Reference to KernelSchedule to which this symbol table belongs.
         self._kernel = kernel
 
-    def declare(self, name, datatype, shape=[], scope='local',
-                is_input=False, is_output=False):
-        '''
-        Declare a new symbol in the symbol table.
+    def add(self, new_symbol):
+        '''Add a new symbol to the symbol table.
 
-        :param str name: Name of the symbol.
-        :param str datatype: Datatype of the symbol.
-        :param list shape: Shape of the symbol in column-major order \
-                           (leftmost index is contiguous in memory). Each \
-                           entry represents an array dimension. If it is \
-                           'None' the extent of that dimension is unknown, \
-                           otherwise it holds an integer literal or a \
-                           reference to an integer symbol with the extent. \
-                           If it is an empty list then the symbol represents \
-                           a scalar.
-        :param str scope: It is 'local' if the symbol just exists inside the \
-                          kernel scope or 'global_*' if the data survives \
-                          outside of the kernel scope. Note that \
-                          global-scoped symbols also have postfixed \
-                          information about the sharing mechanism, at the \
-                          moment just 'global_argument' is available for \
-                          variables passed in/out of the kernel by argument.
-        :param bool is_input: Whether the symbol represents data that exists \
-                              before the kernel is entered and that is passed \
-                              into the kernel.
-        :param bool is_output: Whether the symbol represents data that is \
-                               survives outside the kernel upon exit.
-        :raises KeyError: The provided name can not be used as key in the
-                          table.
+        :param new_symbol: The symbol to add to the symbol table.
+        :type new_symbol: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises KeyError: If the symbol name is already in use.
+
         '''
-        if name in self._symbols:
+        if new_symbol.name in self._symbols:
             raise KeyError("Symbol table already contains a symbol with"
-                           " name '{0}'.".format(name))
+                           " name '{0}'.".format(new_symbol.name))
+        self._symbols[new_symbol.name] = new_symbol
 
-        self._symbols[name] = Symbol(name, datatype, shape, scope, is_input,
-                                     is_output)
+    def swap_symbol_properties(self, symbol1, symbol2):
+        '''Swaps the properties of symbol1 and symbol2 apart from the symbol
+        name. Argument list positions are also updated appropriately.
+
+        :param symbol1: The first symbol.
+        :type symbol1: :py:class:`psyclone.psyGen.Symbol`
+        :param symbol2: The second symbol.
+        :type symbol2: :py:class:`psyclone.psyGen.Symbol`
+
+        :raises KeyError: If either of the supplied symbols are not in \
+        the symbol table.
+        :raises TypeError: If the supplied arguments are not symbols, \
+        or the names of the symbols are the same in the SymbolTable \
+        instance.
+
+        '''
+        for symbol in [symbol1, symbol2]:
+            if not isinstance(symbol, Symbol):
+                raise TypeError("Arguments should be of type 'Symbol' but "
+                                "found '{0}'.".format(type(symbol).__name__))
+            if symbol.name not in self._symbols:
+                raise KeyError("Symbol '{0}' is not in the symbol table."
+                               "".format(symbol.name))
+        if symbol1.name == symbol2.name:
+            raise ValueError("The symbols should have different names, but "
+                             "found '{0}' for both.".format(symbol1.name))
+
+        tmp_symbol = symbol1.copy()
+        symbol1.copy_properties(symbol2)
+        symbol2.copy_properties(tmp_symbol)
+
+        # Update argument list if necessary
+        index1 = None
+        if symbol1 in self._argument_list:
+            index1 = self._argument_list.index(symbol1)
+        index2 = None
+        if symbol2 in self._argument_list:
+            index2 = self._argument_list.index(symbol2)
+        if index1 is not None:
+            self._argument_list[index1] = symbol2
+        if index2 is not None:
+            self._argument_list[index2] = symbol1
 
     def specify_argument_list(self, argument_name_list):
         '''
         Keep track of the order of the arguments and provide the scope,
-        is_input and is_ouput information if it was not available on the
+        is_input and is_output information if it was not available on the
         variable declaration.
 
         :param list argument_name_list: Ordered list of the argument names.
+
         '''
         self._argument_list = []
         for name in argument_name_list:
@@ -6156,6 +6279,7 @@ class SymbolTable(object):
 
         :param str name: Name of the symbol
         :raises KeyError: If the given name is not in the Symbol Table.
+
         '''
         try:
             return self._symbols[name]
