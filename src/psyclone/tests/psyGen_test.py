@@ -2854,7 +2854,7 @@ def test_reference_view(capsys):
     ''' Check the view and colored_text methods of the Reference class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.declare("rname", "integer")
+    kschedule.symbol_table.add(Symbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     coloredtext = colored("Reference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -2867,7 +2867,7 @@ def test_reference_can_be_printed():
     '''Test that a Reference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.declare("rname", "integer")
+    kschedule.symbol_table.add(Symbol("rname", "integer"))
     assignment = Assignment(parent=kschedule)
     ref = Reference("rname", assignment)
     assert "Reference[name:'rname']\n" in str(ref)
@@ -2886,7 +2886,7 @@ def test_array_view(capsys):
     ''' Check the view and colored_text methods of the Array class.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.declare("aname", "integer", [None])
+    kschedule.symbol_table.add(Symbol("aname", "integer", [None]))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", parent=assignment)
     coloredtext = colored("ArrayReference", SCHEDULE_COLOUR_MAP["Reference"])
@@ -2899,7 +2899,7 @@ def test_array_can_be_printed():
     '''Test that an Array instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.declare("aname", "integer")
+    kschedule.symbol_table.add(Symbol("aname", "integer"))
     assignment = Assignment(parent=kschedule)
     array = Array("aname", assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
@@ -3069,7 +3069,7 @@ def test_kernelschedule_view(capsys):
     '''Test the view method of the KernelSchedule part.'''
     from psyclone.psyGen import colored, SCHEDULE_COLOUR_MAP
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.declare("x", "integer")
+    kschedule.symbol_table.add(Symbol("x", "integer"))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
@@ -3088,7 +3088,7 @@ def test_kernelschedule_can_be_printed():
     '''Test that a KernelSchedule instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    kschedule.symbol_table.declare("x", "integer")
+    kschedule.symbol_table.add(Symbol("x", "integer"))
     assignment = Assignment()
     kschedule.addchild(assignment)
     lhs = Reference("x", parent=assignment)
@@ -3118,18 +3118,22 @@ def test_symbol_initialisation():
 
     # Test with valid arguments
     assert isinstance(Symbol('a', 'real'), Symbol)
+    # real constants are not currently supported
     assert isinstance(Symbol('a', 'integer'), Symbol)
+    assert isinstance(Symbol('a', 'integer', constant_value=0), Symbol)
     assert isinstance(Symbol('a', 'character'), Symbol)
+    assert isinstance(Symbol('a', 'character', constant_value="hello"), Symbol)
     assert isinstance(Symbol('a', 'boolean'), Symbol)
+    assert isinstance(Symbol('a', 'boolean', constant_value=False), Symbol)
     assert isinstance(Symbol('a', 'real', [None]), Symbol)
     assert isinstance(Symbol('a', 'real', [3]), Symbol)
     assert isinstance(Symbol('a', 'real', [3, None]), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'local'), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument'), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
-                             True, True), Symbol)
+                             None, True, True), Symbol)
     assert isinstance(Symbol('a', 'real', [], 'global_argument',
-                             True, False), Symbol)
+                             None, True, False), Symbol)
     dim = Symbol('dim', 'integer', [])
     assert isinstance(Symbol('a', 'real', [dim], 'local'), Symbol)
     assert isinstance(Symbol('a', 'real', [3, dim, None], 'local'), Symbol)
@@ -3137,14 +3141,21 @@ def test_symbol_initialisation():
     # Test with invalid arguments
     with pytest.raises(NotImplementedError) as error:
         Symbol('a', 'invalidtype', [], 'local')
-    assert ("Symbol can only be initialised with {0} datatypes."
-            "".format(str(Symbol.valid_data_types)))in str(error.value)
+    assert (
+        "Symbol can only be initialised with {0} datatypes but found "
+        "'invalidtype'.".format(str(Symbol.valid_data_types))) in str(
+            error.value)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'real', constant_value=3.14)
+    assert ("A constant value is not currently supported for datatype "
+            "'real'.") in str(error)
 
     with pytest.raises(ValueError) as error:
         Symbol('a', 'real', [], 'invalidscope')
     assert ("Symbol scope attribute can only be one of " +
             str(Symbol.valid_scope_types) +
-            " but got 'invalidscope'.") in str(error.value)
+            " but got 'invalidscope'.") in str(error)
 
     with pytest.raises(TypeError) as error:
         Symbol('a', 'real', None, 'local')
@@ -3167,6 +3178,51 @@ def test_symbol_initialisation():
     assert ("Symbols that are part of another symbol shape can "
             "only be scalar integers, but found") in str(error.value)
 
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'integer', scope='global_argument', constant_value=9)
+    assert ("Symbol with a constant value is currently limited to having "
+            "local scope but found 'global_argument'.") in str(error)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'integer', shape=[None], constant_value=9)
+    assert ("Symbol with a constant value must be a scalar but the shape "
+            "attribute is not empty.") in str(error)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'integer', constant_value=9.81)
+    assert ("This Symbol instance's datatype is 'integer' which means the "
+            "constant value is expected to be") in str(error)
+    assert "'int'>' but found " in str(error)
+    assert "'float'>'." in str(error)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'character', constant_value=42)
+    assert ("This Symbol instance's datatype is 'character' which means the "
+            "constant value is expected to be") in str(error)
+    assert "'str'>' but found " in str(error)
+    assert "'int'>'." in str(error)
+
+    with pytest.raises(ValueError) as error:
+        Symbol('a', 'boolean', constant_value="hello")
+    assert ("This Symbol instance's datatype is 'boolean' which means the "
+            "constant value is expected to be") in str(error)
+    assert "'bool'>' but found " in str(error)
+    assert "'str'>'." in str(error)
+
+
+def test_symbol_map():
+    '''Test the mapping variable in the Symbol class does not raise any
+    exceptions when it is used with the valid_data_types variable in
+    the Symbol class.
+
+    '''
+    # "real" is not supported in the mapping so we expect it to have 1
+    # less entry than there are valid data types.
+    assert len(Symbol.valid_data_types) == len(Symbol.mapping) + 1
+    for data_type in Symbol.valid_data_types:
+        if data_type not in ["real"]:
+            assert data_type in Symbol.mapping
+
 
 def test_symbol_scope_setter():
     '''Test that a Symbol scope can be set if given a new valid scope
@@ -3183,14 +3239,53 @@ def test_symbol_scope_setter():
         sym.scope = 'invalidscope'
     assert ("Symbol scope attribute can only be one of " +
             str(Symbol.valid_scope_types) +
-            " but got 'invalidscope'.") in str(error.value)
+            " but got 'invalidscope'.") in str(error)
+
+
+def test_symbol_constant_value_setter():
+    '''Test that a Symbol constant value can be set if given a new valid
+    constant value. Also test that is_constant returns True
+
+    '''
+
+    # Test with valid constant value
+    sym = Symbol('a', 'integer', constant_value=7)
+    assert sym.constant_value == 7
+    sym.constant_value = 9
+    assert sym.constant_value == 9
+
+
+def test_symbol_is_constant():
+    '''Test that the Symbol is_constant property returns True if a
+    constant value is set and False if it is not.
+
+    '''
+    sym = Symbol('a', 'integer')
+    assert not sym.is_constant
+    sym.constant_value = 9
+    assert sym.is_constant
+
+
+def test_symbol_scalar_array():
+    '''Test that the Symbol property is_scalar returns True if the Symbol
+    is a scalar and False if not and that the Symbol property is_array
+    returns True if the Symbol is an array and False if not.
+
+    '''
+    sym1 = Symbol("s1", "integer")
+    sym2 = Symbol("s2", "real", [None, 2, sym1])
+    assert sym1.is_scalar
+    assert not sym1.is_array
+    assert not sym2.is_scalar
+    assert sym2.is_array
 
 
 def test_symbol_is_input_setter():
-    '''Test that a Symbol is_input can be set if given a new valid
-    value, otherwise it raises a relevant exception'''
+    '''Test that a Symbol's is_input method can be set if given a new
+    valid value, otherwise it raises a relevant exception.'''
 
-    sym = Symbol('a', 'real', [], 'global_argument', False, False)
+    sym = Symbol('a', 'real', shape=[], scope='global_argument',
+                 is_input=False, is_output=False)
     sym.is_input = True
     assert sym.is_input is True
 
@@ -3203,13 +3298,14 @@ def test_symbol_is_input_setter():
     with pytest.raises(ValueError) as error:
         sym.is_input = True
     assert ("Symbol with 'local' scope can not have 'is_input' attribute"
-            " set to True.") in str(error.value)
+            " set to True.") in str(error)
 
 
 def test_symbol_is_output_setter():
-    '''Test that a Symbol is_output can be set if given a new valid
-    value, otherwise it raises a relevant exception'''
-    sym = Symbol('a', 'real', [], 'global_argument', False, False)
+    '''Test that a Symbol's is_output method can be set if given a new
+    valid value, otherwise it raises a relevant exception.'''
+    sym = Symbol('a', 'real', shape=[], scope='global_argument',
+                 is_input=False, is_output=False)
     sym.is_output = True
     assert sym.is_output is True
 
@@ -3222,7 +3318,7 @@ def test_symbol_is_output_setter():
     with pytest.raises(ValueError) as error:
         sym.is_output = True
     assert ("Symbol with 'local' scope can not have 'is_output' attribute"
-            " set to True.") in str(error.value)
+            " set to True.") in str(error)
 
 
 def test_symbol_can_be_printed():
@@ -3239,6 +3335,81 @@ def test_symbol_can_be_printed():
         _ = str(sym2)
     assert ("Symbol shape list elements can only be 'Symbol', 'integer' or "
             "'None', but found") in str(error.value)
+
+    sym3 = Symbol("s3", "integer", constant_value=12)
+    assert "s3: <integer, local, Scalar, constant_value=12>" in str(sym3)
+
+
+def test_symbol_copy():
+    '''Test that the Symbol copy method produces a faithful separate copy
+    of the original symbol.
+
+    '''
+    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
+                    constant_value=None, is_input=True, is_output=True)
+    new_symbol = symbol.copy()
+
+    # Check the new symbol has the same properties as the original
+    assert symbol.name == new_symbol.name
+    assert symbol.datatype == new_symbol.datatype
+    assert symbol.shape == new_symbol.shape
+    assert symbol.scope == new_symbol.scope
+    assert symbol.constant_value == new_symbol.constant_value
+    assert symbol.is_input == new_symbol.is_input
+    assert symbol.is_output == new_symbol.is_output
+
+    # Change the properties of the new symbol and check the original
+    # is not affected. Can't check constant_value yet as we have a
+    # shape value
+    new_symbol._name = "new"
+    new_symbol._datatype = "integer"
+    new_symbol.shape[0] = 3
+    new_symbol.shape[1] = 4
+    new_symbol.scope = "local"
+    new_symbol.is_input = False
+    new_symbol.is_output = False
+
+    assert symbol.name == "myname"
+    assert symbol.datatype == "real"
+    assert symbol.shape == [1, 2]
+    assert symbol.scope == "global_argument"
+    assert not symbol.constant_value
+    assert symbol.is_input
+    assert symbol.is_output
+
+    # Now check constant_value
+    new_symbol._shape = []
+    new_symbol.constant_value = True
+
+    assert symbol.shape == [1, 2]
+    assert not symbol.constant_value
+
+
+def test_symbol_copy_properties():
+    '''Test that the Symbol copy_properties method works as expected.'''
+
+    symbol = Symbol("myname", "real", shape=[1, 2], scope="global_argument",
+                    constant_value=None, is_input=True, is_output=True)
+
+    # Check an exception is raised if an incorrect argument is passed
+    # in
+    with pytest.raises(TypeError) as excinfo:
+        symbol.copy_properties(None)
+    assert ("Argument should be of type 'Symbol' but found 'NoneType'."
+            "") in str(excinfo.value)
+
+    new_symbol = Symbol("other_name", "integer", shape=[], scope="local",
+                        constant_value=7, is_input=False, is_output=False)
+
+    symbol.copy_properties(new_symbol)
+
+    assert symbol.name == "myname"
+    assert symbol.datatype == "integer"
+    assert symbol.shape == []
+    assert symbol.scope == "local"
+    assert symbol.constant_value == 7
+    assert not symbol.is_input
+    assert not symbol.is_output
 
 
 def test_symbol_gen_c_definition():
@@ -3268,12 +3439,14 @@ def test_symbol_gen_c_definition():
 
 def test_symboltable_declare():
     '''Test that the declare method inserts new symbols in the symbol
-    table, but raises appropiate errors when provied with wrong parameters
+    table, but raises appropiate errors when provided with wrong parameters
     or duplicate declarations.'''
     sym_table = SymbolTable()
 
     # Declare a symbol
-    sym_table.declare("var1", "real", [5, 1], "global_argument", True, True)
+    sym_table.add(Symbol("var1", "real", shape=[5, 1],
+                         scope="global_argument",
+                         is_input=True, is_output=True))
     assert sym_table._symbols["var1"].name == "var1"
     assert sym_table._symbols["var1"].datatype == "real"
     assert sym_table._symbols["var1"].shape == [5, 1]
@@ -3283,18 +3456,97 @@ def test_symboltable_declare():
 
     # Declare a duplicate name symbol
     with pytest.raises(KeyError) as error:
-        sym_table.declare("var1", "real")
+        sym_table.add(Symbol("var1", "real"))
     assert ("Symbol table already contains a symbol with name "
             "'var1'.") in str(error.value)
 
 
+def test_symboltable_swap_symbol_properties():
+    ''' Test the symboltable swap_properties method '''
+
+    symbol1 = Symbol("var1", "integer", shape=[], scope="local",
+                     constant_value=7, is_input=False, is_output=False)
+    symbol2 = Symbol("dim1", "integer", scope="global_argument", is_input=True,
+                     is_output=False)
+    symbol3 = Symbol("dim2", "integer", scope="global_argument", is_input=True,
+                     is_output=False)
+    symbol4 = Symbol("var2", "real", shape=[symbol2, symbol3],
+                     scope="global_argument", is_input=True, is_output=True)
+
+    sym_table = SymbolTable()
+    sym_table.add(symbol1)
+
+    # Raise exception if the first argument is not a symbol
+    with pytest.raises(TypeError) as excinfo:
+        sym_table.swap_symbol_properties(None, symbol1)
+    assert ("Arguments should be of type 'Symbol' but found 'NoneType'."
+            "") in str(excinfo.value)
+
+    # Raise exception if the second argument is not a symbol
+    with pytest.raises(TypeError) as excinfo:
+        sym_table.swap_symbol_properties(symbol1, "symbol")
+    assert ("Arguments should be of type 'Symbol' but found 'str'."
+            "") in str(excinfo.value)
+
+    # Raise exception if the first symbol does not exist in the symbol table
+    with pytest.raises(KeyError) as excinfo:
+        sym_table.swap_symbol_properties(symbol4, symbol1)
+    assert "Symbol 'var2' is not in the symbol table." in str(excinfo.value)
+
+    # Raise exception if the second symbol does not exist in the symbol table
+    with pytest.raises(KeyError) as excinfo:
+        sym_table.swap_symbol_properties(symbol1, symbol4)
+    assert "Symbol 'var2' is not in the symbol table." in str(excinfo.value)
+
+    # Raise exception if both symbols have the same name
+    with pytest.raises(ValueError) as excinfo:
+        sym_table.swap_symbol_properties(symbol1, symbol1)
+    assert("The symbols should have different names, but found 'var1' for "
+           "both.") in str(excinfo.value)
+
+    sym_table.add(symbol2)
+    sym_table.add(symbol3)
+    sym_table.add(symbol4)
+    sym_table.specify_argument_list([symbol2.name, symbol3.name, symbol4.name])
+
+    # Check that properties are swapped
+    sym_table.swap_symbol_properties(symbol1, symbol4)
+
+    assert symbol1.name == "var1"
+    assert symbol1.datatype == "real"
+    assert symbol1.shape == [symbol2, symbol3]
+    assert symbol1.scope == "global_argument"
+    assert symbol1.constant_value is None
+    assert symbol1.is_input
+    assert symbol1.is_output
+
+    assert symbol4.name == "var2"
+    assert symbol4.datatype == "integer"
+    assert not symbol4.shape
+    assert symbol4.scope == "local"
+    assert symbol4.constant_value == 7
+    assert not symbol4.is_input
+    assert not symbol4.is_output
+
+    # Check symbol references are unaffected
+    sym_table.swap_symbol_properties(symbol2, symbol3)
+    assert symbol1.shape[0].name == "dim1"
+    assert symbol1.shape[1].name == "dim2"
+
+    # Check argument positions are updated. The original positions
+    # were [dim1, dim2, var2]. They should now be [dim2, dim1, var1]
+    assert sym_table.argument_list[0].name == "dim2"
+    assert sym_table.argument_list[1].name == "dim1"
+    assert sym_table.argument_list[2].name == "var1"
+
+
 def test_symboltable_lookup():
-    '''Test that the lookup method retrives symbols from the symbol table
+    '''Test that the lookup method retrieves symbols from the symbol table
     if the name exists, otherwise it raises an error.'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", [None, None])
-    sym_table.declare("var2", "integer", [])
-    sym_table.declare("var3", "real", [])
+    sym_table.add(Symbol("var1", "real", shape=[None, None]))
+    sym_table.add(Symbol("var2", "integer", shape=[]))
+    sym_table.add(Symbol("var3", "real", shape=[]))
 
     assert isinstance(sym_table.lookup("var1"), Symbol)
     assert sym_table.lookup("var1").name == "var1"
@@ -3313,8 +3565,8 @@ def test_symboltable_view(capsys):
     '''Test the view method of the SymbolTable class, it should print to
     standard out a representation of the full SymbolTable.'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real")
-    sym_table.declare("var2", "integer")
+    sym_table.add(Symbol("var1", "real"))
+    sym_table.add(Symbol("var2", "integer"))
     sym_table.view()
     output, _ = capsys.readouterr()
     assert "Symbol Table:\n" in output
@@ -3326,8 +3578,8 @@ def test_symboltable_can_be_printed():
     '''Test that a SymbolTable instance can always be printed. (i.e. is
     initialised fully)'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real")
-    sym_table.declare("var2", "integer")
+    sym_table.add(Symbol("var1", "real"))
+    sym_table.add(Symbol("var2", "integer"))
     assert "Symbol Table:\n" in str(sym_table)
     assert "var1" in str(sym_table)
     assert "var2" in str(sym_table)
@@ -3338,7 +3590,7 @@ def test_symboltable_specify_argument_list():
     with references to each Symbol and updates the Symbol attributes when
     needed.'''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", [])
+    sym_table.add(Symbol("var1", "real", []))
     sym_table.specify_argument_list(['var1'])
 
     assert len(sym_table.argument_list) == 1
@@ -3356,8 +3608,8 @@ def test_symboltable_contains():
     is in the SymbolTable, otherwise returns False.'''
     sym_table = SymbolTable()
 
-    sym_table.declare("var1", "real", [])
-    sym_table.declare("var2", "real", [None])
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", [None]))
 
     assert "var1" in sym_table
     assert "var2" in sym_table
@@ -3370,9 +3622,9 @@ def test_symboltable_local_symbols():
     sym_table = SymbolTable()
     assert [] == sym_table.local_symbols
 
-    sym_table.declare("var1", "real", [])
-    sym_table.declare("var2", "real", [None])
-    sym_table.declare("var3", "real", [])
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", [None]))
+    sym_table.add(Symbol("var3", "real", []))
 
     assert len(sym_table.local_symbols) == 3
     assert sym_table.lookup("var1") in sym_table.local_symbols
@@ -3392,9 +3644,9 @@ def test_symboltable_gen_c_local_variables():
     symbols definitions .
     '''
     sym_table = SymbolTable()
-    sym_table.declare("var1", "real", [])
-    sym_table.declare("var2", "real", [])
-    sym_table.declare("var3", "real", [None])
+    sym_table.add(Symbol("var1", "real", []))
+    sym_table.add(Symbol("var2", "real", []))
+    sym_table.add(Symbol("var3", "real", [None]))
     sym_table.specify_argument_list(['var1'])
 
     c_local_vars = sym_table.gen_c_local_variables()
@@ -3779,7 +4031,7 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert shape == [3, 5]
 
-    sym_table.declare('var1', 'integer', [])
+    sym_table.add(Symbol('var1', 'integer', []))
     reader = FortranStringReader("dimension(var1)")
     fparser2spec = Dimension_Attr_Spec(reader)
     shape = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
@@ -3798,7 +4050,7 @@ def test_fparser2astprocessor_parse_array_dimensions_attributes(
     reader = FortranStringReader("dimension(var2)")
     fparser2spec = Dimension_Attr_Spec(reader)
     with pytest.raises(NotImplementedError) as error:
-        sym_table.declare("var2", "real", [])
+        sym_table.add(Symbol("var2", "real", []))
         _ = Fparser2ASTProcessor._parse_dimensions(fparser2spec, sym_table)
     assert "Could not process " in str(error.value)
     assert ("Only scalar integer literals or symbols are supported for "
