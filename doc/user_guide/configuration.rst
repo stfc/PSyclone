@@ -40,7 +40,7 @@ locations searched is now:
 3. ``${HOME}/.local/share/psyclone/``
 
 Note that for developers a slightly different configuration handling
-is implemented, see :ref:`dev_configuration` for details.
+is implemented, see :ref:`dev_guide:dev_configuration` for details.
 
 Options
 -------

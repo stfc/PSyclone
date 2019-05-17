@@ -7,10 +7,17 @@ Working With PSyclone from GitHub
 #################################
 
 A PSyclone developer will, by definition, be working with the GitHub
-PSyclone repository rather than installing a released version from
-pypi (using e.g. ``pip install psyclone``).  This section describes
-the set-up necessary when using PSyclone in this way. It also
-describes some of the development practises of the PSyclone project.
+PSyclone repository_ rather than
+installing a released version from pypi (using e.g. ``pip install
+psyclone``).  This section describes the general set-up necessary when
+using PSyclone in this way. It also describes some of the development
+practises of the PSyclone project.
+
+.. _repository: https://github.com/stfc/PSyclone
+
+More detailed instructions for the Ubuntu and OpenSUSE Linux
+distributions may be found in the :ref:`system_specific_dev_setup`
+Section.
 
 .. _dev-installation:
 
@@ -35,9 +42,9 @@ repository then doing::
   > git submodule update --init --recursive
 
 will fetch the fparser submodule. Failure to do this will mean that
-for example ``<PSYCLONEHOME>/external/fparser`` directory will be empty. The
-``--recursive`` option is necessary because dl_esm_inf uses submodules
-as well.
+for example the ``<PSYCLONEHOME>/external/fparser`` directory will be
+empty. The ``--recursive`` option is necessary because dl_esm_inf uses
+submodules as well.
 
 Note that after cloning the repository from GitHub, the local copy
 will be on the master branch. If you are working with some other
@@ -63,15 +70,15 @@ install PSyclone itself. Again, the simplest way of doing this is to use
 where ``-e`` requests an 'editable' installation so that changes to
 the PSyclone source are immediately reflected in the installed
 package.  (For alternatives to using pip please see the
-:ref:`getting-going` section.)
+:ref:`user_guide:getting-going` section.)
 
 Test Suite
 ==========
 
 The PSyclone test suite is integral to the development process and all
 new code must be covered (i.e. executed) by one or more tests. As
-described in :ref:`getting-going`, the test suite is written for use
-with ``pytest``.
+described in :ref:`user_guide:getting-going`, the test suite is
+written for use with ``pytest``.
 
 Tests should be run from the ``<PSYCLONEHOME>/src/psyclone`` directory,
 from which all tests in subdirectories (e.g. ``tests``, ``core/tests``)
@@ -296,6 +303,7 @@ extends the `psyclone.psyGen.Schedule` functionality with a Symbol Table
 (`psyclone.psyGen.Symbol`) used in the kernel scope. A Symbol is defined as:
 
 .. autoclass:: psyclone.psyGen.Symbol
+    :members:
 
 
 The Symbol Table has the following interface:

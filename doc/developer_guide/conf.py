@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# psyclone documentation build configuration file, created by
-# sphinx-quickstart on Mon Jan 27 12:50:29 2014.
+# PSyclone developer guide documentation build configuration file, created
+# by sphinx-quickstart on Mon Jan 27 12:50:29 2014.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -12,7 +12,6 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -48,7 +47,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'PSyclone'
+project = u"PSyclone Developers' Guide"
 copyright = u'2017-2019, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -60,10 +59,10 @@ copyright = u'2017-2019, STFC Daresbury Laboratory'
 # using execfile().
 # 'version' is the short X.Y version and 'release' is the full version,
 # including any alpha/beta/rc tags.
-# We are in the doc directory but need to read version.py from
+# We are in the doc/developer_guide directory but need to read version.py from
 # src/psyclone
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-BASE_PATH = os.path.dirname(BASE_PATH)
+BASE_PATH = os.path.dirname(os.path.dirname(BASE_PATH))
 with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as f:
     exec(f.read())
 version = __SHORT_VERSION__
@@ -182,7 +181,7 @@ html_static_path = ['_static']
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'psyclonedoc'
+htmlhelp_basename = 'psyclonedevdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -202,7 +201,7 @@ latex_elements = {
 # (source start file, target name, title, author,
 #  documentclass [howto/manual]).
 latex_documents = [
-    ('index', 'psyclone.tex', u'PSyclone Documentation',
+    ('index', 'psyclone-dev.tex', u"PSyclone Developers' Guide",
      u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter\\\\ and Sergi Siso', 'manual'),
 ]
 
@@ -232,7 +231,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'psyclone', u'PSyclone Documentation',
+    ('index', 'psyclone-dev', u"PSyclone Developers' Guide",
      [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'], 1)
 ]
 
@@ -246,8 +245,9 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    ('index', 'psyclone', u'psyclone Documentation',
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso', 'psyclone',
+    ('index', 'psyclone-dev', u"PSyclone Developers' Guide",
+     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso',
+     'psyclone',
      'A domain-specific compiler for Finite-Element/Volume/Difference models.',
      'Miscellaneous'),
 ]
@@ -265,7 +265,7 @@ texinfo_documents = [
 # -- Options for Epub output -------------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = u'PSyclone'
+epub_title = u"PSyclone Developers' Guide"
 epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'
 epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter and Sergi Siso'
 epub_copyright = u'2017-2019, STFC'
@@ -305,5 +305,8 @@ epub_copyright = u'2017-2019, STFC'
 # epub_tocdup = True
 
 
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'http://docs.python.org/': None}
+# Configuration for intersphinx: refer to the Python standard library
+# Allows us to link to the PSyclone User Guide.
+intersphinx_mapping = {
+    'http://docs.python.org/': None,
+    'user_guide': ('https://psyclone.readthedocs.io/en/latest/', None)}
