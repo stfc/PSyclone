@@ -5616,7 +5616,8 @@ class Fparser2ASTProcessor(object):
                     ifblock.ast_end = node.content[end_idx - 1]
 
                     # Add condition: selector == case
-                    bop = BinaryOperation(BinaryOperation.Operator.EQ, parent=ifblock)
+                    bop = BinaryOperation(BinaryOperation.Operator.EQ,
+                                          parent=ifblock)
 
                     self.process_nodes(parent=bop,
                                        nodes=[selector],
@@ -5693,18 +5694,21 @@ class Fparser2ASTProcessor(object):
         :type node: :py:class:`fparser.two.utils.UnaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyGen.Node`
+
         :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
         '''
-        # Get the operator
+
+        fortranoperators = {
+            '+': UnaryOperation.Operator.PLUS,
+            '-': UnaryOperation.Operator.MINUS,
+            '.not.': UnaryOperation.Operator.NOT
+            }
+
         operator_str = node.items[0].lower()
-        if operator_str == '+':
-            operator = UnaryOperation.Operator.PLUS
-        elif operator_str == '-':
-            operator = UnaryOperation.Operator.MINUS
-        elif operator_str == '.not.':
-            operator = UnaryOperation.Operator.NOT
-        else:
+        try:
+            operator = fortranoperators[operator_str]
+        except KeyError:
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
 
@@ -5725,51 +5729,33 @@ class Fparser2ASTProcessor(object):
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyGen.BinaryOperation`
         '''
-        # Get the operator
+
+        fortranoperators = {
+            '+': BinaryOperation.Operator.ADD,
+            '-': BinaryOperation.Operator.SUB,
+            '*': BinaryOperation.Operator.MUL,
+            '/': BinaryOperation.Operator.DIV,
+            '**': BinaryOperation.Operator.POW,
+            '==': BinaryOperation.Operator.EQ,
+            '.eq.': BinaryOperation.Operator.EQ,
+            '/=': BinaryOperation.Operator.NE,
+            '.ne.': BinaryOperation.Operator.NE,
+            '<=': BinaryOperation.Operator.LE,
+            '.le.': BinaryOperation.Operator.LE,
+            '<': BinaryOperation.Operator.LT,
+            '.lt.': BinaryOperation.Operator.LT,
+            '>=': BinaryOperation.Operator.GE,
+            '.ge.': BinaryOperation.Operator.GE,
+            '>': BinaryOperation.Operator.GT,
+            '.gt.': BinaryOperation.Operator.GT,
+            '.and.': BinaryOperation.Operator.AND,
+            '.or.': BinaryOperation.Operator.OR,
+            }
+
         operator_str = node.items[1].lower()
-        if operator_str == '+':
-            operator = BinaryOperation.Operator.ADD
-        elif operator_str == '-':
-            operator = BinaryOperation.Operator.SUB
-        elif operator_str == '*':
-            operator = BinaryOperation.Operator.MUL
-        elif operator_str == '/':
-            operator = BinaryOperation.Operator.DIV
-        elif operator_str == '**':
-            operator = BinaryOperation.Operator.POW
-        elif operator_str == '==':
-            operator = BinaryOperation.Operator.EQ
-        elif operator_str == '.eq.':
-            operator = BinaryOperation.Operator.EQ
-        elif operator_str == '.eqv.':
-            operator = BinaryOperation.Operator.EQ
-        elif operator_str == '/=':
-            operator = BinaryOperation.Operator.NE
-        elif operator_str == '.ne.':
-            operator = BinaryOperation.Operator.NE
-        elif operator_str == '.neqv.':
-            operator = BinaryOperation.Operator.NE
-        elif operator_str == '<=':
-            operator = BinaryOperation.Operator.LE
-        elif operator_str == '.le.':
-            operator = BinaryOperation.Operator.LE
-        elif operator_str == '<':
-            operator = BinaryOperation.Operator.LT
-        elif operator_str == '.lt.':
-            operator = BinaryOperation.Operator.LT
-        elif operator_str == '>':
-            operator = BinaryOperation.Operator.GT
-        elif operator_str == '.gt.':
-            operator = BinaryOperation.Operator.GT
-        elif operator_str == '>=':
-            operator = BinaryOperation.Operator.GE
-        elif operator_str == '.ge.':
-            operator = BinaryOperation.Operator.GE
-        elif operator_str == '.and.':
-            operator = BinaryOperation.Operator.AND
-        elif operator_str == '.or.':
-            operator = BinaryOperation.Operator.OR
-        else:
+        try:
+            operator = fortranoperators[operator_str]
+        except KeyError:
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str)
 
@@ -5783,7 +5769,9 @@ class Fparser2ASTProcessor(object):
 
     def _name_handler(self, node, parent):
         '''
-        Transforms an fparser2 Name to the PSyIR representation.
+        Transforms an fparser2 Name to the PSyIR representation. If the node
+        is connected to a SymbolTable, it checks the reference has been
+        previously declared.
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Name`
@@ -5824,7 +5812,11 @@ class Fparser2ASTProcessor(object):
 
     def _part_ref_handler(self, node, parent):
         '''
-        Transforms an fparser2 Part_Ref to the PSyIR representation.
+        Transforms an fparser2 Part_Ref to the PSyIR representation. It also
+        resolves Fortran intrinsics parsed as array references. If the node
+        is connected to a SymbolTable, it checks the reference has been
+        previously declared.
+
 
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -5837,8 +5829,9 @@ class Fparser2ASTProcessor(object):
 
         reference_name = node.items[0].string.lower()
 
-        # Intrinsics are wrongly parsed as arrays by fparser2, we can
-        # fix the issue here and convert them to appropiate PSyIR nodes.
+        # Intrinsics are wrongly parsed as arrays by fparser2 (fparser issue
+        # #189), we can fix the issue here and convert them to appropiate PSyIR
+        # nodes.
         if reference_name == 'sign':
             bop = BinaryOperation(BinaryOperation.Operator.SIGN, parent)
             self.process_nodes(parent=bop, nodes=[node.items[1].items[0]],
@@ -6625,10 +6618,24 @@ class UnaryOperation(Node):
                                   "child, but found {0}."
                                   "".format(len(self.children)))
 
-        def operator_format(operator_str, expression_str):
-            return "(" + operator_str + expression_str + ")"
+        def operator_format(operator_str, expr_str):
+            '''
+            :param str operator_str: String representing the operator.
+            :param str expr_str: String representation of the operand.
 
-        def function_format(function_str, expression_str):
+            :returns: C language operator expression.
+            :rtype: str
+            '''
+            return "(" + operator_str + expr_str + ")"
+
+        def function_format(function_str, expr_str):
+            '''
+            :param str function_str: Name of the function.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language unary function expression.
+            :rtype: str
+            '''
             return function_str + "(" + expression_str + ")"
 
         opmap = {
@@ -6733,9 +6740,25 @@ class BinaryOperation(Node):
                                   "".format(len(self.children)))
 
         def operator_format(operator_str,  expr1, expr2):
+            '''
+            :param str operator_str: String representing the operator.
+            :param str expr1: String representation of the LHS operand.
+            :param str expr2: String representation of the RHS operand.
+
+            :returns: C language operator expression.
+            :rtype: str
+            '''
             return "(" + expr1 + " " + operator_str + " " + expr2 + ")"
 
         def function_format(function_str, expr1, expr2):
+            '''
+            :param str function_str: Name of the function.
+            :param str expr1: String representation of the first operand.
+            :param str expr2: String representation of the second operand.
+
+            :returns: C language binary function expression.
+            :rtype: str
+            '''
             return function_str + "(" + expr1 + ", " + expr2 + ")"
 
         opmap = {

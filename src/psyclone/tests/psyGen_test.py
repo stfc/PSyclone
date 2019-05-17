@@ -3031,8 +3031,9 @@ def test_binaryoperation_gen_c_code():
         binary_operation._operator = operator
         assert binary_operation.gen_c_code() == expected
 
-    # Test that an unsupported operator raises a GenerationError
+    # Test that an unsupported operator raises a error
     class Unsupported():
+        '''Dummy class'''
         pass
     binary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
@@ -3107,8 +3108,9 @@ def test_unaryoperation_gen_c_code():
         unary_operation._operator = operator
         assert unary_operation.gen_c_code() == expected
 
-    # Test that an unsupported operator raises a GenerationError
+    # Test that an unsupported operator raises a error
     class Unsupported():
+        '''Dummy class'''
         pass
     unary_operation._operator = Unsupported
     with pytest.raises(NotImplementedError) as err:
@@ -4066,8 +4068,8 @@ def test_fparser2astprocessor_handling_part_ref(f2008_parser):
 
 
 def test_fparser2astprocessor_handling_intrinsics(f2008_parser):
-    ''' Test that fparser2 Part_Ref what should instead be intrinsics and
-    are supported by PSyIR are handled appropietly.
+    ''' Test that fparser2 Part_Ref nodes that in reality are Fortran
+    Intrinsics are handled appropietly.
     '''
     from fparser.common.readfortran import FortranStringReader
     from fparser.two.Fortran2003 import Execution_Part
@@ -4424,10 +4426,8 @@ def test_fparser2astprocessor_handling_binaryopbase(f2008_parser):
                 ('==', BinaryOperation.Operator.EQ),
                 ('.eq.', BinaryOperation.Operator.EQ),
                 ('.EQ.', BinaryOperation.Operator.EQ),
-                ('.eqv.', BinaryOperation.Operator.EQ),
                 ('/=', BinaryOperation.Operator.NE),
                 ('.ne.', BinaryOperation.Operator.NE),
-                ('.NEQV.', BinaryOperation.Operator.NE),
                 ('>', BinaryOperation.Operator.GT),
                 ('.GT.', BinaryOperation.Operator.GT),
                 ('<', BinaryOperation.Operator.LT),
