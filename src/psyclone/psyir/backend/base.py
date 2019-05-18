@@ -108,29 +108,45 @@ class PSyIRVisitor(object):
         return self._depth * self._indent
 
     def visit(self, node):
-        '''Implements the PSyIR callbacks. Callbacks are implemented by
-        using the name of class of the object in the PSyIR tree as the
-        method name. Names are not modified, other than making them
-        lower case, apart from the `Return` class which is changed to
-        `return_node` because `return` is a Python keyword.
+        '''Implements the PSyIR callbacks. Callbacks are implemented by using
+        the class hierarchy names of the object in the PSyIR tree as
+        the candidate method names. The class name of the object is
+        tried first, then the class name of its parent, and so on
+        until there are no more parent classes. Names are not
+        modified, other than making them lower case, apart from the
+        `Return` class which is changed to `return_node` because
+        `return` is a Python keyword.
 
         :param node: A PSyIR node.
         :type node: :py:class:`psyclone.psyGen.Node`
 
         :raises VisitorError: if a node is found that does not have \
-        associated call back method (and skip_nodes is not set).
+        associated call back methods (and skip_nodes is not set).
 
         '''
-        node_name = type(node).__name__.lower()
-        if node_name == "return":
-            node_name = "return_node"
-        try:
-            return eval("self.{0}(node)".format(node_name))
-        except AttributeError as excinfo:
-            message = "Unsupported node found: {0}".format(str(excinfo))
-            if self._skip_nodes:
-                print(message)
-                for child in node.children:
-                    self.visit(child)
-            else:
-                raise VisitorError(message)
+        # Make a list of the nodes class name and the names of its
+        # parent classes.
+        possible_method_names = []
+        possible_method_names.append(type(node).__name__.lower())
+        for curr_class in type(node).__bases__:
+            possible_method_names.append(curr_class.__name__.lower())
+
+        # Try to call methods using the class names in the order of
+        # the class hierarchy.
+        for method_name in possible_method_names:
+            if method_name == "return":
+                method_name = "return_node"
+            try:
+                return eval("self.{0}(node)".format(method_name))
+            except AttributeError:
+                pass
+
+        message = ("Unsupported node '{0}' found: method names attempted "
+                   "were {1}".format(type(node).__name__,
+                                     str(possible_method_names)))
+        if self._skip_nodes:
+            print(message)
+            for child in node.children:
+                self.visit(child)
+        else:
+            raise VisitorError(message)

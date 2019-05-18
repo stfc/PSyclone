@@ -38,8 +38,8 @@ transformed into the PSyIR can be transformed back into Fortran by
 using the FortranPSyIRVisitor class.
 
 '''
-from psyclone.psyir.backend.fortran import FortranPSyIRVisitor
 from __future__ import print_function
+from psyclone.psyir.backend.fortran import FortranPSyIRVisitor
 
 
 def trans(psy):

@@ -209,19 +209,6 @@ class FortranPSyIRVisitor(PSyIRVisitor):
             "".format(self._nindent, node.name+"_mod"))
         return result
 
-    def gokernelschedule(self, node):
-        '''The gocean api subclasses the KernelSchedule class, so just call
-        the kernelschedule method.
-
-        :param node: a GOKernelSchedule PSyIR node.
-        :type node: :py:class:`psyclone.psyGen.GOKernelSchedule`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        '''
-        return self.kernelschedule(node)
-
     def assignment(self, node):
         '''This method is called when an Assignment instance is found in the
         PSyIR tree.
