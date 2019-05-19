@@ -1648,10 +1648,10 @@ been migrated from using `fparser1` to using `fparser2`. In
 recognition of this change a new version of `adduse` has been
 developed which adds use statements to an existing `fparser2` parse
 tree. For the timebeing this new version is located in the same file
-it is used - `algGen.py` - but will be migrated to `f2pygen` (or
+it is used - `alg_gen.py` - but will be migrated to `f2pygen` (or
 equivalent) in the future:
 
-.. autofunction:: psyclone.algGen.adduse
+.. autofunction:: psyclone.alg_gen.adduse
 
 
 .. _dev_configuration:
