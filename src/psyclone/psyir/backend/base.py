@@ -40,6 +40,7 @@ back ends.
 # pylint: disable=eval-used
 
 from __future__ import print_function
+from psyclone.psyGen import Node
 
 
 class VisitorError(Exception):
@@ -80,16 +81,20 @@ class PSyIRVisitor(object):
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
-                "skip_nodes should be a boolean but found '{0}'"
+                "skip_nodes should be a boolean but found '{0}'."
                 "".format(type(skip_nodes).__name__))
         if indent is not None and not isinstance(indent, str):
             raise TypeError(
-                "indent should be a str but found '{0}'"
+                "indent should be a str but found '{0}'."
                 "".format(type(indent).__name__))
         if not isinstance(start_depth, int):
             raise TypeError(
-                "start_depth should be an integer but found '{0}'"
+                "start_depth should be an integer but found '{0}'."
                 "".format(type(start_depth).__name__))
+        if start_depth < 0:
+            raise TypeError(
+                "start_depth should not be negative, but found '{0}'."
+                "".format(start_depth))
 
         self._skip_nodes = skip_nodes
         if indent is None:
@@ -124,15 +129,19 @@ class PSyIRVisitor(object):
         associated call back methods (and skip_nodes is not set).
 
         '''
-        # Make a list of the nodes class name and the names of its
-        # parent classes.
-        possible_method_names = []
-        possible_method_names.append(type(node).__name__.lower())
-        for curr_class in type(node).__bases__:
-            possible_method_names.append(curr_class.__name__.lower())
+        if not isinstance(node, Node):
+            raise VisitorError(
+                "Expected argument to be of type 'Node' but found '{0}'."
+                "".format(type(node).__name__))
+
+        # Make a list of the node's ancestor classes (including
+        # itself) in method resolution order (mro).
+        import inspect
+        possible_method_names = [curr_class.__name__.lower() for curr_class \
+                                 in inspect.getmro(type(node))]
 
         # Try to call methods using the class names in the order of
-        # the class hierarchy.
+        # the class hierarchy (starting from the current class name).
         for method_name in possible_method_names:
             if method_name == "return":
                 method_name = "return_node"
@@ -141,12 +150,10 @@ class PSyIRVisitor(object):
             except AttributeError:
                 pass
 
-        message = ("Unsupported node '{0}' found: method names attempted "
-                   "were {1}".format(type(node).__name__,
-                                     str(possible_method_names)))
         if self._skip_nodes:
-            print(message)
             for child in node.children:
                 self.visit(child)
         else:
-            raise VisitorError(message)
+            raise VisitorError(
+                "Unsupported node '{0}' found: method names attempted were "
+                "{1}.".format(type(node).__name__, str(possible_method_names)))

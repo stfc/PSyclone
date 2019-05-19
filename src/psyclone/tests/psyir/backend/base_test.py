@@ -34,9 +34,10 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''Performs py.test tests on the psyclond.psyir.backend.base module'''
+'''Performs pytest tests on the psyclond.psyir.backend.base module'''
 
-from psyclone.psyir.backend.base import PSyIRVisitor
+from psyclone.psyir.backend.base import PSyIRVisitor, VisitorError
+from psyclone.psyGen import Node
 import pytest
 
 
@@ -101,3 +102,113 @@ def test_psyirvisitor_init_error4():
     assert "start_depth should not be negative, but found '-1'." \
         in str(excinfo.value)
 
+
+def test_psyirvisitor_nindent():
+    '''Check that the PSyIRVisitor _nindent method returns the product of
+    the supplied depth and indent values.
+
+    '''
+    visitor = PSyIRVisitor(indent=" ", start_depth=4)
+    assert visitor._nindent == "    "
+
+
+def test_psyirvisitor_visit_arg_error():
+    '''Check that an exception is raised if the argument to the
+    PSyIRVisitor visit method is not a Node or subclass of Node.
+
+    '''
+    visitor = PSyIRVisitor(indent=" ", start_depth=4)
+    with pytest.raises(VisitorError) as excinfo:
+        visitor.visit("hello")
+    assert ("Visitor Error: Expected argument to be of type 'Node' but found "
+            "'str'." in str(excinfo.value))
+
+    
+def test_psyirvisitor_visit_no_method1():
+    '''Check that an exception is raised if the method for the Node class
+    does not exist.
+
+    '''
+    visitor = PSyIRVisitor()
+    with pytest.raises(VisitorError) as excinfo:
+        visitor.visit(Node())
+    assert (
+        "Visitor Error: Unsupported node 'Node' found: method names "
+        "attempted were ['node', 'object']." in str(excinfo.value))
+
+
+def test_psyirvisitor_visit_no_method2():
+    '''Check that an exception is not raised if the method for the Node class
+    does not exist and skip_nodes is set to True.
+
+    '''
+    visitor = PSyIRVisitor(skip_nodes=True)
+    result = visitor.visit(Node())
+    assert result is None
+
+
+def test_psyirvisitor_visit_all_parents():
+    '''Check that the names of the class and all ancestors of the class
+    are tried when looking to find a method.
+
+    '''
+    class Unsupported(Node):
+        '''Subclass of node used to check that the names of all ancestors of a
+        node are called as methods, in method resolution order (mro).
+
+        '''
+    visitor = PSyIRVisitor()
+    with pytest.raises(VisitorError) as excinfo:
+        visitor.visit(Unsupported())
+    assert (
+        "Visitor Error: Unsupported node 'Unsupported' found: method names "
+        "attempted were ['unsupported', 'node', 'object']."
+        "" in str(excinfo.value))
+
+
+def test_psyirvisitor_visit_skip_nodes(capsys):
+    '''Check that when the skip_nodes variable is set to true then child
+    nodes are called irrespective of whether a parent node has a
+    corresponding match in the visitor class.
+
+    '''
+    class TestVisitor(PSyIRVisitor):
+        '''Subclass of PSyIRVisitor used to check that the skip_nodes variable
+        works as expected.
+
+        '''
+        def testnode2(self, node):
+            '''Match with class TestNode2. The print is used to check that this
+            method is called.
+
+            '''
+            print("testnode2 called")
+
+    class TestNode1(Node):
+        '''Subclass of Node used to check that the skip_nodes variable in
+        TestVisitor works correctly.
+
+        '''
+
+    class TestNode2(Node):
+        '''Subclass of Node used to check that the skip_nodes variable in
+        TestVisitor works correctly.
+
+        '''
+
+    # Create a simple Node hierachy with an instance of class
+    # TestNode2 being the child of an instance of class TestNode1.
+    test_node2 = TestNode2()
+    test_node1 = TestNode1(children=[test_node2])
+
+    # Visit the node hierarchy skipping the parent node (an instance
+    # of class TestNode1) then visiting the child node (an instance of
+    # class TestNode2) if setting skip_nodes to True works as
+    # expected.
+    test_visitor = TestVisitor(skip_nodes=True)
+    _ = test_visitor.visit(test_node1)
+
+    # Success, the child node (an instance of class TestNode2) has
+    # been visited.
+    output, _ = capsys.readouterr()
+    assert output == "testnode2 called\n"
