@@ -134,23 +134,6 @@ def test_psyfactory_valid_dm_flag():
     _ = PSyFactory(distributed_memory=False)
 
 
-# PSy class unit tests
-
-def test_psy_base_err(monkeypatch):
-    ''' Check that we cannot call gen or psy_module on the base class
-    directly '''
-    # We have no easy way to create the extra information which
-    # the PSy constructor requires. Therefore, we use a PSyFactory
-    # object and monkey-patch it so that it has a name attribute.
-    factory = PSyFactory()
-    monkeypatch.setattr(factory, "name",
-                        value="fred", raising=False)
-    psy = PSy(factory)
-    with pytest.raises(NotImplementedError) as excinfo:
-        _ = psy.gen
-    assert "must be implemented by subclass" in str(excinfo)
-
-
 # Transformation class unit tests
 
 def test_base_class_not_callable():

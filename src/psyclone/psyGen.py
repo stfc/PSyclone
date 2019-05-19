@@ -355,9 +355,12 @@ class PSy(object):
         return "psy_"+self._name
 
     @property
+    @abc.abstractmethod
     def gen(self):
-        raise NotImplementedError("Error: PSy.gen() must be implemented "
-                                  "by subclass")
+        '''Abstract base class for code generation function.
+        :param parent: the parent of this Node in the PSyIR.
+        :type parent: :py:class:`psyclone.psyGen.Node`.
+        '''
 
     def inline(self, module):
         ''' inline all kernel subroutines into the module that are marked for
