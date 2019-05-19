@@ -41,7 +41,6 @@
 
 from __future__ import print_function, absolute_import
 import abc
-from enum import Enum
 import six
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
