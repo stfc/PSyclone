@@ -1264,13 +1264,11 @@ class Node(object):
             my_depth += 1
         return my_depth
 
+    @abc.abstractmethod
     def view(self, indent=0):
         '''Abstract function to prints a text representation of the node.
         :param int indent: depth of indent for output text.
         '''
-
-        raise NotImplementedError("BaseClass of a Node must implement the "
-                                  "view method")
 
     @staticmethod
     def indent(count, indent=INDENTATION_STRING):
